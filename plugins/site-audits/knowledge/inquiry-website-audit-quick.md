@@ -47,7 +47,7 @@ Run these in parallel when possible:
 | `lighthouse_audit` | Performance scores (mobile + desktop). Quick tier: pass `category: "performance"` only — 2 PSI calls, not 8 |
 | `ssl_check` | Certificate expiry, TLS, security headers |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** |
-| `brave_search` | Google Business Profile / Google Places, Apple Business Connect / Apple Maps, Yelp, Bing Places, reviews/reputation, social handles, hours conflicts |
+| `brave_search` | After scanning `fetch_url` HTML for profile links: `"{business}" site:instagram.com` (and facebook, youtube, nextdoor, tiktok, yelp, tripadvisor, linkedin, x.com, …). No site link = half fail. No matching profile = full fail. Also GBP / Apple Maps / reviews / hours. |
 
 **Do not run in quick tier:** `playwright_audit`, `check_links`, `detect_tech_stack` (save for full audit).
 
@@ -136,13 +136,15 @@ Same section order as the full audit, but **omit Broken Links** (or note "Not cr
 - If shared/budget host + lean build + poor Lighthouse, note **server resource issue** under Performance (no separate hosting grade)
 
 ### Online Presence
-Write one bullet per channel (the client portal rolls Google / Apple / Yelp / Bing into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
-- Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {notes}
-- Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps notes}
-- Yelp: {Found / Missing / Incomplete} — {notes}
-- Bing Places: {Found / Missing / Incomplete} — {notes}
+Score each network the same way the sales-sheet directory grid does:
+1. Scan `fetch_url` HTML for a profile `<a href>`. A link from the website is a **pass**.
+2. No link from the website is a **half fail**. Then `brave_search` `"{Business Name}" site:instagram.com` (repeat for facebook.com, youtube.com, nextdoor.com, tiktok.com, yelp.com, tripadvisor.com, linkedin.com, x.com / twitter.com, and any other major app still unlinked).
+3. A name-matching handle or listing with no site link stays a **half fail**. No matching profile is a **full fail**.
+
+Write one bullet per channel with that verdict (Linked from site / Exists, not linked / Missing):
+- Google Business Profile, Apple Business Connect, Yelp, Bing Places
+- Instagram, Facebook, YouTube, Nextdoor, TikTok, and any other network you checked
 - Reviews: {platform, stars, count} — {notes}
-- Social: {Instagram / Facebook / other}
 
 **Google Places API (contact create):** When Places returns no business-name match (`placesListing.status = "not_listed"`), you MUST write:
 `Google Business Profile: Missing — {Business Name} is not listed in the Google Places API (no business match found).`

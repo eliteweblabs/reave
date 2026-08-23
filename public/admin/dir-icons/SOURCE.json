@@ -1,0 +1,143 @@
+[
+  {
+    "slug": "yelp",
+    "name": "Yelp: Food, Services & Reviews",
+    "id": 284910350,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a9/a2/97/a9a297b9-49a9-b478-e17f-a96777a47f9c/AppIcon-0-0-1x_U007epad-0-11-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "bing",
+    "name": "Microsoft Bing Search",
+    "id": 345323231,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/41/b4/e7/41b4e716-ecde-7138-1731-7c1af555b992/AppIcon-0-0-1x_U007epad-0-1-0-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "apple",
+    "name": "Apple Maps",
+    "id": 915056765,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/67/05/f8/6705f876-0db2-711d-0d42-524ef6432165/maps-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "googlemaps",
+    "name": "Google Maps",
+    "id": 585027354,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/4e/d3/e2/4ed3e273-5114-70b7-b919-dca325bee1aa/maps_2025-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-0-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "facebook",
+    "name": "Facebook",
+    "id": 284882215,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c4/f1/cb/c4f1cb18-b290-388f-2a08-dc590d5fd457/Icon-Production-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "tripadvisor",
+    "name": "Tripadvisor: Plan & Book Trips",
+    "id": 284876795,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/de/bb/37/debb37e1-297b-9336-cb52-2a063040d7ca/AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "nextdoor",
+    "name": "Nextdoor: Neighborhood Network",
+    "id": 640360962,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/1d/65/e1/1d65e14b-48a8-46db-aef1-c89e503d60e9/AppIcon-0-0-1x_U007epad-0-11-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "thumbtack",
+    "name": "Thumbtack: Home Service Pros",
+    "id": 852703300,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/8f/48/8a/8f488afb-5a99-875a-6093-2cabbd1ad260/AppIcon-0-0-1x_U007ephone-0-1-0-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "instagram",
+    "name": "Instagram",
+    "id": 389801252,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a5/5c/ce/a55cce34-2819-a03f-45d3-3993ea6d7ea2/Prod-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "youtube",
+    "name": "YouTube",
+    "id": 544007664,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/98/7c/9a/987c9a66-ffa1-de65-0e55-e6eaa817c19a/logo_youtube_2024_q4_color-0-0-1x_U007emarketing-0-0-0-7-0-0-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "tiktok",
+    "name": "TikTok - Videos, Shop & LIVE",
+    "id": 835599320,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/04/30/09/043009e2-9f6a-1671-c5af-ba6b7b52d994/TikTok_AppIcon26-0-0-1x_U007epad-0-1-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "linkedin",
+    "name": "LinkedIn: Community & Network",
+    "id": 288429040,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/62/e6/8a/62e68aeb-a180-38bf-1803-46c9a812a30d/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "waze",
+    "name": "Waze Navigation & Live Traffic",
+    "id": 323229106,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/de/d9/f3/ded9f34a-3f56-fab1-c2d6-813223f363a8/AppIcon-0-0-1x_U007epad-0-1-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "google",
+    "name": "Google",
+    "id": 284815942,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/53/2f/d3/532fd352-6146-89e2-f3cc-0196f3c69da6/SuperG_ios26-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-0-0-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "whatsapp",
+    "name": "WhatsApp Messenger",
+    "id": 310633997,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d6/43/38/d6433852-f8aa-dce6-7e6a-1f0c0c10633f/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "snapchat",
+    "name": "Snapchat",
+    "id": 447188370,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/14/77/ea/1477eaf6-2536-3dc0-a88d-796b0d70363f/AppIcon-0-0-1x_U007epad-0-1-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "pinterest",
+    "name": "Pinterest",
+    "id": 429047995,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ea/26/45/ea2645f9-6f55-58a5-4e47-05b15eced8ec/AppIcon-0-0-1x_U007epad-0-1-0-0-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "x",
+    "name": "X",
+    "id": 333903271,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e0/2d/39/e02d39e9-0bbb-c666-a51e-dc96634a3135/ProductionAppIcon-0-0-1x_U007emarketing-0-8-0-0-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "foursquare",
+    "name": "Swarm: Check In, Explore, Map",
+    "id": 870161082,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/c0/22/86/c0228643-9ede-6b18-1e7f-28406d47281e/AppIcon-0-0-1x_U007emarketing-0-6-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "threads",
+    "name": "Threads",
+    "id": 6446901002,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/43/bc/a9/43bca98d-e80b-622d-8508-9969619fe490/Prod-0-0-1x_U007ephone-0-0-0-1-0-0-P3-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "angi",
+    "name": "Angi: Find Local Home Services",
+    "id": 432633172,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/cf/5c/95/cf5c95db-86f9-034f-a28d-0125cb572f11/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "houzz",
+    "name": "Houzz",
+    "id": 399563465
+  },
+  {
+    "slug": "reddit",
+    "name": "Reddit"
+  },
+  {
+    "slug": "yellowpages",
+    "name": "The Real Yellow Pages - YP",
+    "id": 284806204,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d1/cb/3d/d1cb3d87-1684-61c8-3d8a-2b20b9cb73a7/AppIcon-0-0-1x_U007emarketing-0-10-0-0-sRGB-85-220.png/1024x1024bb.png"
+  }
+]

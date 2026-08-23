@@ -246,7 +246,7 @@ async function runProposalResearch(input: {
   const tierLabel = input.tier === 'full' ? 'Full audit' : 'Quick audit (street)';
 
   const directorySearch =
-    'Google Business Profile / Google Places, Apple Business Connect / Apple Maps, Yelp, Bing Places, reviews/reputation, social';
+    'scan homepage links first; then "{business}" site:instagram.com / facebook / youtube / nextdoor / tiktok / yelp / … — no site link = half fail, no matching profile = full fail; also GBP / Apple Maps / reviews';
 
   const auditToolsStep =
     input.tier === 'full'
@@ -259,7 +259,10 @@ async function runProposalResearch(input: {
         'If any analytics tool returns ANALYTICS_FAILED, mark Search / Analytics as Failed in the markdown and do NOT invent metrics; continue other sections. ' +
         'Analytics & Conversion Tracking is client-facing: report only whether tracking snippets are installed on the website (detect_tech_stack / fetch_url HTML). Never mention owned property, Search Console access, or that we do not control the domain. ' +
         'In the SEO and Search Rich Results sections, quote seo_inventory findings and copy Problem → Impact pitches into Opportunities. ' +
-        'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places so the Maps & Directories score stays accurate.'
+        'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places so the Maps & Directories score stays accurate. ' +
+        'For Instagram, Facebook, YouTube, Nextdoor, TikTok, and the other major apps: first scan fetch_url HTML for profile links. ' +
+        'No link from the website is a **half fail**. Then brave_search `"{business}" site:instagram.com` (and the same for each missing network). ' +
+        'A name-matching profile with no site link stays a half fail. No profile at all is a **full fail**.'
       : '3. Run the **quick** audit tool sequence on the website (street-speed — skip slow tools): fetch_url, seo_inventory ' +
         '(og:image, robots.txt, sitemap, manifest, favicon, canonical, JSON-LD — required for customer pitches), ' +
         'lighthouse_audit (category **performance** only — saves PSI quota), ssl_check, dns_check, and brave_search ' +
@@ -268,7 +271,8 @@ async function runProposalResearch(input: {
         'then go to step 4. Call lighthouse_audit **once** — if it fails, proceed anyway; do NOT retry. ' +
         'Quote seo_inventory checklist items and Problem → Impact pitches in SEO / Opportunities. ' +
         'Analytics & Conversion Tracking is client-facing: scan fetch_url HTML for gtag / GTM / Plausible / Meta Pixel and list what is installed, or write that none were found. Never mention owned property or Search Console access. ' +
-        'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places.';
+        'In Online Presence, write **separate bullets** for Google Business Profile, Apple Business Connect, Yelp, and Bing Places. ' +
+        'Scan the homepage for social / directory links. No site link = half fail; brave_search the platform by business name; no matching profile = full fail.';
 
   const placesLines: string[] = [];
   if (input.placesListing?.status === 'not_listed') {

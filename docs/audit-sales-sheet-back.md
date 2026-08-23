@@ -41,7 +41,8 @@ The back keeps a white sheet over `/reave-bg-pattern.svg` at **5% black**
 Header / four iPhone exhibits across / caption under each / snapshot strip /
 footer. Logo left, QR right.
 
-The phones are the first four cascade hits. Each screen is a visual of the
+Directory coverage is always the first iPhone (24 official app icons). The
+other three phones are the next cascade hits. Each screen is a visual of the
 problem (Not Secure bar, Safari cannot open, missing Places SERP, and so on).
 Working Maps listings are not shown. There is no Next steps column.
 
@@ -74,7 +75,7 @@ bind on landscape.
 
 ## Cascade of terribleness (what the front picks)
 
-Walk rank 1 → N. First four hits become the four iPhone exhibits.
+Directory coverage is **always phone 1** (24 official iOS app icons). Walk rank 1 → N for the other three.
 
 | Rank | Finding | Sheet (what to draw) |
 | ---: | --- | --- |
@@ -92,7 +93,7 @@ Walk rank 1 → N. First four hits become the four iPhone exhibits.
 | 12 | Apple Maps | iPhone Maps search, no pin for them, competitors showing. |
 | 13 | No Reviews | Listing card with a blank or near-zero review count. |
 | 14 | Poor Reviews | Live star rating plus two or three of the worst recent reviews. |
-| 15 | Directories | 2×4 grid (Yelp, Bing, Apple, Maps, Facebook, Tripadvisor, Nextdoor, Thumbtack). Live Places flag + audit notes drive color / check vs gray / X. Official Simple Icons marks. |
+| 15 | Directories | Sticky first. 4×6 of official App Store icons from the **Industry icon group** (only General local today; music / restaurant packs later). Site link = color + green bubble; name-match only = color + amber minus; nothing = gray + red X. |
 | 16 | Wrong Hours | Google hours next to the real hours (or “Closed” when they are open). |
 | 17 | Duplicate Listings | Two Google results for the same business, or a suspended listing. |
 | 18 | Not Public | Password wall, coming-soon, or staging page. |

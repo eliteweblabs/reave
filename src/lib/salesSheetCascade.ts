@@ -264,7 +264,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 15,
     categoryLabel: 'Directories',
     sheet:
-      'A small grid of Google / Apple / Yelp / Bing with claimed vs missing — empty slots are the point.',
+      'Sticky first iPhone: 24 official app icons. Site link = pass, name-match only = half-fail, nothing = full fail.',
     match: (ctx) =>
       /yelp.{0,30}(?:missing|not found)|bing places.{0,30}(?:missing|not found)|thin (?:directory|listing) coverage/.test(
         ctx.lower,

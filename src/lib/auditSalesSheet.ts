@@ -22,6 +22,7 @@ import {
   selectCascadeFindings,
   type CascadeFinding,
 } from './salesSheetCascade';
+import { pinDirectoryCoverageFirst } from './salesSheetDirectories';
 import {
   GOOGLE_MOBILE_ABANDON_3S,
   resolveSalesSheetCitations,
@@ -92,6 +93,12 @@ export const DUMMY_SALES_SHEET: AuditSalesSheetInput = {
   ],
   findings: [
     {
+      id: 'directories',
+      categoryLabel: 'Directories',
+      problem: 'Most of the places customers look still have no listing — or no link from the website.',
+      solution: 'Link every live profile from the site, then claim the rest so a name search finds you.',
+    },
+    {
       id: 'dummy-speed',
       categoryLabel: 'Site Speed',
       problem: siteSpeedResearchProblem({
@@ -112,12 +119,6 @@ export const DUMMY_SALES_SHEET: AuditSalesSheetInput = {
       categoryLabel: 'SEO Fundamentals',
       problem: 'Title tags and Open Graph are incomplete, so shares look unfinished.',
       solution: 'Finish titles, meta, and share cards so every link looks like the brand.',
-    },
-    {
-      id: 'dummy-offer',
-      categoryLabel: 'No Offer',
-      problem: 'The homepage does not tell you what they do or what to do next.',
-      solution: 'Rewrite the hero with one offer and one action.',
     },
   ],
 };
@@ -345,7 +346,9 @@ export function salesSheetInputFromReportCard(
     },
     SALES_SHEET_FINDING_POOL,
   );
-  let findings = fillFindingsFromIdeas(cascadeHits.map(toSheetFinding), card.ideas);
+  let findings = pinDirectoryCoverageFirst(
+    fillFindingsFromIdeas(cascadeHits.map(toSheetFinding), card.ideas),
+  );
   let visibility = categoryGrade(card, 'local_listings') || categoryGrade(card, 'seo');
   if (opts?.googlePlacesListed === false) visibility = 'F';
   const lead = findings[0];

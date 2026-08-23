@@ -52,7 +52,7 @@ When filling the contact: `first_name` / `last_name` only if a real person was f
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS, **hosting company from IP lookup** (public resolvers — can lag after NS changes) |
 | `cloudflare_dns` | When DNS is in Cloudflare: verify zone, list records, fix SPF/DMARC; `get_ssl_mode` / `set_ssl_mode` for Error 525 (set `flexible` when origin cert is broken — same turn, no dashboard handoff) |
-| `brave_search` | Google Business Profile / Google Places, Apple Business Connect / Apple Maps, Yelp, Bing Places, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
+| `brave_search` | After scanning `fetch_url` HTML for profile links: `"{business}" site:instagram.com` (and facebook, youtube, nextdoor, tiktok, yelp, tripadvisor, linkedin, x.com, …). No site link = half fail. No matching profile = full fail. Also GBP / Apple Maps / reviews / hours / "permanently closed". |
 | `playwright_audit` | Real-browser UX/UI (Playwright / Chromium): nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
 | `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
 | `gsc_search_analytics` / `gsc_inspect_url` / `gsc_list_sitemaps` | Search Console performance + index status (**full tier**; requires connected Google). Always pass explicit `site_url`. |
@@ -187,13 +187,15 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 - When `dns_check.hosting.attribute_slow_speed_to_resources` is true (shared/budget host + lean build + poor Lighthouse), note a **server resource issue** under Performance — not a separate hosting grade
 
 ### Online Presence
-Write one bullet per channel (the client portal rolls Google / Apple / Yelp / Bing into one **Maps & Directories** coverage score — separate bullets keep that score accurate):
-- Google Business Profile: {Found / Missing / Incomplete / Not claimed} — {hours, photos, categories, NAP consistency}
-- Apple Business Connect: {Found / Missing / Not claimed} — {Apple Maps listing notes}
-- Yelp: {Found / Missing / Incomplete} — {rating, review count, claim status}
-- Bing Places: {Found / Missing / Incomplete} — {listing notes}
+Score each network the same way the sales-sheet directory grid does:
+1. Scan `fetch_url` HTML for a profile `<a href>`. A link from the website is a **pass**.
+2. No link from the website is a **half fail**. Then `brave_search` `"{Business Name}" site:instagram.com` (repeat for facebook.com, youtube.com, nextdoor.com, tiktok.com, yelp.com, tripadvisor.com, linkedin.com, x.com / twitter.com, and any other major app still unlinked).
+3. A name-matching handle or listing with no site link stays a **half fail**. No matching profile is a **full fail**.
+
+Write one bullet per channel with that verdict (Linked from site / Exists, not linked / Missing):
+- Google Business Profile, Apple Business Connect, Yelp, Bing Places — {hours, photos, NAP}
+- Instagram, Facebook, YouTube, Nextdoor, TikTok, and any other network you checked
 - Reviews: {platform, star rating, review count} — {reputation notes}
-- Social: {Instagram / Facebook / other handles and activity}
 - {Hours inconsistencies across platforms}
 
 **Google Places API (contact create):** When `create_contact` / contact enrichment returns `placesListing.status = "not_listed"` (no business-name match), you MUST write:

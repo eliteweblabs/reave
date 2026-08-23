@@ -55,7 +55,20 @@ import {
   renderSalesSheetHeaderHeroHtml,
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
-import { listedDirectorySlugs } from '../src/lib/salesSheetDirectories.ts';
+import {
+  DIRECTORY_ICON_GROUPS,
+  DIRECTORY_SLUGS,
+  checksFromSignals,
+  directorySlugsForGroup,
+  listedDirectorySlugs,
+  parseDirectoryIconGroup,
+  pinDirectoryCoverageFirst,
+  profileLooksLikeBusiness,
+  scoreDirectory,
+  slugFromProfileUrl,
+  slugsLinkedFromHtml,
+  summarizeDirectoryChecks,
+} from '../src/lib/salesSheetDirectories.ts';
 import { auditUrlShotLooksDown, auditUrlShotLooksInsecure } from '../src/lib/salesSheetPlacesShot.ts';
 
 const results: string[] = [];
@@ -244,7 +257,12 @@ await test('salesSheetInputFromReportCard maps authored opportunities', () => {
   });
   assert.equal(input.website, 'haleco.example');
   assert.ok(input.findings.length >= 3 && input.findings.length <= 8);
-  assert.match(input.findings[0]?.problem ?? '', /Google Business|not listed|Missing from Google|not listed on Google/i);
+  assert.equal(input.findings[0]?.id, 'directories');
+  assert.ok(
+    input.findings.some((f) =>
+      /Google Business|not listed|Missing from Google|not listed on Google/i.test(f.problem),
+    ),
+  );
   assert.ok(input.performance === 'D' || input.performance === 'F');
 });
 
@@ -388,7 +406,8 @@ await test('salesSheetInputFromReportCard pins Places miss when flag is false', 
   const input = salesSheetInputFromReportCard(card, DUMMY_SALES_SHEET.contact, {
     googlePlacesListed: false,
   });
-  assert.equal(input.findings[0]?.id, 'places-not-listed');
+  assert.equal(input.findings[0]?.id, 'directories');
+  assert.ok(input.findings.some((f) => f.id === 'places-not-listed'));
   assert.equal(input.visibility, 'F');
 });
 
@@ -432,8 +451,9 @@ The fix: We need to update your website's security certificate.
   );
   assert.equal(input.website, 'calareneesalon.com');
   assert.equal(input.security, 'F');
-  assert.equal(input.findings[0]?.id, 'ssl-missing');
-  assert.equal(input.findings[1]?.id, 'places-not-listed');
+  assert.equal(input.findings[0]?.id, 'directories');
+  assert.equal(input.findings[1]?.id, 'ssl-missing');
+  assert.ok(input.findings.some((f) => f.id === 'places-not-listed'));
 });
 
 await test('Current Website title is not used as the site URL', () => {
@@ -710,7 +730,7 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
   assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
 });
 
-await test('directory exhibit is a 2x4 wired from Places + audit notes', () => {
+await test('directory exhibit is a 4x6 of official icons scored pass / half / fail', () => {
   assert.equal(salesSheetExhibitKind({ id: 'directories', categoryLabel: 'Directories' }), 'directories');
   assert.equal(salesSheetExhibitKind({ id: 'listings-thin', categoryLabel: 'Directories' }), 'directories');
   const finding = {
@@ -738,9 +758,13 @@ await test('directory exhibit is a 2x4 wired from Places + audit notes', () => {
   assert.ok(liveWins.has('googlemaps'));
   assert.equal(liveWins.has('apple'), false);
 
+  const checks = checksFromSignals({
+    linked: ['instagram', 'facebook'],
+    found: ['instagram', 'facebook', 'yelp', 'googlemaps'],
+  });
   const dirs = renderFindingPhoneHtml(finding, {
     website: 'weprintwraps.com',
-    googlePlacesListed: true,
+    directoryChecks: checks,
   });
   const page = renderSalesSheetFrontExhibitsHtml({
     findings: [finding],
@@ -749,26 +773,26 @@ await test('directory exhibit is a 2x4 wired from Places + audit notes', () => {
   });
   assert.match(dirs, /data-ss-exhibit="directories"/);
   assert.match(dirs, /Directory coverage/);
-  assert.match(page, /grid-template-columns: 1fr 1fr;/);
-  assert.match(page, /grid-template-rows: repeat\(4, minmax\(0, 1fr\)\);/);
-  assert.doesNotMatch(page, /grayscale\(1\)/);
-  assert.match(page, /background: #d8d8de;/);
+  assert.match(page, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
+  assert.match(page, /grid-template-rows: repeat\(6, minmax\(0, 1fr\)\);/);
+  assert.match(page, /grayscale\(1\)/);
+  assert.match(dirs, /data-icon-group="general"/);
+  assert.match(dirs, /admin\/dir-icons\/instagram\.png/);
   assert.match(dirs, /data-dir="yelp"/);
-  assert.match(dirs, /data-dir="bing"/);
-  assert.match(dirs, /data-dir="apple"/);
-  assert.match(dirs, /data-dir="googlemaps"/);
-  assert.match(dirs, /data-dir="facebook"/);
-  assert.match(dirs, /data-dir="tripadvisor"/);
+  assert.match(dirs, /data-dir="instagram"/);
+  assert.match(dirs, /data-dir="youtube"/);
   assert.match(dirs, /data-dir="nextdoor"/);
-  assert.match(dirs, /data-dir="thumbtack"/);
-  assert.match(dirs, /ss-phone-dir--on/);
-  assert.match(dirs, /--dir-bg:#4285F4/);
-  assert.match(dirs, /data-dir="yelp"[\s\S]*?viewBox="0 0 21\.2 21\.2"/);
-  assert.match(dirs, /data-dir="bing"[\s\S]*?fill-rule="evenodd"/);
-  assert.equal((dirs.match(/ss-phone-dir--off/g) || []).length, 7);
-  assert.equal((dirs.match(/ss-phone-dir--on/g) || []).length, 1);
-  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, 7);
-  assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 1);
+  assert.match(dirs, /data-dir="tiktok"/);
+  assert.equal((dirs.match(/data-dir="/g) || []).length, DIRECTORY_SLUGS.length);
+  assert.match(dirs, /data-dir="instagram"[^>]*data-verdict="pass"|data-dir="instagram"[\s\S]*?ss-phone-dir--pass/);
+  assert.match(dirs, /data-dir="yelp"[^>]*data-verdict="half"|data-dir="yelp"[\s\S]*?ss-phone-dir--half/);
+  assert.match(dirs, /data-dir="tiktok"[^>]*data-verdict="fail"|data-dir="tiktok"[\s\S]*?ss-phone-dir--fail/);
+  assert.equal((dirs.match(/ss-phone-dir--pass/g) || []).length, 2);
+  assert.equal((dirs.match(/ss-phone-dir--half/g) || []).length, 2);
+  assert.equal((dirs.match(/ss-phone-dir--fail/g) || []).length, DIRECTORY_SLUGS.length - 4);
+  assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 2);
+  assert.equal((dirs.match(/ss-phone-dir-badge--half/g) || []).length, 2);
+  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, DIRECTORY_SLUGS.length - 4);
   assert.match(dirs, /IOS_ICONS\.check/);
   assert.match(dirs, /IOS_ICONS\.x/);
 
@@ -777,8 +801,77 @@ await test('directory exhibit is a 2x4 wired from Places + audit notes', () => {
     googlePlacesListed: true,
     directoryNotes: 'Facebook listing found and claimed.',
   });
-  assert.match(facebookOn, /data-dir="facebook"[^>]*ss-phone-dir--on|data-dir="facebook"[\s\S]*?ss-phone-dir-badge--ok/);
-  assert.equal((facebookOn.match(/ss-phone-dir--on/g) || []).length, 2);
+  assert.match(
+    facebookOn,
+    /data-dir="facebook"[^>]*ss-phone-dir--pass|data-dir="facebook"[\s\S]*?ss-phone-dir-badge--ok/,
+  );
+  assert.equal((facebookOn.match(/ss-phone-dir--pass/g) || []).length, 2);
+});
+
+await test('directory coverage scores site links as pass, name-match as half, nothing as fail', () => {
+  assert.equal(scoreDirectory(true, false), 'pass');
+  assert.equal(scoreDirectory(true, true), 'pass');
+  assert.equal(scoreDirectory(false, true), 'half');
+  assert.equal(scoreDirectory(false, false), 'fail');
+
+  const linked = slugsLinkedFromHtml(`
+    <a href="https://instagram.com/wrapco">Instagram</a>
+    <a href="https://maps.google.com/maps?cid=1">Maps</a>
+    <a href="https://www.google.com/">Google</a>
+    <a href="#top">skip</a>
+  `);
+  assert.ok(linked.has('instagram'));
+  assert.ok(linked.has('googlemaps'));
+  assert.ok(linked.has('google'));
+  assert.equal(linked.has('yelp'), false);
+
+  const siteOnly = slugsLinkedFromHtml('<a href="https://www.instagram.com/wrapco">IG</a>');
+  const found = new Set(siteOnly);
+  found.add('googlemaps');
+  const searchHits = [
+    {
+      title: 'Wrap Co - Yelp',
+      url: 'https://www.yelp.com/biz/wrap-co-austin',
+      description: 'Wrap Co vehicle wraps in Austin',
+    },
+    {
+      title: 'Unrelated bakery',
+      url: 'https://www.facebook.com/somebakery',
+      description: 'Cupcakes',
+    },
+  ];
+  for (const row of searchHits) {
+    const slug = slugFromProfileUrl(row.url);
+    if (!slug || siteOnly.has(slug)) continue;
+    if (profileLooksLikeBusiness(row, ['wrapco', 'wrap'], 'Wrap Co')) found.add(slug);
+  }
+  const checks = checksFromSignals({ linked: siteOnly, found });
+  const bySlug = Object.fromEntries(checks.map((c) => [c.slug, c]));
+  assert.equal(bySlug.instagram?.verdict, 'pass');
+  assert.equal(bySlug.instagram?.linkedFromSite, true);
+  assert.equal(bySlug.yelp?.verdict, 'half');
+  assert.equal(bySlug.yelp?.linkedFromSite, false);
+  assert.equal(bySlug.yelp?.foundOffSite, true);
+  assert.equal(bySlug.googlemaps?.verdict, 'half');
+  assert.equal(bySlug.facebook?.verdict, 'fail');
+  assert.equal(bySlug.tiktok?.verdict, 'fail');
+  assert.match(summarizeDirectoryChecks(checks), /linked from the website/);
+  assert.match(summarizeDirectoryChecks(checks), /Yelp/);
+});
+
+await test('industry icon group defaults to general local', () => {
+  assert.equal(DIRECTORY_ICON_GROUPS.length, 1);
+  assert.equal(parseDirectoryIconGroup(null), 'general');
+  assert.equal(parseDirectoryIconGroup('music'), 'general');
+  assert.deepEqual([...directorySlugsForGroup('general')], [...DIRECTORY_SLUGS]);
+});
+
+await test('directory coverage stays phone 1 after a Places miss', () => {
+  const applied = applyPlacesMissToSalesSheet(DUMMY_SALES_SHEET, true);
+  assert.equal(applied.findings[0]?.id, 'places-not-listed');
+  const phones = pinDirectoryCoverageFirst(applied.findings);
+  assert.equal(phones[0]?.id, 'directories');
+  assert.ok(phones.some((f) => f.id === 'places-not-listed'));
 });
 
 await test('missing Open Graph exhibit is SMS, Facebook, and Instagram as plain text', () => {
@@ -838,8 +931,9 @@ await test('front exhibits are four phones with captions and no next steps', () 
   assert.match(two, /repeat\(4,/);
   assert.match(html, /max-width: none/);
   assert.doesNotMatch(html, /max-width: 700px/);
-  assert.match(html, /1 · Site Speed/);
-  assert.match(html, /4 · No Offer/);
+  assert.match(html, /1 · Directories/);
+  assert.match(html, /2 · Site Speed/);
+  assert.match(html, /4 · SEO Fundamentals/);
   assert.match(html, /Overall C \(64\)/);
   assert.doesNotMatch(html, /Next steps/);
   assert.doesNotMatch(html, /Compress images and defer/);

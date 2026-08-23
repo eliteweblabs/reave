@@ -2,9 +2,15 @@
  * Front-of-sheet exhibits — one iPhone screen per cascade hit.
  * Identify and display. No next-step copy.
  */
-import { siApple, siFacebook, siGooglemaps, siNextdoor, siThumbtack, siTripadvisor, siYelp } from 'simple-icons';
 import { escapeHtml } from './htmlEscape';
-import { listedDirectorySlugs, type DirectorySlug } from './salesSheetDirectories';
+import {
+  directoryIconSrc,
+  directorySlugsForGroup,
+  listedDirectorySlugs,
+  verdictsFromListed,
+  type DirectoryCheck,
+  type DirectoryVerdict,
+} from './salesSheetDirectories';
 import { IPHONE_FRAME_SRC, isPlacesMissFinding } from './salesSheetPlacesView';
 import type { LetterGrade } from './auditReportCard';
 import type { SalesSheetFinding, SalesSheetHeroStat } from './auditSalesSheet';
@@ -34,6 +40,10 @@ export type SalesSheetExhibitOpts = {
   directoryNotes?: string;
   /** Explicit listed directory slugs (fixture / query override). */
   listedDirectories?: readonly string[];
+  /** Live site-link + name-search verdicts for the industry icon group. */
+  directoryChecks?: DirectoryCheck[];
+  /** Which 24-icon pack to draw. Only `general` ships today. */
+  directoryIconGroup?: string | null;
 };
 
 export type SalesSheetSnapshot = {
@@ -378,54 +388,58 @@ function iphoneCss(): string {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  gap: 7px 6px;
+  margin-top: 2px;
+  padding: 3px 1px 2px;
+  overflow: visible;
 }
 .ss-phone-dir {
   position: relative;
   min-height: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 7px;
-  background: #d8d8de;
-  overflow: hidden;
+  aspect-ratio: 1;
+  background: transparent;
+  overflow: visible;
 }
-.ss-phone-dir--on {
-  background: var(--dir-bg);
-}
-.ss-phone-dir--on .ss-phone-dir-icon svg { fill: #fff; }
-.ss-phone-dir--off .ss-phone-dir-icon svg { fill: #8e8e93; }
 .ss-phone-dir-icon {
-  display: block;
-  width: 42%;
-  height: 42%;
-}
-.ss-phone-dir-icon svg {
   display: block;
   width: 100%;
   height: 100%;
-  fill: #8e8e93;
+  border-radius: 22.37%;
+  overflow: hidden;
+  background: #d8d8de;
+}
+.ss-phone-dir-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ss-phone-dir--fail .ss-phone-dir-icon img {
+  filter: grayscale(1);
 }
 .ss-phone-dir-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 15px;
-  height: 15px;
+  top: -3px;
+  right: -3px;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #fff;
+  color: #fff;
+  box-shadow: 0 0 0 1.25px #fff;
 }
 .ss-phone-dir-badge svg {
   display: block;
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
 }
-.ss-phone-dir-badge--ok { color: #34c759; }
-.ss-phone-dir-badge--miss { color: #ff3b30; }
+.ss-phone-dir-badge--ok { background: #34c759; }
+.ss-phone-dir-badge--half { background: #ff9f0a; }
+.ss-phone-dir-badge--miss { background: #ff3b30; }
 .ss-og {
   display: flex;
   flex-direction: column;
@@ -742,56 +756,34 @@ function noOfferScreen(host: string, name: string): string {
     </div>`;
 }
 
-/** Last Simple Icons release that still shipped Microsoft Bing (removed in v13). */
-const SI_BING = {
-  title: 'Bing',
-  slug: 'bing',
-  hex: '258FFA',
-  path: 'M20.176 15.406a6.48 6.48 0 01-1.736 4.414c1.338-1.47.803-3.869-1.003-4.635-.862-.305-2.488-.85-3.367-1.158a1.834 1.834 0 01-.932-.818c-.381-.975-1.163-2.968-1.548-3.948-.095-.285-.31-.625-.265-.938.046-.598.724-1.003 1.276-.754l3.682 1.888c.621.292 1.305.692 1.796 1.172a6.486 6.486 0 012.097 4.777zm-1.44 1.888c-.264-1.194-1.135-1.744-2.216-2.028-1.527.902-4.853 2.878-6.952 4.13-1.103.68-2.13 1.35-2.919 1.242a2.866 2.866 0 01-2.77-2.325c-.012-.048-.008-.03-.001.01a6.4 6.4 0 00.947 2.653 6.498 6.498 0 005.486 3.022c1.908.062 3.536-1.153 5.099-2.096.292-.188.804-.496 1.332-.831l1.423-1.51c.553-.577.764-1.426.571-2.267zm-12.04 2.97c.422 0 .822-.1 1.173-.29.355-.215.964-.579 1.7-1.018L9.57 4.502c0-.99-.497-1.864-1.257-2.382-.08-.059-2.91-1.901-2.99-1.956-.605-.432-1.523.045-1.5.797v14.887l.417 2.36a2.488 2.488 0 002.455 2.056z',
-} as const;
+const DIR_BADGE: Record<DirectoryVerdict, string> = {
+  pass: '<!-- IOS_ICONS.check — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-badge ss-phone-dir-badge--ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>',
+  half: '<span class="ss-phone-dir-badge ss-phone-dir-badge--half" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></span>',
+  fail: '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-badge ss-phone-dir-badge--miss" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>',
+};
 
-/** Official Simple Icons marks. Listed vs missing comes from the live Places flag + audit notes. */
-const DIR_TILES = [
-  { icon: siYelp },
-  { icon: SI_BING },
-  { icon: siApple },
-  { icon: siGooglemaps },
-  { icon: siFacebook },
-  { icon: siTripadvisor },
-  { icon: siNextdoor },
-  { icon: siThumbtack },
-] as const;
-
-const DIR_BADGE_OK =
-  '<!-- IOS_ICONS.check — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-badge ss-phone-dir-badge--ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
-const DIR_BADGE_MISS =
-  '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-badge ss-phone-dir-badge--miss" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>';
-
-function directoryTileHtml(
-  tile: (typeof DIR_TILES)[number],
-  listed: ReturnType<typeof listedDirectorySlugs>,
-): string {
-  const { icon } = tile;
-  const missing = !listed.has(icon.slug as DirectorySlug);
-  const viewBox = icon.slug === 'yelp' ? '0 0 21.2 21.2' : '0 0 24 24';
-  const fillRule = icon.slug === 'bing' ? ' fill-rule="evenodd"' : '';
-  const mark = `<span class="ss-phone-dir-icon"><svg viewBox="${viewBox}" aria-hidden="true"><path d="${icon.path}"${fillRule}/></svg></span>`;
-  const state = missing ? 'off' : 'on';
-  const badge = missing ? DIR_BADGE_MISS : DIR_BADGE_OK;
-  const bg = missing ? '' : ` style="--dir-bg:#${icon.hex}"`;
-  return `<div class="ss-phone-dir ss-phone-dir--${state}" data-dir="${icon.slug}"${bg} title="${escapeHtml(icon.title)}">${mark}${badge}</div>`;
+function directoryTileHtml(check: DirectoryCheck): string {
+  const mark = `<span class="ss-phone-dir-icon"><img src="${escapeHtml(directoryIconSrc(check.slug))}" alt="" width="72" height="72" /></span>`;
+  return `<div class="ss-phone-dir ss-phone-dir--${check.verdict}" data-dir="${check.slug}" data-verdict="${check.verdict}" title="${escapeHtml(check.title)}">${mark}${DIR_BADGE[check.verdict]}</div>`;
 }
 
 function directoriesScreen(host: string, finding: SalesSheetFinding, opts: SalesSheetExhibitOpts): string {
-  const listed = listedDirectorySlugs({
-    text: [finding.problem, finding.solution, opts.directoryNotes].filter(Boolean).join('\n'),
-    googlePlacesListed: opts.googlePlacesListed,
-    listed: opts.listedDirectories,
-  });
+  const slugs = directorySlugsForGroup(opts.directoryIconGroup);
+  const checks =
+    opts.directoryChecks?.length === slugs.length
+      ? opts.directoryChecks
+      : verdictsFromListed(
+          listedDirectorySlugs({
+            text: [finding.problem, finding.solution, opts.directoryNotes].filter(Boolean).join('\n'),
+            googlePlacesListed: opts.googlePlacesListed,
+            listed: opts.listedDirectories,
+          }),
+          slugs,
+        );
   return `${chromeBar(host, false)}
     <div class="ss-phone-body">
       <p class="ss-phone-h">Directory coverage</p>
-      <div class="ss-phone-dirs">${DIR_TILES.map((tile) => directoryTileHtml(tile, listed)).join('')}</div>
+      <div class="ss-phone-dirs" data-icon-group="${escapeHtml(opts.directoryIconGroup || 'general')}">${checks.map(directoryTileHtml).join('')}</div>
     </div>`;
 }
 

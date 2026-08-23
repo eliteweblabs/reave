@@ -60,6 +60,14 @@ import { qrCodeDataUrl } from '../../lib/qrCode';
 import { companyBrandMarkHtml } from '../../lib/documentPrintLayout';
 import { storeGetMediaBySlug } from '../../lib/mediaLibrary';
 import { renderSalesSheetBackHtml, salesSheetStackLogos } from '../../lib/salesSheetBack';
+import {
+  DIRECTORY_ICON_GROUPS,
+  directoryIconGroupById,
+  parseDirectoryIconGroup,
+  pinDirectoryCoverageFirst,
+  summarizeDirectoryChecks,
+} from '../../lib/salesSheetDirectories';
+import { checkDirectoryCoverage } from '../../lib/salesSheetDirectoryCheck';
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
@@ -150,6 +158,8 @@ const skipPlaces = params.get('places') === '0';
 const googleParam = params.get('google');
 const wantGoogleShot = salesSheetWantsGoogleShot(googleParam);
 const listedParam = (params.get('listed') || '').trim();
+const iconGroup = parseDirectoryIconGroup(params.get('iconGroup'));
+const iconGroupMeta = directoryIconGroupById(iconGroup);
 const forceNotListed = listedParam === '0';
 const forceListed = listedParam === '1';
 const contactPortal = extractPortal(input.contact);
@@ -279,10 +289,29 @@ if ((hasDownExhibit || hasSslExhibit) && input.website.trim()) {
   logRender('FAIL no site URL — cannot live-check SSL / Site Down.');
 }
 
-findings = findings.slice(0, 4);
+findings = pinDirectoryCoverageFirst(findings).slice(0, 4);
 input = { ...input, findings };
 if (!shotNote) shotNote = 'Four iPhone exhibits from the top cascade hits.';
 logRender(`Four phones: ${findings.map((f) => `${f.categoryLabel} (${f.id})`).join(', ') || '(none)'}`);
+logRender(`Icon group: ${iconGroupMeta.label}`);
+
+let directoryChecks = undefined as Awaited<ReturnType<typeof checkDirectoryCoverage>> | undefined;
+if (input.website.trim()) {
+  logRender(`Checking directory links on ${input.website}…`);
+  directoryChecks = await checkDirectoryCoverage({
+    website: input.website,
+    businessName,
+    googlePlacesListed: !notListed,
+    iconGroup,
+  });
+  const summary = summarizeDirectoryChecks(directoryChecks);
+  findings = findings.map((finding) =>
+    salesSheetExhibitKind(finding) === 'directories' ? { ...finding, problem: summary } : finding,
+  );
+  input = { ...input, findings };
+  logRender(summary);
+}
+
 logRender(`Done in ${((Date.now() - renderStarted) / 1000).toFixed(1)}s`);
 
 const exhibitPhones = findings.map((finding) => {
@@ -299,8 +328,10 @@ const exhibitPhones = findings.map((finding) => {
     businessName,
     frameSrc,
     screenSrc: live,
-    googlePlacesListed: kind === 'directories' ? true : !notListed,
+    googlePlacesListed: !notListed,
     directoryNotes,
+    directoryChecks: kind === 'directories' ? directoryChecks : undefined,
+    directoryIconGroup: iconGroup,
   });
 });
 
@@ -496,6 +527,17 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
               <option value="" selected={listedParam === ''}>Use Places</option>
               <option value="0" selected={listedParam === '0'}>Force not listed</option>
               <option value="1" selected={listedParam === '1'}>Force listed</option>
+            </select>
+          </div>
+          <div class="prof-field">
+            <label for="iconGroup">Industry icon group</label>
+            <select id="iconGroup" name="iconGroup" title={iconGroupMeta.hint}>
+              {DIRECTORY_ICON_GROUPS.map((group) => (
+                <option value={group.id} selected={iconGroup === group.id}>
+                  {group.label}
+                </option>
+              ))}
+              <option disabled>More packs later</option>
             </select>
           </div>
           <div class="ss-check prof-field">
