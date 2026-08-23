@@ -34,7 +34,7 @@ Baseline modules **001–003** (`client_portal`, `web_handoff`, `portal_assistan
 | 016 | `fleet_tracking` | Fleet tracking / GPS |
 | 017 | `dealership_wizard` | Dealership inventory & deal wizard |
 | 018 | `namecom_dns` | DNS record management |
-| 019 | `time_tracking` | Project Time Tracking |
+| 019 | `time_tracking` | Time Tracking |
 | 020 | `demo` | Demo mode |
 | 021 | `real_estate_data` | Real estate data & lead scanner |
 | 022 | `inventory_sync` | Multi-channel inventory sync |
@@ -45,7 +45,7 @@ Baseline modules **001–003** (`client_portal`, `web_handoff`, `portal_assistan
 | 027 | `wordpress_content` | WordPress content plugin |
 | 033 | `website` | Website |
 | 034 | `credit_check` | Credit check |
-| 036 | `social_inbox` | Social inbox |
+| 036 | `social_inbox` | Agentic Social Media |
 
 ## Default suite (no URL)
 

@@ -4,7 +4,7 @@ defaultStatus: request
 stage: 3
 ---
 
-# Social inbox deployment
+# Agentic Social Media deployment
 
 Paid add-on. Clients buy it from admin → Modules (invoice) or call. Do **not**
 enable from the client install — turn it on in `features[]` after payment.

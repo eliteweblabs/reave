@@ -89,7 +89,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   fleet_tracking: 'Fleet tracking / GPS',
   dealership_wizard: 'Dealership inventory & deal wizard',
   namecom_dns: 'DNS record management',
-  time_tracking: 'Project Time Tracking',
+  time_tracking: 'Time Tracking',
   demo: 'Demo mode',
   real_estate_data: 'Real estate data & lead scanner',
   inventory_sync: 'Multi-channel inventory sync',
@@ -102,10 +102,10 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   event_ticketing: 'Event ticketing',
   cookie_notice: 'Cookie notice',
   deploy_wizard: 'Deploy wizard',
-  website: 'Agentic Web Editor',
+  website: 'Agentic Website Editor',
   credit_check: 'Credit check',
-  materials_pricing: 'Materials pricing (Home Depot)',
-  social_inbox: 'Social inbox',
+  materials_pricing: 'Materials pricing',
+  social_inbox: 'Agentic Social Media',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -149,7 +149,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   credit_check:
     'Applicant credit pull for forms and deal flow — reference only until a bureau is chosen',
   materials_pricing:
-    'Live retail prices and quotes via materials-api (Home Depot today; Lowe\'s and others later)',
+    'Live retail prices from Home Depot and Lowe’s. If a local supplier lists prices online, we can pull them too, apply a discount rate, or build quotes from past materials prices. Requires the billing module.',
   social_inbox:
     'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, and the networks you choose — plus Google and Yelp reviews. The agent can draft replies; you post on the network.',
 };
@@ -171,7 +171,17 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
 /**
  * Modules that appear on the audit sales sheet. Unlisted default to false.
  */
-export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([]);
+export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
+  'social_inbox',
+  'materials_pricing',
+  'website',
+  'billing',
+  'documents',
+  'scheduling',
+  'email_marketing',
+  'time_tracking',
+  'real_estate_data',
+]);
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 

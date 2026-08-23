@@ -1,5 +1,5 @@
 /**
- * Guard: Social inbox is a listed module, and catalogs expose Social + E-commerce groups.
+ * Guard: Agentic Social Media is a listed module, and catalogs expose Social + E-commerce groups.
  * Run: npm run check:module-groups
  */
 import assert from 'node:assert/strict';
@@ -20,7 +20,7 @@ function configFeatures(slug: string): string[] {
 }
 
 assert.ok(FEATURE_IDS.includes('social_inbox'));
-assert.equal(FEATURE_LABELS.social_inbox, 'Social inbox');
+assert.equal(FEATURE_LABELS.social_inbox, 'Agentic Social Media');
 assert.equal(demoModuleIdForFeature('social_inbox'), '036');
 
 const groupIds = MODULE_DISPLAY_GROUPS.map((g) => g.id);

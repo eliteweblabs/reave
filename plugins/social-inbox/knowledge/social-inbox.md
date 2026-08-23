@@ -1,4 +1,4 @@
-# Social inbox
+# Agentic Social Media
 
 Unified activity for the networks this install chose — comments, mentions,
 posts, plus Google / Yelp reviews when Reviews is also on.

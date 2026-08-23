@@ -7480,7 +7480,7 @@ function renderSocialConnectionsCard(connections) {
   const rows = list.map(socialConnectionRow).join('');
   return profSection(
     'API access',
-    'Connect an account so the Social inbox can pull live posts and comments. Until then, saved profile links show sample activity, and Google reviews sync into the same feed. Each platform needs a one-time app setup first (expand “How to set this up”); tokens stay on the server.',
+    'Connect an account so Agentic Social Media can pull live posts and comments. Until then, saved profile links show sample activity, and Google reviews sync into the same feed. Each platform needs a one-time app setup first (expand “How to set this up”); tokens stay on the server.',
     `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>`,
   );
 }

@@ -48,7 +48,7 @@ Check modules for this client, then run `npm run deploy:checklist`:
 | 027 | `wordpress_content` | WordPress content plugin |
 | 033 | `website` | Website (client web tools) |
 | 034 | `credit_check` | Credit check (reference) |
-| 036 | `social_inbox` | Social inbox (paid add-on) |
+| 036 | `social_inbox` | Agentic Social Media (paid add-on) |
 
 **Demo suite URL** (stores config in cookie → redirects to admin):
 
