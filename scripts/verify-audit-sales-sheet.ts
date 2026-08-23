@@ -1107,19 +1107,15 @@ await test('clean HTTPS drops the Not Secure graphic; a broken host keeps it', (
   assert.doesNotMatch(sslPhone, /ss-phone-serp/);
 });
 
-await test('header hero is the audit overall block restyled for a white sheet', () => {
+await test('header hero is the audit lede without an overall-grade ring', () => {
   const hero = renderSalesSheetHeaderHeroHtml({
-    overall: DUMMY_SALES_SHEET.overall,
-    overallScore: DUMMY_SALES_SHEET.overallScore,
     headline: DUMMY_SALES_SHEET.headline,
     heroStats: DUMMY_SALES_SHEET.heroStats,
   });
   assert.match(hero, /ss-hero/);
-  assert.match(hero, /Overall grade/);
-  assert.match(hero, /ss-hero-ring/);
-  assert.match(hero, />C</);
-  assert.match(hero, /64/);
-  assert.match(hero, /#b8860b/);
+  assert.doesNotMatch(hero, /Overall grade/);
+  assert.doesNotMatch(hero, /ss-hero-ring/);
+  assert.doesNotMatch(hero, /#b8860b/);
   assert.match(hero, /Speed and local listings/);
   assert.match(hero, /Every finding sourced from independent platforms/i);
   assert.match(hero, /\.ss-hero \{[\s\S]*width: max-content/);
