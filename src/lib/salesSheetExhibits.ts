@@ -931,12 +931,13 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0 6.4rem 0 2.6rem;
+  margin: 0;
   color: #141414;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 .doc-onepager-header:has(.ss-hero) {
+  position: relative;
   align-items: center;
   gap: 2.2%;
 }
@@ -1000,7 +1001,17 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   text-transform: uppercase;
   color: #6b6b6b;
 }
-.ss-hero-copy { min-width: 0; }
+.ss-hero-copy {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: max-content;
+  max-width: 46%;
+  min-width: 0;
+  text-align: left;
+}
 .ss-hero-h {
   margin: 0 0 0.28em;
   font-size: clamp(11px, 1.7cqi, 15px);
@@ -1008,6 +1019,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   letter-spacing: -0.03em;
   line-height: 1.2;
   color: #141414;
+  text-align: left;
 }
 .ss-hero-stats {
   list-style: none;

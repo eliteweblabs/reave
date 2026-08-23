@@ -907,6 +907,9 @@ await test('header hero is the audit overall block restyled for a white sheet', 
   assert.match(hero, /64/);
   assert.match(hero, /Speed and local listings/);
   assert.match(hero, /Every finding sourced from independent platforms/i);
+  assert.match(hero, /\.ss-hero-copy \{[\s\S]*left: 50%/);
+  assert.match(hero, /translate\(-50%, -50%\)/);
+  assert.match(hero, /\.ss-hero-copy \{[\s\S]*text-align: left/);
   assert.doesNotMatch(hero, /#00e5ff|#0b1220|opd-cyan/);
   const injected = injectAuditHeroIntoHeader(
     '<header class="doc-onepager-header"><div class="doc-onepager-logo">LOGO</div><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
