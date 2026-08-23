@@ -39,13 +39,15 @@ tall center oval. Stack marks are small black `<img>`s, not tiles.
 
 ## Front (custom)
 
-Header / four iPhone exhibits across / caption under each / snapshot strip /
-footer. Logo left, QR right.
+Header / handwritten Q&A (`?` / `A`, Caveat) / four iPhone exhibits across /
+caption under each / snapshot strip / footer. Logo left, QR right.
 
 Directory coverage is always the first iPhone (28 official app icons). The
 other three phones are the next cascade hits. Each screen is a visual of the
 problem (Not Secure bar, Safari cannot open, missing Places SERP, and so on).
-Working Maps listings are not shown. There is no Next steps column.
+Working Maps listings are not shown. There is no Next steps column. The
+three leave-behind objections sit above the phones for now
+(`SALES_SHEET_FRONT_QA` in `src/lib/salesSheetExhibits.ts`).
 
 ---
 

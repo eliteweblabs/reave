@@ -54,6 +54,7 @@ import {
   renderSalesSheetFrontExhibitsHtml,
   renderSalesSheetHeaderHeroHtml,
   salesSheetExhibitKind,
+  SALES_SHEET_FRONT_QA,
 } from '../src/lib/salesSheetExhibits.ts';
 import {
   DIRECTORY_ICON_GROUPS,
@@ -951,6 +952,16 @@ await test('front exhibits are four phones with captions and no next steps', () 
   assert.match(html, /1 · Directories/);
   assert.match(html, /ss-exhibit-legend/);
   assert.doesNotMatch(html, /Most of the places customers look/);
+  assert.match(html, /ss-front-qa/);
+  assert.equal(SALES_SHEET_FRONT_QA.length, 3);
+  assert.match(html, /How can you offer these services for so cheap\?/);
+  assert.match(html, /walking the dog/);
+  assert.match(html, /never take possession/);
+  assert.match(html, /domain registrar/);
+  assert.match(html, /private repositories/);
+  assert.match(html, /ss-front-qa-mark" aria-hidden="true">\?</);
+  assert.match(html, /font-family: Caveat/);
+  assert.ok(html.indexOf('ss-front-qa') < html.indexOf('ss-exhibits'));
   assert.match(html, /2 · Site Speed/);
   assert.match(html, /4 · SEO Fundamentals/);
   assert.match(html, /Overall C \(64\)/);
