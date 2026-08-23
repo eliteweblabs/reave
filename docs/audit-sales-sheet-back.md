@@ -67,7 +67,8 @@ Unfolded, this is a brochure. Fold the right panel in first:
 
 1. **Left — Gate** — inside flap after you open the cover. “We host it…” hook,
    the portal / Admin outreach welcome (this is not spam), the small-shop Q&A,
-   and a large company icon centered at the bottom.
+   and the website REΛVE chevron with the footer “Baked in Boston”
+   lockup (kidney-bean o’s) at the bottom.
 2. **Center — Back** — outside back when folded. Custom-build line, Barry Levine
    hosting quote, local clients (Barber's Edge, The Law Office of Barry Levine,
    MDOT.world), then the three objections as left/right chat bubbles, then the

@@ -120,6 +120,37 @@ function noticeParagraphsHtml(notice: string): string {
     .join('');
 }
 
+/** Same chevrons as `ReaveIconAnimated.astro` — keep the path and stops in sync. */
+const REAVE_ICON_PATH =
+  'M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051Z';
+
+function reaveWebsiteIconHtml(idPrefix: string): string {
+  const gradId = `${idPrefix}-grad`;
+  return `<svg class="ss-back-reave-icon" xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="${esc(gradId)}" x1="64" y1="448" x2="448" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="52%" stop-color="#c026d3"/>
+      <stop offset="100%" stop-color="#ff00ff"/>
+    </linearGradient>
+  </defs>
+  <path d="${REAVE_ICON_PATH}" fill="url(#${esc(gradId)})" />
+</svg>`;
+}
+
+/** Footer lockup from `FootBostonTag.astro` — beans stand in for the o’s. */
+const BOSTON_BEAN_BODY =
+  'M5.8 1.1c2.9-.1 4.6 2.2 4.5 5.3-.1 3.1-2 5.9-4.4 6.3-1.4.3-2.6-.4-3-1.6-.35-.95-.15-2.05.55-2.35.65-.25 1.15.75.95 2.05-.35 2.2-2.25 1.35-2.75-1.05C1.15 7.35 1.55 3.95 3.25 2.25 4.15 1.35 5 1.1 5.8 1.1Z';
+const BOSTON_BEAN_CREASE = 'M3.45 3.35q.55 3.65.95 7.35';
+
+function bostonBeanHtml(which: 'a' | 'b'): string {
+  return `<span class="ss-back-boston-bean ss-back-boston-bean--${which}" aria-hidden="true"><svg class="ss-back-boston-bean-icon" viewBox="0 0 11 14" focusable="false" aria-hidden="true"><path d="${BOSTON_BEAN_BODY}" fill="currentColor"/><path d="${BOSTON_BEAN_CREASE}" fill="none" stroke="currentColor" stroke-width=".7" stroke-linecap="round" opacity=".4"/></svg></span>`;
+}
+
+function bakedInBostonHtml(): string {
+  return `<p class="ss-back-boston" aria-label="Baked in Boston">Baked in B${bostonBeanHtml('a')}st${bostonBeanHtml('b')}n</p>`;
+}
+
 function stackLogoHtml(logo: SalesSheetBackLogo): string {
   const slug = (logo.slug || logo.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
   return `<li class="ss-stack-item" data-stack="${esc(slug)}">
@@ -333,11 +364,12 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   width: 100%;
   padding-top: 0.55em;
 }
+.ss-sheet-back .ss-back-gate-icon .ss-back-reave-icon,
 .ss-sheet-back .ss-back-gate-icon .doc-brand,
 .ss-sheet-back .ss-back-gate-icon .doc-onepager-logo-img,
 .ss-sheet-back .ss-back-gate-icon .doc-onepager-logo-svg,
-.ss-sheet-back .ss-back-gate-icon img,
-.ss-sheet-back .ss-back-gate-icon svg {
+.ss-sheet-back .ss-back-gate-icon .doc-brand img,
+.ss-sheet-back .ss-back-gate-icon .doc-brand svg {
   display: block;
   width: auto;
   height: clamp(56px, 12cqh, 96px);
@@ -345,6 +377,33 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   margin: 0 auto;
   object-fit: contain;
 }
+.ss-sheet-back .ss-back-boston {
+  margin: 0.4em 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-size: clamp(8px, 1.15cqi, 11px);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--doc-muted);
+}
+.ss-sheet-back .ss-back-boston-bean {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 9px;
+  height: 9px;
+  margin: 0 1px;
+  flex: none;
+  overflow: visible;
+}
+.ss-sheet-back .ss-back-boston-bean-icon {
+  display: block;
+  width: 9px;
+  height: 12px;
+}
+.ss-sheet-back .ss-back-boston-bean--a { transform: rotate(28deg); }
+.ss-sheet-back .ss-back-boston-bean--b { transform: rotate(-28deg); }
 .ss-sheet-back .ss-back-qa {
   width: 100%;
   text-align: left;
@@ -514,8 +573,9 @@ export function renderSalesSheetBackHtml(opts: {
   const stackItems = stack.map(stackLogoHtml).join('');
   const notice = (opts.company?.portalOutreachNotice || '').trim() || DEFAULT_PORTAL_OUTREACH_NOTICE;
   const fallbackMark = `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
-  const iconHtml = (opts.iconHtml || '').trim() || fallbackMark;
-  const logoHtml = (opts.logoHtml || '').trim() || iconHtml;
+  const iconHtml = (opts.iconHtml || '').trim() || reaveWebsiteIconHtml('ss-back-reave');
+  const logoHtml = (opts.logoHtml || '').trim() || fallbackMark;
+  const gateLockup = `${iconHtml}${bakedInBostonHtml()}`;
   const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
 
   return `
@@ -531,7 +591,7 @@ export function renderSalesSheetBackHtml(opts: {
           <p class="ss-back-kicker">Q&amp;A</p>
           <dl class="ss-back-qa-list">${qaListHtml()}</dl>
         </div>
-        <div class="ss-back-gate-icon" data-ss-col="gate-icon">${iconHtml}</div>
+        <div class="ss-back-gate-icon" data-ss-col="gate-icon">${gateLockup}</div>
       </section>
       <section class="ss-back-col ss-back-col--builds" data-ss-col="builds">
         <p class="ss-back-kicker">Custom builds</p>
