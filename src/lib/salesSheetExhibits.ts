@@ -273,6 +273,12 @@ function iphoneCss(): string {
   color: #1d1d1f;
 }
 .ss-phone-body { padding: 0 8px 8px; }
+.ss-phone-body:has(.ss-phone-dirs) {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - var(--ss-island-pad));
+  box-sizing: border-box;
+}
 .ss-phone-h {
   margin: 0 0 4px;
   font-size: 11px;
@@ -353,43 +359,39 @@ function iphoneCss(): string {
   border-radius: 50%;
 }
 .ss-phone-dirs {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 5px;
   margin-top: 6px;
 }
 .ss-phone-dir {
   position: relative;
-  aspect-ratio: 1;
+  min-height: 0;
   display: grid;
   place-items: center;
-  border-radius: 6px;
+  border-radius: 7px;
   background: var(--dir-bg);
   overflow: hidden;
 }
+.ss-phone-dir--on .ss-phone-dir-icon svg { fill: #fff; }
+.ss-phone-dir--off {
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+.ss-phone-dir--off .ss-phone-dir-icon svg { fill: #fff; }
 .ss-phone-dir-icon {
   display: block;
-  width: 50%;
-  height: 50%;
+  width: 46%;
+  height: 46%;
 }
 .ss-phone-dir-icon svg {
   display: block;
   width: 100%;
   height: 100%;
   fill: #fff;
-}
-.ss-phone-dir-x {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  pointer-events: none;
-}
-.ss-phone-dir-x svg {
-  width: 46%;
-  height: 46%;
-  filter: drop-shadow(0 0 1.2px #000);
 }
 .ss-og {
   display: flex;
@@ -707,11 +709,7 @@ function noOfferScreen(host: string, name: string): string {
     </div>`;
 }
 
-const DIR_X_ICON =
-  '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->' +
-  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-
-/** Simple Icons marks — fill is forced white on the brand tile. */
+/** Simple Icons marks — listed tiles stay in color; missing tiles go grayscale. */
 const DIR_TILES = [
   {
     slug: 'yelp',
@@ -741,12 +739,26 @@ const DIR_TILES = [
     missing: false,
     path: 'M19.527 4.799c1.212 2.608.937 5.678-.405 8.173-1.101 2.047-2.744 3.74-4.098 5.614-.619.858-1.244 1.75-1.669 2.727-.141.325-.263.658-.383.992-.121.333-.224.673-.34 1.008-.109.314-.236.684-.627.687h-.007c-.466-.001-.579-.53-.695-.887-.284-.874-.581-1.713-1.019-2.525-.51-.944-1.145-1.817-1.79-2.671L19.527 4.799zM8.545 7.705l-3.959 4.707c.724 1.54 1.821 2.863 2.871 4.18.247.31.494.622.737.936l4.984-5.925-.029.01c-1.741.601-3.691-.291-4.392-1.987a3.377 3.377 0 0 1-.209-.716c-.063-.437-.077-.761-.004-1.198l.001-.007zM5.492 3.149l-.003.004c-1.947 2.466-2.281 5.88-1.117 8.77l4.785-5.689-.058-.05-3.607-3.035zM14.661.436l-3.838 4.563a.295.295 0 0 1 .027-.01c1.6-.551 3.403.15 4.22 1.626.176.319.323.683.377 1.045.068.446.085.773.012 1.22l-.003.016 3.836-4.561A8.382 8.382 0 0 0 14.67.439l-.009-.003zM9.466 5.868 14.162.285l-.047-.012A8.31 8.31 0 0 0 11.986 0a8.439 8.439 0 0 0-6.169 2.766l-.016.018 3.665 3.084z',
   },
+  {
+    slug: 'facebook',
+    name: 'Facebook',
+    bg: '#1877F2',
+    missing: true,
+    path: 'M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z',
+  },
+  {
+    slug: 'tripadvisor',
+    name: 'Tripadvisor',
+    bg: '#34E0A1',
+    missing: true,
+    path: 'M12.006 4.295c-2.67 0-5.338.784-7.645 2.353H0l1.963 2.135a5.997 5.997 0 0 0 4.04 10.43 5.976 5.976 0 0 0 4.075-1.6L12 19.705l1.922-2.09a5.972 5.972 0 0 0 4.072 1.598 6 6 0 0 0 6-5.998 5.982 5.982 0 0 0-1.957-4.432L24 6.648h-4.35a13.573 13.573 0 0 0-7.644-2.353zM12 6.255c1.531 0 3.063.303 4.504.903C13.943 8.138 12 10.43 12 13.1c0-2.671-1.942-4.962-4.504-5.942A11.72 11.72 0 0 1 12 6.256zM6.002 9.157a4.059 4.059 0 1 1 0 8.118 4.059 4.059 0 0 1 0-8.118zm11.992.002a4.057 4.057 0 1 1 .003 8.115 4.057 4.057 0 0 1-.003-8.115zm-11.992 1.93a2.128 2.128 0 0 0 0 4.256 2.128 2.128 0 0 0 0-4.256zm11.992 0a2.128 2.128 0 0 0 0 4.256 2.128 2.128 0 0 0 0-4.256z',
+  },
 ] as const;
 
 function directoryTileHtml(tile: (typeof DIR_TILES)[number]): string {
   const mark = `<span class="ss-phone-dir-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${tile.path}"/></svg></span>`;
-  const x = tile.missing ? `<span class="ss-phone-dir-x">${DIR_X_ICON}</span>` : '';
-  return `<div class="ss-phone-dir${tile.missing ? ' ss-phone-dir--missing' : ''}" data-dir="${tile.slug}" style="--dir-bg:${tile.bg}" title="${escapeHtml(tile.name)}">${mark}${x}</div>`;
+  const state = tile.missing ? 'off' : 'on';
+  return `<div class="ss-phone-dir ss-phone-dir--${state}" data-dir="${tile.slug}" style="--dir-bg:${tile.bg}" title="${escapeHtml(tile.name)}">${mark}</div>`;
 }
 
 function directoriesScreen(host: string): string {
