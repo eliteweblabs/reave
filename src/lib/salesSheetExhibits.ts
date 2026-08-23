@@ -208,9 +208,14 @@ function iphoneCss(): string {
   background: var(--ss-phone-screen);
   border-radius: 12% / 6%;
 }
+.ss-phone-screen:not(:has(.ss-phone-serp)) {
+  display: flex;
+  flex-direction: column;
+}
 .ss-phone-screen:not(:has(.ss-phone-serp))::before {
   content: '';
   display: block;
+  flex: 0 0 var(--ss-island-pad);
   height: var(--ss-island-pad);
 }
 .ss-phone-screen:has(.ss-phone-serp) { background: #000; }
@@ -237,6 +242,7 @@ function iphoneCss(): string {
 .ss-phone-chrome {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 4px;
   margin: 0 6px 6px;
   padding: 5px 7px;
@@ -284,8 +290,10 @@ function iphoneCss(): string {
 .ss-phone-body:has(.ss-phone-dirs) {
   display: flex;
   flex-direction: column;
-  height: calc(100% - var(--ss-island-pad));
+  flex: 1 1 auto;
+  min-height: 0;
   box-sizing: border-box;
+  padding-bottom: 11%;
 }
 .ss-phone-h {
   margin: 0 0 4px;
@@ -372,8 +380,8 @@ function iphoneCss(): string {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: repeat(4, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 6px;
+  gap: 4px;
+  margin-top: 4px;
 }
 .ss-phone-dir {
   position: relative;

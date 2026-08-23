@@ -727,6 +727,12 @@ await test('directory exhibit is a 2x4 wired from Places + audit notes', () => {
   });
   assert.equal(missingGoogle.has('googlemaps'), false);
   assert.equal(missingGoogle.has('apple'), false);
+  const liveWins = listedDirectorySlugs({
+    text: 'Missing from Google, Apple Maps, and major directories.',
+    googlePlacesListed: true,
+  });
+  assert.ok(liveWins.has('googlemaps'));
+  assert.equal(liveWins.has('apple'), false);
 
   const dirs = renderFindingPhoneHtml(finding, {
     website: 'weprintwraps.com',

@@ -130,9 +130,7 @@ if (selectedAudit && isSafeWorkSlug(selectedAudit.slug)) {
         params,
       );
       const listings = card.categories.find((c) => c.id === 'local_listings');
-      directoryNotes = [doc.body || '', listings?.summary || '', ...(listings?.why || [])]
-        .filter(Boolean)
-        .join('\n');
+      directoryNotes = [listings?.summary || '', ...(listings?.why || [])].filter(Boolean).join('\n');
       sourceNote = `Live audit · ${selectedAudit.company}`;
       logRender(`Audit ${selectedAudit.slug} · ${selectedAudit.company}`);
     } else {
@@ -301,7 +299,7 @@ const exhibitPhones = findings.map((finding) => {
     businessName,
     frameSrc,
     screenSrc: live,
-    googlePlacesListed: !notListed,
+    googlePlacesListed: kind === 'directories' ? true : !notListed,
     directoryNotes,
   });
 });

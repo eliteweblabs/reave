@@ -66,14 +66,19 @@ export function listedDirectorySlugs(opts: DirectoryCoverageOpts = {}): Set<Dire
     }
   }
 
-  if (opts.googlePlacesListed === true) listed.add('googlemaps');
-  if (opts.googlePlacesListed === false) missing.add('googlemaps');
+  // Live Places wins for Maps. Audit prose often says “missing from Google”
+  // as a leftover from the notes even when the listing check already matched.
+  if (opts.googlePlacesListed === true) {
+    listed.add('googlemaps');
+    missing.delete('googlemaps');
+  } else if (opts.googlePlacesListed === false) {
+    missing.add('googlemaps');
+    listed.delete('googlemaps');
+  }
 
   for (const slug of forced) listed.add(slug);
   for (const slug of missing) listed.delete(slug);
 
-  // This exhibit only appears when Maps is still standing — leave Maps on
-  // unless the notes or the live flag say otherwise.
   if (opts.googlePlacesListed == null && !missing.has('googlemaps') && !listed.has('googlemaps')) {
     listed.add('googlemaps');
   }
