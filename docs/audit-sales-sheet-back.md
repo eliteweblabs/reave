@@ -2,7 +2,7 @@
 
 Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
-- **Front** — custom: client, scores, three cascade findings, Places phone, QR.
+- **Front** — custom: client, scores, four cascade findings (iPhone exhibits), QR.
 - **Back (REΛVE side)** — static three columns: inner gate (portal welcome +
   Q&A), back cover (custom builds + full `PLATFORM_STACK`), front cover
   (icon dead center + diagnostic). Same HTML for every client
@@ -70,7 +70,7 @@ bind on landscape.
 
 ## Cascade of terribleness (what the front picks)
 
-Walk rank 1 → N. First three hits become the three front columns.
+Walk rank 1 → N. First four hits become the four iPhone exhibits.
 
 | Rank | Finding | Sheet (what to draw) |
 | ---: | --- | --- |

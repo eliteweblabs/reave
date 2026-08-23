@@ -14,7 +14,7 @@ import { denyUnlessDeploymentOwner } from '../../lib/deploymentOwner';
 import { getCompanyConfig } from '../../lib/companyConfig';
 import { getTemplate, fillTemplate, renderFilledDocumentHtml } from '../../lib/documentTemplates';
 import {
-  applyPlacesMissToSalesSheet,
+  applyPlacesMissForSheet,
   applySalesSheetParamOverrides,
   auditOnePagerSlug,
   fillAuditOnePager,
@@ -179,8 +179,10 @@ let siteScreenSrc = '';
 let shotNote = '';
 let serpListed: boolean | null = null;
 
+const liveAudit = Boolean(selectedAudit);
+const placesForce = forceListed || forceNotListed;
 const notListedGuess = forceListed ? false : forceNotListed ? true : !places.listed;
-input = applyPlacesMissToSalesSheet(input, notListedGuess);
+input = applyPlacesMissForSheet(input, notListedGuess, { liveAudit, force: placesForce });
 let findings = input.findings;
 const showPlaces = salesSheetWantsPlacesExhibit(findings);
 
@@ -195,10 +197,16 @@ if (showPlaces && wantGoogleShot && notListedGuess) {
   if (serp.ok) {
     serpListed = serp.listed;
     if (serp.listed) {
-      input = applyPlacesMissToSalesSheet(input, false);
+      const before = findings.length;
+      input = applyPlacesMissForSheet(input, false, { liveAudit, force: placesForce });
       findings = input.findings;
-      shotNote = 'Google opened their listing — Maps is working, so it is not an exhibit.';
-      logRender('Search results show a listing — dropped the Places phone.');
+      if (findings.length < before) {
+        shotNote = 'Google opened their listing — Maps is working, so it is not an exhibit.';
+        logRender('Search results show a listing — dropped the Places phone.');
+      } else {
+        shotNote = 'Dummy Maps phone kept — live Google matched a different listing.';
+        logRender('Dummy fixture keeps four phones (live Google listing ignored).');
+      }
     } else {
       placesScreenSrc = `data:image/png;base64,${serp.pngBase64}`;
       shotNote = 'Live Google results in the Places iPhone — they are missing.';

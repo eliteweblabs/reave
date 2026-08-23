@@ -357,6 +357,20 @@ export function salesSheetInputFromReportCard(
   };
 }
 
+/**
+ * Dummy fixture phones stay at four. A live Google hit on some other
+ * “Hale & Co.” must not delete the Maps exhibit. Live audits still drop
+ * a working listing; `force` honors ?listed=0/1 on the dummy too.
+ */
+export function applyPlacesMissForSheet(
+  input: AuditSalesSheetInput,
+  notListed: boolean,
+  opts: { liveAudit: boolean; force?: boolean } = { liveAudit: true },
+): AuditSalesSheetInput {
+  if (!notListed && !opts.liveAudit && !opts.force) return input;
+  return applyPlacesMissToSalesSheet(input, notListed);
+}
+
 /** Apply a live Places miss without jumping SSL / down / domain / malware. */
 export function applyPlacesMissToSalesSheet(
   input: AuditSalesSheetInput,

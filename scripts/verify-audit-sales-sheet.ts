@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  applyPlacesMissForSheet,
   applyPlacesMissToSalesSheet,
   applySalesSheetParamOverrides,
   DUMMY_SALES_SHEET,
@@ -253,6 +254,18 @@ await test('Places miss is pinned as finding 1', () => {
   const applied = applyPlacesMissToSalesSheet(DUMMY_SALES_SHEET, true);
   assert.equal(applied.visibility, 'F');
   assert.equal(applied.findings[0]?.id, 'places-not-listed');
+});
+
+await test('dummy sheet keeps four phones when a live Google listing would drop Maps', () => {
+  const dropped = applyPlacesMissToSalesSheet(DUMMY_SALES_SHEET, false);
+  assert.ok(dropped.findings.length < 4);
+  const dummy = applyPlacesMissForSheet(DUMMY_SALES_SHEET, false, { liveAudit: false });
+  assert.equal(dummy.findings.length, 4);
+  assert.ok(dummy.findings.some((f) => f.id === 'dummy-listings'));
+  const live = applyPlacesMissForSheet(DUMMY_SALES_SHEET, false, { liveAudit: true });
+  assert.equal(live.findings.length, dropped.findings.length);
+  const forced = applyPlacesMissForSheet(DUMMY_SALES_SHEET, false, { liveAudit: false, force: true });
+  assert.equal(forced.findings.length, dropped.findings.length);
 });
 
 await test('selectTopFindings boosts a Google Places miss ahead of speed', () => {
@@ -665,6 +678,29 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
   assert.match(down, /Safari cannot open the page/);
   assert.match(down, /ERR_CONNECTION_REFUSED/);
   assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
+});
+
+await test('missing Open Graph exhibit is SMS, Facebook, and Instagram as plain text', () => {
+  assert.equal(salesSheetExhibitKind({ id: 'dummy-seo', categoryLabel: 'SEO Fundamentals' }), 'share-cards');
+  assert.equal(salesSheetExhibitKind({ id: 'no-og-image', categoryLabel: 'Share Cards' }), 'share-cards');
+  const og = renderFindingPhoneHtml(
+    {
+      id: 'dummy-seo',
+      categoryLabel: 'SEO Fundamentals',
+      problem: 'Title tags and Open Graph are incomplete, so shares look unfinished.',
+      solution: 'Finish titles, meta, and share cards so every link looks like the brand.',
+    },
+    { website: 'haleco.example', businessName: 'Hale & Co.' },
+  );
+  assert.match(og, /data-ss-exhibit="share-cards"/);
+  assert.match(og, /ss-og-sms/);
+  assert.match(og, /iMessage/);
+  assert.match(og, /ss-og-fb-word">facebook/);
+  assert.match(og, /ss-og-ig/);
+  assert.match(og, /Direct/);
+  assert.equal((og.match(/https:\/\/haleco\.example/g) || []).length, 3);
+  assert.doesNotMatch(og, /ss-phone-icon--alert/);
+  assert.doesNotMatch(og, /ss-phone-chrome/);
 });
 
 await test('front exhibits are four phones with captions and no next steps', () => {

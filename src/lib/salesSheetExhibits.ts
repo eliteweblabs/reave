@@ -17,6 +17,7 @@ export type SalesSheetExhibitKind =
   | 'speed'
   | 'no-offer'
   | 'directories'
+  | 'share-cards'
   | 'generic';
 
 export type SalesSheetExhibitOpts = {
@@ -87,9 +88,10 @@ export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'c
   if (id === 'site-parked' || id === 'parked') return 'parked';
   if (id === 'dummy-speed' || id === 'site-speed' || /speed/.test(id)) return 'speed';
   if (id === 'no-offer' || id === 'dummy-offer') return 'no-offer';
-  if (id === 'directories' || id === 'dummy-seo' && /director/.test(finding.categoryLabel.toLowerCase())) {
-    return 'directories';
+  if (id === 'no-og-image' || id === 'dummy-seo' || id === 'share-cards' || /og-image|share-card/.test(id)) {
+    return 'share-cards';
   }
+  if (id === 'directories') return 'directories';
   if (isPlacesMissFinding(finding) || id === 'places-not-listed' || id === 'gbp-unclaimed') return 'places';
   const label = finding.categoryLabel.toLowerCase();
   if (label === 'ssl' || label.includes('certificate')) return 'ssl';
@@ -97,6 +99,7 @@ export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'c
   if (label.includes('director')) return 'directories';
   if (label.includes('offer')) return 'no-offer';
   if (label.includes('speed')) return 'speed';
+  if (label.includes('share card') || label.includes('open graph')) return 'share-cards';
   return 'generic';
 }
 
@@ -365,6 +368,226 @@ function iphoneCss(): string {
   text-align: center;
 }
 .ss-phone-dir span { display: block; font-weight: 600; color: #c62828; margin-top: 2px; }
+.ss-og {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - var(--ss-island-pad));
+  min-height: 0;
+  background: #fff;
+}
+.ss-og-app {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ss-og-sms { background: #fff; }
+.ss-og-sms-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px 3px;
+  border-bottom: 0.5px solid #d8d8de;
+}
+.ss-og-chev {
+  flex: 0 0 auto;
+  color: #007aff;
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1;
+  margin-right: 1px;
+}
+.ss-og-sms-av {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #c7c7cc;
+}
+.ss-og-sms-bar strong {
+  display: block;
+  font-size: 6.5px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: #1d1d1f;
+}
+.ss-og-sms-bar em {
+  display: block;
+  font-size: 4.5px;
+  font-style: normal;
+  font-weight: 500;
+  color: #8e8e93;
+}
+.ss-og-sms-thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 3px 5px 4px;
+  min-height: 0;
+}
+.ss-og-time {
+  align-self: center;
+  margin: 0 0 3px;
+  font-size: 4.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #8e8e93;
+}
+.ss-og-sms-bubble {
+  max-width: 92%;
+  padding: 4px 7px;
+  background: #007aff;
+  color: #fff;
+  border-radius: 14px 14px 4px 14px;
+  font-size: 6px;
+  font-weight: 400;
+  line-height: 1.25;
+  word-break: break-all;
+}
+.ss-og-sms-meta {
+  margin: 1px 1px 0 0;
+  font-size: 4.5px;
+  font-weight: 600;
+  color: #8e8e93;
+}
+.ss-og-fb { background: #fff; border-top: 0.5px solid #ccd0d5; }
+.ss-og-fb-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px 2px;
+  background: #fff;
+}
+.ss-og-fb-word {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  color: #0866ff;
+  font-family: Helvetica, Arial, 'Segoe UI', sans-serif;
+}
+.ss-og-fb-tools { display: flex; gap: 3px; }
+.ss-og-fb-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e4e6eb;
+}
+.ss-og-fb-post {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 3px 6px 3px;
+  background: #fff;
+  min-height: 0;
+}
+.ss-og-fb-who {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+.ss-og-fb-av {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #1877f2;
+  color: #fff;
+  font-size: 5.5px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+.ss-og-fb-who strong {
+  display: block;
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #050505;
+  line-height: 1.15;
+}
+.ss-og-fb-who em {
+  display: block;
+  font-size: 4.5px;
+  font-style: normal;
+  font-weight: 500;
+  color: #65676b;
+}
+.ss-og-fb-link {
+  margin: 0;
+  font-size: 6px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: #0866ff;
+  word-break: break-all;
+}
+.ss-og-fb-actions {
+  margin-top: auto;
+  padding-top: 3px;
+  border-top: 0.5px solid #e4e6eb;
+  display: flex;
+  justify-content: space-between;
+  font-size: 5px;
+  font-weight: 600;
+  color: #65676b;
+}
+.ss-og-ig { background: #fff; border-top: 0.5px solid #dbdbdb; }
+.ss-og-ig-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px;
+  border-bottom: 0.5px solid #dbdbdb;
+}
+.ss-og-ig-icon {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+}
+.ss-og-ig-icon svg { width: 11px; height: 11px; display: block; }
+.ss-og-ig-bar strong {
+  display: block;
+  font-size: 6.5px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #000;
+  line-height: 1.1;
+}
+.ss-og-ig-bar em {
+  display: block;
+  font-size: 4.5px;
+  font-style: normal;
+  font-weight: 500;
+  color: #8e8e8e;
+}
+.ss-og-ig-thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 3px 6px 4px;
+  min-height: 0;
+  background: #fff;
+}
+.ss-og-ig-bubble {
+  max-width: 92%;
+  padding: 4px 8px;
+  background: #3797f0;
+  color: #fff;
+  border-radius: 18px;
+  font-size: 6px;
+  font-weight: 400;
+  line-height: 1.25;
+  word-break: break-all;
+}
 `.trim();
 }
 
@@ -474,6 +697,56 @@ function directoriesScreen(host: string): string {
     </div>`;
 }
 
+function shareUrl(host: string): string {
+  return host === 'this site' ? 'https://example.com' : `https://${host}`;
+}
+
+const IG_CAMERA_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="ss-og-ig-grad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#f58529"/><stop offset=".5" stop-color="#dd2a7b"/><stop offset="1" stop-color="#515bd4"/></linearGradient></defs><rect width="24" height="24" rx="6" fill="url(#ss-og-ig-grad)"/><rect x="6.2" y="6.2" width="11.6" height="11.6" rx="3.6" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="12" cy="12" r="2.9" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="16.3" cy="7.8" r="1" fill="#fff"/></svg>';
+
+function shareCardsScreen(host: string, name: string): string {
+  const url = escapeHtml(shareUrl(host));
+  const initial = escapeHtml((name.trim()[0] || host[0] || 'H').toUpperCase());
+  const poster = escapeHtml(name);
+  return `<div class="ss-og">
+  <section class="ss-og-app ss-og-sms">
+    <header class="ss-og-sms-bar">
+      <span class="ss-og-chev" aria-hidden="true">‹</span>
+      <span class="ss-og-sms-av" aria-hidden="true"></span>
+      <div><strong>Alex</strong><em>iMessage</em></div>
+    </header>
+    <div class="ss-og-sms-thread">
+      <p class="ss-og-time">Today 2:14 PM</p>
+      <div class="ss-og-sms-bubble">${url}</div>
+      <p class="ss-og-sms-meta">Delivered</p>
+    </div>
+  </section>
+  <section class="ss-og-app ss-og-fb">
+    <header class="ss-og-fb-bar">
+      <span class="ss-og-fb-word">facebook</span>
+      <span class="ss-og-fb-tools" aria-hidden="true"><span class="ss-og-fb-dot"></span><span class="ss-og-fb-dot"></span></span>
+    </header>
+    <article class="ss-og-fb-post">
+      <div class="ss-og-fb-who">
+        <span class="ss-og-fb-av">${initial}</span>
+        <div><strong>${poster}</strong><em>Just now · Public</em></div>
+      </div>
+      <p class="ss-og-fb-link">${url}</p>
+      <p class="ss-og-fb-actions"><span>Like</span><span>Comment</span><span>Share</span></p>
+    </article>
+  </section>
+  <section class="ss-og-app ss-og-ig">
+    <header class="ss-og-ig-bar">
+      <span class="ss-og-ig-icon">${IG_CAMERA_ICON}</span>
+      <div><strong>alex</strong><em>Direct</em></div>
+    </header>
+    <div class="ss-og-ig-thread">
+      <div class="ss-og-ig-bubble">${url}</div>
+    </div>
+  </section>
+</div>`;
+}
+
 function genericScreen(host: string, finding: SalesSheetFinding): string {
   return `${chromeBar(host, false)}
     <div class="ss-phone-body">
@@ -501,6 +774,8 @@ function screenFor(kind: SalesSheetExhibitKind, finding: SalesSheetFinding, host
       return noOfferScreen(host, name);
     case 'directories':
       return directoriesScreen(host);
+    case 'share-cards':
+      return shareCardsScreen(host, name);
     default:
       return genericScreen(host, finding);
   }

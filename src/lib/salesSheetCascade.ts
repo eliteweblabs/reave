@@ -475,7 +475,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 33,
     categoryLabel: 'Share Cards',
     sheet:
-      'Show a text-message or iMessage preview of the audit URL with a blank or random image — the ugly share card is the exhibit.',
+      'One iPhone with SMS, Facebook, and Instagram stacked — the audit URL as plain text, no Open Graph image.',
     match: (ctx) => /no open graph|no og:image|share cards have no|blank or random preview/.test(ctx.lower),
     problem: () => 'Links shared in texts and social show a blank or random preview.',
     solution: () => 'Add Open Graph tags and a branded 1200×630 image.',
