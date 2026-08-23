@@ -165,7 +165,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   background-image: url("/reave-bg-pattern.svg");
   background-repeat: repeat;
   background-position: center center;
-  background-size: ${orientation === 'landscape' ? '29.029in 22.4315in' : '22.4315in 29.029in'};
+  background-size: ${orientation === 'landscape' ? '24.675in 19.067in' : '19.067in 24.675in'};
   opacity: 0.05;
   filter: grayscale(1);
   pointer-events: none;
@@ -194,6 +194,24 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex-direction: column;
   gap: 0.38em;
   padding: 0 var(--ss-print-inset);
+}
+.ss-sheet-back .ss-back-col::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* 50% stop sits on the tall center oval (~52% × 74% of the panel). */
+  background: radial-gradient(
+    ellipse 104% 148% at 50% 50%,
+    #fff 0%,
+    #fff 22%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.16) 78%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .ss-sheet-back .ss-back-col > * {
   position: relative;
