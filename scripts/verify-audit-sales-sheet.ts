@@ -703,9 +703,11 @@ await test('static back is gate + builds + cover with curated stack and no clien
   for (const tech of SALES_SHEET_STACK) {
     assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
   }
-  assert.match(back, /grid-template-columns: repeat\(5, auto\)/);
+  assert.match(back, /justify-content: center/);
+  assert.match(back, /flex-wrap: wrap/);
   assert.match(back, /column-gap: clamp\(16px, 2\.2cqi, 26px\)/);
   assert.match(back, /row-gap: clamp\(8px, 1\.15cqi, 12px\)/);
+  assert.match(back, /max-width: 20cqi/);
   assert.match(back, /--ss-print-inset: 0\.2in/);
   assert.match(back, /\.ss-sheet-back \.doc-onepager \{[\s\S]*?padding: 0;/);
   assert.match(back, /grid-template-columns: 1fr 1fr 1fr/);
