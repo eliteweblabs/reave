@@ -5,14 +5,7 @@
 import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
 import { clerkSecretKey } from './clerkClient';
-
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escHtml } from './escHtml';
 
 async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
   const secretKey = clerkSecretKey();

@@ -1,10 +1,10 @@
+import { projectRoot } from './projectRoot';
 /**
  * Job/work markdown files (src/knowledge/jobs/*.md).
  * Each file is a work request tied to a contact via YAML frontmatter.
  */
 
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import {
   readdirSync,
   readFileSync,
@@ -124,16 +124,6 @@ export interface WorkJobInput {
 
 const SAFE_SLUG_RE = /^[a-z0-9._-]+$/i;
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 export function workDir(): string {
   return process.env.WORK_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'jobs');

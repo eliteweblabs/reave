@@ -132,9 +132,21 @@ export const POST: APIRoute = async ({ request }) => {
   });
 };
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, request }) => {
   if (!hasFeature('site_audits')) {
     return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  }
+
+  const rate = checkInMemoryRateLimit(`digital-audit-get:${clientIp(request)}`, {
+    windowMs: 60_000,
+    maxPerWindow: 60,
+  });
+  if (!rate.ok) {
+    return jsonResponse(
+      { ok: false, error: 'Too many requests' },
+      429,
+      { headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
+    );
   }
 
   const slug = (url.searchParams.get('slug') || '').trim().toLowerCase();

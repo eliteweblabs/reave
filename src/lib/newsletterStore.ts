@@ -1,3 +1,4 @@
+import { projectRoot } from './projectRoot';
 /**
  * Persistence for the newsletter / email-automation feature.
  *
@@ -11,7 +12,6 @@
  */
 import { randomUUID } from 'crypto';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
@@ -129,16 +129,6 @@ async function ensureSchema(): Promise<pg.Pool | null> {
 
 // ─────────────────────────── file fallback ───────────────────────────
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function filePath(name: string): string {
   return join(projectRoot(), 'src', 'knowledge', name);

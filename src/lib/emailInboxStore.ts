@@ -1,3 +1,4 @@
+import { projectRoot } from './projectRoot';
 /**
  * Persisted log of inbound email triage results for the dashboard Email tab.
  * Postgres (DATABASE_URL) when set, otherwise JSON file under src/knowledge/.
@@ -5,7 +6,6 @@
 
 import { randomUUID } from 'crypto';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
@@ -242,16 +242,6 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   return pool;
 }
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function inboxFilePath(): string {
   const override = serverEnv('EMAIL_INBOX_FILE')?.trim();

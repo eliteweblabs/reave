@@ -1,3 +1,4 @@
+import { projectRoot } from '../../../lib/projectRoot';
 /**
  * GET /api/todo — list all todo markdown files and their parsed checkbox items.
  *
@@ -10,24 +11,13 @@
  */
 import type { APIRoute } from 'astro';
 import type { APIContext } from 'astro';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { readdirSync, readFileSync, existsSync } from 'fs';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
 /** Walk up from this compiled file until we find a package.json — that's the project root. */
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function todoDir(): string {
   return process.env.TODO_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'todo');

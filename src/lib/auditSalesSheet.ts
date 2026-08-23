@@ -508,15 +508,9 @@ export function fillAuditOnePager(markdown: string, input: AuditSalesSheetInput)
   return setFrontmatterTitle(filled, 'Website Audit').replace(/Page 1 of 1/g, 'Page 1 of 2');
 }
 
-const COLUMN_MARK = /^:::column\s*$/m;
+import { escHtml } from './escHtml';
 
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+const COLUMN_MARK = /^:::column\s*$/m;
 
 /** Compact portal-matching disclaimer for the sales one-pager footer. */
 export function renderAuditDisclaimerHtml(

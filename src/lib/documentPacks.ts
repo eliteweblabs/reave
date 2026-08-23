@@ -1,3 +1,4 @@
+import { projectRoot } from './projectRoot';
 /**
  * Document library packs — bundled templates can declare industry / state /
  * department so a law install does not show agency sheets, and a tax shop
@@ -6,8 +7,7 @@
  * Untagged templates (user-created) always stay visible.
  */
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { DIRECTORY_COUNTIES } from './courtDirectory';
 import { knowledgeIndustryId } from './knowledgeIndustry';
 import {
@@ -128,16 +128,6 @@ export type DocumentFile = {
   markdown: string;
 };
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 export function documentsDir(): string {
   return join(projectRoot(), 'src', 'documents');

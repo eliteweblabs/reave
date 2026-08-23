@@ -1,10 +1,10 @@
+import { projectRoot } from './projectRoot';
 /**
  * Per-module deployment status — playbooks in plugin DEPLOY.md files and
  * config/modules playbooks; per-install overrides in config/config-{slug}.json.
  */
 import { existsSync, readdirSync, readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { demoModuleDeployStatus, demoShouldShowDeployBanner } from './demoFeatures.ts';
 import { isDemoMode } from './demoMode.ts';
 import { FEATURE_IDS, FEATURE_LABELS, hasFeature, type FeatureId } from './features.ts';
@@ -46,16 +46,6 @@ export type DeployModuleSnapshot = DeployModulePlaybook & {
 
 let _playbooksCached: DeployModulePlaybook[] | null = null;
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function parseFrontmatter(raw: string): { meta: Record<string, string>; body: string } {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);

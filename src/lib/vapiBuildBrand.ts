@@ -3,8 +3,8 @@
  * Reads admin Company details from Postgres, company-config.json, or env.
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { projectRoot } from './projectRoot.ts';
 
 export type BuildBrandContext = {
   name: string;
@@ -26,16 +26,6 @@ export type BuildVapiTemplates = {
 const DEFAULT_NAME = 'Business OS';
 const DEFAULT_DESCRIPTION = 'Automated client communication platform';
 
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
 
 function trim(v: string | null | undefined): string {
   return (v ?? '').trim();
