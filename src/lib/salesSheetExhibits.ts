@@ -2,8 +2,9 @@
  * Front-of-sheet exhibits — one iPhone screen per cascade hit.
  * Identify and display. No next-step copy.
  */
-import { siApple, siFacebook, siGooglemaps, siTripadvisor, siYelp } from 'simple-icons';
+import { siApple, siFacebook, siGooglemaps, siNextdoor, siThumbtack, siTripadvisor, siYelp } from 'simple-icons';
 import { escapeHtml } from './htmlEscape';
+import { listedDirectorySlugs, type DirectorySlug } from './salesSheetDirectories';
 import { IPHONE_FRAME_SRC, isPlacesMissFinding } from './salesSheetPlacesView';
 import type { LetterGrade } from './auditReportCard';
 import type { SalesSheetFinding, SalesSheetHeroStat } from './auditSalesSheet';
@@ -27,6 +28,12 @@ export type SalesSheetExhibitOpts = {
   frameSrc?: string;
   /** Live screenshot (data URL) for this screen when we captured one. */
   screenSrc?: string;
+  /** Live Google Places / Maps match — drives the Maps tile. */
+  googlePlacesListed?: boolean | null;
+  /** Extra audit notes used to mark Yelp / Bing / Apple / etc. */
+  directoryNotes?: string;
+  /** Explicit listed directory slugs (fixture / query override). */
+  listedDirectories?: readonly string[];
 };
 
 export type SalesSheetSnapshot = {
@@ -92,7 +99,7 @@ export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'c
   if (id === 'no-og-image' || id === 'dummy-seo' || id === 'share-cards' || /og-image|share-card/.test(id)) {
     return 'share-cards';
   }
-  if (id === 'directories') return 'directories';
+  if (id === 'directories' || id === 'listings-thin') return 'directories';
   if (isPlacesMissFinding(finding) || id === 'places-not-listed' || id === 'gbp-unclaimed') return 'places';
   const label = finding.categoryLabel.toLowerCase();
   if (label === 'ssl' || label.includes('certificate')) return 'ssl';
@@ -364,15 +371,13 @@ function iphoneCss(): string {
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-auto-rows: auto;
-  align-content: center;
-  gap: 6px;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 5px;
   margin-top: 6px;
 }
 .ss-phone-dir {
   position: relative;
   min-height: 0;
-  aspect-ratio: 1.2 / 1;
   display: grid;
   place-items: center;
   border-radius: 7px;
@@ -737,14 +742,16 @@ const SI_BING = {
   path: 'M20.176 15.406a6.48 6.48 0 01-1.736 4.414c1.338-1.47.803-3.869-1.003-4.635-.862-.305-2.488-.85-3.367-1.158a1.834 1.834 0 01-.932-.818c-.381-.975-1.163-2.968-1.548-3.948-.095-.285-.31-.625-.265-.938.046-.598.724-1.003 1.276-.754l3.682 1.888c.621.292 1.305.692 1.796 1.172a6.486 6.486 0 012.097 4.777zm-1.44 1.888c-.264-1.194-1.135-1.744-2.216-2.028-1.527.902-4.853 2.878-6.952 4.13-1.103.68-2.13 1.35-2.919 1.242a2.866 2.866 0 01-2.77-2.325c-.012-.048-.008-.03-.001.01a6.4 6.4 0 00.947 2.653 6.498 6.498 0 005.486 3.022c1.908.062 3.536-1.153 5.099-2.096.292-.188.804-.496 1.332-.831l1.423-1.51c.553-.577.764-1.426.571-2.267zm-12.04 2.97c.422 0 .822-.1 1.173-.29.355-.215.964-.579 1.7-1.018L9.57 4.502c0-.99-.497-1.864-1.257-2.382-.08-.059-2.91-1.901-2.99-1.956-.605-.432-1.523.045-1.5.797v14.887l.417 2.36a2.488 2.488 0 002.455 2.056z',
 } as const;
 
-/** Official Simple Icons marks. Listed tiles keep brand color; missing tiles share one gray. */
+/** Official Simple Icons marks. Listed vs missing comes from the live Places flag + audit notes. */
 const DIR_TILES = [
-  { icon: siYelp, missing: true },
-  { icon: SI_BING, missing: true },
-  { icon: siApple, missing: true },
-  { icon: siGooglemaps, missing: false },
-  { icon: siFacebook, missing: true },
-  { icon: siTripadvisor, missing: true },
+  { icon: siYelp },
+  { icon: SI_BING },
+  { icon: siApple },
+  { icon: siGooglemaps },
+  { icon: siFacebook },
+  { icon: siTripadvisor },
+  { icon: siNextdoor },
+  { icon: siThumbtack },
 ] as const;
 
 const DIR_BADGE_OK =
@@ -752,8 +759,12 @@ const DIR_BADGE_OK =
 const DIR_BADGE_MISS =
   '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-badge ss-phone-dir-badge--miss" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>';
 
-function directoryTileHtml(tile: (typeof DIR_TILES)[number]): string {
-  const { icon, missing } = tile;
+function directoryTileHtml(
+  tile: (typeof DIR_TILES)[number],
+  listed: ReturnType<typeof listedDirectorySlugs>,
+): string {
+  const { icon } = tile;
+  const missing = !listed.has(icon.slug as DirectorySlug);
   const viewBox = icon.slug === 'yelp' ? '0 0 21.2 21.2' : '0 0 24 24';
   const fillRule = icon.slug === 'bing' ? ' fill-rule="evenodd"' : '';
   const mark = `<span class="ss-phone-dir-icon"><svg viewBox="${viewBox}" aria-hidden="true"><path d="${icon.path}"${fillRule}/></svg></span>`;
@@ -763,11 +774,16 @@ function directoryTileHtml(tile: (typeof DIR_TILES)[number]): string {
   return `<div class="ss-phone-dir ss-phone-dir--${state}" data-dir="${icon.slug}"${bg} title="${escapeHtml(icon.title)}">${mark}${badge}</div>`;
 }
 
-function directoriesScreen(host: string): string {
+function directoriesScreen(host: string, finding: SalesSheetFinding, opts: SalesSheetExhibitOpts): string {
+  const listed = listedDirectorySlugs({
+    text: [finding.problem, finding.solution, opts.directoryNotes].filter(Boolean).join('\n'),
+    googlePlacesListed: opts.googlePlacesListed,
+    listed: opts.listedDirectories,
+  });
   return `${chromeBar(host, false)}
     <div class="ss-phone-body">
       <p class="ss-phone-h">Directory coverage</p>
-      <div class="ss-phone-dirs">${DIR_TILES.map(directoryTileHtml).join('')}</div>
+      <div class="ss-phone-dirs">${DIR_TILES.map((tile) => directoryTileHtml(tile, listed)).join('')}</div>
     </div>`;
 }
 
@@ -830,7 +846,13 @@ function genericScreen(host: string, finding: SalesSheetFinding): string {
     </div>`;
 }
 
-function screenFor(kind: SalesSheetExhibitKind, finding: SalesSheetFinding, host: string, name: string): string {
+function screenFor(
+  kind: SalesSheetExhibitKind,
+  finding: SalesSheetFinding,
+  host: string,
+  name: string,
+  opts: SalesSheetExhibitOpts,
+): string {
   switch (kind) {
     case 'ssl':
       return sslScreen(host, finding);
@@ -847,7 +869,7 @@ function screenFor(kind: SalesSheetExhibitKind, finding: SalesSheetFinding, host
     case 'no-offer':
       return noOfferScreen(host, name);
     case 'directories':
-      return directoriesScreen(host);
+      return directoriesScreen(host, finding, opts);
     case 'share-cards':
       return shareCardsScreen(host, name);
     default:
@@ -860,7 +882,7 @@ export function renderFindingPhoneHtml(finding: SalesSheetFinding, opts: SalesSh
   const host = auditHost(opts.website || '');
   const name = (opts.businessName || '').trim() || host;
   const frameSrc = (opts.frameSrc || IPHONE_FRAME_SRC).trim() || IPHONE_FRAME_SRC;
-  const screen = screenFor(kind, finding, host, name);
+  const screen = screenFor(kind, finding, host, name, opts);
   return iphone(screen, {
     frameSrc,
     screenSrc: kind === 'ssl' ? '' : opts.screenSrc,

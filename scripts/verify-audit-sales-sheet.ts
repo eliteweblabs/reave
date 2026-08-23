@@ -55,6 +55,7 @@ import {
   renderSalesSheetHeaderHeroHtml,
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
+import { listedDirectorySlugs } from '../src/lib/salesSheetDirectories.ts';
 import { auditUrlShotLooksDown, auditUrlShotLooksInsecure } from '../src/lib/salesSheetPlacesShot.ts';
 
 const results: string[] = [];
@@ -705,15 +706,32 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
   assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
 });
 
-await test('directory exhibit is a 2x3 of color listings and one shared missing gray', () => {
+await test('directory exhibit is a 2x4 wired from Places + audit notes', () => {
   assert.equal(salesSheetExhibitKind({ id: 'directories', categoryLabel: 'Directories' }), 'directories');
+  assert.equal(salesSheetExhibitKind({ id: 'listings-thin', categoryLabel: 'Directories' }), 'directories');
   const finding = {
-    id: 'directories',
+    id: 'listings-thin',
     categoryLabel: 'Directories',
     problem: 'Directory coverage is thin — Yelp, Bing, or Apple still point nowhere.',
     solution: 'Claim the remaining major directories and keep NAP identical.',
   };
-  const dirs = renderFindingPhoneHtml(finding, { website: 'weprintwraps.com' });
+  const listed = listedDirectorySlugs({
+    text: finding.problem,
+    googlePlacesListed: true,
+  });
+  assert.ok(listed.has('googlemaps'));
+  assert.equal(listed.has('yelp'), false);
+  assert.equal(listed.has('apple'), false);
+  const missingGoogle = listedDirectorySlugs({
+    text: 'The business is missing from Google Business Profile and Apple Maps.',
+  });
+  assert.equal(missingGoogle.has('googlemaps'), false);
+  assert.equal(missingGoogle.has('apple'), false);
+
+  const dirs = renderFindingPhoneHtml(finding, {
+    website: 'weprintwraps.com',
+    googlePlacesListed: true,
+  });
   const page = renderSalesSheetFrontExhibitsHtml({
     findings: [finding],
     phones: [dirs],
@@ -722,7 +740,7 @@ await test('directory exhibit is a 2x3 of color listings and one shared missing 
   assert.match(dirs, /data-ss-exhibit="directories"/);
   assert.match(dirs, /Directory coverage/);
   assert.match(page, /grid-template-columns: 1fr 1fr;/);
-  assert.match(page, /aspect-ratio: 1\.2 \/ 1;/);
+  assert.match(page, /grid-template-rows: repeat\(4, minmax\(0, 1fr\)\);/);
   assert.doesNotMatch(page, /grayscale\(1\)/);
   assert.match(page, /background: #d8d8de;/);
   assert.match(dirs, /data-dir="yelp"/);
@@ -731,16 +749,26 @@ await test('directory exhibit is a 2x3 of color listings and one shared missing 
   assert.match(dirs, /data-dir="googlemaps"/);
   assert.match(dirs, /data-dir="facebook"/);
   assert.match(dirs, /data-dir="tripadvisor"/);
+  assert.match(dirs, /data-dir="nextdoor"/);
+  assert.match(dirs, /data-dir="thumbtack"/);
   assert.match(dirs, /ss-phone-dir--on/);
   assert.match(dirs, /--dir-bg:#4285F4/);
   assert.match(dirs, /data-dir="yelp"[\s\S]*?viewBox="0 0 21\.2 21\.2"/);
   assert.match(dirs, /data-dir="bing"[\s\S]*?fill-rule="evenodd"/);
-  assert.equal((dirs.match(/ss-phone-dir--off/g) || []).length, 5);
+  assert.equal((dirs.match(/ss-phone-dir--off/g) || []).length, 7);
   assert.equal((dirs.match(/ss-phone-dir--on/g) || []).length, 1);
-  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, 5);
+  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, 7);
   assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 1);
   assert.match(dirs, /IOS_ICONS\.check/);
   assert.match(dirs, /IOS_ICONS\.x/);
+
+  const facebookOn = renderFindingPhoneHtml(finding, {
+    website: 'weprintwraps.com',
+    googlePlacesListed: true,
+    directoryNotes: 'Facebook listing found and claimed.',
+  });
+  assert.match(facebookOn, /data-dir="facebook"[^>]*ss-phone-dir--on|data-dir="facebook"[\s\S]*?ss-phone-dir-badge--ok/);
+  assert.equal((facebookOn.match(/ss-phone-dir--on/g) || []).length, 2);
 });
 
 await test('missing Open Graph exhibit is SMS, Facebook, and Instagram as plain text', () => {
