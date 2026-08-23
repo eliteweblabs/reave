@@ -2,6 +2,7 @@
  * Front-of-sheet exhibits — one iPhone screen per cascade hit.
  * Identify and display. No next-step copy.
  */
+import { NO_LOGO_FOUND_HTML } from './clientLogoCopy';
 import { escapeHtml } from './htmlEscape';
 import {
   directoryIconSrc,
@@ -14,6 +15,12 @@ import {
   type DirectoryVerdict,
 } from './salesSheetDirectories';
 import { IPHONE_FRAME_SRC, isPlacesMissFinding } from './salesSheetPlacesView';
+import {
+  dummySpeedWaterfall,
+  renderSpeedWaterfallHtml,
+  waterfallRowsFromRequests,
+} from './salesSheetWaterfall';
+import type { LighthouseNetworkRequest } from './lighthouseClient';
 import type { LetterGrade } from './auditReportCard';
 import type { SalesSheetFinding, SalesSheetHeroStat } from './auditSalesSheet';
 
@@ -28,6 +35,7 @@ export type SalesSheetExhibitKind =
   | 'no-offer'
   | 'directories'
   | 'share-cards'
+  | 'private-relay'
   | 'generic';
 
 export type SalesSheetExhibitOpts = {
@@ -46,6 +54,10 @@ export type SalesSheetExhibitOpts = {
   directoryChecks?: DirectoryCheck[];
   /** Which 24-icon pack to draw. Only `general` ships today. */
   directoryIconGroup?: string | null;
+  /** Lighthouse `network-requests` for the Site Speed waterfall. */
+  networkRequests?: LighthouseNetworkRequest[];
+  /** LCP display value from PageSpeed, e.g. "5.4 s". */
+  lcpLabel?: string;
 };
 
 export type SalesSheetSnapshot = {
@@ -113,6 +125,9 @@ export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'c
   }
   if (id === 'directories' || id === 'listings-thin') return 'directories';
   if (isPlacesMissFinding(finding) || id === 'places-not-listed' || id === 'gbp-unclaimed') return 'places';
+  if (id === 'security-headers' || id === 'security-harden' || /mixed-content|private-relay/.test(id)) {
+    return 'private-relay';
+  }
   const label = finding.categoryLabel.toLowerCase();
   if (label === 'ssl' || label.includes('certificate')) return 'ssl';
   if (label.includes('site down') || label === 'down') return 'site-down';
@@ -120,6 +135,9 @@ export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'c
   if (label.includes('offer')) return 'no-offer';
   if (label.includes('speed')) return 'speed';
   if (label.includes('share card') || label.includes('open graph')) return 'share-cards';
+  if (label === 'security' || label.includes('security header') || label.includes('mixed content')) {
+    return 'private-relay';
+  }
   return 'generic';
 }
 
@@ -356,6 +374,95 @@ function iphoneCss(): string {
 }
 .ss-phone-icon--danger { background: #ffe5e3; color: #c62828; }
 .ss-phone-icon--alert { background: #fff3cd; color: #8a6d1b; }
+.ss-relay {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f2f2f7;
+}
+.ss-relay-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18% 11px 8px;
+  text-align: center;
+}
+.ss-relay-shield {
+  width: 36px;
+  height: 36px;
+  margin: 0 0 10px;
+  color: #8e8e93;
+}
+.ss-relay-shield svg { display: block; width: 100%; height: 100%; }
+.ss-relay-h {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #3a3a3c;
+}
+.ss-relay-p {
+  margin: 0 0 14px;
+  font-size: 7px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #6e6e73;
+}
+.ss-relay-links {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  font-size: 7.5px;
+  font-weight: 500;
+  color: #007aff;
+}
+.ss-relay-safari {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 8px 11%;
+  background: linear-gradient(#ececf1, #d8d8de);
+}
+.ss-relay-round {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  color: #3a3a3c;
+  display: grid;
+  place-items: center;
+}
+.ss-relay-round svg { width: 8px; height: 8px; display: block; }
+.ss-relay-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 6px;
+  background: #d1d1d6;
+  border-radius: 999px;
+  color: #1d1d1f;
+  font-size: 7px;
+  font-weight: 600;
+}
+.ss-relay-url em {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+  text-align: center;
+}
+.ss-relay-url svg { flex: 0 0 auto; width: 7px; height: 7px; color: #6e6e73; }
 .ss-phone-park {
   margin-top: 8px;
   padding: 8px;
@@ -385,6 +492,87 @@ function iphoneCss(): string {
   border: 2px solid #d8d8de;
   border-top-color: #8e8e93;
   border-radius: 50%;
+}
+.ss-phone-body.ss-wf {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 6px 7%;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.ss-wf-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0 0 2px;
+}
+.ss-wf-head strong {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #202124;
+}
+.ss-wf-head span {
+  font-size: 6px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #5f6368;
+}
+.ss-wf-meta {
+  margin: 0 0 3px;
+  font-size: 6px;
+  font-weight: 600;
+  color: #5f6368;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ss-wf-scale {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 2px 28%;
+  font-size: 5px;
+  font-weight: 600;
+  color: #80868b;
+}
+.ss-wf-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5px;
+  min-height: 0;
+}
+.ss-wf-row {
+  display: grid;
+  grid-template-columns: 28% minmax(0, 1fr);
+  align-items: center;
+  gap: 3px;
+  min-height: 7px;
+}
+.ss-wf-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 5.5px;
+  font-weight: 600;
+  color: #3c4043;
+}
+.ss-wf-track {
+  position: relative;
+  display: block;
+  height: 5px;
+  background: #f1f3f4;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.ss-wf-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 99px;
 }
 .ss-phone-dirs {
   flex: 1 1 auto;
@@ -785,14 +973,12 @@ function parkedScreen(host: string): string {
     </div>`;
 }
 
-function speedScreen(host: string): string {
+function speedScreen(host: string, opts: SalesSheetExhibitOpts): string {
+  const rows = opts.networkRequests?.length
+    ? waterfallRowsFromRequests(opts.networkRequests, host)
+    : dummySpeedWaterfall(host);
   return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
-      <div class="ss-phone-spin" aria-hidden="true"></div>
-      <p class="ss-phone-h">Still loading…</p>
-      <p class="ss-phone-p">This homepage is taking more than five seconds on a phone. Most people leave.</p>
-      <p class="ss-phone-err">LCP &gt; 5s</p>
-    </div>`;
+    ${renderSpeedWaterfallHtml(rows, host, opts.lcpLabel)}`;
 }
 
 function noOfferScreen(host: string, name: string): string {
@@ -905,6 +1091,29 @@ function shareCardsScreen(host: string, name: string): string {
 </div>`;
 }
 
+const RELAY_SHIELD =
+  '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6c10 6 18 7 24 7v18c0 16-10 26-24 31C18 57 8 47 8 31V13c6 0 14-1 24-7z" fill="#c7c7cc"/><path d="M32 16 46 42H18L32 16z" fill="#ff9f0a"/><path d="M32 16 46 42H18L32 16z" fill="none" stroke="#ff9f0a" stroke-width="1"/><rect x="30.4" y="26" width="3.2" height="10" rx="1.2" fill="#1d1d1f"/><circle cx="32" cy="40" r="1.7" fill="#1d1d1f"/></svg>';
+
+function privateRelayScreen(host: string): string {
+  return `<div class="ss-relay">
+  <div class="ss-relay-main">
+    <div class="ss-relay-shield">${RELAY_SHIELD}</div>
+    <p class="ss-relay-h">This Connection Is Not Private</p>
+    <p class="ss-relay-p">iCloud Private Relay is unable to hide your IP address from this site. By continuing to ‘${escapeHtml(host)}’ your IP address will be revealed.</p>
+    <p class="ss-relay-links"><span>Show IP Address</span><span>Go Back</span></p>
+  </div>
+  <div class="ss-relay-safari">
+    <span class="ss-relay-round" aria-hidden="true"><!-- IOS_ICONS.chevron-left — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></span>
+    <div class="ss-relay-url">
+      <em>${escapeHtml(host)}</em>
+      <!-- IOS_ICONS.refresh — keep in sync with public/admin/admin-ui.js -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+    </div>
+    <span class="ss-relay-round" aria-hidden="true"><!-- IOS_ICONS.more — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
+  </div>
+</div>`;
+}
+
 function genericScreen(host: string, finding: SalesSheetFinding): string {
   return `${chromeBar(host, false)}
     <div class="ss-phone-body">
@@ -933,13 +1142,15 @@ function screenFor(
     case 'parked':
       return parkedScreen(host);
     case 'speed':
-      return speedScreen(host);
+      return speedScreen(host, opts);
     case 'no-offer':
       return noOfferScreen(host, name);
     case 'directories':
       return directoriesScreen(host, finding, opts);
     case 'share-cards':
       return shareCardsScreen(host, name);
+    case 'private-relay':
+      return privateRelayScreen(host);
     default:
       return genericScreen(host, finding);
   }
@@ -965,11 +1176,6 @@ function formatGrade(grade: LetterGrade | null, score?: number | null): string {
   return grade;
 }
 
-function gradeClass(grade: LetterGrade | null | undefined): string {
-  if (!grade) return 'na';
-  return grade.toLowerCase();
-}
-
 function defaultHeroStats(opts: {
   findings: SalesSheetFinding[];
   performance: LetterGrade | null;
@@ -990,8 +1196,6 @@ function defaultHeroStats(opts: {
 }
 
 export function renderSalesSheetHeaderHeroHtml(opts: {
-  overall: LetterGrade | null;
-  overallScore: number | null;
   headline: string;
   heroStats?: SalesSheetHeroStat[];
   findings?: SalesSheetFinding[];
@@ -1000,9 +1204,6 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   visibility?: LetterGrade | null;
 }): string {
   const headline = (opts.headline || '').trim();
-  const grade = opts.overall;
-  const score = opts.overallScore;
-  if (!headline && !grade && score == null) return '';
   const stats = (opts.heroStats?.length
     ? opts.heroStats
     : defaultHeroStats({
@@ -1012,15 +1213,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
         visibility: opts.visibility ?? null,
       })
   ).slice(0, 3);
-  const pct = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
-  const r = 25;
-  const c = 2 * Math.PI * r;
-  const offset = c - (pct / 100) * c;
-  const g = gradeClass(grade);
-  const scoreLine =
-    score != null && Number.isFinite(score)
-      ? `<span class="ss-hero-score">${escapeHtml(String(Math.round(score)))}<span>/100</span></span>`
-      : '';
+  if (!headline && !stats.length) return '';
   const statRows = stats
     .map(
       (s) =>
@@ -1034,7 +1227,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   grid-row: 1;
   justify-self: center;
   width: max-content;
-  max-width: 58%;
+  max-width: 52%;
   min-width: 0;
   display: flex;
   align-items: flex-start;
@@ -1054,7 +1247,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 .doc-onepager-header:has(.ss-hero) .doc-onepager-logo {
   grid-column: 1;
   grid-row: 1;
-  max-width: 22%;
+  max-width: 30%;
   justify-self: start;
   align-self: flex-start;
   margin-top: -2px;
@@ -1065,65 +1258,6 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   grid-row: 1;
   justify-self: end;
   z-index: 2;
-}
-.ss-hero-ring {
-  position: relative;
-  flex: 0 0 auto;
-  width: 64px;
-  text-align: center;
-}
-.ss-hero-ring svg {
-  display: block;
-  width: 64px;
-  height: 64px;
-  overflow: visible;
-  transform: rotate(-90deg);
-}
-.ss-hero-ring-track { fill: none; stroke: #e4e4de; stroke-width: 4.5; }
-.ss-hero-ring-fill { fill: none; stroke-width: 4.5; stroke-linecap: round; }
-.ss-hero-ring-fill.g-a, .ss-hero-ring-fill.g-b { stroke: #1b7f4a; }
-.ss-hero-ring-fill.g-c { stroke: #b8860b; }
-.ss-hero-ring-fill.g-d { stroke: #c05621; }
-.ss-hero-ring-fill.g-f, .ss-hero-ring-fill.g-na { stroke: #b42318; }
-.ss-hero-ring-center {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 64px;
-  height: 64px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  line-height: 1;
-  pointer-events: none;
-}
-.ss-hero-score {
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1;
-  color: #3a3a3c;
-}
-.ss-hero-score span { font-weight: 500; color: #8e8e93; }
-.ss-hero-grade {
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  color: #141414;
-}
-.ss-hero-grade.g-a, .ss-hero-grade.g-b { color: #1b7f4a; }
-.ss-hero-grade.g-c { color: #b8860b; }
-.ss-hero-grade.g-d { color: #c05621; }
-.ss-hero-grade.g-f, .ss-hero-grade.g-na { color: #b42318; }
-.ss-hero-ring-cap {
-  margin: 2px 0 0;
-  font-size: 6px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6b6b6b;
 }
 .ss-hero-copy {
   flex: 0 0 auto;
@@ -1173,22 +1307,66 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 .ss-hero-stat--info span { background: #1a3d6e; }
 </style>
 <div class="ss-hero">
-  <div class="ss-hero-ring" aria-hidden="true">
-    <svg viewBox="0 0 64 64">
-      <circle class="ss-hero-ring-track" cx="32" cy="32" r="${r}" />
-      <circle class="ss-hero-ring-fill g-${g}" cx="32" cy="32" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
-    </svg>
-    <div class="ss-hero-ring-center">
-      ${scoreLine}
-      <span class="ss-hero-grade g-${g}">${escapeHtml(grade || '—')}</span>
-    </div>
-    <div class="ss-hero-ring-cap">Overall grade</div>
-  </div>
   <div class="ss-hero-copy">
     ${headline ? `<p class="ss-hero-h">${escapeHtml(headline)}</p>` : ''}
     ${statRows ? `<ul class="ss-hero-stats">${statRows}</ul>` : ''}
   </div>
 </div>`.trim();
+}
+
+/** IOS_ICONS.image — keep in sync with public/admin/admin-ui.js */
+const MISSING_IMAGE_ICON =
+  '<!-- IOS_ICONS.image — keep in sync with public/admin/admin-ui.js --><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
+
+export function salesSheetClientLogoHtml(opts: { src?: string; name?: string } = {}): string {
+  const src = (opts.src || '').trim();
+  const name = (opts.name || 'Client').trim() || 'Client';
+  if (src) {
+    return `<img class="doc-onepager-logo-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}" />`;
+  }
+  return `<style>
+.ss-missing-logo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  color: #3a3a3c;
+}
+.ss-missing-logo-icon {
+  flex: 0 0 auto;
+  display: flex;
+  color: #8e8e93;
+  margin-top: 1px;
+}
+.ss-missing-logo-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+.ss-missing-logo-copy {
+  margin: 0;
+  min-width: 0;
+  font-size: clamp(7px, 1.05cqi, 9px);
+  font-weight: 400;
+  line-height: 1.35;
+  color: #6b6b6b;
+}
+.ss-missing-logo-copy strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: clamp(8px, 1.15cqi, 10px);
+  font-weight: 700;
+  color: #3a3a3c;
+}
+</style><div class="ss-missing-logo"><span class="ss-missing-logo-icon">${MISSING_IMAGE_ICON}</span><p class="ss-missing-logo-copy">${NO_LOGO_FOUND_HTML}</p></div>`;
+}
+
+export function replaceOnePagerLogo(sheetHtml: string, logoHtml: string): string {
+  if (!logoHtml.trim()) return sheetHtml;
+  return sheetHtml.replace(
+    /(<div class="doc-onepager-logo">)[\s\S]*?(<\/div>)/,
+    `$1${logoHtml}$2`,
+  );
 }
 
 export function injectAuditHeroIntoHeader(sheetHtml: string, heroHtml: string): string {
@@ -1213,7 +1391,7 @@ export function renderSalesSheetFrontExhibitsHtml(opts: {
         : `<p class="ss-exhibit-copy">${escapeHtml(finding.problem)}</p>`;
       return `<article class="ss-exhibit" data-ss-finding="${escapeHtml(finding.id)}">
   ${phone}
-  <p class="ss-exhibit-kicker">${i + 1} · ${escapeHtml(finding.categoryLabel)}</p>
+  <p class="ss-exhibit-kicker">${escapeHtml(finding.categoryLabel)}</p>
   ${caption}
 </article>`;
     })

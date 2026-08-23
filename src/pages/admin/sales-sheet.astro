@@ -53,9 +53,16 @@ import {
   renderSalesSheetFrontExhibitsHtml,
   renderSalesSheetHeaderHeroHtml,
   replaceOnePagerColsInner,
+  replaceOnePagerLogo,
+  salesSheetClientLogoHtml,
   salesSheetExhibitKind,
   salesSheetWantsPlacesExhibit,
 } from '../../lib/salesSheetExhibits';
+import { inlineClientHeroLogoDataUrl } from '../../lib/clientBranding';
+import {
+  lighthouseNetworkWaterfall,
+  type LighthouseNetworkRequest,
+} from '../../lib/lighthouseClient';
 import { qrCodeDataUrl } from '../../lib/qrCode';
 import { companyBrandMarkHtml } from '../../lib/documentPrintLayout';
 import { storeGetMediaBySlug } from '../../lib/mediaLibrary';
@@ -68,6 +75,7 @@ import {
   summarizeDirectoryChecks,
 } from '../../lib/salesSheetDirectories';
 import { checkDirectoryCoverage } from '../../lib/salesSheetDirectoryCheck';
+import { isSocialCoveredByDirectories } from '../../lib/salesSheetCascade';
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
@@ -289,27 +297,58 @@ if ((hasDownExhibit || hasSslExhibit) && input.website.trim()) {
   logRender('FAIL no site URL — cannot live-check SSL / Site Down.');
 }
 
-findings = pinDirectoryCoverageFirst(findings).slice(0, 4);
+findings = pinDirectoryCoverageFirst(
+  findings.filter((finding) => !isSocialCoveredByDirectories(finding)),
+).slice(0, 4);
 input = { ...input, findings };
 if (!shotNote) shotNote = 'Four iPhone exhibits from the top cascade hits.';
 logRender(`Four phones: ${findings.map((f) => `${f.categoryLabel} (${f.id})`).join(', ') || '(none)'}`);
 logRender(`Icon group: ${iconGroupMeta.label}`);
 
 let directoryChecks = undefined as Awaited<ReturnType<typeof checkDirectoryCoverage>> | undefined;
+let speedRequests: LighthouseNetworkRequest[] = [];
+let speedLcp = '';
+const skipPsi = params.get('psi') === '0';
+const hasSpeedExhibit = findings.some((finding) => salesSheetExhibitKind(finding) === 'speed');
+const siteLooksLive =
+  Boolean(input.website.trim()) &&
+  !/\.example(?:$|\/)/i.test(input.website) &&
+  !/^https?:\/\/(?:localhost|127\.0\.0\.1)\b/i.test(input.website);
+
 if (input.website.trim()) {
   logRender(`Checking directory links on ${input.website}…`);
-  directoryChecks = await checkDirectoryCoverage({
+  const dirPromise = checkDirectoryCoverage({
     website: input.website,
     businessName,
     googlePlacesListed: !notListed,
     iconGroup,
   });
+  const psiPromise =
+    hasSpeedExhibit && siteLooksLive && !skipPsi
+      ? lighthouseNetworkWaterfall(
+          /^https?:\/\//i.test(input.website) ? input.website : `https://${input.website}`,
+        ).catch((e) => ({
+          ok: false as const,
+          error: e instanceof Error ? e.message : String(e),
+        }))
+      : Promise.resolve(null);
+  const [dirResult, psiResult] = await Promise.all([dirPromise, psiPromise]);
+  directoryChecks = dirResult;
   const summary = summarizeDirectoryChecks(directoryChecks);
   findings = findings.map((finding) =>
     salesSheetExhibitKind(finding) === 'directories' ? { ...finding, problem: summary } : finding,
   );
   input = { ...input, findings };
   logRender(summary);
+  if (psiResult?.ok && psiResult.requests.length) {
+    speedRequests = psiResult.requests;
+    speedLcp = psiResult.lcp || '';
+    logRender(`PageSpeed network · ${speedRequests.length} requests${speedLcp ? ` · LCP ${speedLcp}` : ''}`);
+  } else if (hasSpeedExhibit && psiResult && !psiResult.ok) {
+    logRender(`FAIL PageSpeed network — ${psiResult.error}`);
+  } else if (hasSpeedExhibit) {
+    logRender('Site Speed waterfall using the lab stand-in (no live network-requests).');
+  }
 }
 
 logRender(`Done in ${((Date.now() - renderStarted) / 1000).toFixed(1)}s`);
@@ -332,6 +371,8 @@ const exhibitPhones = findings.map((finding) => {
     directoryNotes,
     directoryChecks: kind === 'directories' ? directoryChecks : undefined,
     directoryIconGroup: iconGroup,
+    networkRequests: kind === 'speed' ? speedRequests : undefined,
+    lcpLabel: kind === 'speed' ? speedLcp : undefined,
   });
 });
 
@@ -401,8 +442,6 @@ if (!tmpl) {
     const filled = fillTemplate(source, input.contact, company);
     const rendered = await renderFilledDocumentHtml(filled, company, slug, input.contact);
     const heroHtml = renderSalesSheetHeaderHeroHtml({
-      overall: input.overall,
-      overallScore: input.overallScore,
       headline: input.headline,
       heroStats: input.heroStats,
       findings: input.findings,
@@ -410,15 +449,22 @@ if (!tmpl) {
       security: input.security,
       visibility: input.visibility,
     });
-    sheetHtml = injectAuditDisclaimerIntoFooter(
-      injectAuditHeroIntoHeader(
-        injectAuditQrIntoHeader(
-          replaceOnePagerColsInner(rendered, `<div class="doc-onepager-col">${frontExhibits}</div>`),
-          qrHtml,
+    const clientLogoSrc = await inlineClientHeroLogoDataUrl(input.contact.uid || '');
+    sheetHtml = replaceOnePagerLogo(
+      injectAuditDisclaimerIntoFooter(
+        injectAuditHeroIntoHeader(
+          injectAuditQrIntoHeader(
+            replaceOnePagerColsInner(rendered, `<div class="doc-onepager-col">${frontExhibits}</div>`),
+            qrHtml,
+          ),
+          heroHtml,
         ),
-        heroHtml,
+        renderAuditDisclaimerHtml(input.findings),
       ),
-      renderAuditDisclaimerHtml(input.findings),
+      salesSheetClientLogoHtml({
+        src: clientLogoSrc,
+        name: businessName,
+      }),
     );
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);

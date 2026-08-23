@@ -107,7 +107,7 @@ Directory coverage is **always phone 1** (28 official directory marks, A–Z). W
 | 17 | Duplicate Listings | Two Google results for the same business, or a suspended listing. |
 | 18 | Not Public | Password wall, coming-soon, or staging page. |
 | 19 | Mobile | iPhone crop of the audit URL at 375px: overflow or untappable UI. |
-| 20 | Site Speed | Phone vs desktop Lighthouse pair with LCP called out. |
+| 20 | Site Speed | Google™ PageSpeed / Lighthouse network waterfall (DevTools Network tab) with LCP in the meta line. |
 | 21 | No Contact Path | Homepage crop with no phone, form, or book button. |
 | 22 | Broken Form | The form plus the failed submit. |
 | 23 | Broken Booking | Book-now widget in a failed/empty state. |
@@ -125,6 +125,5 @@ Directory coverage is **always phone 1** (28 official directory marks, A–Z). W
 | 35 | Email Auth | Three-row SPF / DKIM / DMARC card (fail or missing). |
 | 36 | Thin Content | Placeholder, lorem, or stale page crop. |
 | 37 | No Favicon | Tab strip with the generic globe instead of the brand mark. |
-| 38 | Social | Instagram/Facebook (or the missing-profile search) next to the site. |
 | 39 | Hosting | Speed score plus the host name (shared / GoDaddy / Bluehost). |
-| 40 | Security Headers | Missing HSTS / CSP / X-Frame-Options list — padlock is fine, headers are not. |
+| 40 | Security Headers | Safari “This Connection Is Not Private” / iCloud Private Relay interstitial on the audit URL. |

@@ -18,6 +18,7 @@ import {
 } from './auditReportCard';
 import {
   cascadeRankForFinding,
+  isSocialCoveredByDirectories,
   mergePlacesIntoCascadeFindings,
   selectCascadeFindings,
   type CascadeFinding,
@@ -256,6 +257,7 @@ export function selectTopFindings(
   count = SALES_SHEET_FINDING_COUNT,
 ): SalesSheetFinding[] {
   return ideas
+    .filter((idea) => !isSocialCoveredByDirectories(idea))
     .slice()
     .sort((a, b) => {
       const rankDiff = cascadeRankForFinding(a) - cascadeRankForFinding(b);
@@ -347,7 +349,9 @@ export function salesSheetInputFromReportCard(
     SALES_SHEET_FINDING_POOL,
   );
   let findings = pinDirectoryCoverageFirst(
-    fillFindingsFromIdeas(cascadeHits.map(toSheetFinding), card.ideas),
+    fillFindingsFromIdeas(cascadeHits.map(toSheetFinding), card.ideas).filter(
+      (finding) => !isSocialCoveredByDirectories(finding),
+    ),
   );
   let visibility = categoryGrade(card, 'local_listings') || categoryGrade(card, 'seo');
   if (opts?.googlePlacesListed === false) visibility = 'F';

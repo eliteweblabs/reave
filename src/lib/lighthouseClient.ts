@@ -55,18 +55,41 @@ export type LighthouseStrategyResult = {
   pageExperience?: LighthouseFieldExperience;
   /** Origin-level CrUX when the URL itself has too little traffic. */
   originExperience?: LighthouseFieldExperience;
+  /** Lighthouse `network-requests` table (PageSpeed / DevTools waterfall). */
+  networkRequests?: LighthouseNetworkRequest[];
 };
 
 export type LighthouseAuditResponse =
   | { ok: true; url: string; results: LighthouseStrategyResult[] }
   | { ok: false; error: string; status?: number; rateLimited?: boolean };
 
+export type LighthouseNetworkRequest = {
+  url: string;
+  startMs: number;
+  endMs: number;
+  transferSize: number;
+  resourceType: string;
+  statusCode?: number;
+};
+
+type PsiNetworkItem = {
+  url?: string;
+  startTime?: number;
+  endTime?: number;
+  networkRequestTime?: number;
+  networkEndTime?: number;
+  rendererStartTime?: number;
+  transferSize?: number;
+  resourceType?: string;
+  statusCode?: number;
+};
+
 type PsiAudit = {
   id?: string;
   title?: string;
   score?: number | null;
   displayValue?: string;
-  details?: { type?: string };
+  details?: { type?: string; items?: PsiNetworkItem[] };
 };
 
 type PsiCategory = { score?: number | null };
@@ -178,6 +201,35 @@ function pickMetrics(audits: Record<string, PsiAudit>): LighthouseStrategyResult
   };
 }
 
+function num(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  return raw;
+}
+
+export function pickNetworkRequests(
+  audits: Record<string, PsiAudit | undefined>,
+): LighthouseNetworkRequest[] {
+  const items = audits['network-requests']?.details?.items;
+  if (!Array.isArray(items) || !items.length) return [];
+  const rows: LighthouseNetworkRequest[] = [];
+  for (const item of items) {
+    const url = (item.url || '').trim();
+    if (!url || url.startsWith('data:')) continue;
+    const start =
+      num(item.networkRequestTime) ?? num(item.startTime) ?? num(item.rendererStartTime) ?? 0;
+    const end = num(item.networkEndTime) ?? num(item.endTime) ?? start + 40;
+    rows.push({
+      url,
+      startMs: Math.max(0, start),
+      endMs: Math.max(Math.max(0, start) + 8, end),
+      transferSize: Math.max(0, num(item.transferSize) ?? 0),
+      resourceType: (item.resourceType || 'Other').trim() || 'Other',
+      ...(item.statusCode != null ? { statusCode: item.statusCode } : {}),
+    });
+  }
+  return rows.sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+}
+
 function pickAudits(
   audits: Record<string, PsiAudit>,
   kind: 'opportunity' | 'diagnostic',
@@ -284,6 +336,7 @@ async function runOne(
   const audits = lr.audits ?? {};
   const pageExperience = pickFieldExperience(body.loadingExperience);
   const originExperience = pickFieldExperience(body.originLoadingExperience);
+  const networkRequests = pickNetworkRequests(audits);
   return {
     strategy,
     scores,
@@ -292,6 +345,23 @@ async function runOne(
     diagnostics: pickAudits(audits, 'diagnostic', 3),
     ...(pageExperience ? { pageExperience } : {}),
     ...(originExperience ? { originExperience } : {}),
+    ...(networkRequests.length ? { networkRequests } : {}),
+  };
+}
+
+/** Mobile performance-only PSI run — enough for the sales-sheet network waterfall. */
+export async function lighthouseNetworkWaterfall(url: string): Promise<
+  | { ok: true; url: string; lcp?: string; requests: LighthouseNetworkRequest[] }
+  | { ok: false; error: string }
+> {
+  const res = await lighthouseAudit({ url, category: 'performance', strategy: 'mobile' });
+  if (!res.ok) return { ok: false, error: res.error };
+  const mobile = res.results[0];
+  return {
+    ok: true,
+    url: res.url,
+    ...(mobile?.metrics.lcp ? { lcp: mobile.metrics.lcp } : {}),
+    requests: mobile?.networkRequests ?? [],
   };
 }
 

@@ -58,8 +58,13 @@ import {
   renderFindingPhoneHtml,
   renderSalesSheetFrontExhibitsHtml,
   renderSalesSheetHeaderHeroHtml,
+  replaceOnePagerLogo,
+  salesSheetClientLogoHtml,
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
+import { NO_LOGO_FOUND_HTML } from '../src/lib/clientLogoCopy.ts';
+import { dummySpeedWaterfall } from '../src/lib/salesSheetWaterfall.ts';
+import { pickNetworkRequests } from '../src/lib/lighthouseClient.ts';
 import {
   DIRECTORY_ICON_GROUPS,
   DIRECTORY_SLUGS,
@@ -190,8 +195,10 @@ await test('selectTopFindings keeps the four weakest ideas', () => {
     { id: 'a', categoryLabel: 'Speed', problem: 'Slow LCP', solution: 'Compress images', priority: 1 },
     { id: 'd', categoryLabel: 'Social', problem: 'No Instagram', solution: 'Set up a profile', priority: 4 },
     { id: 'b', categoryLabel: 'Maps', problem: 'Missing GBP', solution: 'Claim the listing', priority: 2 },
+    { id: 'e', categoryLabel: 'Email', problem: 'No SPF', solution: 'Add SPF', priority: 5 },
   ]);
-  assert.deepEqual(picked.map((f) => f.id), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(picked.map((f) => f.id), ['a', 'b', 'c', 'e']);
+  assert.ok(!picked.some((f) => f.categoryLabel === 'Social'));
 });
 
 await test('fillAuditOnePager replaces placeholder columns', () => {
@@ -481,10 +488,10 @@ await test('Current Website title is not used as the site URL', () => {
   assert.equal(card.categories.find((c) => c.id === 'security')?.grade, 'F');
 });
 
-await test('terribleness cascade is 40 unique ranks and SSL beats Places', () => {
-  assert.equal(SALES_SHEET_CASCADE.length, 40);
+await test('terribleness cascade is 39 unique ranks and SSL beats Places', () => {
+  assert.equal(SALES_SHEET_CASCADE.length, 39);
   const ranks = SALES_SHEET_CASCADE.map((item) => item.rank);
-  assert.equal(new Set(ranks).size, 40);
+  assert.equal(new Set(ranks).size, 39);
   assert.ok(SALES_SHEET_CASCADE.every((item) => item.sheet.trim().length > 20));
   assert.equal(SALES_SHEET_CASCADE[0]?.id, 'ssl-missing');
   assert.equal(SALES_SHEET_CASCADE[4]?.id, 'places-not-listed');
@@ -985,13 +992,14 @@ await test('front exhibits are four phones with captions and no next steps', () 
   assert.match(two, /repeat\(4,/);
   assert.match(html, /max-width: none/);
   assert.doesNotMatch(html, /max-width: 700px/);
-  assert.match(html, /1 · Directories/);
+  assert.match(html, /ss-exhibit-kicker">Directories</);
   assert.match(html, /ss-exhibit-legend/);
   assert.doesNotMatch(html, /Most of the places customers look/);
   assert.doesNotMatch(html, /ss-front-qa/);
   assert.doesNotMatch(html, /How can you offer these services for so cheap/);
-  assert.match(html, /2 · Site Speed/);
-  assert.match(html, /4 · SEO Fundamentals/);
+  assert.match(html, /ss-exhibit-kicker">Site Speed</);
+  assert.match(html, /ss-exhibit-kicker">SEO Fundamentals</);
+  assert.doesNotMatch(html, /1 · |2 · |3 · |4 · /);
   assert.match(html, /Overall C \(64\)/);
   assert.doesNotMatch(html, /Next steps/);
   assert.doesNotMatch(html, /Compress images and defer/);
@@ -1090,17 +1098,15 @@ await test('clean HTTPS drops the Not Secure graphic; a broken host keeps it', (
   assert.doesNotMatch(sslPhone, /ss-phone-serp/);
 });
 
-await test('header hero is the audit overall block restyled for a white sheet', () => {
+await test('header hero is the audit lede without an overall-grade ring', () => {
   const hero = renderSalesSheetHeaderHeroHtml({
-    overall: DUMMY_SALES_SHEET.overall,
-    overallScore: DUMMY_SALES_SHEET.overallScore,
     headline: DUMMY_SALES_SHEET.headline,
     heroStats: DUMMY_SALES_SHEET.heroStats,
   });
   assert.match(hero, /ss-hero/);
-  assert.match(hero, /Overall grade/);
-  assert.match(hero, />C</);
-  assert.match(hero, /64/);
+  assert.doesNotMatch(hero, /Overall grade/);
+  assert.doesNotMatch(hero, /ss-hero-ring/);
+  assert.doesNotMatch(hero, /#b8860b/);
   assert.match(hero, /Speed and local listings/);
   assert.match(hero, /Every finding sourced from independent platforms/i);
   assert.match(hero, /\.ss-hero \{[\s\S]*width: max-content/);
@@ -1119,6 +1125,92 @@ await test('header hero is the audit overall block restyled for a white sheet', 
   );
   assert.ok(injected.indexOf('ss-hero') < injected.indexOf('doc-onepager-mast'));
   assert.ok(injected.indexOf('doc-onepager-logo') < injected.indexOf('ss-hero'));
+});
+
+await test('front header uses the client logo or the crawler missing-logo finding', () => {
+  const missing = salesSheetClientLogoHtml({ name: 'Hale & Co.' });
+  assert.match(missing, /ss-missing-logo/);
+  assert.match(missing, /IOS_ICONS\.image/);
+  assert.match(missing, new RegExp(NO_LOGO_FOUND_HTML.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  const have = salesSheetClientLogoHtml({
+    src: 'data:image/png;base64,AAA',
+    name: 'Hale & Co.',
+  });
+  assert.match(have, /doc-onepager-logo-img/);
+  assert.doesNotMatch(have, /ss-missing-logo/);
+  const swapped = replaceOnePagerLogo(
+    '<header class="doc-onepager-header"><div class="doc-onepager-logo">REAVE</div></header>',
+    missing,
+  );
+  assert.match(swapped, /ss-missing-logo/);
+  assert.doesNotMatch(swapped, />REAVE</);
+});
+
+await test('security exhibit is the Safari Private Relay warning', () => {
+  assert.equal(salesSheetExhibitKind({ id: 'security-headers', categoryLabel: 'Security Headers' }), 'private-relay');
+  assert.equal(salesSheetExhibitKind({ id: 'sec-soft', categoryLabel: 'Security' }), 'private-relay');
+  assert.equal(salesSheetExhibitKind({ id: 'ssl-missing', categoryLabel: 'SSL' }), 'ssl');
+  const phone = renderFindingPhoneHtml(
+    {
+      id: 'security-headers',
+      categoryLabel: 'Security',
+      problem: 'Browsers may warn visitors that the site is not fully secure.',
+      solution: 'Tighten TLS and headers',
+    },
+    { website: 'calareneesalon.com' },
+  );
+  assert.match(phone, /data-ss-exhibit="private-relay"/);
+  assert.match(phone, /This Connection Is Not Private/);
+  assert.match(phone, /iCloud Private Relay/);
+  assert.match(phone, /calareneesalon\.com/);
+  assert.match(phone, /Show IP Address/);
+  assert.match(phone, /Go Back/);
+  assert.doesNotMatch(phone, /ss-phone-icon--alert/);
+  assert.doesNotMatch(phone, /Browsers may warn visitors/);
+});
+
+await test('site speed exhibit is a Google PageSpeed network waterfall', () => {
+  const dummy = renderFindingPhoneHtml(
+    {
+      id: 'dummy-speed',
+      categoryLabel: 'Site Speed',
+      problem: 'This homepage takes more than five seconds on a phone.',
+      solution: 'Compress images',
+    },
+    { website: 'haleco.example' },
+  );
+  assert.match(dummy, /ss-wf/);
+  assert.match(dummy, /Google™ PageSpeed/);
+  assert.match(dummy, /Network/);
+  assert.doesNotMatch(dummy, /Still loading/);
+  assert.ok(dummySpeedWaterfall('haleco.example').length >= 8);
+  const parsed = pickNetworkRequests({
+    'network-requests': {
+      details: {
+        items: [
+          {
+            url: 'https://slow.example/app.js',
+            networkRequestTime: 100,
+            networkEndTime: 2400,
+            transferSize: 12_000,
+            resourceType: 'Script',
+          },
+        ],
+      },
+    },
+  });
+  assert.equal(parsed[0]?.resourceType, 'Script');
+  const live = renderFindingPhoneHtml(
+    {
+      id: 'speed-fail',
+      categoryLabel: 'Site Speed',
+      problem: 'Slow LCP',
+      solution: 'Compress',
+    },
+    { website: 'slow.example', networkRequests: parsed, lcpLabel: '5.4 s' },
+  );
+  assert.match(live, /app\.js/);
+  assert.match(live, /LCP 5\.4 s/);
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {

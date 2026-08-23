@@ -14,6 +14,16 @@ import { isPlacesMissFinding, placesNotListedFinding } from './salesSheetPlacesV
 
 export const SALES_SHEET_CASCADE_COUNT = 4;
 
+/** Phone 1 (directories) already scores Instagram / Facebook / etc. */
+export function isSocialCoveredByDirectories(finding: {
+  id?: string;
+  categoryLabel?: string;
+}): boolean {
+  const id = (finding.id || '').toLowerCase();
+  const label = (finding.categoryLabel || '').toLowerCase();
+  return id === 'social-thin' || id === 'social' || label === 'social';
+}
+
 export type CascadeFinding = {
   id: string;
   rank: number;
@@ -321,7 +331,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 20,
     categoryLabel: 'Site Speed',
     sheet:
-      'Show the Lighthouse / PageSpeed pair (phone vs desktop) for the audit URL with LCP called out — the number is the exhibit.',
+      'Show the Google™ PageSpeed / Lighthouse network waterfall for the audit URL (DevTools Network tab) with LCP in the meta line.',
     match: (ctx) => {
       const score = scoreOf(ctx.card, 'performance');
       return (
@@ -525,18 +535,6 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     solution: () => 'Add a favicon and Apple touch icon that match the logo.',
   },
   {
-    id: 'social-thin',
-    rank: 38,
-    categoryLabel: 'Social',
-    sheet:
-      'Show the Instagram or Facebook profile (or the missing-profile search) next to the website — thin, quiet, or a name mismatch.',
-    match: (ctx) =>
-      /social (?:profiles )?look thin|quiet, or inconsistent|no instagram|no facebook/.test(ctx.lower) ||
-      weak(gradeOf(ctx.card, 'social'), 'D'),
-    problem: () => 'Social profiles are thin, quiet, or do not match the business.',
-    solution: () => 'Align names, links, and a recent post so the brand looks alive.',
-  },
-  {
     id: 'hosting-bottleneck',
     rank: 39,
     categoryLabel: 'Hosting',
@@ -555,7 +553,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 40,
     categoryLabel: 'Security Headers',
     sheet:
-      'A short missing-headers list (HSTS, CSP, X-Frame-Options) for the audit URL — padlock is fine, the headers are not.',
+      'Safari’s “This Connection Is Not Private” / iCloud Private Relay interstitial on the audit URL — padlock may be fine, the connection still warns.',
     match: (ctx) =>
       /missing .{0,20}header|hsts|content-security-policy/.test(ctx.lower) &&
       gradeOf(ctx.card, 'security') !== 'F' &&

@@ -108,6 +108,20 @@ export async function resolveClientHeroLogoUrl(
   return resolveClientLogoUrl(portal, uid, opts);
 }
 
+/** Data URL of a crawler-identifiable client logo, or empty when there isn't one. */
+export async function inlineClientHeroLogoDataUrl(uid: string): Promise<string> {
+  const id = uid.trim();
+  if (!id || id === 'preview') return '';
+  const res = await getContact(id);
+  if (!res.ok) return '';
+  const portal = extractPortal(res.data);
+  const url = await resolveClientHeroLogoUrl(portal, id, { bg: 'light' });
+  if (!url) return '';
+  const blob = await getClientPortalLogoBlob(id);
+  if (!blob?.dataBase64 || !blob.mediaType) return '';
+  return `data:${blob.mediaType};base64,${blob.dataBase64}`;
+}
+
 export function resolveClientIconUrl(
   portal: ClientPortal | null | undefined,
   uid: string,

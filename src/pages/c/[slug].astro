@@ -33,6 +33,7 @@ import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/wo
 import { portalProjectFileUrl, storeListProjectFiles } from '../../lib/projectFiles';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
 import { resolveClientHeroLogoUrl, resolveClientLogoUrl } from '../../lib/clientBranding';
+import { NO_LOGO_FOUND_HTML } from '../../lib/clientLogoCopy';
 import { isPortalAssistantConfigured } from '../../lib/portalAssistant';
 import PortalAssistantWidget from '../../components/PortalAssistantWidget.astro';
 import { resolvePortalBrandColors, portalBrandCssVars, type PortalBrandColors } from '../../lib/portalBrandColors';
@@ -174,8 +175,7 @@ const company = contactStringField(contact?.company);
 const avatarUrl = contact ? resolveClientLogoUrl(portal, uid) : '';
 const logoUrl = contact ? await resolveClientHeroLogoUrl(portal, uid) : '';
 /** Hero fallback when the profile has no brand mark — a finding, not a label. */
-const noLogoFoundHtml =
-  '<strong>No logo found in the manifest.</strong> Your website may have a logo, but it is not identifiable to crawlers.';
+const noLogoFoundHtml = NO_LOGO_FOUND_HTML;
 const clientWebsite = contactStringField(portal?.website);
 const clientTagline = contactStringField(portal?.tagline);
 const brandTitle = company || displayName;
