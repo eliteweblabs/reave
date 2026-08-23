@@ -46,7 +46,10 @@ function collectRows(root) {
     kind: el.dataset.kind || 'custom',
     group: el.dataset.group || 'other',
     id: el.querySelector('[data-field="id"]')?.value?.trim() || '—',
-    feature: el.querySelector('[data-field="feature"]')?.value?.trim() || '',
+    feature: (el.querySelector('[data-field="feature"]')?.value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, '_'),
     label: el.querySelector('[data-field="label"]')?.value?.trim() || '',
     blurb: el.querySelector('[data-field="blurb"]')?.value?.trim() || '',
     priceLabel: el.querySelector('[data-field="price"]')?.value?.trim() || '',

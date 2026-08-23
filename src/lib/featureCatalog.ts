@@ -51,28 +51,56 @@ export type ModuleMarketingCapability = {
   id: string;
   label: string;
   href?: string;
+  /** Short line for catalog / /features — not a new playbook. */
+  blurb?: string;
 };
 
 /**
  * Extra capabilities listed on a module. Flattened into GET /api/demo/loader
  * `features`, which /features and the homepage chip row consume.
+ * Slugs use underscores (same as FeatureIds).
  */
 export const FEATURE_MARKETING: Partial<
   Record<FeatureId, readonly ModuleMarketingCapability[]>
 > = {
   online_reviews: [
-    { id: 'google-reviews-triage', label: 'Google™ Reviews Triage', href: '/modules' },
-    { id: 'apple-maps-reviews-triage', label: 'Apple Maps Reviews Triage', href: '/modules' },
-    { id: 'yelp-reviews-triage', label: 'Yelp Reviews Triage', href: '/modules' },
-    { id: 'facebook-reviews-triage', label: 'Facebook Reviews Triage', href: '/modules' },
-    { id: 'tripadvisor-reviews-triage', label: 'Tripadvisor Reviews Triage', href: '/modules' },
+    { id: 'google_reviews_triage', label: 'Google™ Reviews Triage', href: '/modules' },
+    { id: 'apple_maps_reviews_triage', label: 'Apple Maps Reviews Triage', href: '/modules' },
+    { id: 'yelp_reviews_triage', label: 'Yelp Reviews Triage', href: '/modules' },
+    { id: 'facebook_reviews_triage', label: 'Facebook Reviews Triage', href: '/modules' },
+    { id: 'tripadvisor_reviews_triage', label: 'Tripadvisor Reviews Triage', href: '/modules' },
   ],
   google_workspace: [
-    { id: 'gmail-mx', label: 'Gmail MX', href: '/modules' },
-    { id: 'google-spf', label: 'Google SPF', href: '/modules' },
-    { id: 'gmail-dkim', label: 'Gmail DKIM', href: '/modules' },
-    { id: 'workspace-dmarc', label: 'Workspace DMARC', href: '/modules' },
-    { id: 'workspace-domains', label: 'Workspace Domains', href: '/modules' },
+    {
+      id: 'gmail_mx',
+      label: 'Gmail MX',
+      href: '/features#feature-google-workspace',
+      blurb: 'Five standard Google MX records on the client domain.',
+    },
+    {
+      id: 'google_spf',
+      label: 'Google SPF',
+      href: '/features#feature-google-workspace',
+      blurb: 'Merges include:_spf.google.com into the existing SPF record.',
+    },
+    {
+      id: 'gmail_dkim',
+      label: 'Gmail DKIM',
+      href: '/features#feature-google-workspace',
+      blurb: 'Generate the Workspace key, publish it to Cloudflare, enable signing.',
+    },
+    {
+      id: 'workspace_dmarc',
+      label: 'Workspace DMARC',
+      href: '/features#feature-google-workspace',
+      blurb: 'Starter DMARC (p=none) when the zone has none.',
+    },
+    {
+      id: 'workspace_domains',
+      label: 'Workspace Domains',
+      href: '/features#feature-google-workspace',
+      blurb: 'Primary, secondary, and alias domains on the Workspace account.',
+    },
   ],
 };
 
@@ -114,7 +142,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   credit_check: 'Credit check',
   materials_pricing: 'Materials pricing',
   social_inbox: 'Agentic Social Media',
-  google_workspace: 'Google Workspace',
+  google_workspace: 'Google™ Workspace',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */

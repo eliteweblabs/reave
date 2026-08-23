@@ -309,10 +309,11 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
-    id: 'google-workspace',
-    label: 'Google Workspace',
+    id: 'google_workspace',
+    label: 'Google™ Workspace',
     modules: ['google_workspace'],
     kind: 'capability',
+    href: '/features#feature-google-workspace',
   },
   {
     id: 'materials-pricing',

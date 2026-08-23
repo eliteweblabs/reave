@@ -91,10 +91,12 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
         status: m.status,
         inProduction,
         toggleable: deployed && inProduction && Boolean(moduleId),
-        features: listMarketingFeaturesForModule(m.feature).map((f) => ({
-          id: f.id,
-          label: f.label,
-        })),
+        features: listMarketingFeaturesForModule(m.feature)
+          .filter((f) => f.id !== m.feature)
+          .map((f) => ({
+            id: f.id,
+            label: f.label,
+          })),
         visibility: featureVisibility(m.feature),
         saleSheet: isSaleSheetFeature(m.feature),
       };

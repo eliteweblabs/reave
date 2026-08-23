@@ -4,7 +4,12 @@
  */
 import type { FeatureId } from './featureCatalog.ts';
 
-export type ModuleDisplayGroupId = 'social' | 'e-commerce' | 'web-development' | 'work';
+export type ModuleDisplayGroupId =
+  | 'social'
+  | 'e-commerce'
+  | 'web-development'
+  | 'work'
+  | 'google_workspace';
 
 export type ModuleDisplayGroup = {
   id: ModuleDisplayGroupId;
@@ -16,7 +21,12 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
   {
     id: 'work',
     title: 'Work',
-    features: ['billing', 'documents', 'scheduling', 'time_tracking', 'email_marketing', 'google_workspace'],
+    features: ['billing', 'documents', 'scheduling', 'time_tracking', 'email_marketing'],
+  },
+  {
+    id: 'google_workspace',
+    title: 'Google™ Workspace',
+    features: ['google_workspace'],
   },
   {
     id: 'social',

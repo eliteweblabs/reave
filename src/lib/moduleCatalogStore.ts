@@ -99,11 +99,14 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
         ? slugifyCatalogFeature(o.feature)
         : slugifyCatalogFeature(label);
     if (!feature) return;
-    const group: CatalogGroupId = isCatalogGroupId(String(o.group || ''))
+    let group: CatalogGroupId = isCatalogGroupId(String(o.group || ''))
       ? (o.group as CatalogGroupId)
       : 'other';
+    if (feature === 'google_workspace') group = 'google_workspace';
     const kind = normalizeKind(o.kind);
     let key = typeof o.key === 'string' && o.key.trim() ? o.key.trim().slice(0, 80) : `${kind}:${feature}`;
+    if (kind === 'core') key = `core:${feature}`;
+    if (kind === 'module') key = `module:${feature}`;
     if (seen.has(key)) key = `${key}:${i}`;
     seen.add(key);
     const priceLabel =
@@ -129,10 +132,20 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       visibility: o.visibility === 'private' ? 'private' : 'public',
     });
   });
-  const taken: string[] = [];
+  const seenFeatures = new Set(out.map((row) => row.feature));
+  const taken: string[] = out.map((row) => row.id).filter((id) => /^\d{3}$/.test(id));
+  for (const row of defaultModuleCatalog()) {
+    if (seen.has(row.key) || seenFeatures.has(row.feature)) continue;
+    seen.add(row.key);
+    seenFeatures.add(row.feature);
+    const id = canonicalRowId(row, taken);
+    taken.push(id);
+    out.push({ ...row, id });
+  }
+  const assigned: string[] = [];
   for (const row of out) {
-    row.id = canonicalRowId(row, taken);
-    taken.push(row.id);
+    row.id = canonicalRowId(row, assigned);
+    assigned.push(row.id);
   }
   const groupRank = new Map(CATALOG_GROUPS.map((id, i) => [id, i]));
   return out.sort((a, b) => {

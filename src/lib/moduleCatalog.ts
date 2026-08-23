@@ -2,14 +2,17 @@
  * Default module catalog for the super-admin Catalog page.
  * Runtime edits live in moduleCatalogStore (Postgres / JSON overlay).
  *
- * Numeric ids are banded with gaps (like Railway variables — room to insert):
- * Core 1–100, Work 101–200, Social 201–300, E-commerce 301–400,
- * Web Development 401–500, Other 501–600, Internal 601–700.
+ * Numeric ids are consecutive inside each band (no gaps):
+ * Core 001–100, Work 101–200, Social 201–300, E-commerce 301–400,
+ * Web Development 401–500, Other 501–600, Internal 601–700,
+ * Google™ Workspace 701–800 (client mail/DNS — not a REΛVE app feature).
+ * Assignment order is a stable shuffle — ids are not A–Z rank.
  */
 import {
   FEATURE_BLURBS,
   FEATURE_IDS,
   FEATURE_LABELS,
+  FEATURE_MARKETING,
   FEATURE_SALE_SHEET,
   featureVisibility,
   isPrivateFeature,
@@ -20,9 +23,9 @@ import { PAID_MODULE_PRICES } from './paidModulePrices';
 
 /** Core OS cards that are also FeatureIds (demo suite / playbook baseline). */
 export const CORE_CARD_FEATURES: Readonly<Record<string, FeatureId>> = {
-  'client-portal': 'client_portal',
-  'handoff-vault': 'web_handoff',
-  'portal-assistant': 'portal_assistant',
+  client_portal: 'client_portal',
+  handoff_vault: 'web_handoff',
+  portal_assistant: 'portal_assistant',
 };
 
 export const CATALOG_BASELINE_FEATURES: readonly FeatureId[] = [
@@ -36,6 +39,7 @@ const BASELINE_FEATURE_SET = new Set<string>(CATALOG_BASELINE_FEATURES);
 export const CATALOG_GROUPS = [
   'core',
   'work',
+  'google_workspace',
   'social',
   'e-commerce',
   'web-development',
@@ -48,6 +52,7 @@ export type CatalogGroupId = (typeof CATALOG_GROUPS)[number];
 export const CATALOG_ID_BANDS: Record<CatalogGroupId, { start: number; end: number }> = {
   core: { start: 1, end: 100 },
   work: { start: 101, end: 200 },
+  google_workspace: { start: 701, end: 800 },
   social: { start: 201, end: 300 },
   'e-commerce': { start: 301, end: 400 },
   'web-development': { start: 401, end: 500 },
@@ -68,14 +73,32 @@ function byLabel(a: { label: string }, b: { label: string }): number {
   return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });
 }
 
-/** Gaps of 5 in Core (1–100), 10 in later hundreds — room to insert. */
-export function spacedCatalogIds(count: number, group: CatalogGroupId): string[] {
+function hashSeed(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) h = Math.imul(h ^ input.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/** Stable shuffle so ids are not alphabetical rank. */
+function shuffleStable<T>(items: readonly T[], seedKey: string): T[] {
+  const out = [...items];
+  let seed = hashSeed(seedKey);
+  for (let i = out.length - 1; i > 0; i--) {
+    seed = (Math.imul(1664525, seed) + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    const a = out[i]!;
+    out[i] = out[j]!;
+    out[j] = a;
+  }
+  return out;
+}
+
+/** Consecutive ids from the group band start — 001, 002… / 101, 102… */
+export function sequentialCatalogIds(count: number, group: CatalogGroupId): string[] {
   const band = CATALOG_ID_BANDS[group];
-  const step = group === 'core' ? 5 : 10;
-  const first = group === 'core' ? step : band.start - 1 + step;
   const ids: string[] = [];
   for (let i = 0; i < count; i++) {
-    const n = first + i * step;
+    const n = band.start + i;
     if (n > band.end) {
       throw new Error(`Catalog id overflow in ${group} (${n} > ${band.end})`);
     }
@@ -87,6 +110,7 @@ export function spacedCatalogIds(count: number, group: CatalogGroupId): string[]
 export const CATALOG_GROUP_TITLES: Record<CatalogGroupId, string> = {
   core: 'Core OS',
   work: 'Work',
+  google_workspace: 'Google™ Workspace',
   social: 'Social',
   'e-commerce': 'E-commerce',
   'web-development': 'Web Development',
@@ -99,27 +123,27 @@ export type CatalogRowKind = 'core' | 'module' | 'custom';
 /** Core OS marketing cards — also re-exported as DEMO_LOADER_INCLUDED_CARDS. */
 export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string }[] = [
   {
-    id: 'web-search',
+    id: 'web_search',
     label: 'Agentic Web Search',
     blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, and sites.',
   },
   {
-    id: 'agent-chat',
+    id: 'agent_chat',
     label: 'Agentic Chat',
     blurb: 'Your always-on operations assistant — runs tools, files work, and follows playbooks.',
   },
   {
-    id: 'chat-commands',
+    id: 'chat_commands',
     label: 'Chat / commands',
     blurb: 'Type / in agent chat for slash commands — knowledge, jobs, billing, and the rest of the OS.',
   },
   {
-    id: 'business-audit',
+    id: 'business_audit',
     label: 'Business Audit',
     blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content.',
   },
   {
-    id: 'client-portal',
+    id: 'client_portal',
     label: 'Client Portal',
     blurb: 'A branded portal for every client — projects, files, and status in one place.',
   },
@@ -129,17 +153,17 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
     blurb: 'Contacts, companies, and client profiles — searchable by name, phone, or domain.',
   },
   {
-    id: 'dynamic-todos',
+    id: 'dynamic_todos',
     label: 'Dynamic To-Dos',
     blurb: 'Dynamic alerts for personal or work — create, update, and clear with the agent or Siri.',
   },
   {
-    id: 'email-inbox',
+    id: 'email_inbox',
     label: 'Inbox Triage',
     blurb: 'Triage client mail, draft replies, and file threads onto the right project.',
   },
   {
-    id: 'handoff-vault',
+    id: 'handoff_vault',
     label: 'Handoff Vault',
     blurb: 'Bidirectionally share secure credentials and other data in the portal Data tab.',
   },
@@ -149,7 +173,7 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
     blurb: 'Playbooks the agent actually follows — SOPs, install notes, and how-tos on demand.',
   },
   {
-    id: 'media-library',
+    id: 'media_library',
     label: 'Media Library',
     blurb: 'Upload and reuse logos, photos, and PDFs for branding and content — pick once, use everywhere.',
   },
@@ -159,12 +183,12 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
     blurb: 'Sign in with Face ID, Touch ID, or a device passkey after the first visit — no password on return.',
   },
   {
-    id: 'phone-sign-in',
+    id: 'phone_sign_in',
     label: 'Phone sign-in',
     blurb: 'Sign in with a one-time code texted to your phone — separate from two-way business SMS.',
   },
   {
-    id: 'portal-assistant',
+    id: 'portal_assistant',
     label: 'Portal Assistant',
     blurb: 'Speed-dial help chat so clients get answers without ringing your phone.',
   },
@@ -190,6 +214,7 @@ export type CatalogRow = {
 };
 
 export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
+  if (feature === 'google_workspace') return 'google_workspace';
   if (isPrivateFeature(feature) || feature === 'demo') return 'internal';
   const grouped = MODULE_DISPLAY_GROUPS.find((g) => g.features.includes(feature));
   if (grouped?.id === 'work') return 'work';
@@ -212,8 +237,8 @@ function buildIdTables(): IdTables {
   const byCard = new Map<string, string>();
   const all = new Set<string>();
 
-  const coreCards = [...CORE_OS_CARDS].sort(byLabel);
-  const coreIds = spacedCatalogIds(coreCards.length, 'core');
+  const coreCards = shuffleStable(CORE_OS_CARDS, 'catalog-ids:core');
+  const coreIds = sequentialCatalogIds(coreCards.length, 'core');
   coreCards.forEach((card, i) => {
     const id = coreIds[i]!;
     byCard.set(card.id, id);
@@ -228,6 +253,7 @@ function buildIdTables(): IdTables {
     grouped.set(group, []);
   }
   for (const feature of FEATURE_IDS) {
+    if (feature === 'content_management') continue;
     if (byFeature.has(feature)) continue;
     const group = catalogGroupForFeature(feature);
     if (group === 'core') continue;
@@ -235,9 +261,9 @@ function buildIdTables(): IdTables {
   }
 
   for (const [group, features] of grouped) {
-    features.sort((a, b) => FEATURE_LABELS[a].localeCompare(FEATURE_LABELS[b], undefined, { sensitivity: 'base' }));
-    const ids = spacedCatalogIds(features.length, group);
-    features.forEach((feature, i) => {
+    const shuffled = shuffleStable(features, `catalog-ids:${group}`);
+    const ids = sequentialCatalogIds(shuffled.length, group);
+    shuffled.forEach((feature, i) => {
       const id = ids[i]!;
       byFeature.set(feature, id);
       all.add(id);
@@ -292,15 +318,9 @@ const FEATURE_ID_SET_LOCAL = new Set<string>(FEATURE_IDS);
 
 export function nextCatalogId(group: CatalogGroupId, taken: Iterable<string>): string {
   const band = CATALOG_ID_BANDS[group];
-  const step = group === 'core' ? 5 : 10;
-  const first = group === 'core' ? step : band.start - 1 + step;
   const used = new Set(
     [...taken].map((id) => id.trim().padStart(3, '0')).filter((id) => /^\d{3}$/.test(id)),
   );
-  for (let n = first; n <= band.end; n += step) {
-    const id = formatCatalogId(n);
-    if (!used.has(id)) return id;
-  }
   for (let n = band.start; n <= band.end; n++) {
     const id = formatCatalogId(n);
     if (!used.has(id)) return id;
@@ -352,8 +372,28 @@ export function defaultModuleCatalog(): CatalogRow[] {
     };
   });
 
+  const taken = [...core, ...modules].map((row) => row.id).filter((id) => /^\d{3}$/.test(id));
+  const workspaceServices: CatalogRow[] = (FEATURE_MARKETING.google_workspace ?? []).map((cap) => {
+    const feature = slugifyCatalogFeature(cap.id);
+    const id = nextCatalogId('google_workspace', taken);
+    taken.push(id);
+    return {
+      key: `custom:${feature}`,
+      kind: 'custom' as const,
+      group: 'google_workspace' as const,
+      id,
+      feature,
+      label: cap.label,
+      blurb: cap.blurb || '',
+      priceAmount: null,
+      priceLabel: 'Included',
+      saleSheet: true,
+      visibility: 'public' as const,
+    };
+  });
+
   const groupRank = new Map(CATALOG_GROUPS.map((id, i) => [id, i]));
-  return [...core, ...modules].sort((a, b) => {
+  return [...core, ...modules, ...workspaceServices].sort((a, b) => {
     const gr = (groupRank.get(a.group) ?? 99) - (groupRank.get(b.group) ?? 99);
     if (gr) return gr;
     return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });

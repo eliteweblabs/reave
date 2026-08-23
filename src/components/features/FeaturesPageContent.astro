@@ -6,6 +6,7 @@
 import BrandLogoMarquee from "../BrandLogoMarquee.astro";
 import FeaturesPricingSection from "./FeaturesPricingSection.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { FEATURE_BLURBS, FEATURE_MARKETING } from "../../lib/featureCatalog";
 import { listDemoLoaderFeatures } from "../../lib/marketingFeatures";
 import {
   Users,
@@ -13,6 +14,7 @@ import {
   Briefcase,
   Wallet,
   Mail,
+  MailCheck,
   CalendarClock,
   Sparkles,
   Mic,
@@ -167,6 +169,18 @@ const after: Section[] = [
       "Branded HTML outbound mail — logo, CTA button, dark-mode friendly — sent server-side through Resend",
       "Install to your Home Screen and get pushed the moment something needs a reply",
     ],
+  },
+  {
+    id: "google-workspace",
+    icon: MailCheck,
+    title: "Google™ Workspace setup — not a REΛVE login",
+    teaser: FEATURE_BLURBS.google_workspace,
+    body: [
+      FEATURE_BLURBS.google_workspace,
+    ],
+    bullets: (FEATURE_MARKETING.google_workspace ?? []).map((item) =>
+      item.blurb ? `${item.label} — ${item.blurb}` : item.label,
+    ),
   },
   {
     id: "scheduling",

@@ -136,6 +136,9 @@
       renderStatusDot(m) +
       `</div>` +
       (m.blurb ? `<p class="dl-tile-blurb">${esc(m.blurb)}</p>` : '') +
+      (Array.isArray(m.features) && m.features.length
+        ? `<ul class="dl-tile-features">${m.features.map((f) => `<li>${esc(f.label)}</li>`).join('')}</ul>`
+        : '') +
       `</div>` +
       (canToggle ?
         `<div class="dl-tile-foot">${renderSwitch(checked, m.moduleId)}</div>`

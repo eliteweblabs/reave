@@ -1,6 +1,6 @@
 /**
  * Numeric module IDs for demo suite URLs (?modules=[010,110,410]).
- * Banded with gaps — Core 1–100, Work 101–200, and so on.
+ * Consecutive inside each band — Core 001…, Work 101…, and so on.
  * Railway FEATURES / config features[] stay feature slugs, not these numbers.
  */
 import {

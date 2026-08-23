@@ -2,29 +2,28 @@
 
 Numeric ids for demo suite URLs. Source of truth: the Catalog admin page / [`src/lib/moduleCatalog.ts`](../../../src/lib/moduleCatalog.ts).
 
-Ids are **banded with gaps** so new modules can be inserted without remumbering the rest (same idea as leaving room between Railway variables):
+Ids are **consecutive inside each group** (no gaps). Order inside a band is shuffled so the number is not a rank:
 
-| Band | Range | Step |
-|------|-------|------|
-| Core OS | 001–100 | 5 |
-| Work | 101–200 | 10 |
-| Social | 201–300 | 10 |
-| E-commerce | 301–400 | 10 |
-| Web Development | 401–500 | 10 |
-| Other | 501–600 | 10 |
-| Internal | 601–700 | 10 |
+| Band | Range |
+|------|-------|
+| Core OS | 001–100 |
+| Work | 101–200 |
+| Social | 201–300 |
+| E-commerce | 301–400 |
+| Web Development | 401–500 |
+| Other | 501–600 |
+| Internal | 601–700 |
+| Google™ Workspace | 701–800 |
 
-Railway `FEATURES` and `config/config-*.json` still use **feature slugs** (`billing`, `social_inbox`) — not these numbers. Playbooks that still store old sequential `001`–`037` ids are remapped on load.
+Feature slugs use **underscores** (`agent_chat`, `social_inbox`). Railway `FEATURES` and `config/config-*.json` still use those slugs — not the numbers. Playbooks that still store old sequential `001`–`037` ids are remapped on load.
 
 Use in sales links:
 
 ```
-https://demo.reave.app/?demo=tier-1&modules=[010,110,420,530]&industry=plumbing
+https://demo.reave.app/?demo=tier-1&modules=[001,101,401]&industry=plumbing
 ```
 
-(Exact numbers follow the Catalog table — Core cards start at `005`, then `010`, …)
-
-Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
+Exact numbers are on Catalog / `GET /api/demo/suite`.
 
 ## Baseline
 
@@ -35,7 +34,7 @@ Core FeatureIds `client_portal`, `web_handoff`, and `portal_assistant` share the
 | Param | Example | Purpose |
 |-------|---------|---------|
 | `demo` | `tier-1` | Install tier (only tier 1 today) |
-| `modules` | `[010,110,420]` | Which modules to enable + seed |
+| `modules` | `[001,101,401]` | Which modules to enable + seed |
 | `industry` | `plumbing` | Seed fixtures (`general`, `plumbing`, …) |
 
 After landing, params are stored in the `reave_demo_suite` cookie for seven days.

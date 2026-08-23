@@ -451,6 +451,26 @@
   color: rgba(255, 255, 255, 0.55);
 }
 
+.dl-tile-features {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.dl-tile-features li {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.62);
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .dl-tile-label {
   margin: 0;
   display: block;
