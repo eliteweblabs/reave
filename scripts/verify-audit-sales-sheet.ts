@@ -951,7 +951,12 @@ await test('header hero is the audit overall block restyled for a white sheet', 
   assert.match(hero, /64/);
   assert.match(hero, /Speed and local listings/);
   assert.match(hero, /Every finding sourced from independent platforms/i);
-  assert.match(hero, /\.ss-hero-copy \{[\s\S]*flex: 1 1 auto/);
+  assert.match(hero, /\.ss-hero \{[\s\S]*width: max-content/);
+  assert.match(hero, /\.ss-hero \{[\s\S]*justify-self: center/);
+  assert.match(hero, /\.ss-hero \{[\s\S]*grid-column: 1 \/ -1/);
+  assert.match(hero, /grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\)/);
+  assert.match(hero, /\.ss-hero-copy \{[\s\S]*flex: 0 0 auto/);
+  assert.match(hero, /\.ss-hero-copy \{[\s\S]*width: max-content/);
   assert.match(hero, /\.ss-hero-copy \{[\s\S]*text-align: left/);
   assert.match(hero, /align-items: flex-start/);
   assert.doesNotMatch(hero, /translate\(-50%, -50%\)/);

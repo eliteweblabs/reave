@@ -970,25 +970,41 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   return `
 <style>
 .ss-hero {
-  flex: 1 1 auto;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: center;
+  width: max-content;
+  max-width: 58%;
   min-width: 0;
   display: flex;
   align-items: flex-start;
   gap: 12px;
   margin: 0;
+  z-index: 1;
   color: #141414;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 .doc-onepager-header:has(.ss-hero) {
-  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: flex-start;
   gap: 2.2%;
 }
 .doc-onepager-header:has(.ss-hero) .doc-onepager-logo {
+  grid-column: 1;
+  grid-row: 1;
   max-width: 22%;
+  justify-self: start;
   align-self: flex-start;
   margin-top: -2px;
+  z-index: 2;
+}
+.doc-onepager-header:has(.ss-hero) .doc-onepager-mast {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  z-index: 2;
 }
 .ss-hero-ring {
   position: relative;
@@ -1050,9 +1066,10 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   color: #6b6b6b;
 }
 .ss-hero-copy {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 100%;
   min-width: 0;
-  max-width: none;
   text-align: left;
 }
 .ss-hero-h {
