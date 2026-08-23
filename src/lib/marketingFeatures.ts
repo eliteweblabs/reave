@@ -199,18 +199,11 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
   },
   {
     id: 'website',
-    label: 'Agentic Web Editor',
-    modules: ['website'],
+    label: 'Agentic Website Editor',
+    modules: ['website', 'content_management'],
     kind: 'capability',
     href: '/features#feature-site-editing',
     spotlight: true,
-  },
-  {
-    id: 'cms-less-editing',
-    label: 'Agentic Website Editor',
-    modules: ['content_management'],
-    kind: 'capability',
-    href: '/features#feature-site-editing',
   },
   {
     id: 'stock-photos',
@@ -226,7 +219,7 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
   },
   {
     id: 'time-tracking',
-    label: 'Project time tracking',
+    label: 'Time Tracking',
     modules: ['time_tracking'],
     kind: 'capability',
   },
@@ -310,8 +303,14 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
+    id: 'social-inbox',
+    label: 'Agentic Social Media',
+    modules: ['social_inbox'],
+    kind: 'capability',
+  },
+  {
     id: 'materials-pricing',
-    label: 'Materials pricing (Home Depot)',
+    label: 'Materials pricing',
     modules: ['materials_pricing'],
     kind: 'capability',
   },

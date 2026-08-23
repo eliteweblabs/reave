@@ -66,6 +66,8 @@ export function buildAddonsCatalog(opts: {
   for (const m of listAllDeployModules()) {
     const moduleId = demoModuleIdForFeature(m.feature);
     if (moduleId && isDemoBaselineModuleId(moduleId)) continue;
+    // Public tile is `website` (Agentic Website Editor).
+    if (m.feature === 'content_management') continue;
 
     const price = modulePrice(m.feature);
     const isPrivate = m.visibility === 'private';

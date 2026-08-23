@@ -57,7 +57,7 @@ const SYSTEM_NODES = [
   { id: 'cookie_notice', title: 'Cookie notice', sub: 'implied consent bar · /cookies (FEATURES: cookie_notice)', icon: '🍪', hue: 32, status: true, group: 'reave', x: 640, y: 1020 },
   { id: 'credit_check', title: 'Credit check', sub: 'reference · applicant pull · form API (FEATURES: credit_check · request)', icon: '💳', hue: 8, status: true, ghost: true, group: 'reave', x: 640, y: 1092 },
   { id: 'website', title: 'Agentic Website Editor', sub: 'client web tools · editor + stock photos · no hosting APIs (FEATURES: website)', icon: '🌐', hue: 195, status: true, group: 'reave', x: 400, y: 600 },
-  { id: 'time_tracking', title: 'Project time tracking', sub: 'Time tab · /api/work/timer · /api/work/:slug/time · Siri start/stop (FEATURES: time_tracking)', icon: '⏱️', hue: 88, status: true, group: 'reave', x: 220, y: 600 },
+  { id: 'time_tracking', title: 'Time Tracking', sub: 'Time tab · /api/work/timer · /api/work/:slug/time · Siri start/stop (FEATURES: time_tracking)', icon: '⏱️', hue: 88, status: true, group: 'reave', x: 220, y: 600 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'locked website repo · auto-commit · undo that (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'site_repo', title: 'Client site repo', sub: 'wizard creates {slug}-site · restricted GitHub App · not eliteweblabs/reave', icon: '📄', brand: 'github', hue: 220, status: true, group: 'external', x: 1400, y: 700 },
   { id: 'wp_content', title: 'WordPress content plugin', sub: 'Reave Connect — posts, pages, media (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },

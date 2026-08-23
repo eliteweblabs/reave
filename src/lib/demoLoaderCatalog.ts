@@ -176,6 +176,8 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
     })
     .filter((m) => isPublicFeature(m.feature))
     .filter((m) => !m.moduleId || !isDemoBaselineModuleId(m.moduleId))
+    // `website` is the public Agentic Website Editor; content_management is the same tile.
+    .filter((m) => m.feature !== 'content_management')
     .sort(byTitle);
 }
 

@@ -4,7 +4,7 @@
  */
 import type { FeatureId } from './featureCatalog.ts';
 
-export type ModuleDisplayGroupId = 'social' | 'e-commerce' | 'web-development';
+export type ModuleDisplayGroupId = 'social' | 'e-commerce' | 'web-development' | 'work';
 
 export type ModuleDisplayGroup = {
   id: ModuleDisplayGroupId;
@@ -13,6 +13,11 @@ export type ModuleDisplayGroup = {
 };
 
 export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
+  {
+    id: 'work',
+    title: 'Work',
+    features: ['billing', 'documents', 'scheduling', 'time_tracking', 'email_marketing'],
+  },
   {
     id: 'social',
     title: 'Social',
@@ -35,7 +40,6 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
     features: [
       'site_audits',
       'website',
-      'content_management',
       'wordpress_content',
       'code_dev',
       'namecom_dns',

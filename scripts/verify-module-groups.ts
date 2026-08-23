@@ -21,7 +21,13 @@ function configFeatures(slug: string): string[] {
 
 assert.ok(FEATURE_IDS.includes('social_inbox'));
 assert.equal(FEATURE_LABELS.social_inbox, 'Agentic Social Media');
+assert.equal(FEATURE_LABELS.time_tracking, 'Time Tracking');
+assert.equal(FEATURE_LABELS.materials_pricing, 'Materials pricing');
+assert.equal(FEATURE_LABELS.website, 'Agentic Website Editor');
 assert.equal(demoModuleIdForFeature('social_inbox'), '036');
+assert.ok(FEATURE_SALE_SHEET.has('time_tracking'));
+assert.ok(FEATURE_SALE_SHEET.has('social_inbox'));
+assert.ok(!FEATURE_SALE_SHEET.has('content_management'));
 
 const groupIds = MODULE_DISPLAY_GROUPS.map((g) => g.id);
 assert.ok(groupIds.includes('social'));
@@ -33,6 +39,8 @@ assert.equal(moduleDisplayGroupFor('inventory_sync')?.title, 'E-commerce');
 assert.equal(moduleDisplayGroupId('dealership_wizard'), 'e-commerce');
 assert.equal(moduleDisplayGroupId('event_ticketing'), 'e-commerce');
 assert.equal(moduleDisplayGroupId('client_portal'), null);
+assert.equal(moduleDisplayGroupId('time_tracking'), 'work');
+assert.equal(moduleDisplayGroupFor('time_tracking')?.title, 'Work');
 
 for (const id of FEATURE_SALE_SHEET) {
   assert.ok(FEATURE_IDS.includes(id), `unknown sale-sheet feature ${id}`);
