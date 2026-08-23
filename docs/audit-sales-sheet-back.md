@@ -42,7 +42,7 @@ tall center oval. Stack marks are small black `<img>`s, not tiles.
 Header / four iPhone exhibits across / caption under each / snapshot strip /
 footer. Logo left, QR right.
 
-Directory coverage is always the first iPhone (24 official app icons). The
+Directory coverage is always the first iPhone (28 official app icons). The
 other three phones are the next cascade hits. Each screen is a visual of the
 problem (Not Secure bar, Safari cannot open, missing Places SERP, and so on).
 Working Maps listings are not shown. There is no Next steps column.
@@ -78,7 +78,7 @@ bind on landscape.
 
 ## Cascade of terribleness (what the front picks)
 
-Directory coverage is **always phone 1** (24 official iOS app icons). Walk rank 1 → N for the other three.
+Directory coverage is **always phone 1** (28 official iOS app icons, A–Z). Walk rank 1 → N for the other three.
 
 | Rank | Finding | Sheet (what to draw) |
 | ---: | --- | --- |
@@ -96,7 +96,7 @@ Directory coverage is **always phone 1** (24 official iOS app icons). Walk rank 
 | 12 | Apple Maps | iPhone Maps search, no pin for them, competitors showing. |
 | 13 | No Reviews | Listing card with a blank or near-zero review count. |
 | 14 | Poor Reviews | Live star rating plus two or three of the worst recent reviews. |
-| 15 | Directories | Sticky first. 4×6 of official App Store icons (color, labeled, no URL bar) from the **Industry icon group** (General local today). Green check = linked from the site; amber minus = found, not linked; red X = no matching profile. |
+| 15 | Directories | Sticky first. 4×7 of official App Store icons (color, labeled, A–Z, no URL bar) from the **Industry icon group** (General local today). Legend under the phone: green check = linked from the site; amber minus = found, not linked; red X = no matching profile. |
 | 16 | Wrong Hours | Google hours next to the real hours (or “Closed” when they are open). |
 | 17 | Duplicate Listings | Two Google results for the same business, or a suspended listing. |
 | 18 | Not Public | Password wall, coming-soon, or staging page. |

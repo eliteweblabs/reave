@@ -5,30 +5,34 @@
  * profile (Places / name search) is a half-fail. Neither is a full fail.
  */
 export const DIRECTORY_SLUGS = [
-  'googlemaps',
+  'amazon',
+  'angi',
   'apple',
-  'yelp',
+  'bing',
+  'eventbrite',
   'facebook',
+  'foursquare',
+  'google',
+  'googlemaps',
+  'houzz',
   'instagram',
-  'youtube',
+  'linkedin',
+  'meetup',
+  'messenger',
   'nextdoor',
+  'pinterest',
+  'reddit',
+  'snapchat',
+  'threads',
+  'thumbtack',
   'tiktok',
   'tripadvisor',
-  'bing',
-  'thumbtack',
-  'linkedin',
-  'angi',
-  'reddit',
-  'foursquare',
   'waze',
-  'google',
-  'x',
-  'pinterest',
   'whatsapp',
-  'snapchat',
-  'houzz',
+  'x',
   'yellowpages',
-  'threads',
+  'yelp',
+  'youtube',
 ] as const;
 
 export type DirectorySlug = (typeof DIRECTORY_SLUGS)[number];
@@ -44,57 +48,65 @@ export type DirectoryCheck = {
 };
 
 export const DIRECTORY_APPS: { slug: DirectorySlug; title: string; short?: string; host: RegExp }[] = [
-  { slug: 'googlemaps', title: 'Google Maps', short: 'Maps', host: /(?:^|\.)(?:maps\.google\.com|google\.com|g\.page|goo\.gl)$/i },
+  { slug: 'amazon', title: 'Amazon', host: /(?:^|\.)(?:amazon\.com|amzn\.to|a\.co)$/i },
+  { slug: 'angi', title: 'Angi', host: /(?:^|\.)(?:angi\.com|homeadvisor\.com)$/i },
   { slug: 'apple', title: 'Apple Maps', short: 'Apple', host: /(?:^|\.)maps\.apple\.com$/i },
-  { slug: 'yelp', title: 'Yelp', host: /(?:^|\.)yelp\.com$/i },
+  { slug: 'bing', title: 'Bing', host: /(?:^|\.)bing\.com$/i },
+  { slug: 'eventbrite', title: 'Eventbrite', host: /(?:^|\.)eventbrite\.com$/i },
   { slug: 'facebook', title: 'Facebook', host: /(?:^|\.)(?:facebook\.com|fb\.com|fb\.me)$/i },
+  { slug: 'foursquare', title: 'Foursquare', host: /(?:^|\.)(?:foursquare\.com|swarmapp\.com)$/i },
+  { slug: 'google', title: 'Google', host: /(?:^|\.)google\.com$/i },
+  { slug: 'googlemaps', title: 'Google Maps', short: 'Maps', host: /(?:^|\.)(?:maps\.google\.com|google\.com|g\.page|goo\.gl)$/i },
+  { slug: 'houzz', title: 'Houzz', host: /(?:^|\.)houzz\.com$/i },
   { slug: 'instagram', title: 'Instagram', host: /(?:^|\.)(?:instagram\.com|instagr\.am)$/i },
-  { slug: 'youtube', title: 'YouTube', host: /(?:^|\.)(?:youtube\.com|youtu\.be)$/i },
+  { slug: 'linkedin', title: 'LinkedIn', host: /(?:^|\.)linkedin\.com$/i },
+  { slug: 'meetup', title: 'Meetup', host: /(?:^|\.)meetup\.com$/i },
+  { slug: 'messenger', title: 'Messenger', host: /(?:^|\.)(?:messenger\.com|m\.me)$/i },
   { slug: 'nextdoor', title: 'Nextdoor', host: /(?:^|\.)nextdoor\.com$/i },
+  { slug: 'pinterest', title: 'Pinterest', host: /(?:^|\.)pinterest\.com$/i },
+  { slug: 'reddit', title: 'Reddit', host: /(?:^|\.)reddit\.com$/i },
+  { slug: 'snapchat', title: 'Snapchat', host: /(?:^|\.)snapchat\.com$/i },
+  { slug: 'threads', title: 'Threads', host: /(?:^|\.)threads\.net$/i },
+  { slug: 'thumbtack', title: 'Thumbtack', host: /(?:^|\.)thumbtack\.com$/i },
   { slug: 'tiktok', title: 'TikTok', host: /(?:^|\.)tiktok\.com$/i },
   { slug: 'tripadvisor', title: 'Tripadvisor', host: /(?:^|\.)tripadvisor\.com$/i },
-  { slug: 'bing', title: 'Bing', host: /(?:^|\.)bing\.com$/i },
-  { slug: 'thumbtack', title: 'Thumbtack', host: /(?:^|\.)thumbtack\.com$/i },
-  { slug: 'linkedin', title: 'LinkedIn', host: /(?:^|\.)linkedin\.com$/i },
-  { slug: 'angi', title: 'Angi', host: /(?:^|\.)(?:angi\.com|homeadvisor\.com)$/i },
-  { slug: 'reddit', title: 'Reddit', host: /(?:^|\.)reddit\.com$/i },
-  { slug: 'foursquare', title: 'Foursquare', host: /(?:^|\.)(?:foursquare\.com|swarmapp\.com)$/i },
   { slug: 'waze', title: 'Waze', host: /(?:^|\.)waze\.com$/i },
-  { slug: 'google', title: 'Google', host: /(?:^|\.)google\.com$/i },
-  { slug: 'x', title: 'X', host: /(?:^|\.)(?:x\.com|twitter\.com|t\.co)$/i },
-  { slug: 'pinterest', title: 'Pinterest', host: /(?:^|\.)pinterest\.com$/i },
   { slug: 'whatsapp', title: 'WhatsApp', host: /(?:^|\.)(?:whatsapp\.com|wa\.me)$/i },
-  { slug: 'snapchat', title: 'Snapchat', host: /(?:^|\.)snapchat\.com$/i },
-  { slug: 'houzz', title: 'Houzz', host: /(?:^|\.)houzz\.com$/i },
+  { slug: 'x', title: 'X', host: /(?:^|\.)(?:x\.com|twitter\.com|t\.co)$/i },
   { slug: 'yellowpages', title: 'Yellow Pages', short: 'YP', host: /(?:^|\.)(?:yellowpages\.com|yp\.com)$/i },
-  { slug: 'threads', title: 'Threads', host: /(?:^|\.)threads\.net$/i },
+  { slug: 'yelp', title: 'Yelp', host: /(?:^|\.)yelp\.com$/i },
+  { slug: 'youtube', title: 'YouTube', host: /(?:^|\.)(?:youtube\.com|youtu\.be)$/i },
 ];
 
 const DIR_NAME_RE: Record<DirectorySlug, RegExp> = {
-  googlemaps: /\bgoogle(?:\s+(?:maps|business|places|my business))?\b|\bgbp\b|\bgmb\b/i,
+  amazon: /\bamazon\b/i,
+  angi: /\bangi\b|\bhomeadvisor\b/i,
   apple: /\bapple(?:\s+(?:maps|business))?\b|\bbusiness connect\b/i,
-  yelp: /\byelp\b/i,
+  bing: /\bbing(?:\s+places)?\b/i,
+  eventbrite: /\beventbrite\b/i,
   facebook: /\bfacebook\b|\bfb\.com\b/i,
+  foursquare: /\bfoursquare\b|\bswarm\b/i,
+  google: /\bgoogle(?:\s+app)?\b/i,
+  googlemaps: /\bgoogle(?:\s+(?:maps|business|places|my business))?\b|\bgbp\b|\bgmb\b/i,
+  houzz: /\bhouzz\b/i,
   instagram: /\binstagram\b|\binsta\b/i,
-  youtube: /\byoutube\b|\byoutu\.be\b/i,
+  linkedin: /\blinkedin\b/i,
+  meetup: /\bmeetup\b/i,
+  messenger: /\bmessenger\b/i,
   nextdoor: /\bnextdoor\b/i,
+  pinterest: /\bpinterest\b/i,
+  reddit: /\breddit\b/i,
+  snapchat: /\bsnapchat\b/i,
+  threads: /\bthreads\b/i,
+  thumbtack: /\bthumbtack\b/i,
   tiktok: /\btiktok\b/i,
   tripadvisor: /\btrip\s*advisor\b/i,
-  bing: /\bbing(?:\s+places)?\b/i,
-  thumbtack: /\bthumbtack\b/i,
-  linkedin: /\blinkedin\b/i,
-  angi: /\bangi\b|\bhomeadvisor\b/i,
-  reddit: /\breddit\b/i,
-  foursquare: /\bfoursquare\b|\bswarm\b/i,
   waze: /\bwaze\b/i,
-  google: /\bgoogle(?:\s+app)?\b/i,
-  x: /\b(?:twitter|\bx\.com\b|\bx\b)\b/i,
-  pinterest: /\bpinterest\b/i,
   whatsapp: /\bwhats?app\b/i,
-  snapchat: /\bsnapchat\b/i,
-  houzz: /\bhouzz\b/i,
+  x: /\b(?:twitter|\bx\.com\b|\bx\b)\b/i,
   yellowpages: /\byellow\s*pages\b|\byp\.com\b/i,
-  threads: /\bthreads\b/i,
+  yelp: /\byelp\b/i,
+  youtube: /\byoutube\b|\byoutu\.be\b/i,
 };
 
 const GOOGLE_MAPS_PATH = /\/maps|\/business|g\.page/i;
@@ -148,6 +160,12 @@ export function directoryShortLabel(slug: DirectorySlug): string {
   return app?.short || app?.title || slug;
 }
 
+export function directorySlugsSorted(slugs: readonly DirectorySlug[] = DIRECTORY_SLUGS): DirectorySlug[] {
+  return [...slugs].sort((a, b) =>
+    directoryTitle(a).localeCompare(directoryTitle(b), 'en', { sensitivity: 'base' }),
+  );
+}
+
 /**
  * Per-industry 24-icon packs. Only General local ships today — music
  * (Spotify / Apple Music / SoundCloud), restaurants, and others plug in here.
@@ -178,7 +196,7 @@ export function directoryIconGroupById(raw?: string | null) {
 }
 
 export function directorySlugsForGroup(raw?: string | null): readonly DirectorySlug[] {
-  return directoryIconGroupById(raw).slugs;
+  return directorySlugsSorted(directoryIconGroupById(raw).slugs);
 }
 
 /** Hosts / paths on the audited website that count as a first-party link. */
@@ -290,7 +308,7 @@ export function checksFromSignals(opts: {
 }): DirectoryCheck[] {
   const linked = new Set(opts.linked);
   const found = new Set(opts.found);
-  const slugs = opts.slugs ?? DIRECTORY_SLUGS;
+  const slugs = directorySlugsSorted(opts.slugs ?? DIRECTORY_SLUGS);
   return slugs.map((slug) => {
     const linkedFromSite = linked.has(slug);
     const foundOffSite = found.has(slug) || linkedFromSite;

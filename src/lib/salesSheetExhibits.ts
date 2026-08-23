@@ -7,6 +7,7 @@ import {
   directoryIconSrc,
   directoryShortLabel,
   directorySlugsForGroup,
+  isDirectoryCoverageFinding,
   listedDirectorySlugs,
   verdictsFromListed,
   type DirectoryCheck,
@@ -390,7 +391,7 @@ function iphoneCss(): string {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(7, minmax(0, 1fr));
   gap: 3px 4px;
   margin: 0;
   padding: 1px 0 0;
@@ -459,37 +460,36 @@ function iphoneCss(): string {
 .ss-phone-dir-badge--ok { background: #34c759; }
 .ss-phone-dir-badge--half { background: #ff9f0a; }
 .ss-phone-dir-badge--miss { background: #ff3b30; }
-.ss-phone-dir-legend {
-  flex: 0 0 auto;
+.ss-exhibit-legend {
   display: flex;
   flex-direction: column;
-  gap: 2.5px;
-  margin-top: 5px;
-  padding: 0 3px 1px;
+  gap: 0.28em;
+  margin: 0;
 }
-.ss-phone-dir-legend-row {
+.ss-exhibit-legend-row {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 5.6px;
+  gap: 0.4em;
+  margin: 0;
+  font-size: clamp(8px, 1.2cqi, 11px);
   font-weight: 500;
   letter-spacing: -0.02em;
-  line-height: 1.15;
-  color: #3a3a3c;
+  line-height: 1.3;
+  color: #1d1d1f;
 }
-.ss-phone-dir-legend-dot {
+.ss-exhibit-legend-dot {
   flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
+  width: 11px;
+  height: 11px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   color: #fff;
 }
-.ss-phone-dir-legend-dot svg {
+.ss-exhibit-legend-dot svg {
   display: block;
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
 }
 .ss-og {
   display: flex;
@@ -827,13 +827,13 @@ const DIR_LEGEND = [
 
 function directoryLegendHtml(): string {
   const dots: Record<DirectoryVerdict, string> = {
-    pass: '<!-- IOS_ICONS.check — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-legend-dot ss-phone-dir-badge--ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>',
-    half: '<span class="ss-phone-dir-legend-dot ss-phone-dir-badge--half" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></span>',
-    fail: '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-legend-dot ss-phone-dir-badge--miss" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>',
+    pass: '<!-- IOS_ICONS.check — keep in sync with public/admin/admin-ui.js --><span class="ss-exhibit-legend-dot ss-phone-dir-badge--ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>',
+    half: '<span class="ss-exhibit-legend-dot ss-phone-dir-badge--half" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></span>',
+    fail: '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js --><span class="ss-exhibit-legend-dot ss-phone-dir-badge--miss" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>',
   };
-  return `<div class="ss-phone-dir-legend">${DIR_LEGEND.map(
+  return `<div class="ss-exhibit-legend">${DIR_LEGEND.map(
     (row) =>
-      `<div class="ss-phone-dir-legend-row">${dots[row.verdict]}<span>${escapeHtml(row.text)}</span></div>`,
+      `<p class="ss-exhibit-legend-row">${dots[row.verdict]}<span>${escapeHtml(row.text)}</span></p>`,
   ).join('')}</div>`;
 }
 
@@ -852,7 +852,6 @@ function directoriesScreen(_host: string, finding: SalesSheetFinding, opts: Sale
         );
   return `<div class="ss-phone-body">
       <div class="ss-phone-dirs" data-icon-group="${escapeHtml(opts.directoryIconGroup || 'general')}">${checks.map(directoryTileHtml).join('')}</div>
-      ${directoryLegendHtml()}
     </div>`;
 }
 
@@ -1209,10 +1208,13 @@ export function renderSalesSheetFrontExhibitsHtml(opts: {
   const cells = items
     .map((finding, i) => {
       const phone = opts.phones[i] || '';
+      const caption = isDirectoryCoverageFinding(finding)
+        ? directoryLegendHtml()
+        : `<p class="ss-exhibit-copy">${escapeHtml(finding.problem)}</p>`;
       return `<article class="ss-exhibit" data-ss-finding="${escapeHtml(finding.id)}">
   ${phone}
   <p class="ss-exhibit-kicker">${i + 1} · ${escapeHtml(finding.categoryLabel)}</p>
-  <p class="ss-exhibit-copy">${escapeHtml(finding.problem)}</p>
+  ${caption}
 </article>`;
     })
     .join('');

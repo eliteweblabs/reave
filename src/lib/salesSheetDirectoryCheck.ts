@@ -16,10 +16,10 @@ import {
 } from './salesSheetDirectories';
 
 const SOCIAL_SITES =
-  'site:instagram.com OR site:facebook.com OR site:youtube.com OR site:tiktok.com OR site:nextdoor.com OR site:linkedin.com OR site:x.com OR site:twitter.com OR site:threads.net OR site:pinterest.com OR site:snapchat.com OR site:reddit.com OR site:whatsapp.com';
+  'site:instagram.com OR site:facebook.com OR site:youtube.com OR site:tiktok.com OR site:nextdoor.com OR site:linkedin.com OR site:x.com OR site:twitter.com OR site:threads.net OR site:pinterest.com OR site:snapchat.com OR site:reddit.com OR site:whatsapp.com OR site:messenger.com OR site:m.me';
 
 const DIRECTORY_SITES =
-  'site:yelp.com OR site:tripadvisor.com OR site:thumbtack.com OR site:angi.com OR site:houzz.com OR site:yellowpages.com OR site:yp.com OR site:foursquare.com OR site:waze.com OR site:maps.apple.com';
+  'site:yelp.com OR site:tripadvisor.com OR site:thumbtack.com OR site:angi.com OR site:houzz.com OR site:yellowpages.com OR site:yp.com OR site:foursquare.com OR site:waze.com OR site:maps.apple.com OR site:eventbrite.com OR site:meetup.com OR site:amazon.com';
 
 export async function checkDirectoryCoverage(opts: {
   website?: string;

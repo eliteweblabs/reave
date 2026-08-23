@@ -139,5 +139,29 @@
     "name": "The Real Yellow Pages - YP",
     "id": 284806204,
     "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d1/cb/3d/d1cb3d87-1684-61c8-3d8a-2b20b9cb73a7/AppIcon-0-0-1x_U007emarketing-0-10-0-0-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "amazon",
+    "name": "Amazon Shopping",
+    "id": 297606951,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/5d/79/b8/5d79b865-9ad4-f905-696c-0e07bac67986/AppIcon-0-0-1x_U007epad-0-1-0-sRGB-0-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "meetup",
+    "name": "Meetup: Social Events & Groups",
+    "id": 375990038,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c0/40/f9/c040f9cd-4722-44dc-40e4-af30129ea048/appIconRedesigned-0-0-1x_U007ephone-0-1-0-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "messenger",
+    "name": "Messenger",
+    "id": 454638411,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d2/e9/3c/d2e93c3f-5772-25d3-4f58-94d2f4770d58/AppIcon-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/1024x1024bb.png"
+  },
+  {
+    "slug": "eventbrite",
+    "name": "Eventbrite",
+    "id": 487922291,
+    "src": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/fc/66/1e/fc661e89-1364-9ba1-1aed-e2a37617344b/AppIcon-0-0-1x_U007ephone-0-1-0-85-220.png/1024x1024bb.png"
   }
 ]

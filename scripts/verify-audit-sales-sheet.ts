@@ -732,7 +732,7 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
   assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
 });
 
-await test('directory exhibit is a 4x6 of official icons scored pass / half / fail', () => {
+await test('directory exhibit is a 4x7 of official icons scored pass / half / fail', () => {
   assert.equal(salesSheetExhibitKind({ id: 'directories', categoryLabel: 'Directories' }), 'directories');
   assert.equal(salesSheetExhibitKind({ id: 'listings-thin', categoryLabel: 'Directories' }), 'directories');
   const finding = {
@@ -777,38 +777,41 @@ await test('directory exhibit is a 4x6 of official icons scored pass / half / fa
   assert.doesNotMatch(dirs, /Directory coverage/);
   assert.doesNotMatch(dirs, /ss-phone-chrome/);
   assert.match(page, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
-  assert.match(page, /grid-template-rows: repeat\(6, minmax\(0, 1fr\)\);/);
+  assert.match(page, /grid-template-rows: repeat\(7, minmax\(0, 1fr\)\);/);
   assert.doesNotMatch(page, /grayscale\(1\)/);
+  assert.doesNotMatch(dirs, /ss-phone-dir-legend|ss-exhibit-legend/);
+  assert.match(page, /ss-exhibit-legend/);
+  assert.match(page, /Linked from the website/);
+  assert.match(page, /Found, not linked/);
+  assert.match(page, /No matching profile/);
   assert.match(dirs, /data-icon-group="general"/);
+  assert.match(dirs, /admin\/dir-icons\/amazon\.png/);
+  assert.match(dirs, /admin\/dir-icons\/eventbrite\.png/);
+  assert.match(dirs, /admin\/dir-icons\/meetup\.png/);
+  assert.match(dirs, /admin\/dir-icons\/messenger\.png/);
   assert.match(dirs, /admin\/dir-icons\/instagram\.png/);
   assert.match(dirs, /admin\/dir-icons\/youtube\.png/);
-  assert.match(dirs, /admin\/dir-icons\/nextdoor\.png/);
-  assert.match(dirs, /admin\/dir-icons\/thumbtack\.png/);
-  assert.match(dirs, /admin\/dir-icons\/foursquare\.png/);
-  assert.match(dirs, /admin\/dir-icons\/waze\.png/);
-  assert.match(dirs, /admin\/dir-icons\/yellowpages\.png/);
   assert.match(dirs, /ss-phone-dir-name">Maps</);
   assert.match(dirs, /ss-phone-dir-name">YouTube</);
-  assert.match(dirs, /Linked from the website/);
-  assert.match(dirs, /Found, not linked/);
-  assert.match(dirs, /No matching profile/);
+  assert.match(dirs, /data-dir="amazon"/);
   assert.match(dirs, /data-dir="yelp"/);
   assert.match(dirs, /data-dir="instagram"/);
   assert.match(dirs, /data-dir="youtube"/);
-  assert.match(dirs, /data-dir="nextdoor"/);
-  assert.match(dirs, /data-dir="tiktok"/);
   assert.equal((dirs.match(/data-dir="/g) || []).length, DIRECTORY_SLUGS.length);
+  assert.equal(DIRECTORY_SLUGS.length, 28);
   assert.match(dirs, /data-dir="instagram"[^>]*data-verdict="pass"|data-dir="instagram"[\s\S]*?ss-phone-dir--pass/);
   assert.match(dirs, /data-dir="yelp"[^>]*data-verdict="half"|data-dir="yelp"[\s\S]*?ss-phone-dir--half/);
   assert.match(dirs, /data-dir="tiktok"[^>]*data-verdict="fail"|data-dir="tiktok"[\s\S]*?ss-phone-dir--fail/);
   assert.equal((dirs.match(/ss-phone-dir--pass/g) || []).length, 2);
   assert.equal((dirs.match(/ss-phone-dir--half/g) || []).length, 2);
   assert.equal((dirs.match(/ss-phone-dir--fail/g) || []).length, DIRECTORY_SLUGS.length - 4);
-  assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 3);
-  assert.equal((dirs.match(/ss-phone-dir-badge--half/g) || []).length, 3);
-  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, DIRECTORY_SLUGS.length - 3);
+  assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 2);
+  assert.equal((dirs.match(/ss-phone-dir-badge--half/g) || []).length, 2);
+  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, DIRECTORY_SLUGS.length - 4);
   assert.match(dirs, /IOS_ICONS\.check/);
   assert.match(dirs, /IOS_ICONS\.x/);
+  const dirOrder = [...dirs.matchAll(/data-dir="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(dirOrder, [...DIRECTORY_SLUGS]);
 
   const facebookOn = renderFindingPhoneHtml(finding, {
     website: 'weprintwraps.com',
@@ -946,6 +949,8 @@ await test('front exhibits are four phones with captions and no next steps', () 
   assert.match(html, /max-width: none/);
   assert.doesNotMatch(html, /max-width: 700px/);
   assert.match(html, /1 · Directories/);
+  assert.match(html, /ss-exhibit-legend/);
+  assert.doesNotMatch(html, /Most of the places customers look/);
   assert.match(html, /2 · Site Speed/);
   assert.match(html, /4 · SEO Fundamentals/);
   assert.match(html, /Overall C \(64\)/);
