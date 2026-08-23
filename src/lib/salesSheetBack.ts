@@ -2,7 +2,7 @@
  * Static duplex back for `/admin/sales-sheet` — the REΛVE side, not the client audit.
  *
  * Three columns on Letter: inner gate (portal welcome + Q&A), back cover
- * (custom builds + full platform stack), and front cover (full logo dead
+ * (custom builds + curated stack marks), and front cover (full logo dead
  * center + diagnostic). Same HTML for every client.
  */
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
@@ -23,8 +23,24 @@ export type SalesSheetBackLogo = {
   slug?: string;
 };
 
-/** Full /platform stack — print every mark so the set can be edited again. */
-export const SALES_SHEET_STACK: StackTech[] = PLATFORM_STACK;
+/** Leave-behind subset of `PLATFORM_STACK` — the marks that stay on the back. */
+const SALES_SHEET_STACK_SLUGS = [
+  'astro',
+  'railway',
+  'supabase',
+  'clerk',
+  'resend',
+  'anthropic',
+  'telnyx',
+  'github',
+  'cloudflare',
+  'caldotcom',
+  'plausibleanalytics',
+] as const;
+
+export const SALES_SHEET_STACK: StackTech[] = PLATFORM_STACK.filter((tech) =>
+  (SALES_SHEET_STACK_SLUGS as readonly string[]).includes(tech.slug),
+);
 
 /** Side and bottom inset. Top stays a hair larger so the mast still clears. */
 export const SALES_SHEET_PRINT_INSET = '0.2in';
@@ -179,15 +195,21 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   gap: 0.38em;
   padding: 0 var(--ss-print-inset);
 }
-.ss-sheet-back .ss-back-col::before {
+.ss-sheet-back .ss-back-col::before,
+.ss-sheet-back .ss-back-col::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: radial-gradient(ellipse 70% 68% at 50% 50%, #fff 0%, rgba(255,255,255,0.62) 42%, rgba(255,255,255,0) 100%);
   pointer-events: none;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+.ss-sheet-back .ss-back-col::before {
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, #fff 0%, #fff 42%, rgba(255,255,255,0.72) 68%, rgba(255,255,255,0.22) 86%, rgba(255,255,255,0) 100%);
+}
+.ss-sheet-back .ss-back-col::after {
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.16) 78%, rgba(0,0,0,0.42) 100%);
 }
 .ss-sheet-back .ss-back-col > * {
   position: relative;
@@ -365,10 +387,11 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.4em;
+  gap: 0;
   width: 100%;
   margin-top: auto;
-  padding-top: 0.55em;
+  margin-bottom: 0;
+  padding: 0;
 }
 .ss-sheet-back .ss-stack {
   list-style: none;
@@ -461,7 +484,6 @@ export function renderSalesSheetBackHtml(opts: {
         <p class="ss-back-kicker">Local</p>
         <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
         <div class="ss-back-platform" data-ss-col="stack">
-          <p class="ss-back-kicker">REΛVE builds with</p>
           <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
         </div>
       </section>

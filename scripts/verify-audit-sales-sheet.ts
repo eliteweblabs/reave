@@ -43,8 +43,7 @@ import {
   sheetSpeedResearchProblem,
   siteSpeedResearchProblem,
 } from '../src/lib/salesSheetResearch.ts';
-import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA } from '../src/lib/salesSheetBack.ts';
-import { PLATFORM_STACK } from '../src/lib/platformStack.ts';
+import { renderSalesSheetBackHtml, SALES_SHEET_BACK_QA, SALES_SHEET_STACK } from '../src/lib/salesSheetBack.ts';
 import {
   applyLiveUrlToFindings,
   dropWorkingSiteDownFindings,
@@ -582,7 +581,7 @@ await test('front footer is page 1 of 2 after fill', () => {
   assert.doesNotMatch(filled, /Page 1 of 1/);
 });
 
-await test('static back is gate + builds + cover with full stack and no client fields', () => {
+await test('static back is gate + builds + cover with curated stack and no client fields', () => {
   const back = renderSalesSheetBackHtml({
     company: { name: 'REAVE', supportEmail: 'hello@reave.example' },
     orientation: 'landscape',
@@ -594,7 +593,7 @@ await test('static back is gate + builds + cover with full stack and no client f
   assert.match(back, /data-ss-col="cover"/);
   assert.match(back, /data-ss-col="stack"/);
   assert.match(back, /1fr 1fr 1fr/);
-  assert.match(back, /REΛVE builds with/);
+  assert.doesNotMatch(back, /REΛVE builds with/);
   assert.match(back, /Managed hosting/);
   assert.match(back, /We host it/);
   assert.match(back, /This is not spam/);
@@ -627,11 +626,11 @@ await test('static back is gate + builds + cover with full stack and no client f
   assert.match(back, /reave-bg-pattern/);
   assert.match(back, /background-size: 260% 260%/);
   assert.match(back, /opacity: 0\.15/);
-  assert.match(back, /radial-gradient\(ellipse 70% 68%/);
+  assert.match(back, /radial-gradient\(ellipse 50% 50% at 50% 50%/);
   assert.match(back, /\.ss-back-col::before/);
   assert.match(back, /place-items: center/);
   assert.match(back, /clamp\(56px, 12cqh, 96px\)/);
-  for (const tech of PLATFORM_STACK) {
+  for (const tech of SALES_SHEET_STACK) {
     assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
   }
   assert.match(back, /flex-wrap: wrap/);
@@ -642,10 +641,17 @@ await test('static back is gate + builds + cover with full stack and no client f
   assert.match(back, /\.ss-back-col \{[\s\S]*padding: 0 var\(--ss-print-inset\)/);
   assert.doesNotMatch(back, /gap: 0 2\.2%/);
   assert.doesNotMatch(back, /padding-left: 2\.2%/);
-  assert.equal((back.match(/data-stack="/g) || []).length, PLATFORM_STACK.length);
+  assert.equal((back.match(/data-stack="/g) || []).length, SALES_SHEET_STACK.length);
   assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
   assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
-  assert.match(back, /\/stack\/playwright\.svg/);
+  assert.doesNotMatch(back, /data-stack="react"/);
+  assert.doesNotMatch(back, /data-stack="typescript"/);
+  assert.doesNotMatch(back, /data-stack="nodedotjs"/);
+  assert.doesNotMatch(back, /data-stack="postgresql"/);
+  assert.doesNotMatch(back, /data-stack="pexels"/);
+  assert.doesNotMatch(back, /data-stack="uptimerobot"/);
+  assert.doesNotMatch(back, /data-stack="playwright"/);
+  assert.doesNotMatch(back, /\/stack\/playwright\.svg/);
   assert.doesNotMatch(back, /Printed two sides/);
   assert.doesNotMatch(back, /Page 2 of 2/);
   assert.doesNotMatch(back, /hello@reave\.example/);
