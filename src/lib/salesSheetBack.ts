@@ -583,12 +583,11 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   margin: 0.15em auto 0;
   padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-wrap: nowrap;
+  justify-content: space-between;
   align-items: center;
-  column-gap: clamp(16px, 2.2cqi, 26px);
-  row-gap: clamp(8px, 1.15cqi, 12px);
-  max-width: 20cqi;
+  gap: 0;
+  width: 100%;
 }
 .ss-sheet-back .ss-stack-item {
   display: flex;

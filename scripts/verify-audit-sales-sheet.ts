@@ -704,10 +704,11 @@ await test('static back is gate + builds + cover with curated stack and no clien
     assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
   }
   assert.match(back, /justify-content: center/);
-  assert.match(back, /flex-wrap: wrap/);
-  assert.match(back, /column-gap: clamp\(16px, 2\.2cqi, 26px\)/);
-  assert.match(back, /row-gap: clamp\(8px, 1\.15cqi, 12px\)/);
-  assert.match(back, /max-width: 20cqi/);
+  assert.match(back, /\.ss-stack \{[\s\S]*?flex-wrap: nowrap/);
+  assert.match(back, /\.ss-stack \{[\s\S]*?justify-content: space-between/);
+  assert.match(back, /\.ss-stack \{[\s\S]*?width: 100%/);
+  assert.doesNotMatch(back, /\.ss-stack \{[\s\S]*?flex-wrap: wrap/);
+  assert.doesNotMatch(back, /\.ss-stack \{[\s\S]*?max-width: 20cqi/);
   assert.match(back, /--ss-print-inset: 0\.2in/);
   assert.match(back, /\.ss-sheet-back \.doc-onepager \{[\s\S]*?padding: 0;/);
   assert.match(back, /grid-template-columns: 1fr 1fr 1fr/);
