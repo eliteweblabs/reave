@@ -125,6 +125,8 @@ const TOOL_LABELS: Record<string, string> = {
   ga4_stats: 'Fetching GA4 stats',
   indexnow_submit_urls: 'Submitting IndexNow URLs',
   bing_webmaster_status: 'Checking Bing Webmaster',
+  gmail_dkim: 'Managing Gmail DKIM',
+  google_workspace_domains: 'Listing Workspace domains',
 };
 
 function titleCaseWords(value: string): string {

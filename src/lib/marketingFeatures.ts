@@ -309,6 +309,12 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
+    id: 'google-workspace',
+    label: 'Google Workspace',
+    modules: ['google_workspace'],
+    kind: 'capability',
+  },
+  {
     id: 'materials-pricing',
     label: 'Materials pricing',
     modules: ['materials_pricing'],
@@ -321,6 +327,7 @@ export const MARKETING_FEATURES: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   ...chipsForModule('online_reviews'),
+  ...chipsForModule('google_workspace'),
   {
     id: 'wordpress-content',
     label: 'WordPress content plugin',

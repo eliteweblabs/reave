@@ -41,6 +41,7 @@ export const FEATURE_IDS = [
   'credit_check',
   'materials_pricing',
   'social_inbox',
+  'google_workspace',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -65,6 +66,13 @@ export const FEATURE_MARKETING: Partial<
     { id: 'yelp-reviews-triage', label: 'Yelp Reviews Triage', href: '/modules' },
     { id: 'facebook-reviews-triage', label: 'Facebook Reviews Triage', href: '/modules' },
     { id: 'tripadvisor-reviews-triage', label: 'Tripadvisor Reviews Triage', href: '/modules' },
+  ],
+  google_workspace: [
+    { id: 'gmail-mx', label: 'Gmail MX', href: '/modules' },
+    { id: 'google-spf', label: 'Google SPF', href: '/modules' },
+    { id: 'gmail-dkim', label: 'Gmail DKIM', href: '/modules' },
+    { id: 'workspace-dmarc', label: 'Workspace DMARC', href: '/modules' },
+    { id: 'workspace-domains', label: 'Workspace Domains', href: '/modules' },
   ],
 };
 
@@ -106,6 +114,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   credit_check: 'Credit check',
   materials_pricing: 'Materials pricing',
   social_inbox: 'Agentic Social Media',
+  google_workspace: 'Google Workspace',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
@@ -152,6 +161,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Live retail prices from Home Depot and Lowe’s. If a local supplier lists prices online, we can pull them too, apply a discount rate, or build quotes from past materials prices. Requires the billing module.',
   social_inbox:
     'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, and the networks you choose — plus Google and Yelp reviews. The agent can draft replies; you post on the network.',
+  google_workspace:
+    'Gmail MX, SPF, DKIM, DMARC, and Workspace domain admin — point a client domain at Google mail without asking them to paste records.',
 };
 
 export type FeatureVisibility = 'public' | 'private';
@@ -181,6 +192,7 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'email_marketing',
   'time_tracking',
   'real_estate_data',
+  'google_workspace',
 ]);
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);

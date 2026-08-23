@@ -48,6 +48,7 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   credit_check: { amount: 300, interval: 'once', currency: 'usd' },
   materials_pricing: { amount: 200, interval: 'once', currency: 'usd' },
   social_inbox: { amount: 200, interval: 'once', currency: 'usd' },
+  google_workspace: { amount: 200, interval: 'once', currency: 'usd' },
   // Internal — listed for owner testing on ops installs; not sold to clients.
   dev_infra: { amount: 0, interval: 'once', currency: 'usd' },
   code_dev: { amount: 0, interval: 'once', currency: 'usd' },

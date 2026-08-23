@@ -133,6 +133,7 @@ const READ_ONLY_TOOLS = new Set([
   'namecom_ping',
   'namecom_list_domains',
   'namecom_list_records',
+  'google_workspace_domains',
 ]);
 
 /**
