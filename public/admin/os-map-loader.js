@@ -6494,7 +6494,7 @@ function normalizeIndustryPlaybookClient(raw) {
   const o = raw && typeof raw === 'object' ? raw : {};
   const moduleIds = Array.isArray(o.moduleIds)
     ? [...new Set(o.moduleIds.map((id) => String(id).trim().padStart(3, '0')).filter((id) => /^\d{3}$/.test(id)))]
-        .filter((id) => !['001', '002', '003', '004'].includes(id))
+        .filter((id) => !['001', '002', '003'].includes(id))
         .sort()
     : [];
   const extras = Array.isArray(o.extras)

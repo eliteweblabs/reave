@@ -18,7 +18,7 @@ export type IndustryPlaybookExtraId = (typeof INDUSTRY_PLAYBOOK_EXTRAS)[number];
 const EXTRA_SET = new Set<string>(INDUSTRY_PLAYBOOK_EXTRAS);
 
 export type DeckIndustryPlaybook = {
-  /** Optional modules (baseline 001–004 always included on apply). */
+  /** Optional modules (baseline 001–003 always included on apply). */
   moduleIds: string[];
   extras: IndustryPlaybookExtraId[];
   seedInbox: boolean;
@@ -275,7 +275,7 @@ export function applyIndustryPlaybookToWizard(input: {
   }
   const playbook = normalizeIndustryPlaybook(input.playbook);
   // Keep modules the operator already toggled — a blank Law playbook must
-  // not wipe Cal.com / Vapi / Pexels / etc. down to baseline 001–004.
+  // not wipe Cal.com / Vapi / Pexels / etc. down to baseline 001–003.
   const moduleIds = [
     ...new Set([
       ...input.currentModuleIds.filter((id) => input.allowedModuleIds.has(id)),

@@ -371,19 +371,19 @@ const applied = applyIndustryPlaybookToWizard({
   industryId: 'salon',
   playbook: salonPlaybook?.playbook,
   allowedModuleIds: new Set(['001', '002', '003', '004', '006', '009', '035']),
-  baselineModuleIds: ['001', '002', '003', '004'],
-  currentModuleIds: ['001', '002', '003', '004'],
+  baselineModuleIds: ['001', '002', '003'],
+  currentModuleIds: ['001', '002', '003'],
   currentExtras: [],
   currentPostAlias: 'project',
 });
-assert.deepEqual(applied.moduleIds, ['001', '002', '003', '004', '006', '009', '035']);
+assert.deepEqual(applied.moduleIds, ['001', '002', '003', '006', '009', '035']);
 assert.deepEqual(applied.extras, []);
 assert.equal(applied.postAlias, 'client');
 const lawKept = applyIndustryPlaybookToWizard({
   industryId: 'law',
   playbook: defaultFixturePlaybook('law'),
   allowedModuleIds: new Set(['001', '002', '003', '004', '009', '011', '013']),
-  baselineModuleIds: ['001', '002', '003', '004'],
+  baselineModuleIds: ['001', '002', '003'],
   currentModuleIds: ['001', '002', '003', '004', '009', '011', '013'],
   currentExtras: ['plausible_railway'],
   currentPostAlias: 'project',

@@ -12,7 +12,7 @@ Full catalog API: `GET /api/demo/suite` (returns `catalog` array).
 
 ## Module picker
 
-Baseline modules **001–004** (`client_portal`, `web_handoff`, `portal_assistant`, `billing`) are always enabled on tier-1 demos and are **not shown** in the public `/demo-loader` picker.
+Baseline modules **001–003** (`client_portal`, `web_handoff`, `portal_assistant`) are always enabled on tier-1 demos and are **not shown** in the public `/demo-loader` picker. Billing (`004`) is an optional add-on — Crater setup is not day-one.
 
 | ID | Feature | Label |
 |----|---------|-------|

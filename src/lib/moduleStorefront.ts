@@ -19,6 +19,7 @@ export type ModulePrice = {
 
 /** Suggested one-time add-on prices ($100–300). Baseline Core OS modules are not listed. */
 export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
+  billing: { amount: 200, interval: 'once', currency: 'usd' },
   site_audits: { amount: 200, interval: 'once', currency: 'usd' },
   analytic_audit: { amount: 200, interval: 'once', currency: 'usd' },
   site_monitoring: { amount: 175, interval: 'once', currency: 'usd' },

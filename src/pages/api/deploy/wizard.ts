@@ -8,7 +8,7 @@ import {
   listDemoLoaderModules,
   listDemoLoaderSections,
 } from '../../../lib/demoLoaderCatalog';
-import { demoModuleById, resolveDemoModuleFeatures } from '../../../lib/demoModuleCatalog';
+import { DEMO_BASELINE_MODULE_IDS, demoModuleById, resolveDemoModuleFeatures } from '../../../lib/demoModuleCatalog';
 import {
   DEPLOY_WIZARD_EXTRAS,
   buildDeployWizardPlan,
@@ -159,7 +159,7 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   const modules = listDemoLoaderModules();
-  const baseline = ['001', '002', '003', '004']
+  const baseline = [...DEMO_BASELINE_MODULE_IDS]
     .map((id) => demoModuleById(id))
     .filter((e): e is NonNullable<typeof e> => Boolean(e))
     .map((e) => {

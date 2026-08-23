@@ -105,7 +105,7 @@ export const CUSTOM_PAIN: PainPoint[] = [
 ];
 
 export const REAVE_WINS: string[] = [
-  '90% core ships on day zero — CRM, portal, billing, inbox, AI, mobile',
+  '90% core ships on day zero — CRM, portal, inbox, AI, mobile',
   '10% bolt-ons for industry weirdness — no fork, no rewrite',
   'One login, one contact list, one AI agent across every channel',
   'White-labeled — no Powered by badge anywhere',

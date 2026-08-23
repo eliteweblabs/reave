@@ -60,8 +60,8 @@ function byTitle(a: { label: string }, b: { label: string }): number {
 
 /**
  * Core OS — always-on platform capabilities shown as marketing cards (not toggles).
- * This is the product baseline (not FEATURE_IDS 001–004). Optional add-ons stay
- * in FEATURE_IDS / the picker; these ship with every install and demo.
+ * This is the product baseline (portal / CRM / inbox — not FeatureId 004 billing).
+ * Optional add-ons stay in FEATURE_IDS / the picker; these ship with every install.
  * Keep alphabetical by label (UI sorts as a safeguard too).
  */
 export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCardDef[] = [
@@ -79,11 +79,6 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCardDef[] = 
     id: 'chat-commands',
     label: 'Chat / commands',
     blurb: 'Type / in agent chat for slash commands — knowledge, jobs, billing, and the rest of the OS.',
-  },
-  {
-    id: 'billing',
-    label: 'Billing & Invoices',
-    blurb: 'Quotes, invoices, and payments wired to the work you’re already shipping.',
   },
   {
     id: 'business-audit',
