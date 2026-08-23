@@ -898,21 +898,31 @@ button.de-placeholder-action:active {
   flex: 0 0 auto;
 }
 .de-btn {
+  appearance: none;
+  -webkit-appearance: none;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1.25;
   border-radius: 8px;
   padding: 0.38rem 0.9rem;
   cursor: pointer;
   border: 1px solid transparent;
+  -webkit-tap-highlight-color: transparent;
 }
 .de-btn:disabled { opacity: 0.45; cursor: default; }
+.de-btn:focus { outline: none; }
+.de-btn:focus-visible:not(:disabled) {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
 .de-btn-primary {
   color: #fff;
   background: #2563eb;
   border-color: #3b82f6;
 }
 .de-btn-primary:not(:disabled):hover { background: #1d4ed8; }
+.de-btn-primary:not(:disabled):active { background: #1e40af; }
 .de-btn-ghost {
   color: var(--muted);
   background: transparent;

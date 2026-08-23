@@ -14630,53 +14630,103 @@ function labFieldForTarget(node, detail) {
   if (!el || !detail?.contains(el)) return null;
   if (el.closest('.em-from-value, .em-from-client')) return 'from';
   if (el.closest('.em-detail-subject, .em-subject-value')) return 'subject';
-  if (el.closest('.em-to-value, .em-detail-body, .em-detail-summary')) return 'body';
+  if (el.closest('.em-to-value, .em-detail-body, .em-detail-body-html, .em-detail-summary')) {
+    return 'body';
+  }
   return null;
 }
 
-function captureLabWindowSelection(win, field, detail) {
+function selectionFromContext(winOrDoc) {
+  if (!winOrDoc) return null;
+  const doc = winOrDoc.nodeType === 9 ? winOrDoc : winOrDoc.document || null;
+  // Prefer Document.getSelection — iframe windows without allow-scripts often
+  // expose a window whose getSelection() is empty or missing.
+  if (doc && typeof doc.getSelection === 'function') return doc.getSelection();
+  if (typeof winOrDoc.getSelection === 'function') return winOrDoc.getSelection();
+  return null;
+}
+
+function captureLabWindowSelection(winOrDoc, field, detail) {
   if (!emailState.labMode) return false;
-  const sel = win?.getSelection?.();
+  const sel = selectionFromContext(winOrDoc);
   if (!sel || sel.isCollapsed) return false;
   const resolved = field || labFieldForTarget(sel.anchorNode, detail);
   if (!resolved) return false;
   return addEmailLabPhrase(sel.toString(), resolved);
 }
 
+function captureIframeLabSelection() {
+  const frame = emailState.labDetail?.querySelector('.em-detail-body-frame');
+  if (!(frame instanceof HTMLIFrameElement)) return false;
+  try {
+    const doc = frame.contentDocument;
+    if (!doc || iframeDocLooksEmpty(doc)) return false;
+    return captureLabWindowSelection(doc, 'body');
+  } catch {
+    return false;
+  }
+}
+
+function captureAllLabSelections() {
+  if (!emailState.labMode) return;
+  const detail = emailState.labDetail;
+  if (detail) captureLabWindowSelection(document, null, detail);
+  captureIframeLabSelection();
+}
+
 function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-lab-bar]')) {
   if (!bar) return;
+  const hint = bar.querySelector('.em-lab-bar-hint');
+  if (hint) {
+    hint.textContent = emailState.labPhrases.length
+      ? 'Add more phrases, or create the rule.'
+      : 'Select the text to target.';
+  }
   const list = bar.querySelector('[data-email-lab-chips]');
-  if (!list) return;
-  list.replaceChildren();
-  list.hidden = emailState.labPhrases.length === 0;
-  emailState.labPhrases.forEach((p, i) => {
-    const li = document.createElement('li');
-    li.className = 'em-lab-chip';
-    const label = document.createElement('span');
-    const fieldLabel = p.field === 'from' ? 'From' : p.field === 'subject' ? 'Subject' : 'Body';
-    label.textContent = `(${fieldLabel}: ${p.text})`;
-    const rm = document.createElement('button');
-    rm.type = 'button';
-    rm.className = 'em-lab-chip-rm';
-    rm.innerHTML = iosIcon('x', 12);
-    rm.setAttribute('aria-label', `Remove “${p.text}”`);
-    rm.addEventListener('click', () => {
-      emailState.labPhrases.splice(i, 1);
-      refreshEmailLabBar(bar);
+  if (list) {
+    list.replaceChildren();
+    list.hidden = emailState.labPhrases.length === 0;
+    emailState.labPhrases.forEach((p, i) => {
+      const li = document.createElement('li');
+      li.className = 'em-lab-chip';
+      const label = document.createElement('span');
+      const fieldLabel = p.field === 'from' ? 'From' : p.field === 'subject' ? 'Subject' : 'Body';
+      label.textContent = `(${fieldLabel}: ${p.text})`;
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'em-lab-chip-rm';
+      rm.innerHTML = iosIcon('x', 12);
+      rm.setAttribute('aria-label', `Remove “${p.text}”`);
+      rm.addEventListener('click', () => {
+        emailState.labPhrases.splice(i, 1);
+        refreshEmailLabBar(bar);
+      });
+      li.append(label, rm);
+      list.appendChild(li);
     });
-    li.append(label, rm);
-    list.appendChild(li);
-  });
+  }
   const createBtn = bar.querySelector('[data-email-lab-create]');
   if (createBtn) createBtn.disabled = emailState.labPhrases.length === 0 || emailState.labCreating;
 }
 
+function enableEmailLabSelectionStyles(doc) {
+  if (!doc) return;
+  const host = doc.head || doc.documentElement;
+  if (!host || doc.getElementById('em-lab-select-style')) return;
+  const style = doc.createElement('style');
+  style.id = 'em-lab-select-style';
+  style.textContent =
+    'html, body, body * { -webkit-user-select: text !important; user-select: text !important; }';
+  host.appendChild(style);
+}
+
 function bindEmailLabDocument(doc, field) {
   if (!doc?.documentElement) return;
+  enableEmailLabSelectionStyles(doc);
   if (doc.documentElement.dataset.emailLabBound === '1') return;
   doc.documentElement.dataset.emailLabBound = '1';
   let debounce = 0;
-  const capture = () => captureLabWindowSelection(doc.defaultView || doc, field);
+  const capture = () => captureLabWindowSelection(doc, field);
   const captureSoon = () => {
     window.clearTimeout(debounce);
     debounce = window.setTimeout(capture, 50);
@@ -14717,12 +14767,9 @@ let labDocSelectionBound = false;
 let labDocSelectionTimer = 0;
 
 function onLabDocumentSelectionChange() {
-  const detail = emailState.labDetail;
-  if (!detail || !emailState.labMode) return;
+  if (!emailState.labDetail || !emailState.labMode) return;
   window.clearTimeout(labDocSelectionTimer);
-  labDocSelectionTimer = window.setTimeout(() => {
-    captureLabWindowSelection(window, null, detail);
-  }, 50);
+  labDocSelectionTimer = window.setTimeout(captureAllLabSelections, 50);
 }
 
 function bindEmailLabDetail(detail) {
@@ -14731,18 +14778,21 @@ function bindEmailLabDetail(detail) {
   if (!labDocSelectionBound) {
     labDocSelectionBound = true;
     document.addEventListener('selectionchange', onLabDocumentSelectionChange);
+    document.addEventListener('pointerup', captureAllLabSelections);
+    document.addEventListener('mouseup', captureAllLabSelections);
+    document.addEventListener('keyup', captureAllLabSelections);
   }
   if (detail.dataset.emailLabDetailBound === '1') return;
   detail.dataset.emailLabDetailBound = '1';
-  const capture = () => captureLabWindowSelection(window, null, detail);
-  detail.addEventListener('mouseup', capture);
-  detail.addEventListener('pointerup', capture);
+  detail.addEventListener('mouseup', captureAllLabSelections);
+  detail.addEventListener('pointerup', captureAllLabSelections);
 }
 
 function iframeDocLooksEmpty(doc) {
   if (!doc?.body) return true;
   const href = String(doc.URL || doc.location?.href || '');
-  return href.includes('about:blank') && doc.body.childNodes.length === 0;
+  const blank = href.includes('about:blank') || href.includes('about:srcdoc');
+  return blank && doc.body.childNodes.length === 0;
 }
 
 function mountEmailLabFrame(frame) {
@@ -14771,6 +14821,7 @@ function mountEmailLabFrame(frame) {
   bindFrame();
   window.setTimeout(bindFrame, 0);
   window.setTimeout(bindFrame, 200);
+  window.setTimeout(bindFrame, 600);
 }
 
 function mountEmailLabSelection(detail) {
@@ -14802,6 +14853,7 @@ function renderEmailLabBar() {
   createBtn.className = 'de-btn de-btn-primary';
   createBtn.dataset.emailLabCreate = '1';
   createBtn.textContent = 'Create Rule';
+  createBtn.disabled = true;
   createBtn.addEventListener('click', () => void createRuleFromEmailLab());
   const doneBtn = document.createElement('button');
   doneBtn.type = 'button';

@@ -1007,9 +1007,22 @@
 .em-lab-bar-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.45rem;
 }
+.em-lab-bar-actions .de-btn {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  box-shadow: none;
+}
+.em-lab-bar-actions .de-btn:disabled {
+  pointer-events: none;
+}
 .em-detail--lab .em-detail-body,
+.em-detail--lab .em-detail-body-html,
 .em-detail--lab .em-from-client,
 .em-detail--lab .em-from-value,
 .em-detail--lab .em-to-value,
