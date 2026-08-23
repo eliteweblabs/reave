@@ -5,7 +5,7 @@
 import { escapeHtml } from './htmlEscape';
 import { IPHONE_FRAME_SRC, isPlacesMissFinding } from './salesSheetPlacesView';
 import type { LetterGrade } from './auditReportCard';
-import type { SalesSheetFinding } from './auditSalesSheet';
+import type { SalesSheetFinding, SalesSheetHeroStat } from './auditSalesSheet';
 
 export type SalesSheetExhibitKind =
   | 'ssl'
@@ -799,6 +799,201 @@ function formatGrade(grade: LetterGrade | null, score?: number | null): string {
   if (!grade) return '—';
   if (score != null && Number.isFinite(score)) return `${grade} (${score})`;
   return grade;
+}
+
+function gradeClass(grade: LetterGrade | null | undefined): string {
+  if (!grade) return 'na';
+  return grade.toLowerCase();
+}
+
+function defaultHeroStats(opts: {
+  findings: SalesSheetFinding[];
+  performance: LetterGrade | null;
+  security: LetterGrade | null;
+  visibility: LetterGrade | null;
+}): SalesSheetHeroStat[] {
+  const weak = [opts.performance, opts.security, opts.visibility].filter(
+    (g) => g === 'D' || g === 'F',
+  ).length;
+  const stats: SalesSheetHeroStat[] = [];
+  if (weak > 0) {
+    stats.push({ label: `${weak} of 3 core grades are D or F`, tone: 'crit' });
+  } else if (opts.findings.length) {
+    stats.push({ label: `${opts.findings.length} issues on this sheet`, tone: 'risk' });
+  }
+  stats.push({ label: 'Every finding sourced from independent platforms', tone: 'info' });
+  return stats;
+}
+
+export function renderSalesSheetHeaderHeroHtml(opts: {
+  overall: LetterGrade | null;
+  overallScore: number | null;
+  headline: string;
+  heroStats?: SalesSheetHeroStat[];
+  findings?: SalesSheetFinding[];
+  performance?: LetterGrade | null;
+  security?: LetterGrade | null;
+  visibility?: LetterGrade | null;
+}): string {
+  const headline = (opts.headline || '').trim();
+  const grade = opts.overall;
+  const score = opts.overallScore;
+  if (!headline && !grade && score == null) return '';
+  const stats = (opts.heroStats?.length
+    ? opts.heroStats
+    : defaultHeroStats({
+        findings: opts.findings || [],
+        performance: opts.performance ?? null,
+        security: opts.security ?? null,
+        visibility: opts.visibility ?? null,
+      })
+  ).slice(0, 3);
+  const pct = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  const r = 20;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  const g = gradeClass(grade);
+  const scoreLine =
+    score != null && Number.isFinite(score)
+      ? `<span class="ss-hero-score">${escapeHtml(String(Math.round(score)))}<span>/100</span></span>`
+      : '';
+  const statRows = stats
+    .map(
+      (s) =>
+        `<li class="ss-hero-stat ss-hero-stat--${escapeHtml(s.tone)}"><span aria-hidden="true"></span>${escapeHtml(s.label)}</li>`,
+    )
+    .join('');
+  return `
+<style>
+.ss-hero {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 7.2rem 0 0;
+  color: #141414;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.doc-onepager-header:has(.ss-hero) {
+  align-items: center;
+  gap: 2.2%;
+}
+.doc-onepager-header:has(.ss-hero) .doc-onepager-logo { max-width: 22%; }
+.ss-hero-ring {
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+  text-align: center;
+}
+.ss-hero-ring svg { display: block; width: 56px; height: 56px; transform: rotate(-90deg); }
+.ss-hero-ring-track { fill: none; stroke: #e4e4de; stroke-width: 5; }
+.ss-hero-ring-fill { fill: none; stroke-width: 5; stroke-linecap: round; }
+.ss-hero-ring-fill.g-a, .ss-hero-ring-fill.g-b { stroke: #1b7f4a; }
+.ss-hero-ring-fill.g-c { stroke: #b8860b; }
+.ss-hero-ring-fill.g-d { stroke: #c05621; }
+.ss-hero-ring-fill.g-f, .ss-hero-ring-fill.g-na { stroke: #b42318; }
+.ss-hero-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  line-height: 1;
+  pointer-events: none;
+}
+.ss-hero-score {
+  font-size: 7px;
+  font-weight: 700;
+  color: #3a3a3c;
+}
+.ss-hero-score span { font-weight: 500; color: #8e8e93; }
+.ss-hero-grade {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #141414;
+}
+.ss-hero-grade.g-a, .ss-hero-grade.g-b { color: #1b7f4a; }
+.ss-hero-grade.g-c { color: #b8860b; }
+.ss-hero-grade.g-d { color: #c05621; }
+.ss-hero-grade.g-f, .ss-hero-grade.g-na { color: #b42318; }
+.ss-hero-ring-cap {
+  margin: 2px 0 0;
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b6b6b;
+}
+.ss-hero-copy { min-width: 0; }
+.ss-hero-h {
+  margin: 0 0 0.28em;
+  font-size: clamp(11px, 1.7cqi, 15px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: #141414;
+}
+.ss-hero-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ss-hero-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: clamp(7px, 1.05cqi, 9px);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #3a3a3c;
+  line-height: 1.25;
+}
+.ss-hero-stat span {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #8e8e93;
+}
+.ss-hero-stat--crit span { background: #b42318; }
+.ss-hero-stat--risk span { background: #c05621; }
+.ss-hero-stat--info span { background: #1a3d6e; }
+</style>
+<div class="ss-hero">
+  <div class="ss-hero-ring" aria-hidden="true">
+    <svg viewBox="0 0 56 56">
+      <circle class="ss-hero-ring-track" cx="28" cy="28" r="${r}" />
+      <circle class="ss-hero-ring-fill g-${g}" cx="28" cy="28" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
+    </svg>
+    <div class="ss-hero-ring-center">
+      ${scoreLine}
+      <span class="ss-hero-grade g-${g}">${escapeHtml(grade || '—')}</span>
+    </div>
+    <div class="ss-hero-ring-cap">Overall grade</div>
+  </div>
+  <div class="ss-hero-copy">
+    ${headline ? `<p class="ss-hero-h">${escapeHtml(headline)}</p>` : ''}
+    ${statRows ? `<ul class="ss-hero-stats">${statRows}</ul>` : ''}
+  </div>
+</div>`.trim();
+}
+
+export function injectAuditHeroIntoHeader(sheetHtml: string, heroHtml: string): string {
+  if (!heroHtml.trim()) return sheetHtml;
+  const mark = '<div class="doc-onepager-mast">';
+  const at = sheetHtml.indexOf(mark);
+  if (at < 0) return sheetHtml;
+  return `${sheetHtml.slice(0, at)}${heroHtml}${sheetHtml.slice(at)}`;
 }
 
 export function renderSalesSheetFrontExhibitsHtml(opts: {

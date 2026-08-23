@@ -48,8 +48,10 @@ import {
 import {
   applyLiveUrlToFindings,
   dropWorkingSiteDownFindings,
+  injectAuditHeroIntoHeader,
   renderFindingPhoneHtml,
   renderSalesSheetFrontExhibitsHtml,
+  renderSalesSheetHeaderHeroHtml,
   replaceOnePagerColsInner,
   salesSheetExhibitKind,
   salesSheetWantsPlacesExhibit,
@@ -362,10 +364,23 @@ if (!tmpl) {
     const source = fillAuditOnePager(tmpl.markdown, input);
     const filled = fillTemplate(source, input.contact, company);
     const rendered = await renderFilledDocumentHtml(filled, company, slug, input.contact);
+    const heroHtml = renderSalesSheetHeaderHeroHtml({
+      overall: input.overall,
+      overallScore: input.overallScore,
+      headline: input.headline,
+      heroStats: input.heroStats,
+      findings: input.findings,
+      performance: input.performance,
+      security: input.security,
+      visibility: input.visibility,
+    });
     sheetHtml = injectAuditDisclaimerIntoFooter(
-      injectAuditQrIntoHeader(
-        replaceOnePagerColsInner(rendered, `<div class="doc-onepager-col">${frontExhibits}</div>`),
-        qrHtml,
+      injectAuditHeroIntoHeader(
+        injectAuditQrIntoHeader(
+          replaceOnePagerColsInner(rendered, `<div class="doc-onepager-col">${frontExhibits}</div>`),
+          qrHtml,
+        ),
+        heroHtml,
       ),
       renderAuditDisclaimerHtml(input.findings),
     );

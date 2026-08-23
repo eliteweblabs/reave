@@ -50,6 +50,8 @@ export type SalesSheetFinding = {
   citations?: string[];
 };
 
+export type SalesSheetHeroStat = { label: string; tone: 'crit' | 'risk' | 'info' };
+
 export type AuditSalesSheetInput = {
   contact: ContactRecord;
   website: string;
@@ -60,6 +62,7 @@ export type AuditSalesSheetInput = {
   security: LetterGrade | null;
   visibility: LetterGrade | null;
   findings: SalesSheetFinding[];
+  heroStats?: SalesSheetHeroStat[];
 };
 
 const GRADES = new Set<LetterGrade>(['A', 'B', 'C', 'D', 'F']);
@@ -83,6 +86,10 @@ export const DUMMY_SALES_SHEET: AuditSalesSheetInput = {
   performance: 'F',
   security: 'B',
   visibility: 'D',
+  heroStats: [
+    { label: '2 of 3 core grades are D or F', tone: 'crit' },
+    { label: 'Every finding sourced from independent platforms', tone: 'info' },
+  ],
   findings: [
     {
       id: 'dummy-speed',
@@ -342,7 +349,7 @@ export function salesSheetInputFromReportCard(
   let visibility = categoryGrade(card, 'local_listings') || categoryGrade(card, 'seo');
   if (opts?.googlePlacesListed === false) visibility = 'F';
   const lead = findings[0];
-  const headline = lead?.problem || (card.headline || '').trim();
+  const headline = (card.headline || '').trim() || lead?.problem || '';
 
   return {
     contact,
@@ -354,6 +361,7 @@ export function salesSheetInputFromReportCard(
     security: categoryGrade(card, 'security'),
     visibility,
     findings,
+    heroStats: card.heroStats?.length ? card.heroStats : undefined,
   };
 }
 
@@ -390,11 +398,9 @@ export function applyPlacesMissToSalesSheet(
     businessName,
     Math.max(SALES_SHEET_FINDING_POOL, input.findings.length),
   ).map(toSheetFinding);
-  const lead = findings[0];
   return {
     ...input,
     visibility: notListed ? 'F' : input.visibility,
-    headline: lead?.problem || input.headline,
     findings,
   };
 }
@@ -455,6 +461,7 @@ export function applySalesSheetParamOverrides(
     security: security === undefined ? base.security : security,
     visibility: visibility === undefined ? base.visibility : visibility,
     findings: base.findings.map((finding, i) => overrideFinding(finding, i, params)),
+    heroStats: base.heroStats,
   };
 }
 

@@ -50,8 +50,10 @@ import {
   dropWorkingSiteDownFindings,
   dropWorkingSslFindings,
   httpsAuditCandidates,
+  injectAuditHeroIntoHeader,
   renderFindingPhoneHtml,
   renderSalesSheetFrontExhibitsHtml,
+  renderSalesSheetHeaderHeroHtml,
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
 import { auditUrlShotLooksDown, auditUrlShotLooksInsecure } from '../src/lib/salesSheetPlacesShot.ts';
@@ -835,6 +837,28 @@ await test('clean HTTPS drops the Not Secure graphic; a broken host keeps it', (
   });
   assert.match(sslPhone, /Your connection is not private/);
   assert.doesNotMatch(sslPhone, /ss-phone-serp/);
+});
+
+await test('header hero is the audit overall block restyled for a white sheet', () => {
+  const hero = renderSalesSheetHeaderHeroHtml({
+    overall: DUMMY_SALES_SHEET.overall,
+    overallScore: DUMMY_SALES_SHEET.overallScore,
+    headline: DUMMY_SALES_SHEET.headline,
+    heroStats: DUMMY_SALES_SHEET.heroStats,
+  });
+  assert.match(hero, /ss-hero/);
+  assert.match(hero, /Overall grade/);
+  assert.match(hero, />C</);
+  assert.match(hero, /64/);
+  assert.match(hero, /Speed and local listings/);
+  assert.match(hero, /Every finding sourced from independent platforms/i);
+  assert.doesNotMatch(hero, /#00e5ff|#0b1220|opd-cyan/);
+  const injected = injectAuditHeroIntoHeader(
+    '<header class="doc-onepager-header"><div class="doc-onepager-logo">LOGO</div><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
+    hero,
+  );
+  assert.ok(injected.indexOf('ss-hero') < injected.indexOf('doc-onepager-mast'));
+  assert.ok(injected.indexOf('doc-onepager-logo') < injected.indexOf('ss-hero'));
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {
