@@ -349,22 +349,23 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 .doc-onepager-title,
 .doc-onepager-kicker { display: none; }
 .doc-onepager-mast {
-  flex: 0 0 0;
-  width: 0;
+  flex: 0 0 auto;
+  width: auto;
   min-width: 0;
   overflow: visible;
+  align-self: flex-start;
 }
 .ss-qr {
-  position: absolute;
-  top: var(--ss-print-inset-top);
-  right: var(--ss-print-inset);
+  position: relative;
+  top: auto;
+  right: auto;
   z-index: 3;
   margin: 0;
   line-height: 0;
 }
 .ss-qr img {
   display: block;
-  width: clamp(56px, 8.5cqi, 76px);
+  width: clamp(44px, 6.2cqi, 58px);
   height: auto;
   background: #fff;
 }

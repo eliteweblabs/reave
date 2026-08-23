@@ -947,9 +947,10 @@ await test('header hero is the audit overall block restyled for a white sheet', 
   assert.match(hero, /64/);
   assert.match(hero, /Speed and local listings/);
   assert.match(hero, /Every finding sourced from independent platforms/i);
-  assert.match(hero, /\.ss-hero-copy \{[\s\S]*left: 50%/);
-  assert.match(hero, /translate\(-50%, -50%\)/);
+  assert.match(hero, /\.ss-hero-copy \{[\s\S]*flex: 1 1 auto/);
   assert.match(hero, /\.ss-hero-copy \{[\s\S]*text-align: left/);
+  assert.match(hero, /align-items: flex-start/);
+  assert.doesNotMatch(hero, /translate\(-50%, -50%\)/);
   assert.doesNotMatch(hero, /#00e5ff|#0b1220|opd-cyan/);
   const injected = injectAuditHeroIntoHeader(
     '<header class="doc-onepager-header"><div class="doc-onepager-logo">LOGO</div><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
@@ -969,11 +970,10 @@ await test('QR sits in the top-right without caption, title, or date', () => {
   assert.match(qr, /right: calc\(100% \+ 4px\)/);
   assert.match(qr, /doc-onepager-title/);
   assert.match(qr, /doc-onepager-kicker \{ display: none; \}/);
-  assert.match(qr, /position: absolute;/);
+  assert.match(qr, /position: relative;/);
   assert.match(qr, /--ss-print-inset: 0\.2in;/);
   assert.match(qr, /--ss-print-inset-top: 0\.25in;/);
-  assert.match(qr, /top: var\(--ss-print-inset-top\)/);
-  assert.match(qr, /right: var\(--ss-print-inset\)/);
+  assert.match(qr, /\.doc-onepager-mast \{[\s\S]*flex: 0 0 auto/);
   assert.match(qr, /border-bottom: none/);
   assert.match(qr, /border-top: none/);
   const injected = injectAuditQrIntoHeader(
