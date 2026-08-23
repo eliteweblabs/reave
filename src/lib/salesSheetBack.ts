@@ -25,22 +25,23 @@ export type SalesSheetBackLogo = {
 
 /** Leave-behind subset of `PLATFORM_STACK` — the marks that stay on the back. */
 const SALES_SHEET_STACK_SLUGS = [
-  'astro',
-  'railway',
-  'supabase',
-  'clerk',
-  'resend',
   'anthropic',
-  'telnyx',
-  'github',
-  'cloudflare',
+  'astro',
   'caldotcom',
+  'clerk',
+  'cloudflare',
+  'github',
   'plausibleanalytics',
+  'railway',
+  'resend',
+  'supabase',
 ] as const;
 
-export const SALES_SHEET_STACK: StackTech[] = PLATFORM_STACK.filter((tech) =>
-  (SALES_SHEET_STACK_SLUGS as readonly string[]).includes(tech.slug),
-);
+export const SALES_SHEET_STACK: StackTech[] = SALES_SHEET_STACK_SLUGS.map((slug) => {
+  const tech = PLATFORM_STACK.find((item) => item.slug === slug);
+  if (!tech) throw new Error(`Unknown sales-sheet stack slug: ${slug}`);
+  return tech;
+}).sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 
 /** Side and bottom inset. Top stays a hair larger so the mast still clears. */
 export const SALES_SHEET_PRINT_INSET = '0.2in';
@@ -157,21 +158,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-.ss-sheet-back .doc-onepager::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: url("/reave-bg-pattern.svg");
-  background-repeat: repeat;
-  background-position: center;
-  background-size: 260% 260%;
-  opacity: 0.15;
-  filter: grayscale(1);
-  pointer-events: none;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
 .ss-sheet-back .ss-back-cols {
   position: relative;
   z-index: 1;
@@ -195,21 +181,22 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   gap: 0.38em;
   padding: 0 var(--ss-print-inset);
 }
-.ss-sheet-back .ss-back-col::before,
-.ss-sheet-back .ss-back-col::after {
+.ss-sheet-back .ss-back-col::before {
   content: "";
   position: absolute;
   inset: 0;
   z-index: 0;
+  background-image: url("/reave-bg-pattern.svg");
+  background-repeat: repeat;
+  background-position: center;
+  background-size: ${orientation === 'landscape' ? '28.6in 22.1in' : '22.1in 28.6in'};
+  opacity: 0.15;
+  filter: grayscale(1);
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 36%, rgba(0,0,0,0.7) 72%, #000 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.22) 36%, rgba(0,0,0,0.7) 72%, #000 100%);
   pointer-events: none;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
-}
-.ss-sheet-back .ss-back-col::before {
-  background: radial-gradient(ellipse 50% 50% at 50% 50%, #fff 0%, #fff 42%, rgba(255,255,255,0.72) 68%, rgba(255,255,255,0.22) 86%, rgba(255,255,255,0) 100%);
-}
-.ss-sheet-back .ss-back-col::after {
-  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.16) 78%, rgba(0,0,0,0.42) 100%);
 }
 .ss-sheet-back .ss-back-col > * {
   position: relative;
@@ -399,10 +386,10 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   padding: 0;
   width: 100%;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  flex-wrap: nowrap;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.42em 0.55em;
+  gap: 0;
 }
 .ss-sheet-back .ss-stack-item {
   display: flex;
@@ -417,6 +404,9 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   filter: brightness(0);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+.ss-sheet-back .ss-stack-item[data-stack="caldotcom"] .ss-stack-logo {
+  width: auto;
 }
 @page { size: ${pageSize}; margin: 0; }
 @media print {

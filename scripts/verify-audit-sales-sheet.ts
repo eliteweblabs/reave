@@ -624,16 +624,18 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /left: 50%/);
   assert.match(back, /translate\(-50%, -50%\)/);
   assert.match(back, /reave-bg-pattern/);
-  assert.match(back, /background-size: 260% 260%/);
+  assert.match(back, /background-size: 28\.6in 22\.1in/);
   assert.match(back, /opacity: 0\.15/);
-  assert.match(back, /radial-gradient\(ellipse 50% 50% at 50% 50%/);
+  assert.match(back, /mask-image: radial-gradient\(ellipse 50% 50% at 50% 50%/);
   assert.match(back, /\.ss-back-col::before/);
+  assert.doesNotMatch(back, /\.ss-back-col::after/);
   assert.match(back, /place-items: center/);
   assert.match(back, /clamp\(56px, 12cqh, 96px\)/);
   for (const tech of SALES_SHEET_STACK) {
     assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
   }
-  assert.match(back, /flex-wrap: wrap/);
+  assert.match(back, /justify-content: space-between/);
+  assert.match(back, /flex-wrap: nowrap/);
   assert.match(back, /--ss-print-inset: 0\.2in/);
   assert.match(back, /padding: var\(--ss-print-inset-top\) 0 var\(--ss-print-inset\)/);
   assert.match(back, /grid-template-columns: 1fr 1fr 1fr/);
@@ -641,7 +643,7 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /\.ss-back-col \{[\s\S]*padding: 0 var\(--ss-print-inset\)/);
   assert.doesNotMatch(back, /gap: 0 2\.2%/);
   assert.doesNotMatch(back, /padding-left: 2\.2%/);
-  assert.equal((back.match(/data-stack="/g) || []).length, SALES_SHEET_STACK.length);
+  assert.equal((back.match(/class="ss-stack-item" data-stack="/g) || []).length, SALES_SHEET_STACK.length);
   assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
   assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
   assert.doesNotMatch(back, /data-stack="react"/);
@@ -651,7 +653,17 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.doesNotMatch(back, /data-stack="pexels"/);
   assert.doesNotMatch(back, /data-stack="uptimerobot"/);
   assert.doesNotMatch(back, /data-stack="playwright"/);
+  assert.doesNotMatch(back, /data-stack="telnyx"/);
   assert.doesNotMatch(back, /\/stack\/playwright\.svg/);
+  assert.match(back, /\/stack\/cal-com\.png/);
+  assert.deepEqual(
+    SALES_SHEET_STACK.map((tech) => tech.name),
+    [...SALES_SHEET_STACK].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })).map((tech) => tech.name),
+  );
+  assert.deepEqual(
+    [...back.matchAll(/class="ss-stack-item" data-stack="([^"]+)"/g)].map((match) => match[1]),
+    SALES_SHEET_STACK.map((tech) => tech.slug),
+  );
   assert.doesNotMatch(back, /Printed two sides/);
   assert.doesNotMatch(back, /Page 2 of 2/);
   assert.doesNotMatch(back, /hello@reave\.example/);
