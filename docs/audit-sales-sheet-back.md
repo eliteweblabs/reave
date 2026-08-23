@@ -32,8 +32,10 @@ Cover line: “Online presence diagnostic” / independent systems scan (same as
 
 Do not use the admin dark theme on the front. Near-black type, one accent, lots of white.
 The back keeps a white sheet over `/reave-bg-pattern.svg` at **5% black**
-(opacity 0.05, grayscale), faded per column so the 50% wash sits on a
-tall center oval. Stack marks are small black `<img>`s, not tiles.
+(opacity 0.05, grayscale), full-bleed to the Letter edge. Type stays inset
+on the columns. Each column fades the pattern with a white radial — the
+50% stop is the tall center oval (~52% × 74% of the panel). Stack marks
+are small black `<img>`s, not tiles.
 
 ---
 

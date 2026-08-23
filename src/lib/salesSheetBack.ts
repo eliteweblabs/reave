@@ -177,7 +177,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   background: #fff;
   color: var(--doc-ink);
   box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
-  padding: var(--ss-print-inset-top) 0 var(--ss-print-inset);
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -221,7 +221,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   display: flex;
   flex-direction: column;
   gap: 0.38em;
-  padding: 0 var(--ss-print-inset);
+  padding: var(--ss-print-inset-top) var(--ss-print-inset) var(--ss-print-inset);
 }
 .ss-sheet-back .ss-back-col::before {
   content: "";

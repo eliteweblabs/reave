@@ -150,6 +150,11 @@
   gap: 2%;
 }
 
+#sales-sheet-editor .ss-sheet .ss-sheet-back .doc-onepager {
+  padding: 0;
+  gap: 0;
+}
+
 #sales-sheet-editor .ss-sheet .doc-onepager-header {
   border-bottom: none;
   padding-bottom: 1.6%;
