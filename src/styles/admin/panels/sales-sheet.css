@@ -141,6 +141,7 @@
   min-height: 0;
   overflow: auto;
   padding: 0.75rem 0.75rem var(--footer-scroll-pad);
+  transition: filter 0.2s ease;
 }
 
 #sales-sheet-editor .ss-sheet .doc-onepager {
@@ -179,7 +180,9 @@
   z-index: 20;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  background: color-mix(in srgb, var(--bg) 38%, transparent);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
   color: var(--fg);
   padding: 1.25rem;
 }
@@ -242,6 +245,10 @@
 
 body.ss-busy #sales-sheet-editor .ss-busy-mask {
   display: flex;
+}
+
+body.ss-busy #sales-sheet-editor .ss-sheet {
+  filter: blur(8px);
 }
 
 body.ss-busy #ss-update {

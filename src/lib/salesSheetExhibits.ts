@@ -1422,11 +1422,20 @@ ${iphoneCss()}
 }
 .ss-exhibit-kicker {
   margin: 0 0 0.2em;
+  padding: 0.16em 0.4em 0.16em 0.28em;
+  width: fit-content;
+  max-width: 100%;
   font-size: clamp(8px, 1.15cqi, 10px);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #6b6b6b;
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 4px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .ss-exhibit-copy {
   margin: 0;

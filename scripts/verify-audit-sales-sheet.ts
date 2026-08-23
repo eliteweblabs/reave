@@ -999,6 +999,7 @@ await test('front exhibits are four phones with captions and no next steps', () 
   assert.match(html, /max-width: none/);
   assert.doesNotMatch(html, /max-width: 700px/);
   assert.match(html, /ss-exhibit-kicker">Directories</);
+  assert.match(html, /\.ss-exhibit-kicker \{[\s\S]*backdrop-filter: blur\(8px\)/);
   assert.match(html, /ss-exhibit-legend/);
   assert.doesNotMatch(html, /Most of the places customers look/);
   assert.doesNotMatch(html, /ss-front-qa/);
