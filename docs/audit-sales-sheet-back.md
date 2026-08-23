@@ -107,7 +107,7 @@ Directory coverage is **always phone 1** (28 official directory marks, A–Z). W
 | 17 | Duplicate Listings | Two Google results for the same business, or a suspended listing. |
 | 18 | Not Public | Password wall, coming-soon, or staging page. |
 | 19 | Mobile | iPhone crop of the audit URL at 375px: overflow or untappable UI. |
-| 20 | Site Speed | Google™ PageSpeed / Lighthouse network waterfall (DevTools Network tab) with LCP in the meta line. |
+| 20 | Site Speed | PageSpeed Insights mobile results (pagespeed.web.dev score rings + lab metrics). |
 | 21 | No Contact Path | Homepage crop with no phone, form, or book button. |
 | 22 | Broken Form | The form plus the failed submit. |
 | 23 | Broken Booking | Book-now widget in a failed/empty state. |

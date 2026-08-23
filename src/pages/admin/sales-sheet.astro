@@ -59,10 +59,8 @@ import {
   salesSheetWantsPlacesExhibit,
 } from '../../lib/salesSheetExhibits';
 import { inlineClientHeroLogoDataUrl } from '../../lib/clientBranding';
-import {
-  lighthouseNetworkWaterfall,
-  type LighthouseNetworkRequest,
-} from '../../lib/lighthouseClient';
+import { lighthousePsiMobile } from '../../lib/lighthouseClient';
+import { psiMobileFromAudit, type PsiMobileCard } from '../../lib/salesSheetPsi';
 import { qrCodeDataUrl } from '../../lib/qrCode';
 import { companyBrandMarkHtml } from '../../lib/documentPrintLayout';
 import { storeGetMediaBySlug } from '../../lib/mediaLibrary';
@@ -306,8 +304,7 @@ logRender(`Four phones: ${findings.map((f) => `${f.categoryLabel} (${f.id})`).jo
 logRender(`Icon group: ${iconGroupMeta.label}`);
 
 let directoryChecks = undefined as Awaited<ReturnType<typeof checkDirectoryCoverage>> | undefined;
-let speedRequests: LighthouseNetworkRequest[] = [];
-let speedLcp = '';
+let speedPsi: PsiMobileCard | undefined;
 const skipPsi = params.get('psi') === '0';
 const hasSpeedExhibit = findings.some((finding) => salesSheetExhibitKind(finding) === 'speed');
 const siteLooksLive =
@@ -325,7 +322,7 @@ if (input.website.trim()) {
   });
   const psiPromise =
     hasSpeedExhibit && siteLooksLive && !skipPsi
-      ? lighthouseNetworkWaterfall(
+      ? lighthousePsiMobile(
           /^https?:\/\//i.test(input.website) ? input.website : `https://${input.website}`,
         ).catch((e) => ({
           ok: false as const,
@@ -340,14 +337,17 @@ if (input.website.trim()) {
   );
   input = { ...input, findings };
   logRender(summary);
-  if (psiResult?.ok && psiResult.requests.length) {
-    speedRequests = psiResult.requests;
-    speedLcp = psiResult.lcp || '';
-    logRender(`PageSpeed network · ${speedRequests.length} requests${speedLcp ? ` · LCP ${speedLcp}` : ''}`);
+  if (psiResult?.ok) {
+    speedPsi = psiMobileFromAudit(psiResult);
+    const perf = speedPsi.scores.performance;
+    const lcp = speedPsi.metrics.lcp;
+    logRender(
+      `PageSpeed Insights · mobile${perf != null ? ` ${perf}` : ''}${lcp ? ` · LCP ${lcp}` : ''}`,
+    );
   } else if (hasSpeedExhibit && psiResult && !psiResult.ok) {
-    logRender(`FAIL PageSpeed network — ${psiResult.error}`);
+    logRender(`FAIL PageSpeed Insights — ${psiResult.error}`);
   } else if (hasSpeedExhibit) {
-    logRender('Site Speed waterfall using the lab stand-in (no live network-requests).');
+    logRender('Site Speed using the PageSpeed Insights stand-in (no live mobile run).');
   }
 }
 
@@ -371,8 +371,7 @@ const exhibitPhones = findings.map((finding) => {
     directoryNotes,
     directoryChecks: kind === 'directories' ? directoryChecks : undefined,
     directoryIconGroup: iconGroup,
-    networkRequests: kind === 'speed' ? speedRequests : undefined,
-    lcpLabel: kind === 'speed' ? speedLcp : undefined,
+    psi: kind === 'speed' ? speedPsi : undefined,
   });
 });
 

@@ -331,7 +331,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 20,
     categoryLabel: 'Site Speed',
     sheet:
-      'Show the Google™ PageSpeed / Lighthouse network waterfall for the audit URL (DevTools Network tab) with LCP in the meta line.',
+      'Show the PageSpeed Insights mobile results for the audit URL (pagespeed.web.dev score rings + lab metrics).',
     match: (ctx) => {
       const score = scoreOf(ctx.card, 'performance');
       return (

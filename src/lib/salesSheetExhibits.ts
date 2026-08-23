@@ -15,12 +15,7 @@ import {
   type DirectoryVerdict,
 } from './salesSheetDirectories';
 import { IPHONE_FRAME_SRC, isPlacesMissFinding } from './salesSheetPlacesView';
-import {
-  dummySpeedWaterfall,
-  renderSpeedWaterfallHtml,
-  waterfallRowsFromRequests,
-} from './salesSheetWaterfall';
-import type { LighthouseNetworkRequest } from './lighthouseClient';
+import { dummyPsiMobile, renderPsiMobileHtml, type PsiMobileCard } from './salesSheetPsi';
 import type { LetterGrade } from './auditReportCard';
 import type { SalesSheetFinding, SalesSheetHeroStat } from './auditSalesSheet';
 
@@ -54,10 +49,8 @@ export type SalesSheetExhibitOpts = {
   directoryChecks?: DirectoryCheck[];
   /** Which 24-icon pack to draw. Only `general` ships today. */
   directoryIconGroup?: string | null;
-  /** Lighthouse `network-requests` for the Site Speed waterfall. */
-  networkRequests?: LighthouseNetworkRequest[];
-  /** LCP display value from PageSpeed, e.g. "5.4 s". */
-  lcpLabel?: string;
+  /** Live PageSpeed Insights mobile card for the Site Speed exhibit. */
+  psi?: PsiMobileCard;
 };
 
 export type SalesSheetSnapshot = {
@@ -493,86 +486,139 @@ function iphoneCss(): string {
   border-top-color: #8e8e93;
   border-radius: 50%;
 }
-.ss-phone-body.ss-wf {
+.ss-phone-screen:has(.ss-psi) { background: #fff; }
+.ss-phone-body.ss-psi {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0 6px 7%;
+  padding: 0 7px 6%;
+  background: #fff;
+  font-family: Roboto, Inter, 'Helvetica Neue', sans-serif;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
-.ss-wf-head {
+.ss-psi-brand {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
   margin: 0 0 2px;
-}
-.ss-wf-head strong {
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 7px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: #202124;
 }
-.ss-wf-head span {
-  font-size: 6px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #5f6368;
+.ss-psi-mark {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  display: block;
 }
-.ss-wf-meta {
+.ss-psi-url {
   margin: 0 0 3px;
   font-size: 6px;
-  font-weight: 600;
+  font-weight: 500;
   color: #5f6368;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ss-wf-scale {
+.ss-psi-tabs {
   display: flex;
-  justify-content: space-between;
-  margin: 0 0 2px 28%;
-  font-size: 5px;
-  font-weight: 600;
-  color: #80868b;
+  gap: 10px;
+  margin: 0 0 6px;
+  border-bottom: 0.5px solid #e8eaed;
 }
-.ss-wf-rows {
+.ss-psi-tabs span {
+  padding: 0 0 3px;
+  font-size: 6.5px;
+  font-weight: 500;
+  color: #5f6368;
+}
+.ss-psi-tabs .is-on {
+  color: #1a73e8;
+  font-weight: 600;
+  box-shadow: inset 0 -1.5px 0 #1a73e8;
+}
+.ss-psi-perf {
   display: flex;
   flex-direction: column;
-  gap: 1.5px;
-  min-height: 0;
+  align-items: center;
+  margin: 0 0 4px;
 }
-.ss-wf-row {
+.ss-psi-perf span,
+.ss-psi-cat span {
+  margin-top: 1px;
+  font-size: 5.5px;
+  font-weight: 500;
+  color: #3c4043;
+  text-align: center;
+  line-height: 1.15;
+}
+.ss-psi-gauge { display: block; }
+.ss-psi-gauge--lg { width: 52px; height: 52px; }
+.ss-psi-gauge--sm { width: 28px; height: 28px; }
+.ss-psi-gauge text { font-family: Roboto, Inter, sans-serif; }
+.ss-psi-cats {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+  margin: 0 0 6px;
+}
+.ss-psi-cat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.ss-psi-block { margin: 0 0 4px; }
+.ss-psi-h {
+  margin: 0 0 3px;
+  font-size: 6.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #202124;
+  line-height: 1.2;
+}
+.ss-psi-cwv {
+  margin: 0 0 3px;
+  font-size: 5.5px;
+  font-weight: 400;
+  color: #5f6368;
+}
+.ss-psi-cwv strong { color: #202124; font-weight: 500; }
+.ss-psi-row {
   display: grid;
-  grid-template-columns: 28% minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 3px;
-  min-height: 7px;
+  padding: 2px 0;
+  border-top: 0.4px solid #f1f3f4;
 }
-.ss-wf-name {
+.ss-psi-row-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 5.5px;
-  font-weight: 600;
+  font-size: 5.4px;
+  font-weight: 400;
   color: #3c4043;
 }
-.ss-wf-track {
-  position: relative;
-  display: block;
-  height: 5px;
-  background: #f1f3f4;
-  border-radius: 99px;
-  overflow: hidden;
+.ss-psi-row-val {
+  font-size: 5.5px;
+  font-weight: 500;
+  white-space: nowrap;
 }
-.ss-wf-bar {
-  position: absolute;
-  top: 0;
-  bottom: 0;
+.ss-psi-pill {
+  padding: 0.5px 3px;
   border-radius: 99px;
+  color: #fff;
+  font-size: 4.4px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 .ss-phone-dirs {
   flex: 1 1 auto;
@@ -974,11 +1020,9 @@ function parkedScreen(host: string): string {
 }
 
 function speedScreen(host: string, opts: SalesSheetExhibitOpts): string {
-  const rows = opts.networkRequests?.length
-    ? waterfallRowsFromRequests(opts.networkRequests, host)
-    : dummySpeedWaterfall(host);
-  return `${chromeBar(host, false)}
-    ${renderSpeedWaterfallHtml(rows, host, opts.lcpLabel)}`;
+  const card = opts.psi || dummyPsiMobile(host);
+  return `${chromeBar('pagespeed.web.dev', false)}
+    ${renderPsiMobileHtml(card)}`;
 }
 
 function noOfferScreen(host: string, name: string): string {
