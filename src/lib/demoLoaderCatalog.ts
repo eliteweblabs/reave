@@ -34,10 +34,17 @@ export type DemoLoaderModule = {
   saleSheet: boolean;
 };
 
-export type DemoLoaderIncludedCard = {
+export type DemoLoaderIncludedCardDef = {
   id: string;
   label: string;
   blurb: string;
+};
+
+export type DemoLoaderIncludedCard = DemoLoaderIncludedCardDef & {
+  /** Always-on Core OS — ships with every install. */
+  baseline: true;
+  /** Leave-behind on the audit sales sheet. */
+  saleSheet: boolean;
 };
 
 export type DemoLoaderSection = {
@@ -53,11 +60,11 @@ function byTitle(a: { label: string }, b: { label: string }): number {
 
 /**
  * Core OS — always-on platform capabilities shown as marketing cards (not toggles).
- * This is the default baseline, not a FeatureId module: optional add-ons stay in
- * FEATURE_IDS / the picker; these ship with every install and demo.
+ * This is the product baseline (not FEATURE_IDS 001–004). Optional add-ons stay
+ * in FEATURE_IDS / the picker; these ship with every install and demo.
  * Keep alphabetical by label (UI sorts as a safeguard too).
  */
-export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCard[] = [
+export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCardDef[] = [
   {
     id: 'web-search',
     label: 'Agentic Web Search',
@@ -183,7 +190,11 @@ export function listDemoLoaderMarketingFeatures(): DemoLoaderFeature[] {
 }
 
 export function listDemoLoaderIncludedCards(): DemoLoaderIncludedCard[] {
-  return [...DEMO_LOADER_INCLUDED_CARDS].sort(byTitle);
+  return DEMO_LOADER_INCLUDED_CARDS.map((card) => ({
+    ...card,
+    baseline: true as const,
+    saleSheet: true,
+  })).sort(byTitle);
 }
 
 /**

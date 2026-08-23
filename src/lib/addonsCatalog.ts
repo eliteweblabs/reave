@@ -4,8 +4,8 @@
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules } from './deployModuleStatus';
 import {
-  DEMO_LOADER_INCLUDED_CARDS,
   DEMO_LOADER_SECTION_GROUPS,
+  listDemoLoaderIncludedCards,
   type DemoLoaderIncludedCard,
 } from './demoLoaderCatalog';
 import { FEATURE_BLURBS, isSaleSheetFeature, type FeatureId } from './featureCatalog';
@@ -120,7 +120,7 @@ export function buildAddonsCatalog(opts: {
     sections.push(section);
   }
 
-  const included = [...DEMO_LOADER_INCLUDED_CARDS].sort(byTitle);
+  const included = listDemoLoaderIncludedCards();
 
   return {
     included,
