@@ -658,8 +658,9 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.doesNotMatch(back, /data-stack="uptimerobot"/);
   assert.doesNotMatch(back, /data-stack="playwright"/);
   assert.doesNotMatch(back, /data-stack="telnyx"/);
+  assert.doesNotMatch(back, /data-stack="caldotcom"/);
   assert.doesNotMatch(back, /\/stack\/playwright\.svg/);
-  assert.match(back, /\/stack\/cal-com\.png/);
+  assert.doesNotMatch(back, /\/stack\/cal-com\.png/);
   assert.deepEqual(
     SALES_SHEET_STACK.map((tech) => tech.name),
     [...SALES_SHEET_STACK].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })).map((tech) => tech.name),

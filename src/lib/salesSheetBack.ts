@@ -27,7 +27,6 @@ export type SalesSheetBackLogo = {
 const SALES_SHEET_STACK_SLUGS = [
   'anthropic',
   'astro',
-  'caldotcom',
   'clerk',
   'cloudflare',
   'github',
@@ -402,9 +401,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   filter: brightness(0);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
-}
-.ss-sheet-back .ss-stack-item[data-stack="caldotcom"] .ss-stack-logo {
-  width: auto;
 }
 @page { size: ${pageSize}; margin: 0; }
 @media print {

@@ -11,9 +11,9 @@ Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).
 Stack logos: curated `SALES_SHEET_STACK` in A–Z name order (Anthropic, Astro,
-Cal.com, Clerk, Cloudflare, GitHub, Plausible, Railway, Resend, Supabase) —
+Clerk, Cloudflare, GitHub, Plausible, Railway, Resend, Supabase) —
 black marks only, no labels, no “builds with” line, pinned to the bottom of
-the back-cover column. Cal.com uses the local wordmark (`/stack/cal-com.png`).
+the back-cover column.
 Cover line: “Online presence diagnostic” / independent systems scan (same as
 `/digital-audit`). Inner-gate copy: Company outreach note / portal welcome
 (`portalOutreachNotice`, default “This is not spam…”).
