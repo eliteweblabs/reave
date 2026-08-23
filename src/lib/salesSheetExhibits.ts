@@ -486,7 +486,6 @@ function iphoneCss(): string {
   border-top-color: #8e8e93;
   border-radius: 50%;
 }
-.ss-phone-screen:has(.ss-psi) { background: #fff; }
 .ss-phone-body.ss-psi {
   display: flex;
   flex-direction: column;
@@ -1021,7 +1020,7 @@ function parkedScreen(host: string): string {
 
 function speedScreen(host: string, opts: SalesSheetExhibitOpts): string {
   const card = opts.psi || dummyPsiMobile(host);
-  return `${chromeBar('pagespeed.web.dev', false)}
+  return `${chromeBar(host, false)}
     ${renderPsiMobileHtml(card)}`;
 }
 
@@ -1220,6 +1219,11 @@ function formatGrade(grade: LetterGrade | null, score?: number | null): string {
   return grade;
 }
 
+function gradeClass(grade: LetterGrade | null | undefined): string {
+  if (!grade) return 'na';
+  return grade.toLowerCase();
+}
+
 function defaultHeroStats(opts: {
   findings: SalesSheetFinding[];
   performance: LetterGrade | null;
@@ -1240,6 +1244,8 @@ function defaultHeroStats(opts: {
 }
 
 export function renderSalesSheetHeaderHeroHtml(opts: {
+  overall: LetterGrade | null;
+  overallScore: number | null;
   headline: string;
   heroStats?: SalesSheetHeroStat[];
   findings?: SalesSheetFinding[];
@@ -1248,6 +1254,9 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   visibility?: LetterGrade | null;
 }): string {
   const headline = (opts.headline || '').trim();
+  const grade = opts.overall;
+  const score = opts.overallScore;
+  if (!headline && !grade && score == null) return '';
   const stats = (opts.heroStats?.length
     ? opts.heroStats
     : defaultHeroStats({
@@ -1257,7 +1266,15 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
         visibility: opts.visibility ?? null,
       })
   ).slice(0, 3);
-  if (!headline && !stats.length) return '';
+  const pct = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  const r = 25;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  const g = gradeClass(grade);
+  const scoreLine =
+    score != null && Number.isFinite(score)
+      ? `<span class="ss-hero-score">${escapeHtml(String(Math.round(score)))}<span>/100</span></span>`
+      : '';
   const statRows = stats
     .map(
       (s) =>
@@ -1271,7 +1288,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   grid-row: 1;
   justify-self: center;
   width: max-content;
-  max-width: 52%;
+  max-width: 58%;
   min-width: 0;
   display: flex;
   align-items: flex-start;
@@ -1291,7 +1308,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 .doc-onepager-header:has(.ss-hero) .doc-onepager-logo {
   grid-column: 1;
   grid-row: 1;
-  max-width: 30%;
+  max-width: 22%;
   justify-self: start;
   align-self: flex-start;
   margin-top: -2px;
@@ -1302,6 +1319,65 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   grid-row: 1;
   justify-self: end;
   z-index: 2;
+}
+.ss-hero-ring {
+  position: relative;
+  flex: 0 0 auto;
+  width: 64px;
+  text-align: center;
+}
+.ss-hero-ring svg {
+  display: block;
+  width: 64px;
+  height: 64px;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+.ss-hero-ring-track { fill: none; stroke: #e4e4de; stroke-width: 4.5; }
+.ss-hero-ring-fill { fill: none; stroke-width: 4.5; stroke-linecap: round; }
+.ss-hero-ring-fill.g-a, .ss-hero-ring-fill.g-b { stroke: #1b7f4a; }
+.ss-hero-ring-fill.g-c { stroke: #b8860b; }
+.ss-hero-ring-fill.g-d { stroke: #c05621; }
+.ss-hero-ring-fill.g-f, .ss-hero-ring-fill.g-na { stroke: #b42318; }
+.ss-hero-ring-center {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  line-height: 1;
+  pointer-events: none;
+}
+.ss-hero-score {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: #3a3a3c;
+}
+.ss-hero-score span { font-weight: 500; color: #8e8e93; }
+.ss-hero-grade {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: #141414;
+}
+.ss-hero-grade.g-a, .ss-hero-grade.g-b { color: #1b7f4a; }
+.ss-hero-grade.g-c { color: #b8860b; }
+.ss-hero-grade.g-d { color: #c05621; }
+.ss-hero-grade.g-f, .ss-hero-grade.g-na { color: #b42318; }
+.ss-hero-ring-cap {
+  margin: 2px 0 0;
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b6b6b;
 }
 .ss-hero-copy {
   flex: 0 0 auto;
@@ -1351,6 +1427,17 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 .ss-hero-stat--info span { background: #1a3d6e; }
 </style>
 <div class="ss-hero">
+  <div class="ss-hero-ring" aria-hidden="true">
+    <svg viewBox="0 0 64 64">
+      <circle class="ss-hero-ring-track" cx="32" cy="32" r="${r}" />
+      <circle class="ss-hero-ring-fill g-${g}" cx="32" cy="32" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
+    </svg>
+    <div class="ss-hero-ring-center">
+      ${scoreLine}
+      <span class="ss-hero-grade g-${g}">${escapeHtml(grade || '—')}</span>
+    </div>
+    <div class="ss-hero-ring-cap">Overall grade</div>
+  </div>
   <div class="ss-hero-copy">
     ${headline ? `<p class="ss-hero-h">${escapeHtml(headline)}</p>` : ''}
     ${statRows ? `<ul class="ss-hero-stats">${statRows}</ul>` : ''}

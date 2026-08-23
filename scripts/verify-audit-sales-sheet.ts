@@ -1107,15 +1107,19 @@ await test('clean HTTPS drops the Not Secure graphic; a broken host keeps it', (
   assert.doesNotMatch(sslPhone, /ss-phone-serp/);
 });
 
-await test('header hero is the audit lede without an overall-grade ring', () => {
+await test('header hero is the audit overall block restyled for a white sheet', () => {
   const hero = renderSalesSheetHeaderHeroHtml({
+    overall: DUMMY_SALES_SHEET.overall,
+    overallScore: DUMMY_SALES_SHEET.overallScore,
     headline: DUMMY_SALES_SHEET.headline,
     heroStats: DUMMY_SALES_SHEET.heroStats,
   });
   assert.match(hero, /ss-hero/);
-  assert.doesNotMatch(hero, /Overall grade/);
-  assert.doesNotMatch(hero, /ss-hero-ring/);
-  assert.doesNotMatch(hero, /#b8860b/);
+  assert.match(hero, /Overall grade/);
+  assert.match(hero, /ss-hero-ring/);
+  assert.match(hero, />C</);
+  assert.match(hero, /64/);
+  assert.match(hero, /#b8860b/);
   assert.match(hero, /Speed and local listings/);
   assert.match(hero, /Every finding sourced from independent platforms/i);
   assert.match(hero, /\.ss-hero \{[\s\S]*width: max-content/);
@@ -1190,7 +1194,7 @@ await test('site speed exhibit is the PageSpeed Insights mobile results card', (
   );
   assert.match(dummy, /ss-psi/);
   assert.match(dummy, /PageSpeed Insights/);
-  assert.match(dummy, /pagespeed\.web\.dev/);
+  assert.match(dummy, /ss-phone-chrome/);
   assert.match(dummy, /haleco\.example/);
   assert.match(dummy, />18</);
   assert.match(dummy, /Largest Contentful Paint/);
