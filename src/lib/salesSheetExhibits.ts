@@ -849,7 +849,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
       })
   ).slice(0, 3);
   const pct = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
-  const r = 20;
+  const r = 25;
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
   const g = gradeClass(grade);
@@ -870,8 +870,8 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 7.2rem 0 0;
+  gap: 12px;
+  margin: 0 6.4rem 0 2.6rem;
   color: #141414;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -884,37 +884,48 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 .ss-hero-ring {
   position: relative;
   flex: 0 0 auto;
-  width: 56px;
+  width: 64px;
   text-align: center;
 }
-.ss-hero-ring svg { display: block; width: 56px; height: 56px; transform: rotate(-90deg); }
-.ss-hero-ring-track { fill: none; stroke: #e4e4de; stroke-width: 5; }
-.ss-hero-ring-fill { fill: none; stroke-width: 5; stroke-linecap: round; }
+.ss-hero-ring svg {
+  display: block;
+  width: 64px;
+  height: 64px;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+.ss-hero-ring-track { fill: none; stroke: #e4e4de; stroke-width: 4.5; }
+.ss-hero-ring-fill { fill: none; stroke-width: 4.5; stroke-linecap: round; }
 .ss-hero-ring-fill.g-a, .ss-hero-ring-fill.g-b { stroke: #1b7f4a; }
 .ss-hero-ring-fill.g-c { stroke: #b8860b; }
 .ss-hero-ring-fill.g-d { stroke: #c05621; }
 .ss-hero-ring-fill.g-f, .ss-hero-ring-fill.g-na { stroke: #b42318; }
 .ss-hero-ring-center {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
+  gap: 1px;
   line-height: 1;
   pointer-events: none;
 }
 .ss-hero-score {
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 700;
+  line-height: 1;
   color: #3a3a3c;
 }
 .ss-hero-score span { font-weight: 500; color: #8e8e93; }
 .ss-hero-grade {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.04em;
+  line-height: 1;
   color: #141414;
 }
 .ss-hero-grade.g-a, .ss-hero-grade.g-b { color: #1b7f4a; }
@@ -971,9 +982,9 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 </style>
 <div class="ss-hero">
   <div class="ss-hero-ring" aria-hidden="true">
-    <svg viewBox="0 0 56 56">
-      <circle class="ss-hero-ring-track" cx="28" cy="28" r="${r}" />
-      <circle class="ss-hero-ring-fill g-${g}" cx="28" cy="28" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
+    <svg viewBox="0 0 64 64">
+      <circle class="ss-hero-ring-track" cx="32" cy="32" r="${r}" />
+      <circle class="ss-hero-ring-fill g-${g}" cx="32" cy="32" r="${r}" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" />
     </svg>
     <div class="ss-hero-ring-center">
       ${scoreLine}
