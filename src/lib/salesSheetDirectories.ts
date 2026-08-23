@@ -50,7 +50,7 @@ export type DirectoryCheck = {
 export const DIRECTORY_APPS: { slug: DirectorySlug; title: string; short?: string; host: RegExp }[] = [
   { slug: 'amazon', title: 'Amazon', host: /(?:^|\.)(?:amazon\.com|amzn\.to|a\.co)$/i },
   { slug: 'angi', title: 'Angi', host: /(?:^|\.)(?:angi\.com|homeadvisor\.com)$/i },
-  { slug: 'apple', title: 'Apple Maps', short: 'Apple', host: /(?:^|\.)maps\.apple\.com$/i },
+  { slug: 'apple', title: 'Apple Maps', short: 'Maps', host: /(?:^|\.)maps\.apple\.com$/i },
   { slug: 'bing', title: 'Bing', host: /(?:^|\.)bing\.com$/i },
   { slug: 'eventbrite', title: 'Eventbrite', host: /(?:^|\.)eventbrite\.com$/i },
   { slug: 'facebook', title: 'Facebook', host: /(?:^|\.)(?:facebook\.com|fb\.com|fb\.me)$/i },

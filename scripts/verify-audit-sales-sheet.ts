@@ -664,6 +664,13 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.ok(back.indexOf('data-ss-col="stack"') > back.indexOf('data-ss-col="builds"'));
   assert.match(back, /data-ss-col="cover"[\s\S]*class="ss-back-icon"/);
   assert.match(back, /data-ss-col="gate-icon"/);
+  assert.match(back, /ss-back-reave-icon/);
+  assert.match(back, /#6366f1/);
+  assert.match(back, /#ff00ff/);
+  assert.match(back, /ss-back-boston/);
+  assert.match(back, /aria-label="Baked in Boston"/);
+  assert.match(back, /ss-back-boston-bean--a/);
+  assert.match(back, /ss-back-boston-bean--b/);
   assert.match(back, /top: 50%/);
   assert.match(back, /left: 50%/);
   assert.match(back, /translate\(-50%, -50%\)/);
@@ -815,6 +822,8 @@ await test('directory exhibit is a 4x7 of official icons scored pass / half / fa
   assert.match(dirs, /admin\/dir-icons\/instagram\.png/);
   assert.match(dirs, /admin\/dir-icons\/youtube\.png/);
   assert.match(dirs, /ss-phone-dir-name">Maps</);
+  assert.match(dirs, /data-dir="apple"[\s\S]*?ss-phone-dir-name">Maps</);
+  assert.doesNotMatch(dirs, /ss-phone-dir-name">Apple</);
   assert.match(dirs, /ss-phone-dir-name">YouTube</);
   assert.match(dirs, /data-dir="amazon"/);
   assert.match(dirs, /data-dir="yelp"/);
