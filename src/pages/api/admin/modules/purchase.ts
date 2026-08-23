@@ -15,11 +15,12 @@ import { FEATURE_LABELS, isPrivateFeature } from '../../../../lib/featureCatalog
 import { isCraterConfigured, craterCreateInvoice } from '../../../../lib/craterClient';
 import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import {
-  formatModulePrice,
-  isPaidModule,
-  modulePrice,
-  moduleStorefrontEnabled,
-} from '../../../../lib/moduleStorefront';
+  catalogLabel,
+  resolvedIsPaidModule,
+  resolvedModulePrice,
+} from '../../../../lib/moduleCatalogOverlay';
+import { ensureModuleCatalogLoaded } from '../../../../lib/moduleCatalogStore';
+import { formatModulePrice, moduleStorefrontEnabled } from '../../../../lib/moduleStorefront';
 import {
   getModuleEntitlement,
   isFeatureId,
@@ -56,16 +57,17 @@ export async function POST(context: APIContext): Promise<Response> {
   const action = String(body.action ?? 'purchase').trim();
   const featureRaw = String(body.feature ?? '').trim();
   if (!isFeatureId(featureRaw)) return json({ ok: false, error: 'Unknown module.' }, 400);
-  if (isPrivateFeature(featureRaw) || !isPaidModule(featureRaw)) {
+  await ensureModuleCatalogLoaded();
+  if (isPrivateFeature(featureRaw) || !resolvedIsPaidModule(featureRaw)) {
     return json({ ok: false, error: 'That module is not for sale in the app.' }, 400);
   }
   if (hasFeature(featureRaw)) {
     return json({ ok: false, error: 'This module is already on for this install.' }, 400);
   }
 
-  const price = modulePrice(featureRaw);
+  const price = resolvedModulePrice(featureRaw);
   if (!price) return json({ ok: false, error: 'No price on file.' }, 400);
-  const label = FEATURE_LABELS[featureRaw];
+  const label = catalogLabel(featureRaw, FEATURE_LABELS[featureRaw]);
 
   if (action === 'mark_paid') {
     const owner = await requireDeploymentOwner(context);

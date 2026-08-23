@@ -72,6 +72,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   settings: 'Settings',
   socials: 'Socials',
   industries: 'Industries',
+  catalog: 'Catalog',
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
   modules: 'Modules',

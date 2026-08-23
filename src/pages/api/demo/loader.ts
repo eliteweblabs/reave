@@ -8,8 +8,13 @@ import {
   listDemoLoaderIncludedCards,
   listDemoLoaderMarketingFeatures,
   listDemoLoaderModules,
-  listDemoLoaderSections,
 } from '../../../lib/demoLoaderCatalog';
+import {
+  overlayDemoModule,
+  overlayIncludedCard,
+  sectionsFromCatalog,
+} from '../../../lib/moduleCatalogOverlay';
+import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
 import { buildDemoSuiteUrl, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from '../../../lib/demoSuite';
 import { checkDemoLoaderCatalogRateLimit } from '../../../lib/demoLaunch';
 import { DEMO_BASELINE_MODULE_IDS, mergeDemoModuleIds } from '../../../lib/demoModuleCatalog';
@@ -39,9 +44,10 @@ export async function GET(context: APIContext): Promise<Response> {
       );
     }
 
-    const modules = listDemoLoaderModules();
-    const sections = listDemoLoaderSections(modules);
-    const included = listDemoLoaderIncludedCards();
+    await ensureModuleCatalogLoaded();
+    const modules = listDemoLoaderModules().map(overlayDemoModule);
+    const sections = sectionsFromCatalog(modules);
+    const included = listDemoLoaderIncludedCards().map(overlayIncludedCard);
     const features = listDemoLoaderMarketingFeatures();
     const industries = await listEnabledDeckIndustries();
     const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);

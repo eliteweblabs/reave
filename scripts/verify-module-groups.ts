@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { FEATURE_IDS, FEATURE_LABELS, FEATURE_SALE_SHEET } from '../src/lib/featureCatalog.ts';
+import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
   MODULE_DISPLAY_GROUPS,
@@ -45,6 +46,12 @@ assert.equal(moduleDisplayGroupFor('time_tracking')?.title, 'Work');
 for (const id of FEATURE_SALE_SHEET) {
   assert.ok(FEATURE_IDS.includes(id), `unknown sale-sheet feature ${id}`);
 }
+
+const catalog = defaultModuleCatalog();
+assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet));
+assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group === 'work' && row.saleSheet));
+assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
+assert.ok(!catalog.some((row) => row.feature === 'content_management'));
 
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('youtube'));
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('tiktok'));

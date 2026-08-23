@@ -3,19 +3,18 @@
  */
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules } from './deployModuleStatus';
-import {
-  DEMO_LOADER_SECTION_GROUPS,
-  listDemoLoaderIncludedCards,
-  type DemoLoaderIncludedCard,
-} from './demoLoaderCatalog';
+import { listDemoLoaderIncludedCards, type DemoLoaderIncludedCard } from './demoLoaderCatalog';
 import { FEATURE_BLURBS, isSaleSheetFeature, type FeatureId } from './featureCatalog';
 import { hasFeature } from './features';
 import {
-  formatModulePrice,
-  isPaidModule,
-  modulePrice,
-  type ModulePrice,
-} from './moduleStorefront';
+  catalogBlurb,
+  catalogLabel,
+  catalogSaleSheet,
+  resolvedIsPaidModule,
+  resolvedModulePrice,
+  sectionsFromCatalog,
+} from './moduleCatalogOverlay';
+import { formatModulePrice, type ModulePrice } from './moduleStorefront';
 import type { ModuleEntitlement } from './moduleEntitlements';
 
 export type AddonsModule = {
@@ -69,23 +68,23 @@ export function buildAddonsCatalog(opts: {
     // Public tile is `website` (Agentic Website Editor).
     if (m.feature === 'content_management') continue;
 
-    const price = modulePrice(m.feature);
+    const price = resolvedModulePrice(m.feature);
     const isPrivate = m.visibility === 'private';
 
     if (!owner) {
-      if (isPrivate || !isPaidModule(m.feature)) continue;
+      if (isPrivate || !resolvedIsPaidModule(m.feature)) continue;
     }
 
     const enabled = hasFeature(m.feature);
     const entitlement = entitlements.get(m.feature) ?? null;
     const toggleable = owner;
-    const purchasable = !owner && !enabled && isPaidModule(m.feature);
+    const purchasable = !owner && !enabled && resolvedIsPaidModule(m.feature);
 
     modules.push({
       moduleId: moduleId || '',
       feature: m.feature,
-      label: m.label,
-      blurb: FEATURE_BLURBS[m.feature] ?? '',
+      label: catalogLabel(m.feature, m.label),
+      blurb: catalogBlurb(m.feature, FEATURE_BLURBS[m.feature] ?? ''),
       status: m.status,
       enabled,
       toggleable,
@@ -93,36 +92,23 @@ export function buildAddonsCatalog(opts: {
       price: price ? { ...price, label: formatModulePrice(price) } : null,
       entitlement,
       visibility: m.visibility,
-      saleSheet: isSaleSheetFeature(m.feature),
+      saleSheet: catalogSaleSheet(m.feature, isSaleSheetFeature(m.feature)),
     });
   }
   modules.sort(byTitle);
 
-  const byFeature = new Map(modules.map((m) => [m.feature, m]));
-  const claimed = new Set<string>();
+  const sections: AddonsSection[] = sectionsFromCatalog(modules).map((section) => ({
+    id: section.id,
+    title: section.title,
+    modules: section.modules,
+  }));
 
-  const named = DEMO_LOADER_SECTION_GROUPS.map((group) => {
-    const sectionModules: AddonsModule[] = [];
-    for (const feature of group.features) {
-      const mod = byFeature.get(feature);
-      if (!mod) continue;
-      claimed.add(feature);
-      sectionModules.push(mod);
-    }
-    sectionModules.sort(byTitle);
-    return { id: group.id, title: group.title, modules: sectionModules };
-  }).filter((s) => s.modules.length > 0);
-
-  const ungrouped = modules.filter((m) => !claimed.has(m.feature)).sort(byTitle);
-  const sections: AddonsSection[] = [];
-  if (ungrouped.length) {
-    sections.push({ id: 'optional', title: 'Optional add-ons', modules: ungrouped });
-  }
-  for (const section of named) {
-    sections.push(section);
-  }
-
-  const included = listDemoLoaderIncludedCards();
+  const included = listDemoLoaderIncludedCards().map((card) => ({
+    ...card,
+    label: catalogLabel(card.id, card.label),
+    blurb: catalogBlurb(card.id, card.blurb),
+    saleSheet: catalogSaleSheet(card.id, card.saleSheet),
+  }));
 
   return {
     included,

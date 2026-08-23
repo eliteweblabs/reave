@@ -26,10 +26,12 @@ import { getCompanyConfig } from '../../../lib/companyConfig';
 import { FEATURE_LABELS, isPrivateFeature, type FeatureId } from '../../../lib/featureCatalog';
 import { postToSystemAlertsThread } from '../../../lib/adminAgentAlert';
 import {
-  formatModulePrice,
-  isPaidModule,
-  modulePrice,
-} from '../../../lib/moduleStorefront';
+  catalogLabel,
+  resolvedIsPaidModule,
+  resolvedModulePrice,
+} from '../../../lib/moduleCatalogOverlay';
+import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
+import { formatModulePrice } from '../../../lib/moduleStorefront';
 import { setFeatureOverride } from '../../../lib/featureOverridesStore';
 
 export const prerender = false;
@@ -50,6 +52,7 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   await ensureFeatureOverridesLoaded();
+  await ensureModuleCatalogLoaded();
   const owner = await isDeploymentOwner(context);
   const entitlements = await listModuleEntitlements();
   const entitlementByFeature = new Map(entitlements.map((e) => [e.feature, e]));
@@ -85,6 +88,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const feature = featureRaw as FeatureId;
 
   await ensureFeatureOverridesLoaded();
+  await ensureModuleCatalogLoaded();
 
   if (action === 'toggle') {
     const owner = await requireDeploymentOwner(context);
@@ -94,7 +98,7 @@ export async function POST(context: APIContext): Promise<Response> {
     await setFeatureOverride(feature, enabled);
     refreshFeatureCache();
 
-    const label = FEATURE_LABELS[feature];
+    const label = catalogLabel(feature, FEATURE_LABELS[feature]);
     await postToSystemAlertsThread({
       message: `Add-on toggled: **${label}** (\`${feature}\`) → ${enabled ? 'ON' : 'OFF'} (runtime override). Config features[] unchanged until deploy.`,
       bypassSleep: true,
@@ -115,16 +119,16 @@ export async function POST(context: APIContext): Promise<Response> {
       return json({ ok: false, error: 'Owners toggle add-ons directly — use action toggle.' }, 400);
     }
 
-    if (isPrivateFeature(feature) || !isPaidModule(feature)) {
+    if (isPrivateFeature(feature) || !resolvedIsPaidModule(feature)) {
       return json({ ok: false, error: 'That add-on is not available for self-serve request.' }, 400);
     }
     if (hasFeature(feature)) {
       return json({ ok: false, error: 'This add-on is already active on your install.' }, 400);
     }
 
-    const price = modulePrice(feature);
+    const price = resolvedModulePrice(feature);
     if (!price) return json({ ok: false, error: 'No price on file.' }, 400);
-    const label = FEATURE_LABELS[feature];
+    const label = catalogLabel(feature, FEATURE_LABELS[feature]);
     const company = await getCompanyConfig(context.request);
     const user = await getAuthUser(context);
     const requester =

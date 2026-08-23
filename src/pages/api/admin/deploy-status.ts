@@ -21,11 +21,13 @@ import {
 import type { FeatureId } from '../../../lib/featureCatalog';
 import { listModuleEntitlements } from '../../../lib/moduleEntitlements';
 import {
-  formatModulePrice,
-  isPaidModule,
-  modulePrice,
-  moduleStorefrontEnabled,
-} from '../../../lib/moduleStorefront';
+  catalogLabel,
+  catalogSaleSheet,
+  resolvedIsPaidModule,
+  resolvedModulePrice,
+} from '../../../lib/moduleCatalogOverlay';
+import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
+import { formatModulePrice, moduleStorefrontEnabled } from '../../../lib/moduleStorefront';
 import { isDeploymentOwner } from '../../../lib/deploymentOwner';
 import {
   MODULE_DISPLAY_GROUPS,
@@ -71,6 +73,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const [entitlements, owner] = await Promise.all([
     listModuleEntitlements(),
     isDeploymentOwner(context),
+    ensureModuleCatalogLoaded(),
   ]);
   const entitlementByFeature = new Map(entitlements.map((e) => [e.feature, e]));
   const storefront = moduleStorefrontEnabled();
@@ -81,14 +84,14 @@ export async function GET(context: APIContext): Promise<Response> {
     const inDemoSuite =
       demoSuite != null ? demoSuite.features.includes(m.feature as FeatureId) : null;
 
-    const price = modulePrice(m.feature);
+    const price = resolvedModulePrice(m.feature);
     const entitlement = entitlementByFeature.get(m.feature) ?? null;
-    const purchasable = storefront && isPaidModule(m.feature) && !m.enabled;
+    const purchasable = storefront && resolvedIsPaidModule(m.feature) && !m.enabled;
 
     return {
       moduleId: demoModuleIdForFeature(m.feature),
       feature: m.feature,
-      label: m.label,
+      label: catalogLabel(m.feature, m.label),
       enabled: m.enabled,
       status: m.status,
       configured: m.configured,
@@ -96,7 +99,7 @@ export async function GET(context: APIContext): Promise<Response> {
       runtimeAllowed: m.runtimeAllowed,
       showBanner: m.showBanner,
       visibility: m.visibility,
-      saleSheet: m.saleSheet,
+      saleSheet: catalogSaleSheet(m.feature, m.saleSheet),
       stage: m.stage,
       playbook: m.path || null,
       pluginId: m.pluginId,

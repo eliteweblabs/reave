@@ -643,3 +643,11 @@ export function showPersonal() {
 export function showIndustries() {
   return window.__installConfig?.showIndustries === true;
 }
+
+/**
+ * Module catalog editor.
+ * Reave / super-admin install only (`window.__installConfig.showModuleCatalog`).
+ */
+export function showModuleCatalog() {
+  return window.__installConfig?.showModuleCatalog === true;
+}

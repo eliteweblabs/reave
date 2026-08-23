@@ -66,6 +66,7 @@ export const PROFILE_MENU_KEYS = [
   'socials',
   'addons',
   'industries', // REΛVE-only; stripped from client payload on other installs
+  'catalog', // REΛVE-only module catalog editor
   'vapi',
   'lead-scanner',
 ] as const;
@@ -98,6 +99,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'socials',
   'addons',
   'industries',
+  'catalog',
   'vapi',
   'lead-scanner',
   'fleet',
@@ -174,6 +176,8 @@ export type InstallConfigClient = Pick<
   showDeployWizard?: boolean;
   /** Industries / deploy-playbook editor — official REΛVE Railway install only. */
   showIndustries?: boolean;
+  /** Module catalog editor — official REΛVE Railway install only. */
+  showModuleCatalog?: boolean;
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -187,6 +191,7 @@ export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   socials: 'Socials',
   addons: 'Add-ons',
   industries: 'Industries',
+  catalog: 'Catalog',
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
 };
@@ -449,7 +454,7 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
     nav = nav.filter((key) => key !== 'reviews');
   }
   if (!isCanonicalReaveInstall()) {
-    nav = nav.filter((key) => key !== 'industries');
+    nav = nav.filter((key) => key !== 'industries' && key !== 'catalog');
   }
   return nav;
 }
@@ -470,7 +475,7 @@ function ensureProfileMenuAddons(menu: ProfileMenuKey[]): ProfileMenuKey[] {
 function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   let menu = config.profileMenu;
   if (!isCanonicalReaveInstall()) {
-    menu = menu.filter((key) => key !== 'industries');
+    menu = menu.filter((key) => key !== 'industries' && key !== 'catalog');
   }
   // End users buy/request modules from account → Add-ons. Always show it.
   return ensureProfileMenuAddons(menu);
@@ -488,6 +493,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     showPersonal: isCanonicalReaveInstall(),
     showDeployWizard: config.features.includes('deploy_wizard'),
     showIndustries: isCanonicalReaveInstall(),
+    showModuleCatalog: isCanonicalReaveInstall(),
   };
 }
 

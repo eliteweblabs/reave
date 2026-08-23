@@ -6,6 +6,7 @@ import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCata
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
 import { FEATURE_BLURBS, featureVisibility, isPublicFeature, isSaleSheetFeature } from './featureCatalog';
 import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
+import { CORE_OS_CARDS } from './moduleCatalog';
 import { MODULE_DISPLAY_GROUPS } from './moduleDisplayGroups';
 import {
   listDemoLoaderFeatures,
@@ -64,83 +65,7 @@ function byTitle(a: { label: string }, b: { label: string }): number {
  * Optional add-ons stay in FEATURE_IDS / the picker; these ship with every install.
  * Keep alphabetical by label (UI sorts as a safeguard too).
  */
-export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCardDef[] = [
-  {
-    id: 'web-search',
-    label: 'Agentic Web Search',
-    blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, and sites.',
-  },
-  {
-    id: 'agent-chat',
-    label: 'Agentic Chat',
-    blurb: 'Your always-on operations assistant — runs tools, files work, and follows playbooks.',
-  },
-  {
-    id: 'chat-commands',
-    label: 'Chat / commands',
-    blurb: 'Type / in agent chat for slash commands — knowledge, jobs, billing, and the rest of the OS.',
-  },
-  {
-    id: 'business-audit',
-    label: 'Business Audit',
-    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content.',
-  },
-  {
-    id: 'client-portal',
-    label: 'Client Portal',
-    blurb: 'A branded portal for every client — projects, files, and status in one place.',
-  },
-  {
-    id: 'crm',
-    label: 'CRM',
-    blurb: 'Contacts, companies, and client profiles — searchable by name, phone, or domain.',
-  },
-  {
-    id: 'dynamic-todos',
-    label: 'Dynamic To-Dos',
-    blurb: 'Dynamic alerts for personal or work — create, update, and clear with the agent or Siri.',
-  },
-  {
-    id: 'email-inbox',
-    label: 'Inbox Triage',
-    blurb: 'Triage client mail, draft replies, and file threads onto the right project.',
-  },
-  {
-    id: 'handoff-vault',
-    label: 'Handoff Vault',
-    blurb: 'Bidirectionally share secure credentials and other data in the portal Data tab.',
-  },
-  {
-    id: 'knowledge',
-    label: 'Knowledge Base',
-    blurb: 'Playbooks the agent actually follows — SOPs, install notes, and how-tos on demand.',
-  },
-  {
-    id: 'media-library',
-    label: 'Media Library',
-    blurb: 'Upload and reuse logos, photos, and PDFs for branding and content — pick once, use everywhere.',
-  },
-  {
-    id: 'passkeys',
-    label: 'Passkeys & Face ID',
-    blurb: 'Sign in with Face ID, Touch ID, or a device passkey after the first visit — no password on return.',
-  },
-  {
-    id: 'phone-sign-in',
-    label: 'Phone sign-in',
-    blurb: 'Sign in with a one-time code texted to your phone — separate from two-way business SMS.',
-  },
-  {
-    id: 'portal-assistant',
-    label: 'Portal Assistant',
-    blurb: 'Speed-dial help chat so clients get answers without ringing your phone.',
-  },
-  {
-    id: 'projects',
-    label: 'Projects & Work',
-    blurb: 'Jobs, inquiry notes, and delivery tracking with full agent read/write.',
-  },
-];
+export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCardDef[] = CORE_OS_CARDS;
 
 /**
  * Named section groups for optional modules in the public demo loader.

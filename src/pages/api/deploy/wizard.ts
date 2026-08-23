@@ -6,8 +6,15 @@ import type { APIContext } from 'astro';
 import {
   listDemoLoaderIncludedCards,
   listDemoLoaderModules,
-  listDemoLoaderSections,
 } from '../../../lib/demoLoaderCatalog';
+import {
+  catalogBlurb,
+  catalogLabel,
+  overlayDemoModule,
+  overlayIncludedCard,
+  sectionsFromCatalog,
+} from '../../../lib/moduleCatalogOverlay';
+import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
 import { DEMO_BASELINE_MODULE_IDS, demoModuleById, resolveDemoModuleFeatures } from '../../../lib/demoModuleCatalog';
 import {
   DEPLOY_WIZARD_EXTRAS,
@@ -158,7 +165,8 @@ export async function GET(context: APIContext): Promise<Response> {
     }
   }
 
-  const modules = listDemoLoaderModules();
+  await ensureModuleCatalogLoaded();
+  const modules = listDemoLoaderModules().map(overlayDemoModule);
   const baseline = [...DEMO_BASELINE_MODULE_IDS]
     .map((id) => demoModuleById(id))
     .filter((e): e is NonNullable<typeof e> => Boolean(e))
@@ -169,8 +177,8 @@ export async function GET(context: APIContext): Promise<Response> {
       return {
         moduleId: e.id,
         feature: e.feature,
-        label: e.label,
-        blurb: FEATURE_BLURBS[e.feature] ?? fromList?.blurb ?? '',
+        label: catalogLabel(e.feature, e.label),
+        blurb: catalogBlurb(e.feature, FEATURE_BLURBS[e.feature] ?? fromList?.blurb ?? ''),
         status,
         inProduction,
         toggleable: inProduction && status === 'deployed',
@@ -185,7 +193,7 @@ export async function GET(context: APIContext): Promise<Response> {
       title: 'Client baseline',
       modules: baseline,
     },
-    ...listDemoLoaderSections(modules),
+    ...sectionsFromCatalog(modules),
   ];
 
   let projects: { id: string; name: string }[] = [];
@@ -198,7 +206,7 @@ export async function GET(context: APIContext): Promise<Response> {
     ok: true,
     modules: allModules,
     sections,
-    included: listDemoLoaderIncludedCards(),
+    included: listDemoLoaderIncludedCards().map(overlayIncludedCard),
     extras: [...DEPLOY_WIZARD_EXTRAS],
     seedIndustries: mergeDeployWizardSeedIndustries(await listDeckIndustries()),
     courtGateModes: [...PRACTICE_GATE_MODES],
