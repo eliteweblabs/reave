@@ -38,7 +38,7 @@ export interface Props {
    * that should not appear in search engines.
    */
   noIndex?: boolean;
-	/** Initial `<meta name="theme-color">`. Black so Safari chrome matches the sticky header. */
+	/** Initial `<meta name="theme-color">`. Canvas-matched so Safari chrome is not a black bar. */
   themeColor?: string;
 }
 
@@ -49,7 +49,7 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-	themeColor = "#000000",
+	themeColor = "#0c0614",
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -180,8 +180,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * scrolling content never enters the upper safe area. Let the
 		 * document grow; viewport-fit=cover then paints into the chrome.
 		 * Do not set overscroll-behavior or overflow-y here — either one
-		 * kills iOS pull-to-refresh. Public iOS pages opt in from
-		 * Header.astro so the bar does not rubber-band.
+		 * kills iOS pull-to-refresh.
 		 */
 		min-height: 100%;
 		background-color: var(--site-canvas, #0c0614);
@@ -201,18 +200,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		background-color: var(--site-canvas, #0c0614);
 		color: #e5e5e5;
 		color-scheme: dark;
-	}
-
-	/*
-	 * After the html/body canvas color. iOS overscroll rubber-band paints
-	 * the html background — match the fixed header so a pull at the top
-	 * does not flash purple around the wordmark. Atmosphere still paints
-	 * the page. Desktop keeps the canvas (rule below).
-	 */
-	@supports (-webkit-touch-callout: none) {
-		html:has(.app-header:not(.app-header--admin)) {
-			background-color: #000;
-		}
 	}
 
 	body {
@@ -307,9 +294,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). The public
-	 * header is position:fixed (out of flow), so the hero already starts
-	 * at the viewport top — do not pull main up. A negative margin plus
-	 * a sticky/fixed bar is what made the chrome bounce on iOS.
+	 * header is out of flow, so the hero already starts at the viewport
+	 * top — do not pull main up.
 	 */
 	main#main-content {
 		position: relative;

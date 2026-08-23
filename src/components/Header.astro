@@ -485,11 +485,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   /*
-   * Public header: fixed overlay, not sticky. Sticky stays in the document
-   * scroll layer, so iOS rubber-band / URL-bar animation moves the bar
-   * (reads as bounce). Fixed + no visualViewport chase keeps it pinned.
-   * Pad logo/actions below the notch. Hero is full-bleed underneath
-   * because the bar is out of flow. Admin stays fixed/transparent.
+   * Public header: out-of-flow overlay so the hero can paint the full
+   * viewport. Desktop stays pinned. Mobile scrolls with the page — no
+   * black notch strip. Pad logo/actions below the notch. Admin stays
+   * fixed/transparent.
    */
   .app-header {
     position: fixed;
@@ -517,45 +516,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     -webkit-touch-callout: none;
   }
 
-  /*
-   * Phone / tablet: contain document rubber-band so the visual viewport
-   * does not drag the fixed bar. Desktop keeps native overscroll /
-   * pull-to-refresh.
-   */
-  @media (hover: none), (pointer: coarse) {
-    html:has(body > .app-header:not(.app-header--admin)),
-    html:has(body > .app-header:not(.app-header--admin)) body {
-      overscroll-behavior-y: none;
-    }
-  }
-
-  /*
-   * iOS Safari only. Safari 26 samples this background-color into the
-   * status bar, so the notch strip and the bar read as one piece.
-   * -webkit-touch-callout is iOS WebKit — desktop Safari / Chrome /
-   * Firefox / Android stay transparent.
-   */
-  @supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
     .app-header:not(.app-header--admin) {
-      background-color: #000;
-      -webkit-backface-visibility: hidden;
-      backface-visibility: hidden;
-    }
-
-    /*
-     * When iOS rubber-bands the visual viewport, a sliver opens above
-     * the bar. Paint black into that gap so the wordmark does not
-     * appear to bounce off the purple canvas.
-     */
-    .app-header:not(.app-header--admin)::before {
-      content: "";
       position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 100%;
-      height: 100lvh;
-      background-color: #000;
-      pointer-events: none;
     }
   }
 
