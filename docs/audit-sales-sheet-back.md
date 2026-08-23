@@ -91,7 +91,7 @@ Walk rank 1 → N. First four hits become the four iPhone exhibits.
 | 12 | Apple Maps | iPhone Maps search, no pin for them, competitors showing. |
 | 13 | No Reviews | Listing card with a blank or near-zero review count. |
 | 14 | Poor Reviews | Live star rating plus two or three of the worst recent reviews. |
-| 15 | Directories | 2×3 grid: Maps in color when listed; Yelp, Bing, Apple, Facebook, Tripadvisor on one shared gray when missing. Official Simple Icons marks. |
+| 15 | Directories | 2×3 grid: Maps in color when listed; Yelp, Bing, Apple, Facebook, Tripadvisor on one shared gray when missing. Green check / red X (IOS_ICONS) in the tile corner. Official Simple Icons marks. |
 | 16 | Wrong Hours | Google hours next to the real hours (or “Closed” when they are open). |
 | 17 | Duplicate Listings | Two Google results for the same business, or a suspended listing. |
 | 18 | Not Public | Password wall, coming-soon, or staging page. |

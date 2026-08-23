@@ -722,7 +722,7 @@ await test('directory exhibit is a 2x3 of color listings and one shared missing 
   assert.match(dirs, /data-ss-exhibit="directories"/);
   assert.match(dirs, /Directory coverage/);
   assert.match(page, /grid-template-columns: 1fr 1fr;/);
-  assert.match(page, /grid-template-rows: 1fr 1fr 1fr;/);
+  assert.match(page, /aspect-ratio: 1\.2 \/ 1;/);
   assert.doesNotMatch(page, /grayscale\(1\)/);
   assert.match(page, /background: #d8d8de;/);
   assert.match(dirs, /data-dir="yelp"/);
@@ -737,7 +737,10 @@ await test('directory exhibit is a 2x3 of color listings and one shared missing 
   assert.match(dirs, /data-dir="bing"[\s\S]*?fill-rule="evenodd"/);
   assert.equal((dirs.match(/ss-phone-dir--off/g) || []).length, 5);
   assert.equal((dirs.match(/ss-phone-dir--on/g) || []).length, 1);
-  assert.doesNotMatch(dirs, /ss-phone-dir-x|IOS_ICONS\.x/);
+  assert.equal((dirs.match(/ss-phone-dir-badge--miss/g) || []).length, 5);
+  assert.equal((dirs.match(/ss-phone-dir-badge--ok/g) || []).length, 1);
+  assert.match(dirs, /IOS_ICONS\.check/);
+  assert.match(dirs, /IOS_ICONS\.x/);
 });
 
 await test('missing Open Graph exhibit is SMS, Facebook, and Instagram as plain text', () => {

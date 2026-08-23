@@ -364,13 +364,15 @@ function iphoneCss(): string {
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr 1fr;
+  grid-auto-rows: auto;
+  align-content: center;
   gap: 6px;
   margin-top: 6px;
 }
 .ss-phone-dir {
   position: relative;
   min-height: 0;
+  aspect-ratio: 1.2 / 1;
   display: grid;
   place-items: center;
   border-radius: 7px;
@@ -384,8 +386,8 @@ function iphoneCss(): string {
 .ss-phone-dir--off .ss-phone-dir-icon svg { fill: #8e8e93; }
 .ss-phone-dir-icon {
   display: block;
-  width: 46%;
-  height: 46%;
+  width: 42%;
+  height: 42%;
 }
 .ss-phone-dir-icon svg {
   display: block;
@@ -393,6 +395,24 @@ function iphoneCss(): string {
   height: 100%;
   fill: #8e8e93;
 }
+.ss-phone-dir-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+}
+.ss-phone-dir-badge svg {
+  display: block;
+  width: 10px;
+  height: 10px;
+}
+.ss-phone-dir-badge--ok { color: #34c759; }
+.ss-phone-dir-badge--miss { color: #ff3b30; }
 .ss-og {
   display: flex;
   flex-direction: column;
@@ -727,14 +747,20 @@ const DIR_TILES = [
   { icon: siTripadvisor, missing: true },
 ] as const;
 
+const DIR_BADGE_OK =
+  '<!-- IOS_ICONS.check — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-badge ss-phone-dir-badge--ok" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>';
+const DIR_BADGE_MISS =
+  '<!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js --><span class="ss-phone-dir-badge ss-phone-dir-badge--miss" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>';
+
 function directoryTileHtml(tile: (typeof DIR_TILES)[number]): string {
   const { icon, missing } = tile;
   const viewBox = icon.slug === 'yelp' ? '0 0 21.2 21.2' : '0 0 24 24';
   const fillRule = icon.slug === 'bing' ? ' fill-rule="evenodd"' : '';
   const mark = `<span class="ss-phone-dir-icon"><svg viewBox="${viewBox}" aria-hidden="true"><path d="${icon.path}"${fillRule}/></svg></span>`;
   const state = missing ? 'off' : 'on';
+  const badge = missing ? DIR_BADGE_MISS : DIR_BADGE_OK;
   const bg = missing ? '' : ` style="--dir-bg:#${icon.hex}"`;
-  return `<div class="ss-phone-dir ss-phone-dir--${state}" data-dir="${icon.slug}"${bg} title="${escapeHtml(icon.title)}">${mark}</div>`;
+  return `<div class="ss-phone-dir ss-phone-dir--${state}" data-dir="${icon.slug}"${bg} title="${escapeHtml(icon.title)}">${mark}${badge}</div>`;
 }
 
 function directoriesScreen(host: string): string {
