@@ -553,7 +553,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 40,
     categoryLabel: 'Security Headers',
     sheet:
-      'Safari’s “This Connection Is Not Private” / iCloud Private Relay interstitial on the audit URL — padlock may be fine, the connection still warns.',
+      'Green padlock in the address bar plus a header-scan card (HSTS / CSP / clickjacking missing, grade F) — visitors see no warning; the scanner does.',
     match: (ctx) =>
       /missing .{0,20}header|hsts|content-security-policy/.test(ctx.lower) &&
       gradeOf(ctx.card, 'security') !== 'F' &&

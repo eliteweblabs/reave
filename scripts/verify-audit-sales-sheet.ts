@@ -1155,10 +1155,11 @@ await test('front header uses the client logo or the crawler missing-logo findin
   assert.doesNotMatch(swapped, />REAVE</);
 });
 
-await test('security exhibit is the Safari Private Relay warning', () => {
-  assert.equal(salesSheetExhibitKind({ id: 'security-headers', categoryLabel: 'Security Headers' }), 'private-relay');
-  assert.equal(salesSheetExhibitKind({ id: 'sec-soft', categoryLabel: 'Security' }), 'private-relay');
+await test('security exhibit is a header scan, not a Safari warning', () => {
+  assert.equal(salesSheetExhibitKind({ id: 'security-headers', categoryLabel: 'Security Headers' }), 'security-headers');
+  assert.equal(salesSheetExhibitKind({ id: 'sec-soft', categoryLabel: 'Security' }), 'security-headers');
   assert.equal(salesSheetExhibitKind({ id: 'ssl-missing', categoryLabel: 'SSL' }), 'ssl');
+  assert.equal(salesSheetExhibitKind({ id: 'mixed-content', categoryLabel: 'Mixed Content' }), 'generic');
   const phone = renderFindingPhoneHtml(
     {
       id: 'security-headers',
@@ -1168,12 +1169,18 @@ await test('security exhibit is the Safari Private Relay warning', () => {
     },
     { website: 'calareneesalon.com' },
   );
-  assert.match(phone, /data-ss-exhibit="private-relay"/);
-  assert.match(phone, /This Connection Is Not Private/);
-  assert.match(phone, /iCloud Private Relay/);
+  assert.match(phone, /data-ss-exhibit="security-headers"/);
+  assert.match(phone, /ss-phone-lock--ok/);
+  assert.match(phone, /Header scan/);
   assert.match(phone, /calareneesalon\.com/);
-  assert.match(phone, /Show IP Address/);
-  assert.match(phone, /Go Back/);
+  assert.match(phone, /HSTS/);
+  assert.match(phone, /Content-Security-Policy/);
+  assert.match(phone, /X-Frame-Options/);
+  assert.match(phone, /Visitors will not see a warning/);
+  assert.doesNotMatch(phone, /This Connection Is Not Private/);
+  assert.doesNotMatch(phone, /iCloud Private Relay/);
+  assert.doesNotMatch(phone, /Show IP Address/);
+  assert.doesNotMatch(phone, /Not Secure/);
   assert.doesNotMatch(phone, /ss-phone-icon--alert/);
   assert.doesNotMatch(phone, /Browsers may warn visitors/);
 });

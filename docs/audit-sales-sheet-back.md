@@ -126,4 +126,4 @@ Directory coverage is **always phone 1** (28 official directory marks, A–Z). W
 | 36 | Thin Content | Placeholder, lorem, or stale page crop. |
 | 37 | No Favicon | Tab strip with the generic globe instead of the brand mark. |
 | 39 | Hosting | Speed score plus the host name (shared / GoDaddy / Bluehost). |
-| 40 | Security Headers | Safari “This Connection Is Not Private” / iCloud Private Relay interstitial on the audit URL. |
+| 40 | Security Headers | Green padlock plus a header-scan card (HSTS / CSP / clickjacking missing). Visitors see no warning. |

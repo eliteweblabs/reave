@@ -30,7 +30,7 @@ export type SalesSheetExhibitKind =
   | 'no-offer'
   | 'directories'
   | 'share-cards'
-  | 'private-relay'
+  | 'security-headers'
   | 'generic';
 
 export type SalesSheetExhibitOpts = {
@@ -118,8 +118,8 @@ export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'c
   }
   if (id === 'directories' || id === 'listings-thin') return 'directories';
   if (isPlacesMissFinding(finding) || id === 'places-not-listed' || id === 'gbp-unclaimed') return 'places';
-  if (id === 'security-headers' || id === 'security-harden' || /mixed-content|private-relay/.test(id)) {
-    return 'private-relay';
+  if (id === 'security-headers' || id === 'security-harden' || /security-header/.test(id)) {
+    return 'security-headers';
   }
   const label = finding.categoryLabel.toLowerCase();
   if (label === 'ssl' || label.includes('certificate')) return 'ssl';
@@ -128,8 +128,8 @@ export function salesSheetExhibitKind(finding: Pick<SalesSheetFinding, 'id' | 'c
   if (label.includes('offer')) return 'no-offer';
   if (label.includes('speed')) return 'speed';
   if (label.includes('share card') || label.includes('open graph')) return 'share-cards';
-  if (label === 'security' || label.includes('security header') || label.includes('mixed content')) {
-    return 'private-relay';
+  if (label.includes('security header') || label === 'security') {
+    return 'security-headers';
   }
   return 'generic';
 }
@@ -298,6 +298,13 @@ function iphoneCss(): string {
   border-radius: 3px 3px 0 0;
   transform: rotate(-18deg);
 }
+.ss-phone-lock--ok {
+  border-color: #248a3d;
+}
+.ss-phone-lock--ok::after {
+  border-color: #248a3d;
+  transform: none;
+}
 .ss-phone-warn {
   color: #b42318;
   font-weight: 700;
@@ -367,95 +374,100 @@ function iphoneCss(): string {
 }
 .ss-phone-icon--danger { background: #ffe5e3; color: #c62828; }
 .ss-phone-icon--alert { background: #fff3cd; color: #8a6d1b; }
-.ss-relay {
+.ss-phone-body.ss-hdr {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 7px 8%;
+}
+.ss-hdr-card {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #f2f2f7;
+  padding: 7px 7px 6px;
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 8px;
 }
-.ss-relay-main {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 18% 11px 8px;
-  text-align: center;
-}
-.ss-relay-shield {
-  width: 36px;
-  height: 36px;
-  margin: 0 0 10px;
+.ss-hdr-kicker {
+  margin: 0 0 1px;
+  font-size: 5.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: #8e8e93;
 }
-.ss-relay-shield svg { display: block; width: 100%; height: 100%; }
-.ss-relay-h {
-  margin: 0 0 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-  color: #3a3a3c;
+.ss-hdr-url {
+  margin: 0 0 7px;
+  font-size: 6.5px;
+  font-weight: 600;
+  color: #1d1d1f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.ss-relay-p {
-  margin: 0 0 14px;
-  font-size: 7px;
-  font-weight: 400;
-  line-height: 1.4;
-  color: #6e6e73;
-}
-.ss-relay-links {
+.ss-hdr-grade {
   display: flex;
-  justify-content: space-between;
-  width: 100%;
-  margin: 0;
-  font-size: 7.5px;
-  font-weight: 500;
-  color: #007aff;
-}
-.ss-relay-safari {
-  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 7px 8px 11%;
-  background: linear-gradient(#ececf1, #d8d8de);
+  margin: 0 0 8px;
 }
-.ss-relay-round {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  color: #3a3a3c;
+.ss-hdr-grade strong {
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
+  border-radius: 50%;
+  background: #c62828;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
-.ss-relay-round svg { width: 8px; height: 8px; display: block; }
-.ss-relay-url {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 18px;
-  padding: 0 6px;
-  background: #d1d1d6;
-  border-radius: 999px;
-  color: #1d1d1f;
-  font-size: 7px;
+.ss-hdr-grade span {
+  margin-top: 2px;
+  font-size: 5.5px;
   font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8e8e93;
 }
-.ss-relay-url em {
-  flex: 1 1 auto;
+.ss-hdr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ss-hdr-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2.5px 0;
+  border-top: 0.4px solid #f1f3f4;
+  font-size: 5.6px;
+}
+.ss-hdr-row span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-style: normal;
-  text-align: center;
+  font-weight: 500;
+  color: #3a3a3c;
 }
-.ss-relay-url svg { flex: 0 0 auto; width: 7px; height: 7px; color: #6e6e73; }
+.ss-hdr-row em {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-weight: 700;
+  color: #c62828;
+}
+.ss-hdr-note {
+  margin: 7px 0 0;
+  font-size: 5.6px;
+  line-height: 1.3;
+  color: #6e6e73;
+}
 .ss-phone-park {
   margin-top: 8px;
   padding: 8px;
@@ -966,6 +978,10 @@ function chromeBar(host: string, insecure = true): string {
   }<span class="ss-phone-host">${escapeHtml(host)}</span></div>`;
 }
 
+function secureChromeBar(host: string): string {
+  return `<div class="ss-phone-chrome"><span class="ss-phone-lock ss-phone-lock--ok" aria-hidden="true"></span><span class="ss-phone-host">${escapeHtml(host)}</span></div>`;
+}
+
 function sslScreen(host: string, finding: SalesSheetFinding): string {
   const expired = finding.id === 'ssl-expired' || /expir/i.test(finding.categoryLabel);
   const title = expired ? 'Your connection is not private' : 'Your connection is not private';
@@ -1134,27 +1150,30 @@ function shareCardsScreen(host: string, name: string): string {
 </div>`;
 }
 
-const RELAY_SHIELD =
-  '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6c10 6 18 7 24 7v18c0 16-10 26-24 31C18 57 8 47 8 31V13c6 0 14-1 24-7z" fill="#c7c7cc"/><path d="M32 16 46 42H18L32 16z" fill="#ff9f0a"/><path d="M32 16 46 42H18L32 16z" fill="none" stroke="#ff9f0a" stroke-width="1"/><rect x="30.4" y="26" width="3.2" height="10" rx="1.2" fill="#1d1d1f"/><circle cx="32" cy="40" r="1.7" fill="#1d1d1f"/></svg>';
+const SECURITY_HEADER_ROWS = [
+  ['HSTS', 'Missing'],
+  ['Content-Security-Policy', 'Missing'],
+  ['X-Frame-Options', 'Missing'],
+  ['X-Content-Type-Options', 'Missing'],
+  ['Referrer-Policy', 'Missing'],
+  ['Permissions-Policy', 'Missing'],
+] as const;
 
-function privateRelayScreen(host: string): string {
-  return `<div class="ss-relay">
-  <div class="ss-relay-main">
-    <div class="ss-relay-shield">${RELAY_SHIELD}</div>
-    <p class="ss-relay-h">This Connection Is Not Private</p>
-    <p class="ss-relay-p">iCloud Private Relay is unable to hide your IP address from this site. By continuing to ‘${escapeHtml(host)}’ your IP address will be revealed.</p>
-    <p class="ss-relay-links"><span>Show IP Address</span><span>Go Back</span></p>
-  </div>
-  <div class="ss-relay-safari">
-    <span class="ss-relay-round" aria-hidden="true"><!-- IOS_ICONS.chevron-left — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></span>
-    <div class="ss-relay-url">
-      <em>${escapeHtml(host)}</em>
-      <!-- IOS_ICONS.refresh — keep in sync with public/admin/admin-ui.js -->
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-    </div>
-    <span class="ss-relay-round" aria-hidden="true"><!-- IOS_ICONS.more — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
-  </div>
-</div>`;
+function securityHeadersScreen(host: string): string {
+  const rows = SECURITY_HEADER_ROWS.map(
+    ([name, status]) =>
+      `<li class="ss-hdr-row"><span>${escapeHtml(name)}</span><em>${escapeHtml(status)}</em></li>`,
+  ).join('');
+  return `${secureChromeBar(host)}
+    <div class="ss-phone-body ss-hdr">
+      <div class="ss-hdr-card">
+        <p class="ss-hdr-kicker">Header scan</p>
+        <p class="ss-hdr-url">${escapeHtml(host)}</p>
+        <div class="ss-hdr-grade"><strong>F</strong><span>Grade</span></div>
+        <ul class="ss-hdr-list">${rows}</ul>
+        <p class="ss-hdr-note">Certificate is valid. Visitors will not see a warning.</p>
+      </div>
+    </div>`;
 }
 
 function genericScreen(host: string, finding: SalesSheetFinding): string {
@@ -1192,8 +1211,8 @@ function screenFor(
       return directoriesScreen(host, finding, opts);
     case 'share-cards':
       return shareCardsScreen(host, name);
-    case 'private-relay':
-      return privateRelayScreen(host);
+    case 'security-headers':
+      return securityHeadersScreen(host);
     default:
       return genericScreen(host, finding);
   }
