@@ -3,7 +3,7 @@
  * Run: npm run check:sales-sheet
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -65,6 +65,7 @@ import {
   DIRECTORY_SLUGS,
   checksFromSignals,
   directorySlugsForGroup,
+  directorySlugsSorted,
   listedDirectorySlugs,
   parseDirectoryIconGroup,
   pinDirectoryCoverageFirst,
@@ -775,24 +776,24 @@ await test('directory exhibit is a 4x7 of official icons scored pass / half / fa
     text: finding.problem,
     googlePlacesListed: true,
   });
-  assert.ok(listed.has('googlemaps'));
+  assert.ok(listed.has('google'));
   assert.equal(listed.has('yelp'), false);
   assert.equal(listed.has('apple'), false);
   const missingGoogle = listedDirectorySlugs({
     text: 'The business is missing from Google Business Profile and Apple Maps.',
   });
-  assert.equal(missingGoogle.has('googlemaps'), false);
+  assert.equal(missingGoogle.has('google'), false);
   assert.equal(missingGoogle.has('apple'), false);
   const liveWins = listedDirectorySlugs({
     text: 'Missing from Google, Apple Maps, and major directories.',
     googlePlacesListed: true,
   });
-  assert.ok(liveWins.has('googlemaps'));
+  assert.ok(liveWins.has('google'));
   assert.equal(liveWins.has('apple'), false);
 
   const checks = checksFromSignals({
     linked: ['instagram', 'facebook'],
-    found: ['instagram', 'facebook', 'yelp', 'googlemaps'],
+    found: ['instagram', 'facebook', 'yelp', 'google'],
   });
   const dirs = renderFindingPhoneHtml(finding, {
     website: 'weprintwraps.com',
@@ -815,22 +816,26 @@ await test('directory exhibit is a 4x7 of official icons scored pass / half / fa
   assert.match(page, /Found, not linked/);
   assert.match(page, /No matching profile/);
   assert.match(dirs, /data-icon-group="general"/);
-  assert.match(dirs, /admin\/dir-icons\/amazon\.png/);
-  assert.match(dirs, /admin\/dir-icons\/eventbrite\.png/);
-  assert.match(dirs, /admin\/dir-icons\/meetup\.png/);
-  assert.match(dirs, /admin\/dir-icons\/messenger\.png/);
+  assert.match(dirs, /admin\/dir-icons\/bbb\.png/);
+  assert.match(dirs, /admin\/dir-icons\/avvo\.png/);
+  assert.match(dirs, /admin\/dir-icons\/manta\.png/);
+  assert.match(dirs, /admin\/dir-icons\/homeadvisor\.png/);
   assert.match(dirs, /admin\/dir-icons\/instagram\.png/);
-  assert.match(dirs, /admin\/dir-icons\/youtube\.png/);
-  assert.match(dirs, /ss-phone-dir-name">Maps</);
-  assert.match(dirs, /data-dir="apple"[\s\S]*?ss-phone-dir-name">Maps</);
-  assert.doesNotMatch(dirs, /ss-phone-dir-name">Apple</);
-  assert.match(dirs, /ss-phone-dir-name">YouTube</);
-  assert.match(dirs, /data-dir="amazon"/);
+  assert.match(dirs, /admin\/dir-icons\/google\.png/);
+  assert.match(dirs, /data-dir="apple"[\s\S]*?ss-phone-dir-name">Apple</);
+  assert.doesNotMatch(dirs, /ss-phone-dir-name">Maps</);
+  assert.match(dirs, /ss-phone-dir-name">BBB</);
+  assert.match(dirs, /data-dir="bbb"/);
   assert.match(dirs, /data-dir="yelp"/);
   assert.match(dirs, /data-dir="instagram"/);
-  assert.match(dirs, /data-dir="youtube"/);
+  assert.match(dirs, /data-dir="dataaxle"/);
   assert.equal((dirs.match(/data-dir="/g) || []).length, DIRECTORY_SLUGS.length);
   assert.equal(DIRECTORY_SLUGS.length, 28);
+  assert.deepEqual([...DIRECTORY_SLUGS], directorySlugsSorted());
+  const iconDir = join(dirname(fileURLToPath(import.meta.url)), '../public/admin/dir-icons');
+  for (const slug of DIRECTORY_SLUGS) {
+    assert.ok(existsSync(join(iconDir, `${slug}.png`)), `missing icon ${slug}.png`);
+  }
   assert.match(dirs, /data-dir="instagram"[^>]*data-verdict="pass"|data-dir="instagram"[\s\S]*?ss-phone-dir--pass/);
   assert.match(dirs, /data-dir="yelp"[^>]*data-verdict="half"|data-dir="yelp"[\s\S]*?ss-phone-dir--half/);
   assert.match(dirs, /data-dir="tiktok"[^>]*data-verdict="fail"|data-dir="tiktok"[\s\S]*?ss-phone-dir--fail/);
@@ -870,13 +875,13 @@ await test('directory coverage scores site links as pass, name-match as half, no
     <a href="#top">skip</a>
   `);
   assert.ok(linked.has('instagram'));
-  assert.ok(linked.has('googlemaps'));
   assert.ok(linked.has('google'));
   assert.equal(linked.has('yelp'), false);
+  assert.equal(slugsLinkedFromHtml('<a href="https://www.google.com/">Google</a>').has('google'), false);
 
   const siteOnly = slugsLinkedFromHtml('<a href="https://www.instagram.com/wrapco">IG</a>');
   const found = new Set(siteOnly);
-  found.add('googlemaps');
+  found.add('google');
   const searchHits = [
     {
       title: 'Wrap Co - Yelp',
@@ -901,7 +906,7 @@ await test('directory coverage scores site links as pass, name-match as half, no
   assert.equal(bySlug.yelp?.verdict, 'half');
   assert.equal(bySlug.yelp?.linkedFromSite, false);
   assert.equal(bySlug.yelp?.foundOffSite, true);
-  assert.equal(bySlug.googlemaps?.verdict, 'half');
+  assert.equal(bySlug.google?.verdict, 'half');
   assert.equal(bySlug.facebook?.verdict, 'fail');
   assert.equal(bySlug.tiktok?.verdict, 'fail');
   assert.match(summarizeDirectoryChecks(checks), /linked from the website/);

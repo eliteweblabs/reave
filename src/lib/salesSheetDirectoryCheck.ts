@@ -16,10 +16,10 @@ import {
 } from './salesSheetDirectories';
 
 const SOCIAL_SITES =
-  'site:instagram.com OR site:facebook.com OR site:youtube.com OR site:tiktok.com OR site:nextdoor.com OR site:linkedin.com OR site:x.com OR site:twitter.com OR site:threads.net OR site:pinterest.com OR site:snapchat.com OR site:reddit.com OR site:whatsapp.com OR site:messenger.com OR site:m.me';
+  'site:instagram.com OR site:facebook.com OR site:tiktok.com OR site:nextdoor.com OR site:linkedin.com OR site:x.com OR site:twitter.com OR site:bsky.app OR site:bsky.social';
 
 const DIRECTORY_SITES =
-  'site:yelp.com OR site:tripadvisor.com OR site:thumbtack.com OR site:angi.com OR site:houzz.com OR site:yellowpages.com OR site:yp.com OR site:foursquare.com OR site:waze.com OR site:maps.apple.com OR site:eventbrite.com OR site:meetup.com OR site:amazon.com';
+  'site:yelp.com OR site:tripadvisor.com OR site:thumbtack.com OR site:angi.com OR site:homeadvisor.com OR site:houzz.com OR site:yellowpages.com OR site:yp.com OR site:foursquare.com OR site:maps.apple.com OR site:businessconnect.apple.com OR site:bbb.org OR site:avvo.com OR site:manta.com OR site:superpages.com OR site:merchantcircle.com OR site:hotfrog.com OR site:brownbook.net OR site:chamberofcommerce.com OR site:porch.com OR site:dataaxle.com OR site:bingplaces.com';
 
 export async function checkDirectoryCoverage(opts: {
   website?: string;
@@ -48,7 +48,6 @@ export async function checkDirectoryCoverage(opts: {
   const found = new Set<DirectorySlug>(linked);
 
   if (opts.googlePlacesListed === true) {
-    found.add('googlemaps');
     found.add('google');
   }
 

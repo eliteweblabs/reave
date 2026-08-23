@@ -246,7 +246,7 @@ async function runProposalResearch(input: {
   const tierLabel = input.tier === 'full' ? 'Full audit' : 'Quick audit (street)';
 
   const directorySearch =
-    'scan homepage links first; then "{business}" site:instagram.com / facebook / youtube / nextdoor / tiktok / yelp / … — no site link = half fail, no matching profile = full fail; also GBP / Apple Maps / reviews';
+    'scan homepage links first; then "{business}" site:yelp.com / bbb.org / nextdoor.com / angi.com / facebook.com / … — no site link = half fail, no matching profile = full fail; also GBP / Apple Business Connect / reviews';
 
   const auditToolsStep =
     input.tier === 'full'

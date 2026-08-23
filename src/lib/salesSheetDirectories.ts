@@ -5,34 +5,34 @@
  * profile (Places / name search) is a half-fail. Neither is a full fail.
  */
 export const DIRECTORY_SLUGS = [
-  'amazon',
   'angi',
   'apple',
+  'avvo',
+  'bbb',
   'bing',
-  'eventbrite',
+  'bluesky',
+  'brownbook',
+  'chamber',
+  'dataaxle',
   'facebook',
   'foursquare',
   'google',
-  'googlemaps',
+  'homeadvisor',
+  'hotfrog',
   'houzz',
   'instagram',
   'linkedin',
-  'meetup',
-  'messenger',
+  'manta',
+  'merchantcircle',
   'nextdoor',
-  'pinterest',
-  'reddit',
-  'snapchat',
-  'threads',
+  'porch',
+  'superpages',
   'thumbtack',
   'tiktok',
   'tripadvisor',
-  'waze',
-  'whatsapp',
   'x',
   'yellowpages',
   'yelp',
-  'youtube',
 ] as const;
 
 export type DirectorySlug = (typeof DIRECTORY_SLUGS)[number];
@@ -48,69 +48,79 @@ export type DirectoryCheck = {
 };
 
 export const DIRECTORY_APPS: { slug: DirectorySlug; title: string; short?: string; host: RegExp }[] = [
-  { slug: 'amazon', title: 'Amazon', host: /(?:^|\.)(?:amazon\.com|amzn\.to|a\.co)$/i },
-  { slug: 'angi', title: 'Angi', host: /(?:^|\.)(?:angi\.com|homeadvisor\.com)$/i },
-  { slug: 'apple', title: 'Apple Maps', short: 'Maps', host: /(?:^|\.)maps\.apple\.com$/i },
-  { slug: 'bing', title: 'Bing', host: /(?:^|\.)bing\.com$/i },
-  { slug: 'eventbrite', title: 'Eventbrite', host: /(?:^|\.)eventbrite\.com$/i },
+  { slug: 'angi', title: 'Angi', host: /(?:^|\.)angi\.com$/i },
+  { slug: 'apple', title: 'Apple Business Connect', short: 'Apple', host: /(?:^|\.)(?:maps\.apple\.com|businessconnect\.apple\.com)$/i },
+  { slug: 'avvo', title: 'Avvo', host: /(?:^|\.)avvo\.com$/i },
+  { slug: 'bbb', title: 'Better Business Bureau', short: 'BBB', host: /(?:^|\.)bbb\.org$/i },
+  { slug: 'bing', title: 'Bing Places', short: 'Bing', host: /(?:^|\.)(?:bing\.com|bingplaces\.com)$/i },
+  { slug: 'bluesky', title: 'Bluesky', host: /(?:^|\.)(?:bsky\.app|bsky\.social)$/i },
+  { slug: 'brownbook', title: 'Brownbook', short: 'Brown', host: /(?:^|\.)brownbook\.net$/i },
+  { slug: 'chamber', title: 'Chamber of Commerce', short: 'Chamber', host: /(?:^|\.)(?:chamberofcommerce\.com|chamber\.com)$/i },
+  { slug: 'dataaxle', title: 'Data Axle', short: 'Axle', host: /(?:^|\.)(?:dataaxle\.com|data-axle\.com|referenceusa\.com)$/i },
   { slug: 'facebook', title: 'Facebook', host: /(?:^|\.)(?:facebook\.com|fb\.com|fb\.me)$/i },
   { slug: 'foursquare', title: 'Foursquare', host: /(?:^|\.)(?:foursquare\.com|swarmapp\.com)$/i },
-  { slug: 'google', title: 'Google', host: /(?:^|\.)google\.com$/i },
-  { slug: 'googlemaps', title: 'Google Maps', short: 'Maps', host: /(?:^|\.)(?:maps\.google\.com|google\.com|g\.page|goo\.gl)$/i },
+  { slug: 'google', title: 'Google Business Profile', short: 'Google', host: /(?:^|\.)(?:google\.com|maps\.google\.com|g\.page|goo\.gl|business\.google\.com)$/i },
+  { slug: 'homeadvisor', title: 'HomeAdvisor', short: 'HA', host: /(?:^|\.)homeadvisor\.com$/i },
+  { slug: 'hotfrog', title: 'Hotfrog', host: /(?:^|\.)hotfrog\.com$/i },
   { slug: 'houzz', title: 'Houzz', host: /(?:^|\.)houzz\.com$/i },
   { slug: 'instagram', title: 'Instagram', host: /(?:^|\.)(?:instagram\.com|instagr\.am)$/i },
   { slug: 'linkedin', title: 'LinkedIn', host: /(?:^|\.)linkedin\.com$/i },
-  { slug: 'meetup', title: 'Meetup', host: /(?:^|\.)meetup\.com$/i },
-  { slug: 'messenger', title: 'Messenger', host: /(?:^|\.)(?:messenger\.com|m\.me)$/i },
+  { slug: 'manta', title: 'Manta', host: /(?:^|\.)manta\.com$/i },
+  { slug: 'merchantcircle', title: 'MerchantCircle', short: 'Circle', host: /(?:^|\.)merchantcircle\.com$/i },
   { slug: 'nextdoor', title: 'Nextdoor', host: /(?:^|\.)nextdoor\.com$/i },
-  { slug: 'pinterest', title: 'Pinterest', host: /(?:^|\.)pinterest\.com$/i },
-  { slug: 'reddit', title: 'Reddit', host: /(?:^|\.)reddit\.com$/i },
-  { slug: 'snapchat', title: 'Snapchat', host: /(?:^|\.)snapchat\.com$/i },
-  { slug: 'threads', title: 'Threads', host: /(?:^|\.)threads\.net$/i },
+  { slug: 'porch', title: 'Porch', host: /(?:^|\.)porch\.com$/i },
+  { slug: 'superpages', title: 'Superpages', short: 'Super', host: /(?:^|\.)superpages\.com$/i },
   { slug: 'thumbtack', title: 'Thumbtack', host: /(?:^|\.)thumbtack\.com$/i },
   { slug: 'tiktok', title: 'TikTok', host: /(?:^|\.)tiktok\.com$/i },
   { slug: 'tripadvisor', title: 'Tripadvisor', host: /(?:^|\.)tripadvisor\.com$/i },
-  { slug: 'waze', title: 'Waze', host: /(?:^|\.)waze\.com$/i },
-  { slug: 'whatsapp', title: 'WhatsApp', host: /(?:^|\.)(?:whatsapp\.com|wa\.me)$/i },
   { slug: 'x', title: 'X', host: /(?:^|\.)(?:x\.com|twitter\.com|t\.co)$/i },
   { slug: 'yellowpages', title: 'Yellow Pages', short: 'YP', host: /(?:^|\.)(?:yellowpages\.com|yp\.com)$/i },
   { slug: 'yelp', title: 'Yelp', host: /(?:^|\.)yelp\.com$/i },
-  { slug: 'youtube', title: 'YouTube', host: /(?:^|\.)(?:youtube\.com|youtu\.be)$/i },
 ];
 
 const DIR_NAME_RE: Record<DirectorySlug, RegExp> = {
-  amazon: /\bamazon\b/i,
-  angi: /\bangi\b|\bhomeadvisor\b/i,
-  apple: /\bapple(?:\s+(?:maps|business))?\b|\bbusiness connect\b/i,
+  angi: /\bangi\b|\bangie'?s list\b/i,
+  apple: /\bapple(?:\s+(?:maps|business(?:\s+connect)?))?\b|\bbusiness connect\b/i,
+  avvo: /\bavvo\b/i,
+  bbb: /\bbbb\b|\bbetter business bureau\b/i,
   bing: /\bbing(?:\s+places)?\b/i,
-  eventbrite: /\beventbrite\b/i,
+  bluesky: /\bbluesky\b|\bbsky\b/i,
+  brownbook: /\bbrownbook\b/i,
+  chamber: /\bchamber(?:\s+of\s+commerce)?\b/i,
+  dataaxle: /\bdata\s*axle\b|\breferenceusa\b/i,
   facebook: /\bfacebook\b|\bfb\.com\b/i,
   foursquare: /\bfoursquare\b|\bswarm\b/i,
-  google: /\bgoogle(?:\s+app)?\b/i,
-  googlemaps: /\bgoogle(?:\s+(?:maps|business|places|my business))?\b|\bgbp\b|\bgmb\b/i,
+  google: /\bgoogle(?:\s+(?:maps|business|places|my business|app))?\b|\bgbp\b|\bgmb\b/i,
+  homeadvisor: /\bhomeadvisor\b/i,
+  hotfrog: /\bhotfrog\b/i,
   houzz: /\bhouzz\b/i,
   instagram: /\binstagram\b|\binsta\b/i,
   linkedin: /\blinkedin\b/i,
-  meetup: /\bmeetup\b/i,
-  messenger: /\bmessenger\b/i,
+  manta: /\bmanta\b/i,
+  merchantcircle: /\bmerchant\s*circle\b/i,
   nextdoor: /\bnextdoor\b/i,
-  pinterest: /\bpinterest\b/i,
-  reddit: /\breddit\b/i,
-  snapchat: /\bsnapchat\b/i,
-  threads: /\bthreads\b/i,
+  porch: /\bporch\b/i,
+  superpages: /\bsuperpages\b/i,
   thumbtack: /\bthumbtack\b/i,
   tiktok: /\btiktok\b/i,
   tripadvisor: /\btrip\s*advisor\b/i,
-  waze: /\bwaze\b/i,
-  whatsapp: /\bwhats?app\b/i,
   x: /\b(?:twitter|\bx\.com\b|\bx\b)\b/i,
   yellowpages: /\byellow\s*pages\b|\byp\.com\b/i,
   yelp: /\byelp\b/i,
-  youtube: /\byoutube\b|\byoutu\.be\b/i,
 };
 
-const GOOGLE_MAPS_PATH = /\/maps|\/business|g\.page/i;
+const GOOGLE_PROFILE_PATH = /\/maps|\/business|g\.page/i;
 const BING_PATH = /\/maps|\/places/i;
+
+function isGoogleBusinessLink(host: string, path: string): boolean {
+  if (/^(?:maps\.google\.com|g\.page|goo\.gl|business\.google\.com)$/i.test(host)) return true;
+  return GOOGLE_PROFILE_PATH.test(host + path);
+}
+
+function isBingPlacesLink(host: string, path: string): boolean {
+  if (/bingplaces\.com$/i.test(host)) return true;
+  return BING_PATH.test(path);
+}
 
 const NEGATIVE = /missing|not found|unclaimed|nowhere|no listing|not listed|point nowhere|absent|unchecked|full fail/i;
 const POSITIVE = /listed|found|claimed|present|live|active|confirmed|matched|linked/i;
@@ -167,14 +177,14 @@ export function directorySlugsSorted(slugs: readonly DirectorySlug[] = DIRECTORY
 }
 
 /**
- * Per-industry 24-icon packs. Only General local ships today — music
+ * Per-industry 28-icon packs. Only General local ships today — music
  * (Spotify / Apple Music / SoundCloud), restaurants, and others plug in here.
  */
 export const DIRECTORY_ICON_GROUPS = [
   {
     id: 'general',
     label: 'General local',
-    hint: 'Maps, reviews, and the major socials. More industry packs later.',
+    hint: 'Maps, reviews, and local business listings. More industry packs later.',
     slugs: DIRECTORY_SLUGS,
   },
 ] as const;
@@ -217,20 +227,8 @@ export function slugsLinkedFromHtml(html: string, pageUrl?: string): Set<Directo
     const path = `${url.pathname}${url.search}`;
     for (const app of DIRECTORY_APPS) {
       if (!app.host.test(host)) continue;
-      if (
-        app.slug === 'googlemaps' &&
-        !GOOGLE_MAPS_PATH.test(host + path) &&
-        !/^(?:maps\.google\.com|g\.page|goo\.gl)$/i.test(host)
-      ) {
-        continue;
-      }
-      if (
-        app.slug === 'google' &&
-        (GOOGLE_MAPS_PATH.test(host + path) || /^(?:maps\.google\.com|g\.page|goo\.gl)$/i.test(host))
-      ) {
-        continue;
-      }
-      if (app.slug === 'bing' && !BING_PATH.test(path) && !/bing\.com$/i.test(host)) continue;
+      if (app.slug === 'google' && !isGoogleBusinessLink(host, path)) continue;
+      if (app.slug === 'bing' && !isBingPlacesLink(host, path)) continue;
       found.add(app.slug);
     }
   }
@@ -263,19 +261,8 @@ export function slugFromProfileUrl(url: string): DirectorySlug | null {
     const path = `${parsed.pathname}${parsed.search}`;
     for (const app of DIRECTORY_APPS) {
       if (!app.host.test(host)) continue;
-      if (
-        app.slug === 'googlemaps' &&
-        !GOOGLE_MAPS_PATH.test(host + path) &&
-        !/^(?:maps\.google\.com|g\.page|goo\.gl)$/i.test(host)
-      ) {
-        continue;
-      }
-      if (
-        app.slug === 'google' &&
-        (GOOGLE_MAPS_PATH.test(host + path) || /^(?:maps\.google\.com|g\.page|goo\.gl)$/i.test(host))
-      ) {
-        return 'googlemaps';
-      }
+      if (app.slug === 'google' && !isGoogleBusinessLink(host, path)) continue;
+      if (app.slug === 'bing' && !isBingPlacesLink(host, path)) continue;
       return app.slug;
     }
   } catch {
@@ -365,18 +352,18 @@ export function listedDirectorySlugs(opts: DirectoryCoverageOpts = {}): Set<Dire
   }
 
   if (opts.googlePlacesListed === true) {
-    listed.add('googlemaps');
-    missing.delete('googlemaps');
+    listed.add('google');
+    missing.delete('google');
   } else if (opts.googlePlacesListed === false) {
-    missing.add('googlemaps');
-    listed.delete('googlemaps');
+    missing.add('google');
+    listed.delete('google');
   }
 
   for (const slug of forced) listed.add(slug);
   for (const slug of missing) listed.delete(slug);
 
-  if (opts.googlePlacesListed == null && !missing.has('googlemaps') && !listed.has('googlemaps')) {
-    listed.add('googlemaps');
+  if (opts.googlePlacesListed == null && !missing.has('google') && !listed.has('google')) {
+    listed.add('google');
   }
 
   return listed;
