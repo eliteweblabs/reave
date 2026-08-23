@@ -705,7 +705,7 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
   assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
 });
 
-await test('directory exhibit is a 3x2 of color listings and faded missing tiles', () => {
+await test('directory exhibit is a 2x3 of color listings and one shared missing gray', () => {
   assert.equal(salesSheetExhibitKind({ id: 'directories', categoryLabel: 'Directories' }), 'directories');
   const finding = {
     id: 'directories',
@@ -721,8 +721,10 @@ await test('directory exhibit is a 3x2 of color listings and faded missing tiles
   });
   assert.match(dirs, /data-ss-exhibit="directories"/);
   assert.match(dirs, /Directory coverage/);
-  assert.match(page, /grid-template-columns: 1fr 1fr 1fr/);
-  assert.match(page, /grayscale\(1\)/);
+  assert.match(page, /grid-template-columns: 1fr 1fr;/);
+  assert.match(page, /grid-template-rows: 1fr 1fr 1fr;/);
+  assert.doesNotMatch(page, /grayscale\(1\)/);
+  assert.match(page, /background: #d8d8de;/);
   assert.match(dirs, /data-dir="yelp"/);
   assert.match(dirs, /data-dir="bing"/);
   assert.match(dirs, /data-dir="apple"/);
@@ -730,6 +732,9 @@ await test('directory exhibit is a 3x2 of color listings and faded missing tiles
   assert.match(dirs, /data-dir="facebook"/);
   assert.match(dirs, /data-dir="tripadvisor"/);
   assert.match(dirs, /ss-phone-dir--on/);
+  assert.match(dirs, /--dir-bg:#4285F4/);
+  assert.match(dirs, /data-dir="yelp"[\s\S]*?viewBox="0 0 21\.2 21\.2"/);
+  assert.match(dirs, /data-dir="bing"[\s\S]*?fill-rule="evenodd"/);
   assert.equal((dirs.match(/ss-phone-dir--off/g) || []).length, 5);
   assert.equal((dirs.match(/ss-phone-dir--on/g) || []).length, 1);
   assert.doesNotMatch(dirs, /ss-phone-dir-x|IOS_ICONS\.x/);
