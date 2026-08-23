@@ -628,8 +628,8 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /\.doc-onepager::before/);
   assert.match(back, /background-repeat: repeat/);
   assert.match(back, /background-position: center center/);
-  assert.match(back, /background-size: 28\.6in 22\.1in/);
-  assert.match(back, /opacity: 0\.15/);
+  assert.match(back, /background-size: 29\.029in 22\.4315in/);
+  assert.match(back, /opacity: 0\.05/);
   assert.doesNotMatch(back, /mask-image:/);
   assert.doesNotMatch(back, /\.ss-back-col::before/);
   assert.doesNotMatch(back, /\.ss-back-col::after/);

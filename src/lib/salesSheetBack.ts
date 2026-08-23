@@ -165,8 +165,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   background-image: url("/reave-bg-pattern.svg");
   background-repeat: repeat;
   background-position: center center;
-  background-size: ${orientation === 'landscape' ? '28.6in 22.1in' : '22.1in 28.6in'};
-  opacity: 0.15;
+  background-size: ${orientation === 'landscape' ? '29.029in 22.4315in' : '22.4315in 29.029in'};
+  opacity: 0.05;
   filter: grayscale(1);
   pointer-events: none;
   -webkit-print-color-adjust: exact;
