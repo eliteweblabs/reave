@@ -372,6 +372,18 @@ html.account-menu-open .app-header {
   z-index: 2200;
 }
 
+/*
+ * Setup notices live in the header. Raising the header keeps logo / profile
+ * above the drawer, but would also paint the banner over PROFILE. Hide the
+ * notices while the overlay is open — they cannot leave this stacking context.
+ */
+html.overlay-menu-open .admin-setup-alerts,
+html.marketing-menu-open .admin-setup-alerts,
+html.account-menu-open .admin-setup-alerts {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 html.overlay-menu-open .app-header-logo,
 html.overlay-menu-open .marketing-nav,
 html.account-menu-open .topbar-end {
