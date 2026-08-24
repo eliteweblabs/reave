@@ -2,8 +2,8 @@
  * Agent tool module: exec_wp
  *
  * Calls the Reave Connect WordPress™ plugin REST API to manage any site
- * remotely — no SSH required. Gated by the wordpress_content module
- * (super-admin Add-ons toggle) plus REAVE_WP_API_KEY.
+ * remotely — no SSH required. Gated by the wordpress_content add-on
+ * plus REAVE_WP_API_KEY.
  */
 
 import { hasFeature } from '../../features';
@@ -28,12 +28,23 @@ const WP_ACTIONS = [
   'get_option',
   'update_option',
   'flush_cache',
+  'flush_rewrite',
+  'health',
+  'search_replace',
   'get_active_theme',
   'list_content',
   'get_content',
   'create_content',
   'update_content',
   'delete_content',
+  'get_post_meta',
+  'update_post_meta',
+  'list_menus',
+  'get_menu_items',
+  'update_menu_item',
+  'list_redirects',
+  'create_redirect',
+  'delete_redirect',
   'list_media',
   'get_media',
   'upload_media',
@@ -64,11 +75,11 @@ const definition: AgentToolDef = {
     name: 'exec_wp',
     description:
       'Remotely manage a WordPress site via the reave-connect plugin REST API. ' +
-      'Use for site ops (indexing, plugins, cache, options) and for posts/pages/media ' +
-      '(list_content, get_content, create_content, update_content, delete_content, ' +
-      'list_media, upload_media, set_featured_image). ' +
+      'Use for site ops (indexing, plugins, cache, rewrite flush, options, health, search_replace), ' +
+      'menus, redirects, post meta, and posts/pages/media. ' +
       `Requires the reave-connect plugin on the target site and ${WP_API_KEY_ENV}. ` +
       'Prefer the dedicated wp_* content tools when wordpress_content is enabled. ' +
+      'search_replace always dry-runs unless dry_run is false after the owner confirmed. ' +
       'One API key works across ALL sites.',
     parameters: {
       type: 'object',
@@ -88,7 +99,10 @@ const definition: AgentToolDef = {
           description:
             'Action-specific parameters. ' +
             'install_plugin: { slug: "yoast-seo", activate: true }. ' +
-            'create_content / update_content: { id?, post_type: "page"|"post", title, content, excerpt, status, slug }. ' +
+            'create_content / update_content: { id?, post_type: "page"|"post", title, content, excerpt, status, slug, meta? }. ' +
+            'search_replace: { search, replace, dry_run? } — dry_run defaults true. ' +
+            'update_menu_item: { menu_id, item_id, title?, url? }. ' +
+            'create_redirect: { from, to, code? }. ' +
             'upload_media: { url } or { filename, data_base64, title?, alt?, post_id? }. ' +
             'set_featured_image: { post_id, media_id }.',
           additionalProperties: true,

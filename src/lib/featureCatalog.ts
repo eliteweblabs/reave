@@ -176,7 +176,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   content_management: 'Edit the install’s own front-end repo through the agent — not the REΛVE app',
   stock_photos: 'Royalty-free search for pages, decks, and newsletters',
   wordpress_content:
-    'Super-admin module — agent updates posts, pages, and media on a WordPress™ site via Reave Connect',
+    'Agent updates posts, pages, media, menus, and redirects on a WordPress™ site via Reave Connect',
   seo_directory:
     'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, and Bing',
   event_ticketing:
@@ -208,7 +208,6 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
   dev_infra: 'private',
   code_dev: 'private',
   namecom_dns: 'private',
-  wordpress_content: 'private',
   google_workspace: 'service',
 };
 

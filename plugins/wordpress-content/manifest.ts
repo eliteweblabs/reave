@@ -2,7 +2,7 @@ import { wordpressContentAgentTools } from './agentTools';
 import type { ReavePlugin } from '../_shared/types';
 
 /**
- * WordPress™ Connect — super-admin module. PHP lives in
+ * WordPress™ Connect — requestable add-on. PHP lives in
  * https://github.com/eliteweblabs/reave-connect
  */
 export const wordpressContentPlugin: ReavePlugin = {

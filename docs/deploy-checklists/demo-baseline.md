@@ -32,7 +32,7 @@ Generated: 2026-08-05T00:20:53.084Z
 - [ ] **024** — Wayback Machine (`wayback_machine`)
 - [ ] **025** — Agentic Website Editor (`content_management`)
 - [ ] **026** — Pexels stock photos (`stock_photos`)
-- [ ] **027** — WordPress™ Connect (`wordpress_content`, super-admin)
+- [ ] **027** — WordPress™ Connect (`wordpress_content`)
 - [ ] **033** — Website (`website`)
 
 ## Step 1 — App core

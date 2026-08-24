@@ -330,6 +330,12 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
   ...chipsForModule('online_reviews'),
   ...chipsForModule('google_workspace'),
   {
+    id: 'wordpress-content',
+    label: 'WordPress™ Connect',
+    modules: ['wordpress_content'],
+    kind: 'capability',
+  },
+  {
     id: 'dev-infra',
     label: 'Dev & deploy infrastructure',
     modules: ['dev_infra'],

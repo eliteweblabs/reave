@@ -7,19 +7,19 @@ stage: 2
 # wordpress_content — deployment checklist
 
 **Feature id:** `wordpress_content`  
-**Default status:** `deployed` (super-admin module; not sold as an add-on)
+**Default status:** `deployed` (optional add-on; requestable from Admin → Add-ons)
 
 ## What it is
 
-**WordPress™ Connect** — the REΛVE companion plugin so the agent can update posts, pages, and media on an existing WordPress site without wp-admin for every copy change.
+**WordPress™ Connect** — the REΛVE companion plugin so the agent can update posts, pages, media, menus, and redirects on an existing WordPress site without wp-admin for every change.
 
-The PHP plugin lives in [`eliteweblabs/reave-connect`](https://github.com/eliteweblabs/reave-connect). This Reave module is the toggle and agent tools.
+The PHP plugin lives in [`eliteweblabs/reave-connect`](https://github.com/eliteweblabs/reave-connect). This Reave module is the toggle, request flow, and agent tools. Reave Bridge is retired; its actions are Connect `exec_wp` actions.
 
 This is separate from `content_management` (Agentic Website Editor — Astro / GitHub / no CMS). Enable only for installs that keep WordPress as the public site.
 
 ## Enable
 
-Super admin (deployment owner) turns it on in **Admin → Add-ons**. Official REΛVE also lists it in `config/config-reave.json` → `features`.
+Deployment owners request it (or toggle it if they are the install owner) in **Admin → Add-ons**. Official REΛVE also lists it in `config/config-reave.json` → `features`.
 
 ```json
 {
@@ -38,7 +38,7 @@ Super admin (deployment owner) turns it on in **Admin → Add-ons**. Official RE
 
 ## Checklist
 
-- [ ] Super admin enables WordPress™ Connect in Add-ons (or `features[]`)
+- [ ] Owner requests or enables WordPress™ Connect in Add-ons (or `features[]`)
 - [ ] Set `REAVE_WP_API_KEY` on the Reave App Railway service
 - [ ] Install / update Reave Connect on the WordPress site (auto-updates from `/api/wp-update/reave-connect/`)
 - [ ] Paste the same API key in WP Admin → Settings → Reave Connect
