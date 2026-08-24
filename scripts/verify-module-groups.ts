@@ -14,7 +14,12 @@ import {
 } from '../src/lib/moduleDisplayGroups.ts';
 import { parseComposeDraftResponse } from '../src/lib/composeDraft.ts';
 import { readFileSync } from 'node:fs';
-import { DEFAULT_VISIBLE_SOCIAL_PLATFORMS } from '../src/lib/social/platforms.ts';
+import {
+  DEFAULT_VISIBLE_SOCIAL_PLATFORMS,
+  composeSocialUrl,
+  extractSocialHandle,
+  getSocialPlatform,
+} from '../src/lib/social/platforms.ts';
 
 function configFeatures(slug: string): string[] {
   const raw = JSON.parse(readFileSync(new URL(`../config/config-${slug}.json`, import.meta.url), 'utf8'));
@@ -103,5 +108,21 @@ const socialDraft = parseComposeDraftResponse(
   'social_reply',
 );
 assert.equal(socialDraft?.body, 'Thanks Maya — Saturday morning works.');
+
+const reddit = getSocialPlatform('reddit');
+assert.equal(extractSocialHandle('https://www.reddit.com/r/reaveapp', reddit), 'reaveapp');
+assert.equal(extractSocialHandle('r/reaveapp', reddit), 'reaveapp');
+assert.equal(composeSocialUrl('reaveapp', reddit), 'https://reddit.com/r/reaveapp');
+assert.equal(reddit.prefix, 'reddit.com/r/');
+assert.equal(reddit.handleCharset, 'A-Za-z0-9_');
+
+const bluesky = getSocialPlatform('bluesky');
+assert.equal(extractSocialHandle('https://bsky.app/profile/foo.bsky.social', bluesky), 'foo');
+assert.equal(composeSocialUrl('foo', bluesky), 'https://bsky.app/profile/foo.bsky.social');
+assert.equal(composeSocialUrl('reave.app', bluesky), 'https://bsky.app/profile/reave.app');
+
+const substack = getSocialPlatform('substack');
+assert.equal(extractSocialHandle('https://acme.substack.com', substack), 'acme');
+assert.equal(composeSocialUrl('acme', substack), 'https://acme.substack.com');
 
 console.log('verify-module-groups: ok');

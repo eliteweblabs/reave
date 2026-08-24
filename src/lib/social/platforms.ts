@@ -11,7 +11,16 @@ export interface SocialPlatformDef {
   followersLabel: string;
   /** Company-config field holding the stored link/handle. */
   field: keyof CompanyConfig;
+  /** Fixed host/path shown before the handle input (no protocol). */
+  prefix: string;
+  /** Optional host suffix, e.g. `.bsky.social` or `.substack.com`. */
+  suffix?: string;
+  /** Placeholder for the editable handle only. */
   placeholder: string;
+  /** Character class allowed in the handle (Reddit-style: `A-Za-z0-9_`). */
+  handleCharset?: string;
+  /** Max handle length when `handleCharset` is set. */
+  handleMaxLength?: number;
   /** Simple Icons slug for dashboard/settings UI. */
   iconSlug: string;
   /** Brand accent color (hex). */
@@ -19,6 +28,8 @@ export interface SocialPlatformDef {
   /** Build a canonical profile URL from a bare handle. */
   profileUrl: (handle: string) => string;
 }
+
+export type SocialPlatformAffix = Pick<SocialPlatformDef, 'prefix' | 'suffix'>;
 
 /** Platforms shown by default until an admin hides them. */
 export const DEFAULT_VISIBLE_SOCIAL_PLATFORMS: SocialPlatformId[] = [
@@ -32,196 +43,284 @@ export const DEFAULT_VISIBLE_SOCIAL_PLATFORMS: SocialPlatformId[] = [
   'threads',
 ];
 
+function stripProtocol(value: string): string {
+  return value.replace(/^https?:\/\//i, '');
+}
+
+function applySocialSuffix(handle: string, suffix: string | undefined): string {
+  if (!suffix) return handle;
+  if (handle.toLowerCase().endsWith(suffix.toLowerCase())) return handle;
+  // Custom domains already contain a dot — don't append `.bsky.social` / `.substack.com`.
+  if (handle.includes('.')) return handle;
+  return `${handle}${suffix}`;
+}
+
+/** Pull a typed handle out of a stored URL, host/path, or bare value. */
+export function extractSocialHandle(raw: string, platform?: SocialPlatformAffix | null): string {
+  const original = (raw || '').trim();
+  if (!original) return '';
+
+  const prefix = stripProtocol(platform?.prefix || '');
+  const suffix = platform?.suffix || '';
+  const stripped = stripProtocol(original);
+  const lower = stripped.toLowerCase();
+  const prefixLower = prefix.toLowerCase();
+
+  let value = stripped;
+  if (prefixLower && lower.startsWith(prefixLower)) {
+    value = stripped.slice(prefix.length);
+  } else if (prefixLower && lower.startsWith('www.') && lower.slice(4).startsWith(prefixLower)) {
+    value = stripped.slice(4 + prefix.length);
+  } else if (/^https?:\/\//i.test(original) || stripped.includes('/')) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(original) ? original : `https://${stripped}`);
+      const segments = url.pathname.split('/').filter(Boolean);
+      const last = segments[segments.length - 1] || '';
+      if (last) {
+        value = last;
+      } else if (suffix && url.hostname.toLowerCase().endsWith(suffix.toLowerCase())) {
+        value = url.hostname.slice(0, -suffix.length);
+      } else {
+        value = url.hostname;
+      }
+    } catch {
+      value = stripped;
+    }
+  }
+
+  if (suffix && value.toLowerCase().endsWith(suffix.toLowerCase())) {
+    value = value.slice(0, -suffix.length);
+  }
+
+  return value.replace(/^@/, '').replace(/^\/+|\/+$/g, '');
+}
+
+/** Canonical https URL from a typed handle (or a pasted URL/path). */
+export function composeSocialUrl(handle: string, platform: SocialPlatformAffix): string {
+  const extracted = extractSocialHandle(handle, platform);
+  if (!extracted) return '';
+  const full = applySocialSuffix(extracted, platform.suffix);
+  const prefix = stripProtocol(platform.prefix || '');
+  return `https://${prefix}${full}`;
+}
+
+function urlFromHandle(prefix: string, suffix?: string): (handle: string) => string {
+  return (handle) => composeSocialUrl(handle, { prefix, suffix });
+}
+
 export const SOCIAL_PLATFORM_CATALOG: SocialPlatformDef[] = [
   {
     id: 'twitter',
     label: 'X / Twitter',
     followersLabel: 'Followers',
     field: 'socialTwitter',
-    placeholder: 'https://x.com/yourcompany',
+    prefix: 'x.com/',
+    placeholder: 'yourcompany',
     iconSlug: 'x',
     color: '#1d9bf0',
-    profileUrl: (h) => `https://x.com/${h}`,
+    profileUrl: urlFromHandle('x.com/'),
   },
   {
     id: 'instagram',
     label: 'Instagram',
     followersLabel: 'Followers',
     field: 'socialInstagram',
-    placeholder: 'https://instagram.com/yourcompany',
+    prefix: 'instagram.com/',
+    placeholder: 'yourcompany',
     iconSlug: 'instagram',
     color: '#e1306c',
-    profileUrl: (h) => `https://instagram.com/${h}`,
+    profileUrl: urlFromHandle('instagram.com/'),
   },
   {
     id: 'linkedin',
     label: 'LinkedIn',
     followersLabel: 'Followers',
     field: 'socialLinkedin',
-    placeholder: 'https://linkedin.com/company/yourcompany',
+    prefix: 'linkedin.com/company/',
+    placeholder: 'yourcompany',
     iconSlug: 'linkedin',
     color: '#0a66c2',
-    profileUrl: (h) => `https://linkedin.com/company/${h}`,
+    profileUrl: urlFromHandle('linkedin.com/company/'),
   },
   {
     id: 'facebook',
     label: 'Facebook',
     followersLabel: 'Followers',
     field: 'socialFacebook',
-    placeholder: 'https://facebook.com/yourcompany',
+    prefix: 'facebook.com/',
+    placeholder: 'yourcompany',
     iconSlug: 'facebook',
     color: '#1877f2',
-    profileUrl: (h) => `https://facebook.com/${h}`,
+    profileUrl: urlFromHandle('facebook.com/'),
   },
   {
     id: 'youtube',
     label: 'YouTube',
     followersLabel: 'Subscribers',
     field: 'socialYoutube',
-    placeholder: 'https://youtube.com/@yourcompany',
+    prefix: 'youtube.com/@',
+    placeholder: 'yourcompany',
     iconSlug: 'youtube',
     color: '#ff0000',
-    profileUrl: (h) => `https://youtube.com/@${h.replace(/^@/, '')}`,
+    profileUrl: urlFromHandle('youtube.com/@'),
   },
   {
     id: 'tiktok',
     label: 'TikTok',
     followersLabel: 'Followers',
     field: 'socialTiktok',
-    placeholder: 'https://tiktok.com/@yourcompany',
+    prefix: 'tiktok.com/@',
+    placeholder: 'yourcompany',
     iconSlug: 'tiktok',
     color: '#ff0050',
-    profileUrl: (h) => `https://tiktok.com/@${h.replace(/^@/, '')}`,
+    profileUrl: urlFromHandle('tiktok.com/@'),
   },
   {
     id: 'bluesky',
     label: 'Bluesky',
     followersLabel: 'Followers',
     field: 'socialBluesky',
-    placeholder: 'https://bsky.app/profile/yourcompany.bsky.social',
+    prefix: 'bsky.app/profile/',
+    suffix: '.bsky.social',
+    placeholder: 'yourcompany',
     iconSlug: 'bluesky',
     color: '#0085ff',
-    profileUrl: (h) => `https://bsky.app/profile/${h}`,
+    profileUrl: urlFromHandle('bsky.app/profile/', '.bsky.social'),
   },
   {
     id: 'threads',
     label: 'Threads',
     followersLabel: 'Followers',
     field: 'socialThreads',
-    placeholder: 'https://threads.net/@yourcompany',
+    prefix: 'threads.net/@',
+    placeholder: 'yourcompany',
     iconSlug: 'threads',
     color: '#000000',
-    profileUrl: (h) => `https://threads.net/@${h.replace(/^@/, '')}`,
+    profileUrl: urlFromHandle('threads.net/@'),
   },
   {
     id: 'pinterest',
     label: 'Pinterest',
     followersLabel: 'Followers',
     field: 'socialPinterest',
-    placeholder: 'https://pinterest.com/yourcompany',
+    prefix: 'pinterest.com/',
+    placeholder: 'yourcompany',
     iconSlug: 'pinterest',
     color: '#bd081c',
-    profileUrl: (h) => `https://pinterest.com/${h}`,
+    profileUrl: urlFromHandle('pinterest.com/'),
   },
   {
     id: 'snapchat',
     label: 'Snapchat',
     followersLabel: 'Followers',
     field: 'socialSnapchat',
-    placeholder: 'https://snapchat.com/add/yourcompany',
+    prefix: 'snapchat.com/add/',
+    placeholder: 'yourcompany',
     iconSlug: 'snapchat',
     color: '#fffc00',
-    profileUrl: (h) => `https://snapchat.com/add/${h}`,
+    profileUrl: urlFromHandle('snapchat.com/add/'),
   },
   {
     id: 'discord',
     label: 'Discord',
     followersLabel: 'Members',
     field: 'socialDiscord',
-    placeholder: 'https://discord.gg/yourinvite',
+    prefix: 'discord.gg/',
+    placeholder: 'yourinvite',
     iconSlug: 'discord',
     color: '#5865f2',
-    profileUrl: (h) => (h.startsWith('http') ? h : `https://discord.gg/${h}`),
+    profileUrl: urlFromHandle('discord.gg/'),
   },
   {
     id: 'reddit',
     label: 'Reddit',
     followersLabel: 'Members',
     field: 'socialReddit',
-    placeholder: 'https://reddit.com/r/yourcompany',
+    prefix: 'reddit.com/r/',
+    placeholder: 'yourcompany',
+    handleCharset: 'A-Za-z0-9_',
+    handleMaxLength: 21,
     iconSlug: 'reddit',
     color: '#ff4500',
-    profileUrl: (h) => (h.startsWith('http') ? h : `https://reddit.com/${h}`),
+    profileUrl: urlFromHandle('reddit.com/r/'),
   },
   {
     id: 'github',
     label: 'GitHub',
     followersLabel: 'Followers',
     field: 'socialGithub',
-    placeholder: 'https://github.com/yourcompany',
+    prefix: 'github.com/',
+    placeholder: 'yourcompany',
     iconSlug: 'github',
     color: '#181717',
-    profileUrl: (h) => `https://github.com/${h}`,
+    profileUrl: urlFromHandle('github.com/'),
   },
   {
     id: 'twitch',
     label: 'Twitch',
     followersLabel: 'Followers',
     field: 'socialTwitch',
-    placeholder: 'https://twitch.tv/yourcompany',
+    prefix: 'twitch.tv/',
+    placeholder: 'yourcompany',
     iconSlug: 'twitch',
     color: '#9146ff',
-    profileUrl: (h) => `https://twitch.tv/${h}`,
+    profileUrl: urlFromHandle('twitch.tv/'),
   },
   {
     id: 'telegram',
     label: 'Telegram',
     followersLabel: 'Members',
     field: 'socialTelegram',
-    placeholder: 'https://t.me/yourcompany',
+    prefix: 't.me/',
+    placeholder: 'yourcompany',
     iconSlug: 'telegram',
     color: '#26a5e4',
-    profileUrl: (h) => `https://t.me/${h.replace(/^@/, '')}`,
+    profileUrl: urlFromHandle('t.me/'),
   },
   {
     id: 'whatsapp',
     label: 'WhatsApp',
     followersLabel: 'Contacts',
     field: 'socialWhatsapp',
-    placeholder: 'https://wa.me/15551234567',
+    prefix: 'wa.me/',
+    placeholder: '15551234567',
     iconSlug: 'whatsapp',
     color: '#25d366',
-    profileUrl: (h) => (h.startsWith('http') ? h : `https://wa.me/${h.replace(/\D/g, '')}`),
+    profileUrl: urlFromHandle('wa.me/'),
   },
   {
     id: 'substack',
     label: 'Substack',
     followersLabel: 'Subscribers',
     field: 'socialSubstack',
-    placeholder: 'https://yourcompany.substack.com',
+    prefix: '',
+    suffix: '.substack.com',
+    placeholder: 'yourcompany',
     iconSlug: 'substack',
     color: '#ff6719',
-    profileUrl: (h) => (h.startsWith('http') ? h : `https://${h}.substack.com`),
+    profileUrl: urlFromHandle('', '.substack.com'),
   },
   {
     id: 'yelp',
     label: 'Yelp',
     followersLabel: 'Reviews',
     field: 'socialYelp',
-    placeholder: 'https://yelp.com/biz/your-company',
+    prefix: 'yelp.com/biz/',
+    placeholder: 'your-company',
     iconSlug: 'yelp',
     color: '#d32323',
-    profileUrl: (h) => (h.startsWith('http') ? h : `https://yelp.com/biz/${h}`),
+    profileUrl: urlFromHandle('yelp.com/biz/'),
   },
   {
     id: 'googlebusiness',
     label: 'Google Business',
     followersLabel: 'Reviews',
     field: 'socialGoogleBusiness',
-    placeholder: 'https://maps.app.goo.gl/yourlink',
+    prefix: 'maps.app.goo.gl/',
+    placeholder: 'yourlink',
     iconSlug: 'google',
     color: '#4285f4',
-    profileUrl: (h) => (h.startsWith('http') ? h : `https://g.page/${h}`),
+    profileUrl: urlFromHandle('maps.app.goo.gl/'),
   },
 ];
 
@@ -267,14 +366,43 @@ export function visibleSocialPlatforms(
 
 /** JSON-safe catalog payload for the admin UI. */
 export function socialPlatformCatalogForUi(): Array<
-  Pick<SocialPlatformDef, 'id' | 'label' | 'field' | 'placeholder' | 'iconSlug' | 'color'>
+  Pick<
+    SocialPlatformDef,
+    | 'id'
+    | 'label'
+    | 'field'
+    | 'prefix'
+    | 'suffix'
+    | 'placeholder'
+    | 'handleCharset'
+    | 'handleMaxLength'
+    | 'iconSlug'
+    | 'color'
+  >
 > {
-  return SOCIAL_PLATFORM_CATALOG.map(({ id, label, field, placeholder, iconSlug, color }) => ({
-    id,
-    label,
-    field,
-    placeholder,
-    iconSlug,
-    color,
-  }));
+  return SOCIAL_PLATFORM_CATALOG.map(
+    ({
+      id,
+      label,
+      field,
+      prefix,
+      suffix,
+      placeholder,
+      handleCharset,
+      handleMaxLength,
+      iconSlug,
+      color,
+    }) => ({
+      id,
+      label,
+      field,
+      prefix,
+      suffix,
+      placeholder,
+      handleCharset,
+      handleMaxLength,
+      iconSlug,
+      color,
+    }),
+  );
 }

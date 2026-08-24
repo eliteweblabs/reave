@@ -1,6 +1,6 @@
 /**
  * GET /api/admin/social/platforms — catalog of supported social link fields for
- * the Socials settings UI (labels, placeholders, icons, config field names).
+ * the Socials settings UI (labels, prefixes, handle placeholders, icons).
  */
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';

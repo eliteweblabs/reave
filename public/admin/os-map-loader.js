@@ -283,7 +283,7 @@ import {
 import {
   initAddonsPanel,
   loadAddonsTab,
-} from './addons-panel.js?v=20260821a';
+} from './addons-panel.js?v=20260824a';
 import {
   initCatalogPanel,
 } from './catalog-panel.js?v=20260823b';
@@ -6383,10 +6383,14 @@ function bindSocialsForm(root) {
     return { ok: res.ok, error: json.error };
   };
 
+  const payloadFromSocialsForm = (formEl) => composeSocialFormPayload(formEl);
+
+  bindSocialHandleInputs(root);
   bindAutosaveForm(root, {
     formSelector: '#socials-form',
     alertEl: root.querySelector('#socials-alert'),
-    save: saveCompanyPayload,
+    save: () => saveCompanyPayload(composeSocialFormPayload(form)),
+    validateField: (el) => validateSocialHandleField(el),
   });
 
   root.querySelectorAll('[data-soc-copy]').forEach((btn) => {
@@ -6434,7 +6438,7 @@ function bindSocialsForm(root) {
 
       btn.disabled = true;
       try {
-        const payload = Object.fromEntries(new FormData(form));
+        const payload = payloadFromSocialsForm(form);
         const result = await saveCompanyPayload(payload);
         if (!result.ok) throw new Error(result.error || 'Save failed');
         await loadSocialsTab();
@@ -6452,7 +6456,7 @@ function bindSocialsForm(root) {
       writeHidden(readHidden().filter((id) => id !== platformId));
       btn.disabled = true;
       try {
-        const payload = Object.fromEntries(new FormData(form));
+        const payload = payloadFromSocialsForm(form);
         const result = await saveCompanyPayload(payload);
         if (!result.ok) throw new Error(result.error || 'Save failed');
         await loadSocialsTab();
@@ -6471,7 +6475,7 @@ function bindSocialsForm(root) {
       writeHidden(readHidden().filter((id) => id !== platformId));
       addSelect.disabled = true;
       try {
-        const payload = Object.fromEntries(new FormData(form));
+        const payload = payloadFromSocialsForm(form);
         const result = await saveCompanyPayload(payload);
         if (!result.ok) throw new Error(result.error || 'Save failed');
         await loadSocialsTab();
@@ -7354,14 +7358,14 @@ let socialPlatformCatalog = [];
 let socialDefaultVisible = [];
 
 const FALLBACK_SOCIAL_LINK_CATALOG = [
-  { id: 'twitter', label: 'X / Twitter', field: 'socialTwitter', placeholder: 'https://x.com/yourcompany', iconSlug: 'x', color: '#1d9bf0' },
-  { id: 'instagram', label: 'Instagram', field: 'socialInstagram', placeholder: 'https://instagram.com/yourcompany', iconSlug: 'instagram', color: '#e1306c' },
-  { id: 'linkedin', label: 'LinkedIn', field: 'socialLinkedin', placeholder: 'https://linkedin.com/company/yourcompany', iconSlug: 'linkedin', color: '#0a66c2' },
-  { id: 'facebook', label: 'Facebook', field: 'socialFacebook', placeholder: 'https://facebook.com/yourcompany', iconSlug: 'facebook', color: '#1877f2' },
-  { id: 'youtube', label: 'YouTube', field: 'socialYoutube', placeholder: 'https://youtube.com/@yourcompany', iconSlug: 'youtube', color: '#ff0000' },
-  { id: 'tiktok', label: 'TikTok', field: 'socialTiktok', placeholder: 'https://tiktok.com/@yourcompany', iconSlug: 'tiktok', color: '#ff0050' },
-  { id: 'bluesky', label: 'Bluesky', field: 'socialBluesky', placeholder: 'https://bsky.app/profile/yourcompany.bsky.social', iconSlug: 'bluesky', color: '#0085ff' },
-  { id: 'threads', label: 'Threads', field: 'socialThreads', placeholder: 'https://threads.net/@yourcompany', iconSlug: 'threads', color: '#000000' },
+  { id: 'twitter', label: 'X / Twitter', field: 'socialTwitter', prefix: 'x.com/', placeholder: 'yourcompany', iconSlug: 'x', color: '#1d9bf0' },
+  { id: 'instagram', label: 'Instagram', field: 'socialInstagram', prefix: 'instagram.com/', placeholder: 'yourcompany', iconSlug: 'instagram', color: '#e1306c' },
+  { id: 'linkedin', label: 'LinkedIn', field: 'socialLinkedin', prefix: 'linkedin.com/company/', placeholder: 'yourcompany', iconSlug: 'linkedin', color: '#0a66c2' },
+  { id: 'facebook', label: 'Facebook', field: 'socialFacebook', prefix: 'facebook.com/', placeholder: 'yourcompany', iconSlug: 'facebook', color: '#1877f2' },
+  { id: 'youtube', label: 'YouTube', field: 'socialYoutube', prefix: 'youtube.com/@', placeholder: 'yourcompany', iconSlug: 'youtube', color: '#ff0000' },
+  { id: 'tiktok', label: 'TikTok', field: 'socialTiktok', prefix: 'tiktok.com/@', placeholder: 'yourcompany', iconSlug: 'tiktok', color: '#ff0050' },
+  { id: 'bluesky', label: 'Bluesky', field: 'socialBluesky', prefix: 'bsky.app/profile/', suffix: '.bsky.social', placeholder: 'yourcompany', iconSlug: 'bluesky', color: '#0085ff' },
+  { id: 'threads', label: 'Threads', field: 'socialThreads', prefix: 'threads.net/@', placeholder: 'yourcompany', iconSlug: 'threads', color: '#000000' },
 ];
 
 const FALLBACK_SOCIAL_DEFAULT_VISIBLE = ['twitter', 'instagram', 'linkedin', 'facebook', 'youtube', 'tiktok', 'bluesky', 'threads'];
@@ -7401,13 +7405,146 @@ function addableSocialLinkPlatforms(company) {
   return socialPlatformCatalog.filter((p) => !visibleIds.has(p.id));
 }
 
+/** Keep in sync with extractSocialHandle / composeSocialUrl in src/lib/social/platforms.ts */
+function extractSocialHandle(raw, platform) {
+  const original = String(raw || '').trim();
+  if (!original) return '';
+
+  const prefix = String(platform?.prefix || '').replace(/^https?:\/\//i, '');
+  const suffix = platform?.suffix || '';
+  const stripped = original.replace(/^https?:\/\//i, '');
+  const lower = stripped.toLowerCase();
+  const prefixLower = prefix.toLowerCase();
+
+  let value = stripped;
+  if (prefixLower && lower.startsWith(prefixLower)) {
+    value = stripped.slice(prefix.length);
+  } else if (prefixLower && lower.startsWith('www.') && lower.slice(4).startsWith(prefixLower)) {
+    value = stripped.slice(4 + prefix.length);
+  } else if (/^https?:\/\//i.test(original) || stripped.includes('/')) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(original) ? original : `https://${stripped}`);
+      const segments = url.pathname.split('/').filter(Boolean);
+      const last = segments[segments.length - 1] || '';
+      if (last) value = last;
+      else if (suffix && url.hostname.toLowerCase().endsWith(suffix.toLowerCase())) {
+        value = url.hostname.slice(0, -suffix.length);
+      } else {
+        value = url.hostname;
+      }
+    } catch {
+      value = stripped;
+    }
+  }
+
+  if (suffix && value.toLowerCase().endsWith(suffix.toLowerCase())) {
+    value = value.slice(0, -suffix.length);
+  }
+
+  return value.replace(/^@/, '').replace(/^\/+|\/+$/g, '');
+}
+
+function applySocialSuffix(handle, suffix) {
+  if (!suffix) return handle;
+  if (handle.toLowerCase().endsWith(suffix.toLowerCase())) return handle;
+  if (handle.includes('.')) return handle;
+  return `${handle}${suffix}`;
+}
+
+function composeSocialUrl(handle, platform) {
+  const extracted = extractSocialHandle(handle, platform);
+  if (!extracted) return '';
+  const full = applySocialSuffix(extracted, platform?.suffix);
+  const prefix = String(platform?.prefix || '').replace(/^https?:\/\//i, '');
+  return `https://${prefix}${full}`;
+}
+
+function sanitizeSocialHandleInput(raw, platform) {
+  let next = extractSocialHandle(raw, platform);
+  if (platform?.handleCharset) {
+    next = next.replace(new RegExp(`[^${platform.handleCharset}]`, 'g'), '');
+  }
+  if (platform?.handleMaxLength) next = next.slice(0, platform.handleMaxLength);
+  return next;
+}
+
+function composeSocialFormPayload(formOrPayload) {
+  const form = formOrPayload instanceof HTMLFormElement ? formOrPayload : null;
+  const next = form
+    ? Object.fromEntries(new FormData(form))
+    : { ...formOrPayload };
+  for (const platform of socialPlatformCatalog) {
+    if (!(platform.field in next)) continue;
+    const handle = sanitizeSocialHandleInput(String(next[platform.field] || ''), platform);
+    if (!handle) {
+      next[platform.field] = '';
+      continue;
+    }
+    const input = form?.querySelector(`[name="${platform.field}"]`);
+    const previous = input instanceof HTMLInputElement ? (input.dataset.socStored || '') : '';
+    const previousHandle = extractSocialHandle(previous, platform);
+    next[platform.field] =
+      previous && previousHandle === handle && /^https?:\/\//i.test(previous)
+        ? previous
+        : composeSocialUrl(handle, platform);
+  }
+  return next;
+}
+
+function validateSocialHandleField(el) {
+  if (!(el instanceof HTMLInputElement) || !el.dataset.socPlatformId) {
+    return defaultFieldValidator(el);
+  }
+  const platform = socialPlatformCatalog.find((p) => p.id === el.dataset.socPlatformId);
+  const value = String(el.value || '').trim();
+  if (!value) return true;
+  if (!platform?.handleCharset) return true;
+  return new RegExp(`^[${platform.handleCharset}]+$`).test(value);
+}
+
+function bindSocialHandleInputs(root) {
+  root.querySelectorAll('input[data-soc-platform-id]').forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) return;
+    const platform = socialPlatformCatalog.find((p) => p.id === input.dataset.socPlatformId);
+    if (!platform) return;
+
+    const apply = () => {
+      const next = sanitizeSocialHandleInput(input.value, platform);
+      if (next === input.value) return;
+      const start = input.selectionStart;
+      input.value = next;
+      if (start != null) {
+        const pos = Math.min(start, next.length);
+        try { input.setSelectionRange(pos, pos); } catch { /* ignore */ }
+      }
+    };
+
+    input.addEventListener('input', apply);
+    input.addEventListener('blur', apply);
+  });
+}
+
 function socialLinkFieldRow(platform, company) {
-  const value = company?.[platform.field] || '';
+  const stored = company?.[platform.field] || '';
+  const handle = sanitizeSocialHandleInput(stored, platform);
+  const prefix = platform.prefix || '';
+  const suffix = platform.suffix || '';
+  const extraAttrs = [
+    `data-soc-stored="${escHtml(stored)}"`,
+    platform.handleCharset ? `data-soc-charset="${escHtml(platform.handleCharset)}"` : '',
+    platform.handleMaxLength ? `maxlength="${Number(platform.handleMaxLength)}"` : '',
+    platform.handleCharset ? `pattern="[${escHtml(platform.handleCharset)}]*"` : '',
+  ].filter(Boolean).join(' ');
+
   return (
     `<div class="soc-field-row" data-soc-platform="${escHtml(platform.id)}">` +
       `<div class="prof-field soc-field">` +
         `<label for="social-${escHtml(platform.id)}">${escHtml(platform.label)}</label>` +
-        `<input id="social-${escHtml(platform.id)}" name="${escHtml(platform.field)}" type="url" value="${escHtml(value)}" placeholder="${escHtml(platform.placeholder)}" autocomplete="url" />` +
+        `<div class="soc-affix">` +
+          (prefix ? `<span class="soc-affix-prefix">${escHtml(prefix)}</span>` : '') +
+          `<input id="social-${escHtml(platform.id)}" name="${escHtml(platform.field)}" type="text" value="${escHtml(handle)}" placeholder="${escHtml(platform.placeholder || 'yourcompany')}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-soc-platform-id="${escHtml(platform.id)}" ${extraAttrs} />` +
+          (suffix ? `<span class="soc-affix-suffix">${escHtml(suffix)}</span>` : '') +
+        `</div>` +
       `</div>` +
       `<button type="button" class="prof-btn-secondary soc-field-remove" data-soc-hide="${escHtml(platform.id)}" aria-label="Remove ${escHtml(platform.label)}">Remove</button>` +
     `</div>`

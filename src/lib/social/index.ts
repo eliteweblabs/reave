@@ -13,6 +13,7 @@ import type { MetricDelta, SocialDashboard, SocialProvider } from './types.ts';
 
 export * from './types.ts';
 export { SOCIAL_PLATFORMS, accountsFromCompany, parseHandle } from './accounts.ts';
+export { composeSocialUrl, extractSocialHandle } from './platforms.ts';
 export { buildSocialFeed, composeIntentUrl } from './feed.ts';
 
 const DEFAULT_RANGE_DAYS = 30;

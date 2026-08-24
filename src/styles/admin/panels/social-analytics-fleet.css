@@ -798,6 +798,62 @@
 .soc-field-row .soc-field {
   margin: 0;
 }
+.soc-affix {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  background: var(--accent-select-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-input);
+  overflow: hidden;
+}
+.soc-affix:focus-within {
+  border-color: var(--border-strong-hover);
+}
+.soc-affix:has(input.form-field--saving) {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+.soc-affix:has(input.form-field--saved) {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
+}
+.soc-affix:has(input.form-field--invalid) {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+.soc-affix-prefix,
+.soc-affix-suffix {
+  flex: none;
+  display: flex;
+  align-items: center;
+  font-size: max(16px, 0.88rem);
+  color: var(--muted);
+  user-select: none;
+  white-space: nowrap;
+}
+.soc-affix-prefix {
+  padding: 0 0.15rem 0 0.75rem;
+}
+.soc-affix-suffix {
+  padding: 0 0.75rem 0 0;
+}
+.prof-field .soc-affix input,
+.prof-field .soc-affix input:focus,
+.prof-field .soc-affix input.form-field--saving,
+.prof-field .soc-affix input.form-field--saved,
+.prof-field .soc-affix input.form-field--invalid {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+  padding-left: 0;
+  padding-right: 0.75rem;
+}
 .soc-field-remove,
 .soc-field-restore {
   white-space: nowrap;
