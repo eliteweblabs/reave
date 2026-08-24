@@ -377,7 +377,7 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
   flex-direction: row;
   align-items: center;
   gap: 2px;
-  color: #1a3d6e;
+  color: #b42318;
   pointer-events: none;
   transform: translateY(-50%) rotate(-6deg);
   transform-origin: 100% 50%;

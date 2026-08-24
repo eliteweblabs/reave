@@ -1141,23 +1141,28 @@ await test('clean HTTPS drops the Not Secure graphic; a broken host keeps it', (
   assert.doesNotMatch(sslPhone, /ss-phone-serp/);
 });
 
-await test('header hero is the audit lede without an overall-grade ring', () => {
+await test('header hero is the audit lede with the overall-grade ring on the left', () => {
   const hero = renderSalesSheetHeaderHeroHtml({
+    overall: DUMMY_SALES_SHEET.overall,
+    overallScore: DUMMY_SALES_SHEET.overallScore,
     headline: DUMMY_SALES_SHEET.headline,
     heroStats: DUMMY_SALES_SHEET.heroStats,
   });
   assert.match(hero, /ss-hero/);
-  assert.doesNotMatch(hero, /Overall grade/);
-  assert.doesNotMatch(hero, /ss-hero-ring/);
-  assert.doesNotMatch(hero, /#b8860b/);
+  assert.match(hero, /ss-hero-ring/);
+  assert.match(hero, /Overall grade/);
+  assert.match(hero, />C</);
+  assert.match(hero, /64/);
+  assert.match(hero, /#b8860b/);
   assert.match(hero, /Speed and local listings/);
   assert.match(hero, /Every finding sourced from independent platforms/i);
   assert.match(hero, /\.ss-hero \{[\s\S]*width: max-content/);
+  assert.match(hero, /\.ss-hero \{[\s\S]*max-width: 52%/);
   assert.match(hero, /\.ss-hero \{[\s\S]*justify-self: center/);
   assert.match(hero, /\.ss-hero \{[\s\S]*grid-column: 1 \/ -1/);
   assert.match(hero, /grid-template-columns: minmax\(0, 1fr\) auto minmax\(0, 1fr\)/);
-  assert.match(hero, /\.ss-hero-copy \{[\s\S]*flex: 0 0 auto/);
-  assert.match(hero, /\.ss-hero-copy \{[\s\S]*width: max-content/);
+  assert.match(hero, /\.ss-hero-copy \{[\s\S]*flex: 1 1 auto/);
+  assert.match(hero, /\.ss-hero-copy \{[\s\S]*min-width: 0/);
   assert.match(hero, /\.ss-hero-copy \{[\s\S]*text-align: left/);
   assert.match(hero, /align-items: flex-start/);
   assert.doesNotMatch(hero, /translate\(-50%, -50%\)/);
@@ -1293,6 +1298,8 @@ await test('QR sits in the top-right without caption, title, or date', () => {
   assert.match(qr, /https:\/\/example.com\/digital-audit/);
   assert.match(qr, /ss-qr-note/);
   assert.match(qr, /the full audit/);
+  assert.match(qr, /color: #b42318/);
+  assert.doesNotMatch(qr, /#1a3d6e/);
   assert.match(qr, /right: calc\(100% \+ 4px\)/);
   assert.match(qr, /doc-onepager-title/);
   assert.match(qr, /doc-onepager-kicker \{ display: none; \}/);
