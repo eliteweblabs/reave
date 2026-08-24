@@ -805,6 +805,7 @@ await test('gate leftover space lists catalog modules with the sale-sheet toggle
   assert.match(back, /border-radius: 8px/);
   assert.match(back, /\.ss-back-mod \{[\s\S]*flex: 0 0 auto;/);
   assert.match(back, /\.ss-back-mod-price \{[\s\S]*position: absolute;/);
+  assert.match(back, /transform: translate\(50%, -50%\)/);
   assert.match(back, /ss-back-mod-icon/);
   assert.match(back, /ss-back-mod-blurb/);
   assert.match(back, /ss-back-mod-price/);
