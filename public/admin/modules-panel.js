@@ -264,6 +264,23 @@ function itemSubline(item) {
   return bits.join(' · ') || '—';
 }
 
+function syncSaleSheetBadge(item) {
+  const btn = rootEl()?.querySelector(`.mod-list-item[data-key="${CSS.escape(itemKey(item))}"]`);
+  if (!btn) return;
+  const existing = btn.querySelector('.mod-sheet-badge');
+  if (item.saleSheet) {
+    if (existing) return;
+    const badge = document.createElement('span');
+    badge.className = 'mod-sheet-badge';
+    badge.title = 'On the sale sheet';
+    badge.setAttribute('aria-label', 'On the sale sheet');
+    badge.innerHTML = iosIcon('file-text', 14);
+    btn.appendChild(badge);
+    return;
+  }
+  existing?.remove();
+}
+
 function createListItem(item) {
   const meta = groupMeta(item.group);
   const btn = document.createElement('button');
@@ -280,7 +297,10 @@ function createListItem(item) {
     `<span class="em-item-from">${escHtml(item.label || item.feature)}</span>` +
     `</span>` +
     `<span class="em-item-summary">${escHtml(itemSubline(item))}</span>` +
-    `</span>`;
+    `</span>` +
+    (item.saleSheet
+      ? `<span class="mod-sheet-badge" title="On the sale sheet" aria-label="On the sale sheet">${iosIcon('file-text', 14)}</span>`
+      : '');
   btn.addEventListener('click', () => openItem(itemKey(item)));
   return btn;
 }
@@ -573,6 +593,13 @@ function bindDetailEvents(pane) {
     const btn = pane.querySelector('[data-field="sheet"]');
     if (!btn) return;
     setToggleSwitch(btn, btn.getAttribute('aria-checked') !== 'true');
+    const item = findItem(activeKey);
+    if (item) {
+      item.saleSheet = btn.getAttribute('aria-checked') === 'true';
+      const row = catalogRows.find((r) => r.key === item.catalogKey);
+      if (row) row.saleSheet = item.saleSheet;
+      syncSaleSheetBadge(item);
+    }
     dirty = true;
     scheduleSave();
   });

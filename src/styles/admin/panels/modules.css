@@ -34,9 +34,28 @@
 #modules-panel .em-filter-tab--tone-internal { --em-chip-accent: var(--mod-tone-internal); }
 
 .mod-list-item {
+  position: relative;
   flex-direction: row;
   align-items: flex-start;
   gap: 0.45rem;
+}
+.mod-list-item:has(.mod-sheet-badge) {
+  padding-right: 1.55rem;
+}
+.mod-sheet-badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: inline-flex;
+  color: var(--muted);
+  pointer-events: none;
+}
+.mod-sheet-badge svg {
+  display: block;
+}
+.mod-list-item.active .mod-sheet-badge,
+.mod-list-item:hover .mod-sheet-badge {
+  color: var(--fg);
 }
 
 .mod-list-icon {
