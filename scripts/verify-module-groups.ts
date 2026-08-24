@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { FEATURE_IDS, FEATURE_LABELS, FEATURE_MARKETING, FEATURE_SALE_SHEET } from '../src/lib/featureCatalog.ts';
+import { MARKETING_FEATURES } from '../src/lib/marketingFeatures.ts';
 import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
@@ -38,13 +39,13 @@ assert.ok(!FEATURE_SALE_SHEET.has('content_management'));
 
 const groupIds = MODULE_DISPLAY_GROUPS.map((g) => g.id);
 assert.ok(groupIds.includes('social'));
-assert.ok(groupIds.includes('e-commerce'));
+assert.ok(groupIds.includes('e_commerce'));
 
 assert.equal(moduleDisplayGroupId('social_inbox'), 'social');
 assert.equal(moduleDisplayGroupId('online_reviews'), 'social');
 assert.equal(moduleDisplayGroupFor('inventory_sync')?.title, 'E-commerce');
-assert.equal(moduleDisplayGroupId('dealership_wizard'), 'e-commerce');
-assert.equal(moduleDisplayGroupId('event_ticketing'), 'e-commerce');
+assert.equal(moduleDisplayGroupId('dealership_wizard'), 'e_commerce');
+assert.equal(moduleDisplayGroupId('event_ticketing'), 'e_commerce');
 assert.equal(moduleDisplayGroupId('client_portal'), null);
 assert.equal(moduleDisplayGroupId('time_tracking'), 'work');
 assert.equal(moduleDisplayGroupFor('time_tracking')?.title, 'Work');
@@ -58,7 +59,7 @@ const catalog = defaultModuleCatalog();
 assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet && /^\d{3}$/.test(row.id)));
 assert.ok(catalog.every((row) => row.id !== '—'));
 assert.ok(catalog.every((row) => !row.feature.includes('-')), 'feature slugs must use underscores');
-for (const group of ['core', 'work', 'google_workspace', 'social', 'e-commerce', 'web-development', 'other', 'internal']) {
+for (const group of ['core', 'work', 'google_workspace', 'social', 'e_commerce', 'web_development', 'other', 'internal']) {
   const nums = catalog
     .filter((row) => row.group === group)
     .map((row) => Number(row.id))
@@ -75,6 +76,10 @@ assert.ok(catalog.some((row) => row.feature === 'gmail_dkim' && row.group === 'g
 assert.ok(!catalog.some((row) => row.feature === 'content_management'));
 assert.equal(FEATURE_MARKETING.google_workspace?.length, 5);
 assert.ok(FEATURE_MARKETING.google_workspace?.every((c) => !c.id.includes('-')), 'marketing chips must use underscores');
+assert.ok(
+  MARKETING_FEATURES.every((f) => !f.id.includes('-')),
+  'marketing feature ids must use underscores',
+);
 assert.ok(FEATURE_MARKETING.google_workspace?.some((c) => c.id === 'gmail_mx'));
 assert.ok(FEATURE_MARKETING.google_workspace?.some((c) => c.id === 'gmail_dkim'));
 

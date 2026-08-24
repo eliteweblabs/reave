@@ -156,7 +156,8 @@
 #media-panel > .sk-list,
 #newsletter-editor > .sk-list,
 #online-reviews-panel > .sk-list,
-#modules-panel > .sk-dashboard {
+#modules-panel > .sk-list,
+#modules-panel > .sk-list-panel {
   padding-top: calc(
     var(--topbar-measured-h, calc(var(--topbar-h) + var(--setup-alert-h, 0px))) + 0.5rem
   );

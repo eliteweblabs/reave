@@ -331,7 +331,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 20,
     categoryLabel: 'Site Speed',
     sheet:
-      'Show the Google™ PageSpeed / Lighthouse network waterfall for the audit URL (DevTools Network tab) with LCP in the meta line.',
+      'Show the PageSpeed Insights mobile results for the audit URL (pagespeed.web.dev score rings + lab metrics).',
     match: (ctx) => {
       const score = scoreOf(ctx.card, 'performance');
       return (
@@ -553,7 +553,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 40,
     categoryLabel: 'Security Headers',
     sheet:
-      'Safari’s “This Connection Is Not Private” / iCloud Private Relay interstitial on the audit URL — padlock may be fine, the connection still warns.',
+      'Green padlock in the address bar plus a header-scan card (HSTS / CSP / clickjacking missing, grade F) — visitors see no warning; the scanner does.',
     match: (ctx) =>
       /missing .{0,20}header|hsts|content-security-policy/.test(ctx.lower) &&
       gradeOf(ctx.card, 'security') !== 'F' &&

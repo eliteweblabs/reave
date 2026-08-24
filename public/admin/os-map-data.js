@@ -470,7 +470,7 @@ export const MAPS = {
 export const ADMIN_PRIMARY_PAGE_KEYS = ['dashboard', 'chats', 'email', 'work', 'schedule', 'clients', 'todo'];
 
 /** Account pages keep the wordmark + their own pane back. Keep in sync with src/lib/adminSpecialPages.ts. */
-export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'company', 'settings', 'socials', 'addons', 'industries', 'catalog', 'vapi', 'lead-scanner'];
+export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'company', 'settings', 'socials', 'addons', 'industries', 'vapi', 'lead-scanner'];
 
 const ADMIN_PRIMARY_PAGE_SET = new Set(ADMIN_PRIMARY_PAGE_KEYS);
 const ADMIN_SETTINGS_PAGE_SET = new Set(ADMIN_SETTINGS_PAGE_KEYS);

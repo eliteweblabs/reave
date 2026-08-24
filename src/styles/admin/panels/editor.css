@@ -507,7 +507,8 @@ button.de-empty-action:active {
   #todo-editor:not(.de-pane-active) .de-pane,
   #schedule-panel:not(.de-pane-active) .de-pane,
   #clients-editor:not(.de-pane-active) .de-pane,
-  #rule-editor:not(.de-pane-active) .de-pane {
+  #rule-editor:not(.de-pane-active) .de-pane,
+  #modules-panel:not(.de-pane-active) .de-pane {
     display: none;
   }
 }
@@ -1293,7 +1294,8 @@ button.de-placeholder-action:active {
   #todo-editor,
   #schedule-panel,
   #clients-editor,
-  #rule-editor { flex-direction: column; }
+  #rule-editor,
+  #modules-panel { flex-direction: column; }
   #knowledge-editor.de-pane-active .de-sidebar,
   #knowledge-editor.de-pane-active .ch-sidebar,
   #work-editor.de-pane-active .de-sidebar,
@@ -1304,11 +1306,13 @@ button.de-placeholder-action:active {
   #rule-editor.de-pane-active .de-sidebar,
   #rule-editor.de-pane-active .ch-sidebar,
   #todo-editor.de-pane-active .de-sidebar,
-  #todo-editor.de-pane-active .ch-sidebar { display: none; }
+  #todo-editor.de-pane-active .ch-sidebar,
+  #modules-panel.de-pane-active .ch-sidebar { display: none; }
   #knowledge-editor.de-pane-active .de-pane,
   #schedule-panel.de-pane-active .de-pane,
   #rule-editor.de-pane-active .de-pane,
-  #todo-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
+  #todo-editor.de-pane-active .de-pane,
+  #modules-panel.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
 }
 .re-settings {
   padding: 0 0.65rem 0.65rem;

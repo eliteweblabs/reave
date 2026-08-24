@@ -349,19 +349,28 @@ async function runOne(
   };
 }
 
-/** Mobile performance-only PSI run — enough for the sales-sheet network waterfall. */
-export async function lighthouseNetworkWaterfall(url: string): Promise<
-  | { ok: true; url: string; lcp?: string; requests: LighthouseNetworkRequest[] }
+/** Mobile PageSpeed Insights run for the sales-sheet results card. */
+export async function lighthousePsiMobile(url: string): Promise<
+  | {
+      ok: true;
+      url: string;
+      scores: LighthouseStrategyResult['scores'];
+      metrics: LighthouseStrategyResult['metrics'];
+      pageExperience?: LighthouseFieldExperience;
+      originExperience?: LighthouseFieldExperience;
+    }
   | { ok: false; error: string }
 > {
-  const res = await lighthouseAudit({ url, category: 'performance', strategy: 'mobile' });
+  const res = await lighthouseAudit({ url, strategy: 'mobile' });
   if (!res.ok) return { ok: false, error: res.error };
   const mobile = res.results[0];
   return {
     ok: true,
     url: res.url,
-    ...(mobile?.metrics.lcp ? { lcp: mobile.metrics.lcp } : {}),
-    requests: mobile?.networkRequests ?? [],
+    scores: mobile?.scores ?? {},
+    metrics: mobile?.metrics ?? {},
+    ...(mobile?.pageExperience ? { pageExperience: mobile.pageExperience } : {}),
+    ...(mobile?.originExperience ? { originExperience: mobile.originExperience } : {}),
   };
 }
 

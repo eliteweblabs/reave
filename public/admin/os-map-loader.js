@@ -279,15 +279,14 @@ import {
   initModulesPanel,
   loadModulesTab,
   teardownModulesPanel,
-} from './modules-panel.js?v=20260810a';
+} from './modules-panel.js?v=20260823b';
 import {
   initAddonsPanel,
   loadAddonsTab,
 } from './addons-panel.js?v=20260821a';
 import {
   initCatalogPanel,
-  loadCatalogTab,
-} from './catalog-panel.js?v=20260823a';
+} from './catalog-panel.js?v=20260823b';
 import {
   openMediaPicker,
   brandingMediaFilter,
@@ -360,7 +359,6 @@ const MAP_ICON_KEYS = {
   settings: 'settings',
   socials: 'link-2',
   industries: 'target',
-  catalog: 'layers',
   vapi: 'mic',
   'lead-scanner': 'radar',
   deploy: 'sparkles',
@@ -375,7 +373,6 @@ const SETTINGS_MAP_TYPES = new Set([
   'socials',
   'addons',
   'industries',
-  'catalog',
   'vapi',
   'lead-scanner',
 ]);
@@ -770,17 +767,13 @@ function showIndustries() {
   return window.__installConfig?.showIndustries === true;
 }
 
-function showModuleCatalog() {
-  return window.__installConfig?.showModuleCatalog === true;
-}
-
 function setActiveMap(key, opts = {}) {
   if (key === 'industries' && !showIndustries()) {
     key = 'dashboard';
     opts = { ...opts, force: true };
   }
-  if (key === 'catalog' && !showModuleCatalog()) {
-    key = 'dashboard';
+  if (key === 'catalog') {
+    key = 'modules';
     opts = { ...opts, force: true };
   }
   let force = opts.force === true;
@@ -886,8 +879,6 @@ function activateMapPanel(opts = {}) {
     loadSocialsTab();
   } else if (MAP.type === 'industries') {
     loadIndustriesTab();
-  } else if (MAP.type === 'catalog') {
-    loadCatalogTab();
   } else if (MAP.type === 'vapi') {
     loadVapiTab();
   } else if (MAP.type === 'lead-scanner') {
@@ -15394,6 +15385,7 @@ function loadPositions() {
 function resolveMapKey(key) {
   if (key === 'home') return 'dashboard';
   if (key === 'email-lab' || key === 'lab') return 'rules';
+  if (key === 'catalog') return 'modules';
   return key;
 }
 
@@ -15420,7 +15412,6 @@ function loadActiveKey() {
 
 function canOpenMapKey(key) {
   if (key === 'industries') return showIndustries();
-  if (key === 'catalog') return showModuleCatalog();
   const features = window.__installConfig?.features;
   const has = (id) => Array.isArray(features) && features.includes(id);
   if (key === 'social') return has('social_inbox');

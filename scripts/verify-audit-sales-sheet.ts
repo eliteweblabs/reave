@@ -63,8 +63,7 @@ import {
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
 import { NO_LOGO_FOUND_HTML } from '../src/lib/clientLogoCopy.ts';
-import { dummySpeedWaterfall } from '../src/lib/salesSheetWaterfall.ts';
-import { pickNetworkRequests } from '../src/lib/lighthouseClient.ts';
+import { dummyPsiMobile, psiMobileFromAudit } from '../src/lib/salesSheetPsi.ts';
 import {
   DIRECTORY_ICON_GROUPS,
   DIRECTORY_SLUGS,
@@ -704,8 +703,12 @@ await test('static back is gate + builds + cover with curated stack and no clien
   for (const tech of SALES_SHEET_STACK) {
     assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
   }
-  assert.match(back, /justify-content: space-between/);
-  assert.match(back, /flex-wrap: nowrap/);
+  assert.match(back, /justify-content: center/);
+  assert.match(back, /\.ss-stack \{[\s\S]*?flex-wrap: nowrap/);
+  assert.match(back, /\.ss-stack \{[\s\S]*?justify-content: space-between/);
+  assert.match(back, /\.ss-stack \{[\s\S]*?width: 100%/);
+  assert.doesNotMatch(back, /\.ss-stack \{[\s\S]*?flex-wrap: wrap/);
+  assert.doesNotMatch(back, /\.ss-stack \{[\s\S]*?max-width: 20cqi/);
   assert.match(back, /--ss-print-inset: 0\.2in/);
   assert.match(back, /\.ss-sheet-back \.doc-onepager \{[\s\S]*?padding: 0;/);
   assert.match(back, /grid-template-columns: 1fr 1fr 1fr/);
@@ -1153,10 +1156,11 @@ await test('front header uses the client logo or the crawler missing-logo findin
   assert.doesNotMatch(swapped, />REAVE</);
 });
 
-await test('security exhibit is the Safari Private Relay warning', () => {
-  assert.equal(salesSheetExhibitKind({ id: 'security-headers', categoryLabel: 'Security Headers' }), 'private-relay');
-  assert.equal(salesSheetExhibitKind({ id: 'sec-soft', categoryLabel: 'Security' }), 'private-relay');
+await test('security exhibit is a header scan, not a Safari warning', () => {
+  assert.equal(salesSheetExhibitKind({ id: 'security-headers', categoryLabel: 'Security Headers' }), 'security-headers');
+  assert.equal(salesSheetExhibitKind({ id: 'sec-soft', categoryLabel: 'Security' }), 'security-headers');
   assert.equal(salesSheetExhibitKind({ id: 'ssl-missing', categoryLabel: 'SSL' }), 'ssl');
+  assert.equal(salesSheetExhibitKind({ id: 'mixed-content', categoryLabel: 'Mixed Content' }), 'generic');
   const phone = renderFindingPhoneHtml(
     {
       id: 'security-headers',
@@ -1166,17 +1170,23 @@ await test('security exhibit is the Safari Private Relay warning', () => {
     },
     { website: 'calareneesalon.com' },
   );
-  assert.match(phone, /data-ss-exhibit="private-relay"/);
-  assert.match(phone, /This Connection Is Not Private/);
-  assert.match(phone, /iCloud Private Relay/);
+  assert.match(phone, /data-ss-exhibit="security-headers"/);
+  assert.match(phone, /ss-phone-lock--ok/);
+  assert.match(phone, /Header scan/);
   assert.match(phone, /calareneesalon\.com/);
-  assert.match(phone, /Show IP Address/);
-  assert.match(phone, /Go Back/);
+  assert.match(phone, /HSTS/);
+  assert.match(phone, /Content-Security-Policy/);
+  assert.match(phone, /X-Frame-Options/);
+  assert.match(phone, /Visitors will not see a warning/);
+  assert.doesNotMatch(phone, /This Connection Is Not Private/);
+  assert.doesNotMatch(phone, /iCloud Private Relay/);
+  assert.doesNotMatch(phone, /Show IP Address/);
+  assert.doesNotMatch(phone, /Not Secure/);
   assert.doesNotMatch(phone, /ss-phone-icon--alert/);
   assert.doesNotMatch(phone, /Browsers may warn visitors/);
 });
 
-await test('site speed exhibit is a Google PageSpeed network waterfall', () => {
+await test('site speed exhibit is the PageSpeed Insights mobile results card', () => {
   const dummy = renderFindingPhoneHtml(
     {
       id: 'dummy-speed',
@@ -1186,27 +1196,24 @@ await test('site speed exhibit is a Google PageSpeed network waterfall', () => {
     },
     { website: 'haleco.example' },
   );
-  assert.match(dummy, /ss-wf/);
-  assert.match(dummy, /Google™ PageSpeed/);
-  assert.match(dummy, /Network/);
+  assert.match(dummy, /ss-psi/);
+  assert.match(dummy, /PageSpeed Insights/);
+  assert.match(dummy, /ss-phone-chrome/);
+  assert.match(dummy, /haleco\.example/);
+  assert.match(dummy, />18</);
+  assert.match(dummy, /Largest Contentful Paint/);
+  assert.match(dummy, /6\.4 s/);
+  assert.match(dummy, />Mobile</);
+  assert.doesNotMatch(dummy, /ss-wf/);
   assert.doesNotMatch(dummy, /Still loading/);
-  assert.ok(dummySpeedWaterfall('haleco.example').length >= 8);
-  const parsed = pickNetworkRequests({
-    'network-requests': {
-      details: {
-        items: [
-          {
-            url: 'https://slow.example/app.js',
-            networkRequestTime: 100,
-            networkEndTime: 2400,
-            transferSize: 12_000,
-            resourceType: 'Script',
-          },
-        ],
-      },
-    },
+  const standin = dummyPsiMobile('haleco.example');
+  assert.equal(standin.scores.performance, 18);
+  assert.equal(standin.metrics.lcp, '6.4 s');
+  const liveCard = psiMobileFromAudit({
+    url: 'https://slow.example/',
+    scores: { performance: 12, accessibility: 80, 'best-practices': 60, seo: 70 },
+    metrics: { fcp: '4.1 s', lcp: '5.4 s', tbt: '1,200 ms', cls: '0.42', speed_index: '8.0 s' },
   });
-  assert.equal(parsed[0]?.resourceType, 'Script');
   const live = renderFindingPhoneHtml(
     {
       id: 'speed-fail',
@@ -1214,10 +1221,36 @@ await test('site speed exhibit is a Google PageSpeed network waterfall', () => {
       problem: 'Slow LCP',
       solution: 'Compress',
     },
-    { website: 'slow.example', networkRequests: parsed, lcpLabel: '5.4 s' },
+    { website: 'slow.example', psi: liveCard },
   );
-  assert.match(live, /app\.js/);
-  assert.match(live, /LCP 5\.4 s/);
+  assert.match(live, /slow\.example/);
+  assert.match(live, />12</);
+  assert.match(live, /5\.4 s/);
+  assert.match(live, /PageSpeed Insights/);
+  const fieldCard = psiMobileFromAudit({
+    url: 'https://slow.example/',
+    scores: { performance: 12, accessibility: 80, 'best-practices': 60, seo: 70 },
+    metrics: { lcp: '5.4 s' },
+    pageExperience: {
+      overall: 'SLOW',
+      lcp: { percentile: 5400, category: 'SLOW' },
+      inp: { percentile: 380, category: 'AVERAGE' },
+      cls: { percentile: 31, category: 'SLOW' },
+    },
+  });
+  const fieldHtml = renderFindingPhoneHtml(
+    {
+      id: 'speed-fail',
+      categoryLabel: 'Site Speed',
+      problem: 'Slow LCP',
+      solution: 'Compress',
+    },
+    { website: 'slow.example', psi: fieldCard },
+  );
+  assert.match(fieldHtml, /Discover what your real users are experiencing/);
+  assert.match(fieldHtml, /Core Web Vitals Assessment: <strong>Poor<\/strong>/);
+  assert.match(fieldHtml, /Interaction to Next Paint/);
+  assert.doesNotMatch(fieldHtml, /Diagnose performance issues/);
 });
 
 await test('QR sits in the top-right without caption, title, or date', () => {
