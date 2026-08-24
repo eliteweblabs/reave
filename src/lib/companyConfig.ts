@@ -22,6 +22,10 @@ import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 import { getPostAlias, type PostAliasLabels } from './postAlias.ts';
 import { inboundMailboxExample } from './inboundEmailInstall';
+import {
+  canonicalizeReaveBrandEmail,
+  defaultPublicEmailForDomain,
+} from './reavePublicEmail';
 
 /**
  * Make a string safe to use as an HTTP header value. `fetch` requires header
@@ -83,8 +87,8 @@ export function companyToBrandContext(company: CompanyBrandSource, request?: Req
   const siteUrl = domain
     ? `https://${domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/`
     : siteBaseUrl(request).replace(/\/?$/, '/');
-  const fromEmail = trim(company.fromEmail);
-  const supportEmail = trim(company.supportEmail);
+  const fromEmail = canonicalizeReaveBrandEmail(trim(company.fromEmail));
+  const supportEmail = canonicalizeReaveBrandEmail(trim(company.supportEmail));
   const headerSafeName = headerSafe(name).replace(/\s+/g, '') || 'App';
   return {
     name,
@@ -107,9 +111,12 @@ export async function getCompanyBrandContext(request?: Request): Promise<Company
 }
 
 export function defaultVapidSubjectFromCompany(company: CompanyConfig): string {
-  if (company.supportEmail) return `mailto:${company.supportEmail}`;
-  if (company.fromEmail) return `mailto:${company.fromEmail}`;
-  if (company.domain) return `mailto:support@${company.domain}`;
+  const support = canonicalizeReaveBrandEmail(company.supportEmail);
+  if (support) return `mailto:${support}`;
+  const from = canonicalizeReaveBrandEmail(company.fromEmail);
+  if (from) return `mailto:${from}`;
+  const domainFallback = defaultPublicEmailForDomain(company.domain, 'support');
+  if (domainFallback) return `mailto:${domainFallback}`;
   return 'mailto:noreply@localhost';
 }
 
@@ -409,21 +416,19 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   const name = pick(stored?.name, serverEnv('COMPANY_NAME'), SITE.name);
   const legalName = pick(stored?.legalName, serverEnv('COMPANY_LEGAL_NAME'), name);
   const description = pick(stored?.description, serverEnv('COMPANY_DESCRIPTION'), SITE.description);
-  const supportEmail = pick(
-    stored?.supportEmail,
-    serverEnv('COMPANY_SUPPORT_EMAIL'),
-    domain ? `support@${domain}` : '',
-  );
+  const supportEmail =
+    canonicalizeReaveBrandEmail(
+      pick(stored?.supportEmail, serverEnv('COMPANY_SUPPORT_EMAIL')),
+    ) || defaultPublicEmailForDomain(domain, 'support');
   const supportPhone = pick(
     stored?.supportPhone,
     serverEnv('COMPANY_SUPPORT_PHONE'),
     serverEnv('TWILIO_FROM_NUMBER'),
   );
-  const fromEmail = pick(
-    stored?.fromEmail,
-    serverEnv('COMPANY_FROM_EMAIL'),
-    domain ? `noreply@${domain}` : '',
-  );
+  const fromEmail =
+    canonicalizeReaveBrandEmail(
+      pick(stored?.fromEmail, serverEnv('COMPANY_FROM_EMAIL')),
+    ) || (domain ? `noreply@${domain}` : '');
   const address = pick(stored?.address, serverEnv('BOOKING_DEFAULT_ADDRESS'));
   const geo = resolveCompanyGeo(stored);
   const fonts = resolveBrandFonts(stored);
@@ -495,7 +500,7 @@ export function poweredByLabel(company: CompanyConfig): string {
 
 /** Default Resend From header unless RESEND_FROM is set. */
 export async function resolveEmailFrom(): Promise<string> {
-  const explicit = trim(serverEnv('RESEND_FROM'));
+  const explicit = canonicalizeReaveBrandEmail(trim(serverEnv('RESEND_FROM')));
   if (explicit) return explicit;
   const company = await getCompanyConfig();
   if (company.name && company.fromEmail) return `${company.name} <${company.fromEmail}>`;
@@ -555,9 +560,13 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.legalName !== undefined) out.legalName = trim(input.legalName) || null;
   if (input.description !== undefined) out.description = trim(input.description) || null;
   // Domain is Railway-owned (PUBLIC_SITE_DOMAIN / COMPANY_DOMAIN). Ignore client writes.
-  if (input.supportEmail !== undefined) out.supportEmail = trim(input.supportEmail) || null;
+  if (input.supportEmail !== undefined) {
+    out.supportEmail = canonicalizeReaveBrandEmail(trim(input.supportEmail)) || null;
+  }
   if (input.supportPhone !== undefined) out.supportPhone = trim(input.supportPhone) || null;
-  if (input.fromEmail !== undefined) out.fromEmail = trim(input.fromEmail) || null;
+  if (input.fromEmail !== undefined) {
+    out.fromEmail = canonicalizeReaveBrandEmail(trim(input.fromEmail)) || null;
+  }
   if (input.address !== undefined) out.address = trim(input.address) || null;
   if (input.vapiAssistantId !== undefined) out.vapiAssistantId = trim(input.vapiAssistantId) || null;
   if (input.vapiFirstMessage !== undefined) {

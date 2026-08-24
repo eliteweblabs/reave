@@ -2,11 +2,10 @@
 import ConversationalForm from "../ConversationalForm.astro";
 import { Contact, Mail, Phone } from "lucide-astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { companyPublicEmail } from "../../lib/reavePublicEmail";
 
 const company = await getCompanyConfig(Astro.request);
-const supportMail =
-  company.supportEmail ||
-  (company.domain ? `hello@${company.domain}` : "");
+const supportMail = companyPublicEmail(company);
 const phoneHref = company.supportPhone
   ? `tel:${company.supportPhone.replace(/[^\d+]/g, "")}`
   : null;

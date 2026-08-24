@@ -5,6 +5,7 @@
  */
 import Layout from "../layouts/Layout.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { companyPublicEmail } from "../lib/reavePublicEmail";
 import { getPublicDemoOptions } from "../lib/publicDemo";
 import {
   ArrowRight,
@@ -17,7 +18,7 @@ import {
 
 const company = await getCompanyConfig(Astro.request);
 const demo = getPublicDemoOptions();
-const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const supportMail = companyPublicEmail(company);
 const quoteHref = supportMail ? `mailto:${supportMail}` : demo.scheduleHref;
 
 type DemoCard = {

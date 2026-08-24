@@ -60,7 +60,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 | `CONTACT_API_BASE_URL` | Resolve sender → client |
 | `DATABASE_URL` | Inbox log + jobs + push subscriptions |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push (generate: `npx web-push generate-vapid-keys`) |
-| `VAPID_SUBJECT` | e.g. `mailto:thomas@reave.app` |
+| `VAPID_SUBJECT` | e.g. `mailto:get@reave.app` |
 | `PUSH_ENABLED` | Set `0` to disable push |
 | `AGENT_ALERT_USER_ID` | Clerk user id — alert emails → **System alerts** chat + agent |
 | `AGENT_ALERT_AUTO_RUN` | Set `0` to queue alert without auto agent reply |

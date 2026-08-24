@@ -3,6 +3,7 @@
  * Installation tier pricing table + tier cards — used on /pricing and /features.
  */
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { companyPublicEmail } from "../../lib/reavePublicEmail";
 import { INSTALLATION_TIERS, formatInstallUsd } from "../../lib/installationTiers";
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
 const { featureHrefPrefix = "", variant = "features" } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
-const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const supportMail = companyPublicEmail(company);
 const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
 
 const heading =
