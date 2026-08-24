@@ -350,7 +350,7 @@ const MAP_ICON_KEYS = {
   work: 'briefcase',
   schedule: 'calendar',
   clients: 'users',
-  social: 'trending-up',
+  social: 'share',
   reviews: 'star',
   media: 'image',
   analytics: 'bar-chart-2',
@@ -507,6 +507,12 @@ const NAV_ICON_PATHS = {
   /* IOS_ICONS.bar-chart-2 — keep in sync with public/admin/admin-ui.js */
   'bar-chart-2':
     '<path d="M6 20v-6"/><path d="M12 20V4"/><path d="M18 20V10"/>',
+  /* IOS_ICONS.share — keep in sync with public/admin/admin-ui.js */
+  share:
+    '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>',
+  /* IOS_ICONS.truck — keep in sync with public/admin/admin-ui.js */
+  truck:
+    '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
 };
 
 export function navIcon(name, size = 20) {
@@ -2423,8 +2429,35 @@ function buildEmailDashboardLinkGrid() {
   return grid;
 }
 
+function dashboardCardsFromConfig() {
+  const cards = window.__installConfig?.dashboardCards;
+  return Array.isArray(cards) ? cards : [];
+}
+
+/** Dashboard launcher tiles from enabled modules + core OS cards. */
+function dashboardGridCards() {
+  const configured = dashboardCardsFromConfig();
+  if (configured.length) {
+    return configured.filter((card) => {
+      const key = card?.mapKey;
+      if (!key || !MAPS[key] || !canOpenMapKey(key)) return false;
+      return true;
+    });
+  }
+  return dashboardGridKeys().map((key) => ({
+    id: key,
+    title: MAPS[key]?.title || key,
+    icon: mapIconName(key),
+    mapKey: key,
+  }));
+}
+
 /** Dashboard launcher tiles from install footerNav, A–Z. Saved tab order does not hide new keys. */
 function dashboardGridKeys() {
+  const fromCards = dashboardCardsFromConfig();
+  if (fromCards.length) {
+    return fromCards.map((card) => card.mapKey).filter((key) => MAPS[key] && canOpenMapKey(key));
+  }
   const keys = [];
   for (const key of dashboardTabKeys(defaultTabKeys())) {
     const m = MAPS[key];
@@ -2499,12 +2532,12 @@ function dashboardSectionItems(order) {
   return items;
 }
 
-function buildHomeMapTile(key, m) {
+function buildHomeMapTile(key, m, iconName) {
   const tile = document.createElement('button');
   tile.type = 'button';
   tile.className = 'home-dashboard-tile';
   tile.innerHTML =
-    `<span class="home-dashboard-tile-icon">${navIcon(mapIconName(key))}</span>` +
+    `<span class="home-dashboard-tile-icon">${navIcon(iconName || mapIconName(key))}</span>` +
     `<span class="home-dashboard-tile-label">${escHtml(m.title)}</span>`;
   tile.addEventListener('click', () => {
     setActiveMap(key, { force: key === activeKey && isPanelMapKey(key) });
@@ -5217,13 +5250,17 @@ function renderAdminDashboard(data) {
 
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
-  for (const key of dashboardGridKeys()) {
+  for (const card of dashboardGridCards()) {
+    const key = card.mapKey;
     const m = MAPS[key];
     if (!m) continue;
-    if (m.link) {
-      grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
+    const href = m.link;
+    const label = card.title || m.title;
+    const icon = card.icon || mapIconName(key);
+    if (href) {
+      grid.appendChild(buildHomeLinkTile({ href, label, icon }));
     } else {
-      grid.appendChild(buildHomeMapTile(key, m));
+      grid.appendChild(buildHomeMapTile(key, { title: label }, icon));
     }
   }
   scroll.appendChild(grid);

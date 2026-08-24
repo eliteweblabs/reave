@@ -12,6 +12,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { isPrivateFeature } from './featureCatalog.ts';
+import { dashboardCardsForFeatures, type DashboardCard } from './featureDashboard.ts';
 import { projectRoot } from './projectRoot.ts';
 import { parseHomepageTemplate, type HomepageTemplate } from './homepageTemplate.ts';
 import { serverEnv } from './serverEnv.ts';
@@ -179,6 +180,8 @@ export type InstallConfigClient = Pick<
   showIndustries?: boolean;
   /** Module catalog editor — official REΛVE Railway install only. */
   showModuleCatalog?: boolean;
+  /** Home-grid cards: enabled modules with dashboard:true, plus core OS tiles. */
+  dashboardCards?: DashboardCard[];
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -497,6 +500,9 @@ export function getInstallConfigClient(): InstallConfigClient {
     showDeployWizard: config.features.includes('deploy_wizard'),
     showIndustries: isCanonicalReaveInstall(),
     showModuleCatalog: isCanonicalReaveInstall(),
+    dashboardCards: dashboardCardsForFeatures(config.features, {
+      showDeployWizard: config.features.includes('deploy_wizard'),
+    }),
   };
 }
 

@@ -104,7 +104,7 @@ export const FEATURE_MARKETING: Partial<
   ],
 };
 
-/** Short human titles for health output, docs, and demo module catalog. */
+/** Short human titles for health output, docs, demo catalog, and dashboard cards. */
 export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client portal',
   web_handoff: 'Portal Data tab',

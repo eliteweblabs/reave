@@ -12,6 +12,11 @@ import {
   isPublicFeature,
   isServiceFeature,
 } from '../src/lib/featureCatalog.ts';
+import {
+  FEATURE_DASHBOARD,
+  dashboardCardsForFeatures,
+  featureShowsDashboard,
+} from '../src/lib/featureDashboard.ts';
 import { MARKETING_FEATURES } from '../src/lib/marketingFeatures.ts';
 import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
@@ -37,6 +42,12 @@ function configFeatures(slug: string): string[] {
 assert.ok(FEATURE_IDS.includes('social_inbox'));
 assert.ok(FEATURE_IDS.includes('google_workspace'));
 assert.equal(FEATURE_LABELS.social_inbox, 'Agentic Social Media');
+assert.ok(featureShowsDashboard('social_inbox'));
+assert.equal(FEATURE_DASHBOARD.social_inbox?.icon, 'share');
+const dashCards = dashboardCardsForFeatures(['social_inbox', 'online_reviews', 'email_marketing']);
+assert.ok(dashCards.some((c) => c.id === 'social_inbox' && c.title === FEATURE_LABELS.social_inbox));
+assert.ok(dashCards.some((c) => c.id === 'online_reviews' && c.title === FEATURE_LABELS.online_reviews));
+assert.ok(!dashCards.some((c) => c.id === 'client_portal'));
 assert.equal(FEATURE_LABELS.google_workspace, 'Google™ Workspace');
 assert.equal(FEATURE_LABELS.time_tracking, 'Time Tracking');
 assert.equal(FEATURE_LABELS.materials_pricing, 'Materials pricing');
