@@ -1,34 +1,30 @@
 /**
  * WordPress Plugin Download — reave-connect
  *
- * Serves the latest reave-connect.zip by streaming it from GitHub raw.
+ * Serves the latest reave-connect.zip by streaming it from GitHub Releases.
  * WordPress calls this URL when it auto-updates the plugin.
  *
  * GET /api/wp-update/reave-connect/download
  *
- * The ZIP is built from the wp-plugin/reave-connect/ directory in the repo.
- * To release a new version:
- *   1. Edit the plugin PHP (bump Version header + REAVE_CONNECT_VERSION constant)
- *   2. Update PLUGIN_VERSION in info.json.ts
- *   3. Run: cd wp-plugin && zip -r reave-connect.zip reave-connect/
- *   4. Commit reave-connect.zip to the repo root (wp-plugin/reave-connect.zip)
- *   5. Deploy — WordPress sites will auto-update within 6 hours
+ * Source: https://github.com/eliteweblabs/reave-connect
+ * A GitHub Action on that repo rebuilds the zip on every push to main.
  */
 
 import type { APIRoute } from 'astro';
 
-const GITHUB_RAW_ZIP =
-  'https://raw.githubusercontent.com/eliteweblabs/reave/main/wp-plugin/reave-connect.zip';
+const GITHUB_RELEASE_ZIP =
+  'https://github.com/eliteweblabs/reave-connect/releases/latest/download/reave-connect.zip';
 
 export const GET: APIRoute = async () => {
   try {
-    const upstream = await fetch(GITHUB_RAW_ZIP, {
+    const upstream = await fetch(GITHUB_RELEASE_ZIP, {
       headers: { 'User-Agent': 'reave-update-server/1.0' },
+      redirect: 'follow',
     });
 
     if (!upstream.ok) {
       return new Response(
-        JSON.stringify({ error: 'Plugin ZIP not found on GitHub', status: upstream.status }),
+        JSON.stringify({ error: 'Plugin ZIP not found on GitHub Releases', status: upstream.status }),
         { status: 502, headers: { 'Content-Type': 'application/json' } },
       );
     }

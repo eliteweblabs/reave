@@ -102,7 +102,6 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
       { label: 'Everything in Growth' },
       { label: 'Dealership inventory wizard', href: '/modules#plugin-dealership' },
       { label: 'Fleet GPS tracking', href: '/modules#plugin-fleet' },
-      { label: 'WordPress content plugin', href: '/modules#plugin-wordpress-content' },
       { label: 'DNS record management', href: '/modules#plugin-namecom-dns' },
       { label: 'Any remaining optional plugins', href: '/modules' },
     ],

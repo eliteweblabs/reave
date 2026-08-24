@@ -1,6 +1,6 @@
-# WordPress content plugin — agent edits on WordPress
+# WordPress™ Connect — agent edits on WordPress
 
-When `wordpress_content` is enabled and `REAVE_WP_API_KEY` is set, update **posts, pages, and media** through Reave Connect — not wp-admin clicks or direct DB edits.
+When the super-admin **WordPress™ Connect** module (`wordpress_content`) is on and `REAVE_WP_API_KEY` is set, update **posts, pages, and media** through [Reave Connect](https://github.com/eliteweblabs/reave-connect) — not wp-admin clicks or direct DB edits.
 
 ## Tools
 
@@ -16,7 +16,7 @@ When `wordpress_content` is enabled and `REAVE_WP_API_KEY` is set, update **post
 
 ## Scope
 
-- **This module:** WordPress sites with Reave Connect installed
+- **This module:** WordPress™ sites with [Reave Connect](https://github.com/eliteweblabs/reave-connect) installed
 - **Not this module:** Astro / GitHub site edits — that is `content_management` (Agentic Website Editor)
 
 ## Hosting

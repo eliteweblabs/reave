@@ -2,8 +2,8 @@ import { wordpressContentAgentTools } from './agentTools';
 import type { ReavePlugin } from '../_shared/types';
 
 /**
- * WordPress companion plugin (Reave Connect) — posts, pages, and media
- * plus site ops via exec_wp. Tools require REAVE_WP_API_KEY at runtime.
+ * WordPress™ Connect — super-admin module. PHP lives in
+ * https://github.com/eliteweblabs/reave-connect
  */
 export const wordpressContentPlugin: ReavePlugin = {
   id: 'wordpress-content',

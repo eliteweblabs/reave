@@ -1,11 +1,12 @@
 /**
  * Agent tool module: exec_wp
  *
- * Calls the reave-connect WordPress plugin REST API to manage any site
- * remotely — no SSH required. One shared API key (REAVE_WP_API_KEY) works
- * across all sites that have the plugin installed.
+ * Calls the Reave Connect WordPress™ plugin REST API to manage any site
+ * remotely — no SSH required. Gated by the wordpress_content module
+ * (super-admin Add-ons toggle) plus REAVE_WP_API_KEY.
  */
 
+import { hasFeature } from '../../features';
 import {
   callWpConnect,
   isWpConnectConfigured,
@@ -105,7 +106,7 @@ const definition: AgentToolDef = {
 
 export const wpModule: AgentToolModule = {
   id: 'wp',
-  enabled: (_ctx: ToolContext) => isWpConnectConfigured(),
+  enabled: (_ctx: ToolContext) => hasFeature('wordpress_content') && isWpConnectConfigured(),
   definitions(_ctx: ToolContext): AgentToolDef[] {
     return [definition];
   },

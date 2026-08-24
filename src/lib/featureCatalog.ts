@@ -133,7 +133,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   wayback_machine: 'Wayback Machine',
   content_management: 'Agentic Website Editor',
   stock_photos: 'Pexels stock photos',
-  wordpress_content: 'WordPress content plugin',
+  wordpress_content: 'WordPress™ Connect',
   seo_directory: 'SEO Directory API Kit',
   event_ticketing: 'Event ticketing',
   cookie_notice: 'Cookie notice',
@@ -175,7 +175,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
   content_management: 'Edit the install’s own front-end repo through the agent — not the REΛVE app',
   stock_photos: 'Royalty-free search for pages, decks, and newsletters',
-  wordpress_content: 'Agent updates posts, pages, and media on a WordPress site',
+  wordpress_content:
+    'Super-admin module — agent updates posts, pages, and media on a WordPress™ site via Reave Connect',
   seo_directory:
     'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, and Bing',
   event_ticketing:
@@ -207,6 +208,7 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
   dev_infra: 'private',
   code_dev: 'private',
   namecom_dns: 'private',
+  wordpress_content: 'private',
   google_workspace: 'service',
 };
 

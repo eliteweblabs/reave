@@ -7,15 +7,19 @@ stage: 2
 # wordpress_content — deployment checklist
 
 **Feature id:** `wordpress_content`  
-**Default status:** `deployed` (optional add-on; not baseline)
+**Default status:** `deployed` (super-admin module; not sold as an add-on)
 
 ## What it is
 
-A **WordPress companion plugin** (Reave Connect) so the Reave agent can update posts, pages, and media on an existing WordPress site — without the owner logging into wp-admin for every copy change.
+**WordPress™ Connect** — the REΛVE companion plugin so the agent can update posts, pages, and media on an existing WordPress site without wp-admin for every copy change.
+
+The PHP plugin lives in [`eliteweblabs/reave-connect`](https://github.com/eliteweblabs/reave-connect). This Reave module is the toggle and agent tools.
 
 This is separate from `content_management` (Agentic Website Editor — Astro / GitHub / no CMS). Enable only for installs that keep WordPress as the public site.
 
 ## Enable
+
+Super admin (deployment owner) turns it on in **Admin → Add-ons**. Official REΛVE also lists it in `config/config-reave.json` → `features`.
 
 ```json
 {
@@ -27,14 +31,14 @@ This is separate from `content_management` (Agentic Website Editor — Astro / G
 
 | Piece | Purpose |
 |-------|---------|
-| Reave Connect plugin | `wp-plugin/reave-connect/` on the WordPress site |
+| Reave Connect plugin | Install from [GitHub Releases](https://github.com/eliteweblabs/reave-connect/releases/latest) |
 | `REAVE_WP_API_KEY` | Same value as the plugin’s API key (`X-Reave-Key`) |
 | `REAVE_WP_SITE_URL` | Optional default site URL so tools can omit `site_url` |
 | Optional: Kinsta (`dev_infra`) | `clear_kinsta_cache` after publish |
 
 ## Checklist
 
-- [ ] Add `wordpress_content` to install `features[]`
+- [ ] Super admin enables WordPress™ Connect in Add-ons (or `features[]`)
 - [ ] Set `REAVE_WP_API_KEY` on the Reave App Railway service
 - [ ] Install / update Reave Connect on the WordPress site (auto-updates from `/api/wp-update/reave-connect/`)
 - [ ] Paste the same API key in WP Admin → Settings → Reave Connect

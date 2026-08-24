@@ -958,7 +958,7 @@ async function runKnowledgeAgentInner(
   }
   if (hasFeature('wordpress_content')) {
     sysParts.push(
-      'WordPress content plugin: when the owner asks to update a WordPress site, use wp_list_content / wp_get_content / wp_write_content / wp_delete_content / wp_list_media / wp_upload_media / wp_set_featured_image. New pages and posts stay draft unless they asked to publish. site_url is optional when REAVE_WP_SITE_URL is set. For indexing, plugins, cache, or options use exec_wp. read_knowledge slug "wordpress-content". Separate from Astro/GitHub content_management. Optional clear_kinsta_cache after publish when Kinsta + dev_infra are available. Do not invent wp-admin steps or claim a change shipped without ok: true.',
+      'WordPress™ Connect: when the owner asks to update a WordPress site, use wp_list_content / wp_get_content / wp_write_content / wp_delete_content / wp_list_media / wp_upload_media / wp_set_featured_image. New pages and posts stay draft unless they asked to publish. site_url is optional when REAVE_WP_SITE_URL is set. For indexing, plugins, cache, or options use exec_wp. read_knowledge slug "wordpress-content". Separate from Astro/GitHub content_management. Optional clear_kinsta_cache after publish when Kinsta + dev_infra are available. Do not invent wp-admin steps or claim a change shipped without ok: true.',
     );
   }
   if (hasFeature('site_audits')) {

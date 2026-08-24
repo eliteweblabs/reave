@@ -45,7 +45,7 @@ Check modules for this client, then run `npm run deploy:checklist`:
 | 024 | `wayback_machine` | Wayback Machine |
 | 025 | `content_management` | Agentic Website Editor |
 | 026 | `stock_photos` | Pexels stock photos |
-| 027 | `wordpress_content` | WordPress content plugin |
+| 027 | `wordpress_content` | WordPress™ Connect (super-admin) |
 | 033 | `website` | Website (client web tools) |
 | 034 | `credit_check` | Credit check (reference) |
 | 036 | `social_inbox` | Agentic Social Media (paid add-on) |

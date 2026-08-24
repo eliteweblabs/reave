@@ -43,11 +43,9 @@ import type { AgentToolModule } from './types';
  * for WP-CLI commands on Kinsta WordPress environments.
  *
  * WordPress remote management (`exec_wp`) lives in `core/wp.ts` — enabled when
- * REAVE_WP_API_KEY is set. Calls the reave-connect plugin REST API across all
- * managed WordPress sites with a single shared API key. Supports enable/disable
- * indexing, install/activate plugins, flush cache, update options, plus
- * posts/pages/media. Dedicated wp_* content tools live in
- * `plugins/wordpress-content/` (feature-gated `wordpress_content`).
+ * the super-admin `wordpress_content` module is on and REAVE_WP_API_KEY is set.
+ * Calls the Reave Connect plugin REST API (https://github.com/eliteweblabs/reave-connect).
+ * Dedicated wp_* content tools live in `plugins/wordpress-content/`.
  * Plugin auto-updates from https://reave.app/api/wp-update/reave-connect/
  *
  * Deploy resume (`set_deploy_resume` / `clear_deploy_resume`) lives in
