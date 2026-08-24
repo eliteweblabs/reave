@@ -9,10 +9,10 @@
  * Assignment order is a stable shuffle — ids are not A–Z rank.
  */
 import {
+  aggregatedGoogleWorkspaceBlurb,
   FEATURE_BLURBS,
   FEATURE_IDS,
   FEATURE_LABELS,
-  FEATURE_MARKETING,
   FEATURE_SALE_SHEET,
   featureVisibility,
   isPrivateFeature,
@@ -364,7 +364,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
       id: catalogIdForFeature(feature) || '—',
       feature,
       label: FEATURE_LABELS[feature],
-      blurb: FEATURE_BLURBS[feature],
+      blurb: feature === 'google_workspace' ? aggregatedGoogleWorkspaceBlurb() : FEATURE_BLURBS[feature],
       priceAmount,
       priceLabel,
       saleSheet: FEATURE_SALE_SHEET.has(feature),
@@ -372,28 +372,8 @@ export function defaultModuleCatalog(): CatalogRow[] {
     };
   });
 
-  const taken = [...core, ...modules].map((row) => row.id).filter((id) => /^\d{3}$/.test(id));
-  const workspaceServices: CatalogRow[] = (FEATURE_MARKETING.google_workspace ?? []).map((cap) => {
-    const feature = slugifyCatalogFeature(cap.id);
-    const id = nextCatalogId('google_workspace', taken);
-    taken.push(id);
-    return {
-      key: `custom:${feature}`,
-      kind: 'custom' as const,
-      group: 'google_workspace' as const,
-      id,
-      feature,
-      label: cap.label,
-      blurb: cap.blurb || '',
-      priceAmount: null,
-      priceLabel: 'Included',
-      saleSheet: true,
-      visibility: 'service' as const,
-    };
-  });
-
   const groupRank = new Map(CATALOG_GROUPS.map((id, i) => [id, i]));
-  return [...core, ...modules, ...workspaceServices].sort((a, b) => {
+  return [...core, ...modules].sort((a, b) => {
     const gr = (groupRank.get(a.group) ?? 99) - (groupRank.get(b.group) ?? 99);
     if (gr) return gr;
     return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });

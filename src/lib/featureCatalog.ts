@@ -104,6 +104,26 @@ export const FEATURE_MARKETING: Partial<
   ],
 };
 
+/** Catalog / chip slugs owned by `google_workspace` — not standalone modules. */
+export const GOOGLE_WORKSPACE_CAPABILITY_IDS: readonly string[] = (
+  FEATURE_MARKETING.google_workspace ?? []
+).map((cap) => cap.id);
+
+export function isGoogleWorkspaceCapability(id: string): boolean {
+  return GOOGLE_WORKSPACE_CAPABILITY_IDS.includes(id);
+}
+
+/** One-module blurb that keeps every Workspace setup fact. */
+export function aggregatedGoogleWorkspaceBlurb(): string {
+  const lead = 'Point a client domain at Google mail without asking them to paste records.';
+  const caps = FEATURE_MARKETING.google_workspace ?? [];
+  if (!caps.length) return lead;
+  const details = caps
+    .map((c) => (c.blurb ? `${c.label} — ${c.blurb.replace(/\.$/, '')}` : c.label))
+    .join('. ');
+  return `${lead} ${details}.`;
+}
+
 /** Short human titles for health output, docs, demo catalog, and dashboard cards. */
 export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client portal',

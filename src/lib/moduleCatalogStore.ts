@@ -10,6 +10,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import pg from 'pg';
 import {
+  aggregatedGoogleWorkspaceBlurb,
+  FEATURE_MARKETING,
+  isGoogleWorkspaceCapability,
+} from './featureCatalog';
+import {
   CATALOG_GROUPS,
   canonicalRowId,
   defaultModuleCatalog,
@@ -89,6 +94,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
   if (!Array.isArray(raw)) return defaultModuleCatalog();
   const seen = new Set<string>();
   const out: CatalogRow[] = [];
+  let droppedWorkspaceCaps = false;
   raw.forEach((item, i) => {
     if (!item || typeof item !== 'object') return;
     const o = item as Record<string, unknown>;
@@ -99,6 +105,11 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
         ? slugifyCatalogFeature(o.feature)
         : slugifyCatalogFeature(label);
     if (!feature) return;
+    // MX / SPF / DKIM / DMARC / domains live on google_workspace — not their own rows.
+    if (isGoogleWorkspaceCapability(feature)) {
+      droppedWorkspaceCaps = true;
+      return;
+    }
     const rawGroup = String(o.group || '')
       .trim()
       .replace(/^e-commerce$/, 'e_commerce')
@@ -127,7 +138,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       id: typeof o.id === 'string' && o.id.trim() ? o.id.trim().slice(0, 16) : '',
       feature,
       label: label.slice(0, 120),
-      blurb: typeof o.blurb === 'string' ? o.blurb.trim().slice(0, 400) : '',
+      blurb: typeof o.blurb === 'string' ? o.blurb.trim().slice(0, 800) : '',
       priceAmount,
       priceLabel,
       saleSheet: o.saleSheet === true,
@@ -141,6 +152,24 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
   });
   const seenFeatures = new Set(out.map((row) => row.feature));
   const taken: string[] = out.map((row) => row.id).filter((id) => /^\d{3}$/.test(id));
+  const workspace = out.find((row) => row.feature === 'google_workspace');
+  const oldWorkspaceBlurb =
+    'Gmail MX, SPF, DKIM, DMARC, and Workspace domain admin — point a client domain at Google mail without asking them to paste records.';
+  if (workspace) {
+    const caps = FEATURE_MARKETING.google_workspace ?? [];
+    const hasAll = caps.every(
+      (c) =>
+        workspace.blurb.includes(c.label) &&
+        (!c.blurb || workspace.blurb.includes(c.blurb.replace(/\.$/, '').slice(0, 24))),
+    );
+    if (
+      !workspace.blurb.trim() ||
+      workspace.blurb === oldWorkspaceBlurb ||
+      (droppedWorkspaceCaps && !hasAll)
+    ) {
+      workspace.blurb = aggregatedGoogleWorkspaceBlurb();
+    }
+  }
   for (const row of defaultModuleCatalog()) {
     if (seen.has(row.key) || seenFeatures.has(row.feature)) continue;
     seen.add(row.key);

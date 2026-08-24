@@ -19,6 +19,7 @@ import {
 } from '../src/lib/featureDashboard.ts';
 import { MARKETING_FEATURES } from '../src/lib/marketingFeatures.ts';
 import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
+import { normalizeCatalogRows } from '../src/lib/moduleCatalogStore.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
   MODULE_DISPLAY_GROUPS,
@@ -99,8 +100,14 @@ for (const group of ['core', 'work', 'google_workspace', 'social', 'e_commerce',
 assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group === 'work' && row.saleSheet));
 assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
 assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'google_workspace' && row.saleSheet && row.visibility === 'service'));
-assert.ok(catalog.some((row) => row.feature === 'gmail_mx' && row.group === 'google_workspace' && row.visibility === 'service'));
-assert.ok(catalog.some((row) => row.feature === 'gmail_dkim' && row.group === 'google_workspace' && row.visibility === 'service'));
+assert.equal(catalog.filter((row) => row.group === 'google_workspace').length, 1);
+assert.ok(!catalog.some((row) => row.feature === 'gmail_mx' || row.feature === 'gmail_dkim' || row.feature === 'google_spf' || row.feature === 'workspace_dmarc' || row.feature === 'workspace_domains'));
+const workspaceRow = catalog.find((row) => row.feature === 'google_workspace');
+assert.ok(workspaceRow?.blurb.includes('Gmail MX'));
+assert.ok(workspaceRow?.blurb.includes('Google SPF'));
+assert.ok(workspaceRow?.blurb.includes('Gmail DKIM'));
+assert.ok(workspaceRow?.blurb.includes('Workspace DMARC'));
+assert.ok(workspaceRow?.blurb.includes('Workspace Domains'));
 assert.ok(!catalog.some((row) => row.feature === 'content_management'));
 assert.equal(FEATURE_MARKETING.google_workspace?.length, 5);
 assert.ok(FEATURE_MARKETING.google_workspace?.every((c) => !c.id.includes('-')), 'marketing chips must use underscores');
@@ -110,6 +117,56 @@ assert.ok(
 );
 assert.ok(FEATURE_MARKETING.google_workspace?.some((c) => c.id === 'gmail_mx'));
 assert.ok(FEATURE_MARKETING.google_workspace?.some((c) => c.id === 'gmail_dkim'));
+assert.ok(!MARKETING_FEATURES.some((f) => f.id === 'gmail_mx' || f.id === 'gmail_dkim'));
+
+const collapsed = normalizeCatalogRows([
+  {
+    key: 'module:google_workspace',
+    kind: 'module',
+    group: 'google_workspace',
+    id: '701',
+    feature: 'google_workspace',
+    label: 'Google™ Workspace',
+    blurb: 'Gmail MX, SPF, DKIM, DMARC, and Workspace domain admin — point a client domain at Google mail without asking them to paste records.',
+    priceAmount: 200,
+    priceLabel: '$200',
+    saleSheet: true,
+    visibility: 'service',
+  },
+  {
+    key: 'custom:gmail_mx',
+    kind: 'custom',
+    group: 'google_workspace',
+    id: '702',
+    feature: 'gmail_mx',
+    label: 'Gmail MX',
+    blurb: 'Five standard Google MX records on the client domain.',
+    priceAmount: null,
+    priceLabel: 'Included',
+    saleSheet: true,
+    visibility: 'service',
+  },
+  {
+    key: 'custom:gmail_dkim',
+    kind: 'custom',
+    group: 'google_workspace',
+    id: '703',
+    feature: 'gmail_dkim',
+    label: 'Gmail DKIM',
+    blurb: 'Generate the Workspace key, publish it to Cloudflare, enable signing.',
+    priceAmount: null,
+    priceLabel: 'Included',
+    saleSheet: true,
+    visibility: 'service',
+  },
+]);
+assert.equal(collapsed.filter((row) => row.group === 'google_workspace').length, 1);
+const collapsedWorkspace = collapsed.find((row) => row.feature === 'google_workspace');
+assert.ok(collapsedWorkspace?.blurb.includes('Five standard Google MX'));
+assert.ok(collapsedWorkspace?.blurb.includes('include:_spf.google.com'));
+assert.ok(collapsedWorkspace?.blurb.includes('enable signing'));
+assert.ok(collapsedWorkspace?.blurb.includes('p=none'));
+assert.ok(collapsedWorkspace?.blurb.includes('alias'));
 
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('youtube'));
 assert.ok(DEFAULT_VISIBLE_SOCIAL_PLATFORMS.includes('tiktok'));

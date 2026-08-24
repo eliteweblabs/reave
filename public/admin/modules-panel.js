@@ -562,7 +562,7 @@ function renderDetailPane() {
       `<label class="de-label">ID<input type="text" data-field="id" class="de-input" value="${escHtml(item.id || '')}" spellcheck="false"></label>` +
       `<label class="de-label">Group${groupSelectHtml(item.group)}</label>` +
       `<label class="de-label">Price<input type="text" data-field="price" class="de-input" value="${escHtml(item.priceLabel || '')}" spellcheck="false"></label>` +
-      `<label class="de-label">Description<textarea data-field="blurb" class="de-input" rows="3">${escHtml(item.blurb || '')}</textarea></label>` +
+      `<label class="de-label">Description<textarea data-field="blurb" class="de-input" rows="6">${escHtml(item.blurb || '')}</textarea></label>` +
       `<div class="re-toggle-row mod-sheet-row">` +
       `<span class="de-label">Sale sheet</span>` +
       `<button type="button" class="prof-plugin-toggle" role="switch" data-field="sheet" ` +
