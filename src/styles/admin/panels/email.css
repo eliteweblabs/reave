@@ -177,6 +177,8 @@
   /* Icon sits in the right cap; clip the ring to the pill path. */
   padding-right: 0.45rem;
   overflow: hidden;
+  /* Label is not a delete control — only the trash glyph is. */
+  cursor: default;
 }
 .em-filter-tab.em-filter-tab--purge:hover,
 .em-filter-tab.active.em-filter-tab--purge:hover {
@@ -193,6 +195,8 @@
   width: auto;
   margin-left: auto;
   flex-shrink: 0;
+  /* Only this glyph arms delete — the chip label is inert. */
+  cursor: pointer;
 }
 .em-filter-tab--purge .em-filter-purge-icon svg {
   width: 14px;

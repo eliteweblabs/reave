@@ -749,6 +749,7 @@ function armDeleteConfirm(btn, timeout) {
 /**
  * Trash → stopwatch + countdown ring; second tap within timeout runs onConfirm.
  * Armed state uses `createTimingRing` except filter-purge (ring rides the chip cap).
+ * Filter-purge chips only arm/confirm from the trash icon — the label stays inert.
  */
 export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   const timeout = opts.timeout ?? DELETE_CONFIRM_MS;
@@ -767,6 +768,10 @@ export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
   btn.dataset.deleteConfirmBound = '1';
 
   btn.addEventListener('click', async (e) => {
+    if (isFilterPurge && !e.target.closest('.em-filter-purge-icon')) {
+      if (btn.dataset.state === 'confirm') resetDeleteConfirmButton(btn);
+      return;
+    }
     e.stopPropagation();
     e.preventDefault();
     if (btn.disabled) return;

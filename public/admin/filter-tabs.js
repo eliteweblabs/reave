@@ -6,7 +6,7 @@
  * Chip tones match email list notices (.em-cat-*) and sibling list tags.
  */
 
-import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260811a';
+import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260824d';
 import { escHtml } from './shared.js?v=20260810a';
 
 /** Instant scroll — CSS scroll-behavior:smooth would animate every panel re-render otherwise. */
@@ -186,7 +186,9 @@ export function createFilterTabButton(opts) {
   if (variant === 'purge') {
     btn.innerHTML =
       `<span class="em-filter-tab-label">${escHtml(label)}</span>` +
-      `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
+      `<span class="em-filter-purge-icon" aria-hidden="true">${IOS_ICONS.trash}</span>`;
+    // Confirm-delete is bound on the chip but only the trash icon is a trigger
+    // (see bindConfirmDeleteButton). Label clicks stay inert.
     bindConfirmDeleteButton(btn, onConfirmDelete);
   } else if (variant === 'refresh') {
     btn.innerHTML =
