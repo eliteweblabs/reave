@@ -445,14 +445,13 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-mod-list {
   list-style: none;
   margin: 0;
-  padding: 0.42em 0.45em 0 0;
+  padding: 0.42em 0 0;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 0.62em;
 }
 .ss-sheet-back .ss-back-mod {
-  --ss-mod-trim: 0.85em;
   position: relative;
   flex: 0 0 auto;
   height: clamp(44px, 6.2cqi, 54px);
@@ -460,7 +459,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   align-items: center;
   justify-content: flex-start;
   gap: 0.45em;
-  width: calc(100% - var(--ss-mod-trim));
+  width: 100%;
   box-sizing: border-box;
   padding: 0.28em 0.32em;
   overflow: visible;
@@ -524,7 +523,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-mod-price {
   position: absolute;
   top: 0;
-  right: calc(-1 * var(--ss-mod-trim));
+  right: 0;
   z-index: 2;
   transform: translate(50%, -50%);
   flex: none;
