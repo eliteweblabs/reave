@@ -1,10 +1,11 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { companyPublicEmail } from "../lib/reavePublicEmail";
 
 const company = await getCompanyConfig(Astro.request);
 const siteUrl = company.domain ? `https://${company.domain}` : Astro.url.origin;
-const supportMail = company.supportEmail || (company.domain ? `support@${company.domain}` : "");
+const supportMail = companyPublicEmail(company, "support");
 ---
 
 <Layout

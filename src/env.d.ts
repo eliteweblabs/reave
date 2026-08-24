@@ -153,7 +153,7 @@ interface ImportMetaEnv {
   /** Web Push VAPID keys — generate with: npx web-push generate-vapid-keys */
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
-  /** mailto: or https: contact for VAPID subject (default mailto:thomas@reave.app) */
+  /** mailto: or https: contact for VAPID subject (default mailto:get@reave.app) */
   VAPID_SUBJECT?: string;
   /** Set to 0 to disable Web Push notifications */
   PUSH_ENABLED?: string;

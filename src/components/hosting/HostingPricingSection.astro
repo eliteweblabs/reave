@@ -3,6 +3,7 @@
  * Managed hosting care plans + WordPress / web-app feature grids for /hosting.
  */
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { companyPublicEmail } from "../../lib/reavePublicEmail";
 import {
   HOSTING_CARE_PLANS,
   WORDPRESS_HOSTING_FEATURES,
@@ -12,7 +13,7 @@ import {
 } from "../../lib/hostingPlans";
 
 const company = await getCompanyConfig(Astro.request);
-const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const supportMail = companyPublicEmail(company);
 const quoteHref = supportMail
   ? `mailto:${supportMail}?subject=${encodeURIComponent("Managed hosting — Core OS plan")}`
   : "/schedule";

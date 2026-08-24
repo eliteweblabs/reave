@@ -4,6 +4,7 @@
 
 import webpush from 'web-push';
 import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfig';
+import { canonicalizeReaveBrandEmail } from './reavePublicEmail';
 import { getReviewsPendingCount } from './reviewsPendingCount';
 import { formatNotificationPayload } from './notificationFormat';
 import { inferPushAlertKind, storeCreatePushAlert, type PushAlertKind } from './pushAlertStore';
@@ -17,9 +18,10 @@ let _configuredSubject: string | null = null;
 async function configureWebPush(): Promise<boolean> {
   const publicKey = serverEnv('VAPID_PUBLIC_KEY')?.trim();
   const privateKey = serverEnv('VAPID_PRIVATE_KEY')?.trim();
-  const subject =
+  const subject = canonicalizeReaveBrandEmail(
     serverEnv('VAPID_SUBJECT')?.trim() ||
-    defaultVapidSubjectFromCompany(await getCompanyConfig());
+      defaultVapidSubjectFromCompany(await getCompanyConfig()),
+  );
   if (!publicKey || !privateKey) return false;
   if (_configured && _configuredSubject === subject) return true;
   webpush.setVapidDetails(subject, publicKey, privateKey);

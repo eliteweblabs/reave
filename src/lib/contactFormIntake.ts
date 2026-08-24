@@ -4,6 +4,7 @@
  */
 
 import { getCompanyConfig } from './companyConfig';
+import { companyPublicEmail } from './reavePublicEmail';
 import { recordContactFormEngagement } from './engagementNotifications';
 import { buildNewProjectAckEmail } from './emailScheduling';
 import { hasFeature } from './features';
@@ -111,10 +112,7 @@ async function applyContactFormDetails(
 
 async function resolveCompanyRecipient(): Promise<string> {
   const company = await getCompanyConfig();
-  const support = company.supportEmail?.trim();
-  if (support?.includes('@')) return support;
-  if (company.domain) return `hello@${company.domain}`;
-  return '';
+  return companyPublicEmail(company);
 }
 
 async function sendCompanyNotify(opts: {

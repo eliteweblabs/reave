@@ -5,6 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { projectRoot } from './projectRoot.ts';
+import { canonicalizeReaveBrandEmail } from './reavePublicEmail.ts';
 
 export type BuildBrandContext = {
   name: string;
@@ -47,7 +48,9 @@ function brandFromParts(input: {
   const name = trim(input.name) || trim(process.env.COMPANY_NAME) || DEFAULT_NAME;
   const description =
     trim(input.description) || trim(process.env.COMPANY_DESCRIPTION) || DEFAULT_DESCRIPTION;
-  const fromEmail = trim(input.fromEmail) || trim(process.env.COMPANY_FROM_EMAIL) || (domain ? `noreply@${domain}` : '');
+  const fromEmail =
+    canonicalizeReaveBrandEmail(trim(input.fromEmail) || trim(process.env.COMPANY_FROM_EMAIL)) ||
+    (domain ? `noreply@${domain}` : '');
   const siteUrl = domain ? `https://${domain}/` : 'http://localhost:4321/';
 
   return {

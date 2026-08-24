@@ -18,6 +18,7 @@ import {
   parseEmailAddress,
   slugifyCalcomUsername,
 } from './installIdentityFormat';
+import { canonicalizeReaveBrandEmail } from './reavePublicEmail';
 import { siteBaseUrl } from './requestOrigin';
 import { serverEnv } from './serverEnv';
 
@@ -72,13 +73,13 @@ export function resolveInstallIconUrl(request?: Request, company?: Pick<CompanyC
 }
 
 function resolveEmail(company?: Pick<CompanyConfig, 'fromEmail' | 'supportEmail'>): string {
-  return (
+  return canonicalizeReaveBrandEmail(
     parseEmailAddress(serverEnv('EMAIL_FROM')) ||
-    parseEmailAddress(serverEnv('RESEND_FROM')) ||
-    parseEmailAddress(company?.fromEmail) ||
-    parseEmailAddress(company?.supportEmail) ||
-    parseEmailAddress(serverEnv('COMPANY_FROM_EMAIL')) ||
-    parseEmailAddress(serverEnv('COMPANY_SUPPORT_EMAIL'))
+      parseEmailAddress(serverEnv('RESEND_FROM')) ||
+      parseEmailAddress(company?.fromEmail) ||
+      parseEmailAddress(company?.supportEmail) ||
+      parseEmailAddress(serverEnv('COMPANY_FROM_EMAIL')) ||
+      parseEmailAddress(serverEnv('COMPANY_SUPPORT_EMAIL')),
   );
 }
 

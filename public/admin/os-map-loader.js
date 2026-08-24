@@ -7285,7 +7285,7 @@ function renderCompanyPanel(company, fontCatalog) {
             `<span class="prof-hint">Set by the <code>PUBLIC_SITE_DOMAIN</code> Railway variable.</span></div>` +
             `<div class="prof-field-row">` +
               `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
-              `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +
+              `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="${String(c.domain || '').replace(/^www\./i, '').toLowerCase() === 'reave.app' ? 'get@reave.app' : 'support@example.com'}" autocomplete="email" /></div>` +
               `<div class="prof-field"><label for="company-supportPhone">Support phone</label>` +
               `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(formatPhoneInput(c.supportPhone || ''))}" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" /></div>` +
             `</div>` +

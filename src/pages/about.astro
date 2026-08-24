@@ -4,13 +4,14 @@ import ClientLogos from "../components/ClientLogos.astro";
 import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
 import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { companyPublicEmail } from "../lib/reavePublicEmail";
 import { getSiteContent } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
 
 const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const aboutImage = siteContent.aboutImage || "";
-const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const supportMail = companyPublicEmail(company);
 const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
 ---
 
