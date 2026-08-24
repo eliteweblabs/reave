@@ -837,7 +837,7 @@
   padding: 0 0.15rem 0 0.75rem;
 }
 .soc-affix-suffix {
-  padding: 0 0.75rem 0 0;
+  padding: 0 0.75rem 0 0.15rem;
 }
 .prof-field .soc-affix input,
 .prof-field .soc-affix input:focus,
@@ -853,6 +853,21 @@
   border-radius: 0;
   padding-left: 0;
   padding-right: 0.75rem;
+}
+/* Suffix-only fields (Substack) have no prefix to supply the left inset. */
+.prof-field .soc-affix > input:first-child,
+.prof-field .soc-affix > input:first-child:focus,
+.prof-field .soc-affix > input:first-child.form-field--saving,
+.prof-field .soc-affix > input:first-child.form-field--saved,
+.prof-field .soc-affix > input:first-child.form-field--invalid {
+  padding-left: 0.75rem;
+}
+.prof-field .soc-affix > input:has(+ .soc-affix-suffix),
+.prof-field .soc-affix > input:has(+ .soc-affix-suffix):focus,
+.prof-field .soc-affix > input:has(+ .soc-affix-suffix).form-field--saving,
+.prof-field .soc-affix > input:has(+ .soc-affix-suffix).form-field--saved,
+.prof-field .soc-affix > input:has(+ .soc-affix-suffix).form-field--invalid {
+  padding-right: 0;
 }
 .soc-field-remove,
 .soc-field-restore {
