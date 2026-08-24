@@ -17,6 +17,9 @@ assert.equal(ig.authorizeUrl, 'https://www.instagram.com/oauth/authorize');
 assert.equal(ig.tokenUrl, 'https://api.instagram.com/oauth/access_token');
 assert.ok(ig.scopes.includes('instagram_business_basic'));
 assert.ok(ig.scopes.includes('instagram_business_manage_comments'));
+assert.ok(ig.scopes.includes('instagram_business_manage_messages'));
+assert.ok(ig.scopes.includes('instagram_business_content_publish'));
+assert.ok(ig.scopes.includes('instagram_business_manage_insights'));
 
 assert.equal(normalizeOAuthCode('abc123#_'), 'abc123');
 assert.equal(normalizeOAuthCode('  xyz  '), 'xyz');
