@@ -772,6 +772,12 @@ await test('gate leftover space lists catalog modules with the sale-sheet toggle
   const modules = salesSheetBackModules(catalog);
   assert.ok(modules.length >= 8);
   assert.ok(modules.every((row) => row.label.trim()));
+  assert.ok(modules.every((row) => row.icon.trim()));
+  assert.ok(modules.find((row) => row.feature === 'social_inbox')?.icon === 'share');
+  assert.ok(modules.find((row) => row.feature === 'billing')?.blurb?.trim());
+  const workspace = modules.find((row) => row.feature === 'google_workspace');
+  assert.ok(workspace?.blurb?.includes('Google mail'));
+  assert.ok((workspace?.blurb?.length || 0) < 160);
   assert.ok(modules.some((row) => row.feature === 'billing'));
   assert.ok(modules.some((row) => row.feature === 'google_workspace'));
   assert.ok(!modules.some((row) => row.feature === 'deploy_wizard'));
@@ -797,7 +803,13 @@ await test('gate leftover space lists catalog modules with the sale-sheet toggle
   assert.ok(back.indexOf('data-ss-col="modules"') < back.indexOf('data-ss-col="builds"'));
   assert.doesNotMatch(back, />Modules</);
   assert.match(back, /border-radius: 8px/);
+  assert.match(back, /ss-back-mod-icon/);
+  assert.match(back, /ss-back-mod-blurb/);
+  assert.match(back, /ss-back-mod-price/);
+  assert.match(back, /data-icon="share"/);
+  assert.match(back, /IOS_ICONS\.share/);
   assert.equal((back.match(/class="ss-back-mod"/g) || []).length, modules.length);
+  assert.equal((back.match(/class="ss-back-mod-icon"/g) || []).length, modules.length);
 });
 
 await test('SSL and site-down exhibits look like a real phone warning', () => {

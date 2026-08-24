@@ -31,8 +31,73 @@ export type SalesSheetBackLogo = {
 export type SalesSheetBackModule = {
   feature: string;
   label: string;
+  blurb?: string;
   priceLabel?: string;
+  /** IOS_ICONS key — keep glyphs in sync with public/admin/admin-ui.js */
+  icon: string;
 };
+
+/** Sale-sheet add-ons → their dashboard / footer IOS_ICONS key. */
+const FEATURE_MOD_ICONS: Record<string, string> = {
+  billing: 'receipt',
+  documents: 'file-text',
+  email_marketing: 'send',
+  google_workspace: 'mail',
+  materials_pricing: 'shopping-bag',
+  real_estate_data: 'map-pin',
+  scheduling: 'calendar',
+  social_inbox: 'share',
+  time_tracking: 'stopwatch',
+  website: 'image',
+  content_management: 'image',
+};
+
+/**
+ * Inner path data from IOS_ICONS — keep in sync with public/admin/admin-ui.js.
+ * Sales-sheet HTML is server-rendered and cannot import the admin pack.
+ */
+const IOS_ICON_PATHS: Record<string, string> = {
+  calendar:
+    '<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',
+  'file-text':
+    '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+  image:
+    '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  'map-pin':
+    '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  puzzle:
+    '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
+  receipt:
+    '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  share:
+    '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>',
+  'shopping-bag':
+    '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  stopwatch:
+    '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/>',
+};
+
+function iconKeyForModule(feature: string): string {
+  return FEATURE_MOD_ICONS[feature] || 'puzzle';
+}
+
+/** Print cards only have two lines — keep the first sentence of a long catalog blurb. */
+function salesSheetBlurb(raw: string): string {
+  const text = raw.replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  if (text.length <= 140) return text;
+  const sentence = text.match(/^.+?[.!?](?=\s|$)/);
+  if (sentence && sentence[0].length >= 36) return sentence[0];
+  return `${text.slice(0, 137).replace(/\s+\S*$/, '')}…`;
+}
+
+function moduleIconHtml(iconKey: string): string {
+  const key = IOS_ICON_PATHS[iconKey] ? iconKey : 'puzzle';
+  const paths = IOS_ICON_PATHS[key]!;
+  return `<!-- IOS_ICONS.${key} — keep in sync with public/admin/admin-ui.js --><span class="ss-back-mod-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${paths}</svg></span>`;
+}
 
 /** Add-on / custom catalog rows with the sale-sheet toggle on. Core OS stays off this list. */
 export function salesSheetBackModules(rows: readonly CatalogRow[]): SalesSheetBackModule[] {
@@ -47,7 +112,9 @@ export function salesSheetBackModules(rows: readonly CatalogRow[]): SalesSheetBa
     .map((row) => ({
       feature: row.feature,
       label: row.label,
+      blurb: salesSheetBlurb(row.blurb || ''),
       priceLabel: (row.priceLabel || '').trim(),
+      icon: iconKeyForModule(row.feature),
     }))
     .sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
 }
@@ -161,9 +228,15 @@ function modulesHtml(modules: SalesSheetBackModule[]): string {
   if (!modules.length) return '';
   const items = modules
     .map((mod) => {
+      const blurb = (mod.blurb || '').trim();
       const price = (mod.priceLabel || '').trim();
+      const blurbHtml = blurb ? `<span class="ss-back-mod-blurb">${esc(blurb)}</span>` : '';
       const priceHtml = price ? `<span class="ss-back-mod-price">${esc(price)}</span>` : '';
-      return `<li class="ss-back-mod" data-mod="${esc(mod.feature)}"><span class="ss-back-mod-label">${esc(mod.label)}</span>${priceHtml}</li>`;
+      return `<li class="ss-back-mod" data-mod="${esc(mod.feature)}" data-icon="${esc(mod.icon)}">
+  ${moduleIconHtml(mod.icon)}
+  <span class="ss-back-mod-copy"><span class="ss-back-mod-label">${esc(mod.label)}</span>${blurbHtml}</span>
+  ${priceHtml}
+</li>`;
     })
     .join('');
   return `<div class="ss-back-modules" data-ss-col="modules">
@@ -383,34 +456,81 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   min-height: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.45em;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.28em 0.5em;
+  padding: 0.32em 0.42em 0.32em 0.32em;
   border: 1px solid var(--doc-rule);
   border-radius: 8px;
   background: #fff;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
+.ss-sheet-back .ss-back-mod-icon {
+  flex: 0 0 auto;
+  width: clamp(22px, 3.1cqi, 28px);
+  height: clamp(22px, 3.1cqi, 28px);
+  border-radius: 999px;
+  background: #f3f3ef;
+  border: 1px solid #e6e6e0;
+  color: var(--doc-ink);
+  display: grid;
+  place-items: center;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.ss-sheet-back .ss-back-mod-icon svg {
+  display: block;
+  width: 54%;
+  height: 54%;
+}
+.ss-sheet-back .ss-back-mod-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.12em;
+}
 .ss-sheet-back .ss-back-mod-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: clamp(7px, 1.05cqi, 9px);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  font-size: clamp(8.5px, 1.32cqi, 12px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   color: var(--doc-ink);
+}
+.ss-sheet-back .ss-back-mod-blurb {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-height: calc(1.28em * 2);
+  font-size: clamp(6.5px, 0.92cqi, 8.5px);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1.28;
+  color: var(--doc-muted);
 }
 .ss-sheet-back .ss-back-mod-price {
   flex: 0 0 auto;
-  font-size: clamp(6.5px, 0.95cqi, 8px);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--doc-muted);
+  align-self: center;
+  padding: 0.22em 0.58em;
+  border-radius: 999px;
+  background: #141414;
+  color: #fff;
+  font-size: clamp(6.5px, 0.95cqi, 8.5px);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .ss-sheet-back .ss-back-builds {
   margin: 0;
