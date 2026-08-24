@@ -418,6 +418,13 @@ assert.deepEqual(lawKept.extras, ['plausible_railway']);
 assert.equal(lawKept.postAlias, 'matter');
 const vapiPlan = buildDeployWizardPlan({ features: ['vapi'], installSlug: 'levineslaw' });
 assert.equal(vapiPlan.variables.find((v) => v.name === 'FEATURES')?.filled, '["vapi"]');
+const socialPlan = buildDeployWizardPlan({ features: ['social_inbox'] });
+assert.ok(socialPlan.variables.some((v) => v.name === 'INSTAGRAM_APP_ID' && v.inheritFromHost));
+assert.ok(socialPlan.variables.some((v) => v.name === 'INSTAGRAM_APP_SECRET' && v.inheritFromHost));
+assert.ok(
+  core.variables.some((v) => v.name === 'INSTAGRAM_APP_ID' && v.inheritFromHost),
+  'public-module Instagram keys still copy when social_inbox is not selected',
+);
 assert.equal(
   normalizeIndustryPlaybook({ moduleIds: ['1', '006', '006'] }).moduleIds.join(','),
   demoModuleIdForFeature('analytic_audit'),

@@ -46,6 +46,12 @@ interface ImportMetaEnv {
   INTEGRATION_TOKENS_FILE?: string;
   /** Optional override path for social OAuth tokens. */
   SOCIAL_TOKENS_FILE?: string;
+  /** Instagram Login (Meta dashboard → Instagram → API setup with Instagram login). */
+  INSTAGRAM_APP_ID?: string;
+  INSTAGRAM_APP_SECRET?: string;
+  /** Facebook Login for Business (Pages). Separate from Instagram Login. */
+  META_APP_ID?: string;
+  META_APP_SECRET?: string;
   /** Optional: max user+assistant turns kept per admin chat (default 20) */
   AGENT_CHAT_HISTORY_TURNS?: string;
   /** Set to "0" to hide sign-up (invite-only). Default: sign-up form is available. */

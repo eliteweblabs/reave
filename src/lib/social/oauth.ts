@@ -2,9 +2,10 @@
  * OAuth 2.0 "Connect account" flow for social platforms.
  *
  * Each platform registers an OAuth app (developer portal) and provides a
- * client id + secret via env vars. Once set, the Socials page shows a
- * "Connect" link → the platform's consent screen → back to our callback,
- * which exchanges the code for an access token (stored via tokenStore).
+ * client id + secret via env vars. Instagram uses Business Login
+ * (`INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`). Once set, the Socials page
+ * shows a "Connect" link → the platform's consent screen → back to our
+ * callback, which exchanges the code for an access token (stored via tokenStore).
  *
  * Nothing here needs to be exercised until real credentials exist; when a
  * platform's client id/secret env vars are unset it reports "not configured"
@@ -62,17 +63,18 @@ export const OAUTH_CONFIGS: Partial<Record<SocialPlatformId, OAuthPlatformConfig
   instagram: {
     platform: 'instagram',
     label: 'Instagram',
-    authorizeUrl: 'https://www.facebook.com/v19.0/dialog/oauth',
-    tokenUrl: 'https://graph.facebook.com/v19.0/oauth/access_token',
-    scopes: ['instagram_basic', 'pages_show_list', 'business_management'],
+    authorizeUrl: 'https://www.instagram.com/oauth/authorize',
+    tokenUrl: 'https://api.instagram.com/oauth/access_token',
+    scopes: ['instagram_business_basic', 'instagram_business_manage_comments'],
     scopeSeparator: ',',
     clientIdParam: 'client_id',
-    clientIdEnv: 'META_APP_ID',
-    clientSecretEnv: 'META_APP_SECRET',
+    clientIdEnv: 'INSTAGRAM_APP_ID',
+    clientSecretEnv: 'INSTAGRAM_APP_SECRET',
     usePkce: false,
     tokenAuth: 'body',
-    developerPortal: 'https://www.facebook.com/login.php?next=https%3A%2F%2Fdevelopers.facebook.com%2Fapps%2Fcreation%2F',
-    setupHint: 'Log into Facebook first — Meta’s apps list often opens a blank Business login page if you are not already signed in. Create a Meta app, add Instagram Graph API + Facebook Login, then paste the callback URL.',
+    developerPortal: 'https://developers.facebook.com/apps/',
+    setupHint:
+      'Create a Meta app with Instagram → API setup with Instagram login (not Facebook Login). Use the Instagram App ID / Secret from Business login settings — they are not the Meta App ID at the top of the dashboard. The Instagram account must be Professional (Business or Creator).',
   },
   facebook: {
     platform: 'facebook',
@@ -244,9 +246,92 @@ function parseTokenBody(text: string, contentType: string): Record<string, unkno
   return out;
 }
 
+/** Instagram sometimes appends `#_` to the authorization code. */
+export function normalizeOAuthCode(code: string): string {
+  return code.trim().replace(/#_+/, '').replace(/#$/, '');
+}
+
+function firstRecord(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value) && value[0] && typeof value[0] === 'object') {
+    return value[0] as Record<string, unknown>;
+  }
+  if (value && typeof value === 'object') return value as Record<string, unknown>;
+  return null;
+}
+
+/** Instagram Login nests the token under `data[0]`; other providers are flat. */
+export function tokenFieldsFromBody(data: Record<string, unknown>): Record<string, unknown> {
+  const nested = firstRecord(data.data);
+  if (nested && (nested.access_token || nested.accessToken)) return { ...data, ...nested };
+  return data;
+}
+
+function tokenResponseFromFields(data: Record<string, unknown>): TokenResponse {
+  const fields = tokenFieldsFromBody(data);
+  const accessToken = String(fields.access_token ?? fields.accessToken ?? '');
+  if (!accessToken) {
+    throw new Error(`No access_token in response: ${JSON.stringify(data).slice(0, 200)}`);
+  }
+  const expiresIn = Number(fields.expires_in);
+  const scope =
+    typeof fields.scope === 'string'
+      ? fields.scope
+      : typeof fields.permissions === 'string'
+        ? fields.permissions
+        : null;
+  return {
+    accessToken,
+    refreshToken: typeof fields.refresh_token === 'string' ? fields.refresh_token : null,
+    scope,
+    expiresAt: Number.isFinite(expiresIn) && expiresIn > 0 ? Date.now() + expiresIn * 1000 : null,
+    tokenType: typeof fields.token_type === 'string' ? fields.token_type : null,
+  };
+}
+
+/** Short-lived Instagram tokens last ~1 hour; swap for a 60-day token. */
+export async function exchangeInstagramLongLived(
+  shortLivedToken: string,
+  clientSecret: string,
+): Promise<TokenResponse | null> {
+  const url = new URL('https://graph.instagram.com/access_token');
+  url.searchParams.set('grant_type', 'ig_exchange_token');
+  url.searchParams.set('client_secret', clientSecret);
+  url.searchParams.set('access_token', shortLivedToken);
+  const res = await fetch(url);
+  const text = await res.text();
+  if (!res.ok) {
+    console.warn('[social-oauth] Instagram long-lived exchange failed', res.status, text.slice(0, 200));
+    return null;
+  }
+  try {
+    return tokenResponseFromFields(parseTokenBody(text, res.headers.get('content-type') || ''));
+  } catch (e) {
+    console.warn('[social-oauth] Instagram long-lived parse failed', e);
+    return null;
+  }
+}
+
+export async function fetchInstagramAccountLabel(accessToken: string): Promise<string | null> {
+  try {
+    const url = new URL('https://graph.instagram.com/me');
+    url.searchParams.set('fields', 'username,name,account_type');
+    url.searchParams.set('access_token', accessToken);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { username?: string; name?: string };
+    const username = typeof data.username === 'string' ? data.username.trim() : '';
+    if (username) return `@${username.replace(/^@/, '')}`;
+    const name = typeof data.name === 'string' ? data.name.trim() : '';
+    return name || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Exchange an authorization code for an access token. */
 export async function exchangeCodeForToken(args: ExchangeArgs): Promise<TokenResponse> {
-  const { cfg, creds, code, redirectUri, codeVerifier } = args;
+  const { cfg, creds, redirectUri, codeVerifier } = args;
+  const code = normalizeOAuthCode(args.code);
 
   const body = new URLSearchParams();
   body.set('grant_type', 'authorization_code');
@@ -273,17 +358,10 @@ export async function exchangeCodeForToken(args: ExchangeArgs): Promise<TokenRes
     throw new Error(`Token exchange failed (${res.status}): ${text.slice(0, 300)}`);
   }
 
-  const data = parseTokenBody(text, res.headers.get('content-type') || '');
-  const accessToken = String(data.access_token ?? '');
-  if (!accessToken) {
-    throw new Error(`No access_token in response: ${text.slice(0, 200)}`);
+  let token = tokenResponseFromFields(parseTokenBody(text, res.headers.get('content-type') || ''));
+  if (cfg.platform === 'instagram') {
+    const longLived = await exchangeInstagramLongLived(token.accessToken, creds.clientSecret);
+    if (longLived) token = longLived;
   }
-  const expiresIn = Number(data.expires_in);
-  return {
-    accessToken,
-    refreshToken: typeof data.refresh_token === 'string' ? data.refresh_token : null,
-    scope: typeof data.scope === 'string' ? data.scope : null,
-    expiresAt: Number.isFinite(expiresIn) && expiresIn > 0 ? Date.now() + expiresIn * 1000 : null,
-    tokenType: typeof data.token_type === 'string' ? data.token_type : null,
-  };
+  return token;
 }

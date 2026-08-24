@@ -1565,6 +1565,23 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['real_estate_data'],
   }),
   v({
+    name: 'INSTAGRAM_APP_ID',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    description:
+      'Instagram App ID from Meta → Instagram → API setup with Instagram login (not the Meta App ID).',
+    features: ['social_inbox'],
+    required: false,
+  }),
+  v({
+    name: 'INSTAGRAM_APP_SECRET',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    description: 'Instagram App Secret from the same Business login settings panel.',
+    features: ['social_inbox'],
+    required: false,
+  }),
+  v({
     name: 'GOOGLE_CLIENT_ID',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',

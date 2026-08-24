@@ -25,6 +25,7 @@ export const OAUTH_STATE_COOKIE = 'social_oauth';
 
 function adminRedirect(context: APIContext, params: Record<string, string>): Response {
   const url = new URL('/admin/', requestOrigin(context.request));
+  url.searchParams.set('tab', 'socials');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   return context.redirect(url.toString(), 302);
 }

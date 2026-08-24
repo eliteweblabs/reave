@@ -10,9 +10,11 @@ import { requestOrigin } from '../../../../../lib/requestOrigin.ts';
 import {
   callbackUrl,
   exchangeCodeForToken,
+  fetchInstagramAccountLabel,
   getOAuthConfig,
   getOAuthCredentials,
   isSocialPlatform,
+  normalizeOAuthCode,
 } from '../../../../../lib/social/oauth.ts';
 import { setSocialToken } from '../../../../../lib/social/tokenStore.ts';
 import { OAUTH_STATE_COOKIE } from '../connect/[platform].ts';
@@ -22,6 +24,7 @@ export const prerender = false;
 
 function adminRedirect(context: APIContext, params: Record<string, string>): Response {
   const url = new URL('/admin/', requestOrigin(context.request));
+  url.searchParams.set('tab', 'socials');
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   context.cookies.delete(OAUTH_STATE_COOKIE, { path: '/' });
   return context.redirect(url.toString(), 302);
@@ -43,7 +46,7 @@ export async function GET(context: APIContext): Promise<Response> {
     return adminRedirect(context, { social_error: 'denied', platform });
   }
 
-  const code = url.searchParams.get('code');
+  const code = normalizeOAuthCode(url.searchParams.get('code') || '');
   const state = url.searchParams.get('state');
   if (!code || !state) {
     return adminRedirect(context, { social_error: 'missing_code', platform });
@@ -75,12 +78,15 @@ export async function GET(context: APIContext): Promise<Response> {
       redirectUri: callbackUrl(requestOrigin(context.request), platform),
       codeVerifier: saved.verifier ?? undefined,
     });
+    const accountLabel =
+      platform === 'instagram' ? await fetchInstagramAccountLabel(token.accessToken) : null;
     await setSocialToken({
       platform,
       accessToken: token.accessToken,
       refreshToken: token.refreshToken,
       scope: token.scope,
       expiresAt: token.expiresAt ? new Date(token.expiresAt).toISOString() : null,
+      accountLabel,
     });
     return adminRedirect(context, { social_connected: platform });
   } catch (e) {

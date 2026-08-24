@@ -90,6 +90,7 @@ const SYSTEM_NODES = [
   { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search (FEATURES: stock_photos)', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
   { id: 'ipwhois', title: 'ipwho.is', sub: 'IP → ASN/org hosting lookup · dns_check (FEATURES: site_audits)', icon: '🌐', hue: 190, status: true, group: 'external', x: 1400, y: 1900 },
   { id: 'brightlocal', title: 'BrightLocal', sub: 'Citation Builder · Locations API · REΛVE agency account (FEATURES: seo_directory)', icon: '📍', hue: 12, status: true, ghost: true, group: 'external', x: 1400, y: 2020 },
+  { id: 'instagram_oauth', title: 'Instagram Login', sub: 'OAuth · INSTAGRAM_APP_ID · /api/admin/social/connect/instagram (FEATURES: social_inbox)', icon: '📸', brand: 'instagram', hue: 330, status: true, group: 'external', x: 1400, y: 2140 },
   { id: 'namecom', title: 'Name.com', sub: 'registrar DNS · zone records + nameservers · namecom_dns (FEATURES: namecom_dns)', icon: '🌐', hue: 210, status: true, group: 'external', x: 1160, y: 1780 },
   { id: 'cloudflare', title: 'Cloudflare', sub: 'DNS · SSL · cloudflare_dns · setup_google_workspace · CLOUDFLARE_API_TOKEN', icon: '☁️', brand: 'cloudflare', hue: 22, status: true, group: 'external', x: 1160, y: 1900 },
   { id: 'google_workspace', title: 'Google Workspace', sub: 'Admin domains · DKIM · MX/SPF via Cloudflare · gmail_dkim (FEATURES: google_workspace)', icon: '📧', brand: 'google', hue: 155, status: true, group: 'external', x: 1400, y: 1300 },
@@ -176,6 +177,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'social_feed', label: '/api/admin/social/feed', dashed: true },
   { from: 'social_feed', to: 'online_reviews', label: 'reviews in feed', dashed: true },
   { from: 'social_feed', to: 'app_pg', label: 'reply drafts', dashed: true },
+  { from: 'social_feed', to: 'instagram_oauth', label: 'Connect Instagram', dashed: true },
   { from: 'astro', to: 'seo_directory', label: '/api/admin/seo-directory', dashed: true },
   { from: 'seo_directory', to: 'brightlocal', label: 'Citation Builder API', dashed: true, ghost: true },
   { from: 'astro', to: 'event_ticketing', label: 'planned', dashed: true, ghost: true },
@@ -232,7 +234,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
   { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'namecom', 'cloudflare', 'google_workspace'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────
