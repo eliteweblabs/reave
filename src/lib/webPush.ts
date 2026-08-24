@@ -115,6 +115,7 @@ export async function sendPushNotification(payload: {
     title: pushTitle,
     body: pushBody,
     tag,
+    timestamp: Date.now(),
     url,
     kind,
     ...(badgeOnly ? { badgeOnly: true } : {}),

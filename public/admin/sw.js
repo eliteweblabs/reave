@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260813d — OTP tap copies in a logged-in admin window, else /admin/copy (no login). */
+   v20260824a — Notification timestamp + renotify so replaced banners keep the real time. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -321,6 +321,8 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       tag,
+      timestamp: Number(data.timestamp) > 0 ? Number(data.timestamp) : Date.now(),
+      renotify: true,
       icon: '/api/branding/icon?size=192',
       badge: '/api/branding/icon?size=192',
       data: {

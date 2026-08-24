@@ -101,10 +101,12 @@ export async function POST(context: APIContext): Promise<Response> {
 
     const label = catalogLabel(feature, FEATURE_LABELS[feature]);
     // Completion ping only — no System alerts Session and no dashboard row.
+    // Unique tag so macOS Notification Center does not keep yesterday's time
+    // when the same add-on is toggled again.
     await sendPushNotification({
       title: `${enabled ? 'On' : 'Off'}: ${label}`,
-      body: 'Runtime add-on override',
-      tag: `addon-toggle-${feature}`,
+      body: 'Takes effect immediately.',
+      tag: `addon-toggle-${feature}-${Date.now()}`,
       url: '/admin/?tab=addons',
       skipDashboardAlert: true,
       bypassQuietHours: true,
