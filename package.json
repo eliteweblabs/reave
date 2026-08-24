@@ -46,6 +46,7 @@
     "check:audit-report": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-report-card.ts",
     "check:audit-notifications": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-notifications.ts",
     "check:sales-sheet": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-sales-sheet.ts",
+    "check:account-menu": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-account-menu-bind.ts",
     "check:media-thumb": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-media-pdf-thumb.ts",
     "check:module-groups": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-module-groups.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",

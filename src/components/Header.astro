@@ -1310,8 +1310,15 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     }
 
     function bindHeaderProfileMenu() {
-      // Admin map SPA owns toggle/sign-out via os-map-loader — leave it alone.
-      if (document.getElementById("admin-footer-nav")) return;
+      // Map SPA owns toggle/sign-out via os-map-loader. Detect the SPA shell
+      // (data-admin-spa / #wrap), not footer nav — special pages like
+      // /admin/sales-sheet reuse the footer pill without loading the loader.
+      if (
+        document.body.dataset.adminSpa === "1" ||
+        document.getElementById("wrap")
+      ) {
+        return;
+      }
 
       const profileToggle = document.getElementById("topbar-profile-toggle");
       const profileMenu = document.getElementById("topbar-profile-menu");
@@ -1330,9 +1337,12 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       }
 
       profileMenu?.querySelectorAll("[data-account-menu-link]").forEach((el) => {
-        if ((el as HTMLElement).dataset.bound) return;
-        (el as HTMLElement).dataset.bound = "1";
-        el.addEventListener("click", () => setAccountMenuOpen(false));
+        const link = el as HTMLElement;
+        if (link.dataset.headerCloseBound) return;
+        link.dataset.headerCloseBound = "1";
+        // Close only — do not set dataset.bound. The map SPA still needs to
+        // intercept these anchors for in-app tab switches.
+        link.addEventListener("click", () => setAccountMenuOpen(false));
       });
 
       const signOutBtn = document.getElementById("topbar-sign-out");

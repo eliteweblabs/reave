@@ -93,6 +93,7 @@ const specialPage = isSpecialAdminPageKey(
     class:list={[{ "admin-special-page": specialPage }]}
     data-user-id={userId ?? ""}
     data-is-owner={isOwner ? "1" : ""}
+    data-admin-spa={isOwner ? "1" : undefined}
   >
     <DeployStatusBanner />
     <Header
