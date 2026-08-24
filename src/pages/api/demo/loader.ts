@@ -19,6 +19,8 @@ import { buildDemoSuiteUrl, parseDemoSuiteCookie, DEMO_SUITE_COOKIE } from '../.
 import { checkDemoLoaderCatalogRateLimit } from '../../../lib/demoLaunch';
 import { DEMO_BASELINE_MODULE_IDS, demoModuleIdForFeature, mergeDemoModuleIds } from '../../../lib/demoModuleCatalog';
 import { getPublicDemoSiteUrl } from '../../../lib/publicDemo';
+import { isCanonicalReaveInstall } from '../../../lib/installConfig';
+import { isStaffSession } from '../../../lib/staffSession';
 
 export const prerender = false;
 
@@ -55,6 +57,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
     return json({
       ok: true,
+      canEditCatalog: isCanonicalReaveInstall() && isStaffSession(context.locals),
       modules,
       sections,
       included,

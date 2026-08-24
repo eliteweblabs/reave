@@ -544,6 +544,19 @@
   color: rgba(255, 255, 255, 0.88);
 }
 
+.dl-tile-edit {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #c4b5fd;
+  text-decoration: none;
+}
+
+.dl-tile-edit:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
 .dw-playbook-notes {
   color: rgba(255, 255, 255, 0.78);
   border-color: rgba(167, 139, 250, 0.28);

@@ -281,7 +281,8 @@ import {
   initModulesPanel,
   loadModulesTab,
   teardownModulesPanel,
-} from './modules-panel.js?v=20260824d';
+  parseModuleDeepLinkFromUrl,
+} from './modules-panel.js?v=20260824e';
 import {
   initAddonsPanel,
   loadAddonsTab,
@@ -917,7 +918,7 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'fleet') {
     loadFleetTab();
   } else if (MAP.type === 'modules') {
-    loadModulesTab();
+    loadModulesTab({ feature: opts.moduleFeature });
   } else if (MAP.type === 'chats') {
     if (opts.chatId) queueChatDeepLink(opts.chatId);
     loadChatsTab({ keepSession: opts.keepChatSession === true });
@@ -9809,6 +9810,14 @@ function syncAdminTabUrl(key, opts = {}) {
       url.searchParams.delete('booking');
     }
 
+    if (key === 'modules') {
+      const moduleFeature = opts.moduleFeature || parseModuleDeepLinkFromUrl();
+      if (moduleFeature) url.searchParams.set('module', moduleFeature);
+      else url.searchParams.delete('module');
+    } else {
+      url.searchParams.delete('module');
+    }
+
     url.searchParams.delete('copy');
     if (/^#c=/i.test(url.hash)) url.hash = '';
 
@@ -9918,6 +9927,11 @@ function handleNotificationOpen(url) {
     const bookingUid = u.searchParams.get('booking')?.trim();
     if ((tab === 'schedule' || !tab) && bookingUid) {
       openScheduleTab({ uid: bookingUid, view: 'week' });
+      return;
+    }
+    const moduleFeature = u.searchParams.get('module')?.trim();
+    if ((tab === 'modules' || !tab) && moduleFeature) {
+      setActiveMap('modules', { force: true, moduleFeature });
       return;
     }
     if (tab && MAPS[tab]) setActiveMap(tab, { force: true });
@@ -11086,6 +11100,7 @@ initAddonsPanel({
   getMap: () => MAP,
   MAP,
   prependSettingsBackHeader,
+  setActiveMap,
 });
 initCatalogPanel({
   getMap: () => MAP,
@@ -15573,6 +15588,7 @@ function loadActiveKey() {
     if (params.get('chat')?.trim()) return 'chats';
     if (params.get('slug')?.trim()) return 'work';
     if (params.get('booking')?.trim()) return 'schedule';
+    if (params.get('module')?.trim()) return 'modules';
     const tab = resolveMapKey(params.get('tab'));
     if (tab && MAPS[tab] && canOpenMapKey(tab)) return tab;
   } catch {}

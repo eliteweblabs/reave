@@ -58,6 +58,7 @@ let catalogRows = [];
 let catalogGroups = [];
 let items = [];
 let activeKey = null;
+let pendingFeature = null;
 let saveTimer = 0;
 let saving = false;
 let dirty = false;
@@ -350,6 +351,35 @@ function refreshSidebarList() {
     input.placeholder = `Search ${n} ${n === 1 ? 'Module' : 'Modules'}`;
   }
   fillSidebarList(list);
+}
+
+export function parseModuleDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('module')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+export function queueModuleDeepLink(feature) {
+  pendingFeature = String(feature || '').trim() || null;
+}
+
+function selectFeature(feature) {
+  const wanted = String(feature || '').trim();
+  if (!wanted) return false;
+  const item = items.find((it) => it.feature === wanted);
+  if (!item) return false;
+  if (filter !== 'all' && item.group !== filter) filter = 'all';
+  activeKey = itemKey(item);
+  return true;
+}
+
+function consumePendingFeature({ allowUrl = false } = {}) {
+  if (!pendingFeature && allowUrl) pendingFeature = parseModuleDeepLinkFromUrl();
+  if (!pendingFeature) return;
+  if (selectFeature(pendingFeature)) pendingFeature = null;
+  else if (items.length) pendingFeature = null;
 }
 
 function openItem(key) {
@@ -848,6 +878,7 @@ export async function loadModulesTab(opts = {}) {
   }
 
   const quiet = opts.quiet === true;
+  if (opts.feature) queueModuleDeepLink(opts.feature);
   if (quiet && (dirty || saving || Date.now() < skipQuietUntil)) return;
 
   if (!quiet && !root.querySelector('.ch-sidebar')) {
@@ -866,6 +897,7 @@ export async function loadModulesTab(opts = {}) {
       catalogGroups = Array.isArray(status.groups) ? status.groups : [];
     }
     items = mergeItems(catalogRows.length ? catalogRows : null, status);
+    consumePendingFeature({ allowUrl: !quiet });
     if (activeKey && !findItem(activeKey)) {
       activeKey = null;
       root.classList.remove('de-pane-active');
@@ -873,6 +905,7 @@ export async function loadModulesTab(opts = {}) {
     if (quiet && root.querySelector('.ch-sidebar')) {
       refreshSidebarList();
       if (activeKey) renderDetailPane();
+      root.classList.toggle('de-pane-active', !!findItem(activeKey));
     } else {
       renderShell();
     }

@@ -1,7 +1,7 @@
 /**
  * Account → Add-ons — demo-loader tile grid with owner toggles or client requests.
  */
-import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
+import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton, showModuleCatalog } from './shared.js?v=20260810a';
 import { osAlert } from './os-dialog.js?v=20260815a';
 
 const API = '/api/admin/addons';
@@ -11,6 +11,21 @@ let shell = {};
 
 export function initAddonsPanel(deps = {}) {
   shell = deps;
+}
+
+function canEditCatalog() {
+  return showModuleCatalog();
+}
+
+function moduleEditHref(feature) {
+  return `/admin/?tab=modules&module=${encodeURIComponent(feature)}`;
+}
+
+function renderEditLink(feature) {
+  if (!canEditCatalog() || !feature) return '';
+  return (
+    `<a class="dl-tile-edit" href="${escHtml(moduleEditHref(feature))}" data-module="${escHtml(feature)}">Edit</a>`
+  );
 }
 
 function rootEl() {
@@ -65,13 +80,16 @@ function setAddonToggleChecked(btn, checked) {
 }
 
 function renderIncludedTile(card) {
+  const edit = renderEditLink(card.id);
   return (
-    `<article class="dl-tile dl-tile--included" aria-disabled="true">` +
+    `<article class="dl-tile dl-tile--included"${edit ? '' : ' aria-disabled="true"'}>` +
     `<div class="dl-tile-body">` +
     `<span class="dl-badge dl-badge--included">Included</span>` +
     `<h3 class="dl-tile-label">${escHtml(card.label)}</h3>` +
     (card.blurb ? `<p class="dl-tile-blurb">${escHtml(card.blurb)}</p>` : '') +
-    `</div></article>`
+    `</div>` +
+    (edit ? `<div class="dl-tile-foot">${edit}</div>` : '') +
+    `</article>`
   );
 }
 
@@ -84,19 +102,22 @@ function renderTile(m, mode) {
   const busy = pending.has(m.feature);
   const priceLabel = m.price?.label ? `<span class="dl-price">${escHtml(m.price.label)}</span>` : '';
 
-  let foot = '';
+  const edit = renderEditLink(m.feature);
+  let footInner = '';
   if (canToggle) {
-    foot = `<div class="dl-tile-foot">${renderSwitch(checked, m.feature, busy)}</div>`;
+    footInner = `${edit}${renderSwitch(checked, m.feature, busy)}`;
   } else if (canRequest && !requested) {
-    foot =
-      `<div class="dl-tile-foot">` +
-      `<button type="button" class="dl-btn dl-btn--primary dl-btn--sm mod-addons-request" data-feature="${escHtml(m.feature)}"${busy ? ' disabled' : ''}>Request</button>` +
-      `</div>`;
+    footInner =
+      `${edit}` +
+      `<button type="button" class="dl-btn dl-btn--primary dl-btn--sm mod-addons-request" data-feature="${escHtml(m.feature)}"${busy ? ' disabled' : ''}>Request</button>`;
   } else if (requested) {
-    foot = `<div class="dl-tile-foot"><span class="dl-badge dl-badge--included">Requested</span></div>`;
+    footInner = `${edit}<span class="dl-badge dl-badge--included">Requested</span>`;
   } else if (checked) {
-    foot = `<div class="dl-tile-foot"><span class="dl-badge dl-badge--included">Active</span></div>`;
+    footInner = `${edit}<span class="dl-badge dl-badge--included">Active</span>`;
+  } else if (edit) {
+    footInner = edit;
   }
+  const foot = footInner ? `<div class="dl-tile-foot">${footInner}</div>` : '';
 
   const selectedClass = checked ? ' dl-tile--selected' : '';
   const readonlyClass = !canToggle && !canRequest && !checked ? ' dl-tile--readonly' : '';
@@ -212,9 +233,20 @@ function bindPanelEvents(root) {
     });
   });
 
+  root.querySelectorAll('.dl-tile-edit').forEach((a) => {
+    a.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const feature = a.getAttribute('data-module');
+      if (!feature || typeof shell.setActiveMap !== 'function') return;
+      e.preventDefault();
+      shell.setActiveMap('modules', { force: true, moduleFeature: feature });
+    });
+  });
+
   root.querySelectorAll('.dl-tile .prof-plugin-toggle').forEach((sw) => {
     const tile = sw.closest('.dl-tile');
-    tile?.addEventListener('click', () => {
+    tile?.addEventListener('click', (e) => {
+      if (e.target.closest('.dl-tile-edit')) return;
       if (!sw.disabled) sw.click();
     });
   });

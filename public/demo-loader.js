@@ -25,6 +25,7 @@
   let launchError = '';
   let launching = false;
   let submitted = false;
+  let canEditCatalog = false;
 
   const root = document.getElementById('demo-loader-app');
   if (!root) return;
@@ -67,6 +68,16 @@
       selectedIds = new Set(data.defaultModuleIds || [...allowed]);
       industry = industries[0]?.slug || 'general';
     }
+    canEditCatalog = data.canEditCatalog === true;
+  }
+
+  function moduleEditHref(feature) {
+    return `/admin/?tab=modules&module=${encodeURIComponent(feature)}`;
+  }
+
+  function renderEditLink(feature) {
+    if (!canEditCatalog || !feature) return '';
+    return `<a class="dl-tile-edit" href="${esc(moduleEditHref(feature))}">Edit</a>`;
   }
 
   function launchModuleIds() {
@@ -110,13 +121,15 @@
   }
 
   function renderIncludedTile(card) {
+    const edit = renderEditLink(card.id);
     return (
-      `<article class="dl-tile dl-tile--included" data-included="${esc(card.id)}" aria-disabled="true">` +
+      `<article class="dl-tile dl-tile--included" data-included="${esc(card.id)}"${edit ? '' : ' aria-disabled="true"'}>` +
       `<div class="dl-tile-body">` +
       `<span class="dl-badge dl-badge--included">Included</span>` +
       `<h3 class="dl-tile-label">${esc(card.label)}</h3>` +
       (card.blurb ? `<p class="dl-tile-blurb">${esc(card.blurb)}</p>` : '') +
       `</div>` +
+      (edit ? `<div class="dl-tile-foot">${edit}</div>` : '') +
       `</article>`
     );
   }
@@ -126,10 +139,14 @@
     const checked = canToggle && selectedIds.has(m.moduleId);
     // Dim only in toggle mode when a card isn't selectable — browse mode is all display.
     const readonlyClass = togglesEnabled && !canToggle ? ' dl-tile--readonly' : '';
+    const edit = renderEditLink(m.feature);
+    const footInner = canToggle
+      ? `${edit}${renderSwitch(checked, m.moduleId)}`
+      : edit;
 
     return (
       `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}${readonlyClass}" ` +
-      `data-feature="${esc(m.feature)}"${canToggle ? '' : ' aria-disabled="true"'}>` +
+      `data-feature="${esc(m.feature)}"${canToggle || edit ? '' : ' aria-disabled="true"'}>` +
       `<div class="dl-tile-body">` +
       `<div class="dl-tile-head">` +
       `<h3 class="dl-tile-label">${esc(m.label)}</h3>` +
@@ -140,9 +157,7 @@
         ? `<ul class="dl-tile-features">${m.features.map((f) => `<li>${esc(f.label)}</li>`).join('')}</ul>`
         : '') +
       `</div>` +
-      (canToggle ?
-        `<div class="dl-tile-foot">${renderSwitch(checked, m.moduleId)}</div>`
-      : '') +
+      (footInner ? `<div class="dl-tile-foot">${footInner}</div>` : '') +
       `</article>`
     );
   }
@@ -386,7 +401,8 @@
     });
 
     root.querySelectorAll('.dl-tile:not(.dl-tile--readonly):not(.dl-tile--included)').forEach((tile) => {
-      tile.addEventListener('click', () => {
+      tile.addEventListener('click', (e) => {
+        if (e.target.closest('.dl-tile-edit')) return;
         const id = tile.querySelector('.dl-switch')?.getAttribute('data-module-id');
         if (id) toggleModule(id);
       });

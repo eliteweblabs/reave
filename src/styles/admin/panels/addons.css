@@ -75,6 +75,18 @@
   color: color-mix(in srgb, #6d28d9 55%, var(--fg));
 }
 
+.addons-dl-wrap .dl-tile-edit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent, #7c3aed);
+  text-decoration: none;
+}
+
+.addons-dl-wrap .dl-tile-edit:hover {
+  text-decoration: underline;
+}
+
 .addons-panel-scroll {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
