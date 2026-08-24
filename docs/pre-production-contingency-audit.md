@@ -62,7 +62,7 @@ flowchart TB
 | **fleet-api Postgres** | `fleet-api` | Vehicle locations and history | **Medium** |
 | **materials-api / inventory-api** | API-only in this repo | Pricing/inventory cache (re-fetchable) | **Low** |
 
-Schema for the app DB is created at runtime (`ensureSchema()` in `src/lib/*Store.ts`). SQL files under `supabase/migrations/` are a **manual reference**, not auto-run on deploy.
+Schema for the app DB is created at runtime (`ensureSchema()` in `src/lib/*Store.ts`). There is no checked-in migration runner.
 
 ---
 
@@ -91,7 +91,7 @@ Schema for the app DB is created at runtime (`ensureSchema()` in `src/lib/*Store
 
 ### High
 
-- **Schema drift** between runtime `ensureSchema()` and `supabase/migrations/` (e.g. `knowledge` vs `knowledge_entries`).
+- **Schema lives only in runtime `ensureSchema()`** — no checked-in SQL to compare against (e.g. `knowledge` vs `knowledge_entries`).
 - **Chat recovery API has no admin UI** — owner must call HTTP API manually after Clerk instance changes.
 - **Poll jobs** (newsletter, uptime, lead scanner, calendar reminders) rely on in-process timers; external Railway cron is safer.
 
@@ -171,7 +171,7 @@ Do this at least once before go-live, then quarterly:
 ### Nice to have
 
 - [ ] Move large blobs (`project_files`, `kap_recordings`) to object storage; keep metadata in Postgres
-- [ ] Single migration runner aligned with `supabase/migrations/`
+- [ ] Single migration runner aligned with runtime `ensureSchema()`
 - [ ] Admin UI for chat recovery
 
 ---

@@ -6,4 +6,3 @@ node_modules
 *.md
 .DS_Store
 .cursor
-supabase/.temp
