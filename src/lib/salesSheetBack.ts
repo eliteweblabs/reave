@@ -6,8 +6,12 @@
  * chat-bubble objections above the stack marks), front cover (full logo dead
  * center + diagnostic). Same HTML for every client.
  */
+import { BRANDING_ICON_PATH } from './companyLogo';
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
+
+/** Official square mark as PNG — `/api/branding/icon`, not the website SVG. */
+const SALES_SHEET_ICON_PNG = `${BRANDING_ICON_PATH}?size=256&transparent=1`;
 
 export type SalesSheetBackCompany = {
   name?: string;
@@ -127,22 +131,8 @@ function noticeParagraphsHtml(notice: string): string {
     .join('');
 }
 
-/** Same chevrons as `ReaveIconAnimated.astro` — keep the path and stops in sync. */
-const REAVE_ICON_PATH =
-  'M170.702,163.5c-4.334-.857-13.192,16.033-17.288,22.799-28.639,48.965-66.28,113.492-94.894,162.403-7.108,12.248-12.562,21.164-14.666,26.646-2.896,7.546,1.459,8.494,8.429,9.129,55.588,1.063,164.446.022,220.287.382,5.675.007,12.174-.048,17.058-.42,7.059-.638,11.059-1.994,7.657-9.89-29.888-54.575-75.239-129.012-107.065-184.522-4.681-7.572-14.842-27.518-19.467-26.527h-.051ZM336.67,347.384c4.334.857,13.192-16.033,17.288-22.799,28.639-48.965,66.28-113.492,94.894-162.403,7.108-12.248,12.562-21.164,14.666-26.646,2.896-7.546-1.459-8.494-8.429-9.129-55.588-1.063-164.446-.022-220.287-.382-5.675-.007-12.174.048-17.058.42-7.059.638-11.059,1.994-7.657,9.89,29.888,54.575,75.239,129.012,107.065,184.522,4.681,7.572,14.842,27.518,19.467,26.527h.051Z';
-
-function reaveWebsiteIconHtml(idPrefix: string): string {
-  const gradId = `${idPrefix}-grad`;
-  return `<svg class="ss-back-reave-icon" xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
-  <defs>
-    <linearGradient id="${esc(gradId)}" x1="64" y1="448" x2="448" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="52%" stop-color="#c026d3"/>
-      <stop offset="100%" stop-color="#ff00ff"/>
-    </linearGradient>
-  </defs>
-  <path d="${REAVE_ICON_PATH}" fill="url(#${esc(gradId)})" />
-</svg>`;
+function reaveIconPngHtml(src: string): string {
+  return `<img class="ss-back-reave-icon" src="${esc(src)}" alt="" />`;
 }
 
 /** Footer lockup from `FootBostonTag.astro` — beans stand in for the o’s. */
@@ -178,11 +168,11 @@ function chatUserAvatarHtml(slug: string): string {
   return `<span class="ss-back-chat-avatar ss-back-chat-avatar--user" aria-hidden="true"><img src="/api/media/${esc(slug)}" alt="" /></span>`;
 }
 
-function chatReaveAvatarHtml(index: number): string {
-  return `<span class="ss-back-chat-avatar ss-back-chat-avatar--reave" aria-hidden="true">${reaveWebsiteIconHtml(`ss-back-chat-reave-${index}`)}</span>`;
+function chatReaveAvatarHtml(src: string): string {
+  return `<span class="ss-back-chat-avatar ss-back-chat-avatar--reave" aria-hidden="true">${reaveIconPngHtml(src)}</span>`;
 }
 
-function backCoverQaHtml(): string {
+function backCoverQaHtml(iconSrc: string): string {
   const items = SALES_SHEET_BACK_COVER_QA.map((item, i) => {
     const face = SALES_SHEET_BACK_CHAT_HEADSHOTS[i % SALES_SHEET_BACK_CHAT_HEADSHOTS.length];
     return `<div class="ss-back-chat-pair" data-qa="${i + 1}">
@@ -192,7 +182,7 @@ function backCoverQaHtml(): string {
   </div>
   <div class="ss-back-chat-row ss-back-chat-row--a">
     <p class="ss-back-chat-a">${esc(item.a)}</p>
-    ${chatReaveAvatarHtml(i + 1)}
+    ${chatReaveAvatarHtml(iconSrc)}
   </div>
 </div>`;
   }).join('');
@@ -497,7 +487,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
+  gap: 1.25em;
   width: 100%;
   margin-top: auto;
   margin-bottom: 0;
@@ -555,6 +545,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 .ss-sheet-back .ss-back-chat-q,
 .ss-sheet-back .ss-back-chat-a {
@@ -580,7 +571,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-stack {
   list-style: none;
-  margin: 0.15em auto 0;
+  margin: 0.35em auto 0;
   padding: 0;
   display: flex;
   flex-wrap: nowrap;
@@ -628,6 +619,7 @@ export function renderSalesSheetBackHtml(opts: {
   orientation: SalesSheetBackOrientation;
   stackLogos?: SalesSheetBackLogo[];
   iconHtml?: string;
+  iconSrc?: string;
   logoHtml?: string;
 }): string {
   const name = (opts.company?.name || 'This platform').trim();
@@ -635,7 +627,8 @@ export function renderSalesSheetBackHtml(opts: {
   const stackItems = stack.map(stackLogoHtml).join('');
   const notice = (opts.company?.portalOutreachNotice || '').trim() || DEFAULT_PORTAL_OUTREACH_NOTICE;
   const fallbackMark = `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
-  const iconHtml = (opts.iconHtml || '').trim() || reaveWebsiteIconHtml('ss-back-reave');
+  const iconSrc = (opts.iconSrc || '').trim() || SALES_SHEET_ICON_PNG;
+  const iconHtml = (opts.iconHtml || '').trim() || reaveIconPngHtml(iconSrc);
   const logoHtml = (opts.logoHtml || '').trim() || fallbackMark;
   const gateLockup = `${iconHtml}${bakedInBostonHtml()}`;
   const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
@@ -670,7 +663,7 @@ export function renderSalesSheetBackHtml(opts: {
         <p class="ss-back-kicker">Local</p>
         <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
         <div class="ss-back-platform" data-ss-col="stack">
-          ${backCoverQaHtml()}
+          ${backCoverQaHtml(iconSrc)}
           <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
         </div>
       </section>

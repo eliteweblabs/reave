@@ -12,6 +12,8 @@ export const prerender = false;
 import AdminSpecialLayout from '../../layouts/AdminSpecialLayout.astro';
 import { denyUnlessDeploymentOwner } from '../../lib/deploymentOwner';
 import { getCompanyConfig } from '../../lib/companyConfig';
+import { getStoredCompanyConfig } from '../../lib/companyConfigStore';
+import { renderCompanyBrandIconPng } from '../../lib/brandImageRender';
 import { getTemplate, fillTemplate, renderFilledDocumentHtml } from '../../lib/documentTemplates';
 import {
   applyPlacesMissForSheet,
@@ -422,10 +424,14 @@ const backStackLogos = await Promise.all(
     src: await inlineMediaSrc(logo.src, logo.slug?.startsWith('stack-') ? logo.slug : ''),
   })),
 );
+const storedBrand = await getStoredCompanyConfig();
+const backIconPng = await renderCompanyBrandIconPng(storedBrand, 256, { transparent: true });
+const backIconSrc = `data:image/png;base64,${backIconPng.toString('base64')}`;
 const backHtml = renderSalesSheetBackHtml({
   company,
   orientation,
   stackLogos: backStackLogos,
+  iconSrc: backIconSrc,
   logoHtml: companyBrandMarkHtml('logo', company, { size: 'xl', idPrefix: 'ss-back-logo' }),
 });
 

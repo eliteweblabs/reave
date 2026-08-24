@@ -677,9 +677,12 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.ok(back.indexOf('data-ss-col="stack"') > back.indexOf('data-ss-col="builds"'));
   assert.match(back, /data-ss-col="cover"[\s\S]*class="ss-back-icon"/);
   assert.match(back, /data-ss-col="gate-icon"/);
-  assert.match(back, /ss-back-reave-icon/);
-  assert.match(back, /#6366f1/);
-  assert.match(back, /#ff00ff/);
+  assert.match(back, /<img class="ss-back-reave-icon"/);
+  assert.match(back, /\/api\/branding\/icon\?size=256&amp;transparent=1/);
+  assert.doesNotMatch(back, /<svg class="ss-back-reave-icon"/);
+  assert.doesNotMatch(back, /#6366f1/);
+  assert.doesNotMatch(back, /#ff00ff/);
+  assert.doesNotMatch(back, /ReaveIconAnimated/);
   assert.match(back, /ss-back-boston/);
   assert.match(back, /aria-label="Baked in Boston"/);
   assert.match(back, /ss-back-boston-bean--a/);
