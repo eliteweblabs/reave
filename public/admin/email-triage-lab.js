@@ -8,9 +8,9 @@ import {
   createSlidingPillSelect,
   contactAvatarHtml,
   mountContactAvatars,
-} from './admin-ui.js?v=20260815e';
+} from './admin-ui.js?v=20260824b';
 import { escHtml, showPersonal } from './shared.js?v=20260810a';
-import { osAlert } from './os-dialog.js?v=20260815a';
+import { osAlert } from './os-dialog.js?v=20260824b';
 
 /** Mirror of src/lib/emailBody.looksLikeHtml for client-side preview. */
 function looksLikeHtml(text) {
@@ -709,7 +709,7 @@ export function createEmailTriageLab(deps) {
       if (root) renderLabShell(root);
       scheduleLiveTest();
     } catch (e) {
-      await osAlert(`Could not save rule order: ${e.message}`);
+      await osAlert({ title: 'Could not save rule order', bodyHtml: e.message });
     }
   }
 
@@ -731,7 +731,7 @@ export function createEmailTriageLab(deps) {
         }
         bodyEl.hidden = false;
         requestAnimationFrame(() => {
-          card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          if (card.isConnected) card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         });
       } else {
         bodyEl.hidden = true;

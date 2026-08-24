@@ -126,7 +126,7 @@ import {
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
 } from './filter-tabs.js?v=20260813a';
-import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260815a';
+import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260824b';
 import {
   initWorkPanel,
   workState,
@@ -262,7 +262,7 @@ import {
   openRulesLabWithEmail,
   openRulesLabWithRule,
   startNewRule,
-} from './rules-panel.js?v=20260824a';
+} from './rules-panel.js?v=20260824b';
 import {
   initNewsletterPanel,
   loadNewsletterTab,

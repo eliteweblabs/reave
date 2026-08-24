@@ -1458,12 +1458,9 @@ button.de-placeholder-action:active {
 .re-scope-pill--personal {
   color: var(--muted, #8b949e);
 }
-.re-scope-hint {
-  flex: 1 1 100%;
-  margin: 0.15rem 0 0;
-  font-size: 0.72rem;
-  line-height: 1.35;
-  color: var(--muted, #8b949e);
+.re-scope-field .sliding-pill-select {
+  max-width: none;
+  width: 100%;
 }
 .re-warn-inline {
   font-size: 0.72rem;

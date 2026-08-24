@@ -177,7 +177,9 @@ function scrollOsDialogFieldIntoView(field) {
       body.scrollTop += fieldRect.top - bodyRect.top - margin;
     }
   }
-  field.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+  if (field.isConnected) {
+    field.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+  }
 }
 
 function syncOsDialogKeyboardLayout() {
@@ -250,5 +252,13 @@ export function osConfirm(opts) {
 }
 
 export function osAlert(opts) {
-  return osDialog({ ...opts, showCancel: false, confirmLabel: opts.confirmLabel || 'OK' });
+  if (typeof opts === 'string') {
+    return osDialog({ title: '', bodyHtml: opts, showCancel: false, confirmLabel: 'OK' });
+  }
+  const args = opts && typeof opts === 'object' ? opts : {};
+  return osDialog({
+    ...args,
+    showCancel: false,
+    confirmLabel: args.confirmLabel || 'OK',
+  });
 }

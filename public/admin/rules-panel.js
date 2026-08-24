@@ -43,17 +43,17 @@ import {
   paneDeleteIcon,
   paneShareIcon,
   createAgentBtn,
-} from './admin-ui.js?v=20260812a';
+} from './admin-ui.js?v=20260824b';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260815a';
+import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260824b';
 import {
   createEmailTriageLab,
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260824a';
+} from './email-triage-lab.js?v=20260824b';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -602,7 +602,7 @@ async function persistFlowRuleOrder(ids) {
     ruleState.rules = data.rules || ruleState.rules;
     renderRulesEditor();
   } catch (e) {
-    await osAlert(`Could not save rule order: ${e.message}`);
+    await osAlert({ title: 'Could not save rule order', bodyHtml: e.message });
     renderRulesEditor();
   }
 }
@@ -752,8 +752,10 @@ function isRuleAccordionMounted(id) {
 async function leaveRuleIfSaved() {
   const ok = await flushRuleAutosave();
   if (ok) return true;
-  const detail = ruleAutosaveError ? ` ${ruleAutosaveError}` : ' Check the highlighted fields.';
-  await osAlert(`Couldn’t save this rule.${detail}`);
+  await osAlert({
+    title: 'Couldn’t save this rule',
+    bodyHtml: ruleAutosaveError || 'Check the highlighted fields.',
+  });
   return false;
 }
 
@@ -777,12 +779,9 @@ async function openRuleEditor(id) {
   }
 }
 
-async function closeRuleEditor(checkDirty = true) {
-  if (checkDirty) {
-    if (!(await leaveRuleIfSaved())) return;
-  } else {
-    await flushRuleAutosave();
-  }
+async function closeRuleEditor(_checkDirty = true) {
+  // Always collapse. A failed autosave must not open a sheet and trap the accordion.
+  await flushRuleAutosave();
   ruleAutosaveFlush = null;
   ruleState.activeId = null;
   ruleState.dirty = false;
@@ -850,55 +849,26 @@ function renderRuleEditPane(pane, opts = {}) {
   titleIn.autocomplete = 'off';
   if (!isCatalogReadOnly(rule)) requestTitleFocus('rules', titleIn);
 
+  const scopeIn = document.createElement('input');
+  scopeIn.type = 'hidden';
+  scopeIn.value = ruleScope(rule);
   const scopeWrap = document.createElement('div');
-  scopeWrap.className = 're-checks re-scope-radios';
-  const scopeHint = document.createElement('p');
-  scopeHint.className = 're-scope-hint';
+  scopeWrap.className = 're-scope-field';
   if (canManageUniversalRules()) {
-    const syncScopeHint = (value) => {
-      scopeHint.textContent =
-        value === 'universal'
-          ? 'Universal — REΛVE catalog. Other installs receive these from the repo; only this Railway install can create or edit them.'
-          : 'Personal — this install only. Teach/correct and custom filters stay here.';
-    };
-    let scopeValue = ruleScope(rule);
-    for (const [val, lab] of [
-      ['personal', 'Personal (this install)'],
-      ['universal', 'Universal (REΛVE catalog)'],
-    ]) {
-      const lb = document.createElement('label');
-      lb.className = 're-check';
-      const rb = document.createElement('input');
-      rb.type = 'radio';
-      rb.name = `re-scope-${rule.id}`;
-      rb.value = val;
-      rb.checked = scopeValue === val;
-      rb.addEventListener('change', () => {
-        if (!rb.checked) return;
-        scopeValue = val;
-        syncScopeHint(val);
-      });
-      lb.append(rb, document.createTextNode(` ${lab}`));
-      scopeWrap.appendChild(lb);
-    }
-    syncScopeHint(scopeValue);
-    scopeWrap.appendChild(scopeHint);
-  } else if (isCatalogRule(rule)) {
-    scopeHint.textContent =
-      'Universal catalog — shipped from the REΛVE repo. This install cannot create or edit catalog rules.';
-    scopeWrap.appendChild(scopeHint);
-  } else if (showPersonal()) {
-    scopeHint.textContent = 'Personal — this install only. Teach/correct and custom filters stay here.';
-    const lb = document.createElement('label');
-    lb.className = 're-check';
-    const rb = document.createElement('input');
-    rb.type = 'radio';
-    rb.name = `re-scope-${rule.id}`;
-    rb.value = 'personal';
-    rb.checked = true;
-    rb.disabled = true;
-    lb.append(rb, document.createTextNode(' Personal (this install)'));
-    scopeWrap.append(lb, scopeHint);
+    const scopePill = createSlidingPillSelect({
+      value: scopeIn.value,
+      options: [
+        { value: 'personal', label: 'Personal' },
+        { value: 'universal', label: 'Universal' },
+      ],
+      ariaLabel: 'Applies to',
+      scrollable: false,
+      onChange: (value) => {
+        scopeIn.value = value;
+        scopeIn.dispatchEvent(new Event('change', { bubbles: true }));
+      },
+    });
+    scopeWrap.append(scopePill.el, scopeIn);
   }
 
   const statusIn = document.createElement('input');
@@ -1114,7 +1084,9 @@ function renderRuleEditPane(pane, opts = {}) {
   );
 
   appendRuleField(form, 'Title', titleIn);
-  if (scopeWrap.childNodes.length) appendRuleField(form, 'Applies to', scopeWrap);
+  if (scopeWrap.childNodes.length) {
+    appendRuleField(form, 'Applies to', scopeWrap, null, { as: 'div' });
+  }
   appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Keywords / phrases', phrasesIn);
   appendRuleField(form, 'Except (NOT)', exceptIn);
@@ -1150,6 +1122,7 @@ function renderRuleEditPane(pane, opts = {}) {
 
   const ruleInputs = {
     titleIn,
+    scopeIn,
     scopeWrap,
     statusIn,
     processSel,
@@ -1195,7 +1168,7 @@ function collectRulePayload(inputs) {
   const isDelete = process === 'delete';
   const notifyPush = !isDelete && ruleToggleOn(inputs.pushToggle);
   const notifyDashboard = !isDelete && ruleToggleOn(inputs.dashToggle);
-  const scopeRb = inputs.scopeWrap.querySelector('input[type=radio]:checked');
+  const scope = inputs.scopeIn?.value === 'universal' ? 'universal' : 'personal';
   let expiresAt = null;
   if (!isDelete && ruleToggleOn(inputs.expireInToggle)) {
     const secs = Math.floor(Number(inputs.expireInSecs?.value));
@@ -1207,7 +1180,7 @@ function collectRulePayload(inputs) {
   }
   return {
     title: inputs.titleIn.value.trim(),
-    scope: scopeRb?.value === 'universal' ? 'universal' : 'personal',
+    scope,
     status: statusForProcess(process, inputs.statusIn.value.trim()),
     description: inputs.descIn.value.trim(),
     phrases: inputs.phrasesIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
@@ -1272,7 +1245,7 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
 
   const allFields = () => [
     inputs.titleIn,
-    ...inputs.scopeWrap.querySelectorAll('input[type=radio]'),
+    inputs.scopeIn,
     ...(inputs.processSel ? [inputs.processSel] : []),
     inputs.descIn,
     inputs.phrasesIn,

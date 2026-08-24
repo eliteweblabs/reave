@@ -1261,7 +1261,7 @@ export function createSlidingPillSelect(opts = {}) {
       currentValue = opt.value;
       syncActive();
       syncIndicator(true);
-      if (scrollable) btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      if (scrollable && btn.isConnected) btn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       onChange?.(currentValue);
     });
     pill.appendChild(btn);
@@ -1279,7 +1279,9 @@ export function createSlidingPillSelect(opts = {}) {
     syncIndicator(false);
     if (scrollable) {
       const activeBtn = pill.querySelector('.sliding-pill-btn.is-active');
-      activeBtn?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      if (activeBtn instanceof HTMLElement && activeBtn.isConnected) {
+        activeBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
     }
   });
 
