@@ -14389,6 +14389,19 @@ function showOtpCopyOverlay(code) {
   root.hidden = false;
 }
 
+function setOtpCopyOverlayStatus(copied) {
+  const root = document.getElementById('admin-otp-copy-overlay');
+  if (!root || root.hidden) return;
+  const status = root.querySelector('#admin-otp-copy-status');
+  const btn = root.querySelector('#admin-otp-copy-btn');
+  if (status) {
+    status.textContent = copied
+      ? 'Copied — paste on this phone or your laptop'
+      : 'Tap Copy code to put it on the clipboard.';
+  }
+  if (btn) btn.textContent = copied ? 'Copied' : 'Copy code';
+}
+
 /** One-tap fallback when iOS blocks clipboard writes without a fresh gesture. */
 async function promptCopyOtpCode(code) {
   const text = String(code || '').trim();
@@ -14413,11 +14426,16 @@ async function copyEmailVerificationCode(code, nearEl, opts = {}) {
   // iOS often resolves writeText without updating the clipboard when there was no
   // user gesture (e.g. auto-copy on open). Refuse to claim success if we can tell.
   const verified = await clipboardLooksLike(text);
-  if (!wrote || verified === false) {
+  const failed =
+    !wrote ||
+    verified === false ||
+    (opts.requireVerified && verified !== true);
+  if (failed) {
     if (opts.preferPromptOnFail && !opts.fromPrompt) return promptCopyOtpCode(text);
-    if (!opts.fromPrompt) showChatToast('Tap the code to copy', nearEl);
+    if (!opts.fromPrompt && !opts.silent) showChatToast('Tap the code to copy', nearEl);
     return false;
   }
+  if (opts.silent) return true;
   if (nearEl) showCopyButtonFeedback(nearEl);
   else showChatToast('Copied — ready to paste', nearEl);
   return true;
@@ -14459,6 +14477,9 @@ let otpCopyInFlightTimer = 0;
 async function handleOtpCopyFromPush(data) {
   const code = String(data?.code || '').trim();
   if (!code) return;
+  // Show the code before any await. Silent writeText often "succeeds" on iOS
+  // without updating the clipboard — the button is the reliable path.
+  showOtpCopyOverlay(code);
   if (otpCopyInFlightCode === code) return;
   otpCopyInFlightCode = code;
   if (otpCopyInFlightTimer) clearTimeout(otpCopyInFlightTimer);
@@ -14466,10 +14487,13 @@ async function handleOtpCopyFromPush(data) {
     otpCopyInFlightCode = '';
     otpCopyInFlightTimer = 0;
   }, 2500);
-  await clearPendingOtpCopyStash();
+  void clearPendingOtpCopyStash();
   await whenDocumentFocused();
-  const ok = await copyEmailVerificationCode(code, null, { preferPromptOnFail: true });
-  if (!ok) showOtpCopyOverlay(code);
+  const ok = await copyEmailVerificationCode(code, null, {
+    silent: true,
+    requireVerified: true,
+  });
+  if (ok) setOtpCopyOverlayStatus(true);
 }
 
 async function handleOtpDeleteFromPush(data) {

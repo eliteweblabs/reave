@@ -78,7 +78,7 @@ const appName = company.name || "Business OS";
           return ok;
         }
 
-        async function writeClipboard(text) {
+        async function writeClipboard(text, fromButton) {
           var wrote = false;
           try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -89,14 +89,14 @@ const appName = company.name || "Business OS";
             wrote = false;
           }
           if (!wrote) wrote = fallbackCopy(text);
-          if (wrote && navigator.clipboard && navigator.clipboard.readText) {
-            try {
-              if ((await navigator.clipboard.readText()) !== text) return false;
-            } catch (e) {
-              /* read may be denied; keep wrote */
-            }
+          if (!wrote) return false;
+          if (!navigator.clipboard || !navigator.clipboard.readText) return wrote;
+          try {
+            return (await navigator.clipboard.readText()) === text;
+          } catch (e) {
+            // iOS often lies about writeText unless this was a real button tap.
+            return Boolean(fromButton);
           }
-          return wrote;
         }
 
         async function codeFromStash() {
@@ -118,29 +118,49 @@ const appName = company.name || "Business OS";
           if (btn) btn.textContent = copied ? 'Copied' : 'Copy code';
         }
 
-        async function copyNow(code) {
+        async function copyNow(code, fromButton) {
           if (!code) {
             show('', 'Nothing to copy', false);
             return false;
           }
-          var ok = await writeClipboard(code);
+          show(code, 'Copying…', false);
+          var ok = await writeClipboard(code, fromButton);
           show(code, ok ? 'Copied — paste anywhere, including your laptop' : 'Tap Copy code', ok);
           return ok;
         }
 
         async function boot() {
-          var code = codeFromHash() || (await codeFromStash());
+          // Hash is sync — copy before any await so the notification click
+          // still counts as a user gesture for clipboard.writeText.
+          var code = codeFromHash();
+          if (code) {
+            await copyNow(code);
+            return;
+          }
+          code = await codeFromStash();
           if (!code) {
             show('', 'No code waiting', false);
             return;
           }
-          show(code, 'Tap Copy code, then paste on this phone or your laptop.', false);
+          await copyNow(code);
         }
 
         if (btn) {
           btn.addEventListener('click', function () {
             var code = (codeEl && codeEl.textContent) || codeFromHash();
-            if (code && code !== '…' && code !== '—') void copyNow(code);
+            if (code && code !== '…' && code !== '—') void copyNow(code, true);
+          });
+        }
+
+        window.addEventListener('hashchange', function () {
+          var code = codeFromHash();
+          if (code) void copyNow(code);
+        });
+
+        if (navigator.serviceWorker) {
+          navigator.serviceWorker.addEventListener('message', function (event) {
+            var next = event.data && event.data.type === 'reave-otp-copy' ? String(event.data.code || '').trim() : '';
+            if (next) void copyNow(next);
           });
         }
 

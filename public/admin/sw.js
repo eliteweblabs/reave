@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260813d — OTP tap copies in a logged-in admin window, else /admin/copy (no login). */
+   v20260824a — OTP tap opens /admin/copy unless a copy-capable window is already focused. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -129,32 +129,42 @@ async function deliverOtpCopy(opts) {
   await stashPendingOtpCopy({ code, emailId, alertId });
 
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  let focused = false;
+  let alreadyFocused = false;
   for (const client of clients) {
     if (!clientCanCopyOtp(client)) continue;
     client.postMessage(message);
-    if (!focused && 'focus' in client) {
-      try {
-        await client.focus();
-        focused = true;
-      } catch {
-        /* ignore */
-      }
-    }
+    if (client.focused) alreadyFocused = true;
   }
 
-  // Desktop PWA is usually already open — a second openWindow steals the
-  // notification gesture and never writes the clipboard.
-  if (focused) return;
+  // Only skip the copy page when the user is already looking at admin/copy.
+  // Calling focus() on a background PWA used to count as success, which ate
+  // the notification gesture and left iOS with an empty clipboard.
+  if (alreadyFocused) return;
 
+  let opened = null;
   if (self.clients.openWindow) {
-    const opened = await self.clients.openWindow(otpCopyPageUrl(code));
-    if (opened) {
-      try {
-        opened.postMessage(message);
-      } catch {
-        /* page reads the stash on boot */
-      }
+    try {
+      opened = await self.clients.openWindow(otpCopyPageUrl(code));
+    } catch {
+      opened = null;
+    }
+  }
+  if (opened) {
+    try {
+      opened.postMessage(message);
+    } catch {
+      /* page reads the stash / hash on boot */
+    }
+    return;
+  }
+
+  for (const client of clients) {
+    if (!clientCanCopyOtp(client) || !('focus' in client)) continue;
+    try {
+      await client.focus();
+      return;
+    } catch {
+      /* ignore */
     }
   }
 }

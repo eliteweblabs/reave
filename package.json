@@ -33,6 +33,7 @@
     "check:email-project-title": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-project-title.ts",
     "check:email-triage": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-triage-scenarios.ts",
     "check:email-meeting": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-meeting-parse.ts",
+    "check:otp-push-copy": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-otp-push-copy.ts",
     "check:inbound-install": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-inbound-install.ts",
     "check:reave-public-email": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-reave-public-email.ts",
     "check:email-original-recipient": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-original-recipient.ts",
