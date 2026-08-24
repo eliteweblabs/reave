@@ -165,28 +165,34 @@ function isWindowsOs() {
   return /Win/i.test(navigator.platform || navigator.userAgent || '');
 }
 
-/** What to do after the browser blocks the permission prompt (it will not ask again). */
+/**
+ * What to do after the browser reports Notification.permission === "denied".
+ *
+ * On macOS/Windows this is often the OS toggle OR a leftover site Block — the
+ * System Settings switch alone does not finish Web Push. Always keep a retry
+ * button so they can call requestPermission() after flipping OS settings.
+ */
 function notificationBlockedHelp() {
   const standalone = isStandalonePwa();
   if (isIos()) {
     return standalone
-      ? 'Notifications are blocked. Open the iPhone Settings app → Notifications, find this app, turn Allow Notifications on, then reopen the app.'
-      : 'Notifications are blocked. Add this app to your Home Screen, open it from there, and allow notifications when asked.';
+      ? 'Open the iPhone Settings app → Notifications, find this app, turn Allow Notifications on, then reopen the app and tap Enable notifications.'
+      : 'Add this app to your Home Screen, open it from there, and allow notifications when asked.';
   }
   if (isAndroid()) {
-    return 'Notifications are blocked. Open Android Settings → Apps → your browser → Notifications and allow them, or tap the lock icon in the address bar → Permissions → Notifications → Allow.';
+    return 'Open Android Settings → Apps → your browser → Notifications and allow them, or tap the lock icon in the address bar → Permissions → Notifications → Allow. Then tap Enable notifications.';
   }
   if (isMacOs()) {
     return standalone
-      ? 'Notifications are blocked. Open System Settings → Notifications, find this app (or Chrome/Edge), and turn them on. If this site is still set to Block in the browser, change it to Allow, then tap Enable notifications again.'
-      : 'Notifications are blocked. Open System Settings → Notifications and allow this browser, then click the lock icon in the address bar → Notifications → Allow.';
+      ? 'System Settings → Notifications only unlocks the app — that switch alone is not enough. Come back here and tap Enable notifications. If it still fails, quit this app and reopen it. If Enable still fails, the browser has this site set to Block: Chrome Settings → Privacy and security → Site settings → Notifications (or Safari → Settings → Websites → Notifications), set this site to Allow, then tap Enable again.'
+      : 'Open System Settings → Notifications and allow this browser, then click the lock icon in the address bar → Notifications → Allow. Come back and tap Enable notifications.';
   }
   if (isWindowsOs()) {
     return standalone
-      ? 'Notifications are blocked. Open Settings → System → Notifications, allow this app, then come back and tap Enable notifications.'
-      : 'Notifications are blocked. Open Settings → System → Notifications and allow this browser, then click the lock icon in the address bar → Notifications → Allow.';
+      ? 'Settings → System → Notifications only unlocks the app — that switch alone is not enough. Come back here and tap Enable notifications. If it still fails, the browser has this site set to Block — reset it under Site settings → Notifications, then tap Enable again.'
+      : 'Open Settings → System → Notifications and allow this browser, then click the lock icon in the address bar → Notifications → Allow. Come back and tap Enable notifications.';
   }
-  return 'Notifications are blocked. Allow them in your browser or device notification settings, then tap Enable notifications again.';
+  return 'Allow notifications in your browser or device settings, then tap Enable notifications.';
 }
 
 /**
@@ -343,7 +349,7 @@ function renderSetupAlert(kind) {
       },
     });
   }
-  if (kind === 'push' && Notification.permission !== 'denied') {
+  if (kind === 'push') {
     actions.push({
       label: 'Enable notifications',
       primary: true,
@@ -355,11 +361,6 @@ function renderSetupAlert(kind) {
           syncAdminPushButton();
         } catch (e) {
           btn.disabled = false;
-          if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
-            void syncAdminSetupAlerts();
-            void syncAdminPushButton();
-            return;
-          }
           const copy = notice?.copy;
           copy?.querySelector('.admin-setup-alert-error')?.remove();
           const err = document.createElement('p');
@@ -1005,5 +1006,17 @@ if (typeof document !== 'undefined') {
     applySleepModeSettingsPayload(ev.detail);
   });
   window.addEventListener('pageshow', () => syncAdminPushButton());
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void syncAdminPushButton();
+  });
+  try {
+    void navigator.permissions?.query({ name: 'notifications' })?.then((status) => {
+      status.addEventListener('change', () => {
+        void syncAdminPushButton();
+      });
+    });
+  } catch {
+    /* Permissions API optional */
+  }
   window.matchMedia('(display-mode: standalone)').addEventListener?.('change', () => syncAdminPushButton());
 }
