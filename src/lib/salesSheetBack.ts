@@ -494,6 +494,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   flex-direction: column;
   justify-content: center;
   gap: 0.12em;
+  padding-right: 1.15em;
 }
 .ss-sheet-back .ss-back-mod-label {
   min-width: 0;
@@ -521,20 +522,25 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   color: var(--doc-muted);
 }
 .ss-sheet-back .ss-back-mod-price {
+  --ss-badge-h: 1.55em;
   position: absolute;
   top: 0;
   right: 0;
   z-index: 2;
-  transform: translate(50%, -50%);
+  box-sizing: border-box;
+  height: var(--ss-badge-h);
+  display: inline-flex;
+  align-items: center;
+  transform: translateY(-50%) translateX(calc(var(--ss-badge-h) / 2));
   flex: none;
-  padding: 0.18em 0.5em;
+  padding: 0 0.55em;
   border-radius: 999px;
   background: #141414;
   color: #fff;
   font-size: clamp(6.5px, 0.95cqi, 8.5px);
   font-weight: 650;
   letter-spacing: 0.01em;
-  line-height: 1.2;
+  line-height: 1;
   white-space: nowrap;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
