@@ -261,7 +261,6 @@ function chosenNetworks(
   company: CompanyConfig,
   accounts: SocialAccount[],
   items: SocialFeedItem[],
-  reviewsEnabled: boolean,
 ): SocialFeedNetwork[] {
   const byAccount = accountMap(accounts);
   const hidden = parseHiddenSocialPlatforms(company.socialHiddenPlatforms);
@@ -289,25 +288,21 @@ function chosenNetworks(
   };
 
   for (const platform of visible) {
-    push(platform.id);
+    if (byAccount.has(platform.id) || itemPlatforms.has(platform.id)) push(platform.id);
   }
 
   for (const id of REVIEW_INBOX_CORE) {
-    if (reviewsEnabled || byAccount.has(id) || visibleIds.has(id)) push(id);
+    if (byAccount.has(id) || itemPlatforms.has(id)) push(id);
   }
 
   for (const account of accounts) {
-    push(account.platform);
+    if (visibleIds.has(account.platform) || itemPlatforms.has(account.platform)) {
+      push(account.platform);
+    }
   }
 
   for (const extra of ['apple', 'tripadvisor', 'other'] as const) {
     if (itemPlatforms.has(extra)) push(extra);
-  }
-
-  if (!out.length) {
-    for (const id of ['instagram', 'facebook', 'linkedin', 'googlebusiness', 'yelp'] as SocialPlatformId[]) {
-      push(id);
-    }
   }
 
   return out;
@@ -375,7 +370,7 @@ export async function buildSocialFeed(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  const networks = chosenNetworks(company, accounts, allItems, reviewsEnabled);
+  const networks = chosenNetworks(company, accounts, allItems);
 
   const platformFilter = options.platform && options.platform !== 'all' ? options.platform : null;
   const search = (options.search || '').trim().toLowerCase();

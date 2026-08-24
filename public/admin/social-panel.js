@@ -188,11 +188,13 @@ function openSocialItem(id) {
 function renderSocialFilterTabs(savedScrollLeft = 0) {
   const tabs = [
     { id: 'all', label: 'All', count: socialState.counts.all ?? socialState.items.length },
-    ...socialState.networks.map((n) => ({
-      id: n.id,
-      label: n.label,
-      count: socialState.counts[n.id] ?? 0,
-    })),
+    ...socialState.networks
+      .filter((n) => n.configured || (socialState.counts[n.id] ?? 0) > 0)
+      .map((n) => ({
+        id: n.id,
+        label: n.label,
+        count: socialState.counts[n.id] ?? 0,
+      })),
   ];
   return mountListFilterTabs({
     tabs,
@@ -692,7 +694,7 @@ function renderSocialPane() {
         iconName: 'message',
         bodyHtml:
           '<p>Select an item or write a new post.</p>' +
-          '<p class="em-hint">Tabs are the networks you keep under Socials. Google and Yelp reviews land in this same inbox.</p>',
+          '<p class="em-hint">Tabs are networks with a profile under Socials. Google and Yelp reviews land in this same inbox.</p>',
         btnLabel: 'New post',
         onCreate: () => startCompose(),
       });
