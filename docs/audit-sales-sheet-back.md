@@ -15,8 +15,8 @@ black marks only, no labels, no “builds with” line, pinned to the bottom of
 the **back** (center) panel. Chat-bubble objections
 (`SALES_SHEET_BACK_COVER_QA`) sit directly above those marks.
 Cover line: “Online presence diagnostic” / independent systems scan (same as
-`/digital-audit`). Inner-gate copy: Company outreach note / portal welcome
-(`portalOutreachNotice`, default “This is not spam…”).
+`/digital-audit`). Inner gate: add-on catalog modules with the sale-sheet
+toggle on, as full-width rounded tiles.
 
 ---
 
@@ -65,11 +65,9 @@ and the rim keeps the grid.
 
 Unfolded, this is a brochure. Fold the right panel in first:
 
-1. **Left — Gate** — inside flap after you open the cover. “We host it…” hook,
-   the portal / Admin outreach welcome (this is not spam), the small-shop Q&A,
-   then add-on catalog modules with the sale-sheet toggle on as full-width
-   rounded tiles in the leftover space, and the official PNG icon (`/api/branding/icon`)
-   with the footer “Baked in Boston” lockup (kidney-bean o’s) at the bottom.
+1. **Left — Gate** — inside flap after you open the cover. Full-width rounded
+   tiles for every add-on catalog module with the sale-sheet toggle on. No
+   title, welcome copy, or Q&A.
 2. **Center — Back** — outside back when folded. Custom-build line, Barry Levine
    hosting quote, local clients (Barber's Edge, The Law Office of Barry Levine,
    MDOT.world), then the three objections as left/right chat bubbles, then the

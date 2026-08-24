@@ -2,13 +2,12 @@
  * Static duplex back for `/admin/sales-sheet` — the REΛVE trifold, not the client audit.
  *
  * Letter landscape reads left → right as the unfolded brochure:
- * inner gate (portal welcome + small-shop Q&A), back cover (custom builds +
+ * inner gate (sale-sheet module tiles), back cover (custom builds +
  * chat-bubble objections above the stack marks), front cover (full logo dead
  * center + diagnostic). Same HTML for every client.
  */
 import { BRANDING_ICON_PATH } from './companyLogo';
 import type { CatalogRow } from './moduleCatalog';
-import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
 
 /** Official square mark as PNG — `/api/branding/icon`, not the website SVG. */
@@ -115,7 +114,7 @@ export const SALES_SHEET_BACK_COVER_QA: SalesSheetBackQa[] = [
   },
   {
     q: 'Who owns what?',
-    a: 'Clients automatically get sent access to the third-party private repositories where everything lives. If you discontinue service, everything will continue to work, only updates discontinue.',
+    a: 'You automatically get sent access to the third-party private repositories where everything lives. If you discontinue service, everything will continue to work, only updates discontinue.',
   },
 ];
 
@@ -147,30 +146,8 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function noticeParagraphsHtml(notice: string): string {
-  return notice
-    .split(/\n\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((p) => `<p class="ss-back-copy">${esc(p).replace(/\n/g, '<br />')}</p>`)
-    .join('');
-}
-
 function reaveIconPngHtml(src: string): string {
   return `<img class="ss-back-reave-icon" src="${esc(src)}" alt="" />`;
-}
-
-/** Footer lockup from `FootBostonTag.astro` — beans stand in for the o’s. */
-const BOSTON_BEAN_BODY =
-  'M5.8 1.1c2.9-.1 4.6 2.2 4.5 5.3-.1 3.1-2 5.9-4.4 6.3-1.4.3-2.6-.4-3-1.6-.35-.95-.15-2.05.55-2.35.65-.25 1.15.75.95 2.05-.35 2.2-2.25 1.35-2.75-1.05C1.15 7.35 1.55 3.95 3.25 2.25 4.15 1.35 5 1.1 5.8 1.1Z';
-const BOSTON_BEAN_CREASE = 'M3.45 3.35q.55 3.65.95 7.35';
-
-function bostonBeanHtml(which: 'a' | 'b'): string {
-  return `<span class="ss-back-boston-bean ss-back-boston-bean--${which}" aria-hidden="true"><svg class="ss-back-boston-bean-icon" viewBox="0 0 11 14" focusable="false" aria-hidden="true"><path d="${BOSTON_BEAN_BODY}" fill="currentColor"/><path d="${BOSTON_BEAN_CREASE}" fill="none" stroke="currentColor" stroke-width=".7" stroke-linecap="round" opacity=".4"/></svg></span>`;
-}
-
-function bakedInBostonHtml(): string {
-  return `<p class="ss-back-boston" aria-label="Baked in Boston">Baked in B${bostonBeanHtml('a')}st${bostonBeanHtml('b')}n</p>`;
 }
 
 function stackLogoHtml(logo: SalesSheetBackLogo): string {
@@ -190,18 +167,8 @@ function modulesHtml(modules: SalesSheetBackModule[]): string {
     })
     .join('');
   return `<div class="ss-back-modules" data-ss-col="modules">
-    <p class="ss-back-kicker">Modules</p>
     <ul class="ss-back-mod-list" aria-label="Modules">${items}</ul>
   </div>`;
-}
-
-function qaListHtml(): string {
-  return SALES_SHEET_BACK_QA.map(
-    (item) => `<div class="ss-back-qa-item">
-            <dt>${esc(item.q)}</dt>
-            <dd>${esc(item.a)}</dd>
-          </div>`,
-  ).join('');
 }
 
 function chatUserAvatarHtml(slug: string): string {
@@ -341,20 +308,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   text-transform: uppercase;
   color: var(--doc-muted);
 }
-.ss-sheet-back .ss-back-h {
-  margin: 0;
-  font-size: clamp(11px, 1.7cqi, 15px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
-}
-.ss-sheet-back .ss-back-copy,
-.ss-sheet-back .ss-back-offer {
-  margin: 0;
-  font-size: clamp(8px, 1.15cqi, 10px);
-  line-height: 1.38;
-  color: #2a2a2a;
-}
 .ss-sheet-back .ss-back-locals {
   list-style: none;
   margin: 0;
@@ -408,90 +361,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   margin: 0 auto;
   object-fit: contain;
 }
-.ss-sheet-back .ss-back-gate-icon {
-  margin-top: auto;
-  display: grid;
-  place-items: center;
-  justify-items: center;
-  width: 100%;
-  padding-top: 0.55em;
-}
-.ss-sheet-back .ss-back-gate-icon .ss-back-reave-icon,
-.ss-sheet-back .ss-back-gate-icon .doc-brand,
-.ss-sheet-back .ss-back-gate-icon .doc-onepager-logo-img,
-.ss-sheet-back .ss-back-gate-icon .doc-onepager-logo-svg,
-.ss-sheet-back .ss-back-gate-icon .doc-brand img,
-.ss-sheet-back .ss-back-gate-icon .doc-brand svg {
-  display: block;
-  width: auto;
-  height: clamp(56px, 12cqh, 96px);
-  max-width: 52%;
-  margin: 0 auto;
-  object-fit: contain;
-}
-.ss-sheet-back .ss-back-boston {
-  margin: 0.4em 0 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  font-size: clamp(8px, 1.15cqi, 11px);
-  letter-spacing: 0.02em;
-  line-height: 1;
-  color: var(--doc-muted);
-}
-.ss-sheet-back .ss-back-boston-bean {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 9px;
-  height: 9px;
-  margin: 0 1px;
-  flex: none;
-  overflow: visible;
-}
-.ss-sheet-back .ss-back-boston-bean-icon {
-  display: block;
-  width: 9px;
-  height: 12px;
-}
-.ss-sheet-back .ss-back-boston-bean--a { transform: rotate(28deg); }
-.ss-sheet-back .ss-back-boston-bean--b { transform: rotate(-28deg); }
-.ss-sheet-back .ss-back-qa {
-  width: 100%;
-  text-align: left;
-  margin-top: 0.45em;
-}
-.ss-sheet-back .ss-back-qa-list {
-  list-style: none;
-  margin: 0.3em 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55em;
-}
-.ss-sheet-back .ss-back-qa-item {
-  margin: 0;
-}
-.ss-sheet-back .ss-back-qa-item dt {
-  margin: 0 0 0.15em;
-  font-size: clamp(8px, 1.1cqi, 10px);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.25;
-  color: var(--doc-ink);
-}
-.ss-sheet-back .ss-back-qa-item dt::before {
-  content: "Q  ";
-  color: var(--doc-muted);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-.ss-sheet-back .ss-back-qa-item dd {
-  margin: 0;
-  font-size: clamp(8px, 1.1cqi, 10px);
-  line-height: 1.35;
-  color: #2a2a2a;
-}
 .ss-sheet-back .ss-back-modules {
   flex: 1 1 auto;
   min-height: 0;
@@ -542,12 +411,6 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--doc-muted);
-}
-.ss-sheet-back .ss-back-qa-item dd::before {
-  content: "A  ";
-  color: var(--doc-muted);
-  font-weight: 700;
-  letter-spacing: 0.08em;
 }
 .ss-sheet-back .ss-back-builds {
   margin: 0;
@@ -642,7 +505,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 .ss-sheet-back .ss-back-chat-a {
   margin: 0;
   max-width: 82%;
-  padding: 0.38em 0.58em;
+  padding: 0.62em 0.88em;
   font-size: clamp(8px, 1.12cqi, 10px);
   font-weight: 500;
   letter-spacing: -0.015em;
@@ -717,12 +580,9 @@ export function renderSalesSheetBackHtml(opts: {
   const name = (opts.company?.name || 'This platform').trim();
   const stack = salesSheetStackLogos(opts.stackLogos);
   const stackItems = stack.map(stackLogoHtml).join('');
-  const notice = (opts.company?.portalOutreachNotice || '').trim() || DEFAULT_PORTAL_OUTREACH_NOTICE;
   const fallbackMark = `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
   const iconSrc = (opts.iconSrc || '').trim() || SALES_SHEET_ICON_PNG;
-  const iconHtml = (opts.iconHtml || '').trim() || reaveIconPngHtml(iconSrc);
   const logoHtml = (opts.logoHtml || '').trim() || fallbackMark;
-  const gateLockup = `${iconHtml}${bakedInBostonHtml()}`;
   const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
   const moduleTiles = modulesHtml(opts.modules || []);
 
@@ -732,15 +592,7 @@ export function renderSalesSheetBackHtml(opts: {
   <article class="doc-onepager" data-orientation="${opts.orientation}" data-ss-page="back">
     <div class="ss-back-cols">
       <section class="ss-back-col ss-back-col--gate" data-ss-col="gate">
-        <p class="ss-back-kicker">Managed hosting</p>
-        <h2 class="ss-back-h">We host it. We watch it. We fix it.</h2>
-        <div class="ss-back-intro" data-ss-col="welcome">${noticeParagraphsHtml(notice)}</div>
-        <div class="ss-back-qa" data-ss-col="qa">
-          <p class="ss-back-kicker">Q&amp;A</p>
-          <dl class="ss-back-qa-list">${qaListHtml()}</dl>
-        </div>
         ${moduleTiles}
-        <div class="ss-back-gate-icon" data-ss-col="gate-icon">${gateLockup}</div>
       </section>
       <section class="ss-back-col ss-back-col--builds" data-ss-col="builds">
         <p class="ss-back-kicker">Custom builds</p>
