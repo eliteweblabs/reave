@@ -75,6 +75,8 @@ import {
   craterUpdateInvoiceItem,
   craterSearchLineItems,
   craterRecordPayment,
+  craterUpdatePayment,
+  craterDeletePayment,
   craterListRecurringInvoices,
   craterCreateRecurringInvoice,
   craterRepairInvoiceNumbers,
@@ -273,6 +275,32 @@ async function handle_record_payment(args: Record<string, unknown>, _ctx: ToolCo
     notes: args.notes as string | undefined,
     invoiceId: typeof args.invoice_id === 'number' ? args.invoice_id : undefined,
   });
+  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  return JSON.stringify(result.data);
+}
+
+async function handle_update_payment(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const paymentId = Number(args.payment_id);
+  if (!Number.isInteger(paymentId) || paymentId <= 0) {
+    return JSON.stringify({ error: 'payment_id must be a positive integer' });
+  }
+  const result = await craterUpdatePayment({
+    paymentId,
+    paymentMethod: args.payment_method as string | undefined,
+    paymentDate: args.payment_date as string | undefined,
+    notes: args.notes as string | undefined,
+    amount: args.amount !== undefined ? Number(args.amount) : undefined,
+  });
+  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  return JSON.stringify(result.data);
+}
+
+async function handle_delete_payment(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const paymentId = Number(args.payment_id);
+  if (!Number.isInteger(paymentId) || paymentId <= 0) {
+    return JSON.stringify({ error: 'payment_id must be a positive integer' });
+  }
+  const result = await craterDeletePayment(paymentId);
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
   return JSON.stringify(result.data);
 }
@@ -504,6 +532,42 @@ export const billingModule: AgentToolModule = {
             {
               type: 'function',
               function: {
+                name: 'update_payment',
+                description:
+                  'Update an existing Crater payment — fix the payment method (e.g. "by Venmo"), date, notes, or amount. Use get_invoice first to find the payment id. Call this instead of record_payment when a payment already exists and only the method or details need changing.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    payment_id: { type: 'integer', description: 'Crater payment ID (from get_invoice payments[].id)' },
+                    payment_method: { type: 'string', description: 'New payment method label, e.g. Venmo, Zelle, Cash, Check' },
+                    payment_date: { type: 'string', description: 'New date YYYY-MM-DD' },
+                    notes: { type: 'string', description: 'New notes (pass empty string to clear)' },
+                    amount: { type: 'number', description: 'New amount in whole dollars' },
+                  },
+                  required: ['payment_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'delete_payment',
+                description:
+                  'Permanently delete a Crater payment record by payment id. Use to remove a duplicate or erroneous payment. Requires explicit user confirmation for non-duplicate cases.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    payment_id: { type: 'integer', description: 'Crater payment ID to delete' },
+                  },
+                  required: ['payment_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
                 name: 'list_recurring_invoices',
                 description: 'List recurring invoices with schedule and customer info.',
                 parameters: {
@@ -597,6 +661,8 @@ export const billingModule: AgentToolModule = {
     'update_invoice_item': handle_update_invoice_item,
     'search_line_items': handle_search_line_items,
     'record_payment': handle_record_payment,
+    'update_payment': handle_update_payment,
+    'delete_payment': handle_delete_payment,
     'list_recurring_invoices': handle_list_recurring_invoices,
     'create_recurring_invoice': handle_create_recurring_invoice,
     'repair_invoice_numbers': handle_repair_invoice_numbers,

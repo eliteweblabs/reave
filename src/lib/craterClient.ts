@@ -1168,3 +1168,64 @@ export function formatCreatedInvoice(inv: CreatedInvoice): string {
   if (inv.public_url) lines.push(`Link: ${inv.public_url}`);
   return lines.join('\n');
 }
+
+// ---------------------------------------------------------------------------
+// Payment update / delete (custom routes from crater-payment-update.route.php
+// and crater-payment-delete.route.php in eliteweblabs/crater)
+// ---------------------------------------------------------------------------
+
+export type UpdatePaymentInput = {
+  paymentId: number;
+  paymentMethod?: string;
+  paymentDate?: string;
+  notes?: string;
+  amount?: number; // whole dollars
+};
+
+export type UpdatedPayment = {
+  success: boolean;
+  payment_id: number;
+  payment_number: string;
+  payment_method: string;
+  payment_date: string;
+  notes?: string | null;
+  amount: number;
+  invoice_id: number;
+};
+
+export async function craterUpdatePayment(
+  input: UpdatePaymentInput
+): Promise<CraterResult<UpdatedPayment>> {
+  if (!Number.isInteger(input.paymentId) || input.paymentId <= 0) {
+    return { ok: false, error: 'paymentId must be a positive integer' };
+  }
+  const body: Record<string, unknown> = {};
+  if (input.paymentMethod !== undefined) body.payment_method = input.paymentMethod;
+  if (input.paymentDate !== undefined) body.payment_date = input.paymentDate;
+  if (input.notes !== undefined) body.notes = input.notes;
+  if (input.amount !== undefined) body.amount = input.amount;
+  return craterFetch<UpdatedPayment>(`/api/custom/payment/${input.paymentId}`, {
+    method: 'PUT',
+    body,
+  });
+}
+
+export type DeletedPayment = {
+  success: boolean;
+  deleted_id: number;
+  payment_number: string;
+  invoice_id: number;
+  amount: number;
+  message: string;
+};
+
+export async function craterDeletePayment(
+  paymentId: number
+): Promise<CraterResult<DeletedPayment>> {
+  if (!Number.isInteger(paymentId) || paymentId <= 0) {
+    return { ok: false, error: 'paymentId must be a positive integer' };
+  }
+  return craterFetch<DeletedPayment>(`/api/custom/payment/${paymentId}`, {
+    method: 'DELETE',
+  });
+}
