@@ -22,13 +22,33 @@ function isActiveTab() {
   return map?.type === 'addons';
 }
 
-function renderSwitch(checked, feature, disabled) {
+function renderSwitch(checked, feature, busy) {
   return (
-    `<button type="button" class="prof-plugin-toggle" role="switch" ` +
+    `<button type="button" class="prof-plugin-toggle${busy ? ' is-busy' : ''}" role="switch" ` +
     `aria-checked="${checked ? 'true' : 'false'}" data-feature="${escHtml(feature)}" ` +
-    `${disabled ? ' disabled aria-disabled="true"' : ''} ` +
-    `aria-label="${checked ? 'Turn off add-on' : 'Turn on add-on'}"></button>`
+    `${busy ? ' disabled aria-busy="true"' : ''} ` +
+    `aria-label="${busy ? 'Updating add-on' : checked ? 'Turn off add-on' : 'Turn on add-on'}"></button>`
   );
+}
+
+function setAddonToggleBusy(btn, busy) {
+  if (!(btn instanceof HTMLButtonElement)) return;
+  btn.classList.toggle('is-busy', busy);
+  btn.disabled = busy;
+  if (busy) {
+    btn.setAttribute('aria-busy', 'true');
+    btn.setAttribute('aria-label', 'Updating add-on');
+  } else {
+    btn.removeAttribute('aria-busy');
+    const on = btn.getAttribute('aria-checked') === 'true';
+    btn.setAttribute('aria-label', on ? 'Turn off add-on' : 'Turn on add-on');
+  }
+}
+
+function setAddonToggleChecked(btn, checked) {
+  if (!(btn instanceof HTMLButtonElement)) return;
+  btn.setAttribute('aria-checked', checked ? 'true' : 'false');
+  btn.closest('.dl-tile')?.classList.toggle('dl-tile--selected', checked);
 }
 
 function renderIncludedTile(card) {
@@ -138,16 +158,20 @@ function bindPanelEvents(root) {
       if (!feature || pending.has(feature)) return;
       const enabled = btn.getAttribute('aria-checked') !== 'true';
       pending.add(feature);
-      btn.disabled = true;
+      setAddonToggleChecked(btn, enabled);
+      setAddonToggleBusy(btn, true);
       try {
         const data = await postAddons({ action: 'toggle', feature, enabled });
         if (!data.ok) throw new Error(data.error || 'Toggle failed');
         await loadAddonsTab({ quiet: true });
       } catch (err) {
+        setAddonToggleChecked(btn, !enabled);
+        setAddonToggleBusy(btn, false);
         void osAlert({ title: 'Could not update add-on', bodyHtml: escHtml(err.message) });
-        btn.disabled = false;
       } finally {
         pending.delete(feature);
+        const next = rootEl()?.querySelector(`.prof-plugin-toggle[data-feature="${CSS.escape(feature)}"]`);
+        if (next && next !== btn) setAddonToggleBusy(next, false);
       }
     });
   });
