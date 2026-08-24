@@ -138,7 +138,12 @@ import {
   defaultEmailFilterRuleTitle,
   planEmailFilterRuleWrite,
 } from '../../emailFilterRuleWrite';
-import { isRepoCatalogRule, type MatchMode, type RuleField } from '../../emailRules';
+import {
+  findKeywordCollidingRule,
+  isRepoCatalogRule,
+  type MatchMode,
+  type RuleField,
+} from '../../emailRules';
 import { MAX_AGENT_EMAIL_BODY } from '../../emailAgentContext';
 import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient';
 import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
@@ -387,12 +392,14 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
 
   const config = await storeListEmailRules();
   const needle = phrases[0].toLowerCase();
-  const existing = config.rules.find(
+  const existingFromSender = config.rules.find(
     (r) =>
       r.enabled &&
       r.fields.includes('from' as RuleField) &&
       r.phrases.some((p) => p.toLowerCase() === needle),
   );
+  const keywordHit = findKeywordCollidingRule(config.rules, phrases);
+  const existing = existingFromSender ?? keywordHit?.rule ?? null;
   const plan = planEmailFilterRuleWrite({
     existing: existing
       ? {
@@ -424,7 +431,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
   }
 
   if (plan === 'update' && existing) {
-    const updated = await storeUpdateEmailRule(existing.id, {
+    const updatedResult = await storeUpdateEmailRule(existing.id, {
       title: String(args.title ?? '').trim() || existing.title,
       status: statusRaw || existing.status,
       description: forwardTo
@@ -444,7 +451,8 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       createProject,
       scope: 'personal',
     });
-    if (updated) {
+    if (updatedResult.ok) {
+      const updated = updatedResult.rule;
       return JSON.stringify({
         ok: true,
         updated: true,
@@ -463,6 +471,10 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
         },
       });
     }
+    return JSON.stringify({
+      error: updatedResult.error,
+      colliding: updatedResult.colliding,
+    });
   }
 
   // Sender + subject/body phrases: match across from+subject+body.
@@ -476,7 +488,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     : (['subject', 'body'] as RuleField[]);
   const matchMode: MatchMode = sender && hasExtraPhrases ? 'all' : 'any';
 
-  const rule = await storeCreateEmailRule({
+  const created = await storeCreateEmailRule({
     title,
     status,
     description: forwardTo
@@ -493,7 +505,13 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     createProject,
     scope: 'personal',
   });
-  if (!rule) return JSON.stringify({ error: 'failed to create rule' });
+  if (!created.ok) {
+    return JSON.stringify({
+      error: created.error,
+      colliding: created.colliding,
+    });
+  }
+  const rule = created.rule;
   return JSON.stringify({
     ok: true,
     rule: {
@@ -635,7 +653,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'list_email_filter_rules',
               description:
-                'List all email triage/filter rules (both enabled and disabled). Returns id, title, status, phrases, fields, enabled flag, expiry, and whether the rule is currently expired. Use before create_email_filter_rule to check for duplicates, or when the user asks what rules exist.',
+                'List all email triage/filter rules (both enabled and disabled). Returns id, title, status, phrases, fields, enabled flag, expiry, and whether the rule is currently expired. Use before create_email_filter_rule to check for keyword overlap (shared phrases collide even when actions differ), or when the user asks what rules exist.',
               parameters: {
                 type: 'object',
                 properties: {},
@@ -648,7 +666,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create or update a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified. Default without forward_to is junk/DELETE (no alert). When forward_to is set, default status is CUSTOM (Keep in inbox) and matched mail is relayed via Resend — do not junk unless the user asked to. Forwarded mail does not auto-create a project unless create_project is true. If an enabled from-rule already exists for that sender, patch it with forward_to / status / create_project instead of skipping. Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls). When both sender and phrases are set, matchMode is "all" across from+subject+body. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here.',
+                'Create or update a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified. Default without forward_to is junk/DELETE (no alert). When forward_to is set, default status is CUSTOM (Keep in inbox) and matched mail is relayed via Resend — do not junk unless the user asked to. Forwarded mail does not auto-create a project unless create_project is true. If an enabled from-rule already exists for that sender, patch it with forward_to / status / create_project instead of skipping. Keywords must be unique across rules — sharing any phrase with an existing rule (catalog or personal) is a collision even if the action differs; edit that rule instead of creating another. Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls). When both sender and phrases are set, matchMode is "all" across from+subject+body. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here.',
               parameters: {
                 type: 'object',
                 properties: {

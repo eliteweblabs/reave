@@ -152,7 +152,7 @@ export async function createTriageFeedback(opts: {
     });
   }
 
-  const rule = await storeCreateEmailRule({
+  const result = await storeCreateEmailRule({
     title,
     status,
     description,
@@ -164,7 +164,10 @@ export async function createTriageFeedback(opts: {
     scope: 'personal',
   });
 
-  return { ruleId: rule?.id ?? null, knowledgeSlug };
+  return {
+    ruleId: result.ok ? result.rule.id : result.colliding?.id ?? null,
+    knowledgeSlug,
+  };
 }
 
 export async function createEmailRuleFromTriageFeedback(opts: {

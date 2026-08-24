@@ -465,14 +465,67 @@ export function isRepoCatalogStatus(status: string): boolean {
   return DEFAULT_RULES.some((d) => d.status.toUpperCase() === key);
 }
 
+/** Trim + lowercase unique phrases. Empty strings dropped. */
+export function normalizeRuleKeywords(phrases: readonly string[] | null | undefined): string[] {
+  const out = new Set<string>();
+  for (const p of phrases || []) {
+    const n = String(p).trim().toLowerCase();
+    if (n) out.add(n);
+  }
+  return [...out];
+}
+
+/** Shared keywords between two phrase lists (case-insensitive). */
+export function overlappingRuleKeywords(
+  a: readonly string[] | null | undefined,
+  b: readonly string[] | null | undefined,
+): string[] {
+  const want = new Set(normalizeRuleKeywords(a));
+  return normalizeRuleKeywords(b).filter((p) => want.has(p));
+}
+
+export type KeywordCollidingRule<T> = {
+  rule: T;
+  phrases: string[];
+};
+
+/**
+ * First existing rule that shares any keyword with `phrases`.
+ * Actions / status / notify are ignored — keyword overlap is the collision.
+ * Empty phrase sets never collide (blank drafts).
+ */
+export function findKeywordCollidingRule<
+  T extends { id?: string; title?: string; phrases?: readonly string[] | null },
+>(
+  rules: T[],
+  phrases: readonly string[] | null | undefined,
+  opts?: { excludeId?: string | null },
+): KeywordCollidingRule<T> | null {
+  const want = normalizeRuleKeywords(phrases);
+  if (!want.length) return null;
+  const exclude = String(opts?.excludeId || '').trim();
+  for (const rule of rules) {
+    if (exclude && String(rule.id || '') === exclude) continue;
+    const overlap = overlappingRuleKeywords(want, rule.phrases);
+    if (overlap.length) return { rule, phrases: overlap };
+  }
+  return null;
+}
+
+export function formatKeywordCollisionError(title: string, overlap: string[]): string {
+  const label = String(title || '').trim() || 'another rule';
+  const shown = overlap.slice(0, 6).join(', ');
+  const extra = overlap.length > 6 ? ` (+${overlap.length - 6} more)` : '';
+  const detail = shown ? ` (${shown}${extra})` : '';
+  return `Keywords already used by “${label}”${detail}. Edit that rule instead of creating another.`;
+}
+
 /** How many of `def.phrases` appear on the rule (case-insensitive). */
 export function catalogPhraseOverlap(
   rule: { phrases?: readonly string[] | null },
   def: Pick<EmailRule, 'phrases'>,
 ): number {
-  const want = new Set(
-    (def.phrases || []).map((p) => String(p).trim().toLowerCase()).filter(Boolean),
-  );
+  const want = new Set(normalizeRuleKeywords(def.phrases));
   return (rule.phrases || []).filter((p) => want.has(String(p).trim().toLowerCase())).length;
 }
 

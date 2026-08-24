@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import {
   classifyEmail,
   DEFAULT_RULES,
+  findKeywordCollidingRule,
+  formatKeywordCollisionError,
   isCatalogMarketingDeleteRule,
   isRepoCatalogRule,
   isSilentTriageStatus,
@@ -350,6 +352,40 @@ assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'alert', status:
       .length,
     1,
   );
+}
+
+{
+  const shipment = {
+    id: 'ship-1',
+    title: 'Shipment tracked',
+    phrases: ['shipment tracked', 'shipment tracking'],
+  };
+  const receipt = {
+    id: 'receipt-1',
+    title: 'Expense receipt',
+    phrases: ['your receipt', 'order confirmation'],
+  };
+  const rules = [shipment, receipt];
+
+  const sameKeywordsDifferentAction = findKeywordCollidingRule(rules, [
+    'Shipment Tracked',
+    'package delivered',
+  ]);
+  assert.ok(sameKeywordsDifferentAction);
+  assert.equal(sameKeywordsDifferentAction!.rule.id, 'ship-1');
+  assert.deepEqual(sameKeywordsDifferentAction!.phrases, ['shipment tracked']);
+
+  assert.equal(
+    findKeywordCollidingRule(rules, ['package delivered', 'out for delivery']),
+    null,
+  );
+  assert.equal(findKeywordCollidingRule(rules, ['shipment tracked'], { excludeId: 'ship-1' }), null);
+  assert.equal(findKeywordCollidingRule(rules, ['  ', '']), null);
+  assert.equal(findKeywordCollidingRule(rules, []), null);
+
+  const msg = formatKeywordCollisionError('Shipment tracked', ['shipment tracked']);
+  assert.match(msg, /Shipment tracked/);
+  assert.match(msg, /shipment tracked/);
 }
 
 console.log('verify-email-rule-priority: ok');

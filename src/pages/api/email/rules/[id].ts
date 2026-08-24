@@ -10,6 +10,7 @@ import {
   parseExpiresAt,
   storeDeleteEmailRule,
   storeGetEmailRule,
+  storeEmailRuleWriteHttpStatus,
   storeUpdateEmailRule,
   type RuleInput,
 } from '../../../../lib/emailRuleStore';
@@ -149,9 +150,14 @@ export async function PUT(context: APIContext): Promise<Response> {
   const input = parseRuleInput(body);
   if (!input) return json({ ok: false, error: 'title and status are required' }, 400);
 
-  const rule = await storeUpdateEmailRule(id, input);
-  if (!rule) return json({ ok: false, error: 'Not found or save failed' }, 404);
-  return json({ ok: true, rule, storage: emailRulesStorageBackend() });
+  const result = await storeUpdateEmailRule(id, input);
+  if (!result.ok) {
+    return json(
+      { ok: false, error: result.error, colliding: result.colliding },
+      storeEmailRuleWriteHttpStatus(result),
+    );
+  }
+  return json({ ok: true, rule: result.rule, storage: emailRulesStorageBackend() });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {

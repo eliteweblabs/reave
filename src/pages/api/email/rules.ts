@@ -9,6 +9,7 @@ import {
   emailRulesStorageBackend,
   parseExpiresAt,
   storeCreateEmailRule,
+  storeEmailRuleWriteHttpStatus,
   storeListEmailRules,
   storeSetNotifyOnUnmatched,
   type RuleInput,
@@ -136,9 +137,14 @@ export async function POST(context: APIContext): Promise<Response> {
   const input = parseRuleInput(body);
   if (!input) return json({ ok: false, error: 'title and status are required' }, 400);
 
-  const rule = await storeCreateEmailRule(input);
-  if (!rule) return json({ ok: false, error: 'Failed to create rule' }, 500);
-  return json({ ok: true, rule, storage: emailRulesStorageBackend() });
+  const result = await storeCreateEmailRule(input);
+  if (!result.ok) {
+    return json(
+      { ok: false, error: result.error, colliding: result.colliding },
+      storeEmailRuleWriteHttpStatus(result),
+    );
+  }
+  return json({ ok: true, rule: result.rule, storage: emailRulesStorageBackend() });
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {

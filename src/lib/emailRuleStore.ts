@@ -16,6 +16,8 @@ import {
   NOTIFY_ON_UNMATCHED,
   catalogPhraseOverlap,
   coalesceRuleNotifyFields,
+  findKeywordCollidingRule,
+  formatKeywordCollisionError,
   isRepoCatalogRule,
   isSilentTriageStatus,
   isUniversalEmailRuleScope,
@@ -59,6 +61,52 @@ export interface EmailRulesConfig {
    */
   emailApiSeen?: boolean | null;
   rules: EmailRuleRecord[];
+}
+
+export type KeywordCollision = {
+  id: string;
+  title: string;
+  phrases: string[];
+};
+
+export type StoreEmailRuleWriteResult =
+  | { ok: true; rule: EmailRuleRecord }
+  | {
+      ok: false;
+      error: string;
+      code: 'invalid' | 'not_found' | 'forbidden' | 'collision' | 'persist';
+      colliding?: KeywordCollision;
+    };
+
+export function storeEmailRuleWriteHttpStatus(result: StoreEmailRuleWriteResult): number {
+  if (result.ok) return 200;
+  switch (result.code) {
+    case 'invalid':
+      return 400;
+    case 'not_found':
+      return 404;
+    case 'forbidden':
+      return 403;
+    case 'collision':
+      return 409;
+    default:
+      return 500;
+  }
+}
+
+function collisionResult(
+  hit: NonNullable<ReturnType<typeof findKeywordCollidingRule<EmailRuleRecord>>>,
+): StoreEmailRuleWriteResult {
+  return {
+    ok: false,
+    error: formatKeywordCollisionError(hit.rule.title, hit.phrases),
+    code: 'collision',
+    colliding: {
+      id: hit.rule.id,
+      title: hit.rule.title,
+      phrases: hit.phrases,
+    },
+  };
 }
 
 const SCHEMA_SQL = `
@@ -1033,10 +1081,12 @@ export function sortOrderForNewRule(
   return config.rules.reduce((m, r) => Math.max(m, r.sortOrder), -1) + 1;
 }
 
-export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleRecord | null> {
+export async function storeCreateEmailRule(input: RuleInput): Promise<StoreEmailRuleWriteResult> {
   const clean = sanitizeInput(input);
-  if (!clean) return null;
+  if (!clean) return { ok: false, error: 'Invalid rule', code: 'invalid' };
   const config = await loadEmailRulesConfig();
+  const colliding = findKeywordCollidingRule(config.rules, clean.phrases);
+  if (colliding) return collisionResult(colliding);
   const now = new Date().toISOString();
   const scope = isCanonicalReaveInstall()
     ? normalizeEmailRuleScope(clean.scope, 'personal')
@@ -1054,19 +1104,33 @@ export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleR
   };
   config.rules.push(record);
   config.rules = normalizeEmailRuleSortOrder(config.rules).rules;
-  if (!(await persistConfig(config))) return null;
-  return config.rules.find((r) => r.id === record.id) ?? record;
+  if (!(await persistConfig(config))) {
+    return { ok: false, error: 'Failed to save rule', code: 'persist' };
+  }
+  return { ok: true, rule: config.rules.find((r) => r.id === record.id) ?? record };
 }
 
-export async function storeUpdateEmailRule(id: string, input: RuleInput): Promise<EmailRuleRecord | null> {
+export async function storeUpdateEmailRule(
+  id: string,
+  input: RuleInput,
+): Promise<StoreEmailRuleWriteResult> {
   const clean = sanitizeInput(input);
-  if (!clean) return null;
+  if (!clean) return { ok: false, error: 'Invalid rule', code: 'invalid' };
   const config = await loadEmailRulesConfig();
   const idx = config.rules.findIndex((r) => r.id === id);
-  if (idx < 0) return null;
+  if (idx < 0) return { ok: false, error: 'Not found', code: 'not_found' };
   const prev = config.rules[idx];
   const home = isCanonicalReaveInstall();
-  if (isRepoCatalogRule(prev) && !home) return null;
+  if (isRepoCatalogRule(prev) && !home) {
+    return {
+      ok: false,
+      error:
+        'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Only the REΛVE install can edit them.',
+      code: 'forbidden',
+    };
+  }
+  const colliding = findKeywordCollidingRule(config.rules, clean.phrases, { excludeId: id });
+  if (colliding) return collisionResult(colliding);
   config.rules[idx] = {
     ...prev,
     ...clean,
@@ -1074,8 +1138,12 @@ export async function storeUpdateEmailRule(id: string, input: RuleInput): Promis
     updatedAt: new Date().toISOString(),
   };
   config.rules = normalizeEmailRuleSortOrder(config.rules).rules;
-  if (!(await persistConfig(config))) return null;
-  return config.rules.find((r) => r.id === id) ?? null;
+  if (!(await persistConfig(config))) {
+    return { ok: false, error: 'Failed to save rule', code: 'persist' };
+  }
+  const rule = config.rules.find((r) => r.id === id);
+  if (!rule) return { ok: false, error: 'Not found', code: 'not_found' };
+  return { ok: true, rule };
 }
 
 export async function storeDeleteEmailRule(id: string): Promise<boolean> {
