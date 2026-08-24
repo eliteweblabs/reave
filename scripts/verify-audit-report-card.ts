@@ -515,4 +515,44 @@ We need to update your website's security certificate.
   console.log('ok — Barracuda MX / SPF / DKIM stays on Email Deliverability');
 }
 
+{
+  const r = card(
+    'Valid SSL is not an F',
+    `## Website Audit
+
+### SSL & Website Security
+- SSL valid — Let's Encrypt, TLS 1.3, expires Sep 26, 2026 (~33 days; auto-renew expected but worth confirming). No mixed content.
+
+### Best Practices
+- Best Practices score: 40 / 100
+- Lighthouse best-practices 40
+`,
+  );
+  const security = r.categories.find((c) => c.id === 'security');
+  assert.equal(security?.grade, 'B', 'valid cert + no mixed content is not an F');
+  assert.notEqual(security?.score, 40);
+  assert.match(security?.finding || '', /SSL valid|Let's Encrypt|encryption 1\.3/i);
+  assert.equal(
+    security?.grade === 'F',
+    false,
+    'Lighthouse best-practices 40 must not fail a valid certificate',
+  );
+  console.log('ok — valid SSL stays B even when Lighthouse best-practices is 40');
+}
+
+{
+  const r = card(
+    'Actual mixed content still drops security',
+    `## Website Audit
+
+### SSL & Website Security
+- SSL valid, but mixed content loads images over HTTP
+`,
+  );
+  const security = r.categories.find((c) => c.id === 'security');
+  assert.equal(security?.grade, 'D');
+  assert.match(security?.finding || '', /insecure items|mixed content/i);
+  console.log('ok — real mixed content still grades D');
+}
+
 console.log('all audit report-card checks passed');

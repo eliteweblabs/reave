@@ -449,13 +449,29 @@ function findLetterGrade(text: string): LetterGrade | null {
 const NO_SSL_RE =
   /\bnot secure\b|may not be safe|not trusted|certificate has expired|\bexpired\b.{0,20}cert|no ssl\b|missing ssl|tls inspection failed|econnrefused|http,? not https|http only|\bnot https\b|no certificate|lacks? (?:an? )?ssl|without ssl|unencrypted|(?:update|fix|missing|expired|invalid|no).{0,40}security certificate/;
 
+/** Drop praise so "no mixed content" does not look like a mixed-content failure. */
+function withoutNegatedSecurityPraise(text: string): string {
+  return text
+    .replace(/\bno\s+mixed\s+content\b/gi, '')
+    .replace(/\bno\s+insecure\s+items\b/gi, '')
+    .replace(/\bwithout\s+mixed\s+content\b/gi, '')
+    .replace(/\bno\s+console\s+errors?\b/gi, '');
+}
+
+function securityIssueGradeFromText(text: string): LetterGrade | null {
+  const lower = withoutNegatedSecurityPraise(text.toLowerCase());
+  if (/missing .+ header|mixed.content|not fully secure/.test(lower)) return 'D';
+  return null;
+}
+
 function inferSecurityGrade(sslSection: string, body: string): LetterGrade | null {
   const section = sslSection.trim();
   const failCorpus = (section || body).toLowerCase();
   if (NO_SSL_RE.test(failCorpus)) return 'F';
   if (!section) return null;
+  const issue = securityIssueGradeFromText(section);
+  if (issue) return issue;
   const lower = section.toLowerCase();
-  if (/missing .+ header|mixed.content|not fully secure/.test(lower)) return 'D';
   if (/\bvalid\b|looks good|certificate is valid/.test(lower)) return 'B';
   if (/\bssl\b|certificate|https|security header/.test(lower)) return 'C';
   return 'C';
@@ -1060,7 +1076,7 @@ function plainLanguage(line: string, clientName = ''): string {
 }
 
 const ROSY_FINDING_RE =
-  /outstanding|excellent|perfect|strong|solid|looking (?:good|solid|great)|looks? great|no (?:major )?(?:issues?|problems?)|across both viewports|well (?:configured|optimized)|complete coverage|authentication looks complete/i;
+  /outstanding|excellent|perfect|strong|solid|looking (?:good|solid|great)|looks? great|no (?:major )?(?:issues?|problems?)|across both viewports|well (?:configured|optimized)|complete coverage|authentication looks complete|ssl valid|certificate is valid|no insecure items|no mixed content/i;
 const WEAK_FINDING_RE =
   /missing|fail|expired|invalid|critical|no confirmed|not (?:found|listed|claimed|configured|set|verified)|weak|risk|error|insecure|broken|none\b|gap|needs? (?:work|attention|update)|room to improve|poor|low contrast|too small|outdated|incomplete|inconsistent|unclaimed|inactive|stale|spam|thin|absent|unprotected|conflict|wrong hours|few reviews|unanswered|placeholder|could not|unavailable|blocks? (?:all )?crawler|noindex|dead (?:link|ui)|404\b|500\b|empty anchors?/i;
 
@@ -1069,10 +1085,11 @@ function isNegativeFinding(line: string): boolean {
   if (/\b(?:0|no|zero)\s+broken\b/i.test(line) || /\blinks (?:look |are )?healthy\b/i.test(line)) {
     return false;
   }
-  // "no console errors flagged" / "no reputation flags found" are clean, not failures.
+  // "no console errors flagged" / "no mixed content" / "no reputation flags" are clean.
   if (
     /\b(?:no|zero|0|none)\s+(?:console\s+)?errors?\b/i.test(line) ||
     /\bno\s+(?:reputation\s+)?flags?\s+found\b/i.test(line) ||
+    /\bno\s+(?:mixed\s+content|insecure\s+items)\b/i.test(line) ||
     /\bnot\s+(?:listed|flagged|blacklisted|blocklisted)\b/i.test(line) ||
     /\b(?:no|none|nothing)\s+flagged\b/i.test(line)
   ) {
@@ -1898,7 +1915,10 @@ export function buildAuditReportCard(input: {
   const seoSection = extractSection(body, /SEO(?:\s+Fundamentals)?|Search Fundamentals/);
   const a11ySection = extractSection(body, /Accessibility(?:\s*\(WCAG\))?/);
   const bpSection = extractSection(body, /Best Practices|Best\-Practices/);
-  const sslSection = extractSection(body, /SSL\s*&\s*(?:Website\s+)?Security|Website Security|Security|SSL/);
+  const sslSection = extractSection(
+    body,
+    /SSL\s*&\s*(?:Website\s+)?Security|Website Security|SSL(?:\s+Check)?/,
+  );
   const dnsSection = extractSection(
     body,
     /DNS\s*&\s*Email|Domain\s*&\s*DNS(?:\s+Health)?|DNS|Email(?:\s+(?:Auth(?:entication)?|Deliverability))?/,
@@ -1965,11 +1985,6 @@ export function buildAuditReportCard(input: {
     a11yNamedScore <= a11yViewportScore - 6
       ? a11yNamedScore
       : (a11yViewportScore ?? a11yNamedScore);
-  const bpScore =
-    lhScores.best_practices ??
-    extractNamedScore(bpSection, /best[-\s]?practices?/) ??
-    extractBareScore(bpSection) ??
-    extractNamedScore(scorePool, /best[-\s]?practices?/);
   const seoScore =
     lhScores.seo ??
     extractNamedScore(seoSection, /seo/) ??
@@ -2041,35 +2056,18 @@ export function buildAuditReportCard(input: {
     return null;
   })();
 
-  const bpFallback = (() => {
-    const text = `${bpSection}\n${sslSection}\n${uxSection}`;
-    const lower = text.toLowerCase();
-    if (/console error|mixed content|deprecated|not fully secure/.test(lower)) {
-      return 'D' as LetterGrade;
-    }
-    if (bpSection.trim()) {
-      if (/fail|error/.test(lower)) return 'D' as LetterGrade;
-      if (/pass|good|solid/.test(lower)) return 'B' as LetterGrade;
-      return 'C' as LetterGrade;
-    }
-    if (/missing .+ header|mixed.content/.test(sslSection.toLowerCase())) {
-      return 'D' as LetterGrade;
-    }
-    if (/ssl|certificate|valid|https/.test(sslSection.toLowerCase())) {
-      return 'C' as LetterGrade;
-    }
-    return null;
-  })();
-
   // Letter grades only from the SSL section (a "Grade: F" elsewhere must not
   // poison security). No-SSL / "Not Secure" language may come from the body
   // when the agent skipped the playbook heading — that is still an F.
   const sslGrade = findLetterGrade(sslSection);
   const securityGrade = sslGrade ?? inferSecurityGrade(sslSection, body);
 
-  const bpGrade = bpScore != null ? scoreToGrade(bpScore) : bpFallback;
-  // Security = worse of certificate/headers vs Best Practices (aligned score below).
-  const securityCombinedGrade = worseGrade(securityGrade, bpGrade) ?? securityGrade ?? bpGrade;
+  // Lighthouse Best Practices is a kitchen-sink score (console noise, image
+  // aspect ratios, etc.). Do not let that numeric score turn a valid
+  // certificate into an F. Only fold in security-relevant BP language.
+  const securityIssueGrade = securityIssueGradeFromText(`${sslSection}\n${bpSection}`);
+  const securityCombinedGrade =
+    worseGrade(securityGrade, securityIssueGrade) ?? securityGrade;
 
   const dnsCorpus =
     dnsSection.trim() ||
@@ -2314,25 +2312,18 @@ export function buildAuditReportCard(input: {
       .filter((l) => isReputationRelevantLine(l))
       .join('\n');
 
-  const securityWhySource = [sslSection, bpSection].filter(Boolean).join('\n') || body;
+  const securityWhySource =
+    [
+      sslSection,
+      ...bulletsFromSection(bpSection).filter((line) => securityIssueGradeFromText(line)),
+    ]
+      .filter(Boolean)
+      .join('\n') || body;
   const securityCat: ReportCardCategory = (() => {
     const meta = CATEGORY_BY_ID.get('security')!;
     const why = clientFriendlyBullets(bulletsFromSection(securityWhySource), 5, clientName);
     const grade = securityCombinedGrade;
-    const scoreParts: number[] = [];
-    if (securityGrade) {
-      const s = gradeToScore(securityGrade);
-      if (s != null) scoreParts.push(s);
-    }
-    if (bpScore != null) scoreParts.push(bpScore);
-    else if (bpGrade) {
-      const s = gradeToScore(bpGrade);
-      if (s != null) scoreParts.push(s);
-    }
-    const score =
-      scoreParts.length > 0
-        ? Math.min(...scoreParts) // match worseGrade — don't let a strong BP lift a weak cert
-        : gradeToScore(grade);
+    const score = gradeToScore(grade);
     const summary =
       grade == null
         ? 'Not scored in this audit'
