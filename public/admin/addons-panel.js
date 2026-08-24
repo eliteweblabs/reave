@@ -17,6 +17,19 @@ function rootEl() {
   return document.getElementById('settings-panel');
 }
 
+function capturePanelScroll(root) {
+  return root?.querySelector('.profile-panel-scroll')?.scrollTop ?? 0;
+}
+
+function restorePanelScroll(root, top = 0) {
+  const el = root?.querySelector('.profile-panel-scroll');
+  if (!el || top <= 0) return;
+  el.scrollTop = top;
+  requestAnimationFrame(() => {
+    if (el.isConnected) el.scrollTop = top;
+  });
+}
+
 function isActiveTab() {
   const map = typeof shell.getMap === 'function' ? shell.getMap() : shell.MAP;
   return map?.type === 'addons';
@@ -212,6 +225,8 @@ export async function loadAddonsTab(opts = {}) {
   const root = rootEl();
   if (!root) return;
 
+  const savedScroll = opts.quiet ? capturePanelScroll(root) : 0;
+
   if (!opts.quiet) {
     mountPanelSkeleton(root, 'dashboard', 'Loading add-ons…', {
       contentSelector: '.dl-panel',
@@ -231,6 +246,7 @@ export async function loadAddonsTab(opts = {}) {
       shell.prependSettingsBackHeader(root);
     }
     bindPanelEvents(root);
+    if (opts.quiet) restorePanelScroll(root, savedScroll);
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +
@@ -239,5 +255,6 @@ export async function loadAddonsTab(opts = {}) {
     if (typeof shell.prependSettingsBackHeader === 'function') {
       shell.prependSettingsBackHeader(root);
     }
+    if (opts.quiet) restorePanelScroll(root, savedScroll);
   }
 }

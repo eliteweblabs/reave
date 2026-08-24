@@ -285,7 +285,7 @@ import {
 import {
   initAddonsPanel,
   loadAddonsTab,
-} from './addons-panel.js?v=20260824a';
+} from './addons-panel.js?v=20260824f';
 import {
   initCatalogPanel,
 } from './catalog-panel.js?v=20260823b';
