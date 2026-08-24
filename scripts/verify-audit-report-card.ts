@@ -406,4 +406,77 @@ We need to update your website's security certificate.
   console.log('ok — installed analytics without goals is a C');
 }
 
+{
+  const r = card(
+    'Lighthouse BP is not domain reputation',
+    `## Website Audit
+
+### Domain & IP Reputation
+- Lighthouse best-practices 100 on both viewports. Modern build, HTTPS throughout, no console errors flagged.
+
+### Best Practices
+- Lighthouse best-practices 100 on both viewports. Modern build, HTTPS throughout, no console errors flagged.
+
+### SSL & Website Security
+- SSL: valid, Grade B
+`,
+  );
+  const featuredFinding = r.featured?.finding || '';
+  const rep = r.categories.find((c) => c.id === 'domain_reputation');
+  const repFinding = rep?.finding || '';
+  assert.equal(
+    r.featured,
+    null,
+    'do not feature a Domain & IP Reputation card from Lighthouse copy',
+  );
+  assert.equal(rep, undefined, 'off-topic best-practices notes must not grade reputation');
+  assert.equal(
+    /speed & quality|best-practices|both viewports|console errors/i.test(
+      `${featuredFinding}\n${repFinding}`,
+    ),
+    false,
+    'reputation finding must not describe a speed/quality scan',
+  );
+  console.log('ok — Lighthouse best-practices copy does not become a reputation D');
+}
+
+{
+  const r = card(
+    'Clean reputation flags',
+    `## Website Audit
+
+### Domain & IP Reputation
+- No reputation flags found
+
+### SSL & Website Security
+- SSL: valid, Grade B
+`,
+  );
+  assert.equal(r.featured?.id, 'domain_reputation');
+  assert.equal(r.featured?.grade, 'B');
+  assert.match(r.featured?.finding || '', /Safe Browsing|blocklist|network-reputation/i);
+  assert.equal(/speed & quality|best-practices|console errors/i.test(r.featured?.finding || ''), false);
+  console.log('ok — no reputation flags found is a B with reputation copy');
+}
+
+{
+  const r = card(
+    'Spamhaus hit',
+    `## Website Audit
+
+### Domain & IP Reputation
+- Listed on Spamhaus
+- Lighthouse best-practices 100 on both viewports. Modern build, HTTPS throughout, no console errors flagged.
+
+### SSL & Website Security
+- SSL: valid, Grade B
+`,
+  );
+  assert.equal(r.featured?.id, 'domain_reputation');
+  assert.equal(r.featured?.grade, 'D');
+  assert.match(r.featured?.finding || '', /Spamhaus/i);
+  assert.equal(/speed & quality|best-practices|console errors/i.test(r.featured?.finding || ''), false);
+  console.log('ok — real blocklist hits stay a D and keep reputation copy');
+}
+
 console.log('all audit report-card checks passed');

@@ -942,6 +942,78 @@ function domainGradeFromText(text: string): {
   return { grade: 'C', summary: 'Domain notes on file', why };
 }
 
+/** Lighthouse / speed copy that agents sometimes dump under Domain & IP Reputation. */
+const LIGHTHOUSE_REPUTATION_NOISE_RE =
+  /lighthouse|speed & quality scan|best[-\s]?practices?|console errors?|both viewports|page ?speed|core web vitals|\bfcp\b|\blcp\b|\bcls\b|render-blocking/i;
+
+const REPUTATION_SIGNAL_RE =
+  /(?:safe\s*browsing)|(?:black|block)lists?|spamhaus|surbl|spamcop|barracuda|ip reputation|domain reputation|network reputation|reputation flags?|malware|phishing|deceptive site/i;
+
+const REPUTATION_BAD_RE =
+  /\b(?:black|block)listed\b|listed on .{0,60}(?:spamhaus|(?:black|block)lists?)|\bon spamhaus\b|spamhaus (?:hit|list|zen)|safe browsing (?:hit|flag|warning|block)|flagged (?:as )?(?:malware|phishing|spam|unsafe|deceptive)|poor reputation|trending down|deceptive site|\bmalware\b|\bphishing\b/i;
+
+const REPUTATION_GOOD_RE =
+  /no reputation flags?(?: found)?|not (?:listed|flagged|blacklisted|blocklisted)|clean(?: reputation)?|clear of (?:black|block)lists?|not on (?:any )?(?:black|block)lists?|good reputation|no (?:safe browsing|malware|phishing|blocklist)/i;
+
+function isReputationRelevantLine(line: string): boolean {
+  const t = stripMd(line);
+  if (!t || t.length < 4) return false;
+  if (/^reviews?\s*&?\s*reputation\b/i.test(t)) return false;
+  if (LIGHTHOUSE_REPUTATION_NOISE_RE.test(t) && !REPUTATION_SIGNAL_RE.test(t)) return false;
+  return REPUTATION_SIGNAL_RE.test(t);
+}
+
+function reputationLineIsBad(line: string): boolean {
+  if (REPUTATION_GOOD_RE.test(line)) return false;
+  return REPUTATION_BAD_RE.test(line);
+}
+
+function reputationFromText(
+  text: string,
+  clientName = '',
+): {
+  grade: LetterGrade | null;
+  summary: string;
+  why: string[];
+  unavailable?: boolean;
+} {
+  const relevant = bulletsFromSection(text).filter(isReputationRelevantLine);
+  const why = clientFriendlyBullets(relevant, 4, clientName);
+  if (!relevant.length) {
+    return {
+      grade: null,
+      summary: 'Not scored in this audit',
+      why: [
+        'Safe Browsing, spam blocklists, and network reputation were not documented in this audit.',
+      ],
+      unavailable: true,
+    };
+  }
+
+  if (relevant.some(reputationLineIsBad)) {
+    const finding =
+      why.find((w) => reputationLineIsBad(w)) ||
+      why[0] ||
+      'Domain or IP reputation looks weak on Safe Browsing, spam blocklists, or network checks.';
+    return {
+      grade: 'D',
+      summary: truncateFinding(plainLanguage(finding, clientName)),
+      why: why.length ? why : [finding],
+    };
+  }
+  if (relevant.some((line) => REPUTATION_GOOD_RE.test(line))) {
+    const summary = 'No Safe Browsing, spam blocklist, or network-reputation flags turned up.';
+    return { grade: 'B', summary, why: why.length ? why : [summary] };
+  }
+  return {
+    grade: 'C',
+    summary:
+      why[0] ||
+      'Reputation was checked, but the notes do not clearly say whether the domain is clean or flagged.',
+    why: why.length ? why : ['Reputation checks were noted without a clear clean/flagged result.'],
+  };
+}
+
 /** Soften technical jargon into money-relevant plain language for clients. */
 function plainLanguage(line: string, clientName = ''): string {
   const name = clientName.trim();
@@ -984,6 +1056,15 @@ const WEAK_FINDING_RE =
 function isNegativeFinding(line: string): boolean {
   // "0 broken links" / "no broken links" are praise, not failures.
   if (/\b(?:0|no|zero)\s+broken\b/i.test(line) || /\blinks (?:look |are )?healthy\b/i.test(line)) {
+    return false;
+  }
+  // "no console errors flagged" / "no reputation flags found" are clean, not failures.
+  if (
+    /\b(?:no|zero|0|none)\s+(?:console\s+)?errors?\b/i.test(line) ||
+    /\bno\s+(?:reputation\s+)?flags?\s+found\b/i.test(line) ||
+    /\bnot\s+(?:listed|flagged|blacklisted|blocklisted)\b/i.test(line) ||
+    /\b(?:no|none|nothing)\s+flagged\b/i.test(line)
+  ) {
     return false;
   }
   return WEAK_FINDING_RE.test(line);
@@ -2219,7 +2300,7 @@ export function buildAuditReportCard(input: {
     reputationSection.trim() ||
     body
       .split('\n')
-      .filter((l) => /reputation|blacklist|blocklist|spamhaus|safe browsing|flagged|subnet/i.test(l))
+      .filter((l) => isReputationRelevantLine(l))
       .join('\n');
 
   const securityWhySource = [sslSection, bpSection].filter(Boolean).join('\n') || body;
@@ -2293,16 +2374,23 @@ export function buildAuditReportCard(input: {
     unavailable: domain.grade == null,
   };
 
+  const reputation = reputationFromText(reputationCorpus, clientName);
+  const reputationMeta = CATEGORY_BY_ID.get('domain_reputation')!;
+  const reputationCat: ReportCardCategory = {
+    id: 'domain_reputation',
+    label: reputationMeta.label,
+    icon: reputationMeta.icon,
+    source: reputationMeta.source,
+    featured: reputationMeta.featured,
+    summary: reputation.summary,
+    finding: reputation.summary,
+    grade: reputation.grade,
+    why: reputation.why,
+    unavailable: reputation.unavailable || reputation.grade == null,
+  };
+
   const rawCategories: ReportCardCategory[] = [
-    heuristicSection('domain_reputation', reputationCorpus, {
-      bad: /\b(?:black|block)listed\b|listed on .{0,40}\b(?:black|block)lists?\b|flagged|spamhaus|poor reputation|trending down|not trusted/i,
-      good: /clean|good reputation|not (?:listed|blacklisted)|clear/i,
-      present: /reputation|blacklist|blocklist|spamhaus|safe browsing/i,
-      emptySummary: 'Not scored in this audit',
-      badGrade: 'D',
-      goodGrade: 'B',
-      midGrade: 'C',
-    }),
+    reputationCat,
     securityCat,
     domainCat,
     channelCategory('local_listings', localListings.signal, localListings.score),
