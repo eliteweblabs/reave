@@ -365,3 +365,308 @@ export const billingModule: AgentToolModule = {
                 name: 'create_invoice',
                 description:
                   'Create an invoice in Crater for a customer. Crater finds or creates the customer by name. Prices are in whole dollars. Defaults to a DRAFT invoice unless status is given.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    customer_name: { type: 'string', description: 'Customer/client name' },
+                    customer_email: { type: 'string', description: 'Optional email for a new customer' },
+                    items: {
+                      type: 'array',
+                      description: 'Line items. For a simple "$X for <desc>" request, use one item with quantity 1.',
+                      items: lineItemSchema,
+                    },
+                    notes: { type: 'string' },
+                    status: {
+                      type: 'string',
+                      enum: [...INVOICE_STATUS_ENUM],
+                      description: 'Defaults to DRAFT. Only set SENT if the user says it was sent.',
+                    },
+                  },
+                  required: ['customer_name', 'items'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'search_customers',
+                description: 'Search Crater customers by name/email/phone. Use to confirm a customer exists or disambiguate before invoicing.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    q: { type: 'string', description: 'Search text (optional; empty lists all)' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'list_recent_invoices',
+                description: 'List recent invoices from Crater with status, totals, and links.',
+                parameters: { type: 'object', properties: {}, additionalProperties: false },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'get_invoice',
+                description: 'Fetch a single Crater invoice by ID, including line items and customer.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    invoice_id: { type: 'string', description: 'Crater invoice ID' },
+                  },
+                  required: ['invoice_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'update_invoice',
+                description: 'Update invoice status, due date, or notes in Crater.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    invoice_id: { type: 'string', description: 'Crater invoice ID' },
+                    status: { type: 'string', enum: [...INVOICE_STATUS_ENUM] },
+                    due_date: { type: 'string', description: 'YYYY-MM-DD' },
+                    notes: { type: 'string' },
+                  },
+                  required: ['invoice_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'delete_invoice',
+                description: 'Permanently delete a Crater invoice by ID. Use only when the user explicitly asks to delete/remove an invoice.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    invoice_id: { type: 'string', description: 'Crater invoice ID' },
+                  },
+                  required: ['invoice_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'add_invoice_items',
+                description: 'Add line items to an existing Crater invoice. Prices are whole dollars.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    invoice_id: { type: 'string', description: 'Crater invoice ID' },
+                    items: { type: 'array', items: lineItemSchema, minItems: 1 },
+                  },
+                  required: ['invoice_id', 'items'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'update_invoice_item',
+                description:
+                  'Update an existing line item on a Crater invoice — rename it, fix a typo, change description, quantity, or price. Use get_invoice first to find the item_id. Prices are whole dollars.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    invoice_id: { type: 'string', description: 'Crater invoice ID' },
+                    item_id: { type: 'string', description: 'Line item ID (from get_invoice items[].id)' },
+                    name: { type: 'string', description: 'New item name' },
+                    description: { type: 'string', description: 'New description (pass empty string to clear)' },
+                    quantity: { type: 'number', description: 'New quantity' },
+                    price: { type: 'number', description: 'New unit price in whole dollars' },
+                  },
+                  required: ['invoice_id', 'item_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'search_line_items',
+                description: 'Search Crater line-item templates (catalog) by name.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    q: { type: 'string', description: 'Optional search text' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'record_payment',
+                description:
+                  'Record an offline payment in Crater for a customer. May return needs_selection if customer, invoice, or payment_mode is ambiguous — re-call with specifics.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    customer_name: { type: 'string' },
+                    amount: { type: 'number', description: 'Payment amount in whole dollars' },
+                    payment_mode: { type: 'string', enum: [...PAYMENT_MODE_ENUM] },
+                    payment_date: { type: 'string', description: 'YYYY-MM-DD; defaults to today' },
+                    notes: { type: 'string' },
+                    invoice_id: { type: 'integer', description: 'Apply payment to this invoice when multiple are open' },
+                  },
+                  required: ['customer_name', 'amount'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'update_payment',
+                description:
+                  'Update an existing Crater payment — fix the payment method (e.g. "by Venmo"), date, notes, or amount. Use get_invoice first to find the payment id. Call this instead of record_payment when a payment already exists and only the method or details need changing.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    payment_id: { type: 'integer', description: 'Crater payment ID (from get_invoice payments[].id)' },
+                    payment_method: { type: 'string', description: 'New payment method label, e.g. Venmo, Zelle, Cash, Check' },
+                    payment_date: { type: 'string', description: 'New date YYYY-MM-DD' },
+                    notes: { type: 'string', description: 'New notes (pass empty string to clear)' },
+                    amount: { type: 'number', description: 'New amount in whole dollars' },
+                  },
+                  required: ['payment_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'delete_payment',
+                description:
+                  'Permanently delete a Crater payment record by payment id. Use to remove a duplicate or erroneous payment. Requires explicit user confirmation for non-duplicate cases.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    payment_id: { type: 'integer', description: 'Crater payment ID to delete' },
+                  },
+                  required: ['payment_id'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'list_recurring_invoices',
+                description: 'List recurring invoices with schedule and customer info.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    status: { type: 'string', enum: [...RECURRING_STATUS_ENUM], description: 'Optional filter' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'create_recurring_invoice',
+                description:
+                  'Create a recurring invoice for an existing Crater customer (defaults to annual hosting template).',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    customer_name: { type: 'string' },
+                    starts_at: { type: 'string', description: 'YYYY-MM-DD' },
+                    frequency: { type: 'string', description: 'Cron expression, e.g. 0 0 1 4 *' },
+                    send_automatically: { type: 'boolean' },
+                  },
+                  required: ['customer_name'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'repair_invoice_numbers',
+                description:
+                  'Admin repair: fix sequence numbers and totals on invoices created by older integrations. Defaults to dry_run=true.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    dry_run: { type: 'boolean', description: 'Default true — set false to apply fixes' },
+                    only: { type: 'string', enum: ['numbers', 'totals', 'all'] },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'repair_payment_numbers',
+                description: 'Admin repair: fix payment sequence numbers. Defaults to dry_run=true.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    dry_run: { type: 'boolean', description: 'Default true — set false to apply fixes' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
+                name: 'reset_invoices',
+                description:
+                  'DESTRUCTIVE: wipe all invoices/payments for the company. Requires confirm=YES_DELETE_EVERYTHING. Use dry_run first.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    confirm: {
+                      type: 'string',
+                      description: 'Must be exactly YES_DELETE_EVERYTHING',
+                    },
+                    dry_run: { type: 'boolean', description: 'Default false when confirming; set true to preview counts' },
+                  },
+                  required: ['confirm'],
+                  additionalProperties: false,
+                },
+              },
+            }
+    ];
+  },
+  handlers: {
+    'create_invoice': handle_create_invoice,
+    'search_customers': handle_search_customers,
+    'list_recent_invoices': handle_list_recent_invoices,
+    'get_invoice': handle_get_invoice,
+    'update_invoice': handle_update_invoice,
+    'delete_invoice': handle_delete_invoice,
+    'add_invoice_items': handle_add_invoice_items,
+    'update_invoice_item': handle_update_invoice_item,
+    'search_line_items': handle_search_line_items,
+    'record_payment': handle_record_payment,
+    'update_payment': handle_update_payment,
+    'delete_payment': handle_delete_payment,
+    'list_recurring_invoices': handle_list_recurring_invoices,
+    'create_recurring_invoice': handle_create_recurring_invoice,
+    'repair_invoice_numbers': handle_repair_invoice_numbers,
+    'repair_payment_numbers': handle_repair_payment_numbers,
+    'reset_invoices': handle_reset_invoices,
+  },
+};
