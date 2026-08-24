@@ -3131,6 +3131,10 @@ const launchOtpCopy = (() => {
     const url = new URL(window.location.href);
     const code = otpCodeFromHash(url.hash);
     const wanted = url.searchParams.get('copy') === '1' || Boolean(code);
+    if (wanted) {
+      url.searchParams.delete('copy');
+      history.replaceState(null, '', url.pathname + url.search);
+    }
     return { wanted, code };
   } catch {
     return { wanted: false, code: '' };
@@ -14643,7 +14647,7 @@ async function copyEmailVerificationCode(code, nearEl, opts = {}) {
   const verified = await clipboardLooksLike(text);
   if (!wrote || verified === false) {
     if (opts.preferPromptOnFail && !opts.fromPrompt) return promptCopyOtpCode(text);
-    if (!opts.fromPrompt) showChatToast('Tap the code to copy', nearEl);
+    if (!opts.fromPrompt && !opts.quietFail) showChatToast('Tap the code to copy', nearEl);
     return false;
   }
   if (nearEl) showCopyButtonFeedback(nearEl);
@@ -14694,9 +14698,19 @@ async function handleOtpCopyFromPush(data) {
     otpCopyInFlightCode = '';
     otpCopyInFlightTimer = 0;
   }, 2500);
-  await clearPendingOtpCopyStash();
-  await whenDocumentFocused();
-  const ok = await copyEmailVerificationCode(code, null, { preferPromptOnFail: true });
+  // Write first. Cache I/O or a focus wait before writeText drops the
+  // notification gesture, so the code never lands on the clipboard.
+  let ok = await copyEmailVerificationCode(code, null, {
+    preferPromptOnFail: false,
+    quietFail: true,
+  });
+  void clearPendingOtpCopyStash();
+  if (ok) {
+    hideOtpCopyOverlay();
+    return;
+  }
+  await whenDocumentFocused(800);
+  ok = await copyEmailVerificationCode(code, null, { preferPromptOnFail: true });
   if (!ok) showOtpCopyOverlay(code);
 }
 

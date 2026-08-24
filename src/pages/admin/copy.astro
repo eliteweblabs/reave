@@ -32,12 +32,17 @@ const appName = company.name || "Business OS";
   </head>
   <body>
     <main class="otp-copy">
+      <button type="button" id="otp-close-btn" class="otp-copy-close" aria-label="Back to app">
+        <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
       <p class="otp-copy-kicker">{appName}</p>
       <h1>Verification code</h1>
       <p id="otp-code" class="otp-copy-code" aria-live="polite">…</p>
-      <p id="otp-status" class="otp-copy-status">Tap Copy code</p>
+      <p id="otp-status" class="otp-copy-status">Copying…</p>
       <button type="button" id="otp-copy-btn" class="otp-copy-btn">Copy code</button>
-      <p class="otp-copy-hint">Paste on this phone or your laptop. This page does not open a link.</p>
+      <button type="button" id="otp-done-btn" class="otp-copy-done">Back to app</button>
+      <p class="otp-copy-hint">Paste anywhere, including your laptop.</p>
     </main>
     <script is:inline>
       (function () {
@@ -46,6 +51,18 @@ const appName = company.name || "Business OS";
         var codeEl = document.getElementById('otp-code');
         var statusEl = document.getElementById('otp-status');
         var btn = document.getElementById('otp-copy-btn');
+        var doneBtn = document.getElementById('otp-done-btn');
+        var closeBtn = document.getElementById('otp-close-btn');
+        var leaveTimer = 0;
+
+        function leave() {
+          if (leaveTimer) {
+            clearTimeout(leaveTimer);
+            leaveTimer = 0;
+          }
+          try { window.close(); } catch (e) { /* ignore */ }
+          location.replace('/admin/');
+        }
 
         function codeFromHash() {
           var raw = String(location.hash || '').replace(/^#/, '');
@@ -118,29 +135,53 @@ const appName = company.name || "Business OS";
           if (btn) btn.textContent = copied ? 'Copied' : 'Copy code';
         }
 
-        async function copyNow(code) {
+        async function copyNow(code, thenLeave) {
           if (!code) {
             show('', 'Nothing to copy', false);
             return false;
           }
           var ok = await writeClipboard(code);
-          show(code, ok ? 'Copied — paste anywhere, including your laptop' : 'Tap Copy code', ok);
+          show(code, ok ? 'Copied — returning to the app' : 'Tap Copy code', ok);
+          if (ok && thenLeave) {
+            if (leaveTimer) clearTimeout(leaveTimer);
+            leaveTimer = setTimeout(leave, 400);
+          }
           return ok;
         }
 
+        async function resolveCode() {
+          return codeFromHash() || (await codeFromStash());
+        }
+
         async function boot() {
-          var code = codeFromHash() || (await codeFromStash());
+          var code = await resolveCode();
           if (!code) {
             show('', 'No code waiting', false);
             return;
           }
-          show(code, 'Tap Copy code, then paste on this phone or your laptop.', false);
+          show(code, 'Copying…', false);
+          await copyNow(code, true);
+        }
+
+        function currentCode() {
+          var shown = codeEl && codeEl.textContent;
+          if (shown && shown !== '…' && shown !== '—') return shown;
+          return codeFromHash();
         }
 
         if (btn) {
           btn.addEventListener('click', function () {
-            var code = (codeEl && codeEl.textContent) || codeFromHash();
-            if (code && code !== '…' && code !== '—') void copyNow(code);
+            var code = currentCode();
+            if (code) void copyNow(code, true);
+          });
+        }
+        if (doneBtn) doneBtn.addEventListener('click', leave);
+        if (closeBtn) closeBtn.addEventListener('click', leave);
+
+        if (navigator.serviceWorker) {
+          navigator.serviceWorker.addEventListener('message', function (event) {
+            var code = event.data && event.data.type === 'reave-otp-copy' && event.data.code;
+            if (code) void copyNow(String(code).trim(), true);
           });
         }
 
@@ -157,6 +198,7 @@ const appName = company.name || "Business OS";
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       }
       .otp-copy {
+        position: relative;
         min-height: 100dvh;
         padding: calc(2rem + env(safe-area-inset-top)) 1.5rem calc(2rem + env(safe-area-inset-bottom));
         display: flex;
@@ -165,6 +207,28 @@ const appName = company.name || "Business OS";
         justify-content: center;
         text-align: center;
         gap: 0.75rem;
+      }
+      .otp-copy-close {
+        position: absolute;
+        top: calc(0.75rem + env(safe-area-inset-top));
+        right: calc(0.75rem + env(safe-area-inset-right));
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: #94a3b8;
+        padding: 0.45rem;
+        border-radius: 999px;
+      }
+      .otp-copy-done {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        color: #e2e8f0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        padding: 0.55rem 0.8rem;
+        text-decoration: underline;
+        text-underline-offset: 0.18em;
       }
       .otp-copy-kicker {
         margin: 0;

@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260824a — Notification timestamp + renotify so replaced banners keep the real time. */
+   v20260824b — OTP tap copies in the open admin window; never navigates to /admin/copy. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -101,9 +101,10 @@ function otpCodeFromNotificationText(title, body) {
   return '';
 }
 
-function otpCopyPageUrl(code) {
+/** Stay inside the admin PWA so a tap cannot replace the app with /admin/copy. */
+function otpAdminCopyUrl(code) {
   const trimmed = String(code || '').trim();
-  return trimmed ? `/admin/copy#c=${encodeURIComponent(trimmed)}` : '/admin/copy';
+  return trimmed ? `/admin/?copy=1#c=${encodeURIComponent(trimmed)}` : '/admin/?copy=1';
 }
 
 /** Sign-in (and other non-admin) windows cannot copy — don't treat them as a hit. */
@@ -112,13 +113,16 @@ function clientCanCopyOtp(client) {
     const u = new URL(client.url, self.location.origin);
     if (u.origin !== self.location.origin) return false;
     const path = u.pathname.replace(/\/$/, '') || '/';
-    return path === '/admin' || path === '/admin/copy';
+    if (path === '/admin' || path === '/dashboard' || path === '/admin/copy') return true;
+    if (!path.startsWith('/admin/')) return false;
+    if (path.startsWith('/admin/login') || path.includes('__clerk')) return false;
+    return true;
   } catch {
     return false;
   }
 }
 
-/** Copy the OTP — never open the inbox or a sign-in URL. */
+/** Copy the OTP in the open admin window — never navigate away to /admin/copy. */
 async function deliverOtpCopy(opts) {
   const code = String(opts.code || '').trim();
   if (!code) return;
@@ -129,31 +133,30 @@ async function deliverOtpCopy(opts) {
   await stashPendingOtpCopy({ code, emailId, alertId });
 
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  let focused = false;
-  for (const client of clients) {
-    if (!clientCanCopyOtp(client)) continue;
-    client.postMessage(message);
-    if (!focused && 'focus' in client) {
-      try {
-        await client.focus();
-        focused = true;
-      } catch {
-        /* ignore */
+  const capable = clients.filter(clientCanCopyOtp);
+  if (capable.length) {
+    for (const client of capable) {
+      client.postMessage(message);
+      if ('focus' in client) {
+        try {
+          await client.focus();
+        } catch {
+          /* ignore */
+        }
       }
     }
+    // Safari web apps are one window. openWindow('/admin/copy') replaces the
+    // whole app with a page that has no back button and never writes clipboard.
+    return;
   }
 
-  // Desktop PWA is usually already open — a second openWindow steals the
-  // notification gesture and never writes the clipboard.
-  if (focused) return;
-
   if (self.clients.openWindow) {
-    const opened = await self.clients.openWindow(otpCopyPageUrl(code));
+    const opened = await self.clients.openWindow(otpAdminCopyUrl(code));
     if (opened) {
       try {
         opened.postMessage(message);
       } catch {
-        /* page reads the stash on boot */
+        /* page reads the stash / hash on boot */
       }
     }
   }
@@ -326,7 +329,7 @@ self.addEventListener('push', (event) => {
       icon: '/api/branding/icon?size=192',
       badge: '/api/branding/icon?size=192',
       data: {
-        url: isOtp ? otpCopyPageUrl(resolvedOtpCode) : data.url || '/admin?tab=email',
+        url: isOtp ? otpAdminCopyUrl(resolvedOtpCode) : data.url || '/admin?tab=email',
         alertId,
         emailId,
         verificationCode: resolvedOtpCode,
@@ -369,7 +372,7 @@ self.addEventListener('notificationclick', (event) => {
   const isBadgeSync =
     noteData.badgeOnly === true || kind === 'badge-sync' || tag === 'reave-badge-sync';
   const url = isOtp
-    ? otpCopyPageUrl(verificationCode)
+    ? otpAdminCopyUrl(verificationCode)
     : noteData.url || (isBadgeSync ? '/admin?tab=dashboard' : '/admin?tab=email');
   const absoluteUrl = new URL(url, self.location.origin).href;
   const action = event.action || '';
