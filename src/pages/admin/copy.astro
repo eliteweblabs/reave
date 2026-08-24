@@ -78,24 +78,37 @@ const appName = company.name || "Business OS";
           return ok;
         }
 
+        function withTimeout(promise, ms, fallback) {
+          return Promise.race([
+            promise,
+            new Promise(function (resolve) {
+              setTimeout(function () { resolve(fallback); }, ms);
+            }),
+          ]);
+        }
+
         async function writeClipboard(text, fromButton) {
           var wrote = false;
           try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
-              await navigator.clipboard.writeText(text);
-              wrote = true;
+              wrote = (await withTimeout(
+                navigator.clipboard.writeText(text).then(function () { return true; }),
+                800,
+                false,
+              )) === true;
             }
           } catch (e) {
             wrote = false;
           }
           if (!wrote) wrote = fallbackCopy(text);
           if (!wrote) return false;
-          if (!navigator.clipboard || !navigator.clipboard.readText) return wrote;
+          if (fromButton) return true;
+          if (!navigator.clipboard || !navigator.clipboard.readText) return false;
           try {
-            return (await navigator.clipboard.readText()) === text;
+            var current = await withTimeout(navigator.clipboard.readText(), 400, null);
+            return current === text;
           } catch (e) {
-            // iOS often lies about writeText unless this was a real button tap.
-            return Boolean(fromButton);
+            return false;
           }
         }
 
@@ -123,7 +136,7 @@ const appName = company.name || "Business OS";
             show('', 'Nothing to copy', false);
             return false;
           }
-          show(code, 'Copying…', false);
+          show(code, fromButton ? 'Copying…' : 'Tap Copy code', false);
           var ok = await writeClipboard(code, fromButton);
           show(code, ok ? 'Copied — paste anywhere, including your laptop' : 'Tap Copy code', ok);
           return ok;
