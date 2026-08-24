@@ -48,10 +48,10 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260815a';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260820a';
-import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260821a';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260824a';
+import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260824a';
 import { createClientMap } from './client-map.js?v=20260821c';
-import { openReaveShareSheet } from './chat-panel.js?v=20260810a';
+import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
 let shell = {};

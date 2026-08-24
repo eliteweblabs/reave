@@ -39,11 +39,12 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
-import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260820a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260817c';
-import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260810a';
-import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
+import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260824a';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260824a';
+import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260824a';
+import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260824a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
+import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initTodoPanel(). */
 let shell = {};
@@ -1228,18 +1229,8 @@ async function reopenTodo(id) {
   }
 }
 
-async function bulkDeleteTodos(ids) {
-  if (!ids.length) return;
-  closeOpenSwipeRow();
+function removeTodosLocally(ids) {
   const idSet = new Set(ids.map(String));
-  for (const id of ids) {
-    try {
-      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
-      await readApiJson(res);
-    } catch {
-      /* continue */
-    }
-  }
   todoState.todos = todoState.todos.filter((t) => !idSet.has(String(t.id)));
   if (todoState.activeId != null && idSet.has(String(todoState.activeId))) {
     todoState.activeId = null;
@@ -1251,22 +1242,68 @@ async function bulkDeleteTodos(ids) {
   shell.syncFooterNav();
 }
 
-async function deleteTodo(id) {
-  try {
-    const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
-    await readApiJson(res);
-    todoState.todos = todoState.todos.filter((t) => t.id !== id);
-    if (todoState.activeId === id) {
-      todoState.activeId = null;
-      todoState.draft = null;
-      todoState.linkedJob = null;
-      getTodoEditor()?.classList.remove('de-pane-active');
-    }
-    renderTodoEditor();
-    shell.syncFooterNav();
-  } catch (e) {
-    shell.osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+function restoreTodosLocally(snapshots, { restoreActiveId = null } = {}) {
+  const have = new Set(todoState.todos.map((t) => String(t.id)));
+  const next = todoState.todos.slice();
+  for (const snap of snapshots) {
+    if (have.has(String(snap.todo.id))) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.todo);
+    have.add(String(snap.todo.id));
   }
+  todoState.todos = next;
+  renderTodoEditor();
+  shell.syncFooterNav();
+  if (restoreActiveId != null) void openTodo(restoreActiveId);
+}
+
+async function bulkDeleteTodos(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const unique = [...new Set(ids.filter((id) => id != null))];
+  const snapshots = unique
+    .map((id) => {
+      const idx = todoState.todos.findIndex((t) => String(t.id) === String(id));
+      return idx === -1 ? null : { idx, todo: todoState.todos[idx] };
+    })
+    .filter(Boolean);
+  if (!snapshots.length) return;
+  await queueUndoableDelete({
+    key: `delete:todos:${unique.join(',')}`,
+    ids: unique.map((id) => `todo:${id}`),
+    hide: () => removeTodosLocally(unique),
+    restore: () => restoreTodosLocally(snapshots),
+    commit: async () => {
+      for (const id of unique) {
+        try {
+          const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+          await readApiJson(res);
+        } catch {
+          /* continue */
+        }
+      }
+    },
+  });
+}
+
+async function deleteTodo(id) {
+  if (id == null) return;
+  const idx = todoState.todos.findIndex((t) => t.id === id || String(t.id) === String(id));
+  const todo = idx === -1 ? null : todoState.todos[idx];
+  if (!todo) return;
+  const wasActive = todoState.activeId === id || String(todoState.activeId) === String(id);
+  await queueUndoableDelete({
+    key: `delete:todo:${id}`,
+    ids: [`todo:${id}`],
+    hide: () => removeTodosLocally([id]),
+    restore: () => restoreTodosLocally([{ idx, todo }], { restoreActiveId: wasActive ? id : null }),
+    commit: async () => {
+      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      await readApiJson(res);
+    },
+    onCommitError: (e) => {
+      shell.osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+    },
+  });
 }
 let pendingTodoDeepLinkId = null;
 

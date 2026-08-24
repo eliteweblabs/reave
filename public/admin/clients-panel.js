@@ -38,6 +38,7 @@ import {
 } from './admin-ui.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml, formatPhoneInput, phoneToStorage, isValidPhone, attachPhoneFormatter, showPersonal } from './shared.js?v=20260811d';
 import { osConfirm } from './os-dialog.js?v=20260815a';
+import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 import {
   openMediaPicker,
   brandingRasterMediaFilter,
@@ -53,11 +54,11 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260820a';
+} from './work-panel.js?v=20260824a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260821c';
-import { createPortalShareBtn } from './chat-panel.js?v=20260810a';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260824a';
+import { createPortalShareBtn } from './chat-panel.js?v=20260824a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
 /** Injected by os-map-loader via initClientsPanel(). */
@@ -2426,18 +2427,7 @@ async function performClientDelete(uid, force) {
   return { res, data };
 }
 
-async function bulkDeleteClients(uids) {
-  if (!uids.length) return;
-  closeOpenSwipeRow();
-  const uidSet = new Set(uids);
-  for (const uid of uids) {
-    try {
-      const { res } = await performClientDelete(uid, true);
-      if (!res.ok) continue;
-    } catch {
-      /* continue */
-    }
-  }
+function closeClientAfterDelete(uidSet) {
   if (clientState.activeUid && uidSet.has(clientState.activeUid)) {
     clearClientLastActiveUid();
     syncClientDeepLinkUrl(null);
@@ -2445,24 +2435,76 @@ async function bulkDeleteClients(uids) {
     clientState.dirty = false;
     clientState.draft = null;
   }
-  await loadClientsTab();
+}
+
+function removeClientsLocally(uids) {
+  const uidSet = new Set(uids);
+  clientState.clients = clientState.clients.filter((c) => !uidSet.has(c.uid));
+  closeClientAfterDelete(uidSet);
+  renderClientsEditor();
+}
+
+function restoreClientsLocally(snapshots, { restoreUid = null } = {}) {
+  const have = new Set(clientState.clients.map((c) => c.uid));
+  const next = clientState.clients.slice();
+  for (const snap of snapshots) {
+    if (have.has(snap.client.uid)) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.client);
+    have.add(snap.client.uid);
+  }
+  clientState.clients = next;
+  renderClientsEditor();
+  if (restoreUid) void openClient(restoreUid);
+}
+
+async function bulkDeleteClients(uids) {
+  if (!uids.length) return;
+  closeOpenSwipeRow();
+  const unique = [...new Set(uids.filter(Boolean))];
+  const snapshots = unique
+    .map((uid) => {
+      const idx = clientState.clients.findIndex((c) => c.uid === uid);
+      return idx === -1 ? null : { idx, client: clientState.clients[idx] };
+    })
+    .filter(Boolean);
+  if (!snapshots.length) return;
+  await queueUndoableDelete({
+    key: `delete:clients:${unique.join(',')}`,
+    ids: unique.map((uid) => `client:${uid}`),
+    hide: () => removeClientsLocally(unique),
+    restore: () => restoreClientsLocally(snapshots),
+    commit: async () => {
+      for (const uid of unique) {
+        try {
+          const { res } = await performClientDelete(uid, true);
+          if (!res.ok) continue;
+        } catch {
+          /* continue */
+        }
+      }
+    },
+  });
 }
 
 async function deleteClient(uid) {
   closeOpenSwipeRow();
-  try {
-    const { res, data } = await performClientDelete(uid, true);
-    if (!res.ok) throw new Error(data.error || data.warning || `HTTP ${res.status}`);
-
-    clearClientLastActiveUid();
-    syncClientDeepLinkUrl(null);
-    clientState.activeUid = null;
-    clientState.dirty = false;
-    clientState.draft = null;
-    await loadClientsTab();
-  } catch (e) {
-    await shell.osAlert({ title: 'Delete failed', bodyHtml: `<p>${escHtml(e.message)}</p>` });
-  }
+  const idx = clientState.clients.findIndex((c) => c.uid === uid);
+  const client = idx === -1 ? null : clientState.clients[idx];
+  if (!client) return;
+  const wasActive = clientState.activeUid === uid;
+  await queueUndoableDelete({
+    key: `delete:client:${uid}`,
+    ids: [`client:${uid}`],
+    hide: () => removeClientsLocally([uid]),
+    restore: () => restoreClientsLocally([{ idx, client }], { restoreUid: wasActive ? uid : null }),
+    commit: async () => {
+      const { res, data } = await performClientDelete(uid, true);
+      if (!res.ok) throw new Error(data.error || data.warning || `HTTP ${res.status}`);
+    },
+    onCommitError: async (e) => {
+      await shell.osAlert({ title: 'Delete failed', bodyHtml: `<p>${escHtml(e.message)}</p>` });
+    },
+  });
 }
 
 // ---- extracted from os-map-loader.js:17355-17381 ----

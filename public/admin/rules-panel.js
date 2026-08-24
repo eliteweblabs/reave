@@ -55,6 +55,7 @@ import {
   insertDragWithinScope,
 } from './email-triage-lab.js?v=20260824b';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
+import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initRulesPanel(). */
 let shell = {};
@@ -1433,45 +1434,85 @@ async function saveRule(id, inputs) {
   }
 }
 
-async function bulkDeleteRules(ids) {
-  if (!ids.length) return;
-  closeOpenSwipeRow();
+function removeRulesLocally(ids) {
   const idSet = new Set(ids.map(String));
-  for (const id of ids) {
-    try {
-      const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      if (!res.ok) continue;
-    } catch {
-      /* continue */
-    }
-  }
+  ruleState.rules = ruleState.rules.filter((r) => !idSet.has(String(r.id)));
   if (ruleState.activeId != null && idSet.has(String(ruleState.activeId))) {
     ruleState.dirty = false;
     ruleState.activeId = null;
     getRuleEditor()?.classList.remove('de-pane-active');
   }
-  await loadRulesTab();
+  renderRulesEditor();
+}
+
+function restoreRulesLocally(snapshots, { restoreId = null } = {}) {
+  const have = new Set(ruleState.rules.map((r) => String(r.id)));
+  const next = ruleState.rules.slice();
+  for (const snap of snapshots) {
+    if (have.has(String(snap.rule.id))) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.rule);
+    have.add(String(snap.rule.id));
+  }
+  ruleState.rules = next;
+  renderRulesEditor();
+  if (restoreId != null) void openRuleEditor(restoreId);
+}
+
+async function bulkDeleteRules(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const unique = [...new Set(ids.filter((id) => id != null))];
+  const snapshots = unique
+    .map((id) => {
+      const idx = ruleState.rules.findIndex((r) => String(r.id) === String(id));
+      return idx === -1 ? null : { idx, rule: ruleState.rules[idx] };
+    })
+    .filter(Boolean);
+  if (!snapshots.length) return;
+  await queueUndoableDelete({
+    key: `delete:rules:${unique.join(',')}`,
+    ids: unique.map((id) => `rule:${id}`),
+    hide: () => removeRulesLocally(unique),
+    restore: () => restoreRulesLocally(snapshots),
+    commit: async () => {
+      for (const id of unique) {
+        try {
+          const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+          if (!res.ok) continue;
+        } catch {
+          /* continue */
+        }
+      }
+    },
+  });
 }
 
 async function deleteRule(id) {
-  try {
-    const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    ruleState.dirty = false;
-    ruleState.activeId = null;
-    getRuleEditor()?.classList.remove('de-pane-active');
-    await loadRulesTab();
-  } catch (e) {
-    alert(`Delete failed: ${e.message}`);
-  }
+  const idx = ruleState.rules.findIndex((r) => String(r.id) === String(id));
+  const rule = idx === -1 ? null : ruleState.rules[idx];
+  if (!rule) return;
+  const wasActive = String(ruleState.activeId) === String(id);
+  await queueUndoableDelete({
+    key: `delete:rule:${id}`,
+    ids: [`rule:${id}`],
+    hide: () => removeRulesLocally([id]),
+    restore: () => restoreRulesLocally([{ idx, rule }], { restoreId: wasActive ? id : null }),
+    commit: async () => {
+      const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    },
+    onCommitError: (e) => {
+      alert(`Delete failed: ${e.message}`);
+    },
+  });
 }
 
 async function startNewRule(draft = null) {

@@ -38,8 +38,9 @@ import {
 } from './admin-ui.js?v=20260816a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
-import { openDocumentShareSheet } from './chat-panel.js?v=20260810a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260817c';
+import { openDocumentShareSheet } from './chat-panel.js?v=20260824a';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260824a';
+import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initDocumentsPanel(). */
 let shell = {};
@@ -689,26 +690,16 @@ async function createDocument(slug, content) {
   }
 }
 
-async function bulkDeleteDocuments(slugs) {
-  if (!slugs.length) return;
-  closeOpenSwipeRow();
+function stopDocAutosave() {
   if (docAutosaveTimer) {
     clearTimeout(docAutosaveTimer);
     docAutosaveTimer = null;
   }
+}
+
+function removeDocumentsLocally(slugs) {
   const slugSet = new Set(slugs);
-  for (const slug of slugs) {
-    try {
-      const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      if (!res.ok) continue;
-    } catch {
-      /* continue */
-    }
-  }
+  docState.templates = docState.templates.filter((t) => !slugSet.has(t.slug));
   if (docState.activeSlug && slugSet.has(docState.activeSlug)) {
     docState.activeSlug = null;
     docState.dirty = false;
@@ -716,31 +707,80 @@ async function bulkDeleteDocuments(slugs) {
     docState.autosaveGetHtml = null;
     getDocEditor()?.classList.remove('de-pane-active');
   }
-  await loadDocumentsTab();
+  renderDocEditor();
+}
+
+function restoreDocumentsLocally(snapshots, { restoreSlug = null } = {}) {
+  const have = new Set(docState.templates.map((t) => t.slug));
+  const next = docState.templates.slice();
+  for (const snap of snapshots) {
+    if (have.has(snap.tpl.slug)) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.tpl);
+    have.add(snap.tpl.slug);
+  }
+  docState.templates = next;
+  renderDocEditor();
+  if (restoreSlug) void openDocument(restoreSlug);
+}
+
+async function bulkDeleteDocuments(slugs) {
+  if (!slugs.length) return;
+  closeOpenSwipeRow();
+  stopDocAutosave();
+  const unique = [...new Set(slugs.filter(Boolean))];
+  const snapshots = unique
+    .map((slug) => {
+      const idx = docState.templates.findIndex((t) => t.slug === slug);
+      return idx === -1 ? null : { idx, tpl: docState.templates[idx] };
+    })
+    .filter(Boolean);
+  if (!snapshots.length) return;
+  await queueUndoableDelete({
+    key: `delete:docs:${unique.join(',')}`,
+    ids: unique.map((slug) => `doc:${slug}`),
+    hide: () => removeDocumentsLocally(unique),
+    restore: () => restoreDocumentsLocally(snapshots),
+    commit: async () => {
+      for (const slug of unique) {
+        try {
+          const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+          if (!res.ok) continue;
+        } catch {
+          /* continue */
+        }
+      }
+    },
+  });
 }
 
 async function deleteDocument(slug) {
   closeOpenSwipeRow();
-  if (docAutosaveTimer) {
-    clearTimeout(docAutosaveTimer);
-    docAutosaveTimer = null;
-  }
-  try {
-    const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    docState.activeSlug = null;
-    docState.dirty = false;
-    docState.savedContent = '';
-    docState.autosaveGetHtml = null;
-    getDocEditor()?.classList.remove('de-pane-active');
-    await loadDocumentsTab();
-  } catch (e) {
-    alert(`Failed to delete: ${e.message}`);
-  }
+  stopDocAutosave();
+  const idx = docState.templates.findIndex((t) => t.slug === slug);
+  const tpl = idx === -1 ? null : docState.templates[idx];
+  if (!tpl) return;
+  const wasActive = docState.activeSlug === slug;
+  await queueUndoableDelete({
+    key: `delete:doc:${slug}`,
+    ids: [`doc:${slug}`],
+    hide: () => removeDocumentsLocally([slug]),
+    restore: () => restoreDocumentsLocally([{ idx, tpl }], { restoreSlug: wasActive ? slug : null }),
+    commit: async () => {
+      const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    },
+    onCommitError: (e) => {
+      alert(`Failed to delete: ${e.message}`);
+    },
+  });
 }
 
 function getActiveDocTextarea() {

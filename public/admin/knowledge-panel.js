@@ -41,8 +41,9 @@ import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260817c';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260824a';
 import { destroyCourtsGateMap, mountCourtsGateMap } from './courts-gate-map.js?v=20260820a';
+import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initKnowledgePanel(). */
 let shell = {};
@@ -535,45 +536,86 @@ async function saveKnowledge(slug, content) {
   }
 }
 
+function removeKnowledgeLocally(slugs) {
+  const slugSet = new Set(slugs);
+  knowledgeState.entries = knowledgeState.entries.filter((e) => !slugSet.has(e.slug));
+  if (knowledgeState.activeSlug && slugSet.has(knowledgeState.activeSlug)) {
+    knowledgeState.activeSlug = null;
+    knowledgeState.dirty = false;
+  }
+  renderKnowledgeEditor();
+}
+
+function restoreKnowledgeLocally(snapshots, { restoreSlug = null } = {}) {
+  const have = new Set(knowledgeState.entries.map((e) => e.slug));
+  const next = knowledgeState.entries.slice();
+  for (const snap of snapshots) {
+    if (have.has(snap.entry.slug)) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.entry);
+    have.add(snap.entry.slug);
+  }
+  knowledgeState.entries = next;
+  renderKnowledgeEditor();
+  if (restoreSlug) void openKnowledge(restoreSlug);
+}
+
 async function bulkDeleteKnowledge(slugs) {
   if (!slugs.length) return;
   closeOpenSwipeRow();
-  const slugSet = new Set(slugs);
-  for (const slug of slugs) {
-    try {
+  const unique = [...new Set(slugs.filter(Boolean))];
+  const snapshots = unique
+    .map((slug) => {
+      const idx = knowledgeState.entries.findIndex((e) => e.slug === slug);
+      return idx === -1 ? null : { idx, entry: knowledgeState.entries[idx] };
+    })
+    .filter(Boolean);
+  if (!snapshots.length) return;
+  await queueUndoableDelete({
+    key: `delete:knowledge:${unique.join(',')}`,
+    ids: unique.map((slug) => `knowledge:${slug}`),
+    hide: () => removeKnowledgeLocally(unique),
+    restore: () => restoreKnowledgeLocally(snapshots),
+    commit: async () => {
+      for (const slug of unique) {
+        try {
+          const res = await adminFetch(`${shell.KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+          if (!res.ok) continue;
+        } catch {
+          /* continue */
+        }
+      }
+    },
+  });
+}
+
+async function deleteKnowledge(slug) {
+  closeOpenSwipeRow();
+  const idx = knowledgeState.entries.findIndex((e) => e.slug === slug);
+  const entry = idx === -1 ? null : knowledgeState.entries[idx];
+  if (!entry) return;
+  const wasActive = knowledgeState.activeSlug === slug;
+  await queueUndoableDelete({
+    key: `delete:knowledge:${slug}`,
+    ids: [`knowledge:${slug}`],
+    hide: () => removeKnowledgeLocally([slug]),
+    restore: () => restoreKnowledgeLocally([{ idx, entry }], { restoreSlug: wasActive ? slug : null }),
+    commit: async () => {
       const res = await adminFetch(`${shell.KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
-      if (!res.ok) continue;
-    } catch {
-      /* continue */
-    }
-  }
-  if (knowledgeState.activeSlug && slugSet.has(knowledgeState.activeSlug)) {
-    knowledgeState.activeSlug = null;
-    knowledgeState.dirty = false;
-  }
-  await loadKnowledgeTab();
-}
-
-async function deleteKnowledge(slug) {
-  closeOpenSwipeRow();
-  try {
-    const res = await adminFetch(`${shell.KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    knowledgeState.activeSlug = null;
-    knowledgeState.dirty = false;
-    await loadKnowledgeTab();
-  } catch (e) {
-    alert(`Failed to delete: ${e.message}`);
-  }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    },
+    onCommitError: (e) => {
+      alert(`Failed to delete: ${e.message}`);
+    },
+  });
 }
 
 

@@ -1,8 +1,11 @@
 /**
- * Shake-to-undo for reversible admin actions (e.g. dismissing a dashboard notification).
+ * Shake-to-undo for reversible admin actions (deletes, notification dismiss).
  *
  * Flow: optimistic UI → short undo window → commit. Shake (when motion is available)
  * or tapping Undo cancels the commit and runs the undo callback.
+ *
+ * Use queueUndoableDelete() for every user-initiated delete so the same Undo
+ * toast + shake path covers chats, email, and the other admin lists.
  *
  * iOS 13+ requires DeviceMotionEvent.requestPermission() from a user gesture; call
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
@@ -251,6 +254,82 @@ export function isShakeUndoPendingKey(key) {
 /** Commit immediately if something is pending (page hide / navigation). */
 export function flushShakeUndoCommit() {
   return flushPendingCommit();
+}
+
+/** Ids hidden during the undo window so a list refresh cannot resurrect them. */
+const hiddenUntilCommit = new Set();
+
+export function isHiddenUntilCommit(id) {
+  return hiddenUntilCommit.has(String(id || ''));
+}
+
+export function filterHiddenUntilCommit(items, getId) {
+  if (!hiddenUntilCommit.size || !Array.isArray(items)) return items;
+  return items.filter((item) => !hiddenUntilCommit.has(String(getId(item))));
+}
+
+function rememberHiddenIds(ids) {
+  for (const id of ids) hiddenUntilCommit.add(id);
+}
+
+function forgetHiddenIds(ids) {
+  for (const id of ids) hiddenUntilCommit.delete(id);
+}
+
+/**
+ * Optimistic delete: hide now, commit after the undo window, restore on Undo/shake.
+ * A new queue call commits any previous pending action first.
+ *
+ * @param {{
+ *   key: string,
+ *   ids?: Array<string|number>,
+ *   hide: () => void,
+ *   restore: () => (void|Promise<void>),
+ *   commit: () => (void|Promise<void>),
+ *   onCommitError?: (err: Error) => (void|Promise<void>),
+ * }} opts
+ */
+export async function queueUndoableDelete(opts) {
+  const key = String(opts?.key || '').trim();
+  const hide = opts?.hide;
+  const restore = opts?.restore;
+  const commit = opts?.commit;
+  const onCommitError = opts?.onCommitError;
+  if (!key || typeof hide !== 'function' || typeof restore !== 'function' || typeof commit !== 'function') {
+    return;
+  }
+  const ids = (Array.isArray(opts.ids) ? opts.ids : [])
+    .map((id) => String(id || '').trim())
+    .filter(Boolean);
+
+  rememberHiddenIds(ids);
+  try {
+    hide();
+  } catch (e) {
+    forgetHiddenIds(ids);
+    throw e;
+  }
+
+  void ensureShakePermission();
+
+  await queueShakeUndo({
+    key,
+    commit: async () => {
+      try {
+        await commit();
+      } catch (e) {
+        forgetHiddenIds(ids);
+        await restore();
+        if (typeof onCommitError === 'function') await onCommitError(e);
+        return;
+      }
+      forgetHiddenIds(ids);
+    },
+    undo: () => {
+      forgetHiddenIds(ids);
+      return restore();
+    },
+  });
 }
 
 if (typeof window !== 'undefined') {

@@ -36,7 +36,7 @@ import {
 } from './admin-ui.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260817c';
+import { clientState, clientMapController } from './clients-panel.js?v=20260824a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import {
   createDetailChrome,
@@ -52,6 +52,7 @@ import {
   projectFileMediaFilter,
   fetchMediaAsFile,
 } from './media-picker.js?v=20260813b';
+import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -3851,26 +3852,59 @@ async function saveWork(slug, payload) {
   }
 }
 
-async function bulkDeleteWork(slugs) {
-  if (!slugs.length) return;
-  closeOpenSwipeRow();
+function removeWorkLocally(slugs) {
   const slugSet = new Set(slugs);
-  for (const slug of slugs) {
-    try {
-      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      if (!res.ok) continue;
-    } catch {
-      /* continue */
-    }
-  }
+  workState.jobs = workState.jobs.filter((j) => !slugSet.has(j.slug));
   if (workState.activeSlug && slugSet.has(workState.activeSlug)) {
     closeWorkDetailPane();
   }
-  await loadWorkTab();
+  renderWorkEditor();
+}
+
+function restoreWorkLocally(snapshots, { restoreSlug = null } = {}) {
+  const have = new Set(workState.jobs.map((j) => j.slug));
+  const next = workState.jobs.slice();
+  for (const snap of snapshots) {
+    if (have.has(snap.job.slug)) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.job);
+    have.add(snap.job.slug);
+  }
+  workState.jobs = next;
+  renderWorkEditor();
+  if (restoreSlug) void openWork(restoreSlug);
+}
+
+async function bulkDeleteWork(slugs) {
+  if (!slugs.length) return;
+  closeOpenSwipeRow();
+  const unique = [...new Set(slugs.filter(Boolean))];
+  const snapshots = unique
+    .map((slug) => {
+      const idx = workState.jobs.findIndex((j) => j.slug === slug);
+      return idx === -1 ? null : { idx, job: workState.jobs[idx] };
+    })
+    .filter(Boolean);
+  if (!snapshots.length) return;
+  await queueUndoableDelete({
+    key: `delete:work:${unique.join(',')}`,
+    ids: unique.map((slug) => `work:${slug}`),
+    hide: () => removeWorkLocally(unique),
+    restore: () => restoreWorkLocally(snapshots),
+    commit: async () => {
+      for (const slug of unique) {
+        try {
+          const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+          if (!res.ok) continue;
+        } catch {
+          /* continue */
+        }
+      }
+    },
+  });
 }
 
 async function bulkArchiveWork(slugs) {
@@ -3929,19 +3963,28 @@ async function bulkArchiveWork(slugs) {
 
 async function deleteWork(slug) {
   closeOpenSwipeRow();
-  try {
-    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    closeWorkDetailPane();
-    await loadWorkTab();
-  } catch (e) {
-    alert(`Failed to delete: ${e.message}`);
-  }
+  const idx = workState.jobs.findIndex((j) => j.slug === slug);
+  const job = idx === -1 ? null : workState.jobs[idx];
+  if (!job) return;
+  const wasActive = workState.activeSlug === slug;
+  await queueUndoableDelete({
+    key: `delete:work:${slug}`,
+    ids: [`work:${slug}`],
+    hide: () => removeWorkLocally([slug]),
+    restore: () => restoreWorkLocally([{ idx, job }], { restoreSlug: wasActive ? slug : null }),
+    commit: async () => {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    },
+    onCommitError: (e) => {
+      alert(`Failed to delete: ${e.message}`);
+    },
+  });
 }
 
 async function archiveWork(jobOrSlug) {
@@ -4422,19 +4465,23 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       actions.appendChild(
         paneDeleteIcon({
           label: `Delete ${file.filename || 'file'}`,
-          onClick: async () => {
-            try {
-              const res = await fetch(file.url, { method: 'DELETE' });
-              const data = await res.json();
-              if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-              const listRes = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, {
-                cache: 'no-store',
-              });
-              const listData = await listRes.json();
-              renderFiles(listData.files || []);
-            } catch (e) {
-              alert(`Failed to delete: ${e.message}`);
-            }
+          onClick: () => {
+            const snapshot = file;
+            const prev = currentFiles.slice();
+            void queueUndoableDelete({
+              key: `delete:work-file:${snapshot.url}`,
+              ids: [`work-file:${snapshot.url}`],
+              hide: () => renderFiles(currentFiles.filter((f) => f.url !== snapshot.url)),
+              restore: () => renderFiles(prev),
+              commit: async () => {
+                const res = await fetch(snapshot.url, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+              },
+              onCommitError: (e) => {
+                alert(`Failed to delete: ${e.message}`);
+              },
+            });
           },
         }),
       );

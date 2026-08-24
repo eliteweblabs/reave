@@ -4,6 +4,7 @@
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260815a';
 import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260817a';
+import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 const MEDIA_API = '/api/admin/media';
 const ACCEPT =
@@ -410,11 +411,10 @@ async function uploadFiles(fileList) {
   }
 }
 
-async function deleteItem(id) {
+async function deleteItemRemote(id) {
   const res = await adminFetch(`${MEDIA_API}/${encodeURIComponent(id)}`, { method: 'DELETE' });
   const json = await readAdminJson(res);
   if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  state.items = state.items.filter((i) => i.id !== id);
 }
 
 function setDropActive(el, on) {
@@ -665,15 +665,34 @@ function bindPanelEvents(root) {
         const items = filteredItems();
         const idx = items.findIndex((i) => i.id === item.id);
         const neighbor = items[idx + 1] || items[idx - 1] || null;
-        await deleteItem(item.id);
-        if (neighbor) {
-          state.selectedId = neighbor.id;
-          state.detailOpen = true;
-        } else {
-          state.selectedId = null;
-          state.detailOpen = false;
-        }
-        renderAndBind();
+        const snapshot = item;
+        await queueUndoableDelete({
+          key: `delete:media:${item.id}`,
+          ids: [`media:${item.id}`],
+          hide: () => {
+            state.items = state.items.filter((i) => i.id !== item.id);
+            if (neighbor) {
+              state.selectedId = neighbor.id;
+              state.detailOpen = true;
+            } else {
+              state.selectedId = null;
+              state.detailOpen = false;
+            }
+            renderAndBind();
+          },
+          restore: () => {
+            if (!state.items.some((i) => i.id === snapshot.id)) {
+              state.items = [snapshot, ...state.items];
+            }
+            state.selectedId = snapshot.id;
+            state.detailOpen = true;
+            renderAndBind();
+          },
+          commit: () => deleteItemRemote(item.id),
+          onCommitError: async (e) => {
+            await osAlert({ title: 'Delete failed', bodyHtml: `<p>${escHtml(e.message || 'Please try again.')}</p>` });
+          },
+        });
       } catch (e) {
         await osAlert({ title: 'Delete failed', bodyHtml: `<p>${escHtml(e.message || 'Please try again.')}</p>` });
       }

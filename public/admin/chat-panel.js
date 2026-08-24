@@ -43,8 +43,9 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260815a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260820a';
-import { scheduleShareBookingUrl } from './schedule-panel.js?v=20260812b';
+import { queueUndoableDelete, filterHiddenUntilCommit } from './shake-undo.js?v=20260824a';
+import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260824a';
+import { scheduleShareBookingUrl } from './schedule-panel.js?v=20260824a';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260810a';
 
@@ -1215,7 +1216,7 @@ async function fetchChatThreads() {
   if (!archivedRes.ok) throw new Error(archivedData.error || `HTTP ${archivedRes.status}`);
   const active = (activeData.threads || []).map((t) => ({ ...t, archived: false }));
   const archived = (archivedData.threads || []).map((t) => ({ ...t, archived: true }));
-  return sortChatThreads([...active, ...archived]);
+  return filterHiddenUntilCommit(sortChatThreads([...active, ...archived]), (t) => `chat:${t.id}`);
 }
 
 function getChatPanel() { return document.getElementById('chat-panel'); }
@@ -2165,22 +2166,17 @@ async function openChat(id, opts = {}) {
   }
 }
 
-async function bulkDeleteChats(ids) {
-  if (!ids.length) return;
-  closeOpenSwipeRow();
+async function requestDeleteChat(id) {
+  const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  if (res.status !== 404) await readApiJson(res);
+}
+
+function removeChatsLocally(ids) {
   const idSet = new Set(ids);
-  for (const id of ids) {
-    try {
-      const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-      if (res.status !== 404) await readApiJson(res);
-    } catch {
-      /* continue with remaining */
-    }
-  }
   chatState.threads = chatState.threads.filter((t) => !idSet.has(t.id));
   if (chatState.activeId && idSet.has(chatState.activeId)) {
     chatState.activeId = null;
@@ -2193,6 +2189,46 @@ async function bulkDeleteChats(ids) {
     getChatPanel()?.classList.remove('ch-pane-active');
   }
   renderChatPanel();
+}
+
+function restoreChatsLocally(snapshots) {
+  const have = new Set(chatState.threads.map((t) => t.id));
+  const next = chatState.threads.slice();
+  for (const snap of snapshots) {
+    if (have.has(snap.thread.id)) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.thread);
+    have.add(snap.thread.id);
+  }
+  chatState.threads = sortChatThreads(next);
+  renderChatPanel();
+}
+
+async function bulkDeleteChats(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const unique = [...new Set(ids.filter(Boolean))];
+  const snapshots = unique
+    .map((id) => {
+      const idx = chatState.threads.findIndex((t) => t.id === id);
+      return idx === -1 ? null : { idx, thread: chatState.threads[idx] };
+    })
+    .filter(Boolean);
+  if (!snapshots.length) return;
+  await queueUndoableDelete({
+    key: `delete:chats:${unique.join(',')}`,
+    ids: unique.map((id) => `chat:${id}`),
+    hide: () => removeChatsLocally(unique),
+    restore: () => restoreChatsLocally(snapshots),
+    commit: async () => {
+      for (const id of unique) {
+        try {
+          await requestDeleteChat(id);
+        } catch {
+          /* continue with remaining */
+        }
+      }
+    },
+  });
 }
 
 async function bulkArchiveChats(ids) {
@@ -2228,26 +2264,23 @@ async function bulkArchiveChats(ids) {
 
 async function deleteChat(id) {
   if (!id) return;
-  try {
-    const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (res.status !== 404) await readApiJson(res);
-    chatState.threads = chatState.threads.filter((t) => t.id !== id);
-    if (chatState.activeId === id) {
-      chatState.activeId = null;
-      chatState.messages = [];
-      chatState.title = '';
-      if (chatState.disposableChatId === id) chatState.disposableChatId = null;
-      clearChatLastActiveId();
-      getChatPanel()?.classList.remove('ch-pane-active');
-    }
-    renderChatPanel();
-  } catch (e) {
-    shell.osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
-  }
+  const idx = chatState.threads.findIndex((t) => t.id === id);
+  const thread = idx === -1 ? null : chatState.threads[idx];
+  if (!thread) return;
+  const wasActive = chatState.activeId === id;
+  await queueUndoableDelete({
+    key: `delete:chat:${id}`,
+    ids: [`chat:${id}`],
+    hide: () => removeChatsLocally([id]),
+    restore: () => {
+      restoreChatsLocally([{ idx, thread }]);
+      if (wasActive) void openChat(id, { force: true });
+    },
+    commit: () => requestDeleteChat(id),
+    onCommitError: (e) => {
+      shell.osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+    },
+  });
 }
 
 async function archiveChat(t) {

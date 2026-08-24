@@ -141,7 +141,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260820a';
+} from './work-panel.js?v=20260824a';
 import {
   initTodoPanel,
   todoState,
@@ -154,17 +154,17 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260810a';
+} from './todo-panel.js?v=20260824a';
 import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260816a';
+} from './documents-panel.js?v=20260824a';
 import {
   initKnowledgePanel,
   knowledgeState,
   loadKnowledgeTab,
-} from './knowledge-panel.js?v=20260820a';
+} from './knowledge-panel.js?v=20260824a';
 import {
   initSchedulePanel,
   scheduleState,
@@ -183,7 +183,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260821c';
+} from './schedule-panel.js?v=20260824a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -196,14 +196,16 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260820c';
+} from './clients-panel.js?v=20260824a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
   isShakeUndoPendingKey,
   pendingShakeUndoKey,
   queueShakeUndo,
-} from './shake-undo.js?v=20260820b';
+  queueUndoableDelete,
+  filterHiddenUntilCommit,
+} from './shake-undo.js?v=20260824a';
 import {
   initChatPanel,
   chatState,
@@ -236,7 +238,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260810a';
+} from './chat-panel.js?v=20260824a';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -246,7 +248,7 @@ import {
   getCreateDrawerPane,
   mountCreateDrawerChrome,
   setCreateDrawerSubmit,
-} from './create-drawer.js?v=20260728q';
+} from './create-drawer.js?v=20260824a';
 import {
   initInsightsPanels,
   loadSocialTab,
@@ -262,7 +264,7 @@ import {
   openRulesLabWithEmail,
   openRulesLabWithRule,
   startNewRule,
-} from './rules-panel.js?v=20260824b';
+} from './rules-panel.js?v=20260824c';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -274,7 +276,7 @@ import {
 import {
   initMediaPanel,
   loadMediaTab,
-} from './media-panel.js?v=20260817a';
+} from './media-panel.js?v=20260824a';
 import {
   initModulesPanel,
   loadModulesTab,
@@ -12234,31 +12236,87 @@ async function markEmailJunk(ev) {
   }
 }
 
+async function requestBulkDeleteEmails(ids) {
+  const res = await fetch('/api/email/inbox/bulk-delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  return readApiJson(res);
+}
+
+function snapshotEmailsById(ids) {
+  return ids
+    .map((id) => {
+      const idx = emailState.allEvents.findIndex((e) => e.id === id);
+      return idx === -1 ? null : { idx, ev: emailState.allEvents[idx] };
+    })
+    .filter(Boolean);
+}
+
+function removeEmailsLocally(events, { pickAdjacent = false } = {}) {
+  const idSet = new Set(events.map((ev) => ev.id));
+  const wasActive = emailState.activeId && idSet.has(emailState.activeId);
+  const nextId =
+    pickAdjacent && wasActive && events.length === 1
+      ? adjacentEmailIdAfterRemove(events[0].id)
+      : null;
+  emailState.allEvents = emailState.allEvents.filter((e) => !idSet.has(e.id));
+  for (const ev of events) removeEmailRelatedAlertBanners(ev.id);
+  if (wasActive) {
+    if (nextId && emailState.allEvents.some((e) => e.id === nextId)) {
+      emailState.activeId = nextId;
+      queueEmailSeen(nextId);
+    } else {
+      emailState.activeId = null;
+    }
+  }
+  renderEmailPanel();
+  syncInboxAppBadge(emailState.allEvents);
+}
+
+function restoreEmailsLocally(snapshots, { restoreActiveId = null } = {}) {
+  const have = new Set(emailState.allEvents.map((e) => e.id));
+  const next = emailState.allEvents.slice();
+  for (const snap of snapshots) {
+    if (have.has(snap.ev.id)) continue;
+    next.splice(Math.min(snap.idx, next.length), 0, snap.ev);
+    have.add(snap.ev.id);
+  }
+  emailState.allEvents = next;
+  if (restoreActiveId && emailState.allEvents.some((e) => e.id === restoreActiveId)) {
+    emailState.activeId = restoreActiveId;
+  }
+  renderEmailPanel();
+  syncInboxAppBadge(emailState.allEvents);
+}
+
 async function bulkDeleteEmails(ids) {
   if (!ids.length) return;
   closeOpenSwipeRow();
-  const idSet = new Set(ids);
-  try {
-    const res = await fetch('/api/email/inbox/bulk-delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    });
-    const data = await readApiJson(res);
-    emailState.allEvents = emailState.allEvents.filter((e) => !idSet.has(e.id));
-    for (const id of ids) removeEmailRelatedAlertBanners(id);
-    if (emailState.activeId && idSet.has(emailState.activeId)) emailState.activeId = null;
-    renderEmailPanel();
-    syncInboxAppBadge(emailState.allEvents);
-    if (data.deleted < ids.length) {
-      osAlert({
-        title: 'Partial delete',
-        bodyHtml: `<p>Removed ${data.deleted} of ${ids.length} messages. Reload to sync.</p>`,
-      });
-    }
-  } catch (e) {
-    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
-  }
+  const unique = [...new Set(ids.filter(Boolean))];
+  const snapshots = snapshotEmailsById(unique);
+  if (!snapshots.length) return;
+  const events = snapshots.map((s) => s.ev);
+  const wasActive = emailState.activeId && unique.includes(emailState.activeId) ? emailState.activeId : null;
+  await queueUndoableDelete({
+    key: `delete:emails:${unique.join(',')}`,
+    ids: unique.map((id) => `email:${id}`),
+    hide: () => removeEmailsLocally(events),
+    restore: () => restoreEmailsLocally(snapshots, { restoreActiveId: wasActive }),
+    commit: async () => {
+      const data = await requestBulkDeleteEmails(unique);
+      if (data.deleted < unique.length) {
+        osAlert({
+          title: 'Partial delete',
+          bodyHtml: `<p>Removed ${data.deleted} of ${unique.length} messages. Reload to sync.</p>`,
+        });
+      }
+    },
+    onCommitError: (e) => {
+      osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+    },
+  });
 }
 
 async function bulkArchiveEmails(ids) {
@@ -12546,31 +12604,28 @@ function adjacentEmailIdAfterRemove(id) {
 }
 
 async function deleteEmail(ev) {
+  if (!ev?.id) return;
   closeOpenSwipeRow();
-  const wasActive = emailState.activeId === ev.id;
-  const nextId = wasActive ? adjacentEmailIdAfterRemove(ev.id) : null;
-  try {
-    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    await readApiJson(res);
-    emailState.allEvents = emailState.allEvents.filter((e) => e.id !== ev.id);
-    removeEmailRelatedAlertBanners(ev.id);
-    if (wasActive) {
-      if (nextId && emailState.allEvents.some((e) => e.id === nextId)) {
-        emailState.activeId = nextId;
-        queueEmailSeen(nextId);
-      } else {
-        emailState.activeId = null;
-      }
-    }
-    renderEmailPanel();
-    syncInboxAppBadge(emailState.allEvents);
-  } catch (e) {
-    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
-  }
+  const snapshots = snapshotEmailsById([ev.id]);
+  const snapshot = snapshots[0] || { idx: emailState.allEvents.length, ev };
+  const wasActive = emailState.activeId === ev.id ? ev.id : null;
+  await queueUndoableDelete({
+    key: `delete:email:${ev.id}`,
+    ids: [`email:${ev.id}`],
+    hide: () => removeEmailsLocally([snapshot.ev], { pickAdjacent: true }),
+    restore: () => restoreEmailsLocally([snapshot], { restoreActiveId: wasActive }),
+    commit: async () => {
+      const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      await readApiJson(res);
+    },
+    onCommitError: (e) => {
+      osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+    },
+  });
 }
 
 async function bulkDeleteInboxCategory(tab) {
@@ -12578,30 +12633,7 @@ async function bulkDeleteInboxCategory(tab) {
   const events = inboxEventsForFilter();
   const count = events.length;
   if (count === 0 || tab.id === 'all') return;
-
-  const ids = events.map((ev) => ev.id);
-  const idSet = new Set(ids);
-  try {
-    const res = await fetch('/api/email/inbox/bulk-delete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    });
-    const data = await readApiJson(res);
-    emailState.allEvents = emailState.allEvents.filter((e) => !idSet.has(e.id));
-    for (const id of ids) removeEmailRelatedAlertBanners(id);
-    if (emailState.activeId && idSet.has(emailState.activeId)) emailState.activeId = null;
-    renderEmailPanel();
-    syncInboxAppBadge(emailState.allEvents);
-    if (data.deleted < ids.length) {
-      osAlert({
-        title: 'Partial delete',
-        bodyHtml: `<p>Removed ${data.deleted} of ${ids.length} messages. Reload to sync.</p>`,
-      });
-    }
-  } catch (e) {
-    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
-  }
+  await bulkDeleteEmails(events.map((ev) => ev.id));
 }
 
 function isEmailUnseen(ev) {
@@ -12937,7 +12969,7 @@ async function loadEmailTab(quiet) {
     ]);
     const data = await readAdminJson(inboxRes, 'Inbox');
     if (!inboxRes.ok) throw new Error(data.error || `HTTP ${inboxRes.status}`);
-    emailState.allEvents = data.events || [];
+    emailState.allEvents = filterHiddenUntilCommit(data.events || [], (e) => `email:${e.id}`);
     for (const id of pendingSeenIds) {
       const ev = emailState.allEvents.find((e) => e.id === id);
       if (ev && !ev.seenAt) ev.seenAt = new Date().toISOString();
