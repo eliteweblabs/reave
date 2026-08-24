@@ -282,7 +282,7 @@ import {
   loadModulesTab,
   teardownModulesPanel,
   parseModuleDeepLinkFromUrl,
-} from './modules-panel.js?v=20260824f';
+} from './modules-panel.js?v=20260824g';
 import {
   initAddonsPanel,
   loadAddonsTab,

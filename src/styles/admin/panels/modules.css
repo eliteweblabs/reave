@@ -38,7 +38,7 @@
 .mod-list-item {
   position: relative;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.45rem;
 }
 .mod-list-item:has(.mod-sheet-badge) {
@@ -46,11 +46,12 @@
 }
 .mod-sheet-badge {
   position: absolute;
-  top: 0.4rem;
+  top: 50%;
   right: 0.4rem;
   display: inline-flex;
   color: var(--muted);
   pointer-events: none;
+  transform: translateY(-50%);
 }
 .mod-sheet-badge svg {
   display: block;
@@ -86,27 +87,10 @@
 .mod-tone-other { --mod-icon-accent: var(--mod-tone-other); }
 .mod-tone-internal { --mod-icon-accent: var(--mod-tone-internal); }
 
-.mod-chip {
-  flex-shrink: 0;
-  display: inline-block;
-  padding: 0.12rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  white-space: nowrap;
-  color: var(--mod-chip-accent, var(--muted));
-  background: color-mix(in srgb, var(--mod-chip-accent, var(--muted)) 14%, transparent);
+#modules-panel .mod-list-item .ch-item-title {
+  color: var(--fg);
+  font-size: 0.82rem;
 }
-
-.mod-chip--core { --mod-chip-accent: var(--mod-tone-core); }
-.mod-chip--work { --mod-chip-accent: var(--mod-tone-work); }
-.mod-chip--workspace { --mod-chip-accent: var(--mod-tone-workspace); }
-.mod-chip--hosting { --mod-chip-accent: var(--mod-tone-hosting); }
-.mod-chip--social { --mod-chip-accent: var(--mod-tone-social); }
-.mod-chip--commerce { --mod-chip-accent: var(--mod-tone-commerce); }
-.mod-chip--web { --mod-chip-accent: var(--mod-tone-web); }
-.mod-chip--other { --mod-chip-accent: var(--mod-tone-other); }
-.mod-chip--internal { --mod-chip-accent: var(--mod-tone-internal); }
 
 .mod-detail-scroll {
   flex: 1;

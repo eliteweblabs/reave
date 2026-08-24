@@ -263,14 +263,6 @@ function renderFilterTabs(savedScrollLeft = 0) {
   });
 }
 
-function itemSubline(item) {
-  const bits = [];
-  if (item.feature) bits.push(item.feature);
-  if (item.priceLabel) bits.push(item.priceLabel);
-  else if (item.deploy?.price?.label) bits.push(item.deploy.price.label);
-  return bits.join(' · ') || '—';
-}
-
 function syncSaleSheetBadge(item) {
   const btn = rootEl()?.querySelector(`.mod-list-item[data-key="${CSS.escape(itemKey(item))}"]`);
   if (!btn) return;
@@ -299,11 +291,7 @@ function createListItem(item) {
   btn.innerHTML =
     `<span class="mod-list-icon mod-tone-${meta.tone}" aria-hidden="true">${iosIcon(meta.icon, 16)}</span>` +
     `<span class="ch-list-content">` +
-    `<span class="em-item-row em-item-header">` +
-    `<span class="em-status mod-chip mod-chip--${meta.tone}">${escHtml(meta.short)}</span>` +
-    `<span class="em-item-from">${escHtml(item.label || item.feature)}</span>` +
-    `</span>` +
-    `<span class="em-item-summary">${escHtml(itemSubline(item))}</span>` +
+    `<span class="ch-item-title">${escHtml(item.label || item.feature)}</span>` +
     `</span>` +
     (item.saleSheet
       ? `<span class="mod-sheet-badge" title="On the sale sheet" aria-label="On the sale sheet">${iosIcon('file-text', 14)}</span>`
