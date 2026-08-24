@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260824a — OTP tap opens /admin/copy unless a copy-capable window is already focused. */
+   v20260824b — OTP tap always opens /admin/copy so the gesture can write the clipboard. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -118,42 +118,40 @@ function clientCanCopyOtp(client) {
   }
 }
 
-/** Copy the OTP — never open the inbox or a sign-in URL. */
+/**
+ * Copy the OTP — never open the inbox or a sign-in URL.
+ * The SW cannot write the clipboard. The notification tap's user activation
+ * only reaches a document opened (or navigated) from this click, so always
+ * open /admin/copy first — do not await other work before openWindow.
+ */
 async function deliverOtpCopy(opts) {
   const code = String(opts.code || '').trim();
-  if (!code) return;
   const emailId = opts.emailId ? String(opts.emailId) : '';
   const alertId = opts.alertId ? String(opts.alertId) : '';
   const message = { type: 'reave-otp-copy', code, emailId, alertId };
-
-  await stashPendingOtpCopy({ code, emailId, alertId });
-
-  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-  let alreadyFocused = false;
-  for (const client of clients) {
-    if (!clientCanCopyOtp(client)) continue;
-    client.postMessage(message);
-    if (client.focused) alreadyFocused = true;
-  }
-
-  // Only skip the copy page when the user is already looking at admin/copy.
-  // Calling focus() on a background PWA used to count as success, which ate
-  // the notification gesture and left iOS with an empty clipboard.
-  if (alreadyFocused) return;
+  const copyUrl = otpCopyPageUrl(code);
 
   let opened = null;
   if (self.clients.openWindow) {
     try {
-      opened = await self.clients.openWindow(otpCopyPageUrl(code));
+      opened = await self.clients.openWindow(copyUrl);
     } catch {
       opened = null;
     }
+  }
+
+  if (code) await stashPendingOtpCopy({ code, emailId, alertId });
+
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  for (const client of clients) {
+    if (!clientCanCopyOtp(client)) continue;
+    client.postMessage(message);
   }
   if (opened) {
     try {
       opened.postMessage(message);
     } catch {
-      /* page reads the stash / hash on boot */
+      /* page copies from the hash / stash on boot */
     }
     return;
   }

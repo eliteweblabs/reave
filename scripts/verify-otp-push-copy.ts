@@ -44,24 +44,18 @@ function extractOtpCodeFromPushText(text: string): string {
 
 {
   const sw = readFileSync(join(root, 'public/admin/sw.js'), 'utf8');
-  assert.match(sw, /if \(client\.focused\) alreadyFocused = true/);
-  assert.match(sw, /openWindow\(otpCopyPageUrl\(code\)\)/);
-  assert.doesNotMatch(
-    sw,
-    /Desktop PWA is usually already open — a second openWindow steals/,
-  );
-  console.log('ok — service worker opens /admin/copy unless a copy window is already focused');
+  assert.match(sw, /opened = await self\.clients\.openWindow\(copyUrl\)/);
+  assert.match(sw, /The SW cannot write the clipboard/);
+  assert.doesNotMatch(sw, /alreadyFocused/);
+  console.log('ok — service worker always opens /admin/copy on OTP tap');
 }
 
 {
   const copyPage = readFileSync(join(root, 'src/pages/admin/copy.astro'), 'utf8');
-  assert.match(copyPage, /var code = codeFromHash\(\);/);
-  assert.match(copyPage, /await copyNow\(code\)/);
-  assert.doesNotMatch(
-    copyPage,
-    /show\(code, 'Tap Copy code, then paste on this phone or your laptop\.', false\);/,
-  );
-  console.log('ok — /admin/copy auto-copies from the notification hash');
+  assert.match(copyPage, /var launchCode = codeFromHash\(\);/);
+  assert.match(copyPage, /launchCopied = fallbackCopy\(launchCode\)/);
+  assert.match(copyPage, /document\.execCommand\('copy'\)/);
+  console.log('ok — /admin/copy copies synchronously from the notification hash');
 }
 
 console.log('otp push copy checks passed');

@@ -58,12 +58,13 @@ const appName = company.name || "Business OS";
           }
         }
 
+        /** Sync copy — must run before any await so the notification tap still counts. */
         function fallbackCopy(text) {
           var ta = document.createElement('textarea');
           ta.value = text;
           ta.setAttribute('readonly', '');
-          ta.style.position = 'fixed';
-          ta.style.left = '-9999px';
+          ta.setAttribute('aria-hidden', 'true');
+          ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0.01;border:0;padding:0';
           document.body.appendChild(ta);
           ta.focus();
           ta.select();
@@ -88,28 +89,23 @@ const appName = company.name || "Business OS";
         }
 
         async function writeClipboard(text, fromButton) {
-          var wrote = false;
-          try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              wrote = (await withTimeout(
-                navigator.clipboard.writeText(text).then(function () { return true; }),
-                800,
-                false,
-              )) === true;
+          var wrote = fallbackCopy(text);
+          if (!wrote) {
+            try {
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                wrote = (await withTimeout(
+                  navigator.clipboard.writeText(text).then(function () { return true; }),
+                  800,
+                  false,
+                )) === true;
+              }
+            } catch (e) {
+              wrote = false;
             }
-          } catch (e) {
-            wrote = false;
           }
-          if (!wrote) wrote = fallbackCopy(text);
           if (!wrote) return false;
           if (fromButton) return true;
-          if (!navigator.clipboard || !navigator.clipboard.readText) return false;
-          try {
-            var current = await withTimeout(navigator.clipboard.readText(), 400, null);
-            return current === text;
-          } catch (e) {
-            return false;
-          }
+          return wrote;
         }
 
         async function codeFromStash() {
@@ -136,26 +132,36 @@ const appName = company.name || "Business OS";
             show('', 'Nothing to copy', false);
             return false;
           }
+          var ok = fallbackCopy(code);
+          if (ok) {
+            show(code, 'Copied — paste anywhere, including your laptop', true);
+            return true;
+          }
           show(code, fromButton ? 'Copying…' : 'Tap Copy code', false);
-          var ok = await writeClipboard(code, fromButton);
+          ok = await writeClipboard(code, fromButton);
           show(code, ok ? 'Copied — paste anywhere, including your laptop' : 'Tap Copy code', ok);
           return ok;
         }
 
-        async function boot() {
-          // Hash is sync — copy before any await so the notification click
-          // still counts as a user gesture for clipboard.writeText.
-          var code = codeFromHash();
-          if (code) {
-            await copyNow(code);
-            return;
-          }
-          code = await codeFromStash();
+        async function bootFromStash() {
+          var code = await codeFromStash();
           if (!code) {
-            show('', 'No code waiting', false);
+            if (!codeFromHash()) show('', 'No code waiting', false);
             return;
           }
           await copyNow(code);
+        }
+
+        // Copy in this same turn — any await above would drop the notification gesture.
+        var launchCode = codeFromHash();
+        var launchCopied = false;
+        if (launchCode) {
+          launchCopied = fallbackCopy(launchCode);
+          show(
+            launchCode,
+            launchCopied ? 'Copied — paste anywhere, including your laptop' : 'Tap Copy code',
+            launchCopied,
+          );
         }
 
         if (btn) {
@@ -177,7 +183,7 @@ const appName = company.name || "Business OS";
           });
         }
 
-        void boot();
+        if (!launchCopied) void (launchCode ? copyNow(launchCode) : bootFromStash());
       })();
     </script>
     <style>
