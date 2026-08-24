@@ -627,7 +627,7 @@ await test('sales sheet footer gets the portal audit disclaimer', () => {
 
 await test('front footer is page 1 of 2 after fill', () => {
   const filled = fillAuditOnePager(landscape, DUMMY_SALES_SHEET);
-  assert.match(filled, /Page 1 of 2/);
+  assert.doesNotMatch(filled, /Confidential sample/);
   assert.doesNotMatch(filled, /Page 1 of 1/);
 });
 
@@ -1043,7 +1043,8 @@ await test('front exhibits are four phones with captions and no next steps', () 
   assert.match(html, /ss-exhibit-kicker">Site Speed</);
   assert.match(html, /ss-exhibit-kicker">SEO Fundamentals</);
   assert.doesNotMatch(html, /1 · |2 · |3 · |4 · /);
-  assert.match(html, /Overall C \(64\)/);
+  assert.doesNotMatch(html, /ss-front-snap/);
+  assert.doesNotMatch(html, /Overall C \(64\)/);
   assert.doesNotMatch(html, /Next steps/);
   assert.doesNotMatch(html, /Compress images and defer/);
 });
@@ -1150,7 +1151,7 @@ await test('header hero is the audit lede with the overall-grade ring on the lef
   });
   assert.match(hero, /ss-hero/);
   assert.match(hero, /ss-hero-ring/);
-  assert.match(hero, /Overall grade/);
+  assert.doesNotMatch(hero, /Overall grade/);
   assert.match(hero, />C</);
   assert.match(hero, /64/);
   assert.match(hero, /#b8860b/);
@@ -1209,6 +1210,7 @@ await test('security exhibit is a header scan, not a Safari warning', () => {
     { website: 'calareneesalon.com' },
   );
   assert.match(phone, /data-ss-exhibit="security-headers"/);
+  assert.match(phone, /ss-safari/);
   assert.match(phone, /ss-phone-lock--ok/);
   assert.match(phone, /Header scan/);
   assert.match(phone, /calareneesalon\.com/);
@@ -1216,6 +1218,8 @@ await test('security exhibit is a header scan, not a Safari warning', () => {
   assert.match(phone, /Content-Security-Policy/);
   assert.match(phone, /X-Frame-Options/);
   assert.match(phone, /Visitors will not see a warning/);
+  assert.ok(phone.indexOf('ss-hdr-card') < phone.indexOf('ss-safari'));
+  assert.doesNotMatch(phone, /ss-phone-chrome/);
   assert.doesNotMatch(phone, /This Connection Is Not Private/);
   assert.doesNotMatch(phone, /iCloud Private Relay/);
   assert.doesNotMatch(phone, /Show IP Address/);
@@ -1309,6 +1313,8 @@ await test('QR sits in the top-right without caption, title, or date', () => {
   assert.match(qr, /\.doc-onepager-mast \{[\s\S]*flex: 0 0 auto/);
   assert.match(qr, /border-bottom: none/);
   assert.match(qr, /border-top: none/);
+  assert.match(qr, /\.doc-onepager-footer > p \{ display: none; \}/);
+  assert.doesNotMatch(qr, /Confidential sample/);
   const injected = injectAuditQrIntoHeader(
     '<header><div class="doc-onepager-mast"><h1>Website Audit</h1></div></header>',
     qr,

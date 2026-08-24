@@ -344,6 +344,7 @@ export function renderSalesSheetQrHtml(dataUrl: string, href: string): string {
 .doc-onepager-footer {
   border-top: none;
 }
+.doc-onepager-footer > p { display: none; }
 .doc-onepager-cols { gap: 0 2.8%; }
 .doc-onepager-col + .doc-onepager-col { padding-left: 2.8%; }
 .doc-onepager-title,

@@ -517,8 +517,12 @@ export async function renderPrintOnePagerHtml(
   const columnsHtml = await Promise.all(
     parsed.columns.map((col) => (col ? renderDocumentMarkdown(col) : Promise.resolve(''))),
   );
-  const footerSource = parsed.footer || 'Confidential sample · not for distribution';
-  const footerHtml = await renderDocumentMarkdown(footerSource);
+  const footerSource = parsed.footer;
+  const footerHtml = footerSource
+    ? await renderDocumentMarkdown(footerSource)
+    : slug.includes('audit-onepager')
+      ? ''
+      : await renderDocumentMarkdown('Confidential sample · not for distribution');
   const today = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',

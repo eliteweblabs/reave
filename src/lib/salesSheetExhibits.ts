@@ -374,12 +374,66 @@ function iphoneCss(): string {
 }
 .ss-phone-icon--danger { background: #ffe5e3; color: #c62828; }
 .ss-phone-icon--alert { background: #fff3cd; color: #8a6d1b; }
+.ss-hdr-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .ss-phone-body.ss-hdr {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0 7px 8%;
+  padding: 0 7px 6px;
+}
+.ss-safari {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  padding: 7px 8px 11%;
+  background: linear-gradient(#ececf1, #d8d8de);
+}
+.ss-safari-round {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  color: #3a3a3c;
+  display: grid;
+  place-items: center;
+}
+.ss-safari-round svg { width: 8px; height: 8px; display: block; }
+.ss-safari-url {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 6px;
+  background: #d1d1d6;
+  border-radius: 999px;
+  color: #1d1d1f;
+  font-size: 7px;
+  font-weight: 600;
+}
+.ss-safari-url em {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+  text-align: center;
+}
+.ss-safari-url svg { flex: 0 0 auto; width: 7px; height: 7px; color: #6e6e73; }
+.ss-safari-url .ss-phone-lock {
+  width: 7px;
+  height: 7px;
+  margin: 0;
 }
 .ss-hdr-card {
   flex: 1 1 auto;
@@ -978,8 +1032,19 @@ function chromeBar(host: string, insecure = true): string {
   }<span class="ss-phone-host">${escapeHtml(host)}</span></div>`;
 }
 
-function secureChromeBar(host: string): string {
-  return `<div class="ss-phone-chrome"><span class="ss-phone-lock ss-phone-lock--ok" aria-hidden="true"></span><span class="ss-phone-host">${escapeHtml(host)}</span></div>`;
+function safariBar(host: string, opts: { lock?: boolean } = {}): string {
+  const lock = opts.lock
+    ? `<span class="ss-phone-lock ss-phone-lock--ok" aria-hidden="true"></span>`
+    : '';
+  return `<div class="ss-safari">
+    <span class="ss-safari-round" aria-hidden="true"><!-- IOS_ICONS.chevron-left — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></span>
+    <div class="ss-safari-url">
+      ${lock}<em>${escapeHtml(host)}</em>
+      <!-- IOS_ICONS.refresh — keep in sync with public/admin/admin-ui.js -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+    </div>
+    <span class="ss-safari-round" aria-hidden="true"><!-- IOS_ICONS.more — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
+  </div>`;
 }
 
 function sslScreen(host: string, finding: SalesSheetFinding): string {
@@ -1167,7 +1232,7 @@ function securityHeadersScreen(host: string): string {
     ([name, status]) =>
       `<li class="ss-hdr-row"><span>${escapeHtml(name)}</span><em>${escapeHtml(status)}</em></li>`,
   ).join('');
-  return `${secureChromeBar(host)}
+  return `<div class="ss-hdr-screen">
     <div class="ss-phone-body ss-hdr">
       <div class="ss-hdr-card">
         <p class="ss-hdr-kicker">Header scan</p>
@@ -1176,7 +1241,9 @@ function securityHeadersScreen(host: string): string {
         <ul class="ss-hdr-list">${rows}</ul>
         <p class="ss-hdr-note">Certificate is valid. Visitors will not see a warning.</p>
       </div>
-    </div>`;
+    </div>
+    ${safariBar(host, { lock: true })}
+  </div>`;
 }
 
 function genericScreen(host: string, finding: SalesSheetFinding): string {
@@ -1233,12 +1300,6 @@ export function renderFindingPhoneHtml(finding: SalesSheetFinding, opts: SalesSh
     alt: `${finding.categoryLabel} on ${host}`,
     kind,
   });
-}
-
-function formatGrade(grade: LetterGrade | null, score?: number | null): string {
-  if (!grade) return '—';
-  if (score != null && Number.isFinite(score)) return `${grade} (${score})`;
-  return grade;
 }
 
 function gradeClass(grade: LetterGrade | null | undefined): string {
@@ -1393,14 +1454,6 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 .ss-hero-grade.g-c { color: #b8860b; }
 .ss-hero-grade.g-d { color: #c05621; }
 .ss-hero-grade.g-f, .ss-hero-grade.g-na { color: #b42318; }
-.ss-hero-ring-cap {
-  margin: 2px 0 0;
-  font-size: 6px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #6b6b6b;
-}
 .ss-hero-copy {
   flex: 1 1 auto;
   min-width: 0;
@@ -1457,7 +1510,6 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
       ${scoreLine}
       <span class="ss-hero-grade g-${g}">${escapeHtml(grade || '—')}</span>
     </div>
-    <div class="ss-hero-ring-cap">Overall grade</div>
   </div>
   <div class="ss-hero-copy">
     ${headline ? `<p class="ss-hero-h">${escapeHtml(headline)}</p>` : ''}
@@ -1548,7 +1600,6 @@ export function renderSalesSheetFrontExhibitsHtml(opts: {
 </article>`;
     })
     .join('');
-  const snap = opts.snapshot;
   return `
 <style>
 ${iphoneCss()}
@@ -1595,13 +1646,6 @@ ${iphoneCss()}
   line-height: 1.35;
   color: #1d1d1f;
 }
-.ss-front-snap {
-  margin: 0;
-  padding-top: 0.35em;
-  font-size: clamp(8px, 1.1cqi, 10px);
-  color: #6b6b6b;
-}
-.ss-front-snap strong { color: #141414; font-weight: 700; }
 .doc-onepager-cols:has(.ss-front) {
   grid-template-columns: 1fr;
   gap: 0;
@@ -1618,13 +1662,6 @@ ${iphoneCss()}
 </style>
 <div class="ss-front">
   <div class="ss-exhibits">${cells}</div>
-  <p class="ss-front-snap">
-    <strong>Snapshot</strong>
-    · Overall ${escapeHtml(formatGrade(snap.overall, snap.overallScore))}
-    · Performance ${escapeHtml(formatGrade(snap.performance))}
-    · Security ${escapeHtml(formatGrade(snap.security))}
-    · Visibility ${escapeHtml(formatGrade(snap.visibility))}
-  </p>
 </div>`.trim();
 }
 
