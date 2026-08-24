@@ -983,7 +983,10 @@ function secureChromeBar(host: string): string {
 }
 
 function sslScreen(host: string, finding: SalesSheetFinding): string {
-  const expired = finding.id === 'ssl-expired' || /expir/i.test(finding.categoryLabel);
+  const expired =
+    finding.id === 'ssl-expired' ||
+    /expir/i.test(finding.categoryLabel) ||
+    /expir/i.test(finding.problem || '');
   const title = expired ? 'Your connection is not private' : 'Your connection is not private';
   const err = expired ? 'NET::ERR_CERT_DATE_INVALID' : 'NET::ERR_CERT_AUTHORITY_INVALID';
   return `${chromeBar(host)}

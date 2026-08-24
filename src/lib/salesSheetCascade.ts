@@ -77,6 +77,18 @@ function named(ctx: ResolvedCascadeContext): string {
   return ctx.name || 'This business';
 }
 
+const SSL_EXPIRED_RE = /certificate has expired|ssl expir|expired (?:ssl|certificate)/;
+const SSL_MISSING_RE =
+  /\bnot secure\b|may not be safe|no ssl\b|missing ssl|tls inspection failed|http,? not https|http only|\bnot https\b|no certificate|lacks? (?:an? )?ssl|without ssl|unencrypted|(?:update|fix|missing|invalid|no).{0,40}security certificate/;
+
+function sslFindingExpired(ctx: ResolvedCascadeContext): boolean {
+  return SSL_EXPIRED_RE.test(ctx.lower);
+}
+
+function sslFindingMatch(ctx: ResolvedCascadeContext): boolean {
+  return SSL_MISSING_RE.test(ctx.lower) || sslFindingExpired(ctx);
+}
+
 /** Existential / trust failures first — then findability, then “the site is useless”, then leaks. */
 export const SALES_SHEET_CASCADE: CascadeDef[] = [
   {
@@ -84,15 +96,16 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 1,
     categoryLabel: 'SSL',
     sheet:
-      'Show a browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning in the address bar — padlock crossed out, HTTP, no lock.',
-    match: (ctx) =>
-      /\bnot secure\b|may not be safe|no ssl\b|missing ssl|tls inspection failed|http,? not https|http only|\bnot https\b|no certificate|lacks? (?:an? )?ssl|without ssl|unencrypted|(?:update|fix|missing|invalid|no).{0,40}security certificate/.test(
-        ctx.lower,
-      ),
+      'Show a browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning — padlock crossed out. Same phone for a missing, expired, or invalid certificate (CERT_AUTHORITY_INVALID or CERT_DATE_INVALID).',
+    match: (ctx) => sslFindingMatch(ctx),
     problem: (ctx) =>
-      `${named(ctx)}'s site shows a Not Secure warning — browsers tell customers not to trust it.`,
-    solution: () =>
-      'Install a real SSL certificate and force HTTPS so the padlock is clean before anything else.',
+      sslFindingExpired(ctx)
+        ? 'The SSL certificate is expired — the padlock is a warning, not a trust mark.'
+        : `${named(ctx)}'s site shows a Not Secure warning — browsers tell customers not to trust it.`,
+    solution: (ctx) =>
+      sslFindingExpired(ctx)
+        ? 'Renew the certificate today and turn on auto-renew so this does not happen again.'
+        : 'Install a real SSL certificate and force HTTPS so the padlock is clean before anything else.',
   },
   {
     id: 'site-down',
@@ -160,16 +173,6 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
       `${named(ctx)} is not listed on Google — nearby searches show competitors instead.`,
     solution: () =>
       'Claim Google Business Profile so map results point to you, not the shop down the street.',
-  },
-  {
-    id: 'ssl-expired',
-    rank: 6,
-    categoryLabel: 'SSL Expired',
-    sheet:
-      'Show the audit URL in a browser with the expired-certificate warning and the cert dates (valid-to in the past) called out next to the padlock.',
-    match: (ctx) => /certificate has expired|ssl expir|expired (?:ssl|certificate)/.test(ctx.lower),
-    problem: () => 'The SSL certificate is expired — the padlock is a warning, not a trust mark.',
-    solution: () => 'Renew the certificate today and turn on auto-renew so this does not happen again.',
   },
   {
     id: 'ssl-untrusted',
@@ -582,6 +585,7 @@ export function cascadeRankForFinding(finding: {
 }): number {
   if (finding.rank != null && Number.isFinite(finding.rank)) return finding.rank;
   if (finding.id && RANK_BY_ID.has(finding.id)) return RANK_BY_ID.get(finding.id)!;
+  if (finding.id === 'ssl-expired') return 1;
   if (finding.id === 'dummy-speed' || finding.id === 'perf-speed' || finding.id === 'perf') return 20;
   if (finding.id === 'dummy-seo') return 27;
   if (finding.id === 'dummy-listings' || isPlacesMissFinding({

@@ -88,12 +88,11 @@ Directory coverage is **always phone 1** (28 official directory marks, A–Z). W
 
 | Rank | Finding | Sheet (what to draw) |
 | ---: | --- | --- |
-| 1 | SSL | Browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning — padlock crossed out, HTTP, no lock. |
+| 1 | SSL | Browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning — padlock crossed out. Same phone for missing, expired, or invalid certs (`CERT_AUTHORITY_INVALID` or `CERT_DATE_INVALID`). |
 | 2 | Site Down | The audit URL failing to load: timeout, connection refused, or 5xx. |
 | 3 | Domain | WHOIS / registrar card: expired or NXDOMAIN. |
 | 4 | Malware | Safe Browsing / “Deceptive site” interstitial on the audit URL. |
 | 5 | Google Places | Generate an iPhone with a Google search result page from the URL provided from the audit with the business’s name in the search bar and no result showing, and the competition showing. |
-| 6 | SSL Expired | Expired-certificate warning plus the cert dates (valid-to in the past). |
 | 7 | Bad Certificate | Mismatch / not-trusted warning (self-signed or wrong name). |
 | 8 | Parked / Hijacked | Live screenshot: parking page, “for sale,” or coming-soon. |
 | 9 | Blacklist | Spamhaus (or similar) hit for the domain or IP. |

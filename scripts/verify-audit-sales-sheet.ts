@@ -487,10 +487,14 @@ await test('Current Website title is not used as the site URL', () => {
   assert.equal(card.categories.find((c) => c.id === 'security')?.grade, 'F');
 });
 
-await test('terribleness cascade is 39 unique ranks and SSL beats Places', () => {
-  assert.equal(SALES_SHEET_CASCADE.length, 39);
+await test('terribleness cascade is 38 unique ranks and SSL beats Places', () => {
+  assert.equal(SALES_SHEET_CASCADE.length, 38);
   const ranks = SALES_SHEET_CASCADE.map((item) => item.rank);
-  assert.equal(new Set(ranks).size, 39);
+  assert.equal(new Set(ranks).size, 38);
+  assert.equal(
+    SALES_SHEET_CASCADE.some((item) => item.id === 'ssl-expired' || item.categoryLabel === 'SSL Expired'),
+    false,
+  );
   assert.ok(SALES_SHEET_CASCADE.every((item) => item.sheet.trim().length > 20));
   assert.equal(SALES_SHEET_CASCADE[0]?.id, 'ssl-missing');
   assert.equal(SALES_SHEET_CASCADE[4]?.id, 'places-not-listed');
@@ -518,6 +522,19 @@ await test('terribleness cascade is 39 unique ranks and SSL beats Places', () =>
   });
   assert.equal(down[0]?.id, 'site-down');
   assert.equal(down[1]?.id, 'domain-expired');
+  const expired = selectCascadeFindings({
+    businessName: 'The Tin Shop',
+    body: 'The SSL certificate has expired. Not Secure warning on tinshop.co.',
+  });
+  assert.equal(expired.filter((f) => f.id.startsWith('ssl')).length, 1);
+  assert.equal(expired[0]?.id, 'ssl-missing');
+  assert.match(expired[0]?.problem ?? '', /expired/);
+  const expiredOnly = selectCascadeFindings({
+    businessName: 'The Tin Shop',
+    body: 'Certificate has expired on the live hostname.',
+  });
+  assert.equal(expiredOnly[0]?.id, 'ssl-missing');
+  assert.doesNotMatch(expiredOnly.map((f) => f.id).join(','), /ssl-expired/);
 });
 
 await test('salesSheetAuditUrl prefers explicit audit, then run, then portal uid', () => {
@@ -767,6 +784,19 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
   assert.match(ssl, /Your connection is not private/);
   assert.match(ssl, /autodyne\.com/);
   assert.match(ssl, /ss-phone-lock/);
+  assert.match(ssl, /NET::ERR_CERT_AUTHORITY_INVALID/);
+  const sslExpired = renderFindingPhoneHtml(
+    {
+      id: 'ssl-missing',
+      categoryLabel: 'SSL',
+      problem: 'The SSL certificate is expired — the padlock is a warning, not a trust mark.',
+      solution: 'Renew the certificate',
+    },
+    { website: 'tinshop.co', businessName: 'The Tin Shop' },
+  );
+  assert.match(sslExpired, /data-ss-exhibit="ssl"/);
+  assert.match(sslExpired, /NET::ERR_CERT_DATE_INVALID/);
+  assert.doesNotMatch(sslExpired, /SSL Expired/);
   const down = renderFindingPhoneHtml(
     {
       id: 'site-down',
