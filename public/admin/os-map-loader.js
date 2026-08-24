@@ -279,7 +279,7 @@ import {
   initModulesPanel,
   loadModulesTab,
   teardownModulesPanel,
-} from './modules-panel.js?v=20260823b';
+} from './modules-panel.js?v=20260824a';
 import {
   initAddonsPanel,
   loadAddonsTab,

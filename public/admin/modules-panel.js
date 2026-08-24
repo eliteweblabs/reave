@@ -12,7 +12,7 @@ import {
   bindSwipeListScroll,
   swipeDeleteAction,
   attachIosPullToRefresh,
-} from './admin-ui.js?v=20260823b';
+} from './admin-ui.js?v=20260824a';
 import { mountListFilterTabs, captureFilterTabsScroll } from './filter-tabs.js?v=20260823a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton, showModuleCatalog } from './shared.js?v=20260810a';
@@ -353,9 +353,16 @@ function syncSidebarActive() {
   });
 }
 
-function renderFlag(on, label) {
+function renderFlag(on, label, extra = '') {
   const cls = on ? 'mod-flag mod-flag--yes' : 'mod-flag mod-flag--no';
-  return `<span class="${cls}" title="${escHtml(label)}">${on ? '✓' : '—'}</span>`;
+  const mark = on ? iosIcon('check', 12) : iosIcon('minus', 12);
+  return (
+    `<li class="mod-flag-row">` +
+    `<span class="${cls}" aria-hidden="true">${mark}</span>` +
+    `<span class="mod-flag-label">${escHtml(label)}</span>` +
+    extra +
+    `</li>`
+  );
 }
 
 function renderPurchaseHtml(m) {
@@ -508,7 +515,8 @@ function renderDetailPane() {
       `<div class="re-toggle-row mod-sheet-row">` +
       `<span class="de-label">Sale sheet</span>` +
       `<button type="button" class="prof-plugin-toggle" role="switch" data-field="sheet" ` +
-      `aria-checked="${item.saleSheet ? 'true' : 'false'}" aria-label="On sale sheet" title="Sale sheet"></button>` +
+      `aria-checked="${item.saleSheet ? 'true' : 'false'}" aria-label="Show on sale sheet"></button>` +
+      `<span class="mod-sheet-hint">Show this module on the public sale sheet.</span>` +
       `</div>`;
     scroll.appendChild(fields);
   } else {
@@ -522,25 +530,23 @@ function renderDetailPane() {
   status.className = 'mod-detail-status';
   if (deploy) {
     const statusCls = STATUS_CLASS[deploy.status] || 'mod-status--development';
-    const nav =
-      deploy.footerNavLabels?.length
-        ? deploy.footerNavLabels.map((l) => `<span class="mod-nav-pill">${escHtml(l)}</span>`).join('')
-        : '<span class="mod-muted">—</span>';
+    const navPills = deploy.footerNavLabels?.length
+      ? deploy.footerNavLabels.map((l) => `<span class="mod-nav-pill">${escHtml(l)}</span>`).join('')
+      : '';
     status.innerHTML =
       `<h2 class="mod-detail-heading">This install</h2>` +
       `<div class="mod-detail-status-row">` +
       `<span class="mod-status ${statusCls}">${escHtml(STATUS_LABELS[deploy.status] || deploy.status)}</span>` +
       (deploy.needsAttention ? `<span class="mod-summary-pill mod-summary-pill--warn">Needs attention</span>` : '') +
       `</div>` +
-      `<div class="mod-cell-flags">` +
-      renderFlag(deploy.enabled, 'Enabled on install') +
-      renderFlag(deploy.inFooterNav, 'Linked tab in footer nav') +
+      `<ul class="mod-flag-list">` +
+      renderFlag(deploy.enabled, 'Enabled on this install') +
+      renderFlag(deploy.inFooterNav, 'Linked in footer nav', navPills) +
       renderFlag(deploy.configured, 'Plugin / env configured') +
-      renderFlag(deploy.runtimeAllowed, 'Runtime allowed') +
+      renderFlag(deploy.runtimeAllowed, 'Allowed at runtime') +
       renderFlag(deploy.active, 'Active') +
-      (deploy.inDemoSuite != null ? renderFlag(deploy.inDemoSuite, 'In active demo suite') : '') +
-      `</div>` +
-      `<div class="mod-cell-nav">${nav}</div>` +
+      (deploy.inDemoSuite != null ? renderFlag(deploy.inDemoSuite, 'In the active demo suite') : '') +
+      `</ul>` +
       `<div class="mod-cell-buy">${renderPurchaseHtml(deploy)}</div>`;
   } else if (editable) {
     status.innerHTML =
@@ -563,8 +569,9 @@ function bindDetailEvents(pane) {
     dirty = true;
     scheduleSave();
   });
-  pane.querySelector('[data-field="sheet"]')?.addEventListener('click', (e) => {
-    const btn = e.currentTarget;
+  pane.querySelector('.mod-sheet-row')?.addEventListener('click', () => {
+    const btn = pane.querySelector('[data-field="sheet"]');
+    if (!btn) return;
     setToggleSwitch(btn, btn.getAttribute('aria-checked') !== 'true');
     dirty = true;
     scheduleSave();
