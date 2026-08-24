@@ -7,7 +7,9 @@ import {
   canonicalizeReaveBrandEmail,
   companyPublicEmail,
   defaultPublicEmailForDomain,
+  isLegacyReavePublicEmail,
   isReaveAppHost,
+  officialReavePublicEmailPatch,
   REAVE_PUBLIC_EMAIL,
 } from '../src/lib/reavePublicEmail.ts';
 
@@ -43,5 +45,19 @@ assert.equal(
 );
 assert.equal(companyPublicEmail({ supportEmail: '', domain: 'shop.com' }), 'hello@shop.com');
 assert.equal(companyPublicEmail({ supportEmail: '', domain: 'shop.com' }, 'support'), 'support@shop.com');
+
+assert.equal(isLegacyReavePublicEmail('hello@reave.app'), true);
+assert.equal(isLegacyReavePublicEmail('get@reave.app'), false);
+assert.equal(isLegacyReavePublicEmail('thomas@reave.app'), false);
+assert.equal(isLegacyReavePublicEmail(''), false);
+
+assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: 'hello@reave.app', fromEmail: 'noreply@reave.app' }), {
+  supportEmail: 'get@reave.app',
+});
+assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: '', fromEmail: 'support@reave.app' }), {
+  supportEmail: 'get@reave.app',
+  fromEmail: 'get@reave.app',
+});
+assert.equal(officialReavePublicEmailPatch({ supportEmail: 'get@reave.app', fromEmail: 'noreply@reave.app' }), null);
 
 console.log('verify-reave-public-email: ok');

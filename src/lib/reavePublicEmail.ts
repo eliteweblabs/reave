@@ -28,6 +28,33 @@ export function isReaveAppHost(host: string): boolean {
   return h === REAVE_PUBLIC_HOST;
 }
 
+/** True when the address is a retired REΛVE public mailbox (hello@, support@, …). */
+export function isLegacyReavePublicEmail(email: string): boolean {
+  const trimmed = email.trim();
+  if (!trimmed) return false;
+  return canonicalizeReaveBrandEmail(trimmed) !== trimmed;
+}
+
+/**
+ * Patch to write into Admin → Company (`company_config`) on the official REΛVE install.
+ * Empty or retired public support mail becomes get@reave.app. Outbound From is only
+ * rewritten when it is itself a retired public mailbox — noreply@ and personal stay.
+ */
+export function officialReavePublicEmailPatch(
+  stored: { supportEmail?: string | null; fromEmail?: string | null } | null,
+): { supportEmail?: string; fromEmail?: string } | null {
+  const patch: { supportEmail?: string; fromEmail?: string } = {};
+  const support = (stored?.supportEmail || '').trim();
+  if (!support || isLegacyReavePublicEmail(support)) {
+    patch.supportEmail = REAVE_PUBLIC_EMAIL;
+  }
+  const from = (stored?.fromEmail || '').trim();
+  if (from && isLegacyReavePublicEmail(from)) {
+    patch.fromEmail = REAVE_PUBLIC_EMAIL;
+  }
+  return Object.keys(patch).length ? patch : null;
+}
+
 /** Rewrite retired REΛVE public mailboxes (hello@, support@, …) to get@reave.app. */
 export function canonicalizeReaveBrandEmail(email: string): string {
   const trimmed = email.trim();

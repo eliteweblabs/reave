@@ -11,7 +11,11 @@ import {
   normalizePublicLogoPath,
 } from './companyLogo';
 import { BRAND_ICON_SIZES } from './brandIconRaster';
-import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
+import {
+  getStoredCompanyConfig,
+  setStoredCompanyConfig,
+  type StoredCompanyConfig,
+} from './companyConfigStore';
 
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 export { DEFAULT_PORTAL_OUTREACH_NOTICE };
@@ -25,6 +29,7 @@ import { inboundMailboxExample } from './inboundEmailInstall';
 import {
   canonicalizeReaveBrandEmail,
   defaultPublicEmailForDomain,
+  officialReavePublicEmailPatch,
 } from './reavePublicEmail';
 
 /**
@@ -488,8 +493,31 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
 
 /** Full resolved branding for the current deployment. */
 export async function getCompanyConfig(request?: Request): Promise<CompanyConfig> {
-  const stored = await getStoredCompanyConfig();
+  let stored = await getStoredCompanyConfig();
+  stored = (await persistOfficialReavePublicEmail(stored)) ?? stored;
   return resolveFromStored(stored, request);
+}
+
+let _persistedOfficialReavePublicEmail = false;
+
+/** Write get@reave.app into Admin → Company on the official install when the row is empty or stale. */
+async function persistOfficialReavePublicEmail(
+  stored: StoredCompanyConfig | null,
+): Promise<StoredCompanyConfig | null> {
+  if (_persistedOfficialReavePublicEmail) return stored;
+  if (!isCanonicalReaveInstall()) {
+    _persistedOfficialReavePublicEmail = true;
+    return stored;
+  }
+  const patch = officialReavePublicEmailPatch(stored);
+  if (!patch) {
+    _persistedOfficialReavePublicEmail = true;
+    return stored;
+  }
+  const ok = await setStoredCompanyConfig(patch);
+  if (!ok) return stored;
+  _persistedOfficialReavePublicEmail = true;
+  return getStoredCompanyConfig();
 }
 
 /** Footer label — only "Powered by" is fixed; the name comes from settings. */
