@@ -88,7 +88,7 @@ Directory coverage is **always phone 1** (28 official directory marks, A–Z). W
 
 | Rank | Finding | Sheet (what to draw) |
 | ---: | --- | --- |
-| 1 | SSL | Browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning — padlock crossed out. Same phone for missing, expired, or invalid certs (`CERT_AUTHORITY_INVALID` or `CERT_DATE_INVALID`). |
+| 1 | SSL | Safari chrome on the audit URL with the Not Secure / “Your connection is not private” warning — padlock crossed out. Same phone for missing, expired, or invalid certs (`CERT_AUTHORITY_INVALID` or `CERT_DATE_INVALID`). |
 | 2 | Site Down | The audit URL failing to load: timeout, connection refused, or 5xx. |
 | 3 | Domain | WHOIS / registrar card: expired or NXDOMAIN. |
 | 4 | Malware | Safe Browsing / “Deceptive site” interstitial on the audit URL. |

@@ -96,7 +96,7 @@ export const SALES_SHEET_CASCADE: CascadeDef[] = [
     rank: 1,
     categoryLabel: 'SSL',
     sheet:
-      'Show a browser chrome on the audit URL with the Not Secure / “Your connection is not private” warning — padlock crossed out. Same phone for a missing, expired, or invalid certificate (CERT_AUTHORITY_INVALID or CERT_DATE_INVALID).',
+      'Show Safari chrome on the audit URL with the Not Secure / “Your connection is not private” warning — padlock crossed out. Same phone for a missing, expired, or invalid certificate (CERT_AUTHORITY_INVALID or CERT_DATE_INVALID).',
     match: (ctx) => sslFindingMatch(ctx),
     problem: (ctx) =>
       sslFindingExpired(ctx)

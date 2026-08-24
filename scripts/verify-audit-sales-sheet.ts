@@ -780,10 +780,13 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
     { website: 'autodyne.com', businessName: 'Auto Dyne' },
   );
   assert.match(ssl, /data-ss-exhibit="ssl"/);
+  assert.match(ssl, /ss-safari/);
   assert.match(ssl, /Not Secure/);
   assert.match(ssl, /Your connection is not private/);
   assert.match(ssl, /autodyne\.com/);
   assert.match(ssl, /ss-phone-lock/);
+  assert.doesNotMatch(ssl, /ss-phone-lock--ok/);
+  assert.doesNotMatch(ssl, /ss-phone-chrome/);
   assert.match(ssl, /NET::ERR_CERT_AUTHORITY_INVALID/);
   const sslExpired = renderFindingPhoneHtml(
     {
@@ -807,8 +810,10 @@ await test('SSL and site-down exhibits look like a real phone warning', () => {
     { website: 'autodyne.com', businessName: 'Auto Dyne' },
   );
   assert.match(down, /data-ss-exhibit="site-down"/);
+  assert.match(down, /ss-safari/);
   assert.match(down, /Safari cannot open the page/);
   assert.match(down, /ERR_CONNECTION_REFUSED/);
+  assert.doesNotMatch(down, /ss-phone-chrome/);
   assert.equal(salesSheetExhibitKind({ id: 'ssl-expired', categoryLabel: 'SSL Expired' }), 'ssl');
 });
 
@@ -856,6 +861,7 @@ await test('directory exhibit is a 4x7 of official icons scored pass / half / fa
   assert.match(dirs, /data-ss-exhibit="directories"/);
   assert.doesNotMatch(dirs, /Directory coverage/);
   assert.doesNotMatch(dirs, /ss-phone-chrome/);
+  assert.doesNotMatch(dirs, /ss-safari/);
   assert.match(page, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/);
   assert.match(page, /grid-template-rows: repeat\(7, minmax\(0, 1fr\)\);/);
   assert.doesNotMatch(page, /grayscale\(1\)/);
@@ -998,6 +1004,7 @@ await test('missing Open Graph exhibit is SMS, Facebook, and Instagram as plain 
   assert.equal((og.match(/https:\/\/haleco\.example/g) || []).length, 3);
   assert.doesNotMatch(og, /ss-phone-icon--alert/);
   assert.doesNotMatch(og, /ss-phone-chrome/);
+  assert.doesNotMatch(og, /ss-safari/);
 });
 
 await test('front exhibits are four phones with captions and no next steps', () => {
@@ -1218,7 +1225,7 @@ await test('security exhibit is a header scan, not a Safari warning', () => {
   assert.match(phone, /Content-Security-Policy/);
   assert.match(phone, /X-Frame-Options/);
   assert.match(phone, /Visitors will not see a warning/);
-  assert.ok(phone.indexOf('ss-hdr-card') < phone.indexOf('ss-safari'));
+  assert.match(phone, /ss-hdr-card[\s\S]*class="ss-safari"/);
   assert.doesNotMatch(phone, /ss-phone-chrome/);
   assert.doesNotMatch(phone, /This Connection Is Not Private/);
   assert.doesNotMatch(phone, /iCloud Private Relay/);
@@ -1240,7 +1247,8 @@ await test('site speed exhibit is the PageSpeed Insights mobile results card', (
   );
   assert.match(dummy, /ss-psi/);
   assert.match(dummy, /PageSpeed Insights/);
-  assert.match(dummy, /ss-phone-chrome/);
+  assert.match(dummy, /ss-safari/);
+  assert.doesNotMatch(dummy, /ss-phone-chrome/);
   assert.match(dummy, /haleco\.example/);
   assert.match(dummy, />18</);
   assert.match(dummy, /Largest Contentful Paint/);

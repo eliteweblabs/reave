@@ -262,21 +262,6 @@ function iphoneCss(): string {
   object-fit: fill;
   pointer-events: none;
 }
-.ss-phone-chrome {
-  display: flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 4px;
-  margin: 0 6px 6px;
-  padding: 5px 7px;
-  background: #e8e8ed;
-  border-radius: 999px;
-  font-size: 7px;
-  font-weight: 600;
-  color: #3a3a3c;
-  white-space: nowrap;
-  overflow: hidden;
-}
 .ss-phone-lock {
   flex: 0 0 auto;
   width: 8px;
@@ -309,12 +294,6 @@ function iphoneCss(): string {
   color: #b42318;
   font-weight: 700;
   letter-spacing: -0.01em;
-}
-.ss-phone-host {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #1d1d1f;
 }
 .ss-phone-body { padding: 0 8px 8px; }
 .ss-phone-body:has(.ss-phone-dirs) {
@@ -374,11 +353,15 @@ function iphoneCss(): string {
 }
 .ss-phone-icon--danger { background: #ffe5e3; color: #c62828; }
 .ss-phone-icon--alert { background: #fff3cd; color: #8a6d1b; }
-.ss-hdr-screen {
+.ss-safari-screen {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+.ss-safari-screen > .ss-phone-body {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 .ss-phone-body.ss-hdr {
   display: flex;
@@ -429,6 +412,7 @@ function iphoneCss(): string {
   font-style: normal;
   text-align: center;
 }
+.ss-safari-url .ss-phone-warn { margin-right: 3px; }
 .ss-safari-url svg { flex: 0 0 auto; width: 7px; height: 7px; color: #6e6e73; }
 .ss-safari-url .ss-phone-lock {
   width: 7px;
@@ -557,7 +541,7 @@ function iphoneCss(): string {
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 0 7px 6%;
+  padding: 0 7px 6px;
   background: #fff;
   font-family: Roboto, Inter, 'Helvetica Neue', sans-serif;
   -webkit-print-color-adjust: exact;
@@ -1026,25 +1010,32 @@ function iphone(screenHtml: string, opts: { frameSrc: string; screenSrc?: string
 </figure>`;
 }
 
-function chromeBar(host: string, insecure = true): string {
-  return `<div class="ss-phone-chrome">${
-    insecure ? `<span class="ss-phone-lock" aria-hidden="true"></span><span class="ss-phone-warn">Not Secure</span>` : ''
-  }<span class="ss-phone-host">${escapeHtml(host)}</span></div>`;
-}
-
-function safariBar(host: string, opts: { lock?: boolean } = {}): string {
-  const lock = opts.lock
-    ? `<span class="ss-phone-lock ss-phone-lock--ok" aria-hidden="true"></span>`
-    : '';
+function safariBar(host: string, opts: { lock?: boolean; insecure?: boolean } = {}): string {
+  const lock = opts.insecure
+    ? `<span class="ss-phone-lock" aria-hidden="true"></span>`
+    : opts.lock
+      ? `<span class="ss-phone-lock ss-phone-lock--ok" aria-hidden="true"></span>`
+      : '';
+  const label = opts.insecure
+    ? `<em><span class="ss-phone-warn">Not Secure</span> ${escapeHtml(host)}</em>`
+    : `<em>${escapeHtml(host)}</em>`;
   return `<div class="ss-safari">
     <span class="ss-safari-round" aria-hidden="true"><!-- IOS_ICONS.chevron-left — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></span>
     <div class="ss-safari-url">
-      ${lock}<em>${escapeHtml(host)}</em>
+      ${lock}${label}
       <!-- IOS_ICONS.refresh — keep in sync with public/admin/admin-ui.js -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
     </div>
     <span class="ss-safari-round" aria-hidden="true"><!-- IOS_ICONS.more — keep in sync with public/admin/admin-ui.js --><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>
   </div>`;
+}
+
+function withSafariChrome(
+  inner: string,
+  host: string,
+  opts: { lock?: boolean; insecure?: boolean } = {},
+): string {
+  return `<div class="ss-safari-screen">${inner}${safariBar(host, opts)}</div>`;
 }
 
 function sslScreen(host: string, finding: SalesSheetFinding): string {
@@ -1054,70 +1045,82 @@ function sslScreen(host: string, finding: SalesSheetFinding): string {
     /expir/i.test(finding.problem || '');
   const title = expired ? 'Your connection is not private' : 'Your connection is not private';
   const err = expired ? 'NET::ERR_CERT_DATE_INVALID' : 'NET::ERR_CERT_AUTHORITY_INVALID';
-  return `${chromeBar(host)}
-    <div class="ss-phone-body">
+  return withSafariChrome(
+    `<div class="ss-phone-body">
       <div class="ss-phone-icon ss-phone-icon--danger">!</div>
       <p class="ss-phone-h">${title}</p>
       <p class="ss-phone-p">Attackers might be trying to steal your information from <strong>${escapeHtml(host)}</strong> (for example, passwords, messages, or credit cards).</p>
       <p class="ss-phone-err">${err}</p>
       <span class="ss-phone-btn">Back to safety</span>
-    </div>`;
+    </div>`,
+    host,
+    { insecure: true },
+  );
 }
 
 function downScreen(host: string): string {
-  return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
+  return withSafariChrome(
+    `<div class="ss-phone-body">
       <p class="ss-phone-h">Safari cannot open the page</p>
       <p class="ss-phone-p">because it could not connect to the server.</p>
       <p class="ss-phone-err">ERR_CONNECTION_REFUSED</p>
-    </div>`;
+    </div>`,
+    host,
+  );
 }
 
 function domainScreen(host: string): string {
-  return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
+  return withSafariChrome(
+    `<div class="ss-phone-body">
       <p class="ss-phone-h">This site can’t be reached</p>
       <p class="ss-phone-p"><strong>${escapeHtml(host)}</strong>’s server IP address could not be found.</p>
       <p class="ss-phone-err">DNS_PROBE_FINISHED_NXDOMAIN</p>
-    </div>`;
+    </div>`,
+    host,
+  );
 }
 
 function malwareScreen(host: string): string {
-  return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
+  return withSafariChrome(
+    `<div class="ss-phone-body">
       <div class="ss-phone-icon ss-phone-icon--danger">!</div>
       <p class="ss-phone-h">Deceptive site ahead</p>
       <p class="ss-phone-p">Attackers on <strong>${escapeHtml(host)}</strong> may trick you into doing something dangerous like installing software or revealing personal information.</p>
       <span class="ss-phone-btn">Back to safety</span>
-    </div>`;
+    </div>`,
+    host,
+  );
 }
 
 function parkedScreen(host: string): string {
-  return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
+  return withSafariChrome(
+    `<div class="ss-phone-body">
       <div class="ss-phone-park">
         <strong>This domain is for sale</strong>
         <p class="ss-phone-p">${escapeHtml(host)} is parked. The business site is not here.</p>
       </div>
-    </div>`;
+    </div>`,
+    host,
+  );
 }
 
 function speedScreen(host: string, opts: SalesSheetExhibitOpts): string {
   const card = opts.psi || dummyPsiMobile(host);
-  return `${chromeBar(host, false)}
-    ${renderPsiMobileHtml(card)}`;
+  return withSafariChrome(renderPsiMobileHtml(card), host);
 }
 
 function noOfferScreen(host: string, name: string): string {
-  return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
+  return withSafariChrome(
+    `<div class="ss-phone-body">
       <div class="ss-phone-hero"></div>
       <p class="ss-phone-h">Welcome</p>
       <div class="ss-phone-line"></div>
       <div class="ss-phone-line w-70"></div>
       <div class="ss-phone-line w-40"></div>
       <p class="ss-phone-p">${escapeHtml(name)}’s homepage does not say what to do next. No offer. No button.</p>
-    </div>`;
+    </div>`,
+    host,
+  );
 }
 
 const DIR_BADGE: Record<DirectoryVerdict, string> = {
@@ -1232,8 +1235,8 @@ function securityHeadersScreen(host: string): string {
     ([name, status]) =>
       `<li class="ss-hdr-row"><span>${escapeHtml(name)}</span><em>${escapeHtml(status)}</em></li>`,
   ).join('');
-  return `<div class="ss-hdr-screen">
-    <div class="ss-phone-body ss-hdr">
+  return withSafariChrome(
+    `<div class="ss-phone-body ss-hdr">
       <div class="ss-hdr-card">
         <p class="ss-hdr-kicker">Header scan</p>
         <p class="ss-hdr-url">${escapeHtml(host)}</p>
@@ -1241,18 +1244,21 @@ function securityHeadersScreen(host: string): string {
         <ul class="ss-hdr-list">${rows}</ul>
         <p class="ss-hdr-note">Certificate is valid. Visitors will not see a warning.</p>
       </div>
-    </div>
-    ${safariBar(host, { lock: true })}
-  </div>`;
+    </div>`,
+    host,
+    { lock: true },
+  );
 }
 
 function genericScreen(host: string, finding: SalesSheetFinding): string {
-  return `${chromeBar(host, false)}
-    <div class="ss-phone-body">
+  return withSafariChrome(
+    `<div class="ss-phone-body">
       <div class="ss-phone-icon ss-phone-icon--alert">!</div>
       <p class="ss-phone-h">${escapeHtml(finding.categoryLabel)}</p>
       <p class="ss-phone-p">${escapeHtml(finding.problem)}</p>
-    </div>`;
+    </div>`,
+    host,
+  );
 }
 
 function screenFor(
