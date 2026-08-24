@@ -52,7 +52,9 @@ function firstNameOf(input: { firstName?: string | null; name?: string | null })
 
 function unsubscribeUrlFor(email: string): string {
   const base = siteBaseUrl().replace(/\/+$/, '');
-  return `${base}/api/newsletter/unsubscribe?token=${encodeURIComponent(makeUnsubscribeToken(email))}`;
+  const token = makeUnsubscribeToken(email);
+  if (!token) return `${base}/api/newsletter/unsubscribe`;
+  return `${base}/api/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
 }
 
 // ─────────────────────────── send-window rules ───────────────────────────

@@ -391,7 +391,7 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
   if (!result.ok) {
     return JSON.stringify({ error: result.error, ...(result.hint ? { hint: result.hint } : {}) });
   }
-  return JSON.stringify({ ok: true, ...result });
+  return JSON.stringify({ ...result });
 }
 
 export const devInfraModule: AgentToolModule = {

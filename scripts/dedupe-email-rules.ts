@@ -107,8 +107,8 @@ function rowToRecord(row: {
     hitCount: row.hit_count || 0,
     lastMatchedAt: row.last_matched_at ? new Date(row.last_matched_at).toISOString() : null,
     exceptPhrases,
-    notifyPush: row.notify_push,
-    notifyDashboard: row.notify_dashboard,
+    notifyPush: row.notify_push ?? undefined,
+    notifyDashboard: row.notify_dashboard ?? undefined,
     notifyActions: Array.isArray(row.notify_actions) ? row.notify_actions.map(String) as EmailRuleRecord['notifyActions'] : [],
     scope: row.scope === 'universal' ? 'universal' : 'personal',
   };

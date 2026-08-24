@@ -679,7 +679,9 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
     return {
       role: 'assistant',
       createdAt,
-      metadata: message.agent_usage ? { agentUsage: message.agent_usage } : undefined,
+      metadata: message.agent_usage
+        ? ({ agentUsage: message.agent_usage } as ThreadMessageLike['metadata'])
+        : undefined,
       content: [{ type: 'text', text: storedChatPlainText(message.content) }],
     };
   }
@@ -1683,14 +1685,14 @@ function ChatImageLightbox({
   onClose: () => void;
 }) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    document.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
   }, [onClose]);

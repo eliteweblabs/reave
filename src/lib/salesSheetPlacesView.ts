@@ -44,7 +44,7 @@ export function placesNotListedFinding(businessName: string): PlacesMissFinding 
 }
 
 export function isPlacesMissFinding(
-  finding: Pick<PlacesMissFinding, 'id' | 'categoryLabel' | 'problem'>,
+  finding: Pick<PlacesMissFinding, 'id' | 'categoryLabel'> & { problem?: string },
 ): boolean {
   if (finding.id === PLACES_NOT_LISTED_FINDING_ID || finding.id === 'dummy-listings') return true;
   const blob = `${finding.categoryLabel} ${finding.problem}`.toLowerCase();

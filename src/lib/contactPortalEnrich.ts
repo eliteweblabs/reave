@@ -15,6 +15,7 @@ import { braveSearch } from './braveClient';
 import { guessClientWebsite } from './clientBrand';
 import { fetchUrl } from './fetchUrlClient';
 import {
+  contactStringField,
   extractPortal,
   getClientKind,
   getContact,

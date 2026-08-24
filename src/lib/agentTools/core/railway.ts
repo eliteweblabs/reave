@@ -5,16 +5,19 @@ import { railwayListRegisteredDomains } from '../../railwayAgentApi';
 import type { AgentToolModule, ToolContext } from '../types';
 
 export const railwayModule: AgentToolModule = {
+  id: 'railway',
   enabled: () => true, // Always available when agent runs
   definitions: () => [
     {
-      name: 'list_railway_registered_domains',
-      description:
-        'List all domains purchased via Railway domain registration. Use when the user asks what domains they registered.',
-      input_schema: {
-        type: 'object',
-        properties: {},
-        required: [],
+      type: 'function',
+      function: {
+        name: 'list_railway_registered_domains',
+        description:
+          'List all domains purchased via Railway domain registration. Use when the user asks what domains they registered.',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
       },
     },
   ],

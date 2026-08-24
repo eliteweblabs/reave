@@ -109,7 +109,7 @@ export function isPracticeArea(value: string): value is PracticeAreaId {
   return PRACTICE_AREAS.some((row) => row.id === value);
 }
 
-function normalizePracticeAreas(raw?: Partial<PracticeGate> | null): PracticeAreaId[] {
+function normalizePracticeAreas(raw?: PracticeGateInput | null): PracticeAreaId[] {
   if (Array.isArray(raw?.practiceAreas)) {
     const unique = [
       ...new Set(raw.practiceAreas.map((s) => String(s).trim().toLowerCase()).filter(isPracticeArea)),
@@ -160,7 +160,12 @@ export function countySelectionMatches(selected: string, venueCounty: string, ve
   return parsed.state === venueState.trim().toUpperCase();
 }
 
-export function normalizePracticeGate(raw?: Partial<PracticeGate> | null): PracticeGate {
+export type PracticeGateInput = Omit<Partial<PracticeGate>, 'practiceArea' | 'practiceAreas'> & {
+  practiceArea?: string;
+  practiceAreas?: string[];
+};
+
+export function normalizePracticeGate(raw?: PracticeGateInput | null): PracticeGate {
   const radius = Number(raw?.radiusMi);
   const mode = (raw?.gateMode || '').trim().toLowerCase();
   const areas = normalizePracticeAreas(raw);
@@ -258,7 +263,7 @@ export async function getPracticeGate(): Promise<PracticeGate> {
   return normalizePracticeGate(env);
 }
 
-export async function setPracticeGate(input: Partial<PracticeGate>): Promise<PracticeGate> {
+export async function setPracticeGate(input: PracticeGateInput): Promise<PracticeGate> {
   const current = await getPracticeGate();
   const next = normalizePracticeGate({
     radiusMi: input.radiusMi ?? current.radiusMi,

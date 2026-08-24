@@ -114,7 +114,7 @@ async function loadContactForClientPatch(
   uid: string,
   body: Record<string, unknown>,
 ): Promise<
-  | { ok: true; data: ContactRecord; before?: ContactRecord }
+  | { ok: true; data: ContactRecord; before?: ContactRecord; craterSync?: unknown }
   | { ok: false; error: string; status?: number }
 > {
   if (!hasContactFieldPatch(body)) {

@@ -532,11 +532,7 @@ We need to update your website's security certificate.
   assert.equal(security?.grade, 'B', 'valid cert + no mixed content is not an F');
   assert.notEqual(security?.score, 40);
   assert.match(security?.finding || '', /SSL valid|Let's Encrypt|encryption 1\.3/i);
-  assert.equal(
-    security?.grade === 'F',
-    false,
-    'Lighthouse best-practices 40 must not fail a valid certificate',
-  );
+  assert.notEqual(security?.grade, 'F', 'Lighthouse best-practices 40 must not fail a valid certificate');
   console.log('ok — valid SSL stays B even when Lighthouse best-practices is 40');
 }
 

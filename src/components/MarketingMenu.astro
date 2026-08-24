@@ -207,7 +207,7 @@ const showSignIn = siteContent.nav.showSignIn !== false;
 
 <script>
   function setMarketingMenuOpen(open: boolean) {
-    const root = document.querySelector("[data-marketing-menu]");
+    const root = document.querySelector<HTMLElement>("[data-marketing-menu]");
     const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
     if (!root || !toggle) return;
 

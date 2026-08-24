@@ -17,10 +17,9 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export const GET: APIRoute = async ({ locals }) => {
+export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!hasFeature('uptime_monitoring')) {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
@@ -39,7 +38,6 @@ export const GET: APIRoute = async ({ locals }) => {
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!hasFeature('uptime_monitoring')) {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
@@ -47,7 +45,7 @@ export const POST: APIRoute = async (context) => {
 
   let body: { url?: string; friendlyName?: string };
   try {
-    body = (await request.json()) as { url?: string; friendlyName?: string };
+    body = (await context.request.json()) as { url?: string; friendlyName?: string };
   } catch {
     return json({ ok: false, error: 'Invalid JSON body' }, 400);
   }

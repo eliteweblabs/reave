@@ -1614,7 +1614,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
 
 export type DeployWizardPlanInput = {
   features: readonly FeatureId[];
-  extras?: readonly DeployWizardExtraId[];
+  extras?: readonly (DeployWizardExtraId | 'materials')[];
   /** Override the Astro service name if this install is not `reave`. */
   appService?: string;
   installSlug?: string;
@@ -1923,7 +1923,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     features.push('materials_pricing');
   }
   const featureSet = new Set<string>(features);
-  const extras = [...new Set(input.extras ?? [])].filter((id) => {
+  const extras = [...new Set(input.extras ?? [])].filter((id): id is DeployWizardExtraId => {
     if (!isDeployWizardExtraId(id)) return false;
     const extra = DEPLOY_WIZARD_EXTRAS.find((e) => e.id === id);
     return Boolean(extra && featureMatch(extra.whenFeatures, featureSet));

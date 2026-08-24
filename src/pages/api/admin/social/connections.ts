@@ -32,11 +32,12 @@ export async function GET(context: APIContext): Promise<Response> {
   const statuses = await listConnections(platforms);
   const byPlatform = new Map(statuses.map((s) => [s.platform, s]));
 
-  const connections = platforms.map((platform) => {
+  const connections = platforms.flatMap((platform) => {
     const cfg = OAUTH_CONFIGS[platform];
+    if (!cfg) return [];
     const configured = getOAuthCredentials(cfg) != null;
     const status = byPlatform.get(platform);
-    return {
+    return [{
       platform,
       label: cfg.label,
       configured,
@@ -52,7 +53,7 @@ export async function GET(context: APIContext): Promise<Response> {
       developerPortal: cfg.developerPortal,
       setupHint: cfg.setupHint,
       envVars: [cfg.clientIdEnv, cfg.clientSecretEnv],
-    };
+    }];
   });
 
   return json({ ok: true, connections });

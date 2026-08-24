@@ -306,7 +306,7 @@ async function handle_create_resend_domain(args: Record<string, unknown>, _ctx: 
 
   const result = await resendCreateDomain(domain, region);
   if (!result.ok) return JSON.stringify({ error: result.error });
-  return JSON.stringify({ ok: true, ...result });
+  return JSON.stringify({ ...result });
 }
 
 export const siteAuditsModule: AgentToolModule = {

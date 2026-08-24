@@ -17,10 +17,9 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export const GET: APIRoute = async ({ locals }) => {
+export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!hasFeature('uptime_monitoring')) {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);

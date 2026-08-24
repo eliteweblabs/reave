@@ -151,7 +151,7 @@ export function isDirectoryCoverageFinding(finding: { id?: string; categoryLabel
 
 export function pinDirectoryCoverageFirst<T extends { id?: string; categoryLabel?: string }>(
   findings: T[],
-  pinned: T = DIRECTORY_COVERAGE_FINDING as T,
+  pinned: T = DIRECTORY_COVERAGE_FINDING as unknown as T,
 ): T[] {
   const rest = findings.filter((f) => !isDirectoryCoverageFinding(f));
   return [pinned, ...rest];

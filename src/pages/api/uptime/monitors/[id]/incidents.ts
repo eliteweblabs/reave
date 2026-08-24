@@ -17,16 +17,15 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!hasFeature('uptime_monitoring')) {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
   }
 
-  const monitorId = Number(params.id);
+  const monitorId = Number(context.params.id);
   if (!Number.isFinite(monitorId) || monitorId <= 0) {
     return json({ ok: false, error: 'Invalid monitor id' }, 400);
   }

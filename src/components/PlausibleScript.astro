@@ -10,10 +10,10 @@
  * NOT an admin-editable setting — purely behind-the-scenes.
  * Every REΛVE installation gets tracking automatically when the env var is set.
  */
-import { getCompany } from "../lib/company";
+import { getStoredCompanyConfig } from "../lib/companyConfigStore";
 
 const plausibleBase = (import.meta.env.PLAUSIBLE_API_BASE_URL ?? "").replace(/\/+$/, "");
-const company = getCompany();
+const company = await getStoredCompanyConfig();
 const domain = company?.domain ?? "";
 const enabled = !!(plausibleBase && domain);
 ---

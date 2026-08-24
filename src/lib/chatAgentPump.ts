@@ -23,7 +23,7 @@ export type AgentProgressEvent = {
 export type AgentTextEvent = { type: 'text'; text: string };
 
 export type PumpableAgentStream = {
-  next(): Promise<{ done?: boolean; value: AgentProgressEvent | AgentTextEvent | string }>;
+  next(): Promise<IteratorResult<unknown>>;
 };
 
 export type PumpOutcome =
@@ -71,6 +71,13 @@ export async function pumpAgentStream(opts: {
 
     const event = next.value;
     if (typeof event === 'string') continue;
-    if (event.type === 'progress' || event.type === 'text') emit(event);
+    if (
+      event &&
+      typeof event === 'object' &&
+      'type' in event &&
+      (event.type === 'progress' || event.type === 'text')
+    ) {
+      emit(event as AgentProgressEvent | AgentTextEvent);
+    }
   }
 }

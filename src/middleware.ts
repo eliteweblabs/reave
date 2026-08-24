@@ -94,7 +94,10 @@ const HOME_SECTION_REDIRECTS: Record<string, string> = {
   "/services": "contact",
 };
 
-const appHandler: MiddlewareHandler = async (context, next) => {
+const appHandler = async (
+  context: Parameters<MiddlewareHandler>[0],
+  next: Parameters<MiddlewareHandler>[1],
+): Promise<Response> => {
   maybePruneRateLimitStore();
   const url = new URL(context.request.url);
   const { pathname } = url;
@@ -231,7 +234,9 @@ let clerkWrapped: MiddlewareHandler | undefined;
 
 function clerkAppMiddleware(): MiddlewareHandler {
   if (!clerkWrapped) {
-    clerkWrapped = clerkMiddleware(async (_auth, context, next) => appHandler(context, next));
+    clerkWrapped = clerkMiddleware(async (_auth, context, next) =>
+      appHandler(context, next),
+    ) as MiddlewareHandler;
   }
   return clerkWrapped;
 }
@@ -245,7 +250,8 @@ async function runAppMiddleware(
     return appHandler(context, next);
   }
   try {
-    return await clerkAppMiddleware()(context, next);
+    const clerkResponse = await clerkAppMiddleware()(context, next);
+    return clerkResponse ?? appHandler(context, next);
   } catch (err) {
     console.error("[middleware] clerkMiddleware failed", err);
     return appHandler(context, next);

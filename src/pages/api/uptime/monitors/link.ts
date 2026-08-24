@@ -21,7 +21,6 @@ function json(data: unknown, status = 200): Response {
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!hasFeature('uptime_monitoring')) {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
@@ -29,7 +28,7 @@ export const POST: APIRoute = async (context) => {
 
   let body: { monitorId?: unknown };
   try {
-    body = (await request.json()) as { monitorId?: unknown };
+    body = (await context.request.json()) as { monitorId?: unknown };
   } catch {
     return json({ ok: false, error: 'Invalid JSON body' }, 400);
   }

@@ -25,7 +25,7 @@ export const GET: APIRoute = async ({ request, url }) => {
     return new Response(null, { status: 304 });
   }
 
-  return new Response(body, {
+  return new Response(new Uint8Array(body), {
     headers: {
       'Content-Type': 'image/png',
       'Cache-Control': 'public, max-age=3600',

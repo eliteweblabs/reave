@@ -24,7 +24,6 @@ type BatchInput = { url?: unknown; friendlyName?: unknown };
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!hasFeature('uptime_monitoring')) {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
@@ -32,7 +31,7 @@ export const POST: APIRoute = async (context) => {
 
   let body: { monitors?: unknown };
   try {
-    body = (await request.json()) as { monitors?: unknown };
+    body = (await context.request.json()) as { monitors?: unknown };
   } catch {
     return json({ ok: false, error: 'Invalid JSON body' }, 400);
   }

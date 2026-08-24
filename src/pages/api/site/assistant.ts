@@ -8,7 +8,7 @@
 import type { APIRoute } from 'astro';
 import { parseAssistantHistory } from '../../../lib/assistantHistory';
 import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
-import { getCompanyConfig } from '../../../lib/companyConfig';
+import { companyToBrandContext, getCompanyConfig } from '../../../lib/companyConfig';
 import { hasFeature } from '../../../lib/features';
 import {
   getSiteAssistantPageContext,
@@ -66,15 +66,16 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const org = await getCompanyConfig(request);
+  const brand = companyToBrandContext(org, request);
   const result = await runSiteAssistantReply({
     context: {
       brand: {
-        name: org.name,
-        description: org.description,
-        supportEmail: org.supportEmail,
+        name: brand.name,
+        description: brand.description,
+        supportEmail: brand.supportEmail,
         supportPhone: org.supportPhone,
-        domain: org.domain,
-        siteUrl: org.siteUrl,
+        domain: brand.domain,
+        siteUrl: brand.siteUrl,
       },
       page: getSiteAssistantPageContext(pagePath),
     },

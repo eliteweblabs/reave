@@ -30,8 +30,8 @@ export interface LogMeta {
 export interface Logger {
   debug(message: string, meta?: LogMeta): void;
   info(message: string, meta?: LogMeta): void;
-  warn(message: string, meta?: LogMeta): void;
-  error(message: string, metaOrError?: LogMeta | Error): void;
+  warn(message: string, meta?: LogMeta | Error | unknown): void;
+  error(message: string, metaOrError?: LogMeta | Error | unknown): void;
   child(bindings: { component: string }): Logger;
 }
 
@@ -65,8 +65,8 @@ function shouldLog(level: LogLevel): boolean {
   return LEVEL_RANK[level] >= LEVEL_RANK[getLogLevel()];
 }
 
-function normalizeError(metaOrError?: LogMeta | Error): LogMeta | undefined {
-  if (!metaOrError) return undefined;
+function normalizeError(metaOrError?: LogMeta | Error | unknown): LogMeta | undefined {
+  if (metaOrError == null) return undefined;
   if (metaOrError instanceof Error) {
     return {
       error: metaOrError.message,
@@ -74,7 +74,8 @@ function normalizeError(metaOrError?: LogMeta | Error): LogMeta | undefined {
       ...(metaOrError.name && metaOrError.name !== 'Error' ? { errorName: metaOrError.name } : {}),
     };
   }
-  return metaOrError;
+  if (typeof metaOrError === 'object') return metaOrError as LogMeta;
+  return { value: metaOrError };
 }
 
 function write(level: LogLevel, component: string, message: string, meta?: LogMeta): void {
@@ -127,7 +128,7 @@ function makeLogger(component: string): Logger {
       write('info', component, message, meta);
     },
     warn(message, meta) {
-      write('warn', component, message, meta);
+      write('warn', component, message, normalizeError(meta));
     },
     error(message, metaOrError) {
       write('error', component, message, normalizeError(metaOrError));
