@@ -152,6 +152,43 @@ function isAndroid() {
   return /Android/i.test(navigator.userAgent);
 }
 
+function isMacOs() {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /Mac/i.test(navigator.platform || '') ||
+    (/Mac OS X|Macintosh/.test(navigator.userAgent) && !isIos())
+  );
+}
+
+function isWindowsOs() {
+  if (typeof navigator === 'undefined') return false;
+  return /Win/i.test(navigator.platform || navigator.userAgent || '');
+}
+
+/** What to do after the browser blocks the permission prompt (it will not ask again). */
+function notificationBlockedHelp() {
+  const standalone = isStandalonePwa();
+  if (isIos()) {
+    return standalone
+      ? 'Notifications are blocked. Open the iPhone Settings app → Notifications, find this app, turn Allow Notifications on, then reopen the app.'
+      : 'Notifications are blocked. Add this app to your Home Screen, open it from there, and allow notifications when asked.';
+  }
+  if (isAndroid()) {
+    return 'Notifications are blocked. Open Android Settings → Apps → your browser → Notifications and allow them, or tap the lock icon in the address bar → Permissions → Notifications → Allow.';
+  }
+  if (isMacOs()) {
+    return standalone
+      ? 'Notifications are blocked. Open System Settings → Notifications, find this app (or Chrome/Edge), and turn them on. If this site is still set to Block in the browser, change it to Allow, then tap Enable notifications again.'
+      : 'Notifications are blocked. Open System Settings → Notifications and allow this browser, then click the lock icon in the address bar → Notifications → Allow.';
+  }
+  if (isWindowsOs()) {
+    return standalone
+      ? 'Notifications are blocked. Open Settings → System → Notifications, allow this app, then come back and tap Enable notifications.'
+      : 'Notifications are blocked. Open Settings → System → Notifications and allow this browser, then click the lock icon in the address bar → Notifications → Allow.';
+  }
+  return 'Notifications are blocked. Allow them in your browser or device notification settings, then tap Enable notifications again.';
+}
+
 /**
  * Unlike iOS Safari (push only works for a home-screen-installed app),
  * Android Chrome (and other Chromium browsers there) can subscribe to and
@@ -288,7 +325,7 @@ function renderSetupAlert(kind) {
   } else {
     const denied = Notification.permission === 'denied';
     copyHtml = denied
-      ? '<strong>Notifications are blocked</strong><p>Enable notifications in your browser or device settings to get inbox alerts, bookings, and website monitoring.</p>'
+      ? `<strong>Notifications are blocked</strong><p>${notificationBlockedHelp()}</p>`
       : '<strong>Enable notifications</strong><p>Get inbox alerts, booking updates, and website monitoring even when the app is in the background.</p>';
   }
 
@@ -318,10 +355,17 @@ function renderSetupAlert(kind) {
           syncAdminPushButton();
         } catch (e) {
           btn.disabled = false;
+          if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+            void syncAdminSetupAlerts();
+            void syncAdminPushButton();
+            return;
+          }
+          const copy = notice?.copy;
+          copy?.querySelector('.admin-setup-alert-error')?.remove();
           const err = document.createElement('p');
           err.className = 'admin-setup-alert-error';
           err.textContent = e.message || String(e);
-          notice?.copy.appendChild(err);
+          copy?.appendChild(err);
         }
       },
     });
@@ -877,7 +921,7 @@ export async function subscribeAdminPush() {
   }
 
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') throw new Error('Notification permission denied');
+  if (perm !== 'granted') throw new Error(notificationBlockedHelp());
 
   const reg = await registerAdminServiceWorker();
   if (!reg) throw new Error('Service worker unavailable');
