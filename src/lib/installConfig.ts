@@ -57,6 +57,8 @@ const FEATURE_IDS_LIST = [
   'materials_pricing',
   'social_inbox',
   'google_workspace',
+  'hosting_core_os',
+  'hosting_growth',
 ] as const;
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);

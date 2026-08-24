@@ -44,6 +44,8 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   materials_pricing: ['__system__'],
   social_inbox: ['social'],
   google_workspace: ['__system__', 'company'],
+  hosting_core_os: [],
+  hosting_growth: [],
 };
 
 /** Human labels for footerNav keys (monitor panel). */

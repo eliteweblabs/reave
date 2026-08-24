@@ -70,6 +70,12 @@ assert.equal(featureVisibility('google_workspace'), 'service');
 assert.equal(isServiceFeature('google_workspace'), true);
 assert.equal(isPublicFeature('google_workspace'), false);
 assert.equal(isDeployableFeature('google_workspace'), false);
+assert.equal(featureVisibility('hosting_core_os'), 'service');
+assert.equal(isServiceFeature('hosting_core_os'), true);
+assert.equal(isServiceFeature('hosting_growth'), true);
+assert.equal(isPublicFeature('hosting_growth'), false);
+assert.equal(isDeployableFeature('hosting_core_os'), false);
+assert.equal(isDeployableFeature('hosting_growth'), false);
 
 assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}');
 assert.equal(railwayPrivateUrl('calcom-booking-api', 8080), 'http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080');

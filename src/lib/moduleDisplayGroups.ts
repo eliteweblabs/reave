@@ -9,7 +9,8 @@ export type ModuleDisplayGroupId =
   | 'e_commerce'
   | 'web_development'
   | 'work'
-  | 'google_workspace';
+  | 'google_workspace'
+  | 'hosting';
 
 export type ModuleDisplayGroup = {
   id: ModuleDisplayGroupId;
@@ -27,6 +28,11 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
     id: 'google_workspace',
     title: 'Google™ Workspace',
     features: ['google_workspace'],
+  },
+  {
+    id: 'hosting',
+    title: 'Hosting',
+    features: ['hosting_core_os', 'hosting_growth'],
   },
   {
     id: 'social',

@@ -37,7 +37,9 @@ export function formatModulePrice(price: ModulePrice): string {
   const dollars = Number.isInteger(price.amount) ? String(price.amount) : price.amount.toFixed(2);
   if (price.amount <= 0) return 'Included';
   if (price.interval === 'once') return `$${dollars}`;
-  return `$${dollars}/${price.interval === 'month' ? 'mo' : price.interval}`;
+  if (price.interval === 'month') return `$${dollars}/mo`;
+  if (price.interval === 'year') return `$${dollars}/yr`;
+  return `$${dollars}/${price.interval}`;
 }
 
 export function moduleOfferCopy(feature: FeatureId): string {

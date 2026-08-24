@@ -12,7 +12,7 @@ import {
   bindSwipeListScroll,
   swipeDeleteAction,
   attachIosPullToRefresh,
-} from './admin-ui.js?v=20260824a';
+} from './admin-ui.js?v=20260824c';
 import { mountListFilterTabs, captureFilterTabsScroll } from './filter-tabs.js?v=20260823a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton, showModuleCatalog } from './shared.js?v=20260810a';
@@ -26,6 +26,7 @@ const GROUP_META = {
   core: { title: 'Core OS', short: 'Core OS', icon: 'layers', tone: 'core' },
   work: { title: 'Work', short: 'Work', icon: 'briefcase', tone: 'work' },
   google_workspace: { title: 'Google™ Workspace', short: 'Workspace', icon: 'mail', tone: 'workspace' },
+  hosting: { title: 'Hosting', short: 'Hosting', icon: 'server', tone: 'hosting' },
   social: { title: 'Social', short: 'Social', icon: 'share', tone: 'social' },
   e_commerce: { title: 'E-commerce', short: 'E-comm', icon: 'shopping-bag', tone: 'commerce' },
   web_development: { title: 'Web Development', short: 'Web', icon: 'globe', tone: 'web' },
@@ -132,7 +133,12 @@ function newCustomRow(group) {
     priceAmount: null,
     priceLabel: group === 'core' ? 'Included' : group === 'internal' ? 'Internal' : '$200',
     saleSheet: group !== 'internal',
-    visibility: group === 'internal' ? 'private' : group === 'google_workspace' ? 'service' : 'public',
+    visibility:
+      group === 'internal'
+        ? 'private'
+        : group === 'google_workspace' || group === 'hosting'
+          ? 'service'
+          : 'public',
   };
 }
 
@@ -522,7 +528,8 @@ function renderDetailPane() {
   const deploy = item.deploy;
   const locked = item.kind === 'core' || item.kind === 'module';
   const editable = canEditCatalog() && item.catalogKey;
-  const service = item.visibility === 'service' || item.group === 'google_workspace';
+  const service =
+    item.visibility === 'service' || item.group === 'google_workspace' || item.group === 'hosting';
 
   const icons = [];
   if (canDeleteItem(item)) {

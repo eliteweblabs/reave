@@ -6,7 +6,7 @@ import type { FeatureId } from './featureCatalog.ts';
 
 export type ModulePrice = {
   amount: number;
-  interval: 'once' | 'month';
+  interval: 'once' | 'month' | 'year';
   currency: 'usd';
 };
 
@@ -42,6 +42,8 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   materials_pricing: { amount: 200, interval: 'once', currency: 'usd' },
   social_inbox: { amount: 200, interval: 'once', currency: 'usd' },
   google_workspace: { amount: 200, interval: 'once', currency: 'usd' },
+  hosting_core_os: { amount: 600, interval: 'year', currency: 'usd' },
+  hosting_growth: { amount: 900, interval: 'year', currency: 'usd' },
   dev_infra: { amount: 0, interval: 'once', currency: 'usd' },
   code_dev: { amount: 0, interval: 'once', currency: 'usd' },
   demo: { amount: 0, interval: 'once', currency: 'usd' },
