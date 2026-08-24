@@ -25,7 +25,6 @@ import { isOpsInstall } from '../../../lib/installConfig';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { FEATURE_LABELS, isPrivateFeature, isServiceFeature, type FeatureId } from '../../../lib/featureCatalog';
 import { postToSystemAlertsThread } from '../../../lib/adminAgentAlert';
-import { sendPushNotification } from '../../../lib/webPush';
 import {
   catalogLabel,
   resolvedIsPaidModule,
@@ -100,14 +99,15 @@ export async function POST(context: APIContext): Promise<Response> {
     refreshFeatureCache();
 
     const label = catalogLabel(feature, FEATURE_LABELS[feature]);
-    // Completion ping only — no System alerts Session and no dashboard row.
-    await sendPushNotification({
-      title: `${enabled ? 'On' : 'Off'}: ${label}`,
-      body: 'Runtime add-on override',
-      tag: `addon-toggle-${feature}`,
-      url: '/admin/?tab=addons',
-      skipDashboardAlert: true,
-      bypassQuietHours: true,
+    await postToSystemAlertsThread({
+      message: `Add-on toggled: **${label}** (\`${feature}\`) → ${enabled ? 'ON' : 'OFF'} (runtime override). Config features[] unchanged until deploy.`,
+      bypassSleep: true,
+      push: {
+        title: `${enabled ? 'On' : 'Off'}: ${label}`,
+        body: 'Runtime add-on override',
+        url: '/admin/?tab=addons',
+        urgent: false,
+      },
     }).catch(() => undefined);
 
     return json({ ok: true, feature, enabled, active: hasFeature(feature) });
