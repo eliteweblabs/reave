@@ -7,7 +7,9 @@ import {
   classifyEmail,
   DEFAULT_RULES,
   isCatalogMarketingDeleteRule,
+  isRepoCatalogRule,
   isSilentTriageStatus,
+  matchingCatalogDefinition,
   type EmailRule,
 } from '../src/lib/emailRules';
 import {
@@ -285,6 +287,69 @@ function testRule(partial: Partial<EmailRuleRecord> & Pick<EmailRuleRecord, 'id'
 
 assert.equal(deletedOrJunkedEmailBlocksNotification(null), true);
 assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'junk', status: 'DELETE' }), true);
+assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'internal', status: 'AUTO_ARCHIVED' }), true);
 assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'alert', status: 'NEEDS_CHECK' }), false);
+
+{
+  const shipmentDef = DEFAULT_RULES.find((r) =>
+    r.phrases.some((p) => /shipment\s*tracked/i.test(p)),
+  );
+  assert.ok(shipmentDef);
+  assert.ok((shipmentDef!.fields || []).includes('from'));
+  const shipmentRow: EmailRuleRecord = {
+    id: '11111111-1111-1111-1111-111111111111',
+    title: 'Shipment tracked',
+    status: 'AUTO_ARCHIVED',
+    scope: 'universal',
+    description: shipmentDef!.description,
+    phrases: [...shipmentDef!.phrases],
+    matchMode: 'any',
+    fields: ['subject', 'body', 'from'],
+    notify: false,
+    enabled: true,
+    sortOrder: 8,
+    hitCount: 4,
+  };
+  assert.equal(isRepoCatalogRule(shipmentRow), true);
+  assert.equal(matchingCatalogDefinition(shipmentRow)?.status, 'AUTO_ARCHIVED');
+
+  const senderBlock: EmailRuleRecord = {
+    id: '22222222-2222-2222-2222-222222222222',
+    title: 'Amazon sender',
+    status: 'AUTO_ARCHIVED',
+    scope: 'universal',
+    phrases: ['shipment-tracking@amazon.com'],
+    matchMode: 'any',
+    fields: ['from'],
+    notify: false,
+    enabled: true,
+    sortOrder: 9,
+  };
+  assert.equal(isRepoCatalogRule(senderBlock), false);
+
+  const clones = Array.from({ length: 12 }, (_, i) => ({
+    ...shipmentRow,
+    id: `33333333-3333-3333-3333-3333333333${String(i).padStart(2, '0')}`,
+    hitCount: i === 3 ? 20 : 1,
+    createdAt: `2026-01-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
+  }));
+  const first = applyRepoCatalog(clones);
+  assert.equal(
+    first.rules.filter((r) => matchingCatalogDefinition(r) === matchingCatalogDefinition(shipmentRow))
+      .length,
+    1,
+    'shipment clones must collapse to one catalog row',
+  );
+  const keeper = first.rules.find((r) => matchingCatalogDefinition(r) === matchingCatalogDefinition(shipmentRow));
+  assert.ok(keeper);
+  assert.equal(keeper!.hitCount, 20 + 11);
+  const second = applyRepoCatalog(first.rules);
+  assert.equal(second.changed, false, 'catalog sync must be idempotent for shipment-from');
+  assert.equal(
+    second.rules.filter((r) => matchingCatalogDefinition(r) === matchingCatalogDefinition(shipmentRow))
+      .length,
+    1,
+  );
+}
 
 console.log('verify-email-rule-priority: ok');

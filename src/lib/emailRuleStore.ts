@@ -14,10 +14,12 @@ import { serverEnv } from './serverEnv';
 import {
   DEFAULT_RULES,
   NOTIFY_ON_UNMATCHED,
+  catalogPhraseOverlap,
   coalesceRuleNotifyFields,
   isRepoCatalogRule,
   isSilentTriageStatus,
   isUniversalEmailRuleScope,
+  matchingCatalogDefinition,
   normalizeEmailRuleScope,
   normalizeNotifyActions,
   type EmailRule,
@@ -699,15 +701,19 @@ function catalogDefinitionKey(r: {
   });
 }
 
-function phraseOverlap(rule: EmailRuleRecord, def: EmailRule): number {
-  const want = new Set(def.phrases.map((p) => p.trim().toLowerCase()));
-  return (rule.phrases || []).filter((p) => want.has(String(p).trim().toLowerCase())).length;
+function catalogDefKey(def: EmailRule): string {
+  return `${String(def.status || '').toUpperCase()}::${[...def.phrases]
+    .map((p) => p.trim().toLowerCase())
+    .sort()
+    .join('|')}`;
 }
 
 /**
  * Existing install row for one DEFAULT_RULES definition.
  * Status alone is not unique (two DELETE rules, two AUTO_ARCHIVED rules) —
  * match by phrase overlap so sign-in DELETE cannot steal the marketing row.
+ * Catalog shipment-tracked searches `from`; sender-only personal blocks
+ * that also have `from` are excluded when the definition does not.
  */
 function findCatalogRecord(
   rules: EmailRuleRecord[],
@@ -715,21 +721,73 @@ function findCatalogRecord(
   claimedIds?: Set<string>,
 ): EmailRuleRecord | undefined {
   const key = String(def.status || '').toUpperCase();
+  const defHasFrom = (def.fields || []).includes('from');
   const candidates = rules.filter(
     (r) =>
       (!claimedIds || !claimedIds.has(r.id)) &&
       r.scope === 'universal' &&
       String(r.status || '').toUpperCase() === key &&
-      !(r.fields || []).includes('from'),
+      (defHasFrom || !(r.fields || []).includes('from')),
   );
   if (!candidates.length) return undefined;
-  const ranked = [...candidates].sort((a, b) => phraseOverlap(b, def) - phraseOverlap(a, def));
+  const ranked = [...candidates].sort(
+    (a, b) => catalogPhraseOverlap(b, def) - catalogPhraseOverlap(a, def),
+  );
   const best = ranked[0]!;
   const sameStatusDefaults = DEFAULT_RULES.filter(
     (d) => String(d.status || '').toUpperCase() === key,
   ).length;
-  if (phraseOverlap(best, def) === 0 && sameStatusDefaults > 1) return undefined;
+  if (catalogPhraseOverlap(best, def) === 0 && sameStatusDefaults > 1) return undefined;
   return best;
+}
+
+/**
+ * One catalog definition → one row. A seed bug used to insert a new
+ * shipment-tracked copy on every load because that definition searches `from`.
+ * Keep the most-used / oldest row and fold hit counts onto it.
+ */
+function collapseCatalogClones(rules: EmailRuleRecord[]): {
+  rules: EmailRuleRecord[];
+  changed: boolean;
+} {
+  const groups = new Map<string, EmailRuleRecord[]>();
+  const rest: EmailRuleRecord[] = [];
+  for (const r of rules) {
+    const def = matchingCatalogDefinition(r);
+    if (!def) {
+      rest.push(r);
+      continue;
+    }
+    const key = catalogDefKey(def);
+    const list = groups.get(key) || [];
+    list.push(r);
+    groups.set(key, list);
+  }
+  let changed = false;
+  const kept: EmailRuleRecord[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      kept.push(group[0]!);
+      continue;
+    }
+    changed = true;
+    group.sort((a, b) => {
+      const hitDiff = (Number(b.hitCount) || 0) - (Number(a.hitCount) || 0);
+      if (hitDiff) return hitDiff;
+      const created = String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+      if (created) return created;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    const winner = { ...group[0]! };
+    winner.hitCount = group.reduce((n, r) => n + (Number(r.hitCount) || 0), 0);
+    const lasts = group
+      .map((r) => r.lastMatchedAt)
+      .filter((v): v is string => Boolean(v))
+      .sort();
+    if (lasts.length) winner.lastMatchedAt = lasts[lasts.length - 1];
+    kept.push(winner);
+  }
+  return { rules: [...kept, ...rest], changed };
 }
 
 /**
@@ -786,9 +844,16 @@ export function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRe
     }
   }
 
+  const collapsed = collapseCatalogClones(next);
+  if (collapsed.changed) changed = true;
+  const afterCollapse = collapsed.rules;
+  for (const r of afterCollapse) {
+    if (matchingCatalogDefinition(r)) chosenIds.add(r.id);
+  }
+
   const out = home
-    ? next
-    : next.map((r) => {
+    ? afterCollapse
+    : afterCollapse.map((r) => {
         if (chosenIds.has(r.id) || r.scope !== 'universal') return r;
         changed = true;
         return { ...r, scope: 'personal' as const, updatedAt: now };
@@ -823,6 +888,10 @@ export async function loadActiveEmailRules(): Promise<{ rules: EmailRule[]; noti
     rules: config.rules.filter((r) => r.enabled && !isEmailRuleExpired(r, now)),
     notifyOnUnmatched: config.notifyOnUnmatched,
   };
+}
+
+export async function persistEmailRulesConfig(config: EmailRulesConfig): Promise<boolean> {
+  return persistConfig(config);
 }
 
 async function persistConfig(config: EmailRulesConfig): Promise<boolean> {

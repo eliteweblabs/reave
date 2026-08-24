@@ -884,7 +884,7 @@ export function createEmailTriageLab(deps) {
     syncComposeFromChips();
     root.innerHTML = '';
     root.classList.add('re-view-lab');
-    root.classList.remove('re-view-flow', 're-view-list', 'de-pane-active');
+    root.classList.remove('re-view-flow', 're-view-list', 'de-pane-active', 'de-drawer-host');
 
     const sidebar = document.createElement('aside');
     sidebar.className = 'ch-sidebar';

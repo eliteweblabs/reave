@@ -1768,15 +1768,20 @@ button.de-placeholder-action:active {
   #rule-editor.re-view-lab {
     flex-direction: column;
   }
-  #rule-editor.re-view-lab .ch-sidebar {
+  #rule-editor.re-view-lab .ch-sidebar,
+  #rule-editor.re-view-lab.de-pane-active .ch-sidebar {
+    display: flex;
     width: 100%;
     flex: 0 1 auto;
     max-height: 42vh;
   }
-  #rule-editor.re-view-lab:not(.de-pane-active) .de-pane {
+  #rule-editor.re-view-lab:not(.de-pane-active) .de-pane,
+  #rule-editor.re-view-lab.de-pane-active .de-pane {
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
+    position: relative;
+    padding-top: 0;
   }
 }
 .re-lab-live-spin {

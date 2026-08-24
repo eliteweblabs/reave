@@ -157,11 +157,12 @@ function aiEnabled(): boolean {
 function ruleCategory(status: string): EmailCategory {
   const s = status.toUpperCase();
   if (s === 'DELETE') return 'junk';
-  if (s === 'AUTO_ARCHIVED') return 'junk';
+  if (s === 'AUTO_ARCHIVED') return 'internal';
   if (s === 'RECEIPT') return 'receipt';
   if (isOperationalAlertStatus(s)) return 'alert';
   return 'review';
 }
+
 
 function isOperationalAlertStatus(status: string): boolean {
   const s = status.toUpperCase();
@@ -710,7 +711,7 @@ export async function processInboundEmail(
   let jobSlug: string | null = null;
   let jobTitle: string | null = null;
   let routeNote = '';
-  let action = 'classified';
+  let action = ruleResult.status.toUpperCase() === 'AUTO_ARCHIVED' ? 'filed' : 'classified';
   let proposedMeetingStart: string | null = null;
   let schedulingNote = '';
   let proposedMeetingDurationMinutes: number | null = null;
@@ -804,8 +805,8 @@ export async function processInboundEmail(
         bodyText,
       })
     ) {
-      category = 'junk';
-      action = 'classified';
+      category = 'internal';
+      action = 'filed';
       inboxStatusOverride = 'AUTO_ARCHIVED';
       routeNote = 'Shipment tracking — auto-archived (not a tax receipt)';
       if (shipmentRuleLink) {
@@ -1059,6 +1060,12 @@ export async function processInboundEmail(
       summary = email.subject || 'Filtered as junk';
     } else if (category === 'receipt') {
       action = 'receipt';
+    } else if (
+      ruleResult.status.toUpperCase() === 'AUTO_ARCHIVED' ||
+      inboxStatusOverride === 'AUTO_ARCHIVED'
+    ) {
+      category = 'internal';
+      action = 'filed';
     } else {
       // Known contact already skipped catalog junk. Leave review/alert
       // unless a personal rule or trusted AI already classified the message.
@@ -1081,7 +1088,10 @@ export async function processInboundEmail(
   const suppressedAsJunk =
     !isVerificationCode &&
     !isAuthLink &&
-    (category === 'junk' || action === 'junk' || ruleResult.status.toUpperCase() === 'DELETE');
+    (category === 'junk' ||
+      action === 'junk' ||
+      ruleResult.status.toUpperCase() === 'DELETE' ||
+      ruleResult.status.toUpperCase() === 'AUTO_ARCHIVED');
   // Operational alerts (e.g. Google "Security alert") must not become urgent client-replies
   // just because a project happens to share the subject line.
   const suppressedAsOperationalAlert = isOperationalAlertStatus(ruleResult.status);
@@ -1232,8 +1242,8 @@ export async function processInboundEmail(
   }
 
   if (looksLikeShipmentNotice(moneyEv) && (category === 'receipt' || inboxStatus.toUpperCase() === 'RECEIPT')) {
-    category = 'junk';
-    action = 'classified';
+    category = 'internal';
+    action = 'filed';
     inboxStatus = 'AUTO_ARCHIVED';
     routeNote = 'Shipment tracking — auto-archived (not a tax receipt)';
     pushAudit(

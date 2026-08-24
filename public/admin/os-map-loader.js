@@ -262,7 +262,7 @@ import {
   openRulesLabWithEmail,
   openRulesLabWithRule,
   startNewRule,
-} from './rules-panel.js?v=20260822d';
+} from './rules-panel.js?v=20260824a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -10810,7 +10810,14 @@ function emailDetailClassificationHtml(ev) {
       ruleTitle,
     });
   }
-  if (action) steps.push({ decision: 'Action', detail: action });
+  if (action) {
+    const status = String(ev.status || '').toUpperCase();
+    const actionLabel =
+      status === 'AUTO_ARCHIVED' || (action.toLowerCase() === 'filed' && ev.category !== 'client' && ev.category !== 'receipt')
+        ? 'archive'
+        : action;
+    steps.push({ decision: 'Action', detail: actionLabel });
+  }
   if (route) {
     steps.push({
       decision: 'Route',

@@ -465,18 +465,64 @@ export function isRepoCatalogStatus(status: string): boolean {
   return DEFAULT_RULES.some((d) => d.status.toUpperCase() === key);
 }
 
+/** How many of `def.phrases` appear on the rule (case-insensitive). */
+export function catalogPhraseOverlap(
+  rule: { phrases?: readonly string[] | null },
+  def: Pick<EmailRule, 'phrases'>,
+): number {
+  const want = new Set(
+    (def.phrases || []).map((p) => String(p).trim().toLowerCase()).filter(Boolean),
+  );
+  return (rule.phrases || []).filter((p) => want.has(String(p).trim().toLowerCase())).length;
+}
+
+/**
+ * Which DEFAULT_RULES row this persisted rule is the install copy of.
+ * Shipment-tracked is a catalog row that *does* search `from` (Amazon
+ * `shipment-tracking@`). Sender-only personal blocks also have `from` but
+ * do not overlap catalog phrases — they must not steal the catalog slot.
+ */
+export function matchingCatalogDefinition(rule: {
+  status?: string;
+  scope?: string | null;
+  phrases?: readonly string[] | null;
+  fields?: readonly string[] | null;
+}): EmailRule | undefined {
+  if (normalizeEmailRuleScope(rule.scope, 'personal') !== 'universal') return undefined;
+  const key = String(rule.status || '')
+    .trim()
+    .toUpperCase();
+  if (!isRepoCatalogStatus(key)) return undefined;
+  const defs = DEFAULT_RULES.filter((d) => d.status.toUpperCase() === key);
+  if (!defs.length) return undefined;
+  const ruleHasFrom = (rule.fields || []).includes('from');
+  const eligible = defs.filter((d) => {
+    const defHasFrom = (d.fields || []).includes('from');
+    return !ruleHasFrom || defHasFrom;
+  });
+  if (!eligible.length) return undefined;
+  const ranked = [...eligible].sort(
+    (a, b) => catalogPhraseOverlap(rule, b) - catalogPhraseOverlap(rule, a),
+  );
+  const best = ranked[0]!;
+  const overlap = catalogPhraseOverlap(rule, best);
+  // Zero overlap: only accept when this status has a single catalog row and
+  // the install copy does not search `from` (sender blocks are never catalog).
+  if (overlap === 0 && (eligible.length > 1 || ruleHasFrom)) return undefined;
+  return best;
+}
+
 /**
  * Repo catalog row (not a personal rule that happens to share a status like DELETE).
- * Catalog defaults never search `from` — those are install-local sender blocks.
+ * Match by definition — including catalog rows that search `from`.
  */
 export function isRepoCatalogRule(rule: {
   status?: string;
   scope?: string | null;
   fields?: readonly string[] | null;
+  phrases?: readonly string[] | null;
 }): boolean {
-  if (normalizeEmailRuleScope(rule.scope, 'personal') !== 'universal') return false;
-  if (!isRepoCatalogStatus(String(rule.status || ''))) return false;
-  return !(rule.fields || []).includes('from');
+  return Boolean(matchingCatalogDefinition(rule));
 }
 
 /** Phrase set for the catalog unsubscribe / opt-out DELETE catch-all. */

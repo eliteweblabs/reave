@@ -53,7 +53,7 @@ import {
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260822b';
+} from './email-triage-lab.js?v=20260824a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -142,7 +142,10 @@ function isRepoCatalogRuleClient(rule) {
   if (ruleScope(rule) !== 'universal') return false;
   const status = String(rule.status || '').toUpperCase();
   if (!REPO_CATALOG_STATUSES.has(status)) return false;
-  return !(rule.fields || []).includes('from');
+  const fields = rule.fields || [];
+  if (!fields.includes('from')) return true;
+  // Catalog shipment-tracked is the only default that searches `from`.
+  return (rule.phrases || []).some((p) => /shipment\s*[-]?track/i.test(String(p)));
 }
 
 function canDeleteRule(rule) {
@@ -297,7 +300,7 @@ function processHintText(process) {
     return 'Matched mail is filed as junk and hidden from the inbox. No notification.';
   }
   if (process === 'archive') {
-    return 'Matched mail is filed as junk without an alert.';
+    return 'Matched mail is filed to Archive. No notification.';
   }
   if (process === 'receipt') {
     return 'Matched mail is filed as a tax receipt. No alert.';
@@ -762,11 +765,16 @@ async function openRuleEditor(id) {
     return;
   }
   if (!(await leaveRuleIfSaved())) return;
-  ruleState.activeId = id;
+  const resolved = resolveLabRuleId(id) || id;
+  ruleState.activeId = resolved;
   ruleState.dirty = false;
   shell.clearEditorFooterSave();
-  getRuleEditor()?.classList.remove('de-pane-active');
+  const root = getRuleEditor();
+  root?.classList.remove('de-pane-active', 'de-drawer-host');
   getTriageLab().syncExpandedRule();
+  if (resolved && !isRuleAccordionMounted(resolved) && root?.classList.contains('re-view-lab')) {
+    getTriageLab().render(root);
+  }
 }
 
 async function closeRuleEditor(checkDirty = true) {
@@ -1575,16 +1583,30 @@ async function openRulesLabWithEmail(emailRecord, opts = {}) {
   await lab.loadInboxEmail(emailRecord, { run: opts.run !== false });
 }
 
+function resolveLabRuleId(ruleId) {
+  const id = String(ruleId || '').trim();
+  if (id && ruleState.rules.some((r) => String(r.id) === id)) return id;
+  const fallback = ruleState.rules.find(
+    (r) =>
+      String(r.title || '').toLowerCase() === 'shipment tracked' ||
+      (Array.isArray(r.phrases) &&
+        r.phrases.some((p) => /shipment\s*[-]?track/i.test(String(p)))),
+  );
+  return fallback ? String(fallback.id) : '';
+}
+
 /** Open Email Lab and expand the rule the inbox classification landed on. */
 async function openRulesLabWithRule(ruleId, opts = {}) {
-  const id = String(ruleId || '').trim();
+  const requested = String(ruleId || '').trim();
+  if (requested) ruleState.activeId = requested;
   shell.setActiveMap?.('rules', { force: true });
   await loadRulesTab();
+  const id = resolveLabRuleId(requested);
+  ruleState.activeId = id || null;
   if (opts.email && typeof opts.email === 'object') {
     await getTriageLab().loadInboxEmail(opts.email, { run: opts.run !== false });
   }
-  if (!id) return;
-  if (String(ruleState.activeId) === id) {
+  if (!id) {
     getTriageLab().syncExpandedRule();
     return;
   }
