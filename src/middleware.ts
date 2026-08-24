@@ -42,6 +42,25 @@ function isHealthLiveProbe(pathname: string): boolean {
   return pathname.replace(/\/$/, "") === "/api/health/live";
 }
 
+/** Admin shell and admin APIs require Clerk in production. */
+function requiresClerkAuth(pathname: string): boolean {
+  const normalized = pathname.replace(/\/$/, "") || "/";
+  return (
+    normalized === "/admin" ||
+    normalized.startsWith("/admin/") ||
+    normalized.startsWith("/api/admin/")
+  );
+}
+
+function clerkUnavailableResponse(): Response {
+  return applySecurityHeaders(
+    new Response(JSON.stringify({ ok: false, error: "Authentication is not configured" }), {
+      status: 503,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }),
+  );
+}
+
 /** Service worker scripts must revalidate every load so fixes reach installed PWAs. */
 function isServiceWorkerScript(pathname: string): boolean {
   return pathname === "/admin/sw.js" || pathname === "/c/sw.js";
@@ -240,7 +259,11 @@ async function runAppMiddleware(
   context: Parameters<MiddlewareHandler>[0],
   next: Parameters<MiddlewareHandler>[1],
 ): Promise<Response> {
+  const pathname = new URL(context.request.url).pathname;
+  const failClosed = import.meta.env.PROD && requiresClerkAuth(pathname);
+
   if (!isClerkRuntimeConfigured()) {
+    if (failClosed) return clerkUnavailableResponse();
     console.warn("[middleware] Clerk keys missing — serving without auth hydration");
     return appHandler(context, next);
   }
@@ -248,6 +271,7 @@ async function runAppMiddleware(
     return await clerkAppMiddleware()(context, next);
   } catch (err) {
     console.error("[middleware] clerkMiddleware failed", err);
+    if (failClosed) return clerkUnavailableResponse();
     return appHandler(context, next);
   }
 }

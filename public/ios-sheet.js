@@ -424,5 +424,25 @@
     }
   }).observe(document.documentElement, { childList: true, subtree: true });
 
-  window.IosSheet = { open, close, closeAll };
+  window.IosSheet = {
+    open,
+    close,
+    closeAll,
+    whenReady(fn) {
+      if (typeof fn !== 'function') return;
+      const ready = () => Boolean(window.IosSheet?.open);
+      if (ready()) {
+        fn();
+        return;
+      }
+      const poll = () => {
+        if (ready()) {
+          fn();
+          return;
+        }
+        requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
+    },
+  };
 })();

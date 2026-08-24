@@ -137,7 +137,7 @@ export async function brandedEmailHtml(opts: {
     : '';
 
   const signatureHtml = opts.signature?.trim()
-    ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-size:14px;line-height:1.55">${signatureHtmlForEmail(opts.signature)}</div></td></tr>`
+    ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-size:14px;line-height:1.55">${await signatureHtmlForEmail(opts.signature)}</div></td></tr>`
     : '';
 
   const complianceHtml =

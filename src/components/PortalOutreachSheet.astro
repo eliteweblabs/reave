@@ -52,20 +52,6 @@ const paragraphs = content
     }
   }
 
-  function whenIosSheetReady(fn) {
-    if (window.IosSheet?.open) {
-      fn();
-      return;
-    }
-    const script = document.querySelector('script[src*="ios-sheet.js"]');
-    if (script && !script.dataset.outreachBound) {
-      script.dataset.outreachBound = '1';
-      script.addEventListener('load', fn, { once: true });
-      return;
-    }
-    requestAnimationFrame(() => whenIosSheetReady(fn));
-  }
-
   function openOutreachSheet() {
     if (wasDismissed()) return;
 
@@ -73,7 +59,7 @@ const paragraphs = content
     if (!sheet || sheet.dataset.opened === '1') return;
     sheet.dataset.opened = '1';
 
-    whenIosSheetReady(() => {
+    window.IosSheet?.whenReady(() => {
       window.IosSheet?.open(sheetId, { onClose: markDismissed });
     });
   }

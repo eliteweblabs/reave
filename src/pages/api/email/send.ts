@@ -93,7 +93,7 @@ export async function POST(context: APIContext): Promise<Response> {
     sendHtml = wrapped.html;
   } else {
     sendText = appendSignatureToPlainText(sendText, signature);
-    if (sendHtml) sendHtml = appendSignatureToHtmlFragment(sendHtml, signature);
+    if (sendHtml) sendHtml = await appendSignatureToHtmlFragment(sendHtml, signature);
   }
 
   const result = await sendEmail({

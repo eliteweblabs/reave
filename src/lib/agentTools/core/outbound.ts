@@ -209,7 +209,7 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
   let html: string | undefined;
   if (looksHtml) {
     text = appendSignatureToPlainText(plainTextFromHtml(body) || body, signature);
-    html = appendSignatureToHtmlFragment(body, signature);
+    html = await appendSignatureToHtmlFragment(body, signature);
   } else {
     let firstName = to.split('@')[0] || 'there';
     if (inReplyToEmailId) {

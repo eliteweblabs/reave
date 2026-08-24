@@ -2,70 +2,25 @@
  * inventory-api — multi-channel e-commerce inventory (Shopify, WooCommerce, Square, …)
  * Bootstrap: bootstrap/inventory-api/
  */
-import { serverEnv } from './serverEnv';
+import { createExternalApiClient, type ExternalApiResult } from './externalApiClient';
 
-function baseUrl(): string | null {
-  const raw = serverEnv('INVENTORY_API_BASE_URL')?.trim();
-  if (!raw) return null;
-  return raw.replace(/\/+$/, '');
-}
-
-function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  };
-  const key = serverEnv('INVENTORY_API_KEY')?.trim();
-  if (key) headers['X-API-Key'] = key;
-  return headers;
-}
+const inventoryApi = createExternalApiClient({
+  baseUrlEnv: 'INVENTORY_API_BASE_URL',
+  apiKeyEnv: 'INVENTORY_API_KEY',
+  notConfiguredMessage: 'INVENTORY_API_BASE_URL is not set',
+});
 
 export function isInventoryApiConfigured(): boolean {
-  return Boolean(baseUrl());
+  return inventoryApi.isConfigured();
 }
 
-type InventoryResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; status?: number };
+type InventoryResult<T> = ExternalApiResult<T>;
 
 async function inventoryFetch<T>(
   path: string,
   init: { method: string; body?: unknown },
 ): Promise<InventoryResult<T>> {
-  const base = baseUrl();
-  if (!base) return { ok: false, error: 'INVENTORY_API_BASE_URL is not set' };
-
-  let res: Response;
-  try {
-    res = await fetch(`${base}${path}`, {
-      method: init.method,
-      headers: authHeaders(),
-      body: init.body != null ? JSON.stringify(init.body) : undefined,
-    });
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
-  }
-
-  const text = await res.text().catch(() => '');
-  let parsed: unknown = undefined;
-  if (text) {
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      parsed = { raw: text.slice(0, 500) };
-    }
-  }
-
-  if (!res.ok || (parsed && typeof parsed === 'object' && (parsed as { ok?: boolean }).ok === false)) {
-    const msg =
-      (parsed as { error?: string })?.error ||
-      text.slice(0, 300) ||
-      res.statusText ||
-      `HTTP ${res.status}`;
-    return { ok: false, error: msg, status: res.status };
-  }
-
-  return { ok: true, data: parsed as T };
+  return inventoryApi.fetch<T>(path, init);
 }
 
 export type InventoryLocation = {

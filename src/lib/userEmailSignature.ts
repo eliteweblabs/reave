@@ -6,6 +6,7 @@ import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
 import { clerkSecretKey } from './clerkClient';
 import { escHtml } from './escHtml';
+import { sanitizeHtmlFragment } from './sanitizeHtmlFragment';
 
 async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
   const secretKey = clerkSecretKey();
@@ -49,13 +50,9 @@ export function isHtmlSignature(signature: string): boolean {
   return /<[a-z][\s\S]*>/i.test(signature.trim());
 }
 
-/** Strip scripts and inline handlers from admin-authored signature HTML. */
-export function sanitizeSignatureHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/javascript:/gi, '')
-    .trim();
+/** Strip dangerous markup from admin-authored signature HTML. */
+export async function sanitizeSignatureHtml(html: string): Promise<string> {
+  return sanitizeHtmlFragment(html);
 }
 
 export function signatureToPlainText(signature: string): string {
@@ -77,7 +74,7 @@ export function signatureToPlainText(signature: string): string {
     .trim();
 }
 
-export function signatureHtmlForEmail(signature: string): string {
+export async function signatureHtmlForEmail(signature: string): Promise<string> {
   const trimmed = signature.trim();
   if (!trimmed) return '';
   if (isHtmlSignature(trimmed)) return sanitizeSignatureHtml(trimmed);
@@ -99,8 +96,8 @@ export function appendSignatureToPlainText(body: string, signature: string): str
   return `${trimmed}\n\n${sig}`;
 }
 
-export function appendSignatureToHtmlFragment(html: string, signature: string): string {
-  const sigHtml = signatureHtmlForEmail(signature);
+export async function appendSignatureToHtmlFragment(html: string, signature: string): Promise<string> {
+  const sigHtml = await signatureHtmlForEmail(signature);
   if (!sigHtml) return html;
   const block =
     `<div style="margin-top:24px;color:#444444;font-size:14px;line-height:1.55;font-family:Arial,Helvetica,sans-serif">${sigHtml}</div>`;

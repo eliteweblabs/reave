@@ -4,32 +4,23 @@
  * Auth: ?key=<UPTIMEROBOT_POLL_SECRET> (falls back to UPTIMEROBOT_WEBHOOK_SECRET)
  * or deployment owner Clerk session.
  */
-import type { APIRoute } from 'astro';
-import { hasFeature } from '../../../lib/features';
 import { runUptimePoll, uptimePollSecret, ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
-import { authorizePollOrOwner } from '../../../lib/pollRouteAuth';
+import { createPollRoute } from '../../../lib/api/pollRoute';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
+const route = createPollRoute({
+  feature: 'uptime_monitoring',
+  secret: uptimePollSecret,
+  ensureScheduler: ensureUptimePollScheduler,
+  run: async () => {
+    const result = await runUptimePoll();
+    if (!result.ok) {
+      return { body: { ...result, ok: false }, status: result.error ? 503 : 500 };
+    }
+    return { body: { ok: true, synced: result.synced } };
+  },
+});
 
-export const GET: APIRoute = async (context) => {
-  const key = context.url.searchParams.get('key')?.trim() ?? null;
-  const auth = await authorizePollOrOwner(context, key, uptimePollSecret);
-  if (auth instanceof Response) return auth;
-
-  if (!hasFeature('uptime_monitoring')) {
-    return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
-  }
-  ensureUptimePollScheduler();
-  const result = await runUptimePoll();
-  if (!result.ok) return json({ ...result, ok: false }, result.error ? 503 : 500);
-  return json({ ok: true, synced: result.synced });
-};
-
-export const POST: APIRoute = GET;
+export const GET = route.GET;
+export const POST = route.POST;
