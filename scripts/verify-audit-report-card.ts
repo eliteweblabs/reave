@@ -479,4 +479,40 @@ We need to update your website's security certificate.
   console.log('ok — real blocklist hits stay a D and keep reputation copy');
 }
 
+{
+  const r = card(
+    'Barracuda mail is not domain reputation',
+    `## Website Audit
+
+### Domain & IP Reputation
+- Mail runs through Barracuda Email Security + Microsoft 365 (MX to barracudanetworks.com; SPF includes outlook.com, mailgun.org, createsend.com/Campaign Monitor, Barracuda). SPF valid, DKIM present (selector1). DMARC is missing — no policy to stop spoofing of the firm's domain; a real deliverability and brand-protection gap.
+
+### DNS & Email
+- Mail runs through Barracuda Email Security + Microsoft 365 (MX to barracudanetworks.com)
+- SPF: pass
+- DKIM: pass
+- DMARC: missing
+
+### SSL & Website Security
+- SSL: valid, Grade B
+`,
+  );
+  assert.equal(
+    r.featured,
+    null,
+    'do not feature Domain & IP Reputation from Barracuda MX / SPF / DKIM notes',
+  );
+  const rep = r.categories.find((c) => c.id === 'domain_reputation');
+  assert.equal(rep, undefined, 'email-gateway copy must not grade reputation');
+  const email = r.categories.find((c) => c.id === 'email');
+  assert.ok(email, 'email tile should still render');
+  assert.match(email?.finding || email?.summary || '', /email|authentication|DMARC|anti-spoofing|gap/i);
+  assert.equal(
+    /Safe Browsing|blocklist|network reputation/i.test(email?.finding || ''),
+    false,
+    'email tile stays on deliverability, not Safe Browsing',
+  );
+  console.log('ok — Barracuda MX / SPF / DKIM stays on Email Deliverability');
+}
+
 console.log('all audit report-card checks passed');

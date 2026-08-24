@@ -947,7 +947,11 @@ const LIGHTHOUSE_REPUTATION_NOISE_RE =
   /lighthouse|speed & quality scan|best[-\s]?practices?|console errors?|both viewports|page ?speed|core web vitals|\bfcp\b|\blcp\b|\bcls\b|render-blocking/i;
 
 const REPUTATION_SIGNAL_RE =
-  /(?:safe\s*browsing)|(?:black|block)lists?|spamhaus|surbl|spamcop|barracuda|ip reputation|domain reputation|network reputation|reputation flags?|malware|phishing|deceptive site/i;
+  /(?:safe\s*browsing)|(?:black|block)lists?|spamhaus|surbl|spamcop|listed on barracuda|barracuda (?:blocklist|rbl|brbl)|\bbrbl\b|ip reputation|domain reputation|network reputation|reputation flags?|malware|phishing|deceptive site/i;
+
+/** MX / SPF / DKIM / DMARC write-ups — Email Deliverability, not Domain & IP Reputation. */
+const EMAIL_AUTH_NOISE_RE =
+  /\b(?:mx|spf|dkim|dmarc)\b|mail runs through|email security|microsoft 365|allowed email sender|email authenticity|anti-spoofing|mailgun|createsend|campaign monitor|selector\d/i;
 
 const REPUTATION_BAD_RE =
   /\b(?:black|block)listed\b|listed on .{0,60}(?:spamhaus|(?:black|block)lists?)|\bon spamhaus\b|spamhaus (?:hit|list|zen)|safe browsing (?:hit|flag|warning|block)|flagged (?:as )?(?:malware|phishing|spam|unsafe|deceptive)|poor reputation|trending down|deceptive site|\bmalware\b|\bphishing\b/i;
@@ -960,6 +964,13 @@ function isReputationRelevantLine(line: string): boolean {
   if (!t || t.length < 4) return false;
   if (/^reviews?\s*&?\s*reputation\b/i.test(t)) return false;
   if (LIGHTHOUSE_REPUTATION_NOISE_RE.test(t) && !REPUTATION_SIGNAL_RE.test(t)) return false;
+  // Barracuda-the-gateway / SPF-DKIM-DMARC notes are email, not blocklist reputation.
+  if (
+    EMAIL_AUTH_NOISE_RE.test(t) &&
+    !/(?:safe\s*browsing)|(?:black|block)lists?|spamhaus|surbl|reputation flags?/i.test(t)
+  ) {
+    return false;
+  }
   return REPUTATION_SIGNAL_RE.test(t);
 }
 
