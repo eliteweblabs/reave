@@ -6,7 +6,7 @@
  * Deployment owners can runtime-toggle via feature overrides (Postgres).
  */
 import type { FeatureId } from './featureCatalog.ts';
-import { FEATURE_BLURBS, FEATURE_LABELS, isPrivateFeature } from './featureCatalog.ts';
+import { FEATURE_BLURBS, FEATURE_LABELS, isPrivateFeature, isServiceFeature } from './featureCatalog.ts';
 import { isDemoBaselineModuleId, demoModuleIdForFeature } from './demoModuleCatalog.ts';
 import { isOpsInstall } from './installConfig.ts';
 import { PAID_MODULE_PRICES, type ModulePrice } from './paidModulePrices.ts';
@@ -17,7 +17,7 @@ export { PAID_MODULE_PRICES } from './paidModulePrices.ts';
 export function isPaidModule(feature: FeatureId): boolean {
   const price = PAID_MODULE_PRICES[feature];
   if (!price || price.amount <= 0) return false;
-  if (isPrivateFeature(feature)) return false;
+  if (isPrivateFeature(feature) || isServiceFeature(feature)) return false;
   const moduleId = demoModuleIdForFeature(feature);
   if (moduleId && isDemoBaselineModuleId(moduleId)) return false;
   return true;

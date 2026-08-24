@@ -23,7 +23,7 @@ import {
 } from '../../../lib/moduleEntitlements';
 import { isOpsInstall } from '../../../lib/installConfig';
 import { getCompanyConfig } from '../../../lib/companyConfig';
-import { FEATURE_LABELS, isPrivateFeature, type FeatureId } from '../../../lib/featureCatalog';
+import { FEATURE_LABELS, isPrivateFeature, isServiceFeature, type FeatureId } from '../../../lib/featureCatalog';
 import { postToSystemAlertsThread } from '../../../lib/adminAgentAlert';
 import {
   catalogLabel,
@@ -119,7 +119,7 @@ export async function POST(context: APIContext): Promise<Response> {
       return json({ ok: false, error: 'Owners toggle add-ons directly — use action toggle.' }, 400);
     }
 
-    if (isPrivateFeature(feature) || !resolvedIsPaidModule(feature)) {
+    if (isPrivateFeature(feature) || isServiceFeature(feature) || !resolvedIsPaidModule(feature)) {
       return json({ ok: false, error: 'That add-on is not available for self-serve request.' }, 400);
     }
     if (hasFeature(feature)) {

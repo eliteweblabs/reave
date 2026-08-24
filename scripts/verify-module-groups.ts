@@ -3,7 +3,15 @@
  * Run: npm run check:module-groups
  */
 import assert from 'node:assert/strict';
-import { FEATURE_IDS, FEATURE_LABELS, FEATURE_MARKETING, FEATURE_SALE_SHEET } from '../src/lib/featureCatalog.ts';
+import {
+  FEATURE_IDS,
+  FEATURE_LABELS,
+  FEATURE_MARKETING,
+  FEATURE_SALE_SHEET,
+  isDeployableFeature,
+  isPublicFeature,
+  isServiceFeature,
+} from '../src/lib/featureCatalog.ts';
 import { MARKETING_FEATURES } from '../src/lib/marketingFeatures.ts';
 import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
 import { demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
@@ -41,6 +49,10 @@ assert.ok(FEATURE_SALE_SHEET.has('time_tracking'));
 assert.ok(FEATURE_SALE_SHEET.has('social_inbox'));
 assert.ok(FEATURE_SALE_SHEET.has('google_workspace'));
 assert.ok(!FEATURE_SALE_SHEET.has('content_management'));
+assert.equal(isServiceFeature('google_workspace'), true);
+assert.equal(isPublicFeature('google_workspace'), false);
+assert.equal(isDeployableFeature('google_workspace'), false);
+assert.equal(isDeployableFeature('social_inbox'), true);
 
 const groupIds = MODULE_DISPLAY_GROUPS.map((g) => g.id);
 assert.ok(groupIds.includes('social'));
@@ -75,9 +87,9 @@ for (const group of ['core', 'work', 'google_workspace', 'social', 'e_commerce',
 }
 assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group === 'work' && row.saleSheet));
 assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
-assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'google_workspace' && row.saleSheet));
-assert.ok(catalog.some((row) => row.feature === 'gmail_mx' && row.group === 'google_workspace'));
-assert.ok(catalog.some((row) => row.feature === 'gmail_dkim' && row.group === 'google_workspace'));
+assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'google_workspace' && row.saleSheet && row.visibility === 'service'));
+assert.ok(catalog.some((row) => row.feature === 'gmail_mx' && row.group === 'google_workspace' && row.visibility === 'service'));
+assert.ok(catalog.some((row) => row.feature === 'gmail_dkim' && row.group === 'google_workspace' && row.visibility === 'service'));
 assert.ok(!catalog.some((row) => row.feature === 'content_management'));
 assert.equal(FEATURE_MARKETING.google_workspace?.length, 5);
 assert.ok(FEATURE_MARKETING.google_workspace?.every((c) => !c.id.includes('-')), 'marketing chips must use underscores');

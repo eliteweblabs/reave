@@ -210,7 +210,7 @@ export type CatalogRow = {
   priceAmount: number | null;
   priceLabel: string;
   saleSheet: boolean;
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'private' | 'service';
 };
 
 export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
@@ -388,7 +388,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
       priceAmount: null,
       priceLabel: 'Included',
       saleSheet: true,
-      visibility: 'public' as const,
+      visibility: 'service' as const,
     };
   });
 

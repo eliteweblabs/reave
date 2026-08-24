@@ -131,7 +131,7 @@ function newCustomRow(group) {
     priceAmount: null,
     priceLabel: group === 'core' ? 'Included' : group === 'internal' ? 'Internal' : '$200',
     saleSheet: group !== 'internal',
-    visibility: group === 'internal' ? 'private' : 'public',
+    visibility: group === 'internal' ? 'private' : group === 'google_workspace' ? 'service' : 'public',
   };
 }
 
@@ -492,6 +492,7 @@ function renderDetailPane() {
   const deploy = item.deploy;
   const locked = item.kind === 'core' || item.kind === 'module';
   const editable = canEditCatalog() && item.catalogKey;
+  const service = item.visibility === 'service' || item.group === 'google_workspace';
 
   const icons = [];
   if (canDeleteItem(item)) {
@@ -548,7 +549,7 @@ function renderDetailPane() {
 
   const status = document.createElement('section');
   status.className = 'mod-detail-status';
-  if (deploy) {
+  if (deploy && !service) {
     const statusCls = STATUS_CLASS[deploy.status] || 'mod-status--development';
     const navPills = deploy.footerNavLabels?.length
       ? deploy.footerNavLabels.map((l) => `<span class="mod-nav-pill">${escHtml(l)}</span>`).join('')
@@ -568,10 +569,10 @@ function renderDetailPane() {
       (deploy.inDemoSuite != null ? renderFlag(deploy.inDemoSuite, 'In the active demo suite') : '') +
       `</ul>` +
       `<div class="mod-cell-buy">${renderPurchaseHtml(deploy)}</div>`;
-  } else if (editable) {
+  } else if (editable || service) {
     status.innerHTML =
       `<h2 class="mod-detail-heading">This install</h2>` +
-      `<p class="mod-muted">Catalog-only row — not a deployed feature on this install.</p>`;
+      `<p class="mod-muted">Not a deployable feature.</p>`;
   }
   scroll.appendChild(status);
   pane.appendChild(scroll);

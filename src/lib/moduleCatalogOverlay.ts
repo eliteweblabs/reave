@@ -40,7 +40,7 @@ export function resolvedModulePrice(feature: FeatureId): ModulePrice | null {
 export function resolvedIsPaidModule(feature: FeatureId): boolean {
   const row = peekCatalogRow(feature);
   if (!row) return isPaidModule(feature);
-  if (row.kind === 'core' || row.visibility === 'private') return false;
+  if (row.kind === 'core' || row.visibility === 'private' || row.visibility === 'service') return false;
   return (row.priceAmount ?? 0) > 0;
 }
 

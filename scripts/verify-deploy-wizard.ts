@@ -44,8 +44,10 @@ import {
 import { DEMO_BASELINE_MODULE_IDS, demoModuleIdForFeature } from '../src/lib/demoModuleCatalog.ts';
 import {
   featureVisibility,
+  isDeployableFeature,
   isPrivateFeature,
   isPublicFeature,
+  isServiceFeature,
 } from '../src/lib/featureCatalog.ts';
 
 assert.equal(featureVisibility('client_portal'), 'public');
@@ -64,6 +66,10 @@ assert.equal(isPublicFeature('code_dev'), false);
 assert.equal(isPublicFeature('namecom_dns'), false);
 assert.equal(isPublicFeature('content_management'), true);
 assert.equal(isPublicFeature('website'), true);
+assert.equal(featureVisibility('google_workspace'), 'service');
+assert.equal(isServiceFeature('google_workspace'), true);
+assert.equal(isPublicFeature('google_workspace'), false);
+assert.equal(isDeployableFeature('google_workspace'), false);
 
 assert.equal(railwayPublicUrl('contact-api'), 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}');
 assert.equal(railwayPrivateUrl('calcom-booking-api', 8080), 'http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080');

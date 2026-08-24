@@ -11,7 +11,7 @@ import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { isDemoMode } from '../../../../lib/demoMode';
 import { hasFeature } from '../../../../lib/features';
-import { FEATURE_LABELS, isPrivateFeature } from '../../../../lib/featureCatalog';
+import { FEATURE_LABELS, isPrivateFeature, isServiceFeature } from '../../../../lib/featureCatalog';
 import { isCraterConfigured, craterCreateInvoice } from '../../../../lib/craterClient';
 import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import {
@@ -58,7 +58,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const featureRaw = String(body.feature ?? '').trim();
   if (!isFeatureId(featureRaw)) return json({ ok: false, error: 'Unknown module.' }, 400);
   await ensureModuleCatalogLoaded();
-  if (isPrivateFeature(featureRaw) || !resolvedIsPaidModule(featureRaw)) {
+  if (isPrivateFeature(featureRaw) || isServiceFeature(featureRaw) || !resolvedIsPaidModule(featureRaw)) {
     return json({ ok: false, error: 'That module is not for sale in the app.' }, 400);
   }
   if (hasFeature(featureRaw)) {

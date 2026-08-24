@@ -13,8 +13,10 @@ import {
   FEATURE_IDS,
   FEATURE_LABELS,
   featureVisibility,
+  isDeployableFeature,
   isPrivateFeature,
   isPublicFeature,
+  isServiceFeature,
   type FeatureId,
   type FeatureVisibility,
 } from './featureCatalog.ts';
@@ -30,8 +32,10 @@ export {
   FEATURE_IDS,
   FEATURE_LABELS,
   featureVisibility,
+  isDeployableFeature,
   isPrivateFeature,
   isPublicFeature,
+  isServiceFeature,
   type FeatureId,
   type FeatureVisibility,
 };

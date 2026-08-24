@@ -4,7 +4,7 @@
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules } from './deployModuleStatus';
 import { listDemoLoaderIncludedCards, type DemoLoaderIncludedCard } from './demoLoaderCatalog';
-import { FEATURE_BLURBS, isSaleSheetFeature, type FeatureId } from './featureCatalog';
+import { FEATURE_BLURBS, isSaleSheetFeature, isServiceFeature, type FeatureId } from './featureCatalog';
 import { hasFeature } from './features';
 import {
   catalogBlurb,
@@ -30,7 +30,7 @@ export type AddonsModule = {
   purchasable: boolean;
   price: (ModulePrice & { label: string }) | null;
   entitlement: ModuleEntitlement | null;
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'private' | 'service';
   saleSheet: boolean;
 };
 
@@ -69,6 +69,7 @@ export function buildAddonsCatalog(opts: {
     if (m.feature === 'content_management') continue;
 
     const price = resolvedModulePrice(m.feature);
+    if (isServiceFeature(m.feature) || m.visibility === 'service') continue;
     const isPrivate = m.visibility === 'private';
 
     if (!owner) {

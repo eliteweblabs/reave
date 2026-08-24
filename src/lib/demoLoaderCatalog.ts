@@ -30,7 +30,7 @@ export type DemoLoaderModule = {
   /** Named capabilities from the module definition (FEATURE_MARKETING / MARKETING_FEATURES). */
   features: Array<{ id: string; label: string }>;
   /** Storefront visibility — private modules are never listed here. */
-  visibility: 'public' | 'private';
+  visibility: 'public' | 'private' | 'service';
   /** Leave-behind on the audit sales sheet. */
   saleSheet: boolean;
 };

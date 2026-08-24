@@ -131,7 +131,12 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       priceAmount,
       priceLabel,
       saleSheet: o.saleSheet === true,
-      visibility: o.visibility === 'private' ? 'private' : 'public',
+      visibility:
+        feature === 'google_workspace' || group === 'google_workspace' || o.visibility === 'service'
+          ? 'service'
+          : o.visibility === 'private'
+            ? 'private'
+            : 'public',
     });
   });
   const seenFeatures = new Set(out.map((row) => row.feature));

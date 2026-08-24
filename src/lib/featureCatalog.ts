@@ -193,18 +193,21 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Gmail MX, SPF, DKIM, DMARC, and Workspace domain admin — point a client domain at Google mail without asking them to paste records.',
 };
 
-export type FeatureVisibility = 'public' | 'private';
+export type FeatureVisibility = 'public' | 'private' | 'service';
 
 /**
  * Module storefront classification. Unlisted modules default to **public**
  * (demo loader, /modules, /features, marketing chips). Private modules are
- * super-admin / ops-only and are not sold as add-ons.
+ * super-admin / ops-only and are not sold as add-ons. Service modules are
+ * not deployable app features — they stay on the official catalog / sales
+ * sheet as work REΛVE offers outside the install.
  */
 export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
   deploy_wizard: 'private',
   dev_infra: 'private',
   code_dev: 'private',
   namecom_dns: 'private',
+  google_workspace: 'service',
 };
 
 /**
@@ -239,6 +242,15 @@ export function isPublicFeature(id: string): boolean {
 
 export function isPrivateFeature(id: string): boolean {
   return FEATURE_ID_SET.has(id) && featureVisibility(id as FeatureId) === 'private';
+}
+
+export function isServiceFeature(id: string): boolean {
+  return FEATURE_ID_SET.has(id) && featureVisibility(id as FeatureId) === 'service';
+}
+
+/** App modules that can ship on an install. Service rows are catalog/sales only. */
+export function isDeployableFeature(id: string): boolean {
+  return FEATURE_ID_SET.has(id) && !isServiceFeature(id);
 }
 
 export const CORE_FEATURE_NOTE =

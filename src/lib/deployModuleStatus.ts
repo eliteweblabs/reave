@@ -8,7 +8,13 @@ import { join } from 'path';
 import { demoModuleDeployStatus, demoShouldShowDeployBanner } from './demoFeatures.ts';
 import { isDemoMode } from './demoMode.ts';
 import { FEATURE_IDS, FEATURE_LABELS, hasFeature, type FeatureId } from './features.ts';
-import { featureVisibility, isPrivateFeature, isSaleSheetFeature, type FeatureVisibility } from './featureCatalog.ts';
+import {
+  featureVisibility,
+  isPrivateFeature,
+  isSaleSheetFeature,
+  isServiceFeature,
+  type FeatureVisibility,
+} from './featureCatalog.ts';
 import { getInstallConfigSync } from './installConfig.ts';
 import { getPlugin, isPluginActive, REAVE_PLUGINS } from './pluginRegistry.ts';
 
@@ -191,7 +197,10 @@ export function listAllDeployModules(): DeployModuleSnapshot[] {
   const playbooks = listDeployPlaybooks();
   const playbookByFeature = new Map(playbooks.map((p) => [p.feature, p]));
 
-  return FEATURE_IDS.filter((feature) => !isPrivateFeature(feature) || hasFeature(feature)).map((feature) => {
+  return FEATURE_IDS.filter((feature) => {
+    if (isServiceFeature(feature)) return false;
+    return !isPrivateFeature(feature) || hasFeature(feature);
+  }).map((feature) => {
     const pb = playbookByFeature.get(feature);
     const plugin = getPlugin(REAVE_PLUGINS.find((p) => p.feature === feature)?.id ?? '');
     const enabled = hasFeature(feature);
