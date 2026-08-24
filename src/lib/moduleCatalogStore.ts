@@ -12,7 +12,10 @@ import pg from 'pg';
 import {
   aggregatedGoogleWorkspaceBlurb,
   FEATURE_MARKETING,
+  formatCatalogBlurb,
+  formatCatalogTitle,
   isGoogleWorkspaceCapability,
+  isHostingFeature,
 } from './featureCatalog';
 import {
   CATALOG_GROUPS,
@@ -116,6 +119,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       .replace(/^web-development$/, 'web_development');
     let group: CatalogGroupId = isCatalogGroupId(rawGroup) ? rawGroup : 'other';
     if (feature === 'google_workspace') group = 'google_workspace';
+    if (isHostingFeature(feature)) group = 'hosting';
     const kind = normalizeKind(o.kind);
     let key = typeof o.key === 'string' && o.key.trim() ? o.key.trim().slice(0, 80) : `${kind}:${feature}`;
     if (kind === 'core') key = `core:${feature}`;
@@ -137,13 +141,17 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       group,
       id: typeof o.id === 'string' && o.id.trim() ? o.id.trim().slice(0, 16) : '',
       feature,
-      label: label.slice(0, 120),
-      blurb: typeof o.blurb === 'string' ? o.blurb.trim().slice(0, 800) : '',
+      label: formatCatalogTitle(label).slice(0, 120),
+      blurb: typeof o.blurb === 'string' ? formatCatalogBlurb(o.blurb.trim()).slice(0, 800) : '',
       priceAmount,
       priceLabel,
       saleSheet: o.saleSheet === true,
       visibility:
-        feature === 'google_workspace' || group === 'google_workspace' || o.visibility === 'service'
+        feature === 'google_workspace' ||
+        group === 'google_workspace' ||
+        isHostingFeature(feature) ||
+        group === 'hosting' ||
+        o.visibility === 'service'
           ? 'service'
           : o.visibility === 'private'
             ? 'private'
@@ -165,6 +173,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
     if (
       !workspace.blurb.trim() ||
       workspace.blurb === oldWorkspaceBlurb ||
+      workspace.blurb === formatCatalogBlurb(oldWorkspaceBlurb) ||
       (droppedWorkspaceCaps && !hasAll)
     ) {
       workspace.blurb = aggregatedGoogleWorkspaceBlurb();

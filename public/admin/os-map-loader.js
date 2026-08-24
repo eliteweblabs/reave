@@ -282,7 +282,7 @@ import {
   loadModulesTab,
   teardownModulesPanel,
   parseModuleDeepLinkFromUrl,
-} from './modules-panel.js?v=20260824e';
+} from './modules-panel.js?v=20260824f';
 import {
   initAddonsPanel,
   loadAddonsTab,
@@ -7338,7 +7338,7 @@ function renderCompanyPanel(company, fontCatalog) {
             `<span class="prof-hint">Used when <code>RESEND_FROM</code> is not set. Support email and phone appear as Call / Text / Email on client portal pages.</span></div>`,
           ) +
           profSection(
-            'Client portal',
+            'Client Portal',
             'Shown in an auto-open bottom sheet when someone opens a client portal link.',
             `<div class="prof-field"><label for="company-portalOutreachNotice">Outreach note</label>` +
             `<textarea id="company-portalOutreachNotice" name="portalOutreachNotice" class="prof-svg-input" rows="6" spellcheck="true">${escHtml(c.portalOutreachNotice || '')}</textarea>` +

@@ -5,7 +5,8 @@
  * Numeric ids are consecutive inside each band (no gaps):
  * Core 001–100, Work 101–200, Social 201–300, E-commerce 301–400,
  * Web Development 401–500, Other 501–600, Internal 601–700,
- * Google™ Workspace 701–800 (client mail/DNS — not a REΛVE app feature).
+ * Google™ Workspace 701–800 (client mail/DNS — not a REΛVE app feature),
+ * Hosting 801–900 (managed care plans from /hosting — not a REΛVE app feature).
  * Assignment order is a stable shuffle — ids are not A–Z rank.
  */
 import {
@@ -15,6 +16,7 @@ import {
   FEATURE_LABELS,
   FEATURE_SALE_SHEET,
   featureVisibility,
+  isHostingFeature,
   isPrivateFeature,
   type FeatureId,
 } from './featureCatalog';
@@ -40,6 +42,7 @@ export const CATALOG_GROUPS = [
   'core',
   'work',
   'google_workspace',
+  'hosting',
   'social',
   'e_commerce',
   'web_development',
@@ -53,6 +56,7 @@ export const CATALOG_ID_BANDS: Record<CatalogGroupId, { start: number; end: numb
   core: { start: 1, end: 100 },
   work: { start: 101, end: 200 },
   google_workspace: { start: 701, end: 800 },
+  hosting: { start: 801, end: 900 },
   social: { start: 201, end: 300 },
   e_commerce: { start: 301, end: 400 },
   web_development: { start: 401, end: 500 },
@@ -111,6 +115,7 @@ export const CATALOG_GROUP_TITLES: Record<CatalogGroupId, string> = {
   core: 'Core OS',
   work: 'Work',
   google_workspace: 'Google™ Workspace',
+  hosting: 'Hosting',
   social: 'Social',
   e_commerce: 'E-commerce',
   web_development: 'Web Development',
@@ -125,57 +130,57 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
   {
     id: 'web_search',
     label: 'Agentic Web Search',
-    blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, and sites.',
+    blurb: 'Live public lookup when knowledge isn’t enough — businesses, people, & sites.',
   },
   {
     id: 'agent_chat',
     label: 'Agentic Chat',
-    blurb: 'Your always-on operations assistant — runs tools, files work, and follows playbooks.',
+    blurb: 'Your always-on operations assistant — runs tools, files work, & follows playbooks.',
   },
   {
     id: 'chat_commands',
-    label: 'Chat / commands',
-    blurb: 'Type / in agent chat for slash commands — knowledge, jobs, billing, and the rest of the OS.',
+    label: 'Chat / Commands',
+    blurb: 'Type / in agent chat for slash commands — knowledge, jobs, billing, & the rest of the OS.',
   },
   {
     id: 'business_audit',
     label: 'Business Audit',
-    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, and content.',
+    blurb: 'Automated presence & reputation review — GBP, reviews, NAP, & content.',
   },
   {
     id: 'client_portal',
     label: 'Client Portal',
-    blurb: 'A branded portal for every client — projects, files, and status in one place.',
+    blurb: 'A branded portal for every client — projects, files, & status in one place.',
   },
   {
     id: 'crm',
     label: 'CRM',
-    blurb: 'Contacts, companies, and client profiles — searchable by name, phone, or domain.',
+    blurb: 'Contacts, companies, & client profiles — searchable by name, phone, or domain.',
   },
   {
     id: 'dynamic_todos',
     label: 'Dynamic To-Dos',
-    blurb: 'Dynamic alerts for personal or work — create, update, and clear with the agent or Siri.',
+    blurb: 'Dynamic alerts for personal or work — create, update, & clear with the agent or Siri.',
   },
   {
     id: 'email_inbox',
     label: 'Inbox Triage',
-    blurb: 'Triage client mail, draft replies, and file threads onto the right project.',
+    blurb: 'Triage client mail, draft replies, & file threads onto the right project.',
   },
   {
     id: 'handoff_vault',
     label: 'Handoff Vault',
-    blurb: 'Bidirectionally share secure credentials and other data in the portal Data tab.',
+    blurb: 'Bidirectionally share secure credentials & other data in the portal Data tab.',
   },
   {
     id: 'knowledge',
     label: 'Knowledge Base',
-    blurb: 'Playbooks the agent actually follows — SOPs, install notes, and how-tos on demand.',
+    blurb: 'Playbooks the agent actually follows — SOPs, install notes, & how-tos on demand.',
   },
   {
     id: 'media_library',
     label: 'Media Library',
-    blurb: 'Upload and reuse logos, photos, and PDFs for branding and content — pick once, use everywhere.',
+    blurb: 'Upload & reuse logos, photos, & PDFs for branding & content — pick once, use everywhere.',
   },
   {
     id: 'passkeys',
@@ -184,7 +189,7 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
   },
   {
     id: 'phone_sign_in',
-    label: 'Phone sign-in',
+    label: 'Phone Sign-In',
     blurb: 'Sign in with a one-time code texted to your phone — separate from two-way business SMS.',
   },
   {
@@ -195,7 +200,7 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
   {
     id: 'projects',
     label: 'Projects & Work',
-    blurb: 'Jobs, inquiry notes, and delivery tracking with full agent read/write.',
+    blurb: 'Jobs, inquiry notes, & delivery tracking with full agent read/write.',
   },
 ];
 
@@ -215,6 +220,7 @@ export type CatalogRow = {
 
 export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
   if (feature === 'google_workspace') return 'google_workspace';
+  if (isHostingFeature(feature)) return 'hosting';
   if (isPrivateFeature(feature) || feature === 'demo') return 'internal';
   const grouped = MODULE_DISPLAY_GROUPS.find((g) => g.features.includes(feature));
   if (grouped?.id === 'work') return 'work';
@@ -333,6 +339,8 @@ function priceFields(feature: FeatureId): Pick<CatalogRow, 'priceAmount' | 'pric
   if (!price || price.amount <= 0) {
     return { priceAmount: 0, priceLabel: isPrivateFeature(feature) || feature === 'demo' ? 'Internal' : 'Included' };
   }
+  if (price.interval === 'year') return { priceAmount: price.amount, priceLabel: `$${price.amount}/yr` };
+  if (price.interval === 'month') return { priceAmount: price.amount, priceLabel: `$${price.amount}/mo` };
   return { priceAmount: price.amount, priceLabel: `$${price.amount}` };
 }
 

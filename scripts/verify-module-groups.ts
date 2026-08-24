@@ -7,8 +7,10 @@ import {
   FEATURE_IDS,
   FEATURE_LABELS,
   FEATURE_MARKETING,
+  formatCatalogTitle,
   FEATURE_SALE_SHEET,
   isDeployableFeature,
+  isHostingFeature,
   isPublicFeature,
   isServiceFeature,
 } from '../src/lib/featureCatalog.ts';
@@ -42,6 +44,8 @@ function configFeatures(slug: string): string[] {
 
 assert.ok(FEATURE_IDS.includes('social_inbox'));
 assert.ok(FEATURE_IDS.includes('google_workspace'));
+assert.ok(FEATURE_IDS.includes('hosting_core_os'));
+assert.ok(FEATURE_IDS.includes('hosting_growth'));
 assert.equal(FEATURE_LABELS.social_inbox, 'Agentic Social Media');
 assert.ok(featureShowsDashboard('social_inbox'));
 assert.equal(FEATURE_DASHBOARD.social_inbox?.icon, 'share');
@@ -50,13 +54,27 @@ assert.ok(dashCards.some((c) => c.id === 'social_inbox' && c.title === FEATURE_L
 assert.ok(dashCards.some((c) => c.id === 'online_reviews' && c.title === FEATURE_LABELS.online_reviews));
 assert.ok(!dashCards.some((c) => c.id === 'client_portal'));
 assert.equal(FEATURE_LABELS.google_workspace, 'Google™ Workspace');
+assert.equal(FEATURE_LABELS.hosting_core_os, 'Core OS Hosting');
+assert.equal(FEATURE_LABELS.hosting_growth, 'Growth Hosting');
 assert.equal(FEATURE_LABELS.time_tracking, 'Time Tracking');
-assert.equal(FEATURE_LABELS.materials_pricing, 'Materials pricing');
+assert.equal(FEATURE_LABELS.materials_pricing, 'Materials Pricing');
 assert.equal(FEATURE_LABELS.website, 'Agentic Website Editor');
+assert.equal(FEATURE_LABELS.online_reviews, 'Reviews Triage');
+assert.equal(FEATURE_LABELS.scheduling, 'Cal.com Scheduling & Meetings');
+assert.equal(FEATURE_LABELS.billing, 'Crater Billing & Invoices');
+assert.equal(FEATURE_LABELS.email_marketing, 'Newsletter & Email Automation');
+for (const [id, label] of Object.entries(FEATURE_LABELS)) {
+  assert.equal(label, formatCatalogTitle(label), `${id} title should be title case`);
+  assert.doesNotMatch(label, /\band\b/i, `${id} title should use & instead of and`);
+}
 const socialId = Number(demoModuleIdForFeature('social_inbox'));
 const workspaceId = Number(demoModuleIdForFeature('google_workspace'));
+const hostingCoreId = Number(demoModuleIdForFeature('hosting_core_os'));
+const hostingGrowthId = Number(demoModuleIdForFeature('hosting_growth'));
 assert.ok(socialId >= 201 && socialId <= 300, 'social_inbox should be in the Social 201–300 band');
 assert.ok(workspaceId >= 701 && workspaceId <= 800, 'google_workspace should be in the Google™ Workspace 701–800 band');
+assert.ok(hostingCoreId >= 801 && hostingCoreId <= 900, 'hosting_core_os should be in the Hosting 801–900 band');
+assert.ok(hostingGrowthId >= 801 && hostingGrowthId <= 900, 'hosting_growth should be in the Hosting 801–900 band');
 assert.ok(FEATURE_SALE_SHEET.has('time_tracking'));
 assert.ok(FEATURE_SALE_SHEET.has('social_inbox'));
 assert.ok(FEATURE_SALE_SHEET.has('google_workspace'));
@@ -64,6 +82,13 @@ assert.ok(!FEATURE_SALE_SHEET.has('content_management'));
 assert.equal(isServiceFeature('google_workspace'), true);
 assert.equal(isPublicFeature('google_workspace'), false);
 assert.equal(isDeployableFeature('google_workspace'), false);
+assert.equal(isHostingFeature('hosting_core_os'), true);
+assert.equal(isHostingFeature('hosting_growth'), true);
+assert.equal(isServiceFeature('hosting_core_os'), true);
+assert.equal(isServiceFeature('hosting_growth'), true);
+assert.equal(isPublicFeature('hosting_core_os'), false);
+assert.equal(isDeployableFeature('hosting_core_os'), false);
+assert.equal(isDeployableFeature('hosting_growth'), false);
 assert.equal(isDeployableFeature('social_inbox'), true);
 
 const groupIds = MODULE_DISPLAY_GROUPS.map((g) => g.id);
@@ -79,6 +104,9 @@ assert.equal(moduleDisplayGroupId('client_portal'), null);
 assert.equal(moduleDisplayGroupId('time_tracking'), 'work');
 assert.equal(moduleDisplayGroupFor('time_tracking')?.title, 'Work');
 assert.equal(moduleDisplayGroupId('google_workspace'), 'google_workspace');
+assert.equal(moduleDisplayGroupId('hosting_core_os'), 'hosting');
+assert.equal(moduleDisplayGroupId('hosting_growth'), 'hosting');
+assert.equal(moduleDisplayGroupFor('hosting_core_os')?.title, 'Hosting');
 
 for (const id of FEATURE_SALE_SHEET) {
   assert.ok(FEATURE_IDS.includes(id), `unknown sale-sheet feature ${id}`);
@@ -88,7 +116,7 @@ const catalog = defaultModuleCatalog();
 assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet && /^\d{3}$/.test(row.id)));
 assert.ok(catalog.every((row) => row.id !== '—'));
 assert.ok(catalog.every((row) => !row.feature.includes('-')), 'feature slugs must use underscores');
-for (const group of ['core', 'work', 'google_workspace', 'social', 'e_commerce', 'web_development', 'other', 'internal']) {
+for (const group of ['core', 'work', 'google_workspace', 'hosting', 'social', 'e_commerce', 'web_development', 'other', 'internal']) {
   const nums = catalog
     .filter((row) => row.group === group)
     .map((row) => Number(row.id))
@@ -101,6 +129,9 @@ assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group ===
 assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
 assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'google_workspace' && row.saleSheet && row.visibility === 'service'));
 assert.equal(catalog.filter((row) => row.group === 'google_workspace').length, 1);
+assert.ok(catalog.some((row) => row.feature === 'hosting_core_os' && row.group === 'hosting' && !row.saleSheet && row.visibility === 'service' && row.priceAmount === 600 && row.priceLabel === '$600/yr'));
+assert.ok(catalog.some((row) => row.feature === 'hosting_growth' && row.group === 'hosting' && !row.saleSheet && row.visibility === 'service' && row.priceAmount === 900 && row.priceLabel === '$900/yr'));
+assert.equal(catalog.filter((row) => row.group === 'hosting').length, 2);
 assert.ok(!catalog.some((row) => row.feature === 'gmail_mx' || row.feature === 'gmail_dkim' || row.feature === 'google_spf' || row.feature === 'workspace_dmarc' || row.feature === 'workspace_domains'));
 const workspaceRow = catalog.find((row) => row.feature === 'google_workspace');
 assert.ok(workspaceRow?.blurb.includes('Gmail MX'));

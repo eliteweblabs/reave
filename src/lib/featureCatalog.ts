@@ -42,9 +42,74 @@ export const FEATURE_IDS = [
   'materials_pricing',
   'social_inbox',
   'google_workspace',
+  'hosting_core_os',
+  'hosting_growth',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
+
+/** Brand / acronym tokens that should not be naively title-cased. */
+const CATALOG_TOKEN_CASE: Record<string, string> = {
+  'cal.com': 'Cal.com',
+  carddav: 'CardDAV',
+  vapi: 'VAPI',
+  'google™': 'Google™',
+  'wordpress™': 'WordPress™',
+  ios: 'iOS',
+  gps: 'GPS',
+  api: 'API',
+  seo: 'SEO',
+  crm: 'CRM',
+  os: 'OS',
+  sms: 'SMS',
+  dns: 'DNS',
+  pwa: 'PWA',
+  ai: 'AI',
+  id: 'ID',
+  mx: 'MX',
+  dkim: 'DKIM',
+  spf: 'SPF',
+  dmarc: 'DMARC',
+  qr: 'QR',
+  ga4: 'GA4',
+  'e-sign': 'E-Sign',
+  'to-dos': 'To-Dos',
+  'e-commerce': 'E-commerce',
+};
+
+function formatCatalogToken(token: string): string {
+  if (token === '&' || token === '/' || token === '—' || token === '–') return token;
+  const known = CATALOG_TOKEN_CASE[token.toLowerCase()];
+  if (known) return known;
+  if (token.includes('/') && token !== '/') {
+    return token.split('/').map((part) => (part ? formatCatalogToken(part) : '')).join('/');
+  }
+  if (token.includes('-') && token.length > 1) {
+    return token.split('-').map((part) => (part ? formatCatalogToken(part) : '')).join('-');
+  }
+  const match = token.match(/^([^A-Za-z0-9]*)([A-Za-z0-9].*?)([^A-Za-z0-9]*)$/);
+  if (!match) return token;
+  const [, pre, core, post] = match;
+  const preserved = CATALOG_TOKEN_CASE[core.toLowerCase()];
+  if (preserved) return `${pre}${preserved}${post}`;
+  return `${pre}${core.charAt(0).toUpperCase()}${core.slice(1)}${post}`;
+}
+
+/** Title-case a catalog heading and prefer & over "and". */
+export function formatCatalogTitle(input: string): string {
+  return input
+    .replace(/\band\b/gi, '&')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(formatCatalogToken)
+    .join(' ');
+}
+
+/** Prefer & over "and" in catalog descriptions. */
+export function formatCatalogBlurb(input: string): string {
+  return input.replace(/\band\b/gi, '&');
+}
 
 /** Named public-site chips owned by a module (not the module title itself). */
 export type ModuleMarketingCapability = {
@@ -99,7 +164,7 @@ export const FEATURE_MARKETING: Partial<
       id: 'workspace_domains',
       label: 'Workspace Domains',
       href: '/features#feature-google-workspace',
-      blurb: 'Primary, secondary, and alias domains on the Workspace account.',
+      blurb: 'Primary, secondary, & alias domains on the Workspace account.',
     },
   ],
 };
@@ -126,92 +191,98 @@ export function aggregatedGoogleWorkspaceBlurb(): string {
 
 /** Short human titles for health output, docs, demo catalog, and dashboard cards. */
 export const FEATURE_LABELS: Record<FeatureId, string> = {
-  client_portal: 'Client portal',
-  web_handoff: 'Portal Data tab',
-  portal_assistant: 'Client portal help chat',
-  billing: 'Crater billing & invoices',
+  client_portal: 'Client Portal',
+  web_handoff: 'Portal Data Tab',
+  portal_assistant: 'Client Portal Help Chat',
+  billing: 'Crater Billing & Invoices',
   site_audits: 'Website Audit',
-  analytic_audit: 'Search & analytics audit',
-  site_monitoring: 'Website change monitoring',
-  uptime_monitoring: 'Uptime monitoring',
-  documents: 'Document signing templates',
-  voice: 'Telnyx voice agent',
+  analytic_audit: 'Search & Analytics Audit',
+  site_monitoring: 'Website Change Monitoring',
+  uptime_monitoring: 'Uptime Monitoring',
+  documents: 'Document Signing Templates',
+  voice: 'Telnyx Voice Agent',
   vapi: 'VAPI Voice Agent',
   carddav: 'CardDAV Contact Sync',
-  scheduling: 'Cal.com scheduling & meetings',
-  dev_infra: 'Dev & infrastructure',
-  code_dev: 'Local code tools',
-  email_marketing: 'Newsletter & email automation',
-  fleet_tracking: 'Fleet tracking / GPS',
-  dealership_wizard: 'Dealership inventory & deal wizard',
-  namecom_dns: 'DNS record management',
+  scheduling: 'Cal.com Scheduling & Meetings',
+  dev_infra: 'Dev & Infrastructure',
+  code_dev: 'Local Code Tools',
+  email_marketing: 'Newsletter & Email Automation',
+  fleet_tracking: 'Fleet Tracking / GPS',
+  dealership_wizard: 'Dealership Inventory & Deal Wizard',
+  namecom_dns: 'DNS Record Management',
   time_tracking: 'Time Tracking',
-  demo: 'Demo mode',
-  real_estate_data: 'Real estate data & lead scanner',
-  inventory_sync: 'Multi-channel inventory sync',
-  online_reviews: 'Reviews triage',
+  demo: 'Demo Mode',
+  real_estate_data: 'Real Estate Data & Lead Scanner',
+  inventory_sync: 'Multi-Channel Inventory Sync',
+  online_reviews: 'Reviews Triage',
   wayback_machine: 'Wayback Machine',
   content_management: 'Agentic Website Editor',
-  stock_photos: 'Pexels stock photos',
+  stock_photos: 'Pexels Stock Photos',
   wordpress_content: 'WordPress™ Connect',
   seo_directory: 'SEO Directory API Kit',
-  event_ticketing: 'Event ticketing',
-  cookie_notice: 'Cookie notice',
-  deploy_wizard: 'Deploy wizard',
+  event_ticketing: 'Event Ticketing',
+  cookie_notice: 'Cookie Notice',
+  deploy_wizard: 'Deploy Wizard',
   website: 'Agentic Website Editor',
-  credit_check: 'Credit check',
-  materials_pricing: 'Materials pricing',
+  credit_check: 'Credit Check',
+  materials_pricing: 'Materials Pricing',
   social_inbox: 'Agentic Social Media',
   google_workspace: 'Google™ Workspace',
+  hosting_core_os: 'Core OS Hosting',
+  hosting_growth: 'Growth Hosting',
 };
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
 export const FEATURE_BLURBS: Record<FeatureId, string> = {
   client_portal: 'Branded portal for each client at /c/:uid',
-  web_handoff: 'Secure credential and data handoff in the portal Data tab',
+  web_handoff: 'Secure credential & data handoff in the portal Data tab',
   portal_assistant: 'Speed-dial support chat for clients in the portal',
-  billing: 'Quotes, invoices, and payments via Crater',
-  site_audits: 'Automated website presence and technical audits',
+  billing: 'Quotes, invoices, & payments via Crater',
+  site_audits: 'Automated website presence & technical audits',
   analytic_audit: 'Google Search Console, GA4, Plausible, IndexNow',
   site_monitoring: 'Watch pages for changes via ChangeDetection.io',
-  uptime_monitoring: 'UptimeRobot checks and outage alerts',
+  uptime_monitoring: 'UptimeRobot checks & outage alerts',
   documents: 'Reusable templates for e-sign workflows',
-  voice: 'Phone agent and call routing on Telnyx',
+  voice: 'Phone agent & call routing on Telnyx',
   vapi: 'Voice assistant powered by Vapi',
-  carddav: 'Sync contacts to iOS and other CardDAV clients',
-  scheduling: 'Bookings, availability, and meeting links via Cal.com',
-  dev_infra: 'Railway, Kinsta, and deploy tooling — owner installs only',
+  carddav: 'Sync contacts to iOS & other CardDAV clients',
+  scheduling: 'Bookings, availability, & meeting links via Cal.com',
+  dev_infra: 'Railway, Kinsta, & deploy tooling — owner installs only',
   code_dev: 'Agent read/write/list/exec on the local codebase — owner/agency installs only',
-  email_marketing: 'Welcome, follow-ups, review requests, and broadcasts',
-  fleet_tracking: 'Live vehicle location and GPS history',
-  dealership_wizard: 'Inventory browse and guided deal flow',
-  namecom_dns: 'Name.com DNS — zone records and nameservers, agency/ops installs only',
-  time_tracking: 'Log hours against projects and jobs',
-  demo: 'Seed script, quick-start wizard, and Railway testing installs',
-  real_estate_data: 'Property facts, compliance, and daily geofence scan',
-  inventory_sync: 'Shopify, WooCommerce, and Square via inventory-api',
+  email_marketing: 'Welcome, follow-ups, review requests, & broadcasts',
+  fleet_tracking: 'Live vehicle location & GPS history',
+  dealership_wizard: 'Inventory browse & guided deal flow',
+  namecom_dns: 'Name.com DNS — zone records & nameservers, agency/ops installs only',
+  time_tracking: 'Log hours against projects & jobs',
+  demo: 'Seed script, quick-start wizard, & Railway testing installs',
+  real_estate_data: 'Property facts, compliance, & daily geofence scan',
+  inventory_sync: 'Shopify, WooCommerce, & Square via inventory-api',
   online_reviews:
-    'Google™, Apple Maps, Yelp, Facebook, and Tripadvisor — queue replies in one place',
+    'Google™, Apple Maps, Yelp, Facebook, & Tripadvisor — queue replies in one place',
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
   content_management: 'Edit the install’s own front-end repo through the agent — not the REΛVE app',
-  stock_photos: 'Royalty-free search for pages, decks, and newsletters',
+  stock_photos: 'Royalty-free search for pages, decks, & newsletters',
   wordpress_content:
-    'Agent updates posts, pages, media, menus, and redirects on a WordPress™ site via Reave Connect',
+    'Agent updates posts, pages, media, menus, & redirects on a WordPress™ site via Reave Connect',
   seo_directory:
-    'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, and Bing',
+    'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, & Bing',
   event_ticketing:
-    'Ticket sales, QR check-in, and event inventory — reference only until productized',
-  cookie_notice: 'Implied-consent cookie bar and Cookie Policy at /cookies',
-  deploy_wizard: 'Stand up a new Railway install with module toggles and reference variables',
+    'Ticket sales, QR check-in, & event inventory — reference only until productized',
+  cookie_notice: 'Implied-consent cookie bar & Cookie Policy at /cookies',
+  deploy_wizard: 'Stand up a new Railway install with module toggles & reference variables',
   website: 'Client website tools — edit, stock photos, publish. No hosting APIs',
   credit_check:
-    'Applicant credit pull for forms and deal flow — reference only until a bureau is chosen',
+    'Applicant credit pull for forms & deal flow — reference only until a bureau is chosen',
   materials_pricing:
-    'Live retail prices from Home Depot and Lowe’s. If a local supplier lists prices online, we can pull them too, apply a discount rate, or build quotes from past materials prices. Requires the billing module.',
+    'Live retail prices from Home Depot & Lowe’s. If a local supplier lists prices online, we can pull them too, apply a discount rate, or build quotes from past materials prices. Requires the billing module.',
   social_inbox:
-    'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, and the networks you choose — plus Google and Yelp reviews. The agent can draft replies; you post on the network.',
+    'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, & the networks you choose — plus Google & Yelp reviews. The agent can draft replies; you post on the network.',
   google_workspace:
-    'Gmail MX, SPF, DKIM, DMARC, and Workspace domain admin — point a client domain at Google mail without asking them to paste records.',
+    'Gmail MX, SPF, DKIM, DMARC, & Workspace domain admin — point a client domain at Google mail without asking them to paste records.',
+  hosting_core_os:
+    'Fully managed hosting for one WordPress site or web app — security, updates, scans, SEO reports, & light content edits so you can stay focused on the business.',
+  hosting_growth:
+    'Same hands-on care — plus unlimited content & design edits whenever you need a change. Your always-on web team for the year.',
 };
 
 export type FeatureVisibility = 'public' | 'private' | 'service';
@@ -229,6 +300,8 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
   code_dev: 'private',
   namecom_dns: 'private',
   google_workspace: 'service',
+  hosting_core_os: 'service',
+  hosting_growth: 'service',
 };
 
 /**
@@ -267,6 +340,13 @@ export function isPrivateFeature(id: string): boolean {
 
 export function isServiceFeature(id: string): boolean {
   return FEATURE_ID_SET.has(id) && featureVisibility(id as FeatureId) === 'service';
+}
+
+/** Managed hosting care plans from /hosting — catalog/sales only. */
+export const HOSTING_FEATURE_IDS = ['hosting_core_os', 'hosting_growth'] as const;
+
+export function isHostingFeature(id: string): boolean {
+  return (HOSTING_FEATURE_IDS as readonly string[]).includes(id);
 }
 
 /** App modules that can ship on an install. Service rows are catalog/sales only. */
