@@ -369,6 +369,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-back-col--gate {
   justify-content: flex-start;
+  overflow: visible;
 }
 .ss-sheet-back .ss-back-col + .ss-back-col {
   ${orientation === 'landscape' ? 'border-left: 1px solid var(--doc-rule);' : 'border-top: 1px solid var(--doc-rule); padding-top: 0.55em;'}
@@ -435,32 +436,33 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   object-fit: contain;
 }
 .ss-sheet-back .ss-back-modules {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.28em;
+  gap: 0;
 }
 .ss-sheet-back .ss-back-mod-list {
   list-style: none;
   margin: 0;
-  padding: 0;
-  flex: 1 1 auto;
-  min-height: 0;
+  padding: 0.42em 0.55em 0 0;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.22em;
+  gap: 0.62em;
 }
 .ss-sheet-back .ss-back-mod {
-  flex: 1 1 auto;
-  min-height: 0;
+  position: relative;
+  flex: 0 0 auto;
+  height: clamp(44px, 6.2cqi, 54px);
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 0.45em;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.32em 0.42em 0.32em 0.32em;
+  padding: 0.28em 0.85em 0.28em 0.32em;
+  overflow: visible;
   border: 1px solid var(--doc-rule);
   border-radius: 8px;
   background: #fff;
@@ -519,9 +521,13 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   color: var(--doc-muted);
 }
 .ss-sheet-back .ss-back-mod-price {
-  flex: 0 0 auto;
-  align-self: center;
-  padding: 0.22em 0.58em;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  transform: translate(38%, -42%);
+  flex: none;
+  padding: 0.18em 0.5em;
   border-radius: 999px;
   background: #141414;
   color: #fff;
@@ -529,6 +535,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   font-weight: 650;
   letter-spacing: 0.01em;
   line-height: 1.2;
+  white-space: nowrap;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }

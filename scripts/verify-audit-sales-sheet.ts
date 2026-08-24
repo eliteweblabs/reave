@@ -803,6 +803,8 @@ await test('gate leftover space lists catalog modules with the sale-sheet toggle
   assert.ok(back.indexOf('data-ss-col="modules"') < back.indexOf('data-ss-col="builds"'));
   assert.doesNotMatch(back, />Modules</);
   assert.match(back, /border-radius: 8px/);
+  assert.match(back, /\.ss-back-mod \{[\s\S]*flex: 0 0 auto;/);
+  assert.match(back, /\.ss-back-mod-price \{[\s\S]*position: absolute;/);
   assert.match(back, /ss-back-mod-icon/);
   assert.match(back, /ss-back-mod-blurb/);
   assert.match(back, /ss-back-mod-price/);
