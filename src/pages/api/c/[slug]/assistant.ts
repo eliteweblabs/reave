@@ -14,7 +14,7 @@ import { getContact, extractPortal, contactStringField } from '../../../../lib/c
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { hasFeature } from '../../../../lib/features';
 import { isCraterConfigured, craterGetClientBilling } from '../../../../lib/craterClient';
-import { storeListWorkForContact } from '../../../../lib/workStore';
+import { isWorkArchived, storeListWorkForContact } from '../../../../lib/workStore';
 import {
   isPortalAssistantConfigured,
   runPortalAssistantReply,
@@ -32,8 +32,10 @@ const MAX_HISTORY_TURN_CHARS = 4_000;
 
 const JOB_STATUS_LABEL: Record<string, string> = {
   inquiry: 'Submitted',
+  audit: 'Audit',
   active: 'In progress',
-  done: 'Complete',
+  done: 'Archived',
+  archived: 'Archived',
 };
 
 export const POST: APIRoute = async ({ params, request }) => {
@@ -98,12 +100,16 @@ export const POST: APIRoute = async ({ params, request }) => {
 
   let jobs: PortalAssistantJobSummary[] = [];
   try {
-    const list = (await storeListWorkForContact(uid)).filter((j) => j.status !== 'archived');
-    jobs = list.slice(0, 10).map((j) => ({
-      title: j.title,
-      statusLabel: JOB_STATUS_LABEL[j.status] || j.status,
-      updated: j.updated || j.created || undefined,
-    }));
+    const list = await storeListWorkForContact(uid);
+    jobs = list
+      .slice()
+      .sort((a, b) => Number(isWorkArchived(a.status)) - Number(isWorkArchived(b.status)))
+      .slice(0, 10)
+      .map((j) => ({
+        title: j.title,
+        statusLabel: JOB_STATUS_LABEL[j.status] || j.status,
+        updated: j.updated || j.created || undefined,
+      }));
   } catch {
     // Jobs are optional context — never fail the chat for it.
   }

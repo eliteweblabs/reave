@@ -95,7 +95,7 @@ function buildSystemPrompt(ctx: PortalAssistantContext): string {
   if (overviewNote) lines.push(`Note staff left on their Overview tab: ${overviewNote}`);
 
   if (ctx.jobs?.length) {
-    lines.push('Active/recent projects for this client:');
+    lines.push('Projects for this client (archived ones stay visible, flagged, and closed on the Projects tab):');
     for (const j of ctx.jobs.slice(0, MAX_CONTEXT_LIST_ITEMS)) {
       lines.push(`• ${j.title}: ${j.statusLabel}${j.updated ? ` (updated ${j.updated})` : ''}`);
     }

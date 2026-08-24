@@ -28,7 +28,7 @@ import { hasFeature } from '../../lib/features';
 import { isCraterConfigured, craterGetClientBilling, craterGetClientPayments, buildPortalBillingView, type ClientBilling, type ClientPayments, type PortalBillingInvoiceGroup } from '../../lib/craterClient';
 import { isBookingConfigured, publicBookingPageUrl } from '../../lib/bookingClient';
 import { scheduleFormUrl } from '../../lib/inboundEmailReply';
-import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
+import { isWorkArchived, storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
 import { portalProjectFileUrl, storeListProjectFiles } from '../../lib/projectFiles';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
@@ -224,18 +224,18 @@ const CLIENT_WORK_STATUS: Record<string, string> = {
   inquiry: 'Submitted',
   audit: 'Audit',
   active: 'In progress',
-  done: 'Complete',
-  archived: 'Complete',
+  done: 'Archived',
+  archived: 'Archived',
 };
 
-// Jobs linked to this client (non-archived only — internal archive stays hidden).
+// Jobs linked to this client — archived projects stay visible, flagged, and closed.
 let clientJobs: WorkJobSummary[] = [];
 let commentsBySlug: Record<string, WorkJobComment[]> = {};
 let filesBySlug: Record<string, PortalWorkFileItem[]> = {};
 const jobBodies: Record<string, string> = {};
 if (contact && uid) {
   try {
-    clientJobs = (await storeListWorkForContact(uid)).filter((j) => j.status !== 'archived');
+    clientJobs = await storeListWorkForContact(uid);
     if (clientJobs.length) {
       commentsBySlug = await storeListWorkCommentsForSlugs(clientJobs.map((j) => j.slug));
       await Promise.all(
@@ -304,10 +304,13 @@ const portalJobsBuilt: PortalJobBuilt[] = await Promise.all(
   }),
 );
 
-/** Non-audit projects for the Projects tab. */
+/** Non-audit projects for the Projects tab. Archived jobs sort last. */
 const portalWorkJobs: PortalWorkJobItem[] = portalJobsBuilt
   .filter((j) => !j.isAudit)
-  .map(({ isAudit: _a, auditReport: _r, updatedAt: _u, ...job }) => job);
+  .map(({ isAudit: _a, auditReport: _r, updatedAt: _u, ...job }) => job)
+  .sort((a, b) => Number(isWorkArchived(a.status)) - Number(isWorkArchived(b.status)));
+
+const livePortalWorkJobs = portalWorkJobs.filter((j) => !isWorkArchived(j.status));
 
 /**
  * One live diagnostic per client — prefer the newest completed audit,
@@ -589,7 +592,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               </div>
             )}
             {!hasOverview && !hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
-            {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the {postAlias.pluralTitle} tab for your active {postAlias.plural}.</p>}
+            {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the {postAlias.pluralTitle} tab for your {postAlias.plural}.</p>}
             {hasUptime && (
               <div class="uptime-block">
                 <h3 class="group-title">Website uptime</h3>
@@ -650,7 +653,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               clientAvatarUrl={avatarUrl}
               staffAvatarUrl={staffAvatarUrl}
               active={initialTab === 'work'}
-              autoExpand={portalWorkJobs.length === 1}
+              autoExpand={livePortalWorkJobs.length === 1}
               expandSlug={expandProjectSlug}
               trackToken={trackToken}
             />

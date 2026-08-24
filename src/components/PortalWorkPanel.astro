@@ -4,7 +4,7 @@
  * Website audits live on the Audit tab, not here.
  */
 import type { WorkJobComment } from '../lib/workComments';
-import type { WorkStatus } from '../lib/workStore';
+import { isWorkArchived, type WorkStatus } from '../lib/workStore';
 import { escapeHtml } from '../lib/htmlEscape';
 import PortalJobComments from './PortalJobComments.astro';
 
@@ -78,15 +78,18 @@ const filesEndpointBase = commentEndpointBase;
 <section class={`panel portal-work ${active ? 'active' : ''}`} data-tab-panel="work">
 
   {jobs.length === 0 ? (
-    <p class="muted">No active projects right now.</p>
+    <p class="muted">No projects right now.</p>
   ) : (
     <ul class="work-list" id="portal-work-list">
       {jobs.map((job, index) => {
         const comments = commentsBySlug[job.slug] ?? [];
         const files = filesBySlug[job.slug] ?? [];
-        const startOpen = (expandSlug && job.slug === expandSlug) || (autoExpand && index === 0);
+        const archived = isWorkArchived(job.status);
+        const startOpen =
+          (expandSlug && job.slug === expandSlug) ||
+          (autoExpand && index === 0 && !archived);
         return (
-          <li class="work-item" data-job-slug={job.slug}>
+          <li class={`work-item${archived ? ' work-item--archived' : ''}`} data-job-slug={job.slug}>
             <button class="work-item-head" type="button" aria-expanded={startOpen ? 'true' : 'false'}>
               <span class="work-main">
                 <span class="work-title">{job.title}</span>
@@ -367,6 +370,14 @@ const filesEndpointBase = commentEndpointBase;
     overflow: hidden;
   }
 
+  .work-item--archived {
+    opacity: 0.72;
+  }
+
+  .work-item--archived .work-title {
+    color: rgba(255, 255, 255, 0.72);
+  }
+
   .work-item-head {
     display: flex;
     align-items: center;
@@ -442,9 +453,10 @@ const filesEndpointBase = commentEndpointBase;
     color: #86efac;
     background: rgba(134, 239, 172, 0.12);
   }
-  .work-status-done {
-    color: rgba(255, 255, 255, 0.45);
-    background: rgba(255, 255, 255, 0.06);
+  .work-status-done,
+  .work-status-archived {
+    color: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .work-chevron {

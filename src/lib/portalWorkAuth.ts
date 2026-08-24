@@ -17,7 +17,7 @@ export async function loadPortalJob(contactUid: string, jobSlug: string) {
   }
 
   const job = await storeReadWork(jobSlug);
-  if (!job || job.status === 'archived' || job.contact_uid !== contactUid) {
+  if (!job || job.contact_uid !== contactUid) {
     return { ok: false as const, status: 404, error: 'Not found' };
   }
 
