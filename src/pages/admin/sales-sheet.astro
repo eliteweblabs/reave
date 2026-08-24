@@ -66,7 +66,8 @@ import { psiMobileFromAudit, type PsiMobileCard } from '../../lib/salesSheetPsi'
 import { qrCodeDataUrl } from '../../lib/qrCode';
 import { companyBrandMarkHtml } from '../../lib/documentPrintLayout';
 import { storeGetMediaBySlug } from '../../lib/mediaLibrary';
-import { renderSalesSheetBackHtml, salesSheetStackLogos } from '../../lib/salesSheetBack';
+import { listModuleCatalog } from '../../lib/moduleCatalogStore';
+import { renderSalesSheetBackHtml, salesSheetBackModules, salesSheetStackLogos } from '../../lib/salesSheetBack';
 import {
   DIRECTORY_ICON_GROUPS,
   directoryIconGroupById,
@@ -433,6 +434,7 @@ const backHtml = renderSalesSheetBackHtml({
   stackLogos: backStackLogos,
   iconSrc: backIconSrc,
   logoHtml: companyBrandMarkHtml('logo', company, { size: 'xl', idPrefix: 'ss-back-logo' }),
+  modules: salesSheetBackModules(await listModuleCatalog()),
 });
 
 let error = '';

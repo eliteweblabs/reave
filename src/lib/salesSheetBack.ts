@@ -7,6 +7,7 @@
  * center + diagnostic). Same HTML for every client.
  */
 import { BRANDING_ICON_PATH } from './companyLogo';
+import type { CatalogRow } from './moduleCatalog';
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
 
@@ -27,6 +28,30 @@ export type SalesSheetBackLogo = {
   src: string;
   slug?: string;
 };
+
+export type SalesSheetBackModule = {
+  feature: string;
+  label: string;
+  priceLabel?: string;
+};
+
+/** Add-on / custom catalog rows with the sale-sheet toggle on. Core OS stays off this list. */
+export function salesSheetBackModules(rows: readonly CatalogRow[]): SalesSheetBackModule[] {
+  return rows
+    .filter(
+      (row) =>
+        row.saleSheet === true &&
+        row.kind !== 'core' &&
+        row.visibility !== 'private' &&
+        row.group !== 'internal',
+    )
+    .map((row) => ({
+      feature: row.feature,
+      label: row.label,
+      priceLabel: (row.priceLabel || '').trim(),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
+}
 
 /** Leave-behind subset of `PLATFORM_STACK` — the marks that stay on the back. */
 const SALES_SHEET_STACK_SLUGS = [
@@ -153,6 +178,21 @@ function stackLogoHtml(logo: SalesSheetBackLogo): string {
   return `<li class="ss-stack-item" data-stack="${esc(slug)}">
   <img class="ss-stack-logo" src="${esc(logo.src)}" alt="${esc(logo.name)}" />
 </li>`;
+}
+
+function modulesHtml(modules: SalesSheetBackModule[]): string {
+  if (!modules.length) return '';
+  const items = modules
+    .map((mod) => {
+      const price = (mod.priceLabel || '').trim();
+      const priceHtml = price ? `<span class="ss-back-mod-price">${esc(price)}</span>` : '';
+      return `<li class="ss-back-mod" data-mod="${esc(mod.feature)}"><span class="ss-back-mod-label">${esc(mod.label)}</span>${priceHtml}</li>`;
+    })
+    .join('');
+  return `<div class="ss-back-modules" data-ss-col="modules">
+    <p class="ss-back-kicker">Modules</p>
+    <ul class="ss-back-mod-list" aria-label="Modules">${items}</ul>
+  </div>`;
 }
 
 function qaListHtml(): string {
@@ -452,6 +492,57 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   line-height: 1.35;
   color: #2a2a2a;
 }
+.ss-sheet-back .ss-back-modules {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28em;
+}
+.ss-sheet-back .ss-back-mod-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22em;
+}
+.ss-sheet-back .ss-back-mod {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45em;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.28em 0.5em;
+  border: 1px solid var(--doc-rule);
+  border-radius: 8px;
+  background: #fff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.ss-sheet-back .ss-back-mod-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(7px, 1.05cqi, 9px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--doc-ink);
+}
+.ss-sheet-back .ss-back-mod-price {
+  flex: 0 0 auto;
+  font-size: clamp(6.5px, 0.95cqi, 8px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--doc-muted);
+}
 .ss-sheet-back .ss-back-qa-item dd::before {
   content: "A  ";
   color: var(--doc-muted);
@@ -621,6 +712,7 @@ export function renderSalesSheetBackHtml(opts: {
   iconHtml?: string;
   iconSrc?: string;
   logoHtml?: string;
+  modules?: SalesSheetBackModule[];
 }): string {
   const name = (opts.company?.name || 'This platform').trim();
   const stack = salesSheetStackLogos(opts.stackLogos);
@@ -632,6 +724,7 @@ export function renderSalesSheetBackHtml(opts: {
   const logoHtml = (opts.logoHtml || '').trim() || fallbackMark;
   const gateLockup = `${iconHtml}${bakedInBostonHtml()}`;
   const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
+  const moduleTiles = modulesHtml(opts.modules || []);
 
   return `
 <style>${backPageCss(opts.orientation)}</style>
@@ -646,6 +739,7 @@ export function renderSalesSheetBackHtml(opts: {
           <p class="ss-back-kicker">Q&amp;A</p>
           <dl class="ss-back-qa-list">${qaListHtml()}</dl>
         </div>
+        ${moduleTiles}
         <div class="ss-back-gate-icon" data-ss-col="gate-icon">${gateLockup}</div>
       </section>
       <section class="ss-back-col ss-back-col--builds" data-ss-col="builds">

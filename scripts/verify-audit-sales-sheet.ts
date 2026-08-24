@@ -45,10 +45,12 @@ import {
 } from '../src/lib/salesSheetResearch.ts';
 import {
   renderSalesSheetBackHtml,
+  salesSheetBackModules,
   SALES_SHEET_BACK_COVER_QA,
   SALES_SHEET_BACK_QA,
   SALES_SHEET_STACK,
 } from '../src/lib/salesSheetBack.ts';
+import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
 import {
   applyLiveUrlToFindings,
   dropWorkingSiteDownFindings,
@@ -767,6 +769,41 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.doesNotMatch(back, /Gmail|HubSpot|Replace the stack|Worked with/);
   assert.doesNotMatch(back, /Jordan Hale|Hale &amp; Co\.|haleco\.example|Prepared for/);
   assert.doesNotMatch(back, /ss-qr|the full audit/);
+  assert.doesNotMatch(back, /data-ss-col="modules"/);
+  assert.doesNotMatch(back, /class="ss-back-mod"/);
+});
+
+await test('gate leftover space lists catalog modules with the sale-sheet toggle on', () => {
+  const catalog = defaultModuleCatalog();
+  const modules = salesSheetBackModules(catalog);
+  assert.ok(modules.length >= 8);
+  assert.ok(modules.every((row) => row.label.trim()));
+  assert.ok(modules.some((row) => row.feature === 'billing'));
+  assert.ok(modules.some((row) => row.feature === 'google_workspace'));
+  assert.ok(!modules.some((row) => row.feature === 'deploy_wizard'));
+  assert.ok(!modules.some((row) => row.feature === 'client_portal'));
+  assert.deepEqual(
+    modules.map((row) => row.label),
+    [...modules].sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' })).map((row) => row.label),
+  );
+  const off = salesSheetBackModules(
+    catalog.map((row) => (row.feature === 'billing' ? { ...row, saleSheet: false } : row)),
+  );
+  assert.ok(!off.some((row) => row.feature === 'billing'));
+  const back = renderSalesSheetBackHtml({
+    company: { name: 'REAVE' },
+    orientation: 'landscape',
+    modules,
+  });
+  assert.match(back, /data-ss-col="modules"/);
+  assert.match(back, /ss-back-mod-list/);
+  assert.match(back, /data-mod="billing"/);
+  assert.match(back, /data-mod="google_workspace"/);
+  assert.doesNotMatch(back, /data-mod="deploy_wizard"/);
+  assert.ok(back.indexOf('data-ss-col="qa"') < back.indexOf('data-ss-col="modules"'));
+  assert.ok(back.indexOf('data-ss-col="modules"') < back.indexOf('data-ss-col="gate-icon"'));
+  assert.match(back, /border-radius: 8px/);
+  assert.equal((back.match(/class="ss-back-mod"/g) || []).length, modules.length);
 });
 
 await test('SSL and site-down exhibits look like a real phone warning', () => {
