@@ -412,7 +412,7 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
   }
   .aw-root--site .aw-footer-link:hover,
   .aw-root--site .aw-footer-link:focus-visible {
-    color: var(--brand-indigo, #6366f1);
+    color: var(--site-fg, #171717);
   }
 </style>
 
@@ -422,10 +422,10 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     --ios-sheet-fg: var(--site-fg, #171717);
     --ios-sheet-muted: var(--site-fg-muted, #525252);
     --ios-sheet-border: var(--site-border, rgba(23, 23, 23, 0.1));
-    --ios-sheet-grabber: color-mix(in srgb, var(--brand-magenta, #c026d3) 48%, var(--site-fg-faint, #a3a3a3));
-    --ios-sheet-close-bg: color-mix(in srgb, var(--brand-magenta, #c026d3) 10%, transparent);
-    --ios-sheet-close-hover: color-mix(in srgb, var(--brand-magenta, #c026d3) 18%, transparent);
-    --ios-sheet-link: var(--brand-magenta, #c026d3);
+    --ios-sheet-grabber: var(--site-fg-faint, #a3a3a3);
+    --ios-sheet-close-bg: color-mix(in srgb, var(--site-fg, #171717) 10%, transparent);
+    --ios-sheet-close-hover: color-mix(in srgb, var(--site-fg, #171717) 16%, transparent);
+    --ios-sheet-link: var(--site-fg, #171717);
     color-scheme: light;
   }
   html[data-theme="dark"] .aw-sheet {
@@ -439,8 +439,8 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
   .aw-sheet .ios-sheet {
     height: min(85dvh, 640px);
     max-height: min(85dvh, 640px);
-    border-color: color-mix(in srgb, var(--brand-magenta, #c026d3) 20%, var(--ios-sheet-border));
-    box-shadow: 0 -8px 40px rgba(var(--brand-magenta-rgb, 192, 38, 211), 0.12), 0 -2px 16px rgba(0, 0, 0, 0.08);
+    border-color: var(--ios-sheet-border);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12), 0 -2px 16px rgba(0, 0, 0, 0.08);
   }
 
   .aw-sheet .ios-sheet-body {
@@ -490,7 +490,7 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     border-bottom-right-radius: 4px;
   }
   .aw-root--site .aw-bubble a {
-    color: var(--aw-link, var(--brand-magenta, #c026d3));
+    color: var(--aw-link, var(--site-fg, #171717));
     text-decoration: underline;
     text-underline-offset: 2px;
   }
