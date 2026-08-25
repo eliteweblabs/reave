@@ -1,9 +1,7 @@
 ---
 /**
- * Homepage hero CTAs — full-bleed dock: `bottom: 0` so the layer reaches the
- * screen edge (`viewport-fit=cover`); env(safe-area-inset-*) pads the pills.
- * Sibling of .home-scroll — .home-hero is isolation:isolate and would trap
- * position:fixed. No rest-state transform (WebKit clips the pill glow).
+ * Homepage hero CTAs — last row of the flex lockup in HomeHeroSection.
+ * Hide when #contact scrolls into view (same class as before).
  */
 import { ArrowRight } from "lucide-astro";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -15,7 +13,12 @@ interface Props {
 
 const { siteContent } = Astro.props;
 const ctas = siteContent.homepage.ctas ?? [];
-const userId = Astro.locals.auth()?.userId ?? null;
+let userId: string | null = null;
+try {
+  userId = Astro.locals.auth?.()?.userId ?? null;
+} catch {
+  userId = null;
+}
 const showDemoControls = Boolean(
   siteContent.homepage.showHeroDemo && userId && (await isDeploymentOwner(Astro)),
 );
@@ -95,49 +98,26 @@ const trailingCtas = ctas.slice(1);
 
 <style is:global>
   .home-sticky-ctas {
-    --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
+    z-index: 10;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
     align-items: center;
-    /* fit-content so this layer stays under Safari 26’s 80%-wide sampler. */
-    width: fit-content;
-    max-width: calc(100vw - 40px);
-    margin-inline: auto;
-    /*
-     * Wallpaper is full-bleed; only the tappable pills clear the home bar.
-     * No rest-state transform — WebKit clips box-shadow on a transformed
-     * fixed layer. Keep pill glows inside padding-bottom (offset + blur).
-     */
-    padding:
-      10px
-      max(28px, env(safe-area-inset-right, 0px))
-      calc(20px + env(safe-area-inset-bottom, 0px))
-      max(28px, env(safe-area-inset-left, 0px));
+    width: 100%;
+    max-width: 100%;
+    margin-top: 1rem;
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
     overflow: visible;
     box-sizing: border-box;
     text-align: center;
     pointer-events: none;
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0s;
+    transition: opacity 0.4s ease, visibility 0s linear 0s;
   }
 
   .home-sticky-ctas.is-contact-occluding {
-    transform: translateY(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition:
-      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.4s ease,
-      visibility 0s linear 0.55s;
+    transition: opacity 0.4s ease, visibility 0s linear 0.4s;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -146,7 +126,6 @@ const trailingCtas = ctas.slice(1);
     }
 
     .home-sticky-ctas.is-contact-occluding {
-      transform: none;
       opacity: 0;
       visibility: hidden;
       pointer-events: none;

@@ -1,6 +1,5 @@
 /**
  * Homepage hero CTAs — hide when #contact scrolls into view.
- * Positioned full-bleed (`bottom: 0` + safe-area padding on the pills).
  */
 import { initFloatingWidgetSectionHide } from "./floatingWidgetSectionHide";
 

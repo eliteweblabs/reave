@@ -2,7 +2,6 @@
 import Layout from "../layouts/Layout.astro";
 import LandingLayout from "../layouts/LandingLayout.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
-import HomeStickyCtas from "../components/home/HomeStickyCtas.astro";
 import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
@@ -67,12 +66,6 @@ if (isLogin) {
         {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}
       </div>
-      {/*
-        Viewport-fixed chrome must sit outside .home-hero. That section is
-        isolation:isolate + z-index:0, so nested position:fixed buttons cannot
-        paint above later sections (feature chips use mask-image + transform).
-      */}
-      <HomeStickyCtas siteContent={siteContent} />
     </Layout>
   )
 }

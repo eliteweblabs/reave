@@ -1,11 +1,10 @@
 ---
 /**
- * Homepage hero — fixed viewport layout: icon + headline mid-upper, chat scrolls up
- * under them. CTAs are pinned from the top of the large viewport (see
- * HomeStickyCtas in index.astro) — they cannot live in this section's
- * stacking context.
+ * Homepage hero — one flex lockup (mark + headline + chat + CTAs) centered
+ * in the viewport below the header. Chat still scrolls inside its own lane.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
+import HomeStickyCtas from "./HomeStickyCtas.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
@@ -26,7 +25,6 @@ const demoScenes = HERO_DEMO_SCENES.map((scene) => ({
 }));
 const homepage = siteContent.homepage;
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
-const showHeroCtas = (homepage.ctas?.length ?? 0) > 0;
 const mapboxToken = getPublicMapboxAccessToken() || "";
 ---
 
@@ -36,61 +34,64 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   data-home-section="home"
   aria-labelledby="home-hero-title"
 >
-  <div class="home-hero-brand" data-hero-brand>
-    <div class="home-hero-icon-wrap" data-hero-icon>
-      <span class="home-hero-icon-glow" aria-hidden="true">
-        <span class="home-hero-icon-glow-wash"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
-      </span>
-      <BrandIconInline company={company} />
-    </div>
-    <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
-  </div>
-
-  {
-    showHeroDemo && (
-      <div
-        class="home-hero-demo"
-        data-hero-demo
-        data-scenes={JSON.stringify(demoScenes)}
-        data-start-scene="susie-proposal"
-        data-mapbox-token={mapboxToken}
-        aria-live="polite"
-        aria-atomic="false"
-      >
-        <template id="hero-demo-agent-avatar">
-          <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-            <BrandIconInline
-              company={company}
-              class="home-hero-demo-avatar-icon"
-              idPrefix="hero-demo-agent"
-            />
-          </span>
-        </template>
-        <template id="hero-demo-user-avatar">
-          <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
-            <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <defs>
-                <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#64748b"/>
-                  <stop offset="100%" stop-color="#334155"/>
-                </linearGradient>
-              </defs>
-              <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
-              <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
-              <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
-            </svg>
-          </span>
-        </template>
-        <div class="home-hero-demo-viewport" data-hero-demo-viewport>
-          <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
-        </div>
-        {showHeroCtas && <div class="home-sticky-ctas-spacer" aria-hidden="true" />}
+  <div class="home-hero-lockup">
+    <div class="home-hero-brand" data-hero-brand>
+      <div class="home-hero-icon-wrap" data-hero-icon>
+        <span class="home-hero-icon-glow" aria-hidden="true">
+          <span class="home-hero-icon-glow-wash"></span>
+          <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
+          <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
+          <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
+        </span>
+        <BrandIconInline company={company} />
       </div>
-    )
-  }
+      <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
+    </div>
+
+    {
+      showHeroDemo && (
+        <div
+          class="home-hero-demo"
+          data-hero-demo
+          data-scenes={JSON.stringify(demoScenes)}
+          data-start-scene="susie-proposal"
+          data-mapbox-token={mapboxToken}
+          aria-live="polite"
+          aria-atomic="false"
+        >
+          <template id="hero-demo-agent-avatar">
+            <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
+              <BrandIconInline
+                company={company}
+                class="home-hero-demo-avatar-icon"
+                idPrefix="hero-demo-agent"
+              />
+            </span>
+          </template>
+          <template id="hero-demo-user-avatar">
+            <span class="home-hero-demo-avatar home-hero-demo-avatar--user" aria-hidden="true">
+              <svg class="home-hero-demo-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <defs>
+                  <linearGradient id="hero-demo-user-bg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#64748b"/>
+                    <stop offset="100%" stop-color="#334155"/>
+                  </linearGradient>
+                </defs>
+                <rect width="64" height="64" rx="32" fill="url(#hero-demo-user-bg)"/>
+                <circle cx="32" cy="24" r="11" fill="#e2e8f0"/>
+                <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"/>
+              </svg>
+            </span>
+          </template>
+          <div class="home-hero-demo-viewport" data-hero-demo-viewport>
+            <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
+          </div>
+        </div>
+      )
+    }
+
+    <HomeStickyCtas siteContent={siteContent} />
+  </div>
 
 </section>
 
@@ -105,39 +106,40 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 <style>
   .home-hero {
     --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
-    --home-hero-brand-bottom: 42%;
-    /*
-     * With the brand block centred there is no room for the chat below it, so
-     * the lane runs up behind it: --rise is how far past the headline a turn
-     * may travel, --fade how long the mask takes to reach full opacity under
-     * it. A turn is gone by the time it clears the headline.
-     */
-    --home-hero-demo-rise: clamp(120px, 18vh, 190px);
-    --home-hero-demo-fade: calc(var(--home-hero-demo-rise) + clamp(90px, 13vh, 140px));
+    --home-hero-demo-fade: clamp(36px, 6vh, 56px);
     position: relative;
     z-index: 0;
     width: 100%;
     max-width: 100%;
     isolation: isolate;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
     min-height: 100vh;
     min-height: 100dvh;
+    padding-top: var(--app-header-offset, 3.25rem);
     overflow: hidden;
     scroll-margin-top: 0;
   }
 
-  /* Icon + headline — bounding-box center = viewport center */
+  .home-hero-lockup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: min(100%, 540px);
+    padding: 0 20px;
+  }
+
+  /* Icon + headline */
   .home-hero-brand {
-    position: relative;
     z-index: 10;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0;
-    width: min(100%, 540px);
-    padding: 0 20px;
+    width: 100%;
     pointer-events: none;
   }
 
@@ -313,7 +315,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-title {
-    position: relative;
     z-index: 1;
     margin: -3.75rem 0 0;
     font-family: var(--font-primary);
@@ -334,11 +335,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   @media (max-width: 640px) {
-    .home-hero {
-      /* Keep the chat lane tucked under the raised brand block. */
-      --home-hero-brand-bottom: 32%;
-    }
-
     .home-hero-title {
       white-space: normal;
       text-wrap: balance;
@@ -355,37 +351,33 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
-  /* Chat column — viewport stack + CTAs as siblings; recedes under the brand block */
+  /* Chat lane — in-flow under the headline; stack still scrolls inside. */
   .home-hero-demo {
-    position: absolute;
+    --hero-sk-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.2);
     z-index: 8;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(100%, 540px);
-    padding: 0 20px;
-    top: calc(var(--home-hero-brand-bottom, 42%) - var(--home-hero-demo-rise));
-    bottom: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    min-height: 140px;
-    overflow: visible;
-    pointer-events: none;
+    flex: none;
+    height: clamp(160px, 26vh, 240px);
+    min-height: 160px;
+    margin-top: 0.75rem;
+    box-sizing: border-box;
     /*
-     * Holds near-transparent across the headline before ramping up, so turns
-     * are already gone by the time they reach it rather than half-visible
-     * behind it. Also clips the stack's overflow past the lane top.
+     * overflow + mask clip descendants. Parked cards sit on the lane floor, so
+     * keep the drop-shadow inside this padding instead of slicing it off.
      */
+    padding: 0 10px 22px;
+    overflow: hidden;
+    pointer-events: none;
     -webkit-mask-image: linear-gradient(
       to bottom,
       #0000 0,
-      #0002 calc(var(--home-hero-demo-fade) * 0.45),
       #000 var(--home-hero-demo-fade)
     );
     mask-image: linear-gradient(
       to bottom,
       #0000 0,
-      #0002 calc(var(--home-hero-demo-fade) * 0.45),
       #000 var(--home-hero-demo-fade)
     );
   }
@@ -405,15 +397,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: 100%;
     min-height: 0;
     overflow: visible;
-  }
-
-  /* Reserve the CTA band in the chat column — buttons are viewport-fixed. */
-  .home-sticky-ctas-spacer {
-    flex: none;
-    width: 100%;
-    height: var(--home-hero-copy-h, 88px);
-    min-height: var(--home-hero-copy-h, 88px);
-    pointer-events: none;
   }
 
   /*
@@ -448,7 +431,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: flex;
     flex-direction: column;
     gap: 18px;
-    padding-bottom: 2px;
+    padding-bottom: 8px;
   }
 
   /* Marker only — per-message opacity is staggered in heroDemoLoop.ts. */
@@ -832,7 +815,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     border-radius: 1rem;
     border: 1px solid var(--demo-line, var(--site-border));
     background: var(--demo-fill-strong, var(--site-card));
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    box-shadow: var(--hero-sk-shadow, 0 8px 14px -8px rgba(0, 0, 0, 0.2));
     display: flex;
     flex-direction: column;
     gap: 0.55rem;
@@ -1167,7 +1150,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     border-radius: 10px;
     border: 1px solid var(--demo-line, var(--site-border));
     background: var(--demo-fill-strong, var(--site-card));
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    box-shadow: var(--hero-sk-shadow, 0 8px 14px -8px rgba(0, 0, 0, 0.2));
     transform-origin: center center;
     opacity: 0;
     transform: scale(0.72);
@@ -1241,7 +1224,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     border-radius: 1rem;
     border: 1px solid var(--demo-line, var(--site-border));
     background: var(--demo-fill-strong, var(--site-card));
-    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+    box-shadow: var(--hero-sk-shadow, 0 8px 14px -8px rgba(0, 0, 0, 0.2));
     display: flex;
     flex-direction: column;
     gap: 0.7rem;
