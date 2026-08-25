@@ -846,7 +846,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   .app-header-logo-svg {
     display: block;
     height: var(--app-header-logo-h);
-    width: calc(var(--app-header-logo-h) * (926.878 / 262.015));
+    width: auto;
+    max-width: 100%;
   }
 
   html[data-theme="light"] .app-header-logo-svg,

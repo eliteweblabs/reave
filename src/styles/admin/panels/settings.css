@@ -735,6 +735,9 @@
   display: inline-block;
   max-width: 100%;
 }
+.prof-field > .prof-logo-preview-wrap {
+  margin: 0 0 0.5rem;
+}
 .prof-logo-preview-wrap[hidden],
 .prof-logo-file-wrap[hidden] {
   display: none !important;

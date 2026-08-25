@@ -10,7 +10,7 @@ import {
   BRANDING_OG_PATH,
   normalizePublicLogoPath,
 } from './companyLogo';
-import { svgHasExternalRasterRefs } from './brandSvg';
+import { prepareInlineBrandSvg } from './brandSvg';
 import { BRAND_ICON_SIZES } from './brandIconRaster';
 import {
   getStoredCompanyConfig,
@@ -166,6 +166,10 @@ export type CompanyConfig = {
   logoSvg: string;
   /** Inline SVG for homepage hero icon (admin paste; wins over the uploaded image). */
   iconSvg: string;
+  /** True when an admin-uploaded raster (PNG/JPEG/WebP) is stored for the logo. */
+  logoHasRaster: boolean;
+  /** True when an admin-uploaded raster (PNG/JPEG/WebP) is stored for the icon. */
+  iconHasRaster: boolean;
   /** Vapi assistant UUID — admin setting, env fallback. */
   vapiAssistantId: string;
   /** Spoken greeting template (supports {{companyName}}). */
@@ -359,11 +363,11 @@ export function companyOgImageUrl(company: CompanyConfig): string {
   return `${BRANDING_OG_PATH}?v=${encodeURIComponent(version)}`;
 }
 
-/** Pasted SVG that is safe to inline (skip Illustrator PNG sidecars). */
+/** Pasted SVG that sanitizes cleanly enough to inline on the header or hero. */
 export function companyUsableInlineSvg(raw?: string | null): string {
   const svg = trim(raw);
-  if (!svg || svgHasExternalRasterRefs(svg)) return '';
-  return svg;
+  if (!svg) return '';
+  return prepareInlineBrandSvg(svg) ? svg : '';
 }
 
 /** Inline SVG for the homepage hero — pasted icon SVG only. */
@@ -507,6 +511,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     brandSecondary: brandColors.secondary,
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
+    logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
+    iconHasRaster: Boolean(stored?.iconData && stored?.iconMediaType),
     ...logo,
     ...icon,
   };

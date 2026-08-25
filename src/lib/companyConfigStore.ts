@@ -635,6 +635,7 @@ export async function clearStoredCompanyLogo(): Promise<boolean> {
     logoData: null,
     logoMediaType: null,
     logoPath: null,
+    logoSvg: null,
   });
 }
 
@@ -663,6 +664,7 @@ export async function clearStoredCompanyIcon(): Promise<boolean> {
     iconData: null,
     iconMediaType: null,
     iconPath: null,
+    iconSvg: null,
   });
 }
 

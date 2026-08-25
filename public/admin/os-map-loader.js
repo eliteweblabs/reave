@@ -5831,7 +5831,15 @@ function showProfileAlert(el, msg, type) {
   el.dataset.timerId = String(timerId);
 }
 
+function svgPreviewDataUri(svg) {
+  const trimmed = String(svg || '').trim();
+  if (!trimmed || !/<svg[\s>]/i.test(trimmed)) return '';
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trimmed)}`;
+}
+
 function companyLogoPreviewUrl(company) {
+  const svgUrl = svgPreviewDataUri(company?.logoSvg);
+  if (svgUrl) return svgUrl;
   if (hasUploadedCompanyLogoPng(company)) {
     const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
     return `/api/branding/logo${v}`;
@@ -5853,6 +5861,8 @@ function companyBrandingIconPreviewUrl(company, size = 512) {
 }
 
 function companyIconPreviewUrl(company) {
+  const svgUrl = svgPreviewDataUri(company?.iconSvg);
+  if (svgUrl) return svgUrl;
   if (hasCustomCompanyIcon(company)) {
     return companyBrandingIconPreviewUrl(company, 512);
   }
@@ -5860,11 +5870,19 @@ function companyIconPreviewUrl(company) {
 }
 
 function hasUploadedCompanyLogoPng(company) {
+  if (company?.logoHasRaster === true) return true;
+  if (company?.logoHasRaster === false) return false;
   return company?.logoSource === 'admin' && String(company?.logoPath || '').includes('/api/branding/logo');
 }
 
 function hasUploadedCompanyIconPng(company) {
-  return company?.iconSource === 'admin' && String(company?.iconPath || '').includes('/api/branding/icon');
+  if (company?.iconHasRaster === true) return true;
+  if (company?.iconHasRaster === false) return false;
+  return (
+    company?.iconSource === 'admin' &&
+    String(company?.iconPath || '').includes('/api/branding/icon') &&
+    !String(company?.iconSvg || '').trim()
+  );
 }
 
 function hasLegacyCompanyIconPath(company) {
@@ -5873,6 +5891,10 @@ function hasLegacyCompanyIconPath(company) {
     !!company?.iconPath &&
     !String(company.iconPath).includes('/api/branding/icon')
   );
+}
+
+function hasCompanySvg(company, key) {
+  return Boolean(String(company?.[key] || '').trim());
 }
 
 function hasRemovableCompanyIcon(company) {
@@ -5894,13 +5916,30 @@ function syncHeaderProfileIcon(url) {
 }
 
 function hasCustomCompanyLogo(company) {
-  return hasUploadedCompanyLogoPng(company) || (
-    company?.logoSource === 'admin' && !!companyLogoPreviewUrl(company)
+  return (
+    hasCompanySvg(company, 'logoSvg') ||
+    hasUploadedCompanyLogoPng(company) ||
+    (company?.logoSource === 'admin' && !!companyLogoPreviewUrl(company))
   );
 }
 
 function hasCustomCompanyIcon(company) {
-  return hasUploadedCompanyIconPng(company) || hasLegacyCompanyIconPath(company);
+  return (
+    hasCompanySvg(company, 'iconSvg') ||
+    hasUploadedCompanyIconPng(company) ||
+    hasLegacyCompanyIconPath(company)
+  );
+}
+
+function syncSvgFieldPreview(root, fieldId, svg) {
+  const wrap = root.querySelector(`#${fieldId}-preview-wrap`);
+  const img = root.querySelector(`#${fieldId}-preview`);
+  const url = svgPreviewDataUri(svg);
+  if (img instanceof HTMLImageElement) {
+    if (url) img.src = url;
+    else img.removeAttribute('src');
+  }
+  if (wrap instanceof HTMLElement) wrap.hidden = !url;
 }
 
 function syncCompanySvgFields(root, company) {
@@ -5908,6 +5947,8 @@ function syncCompanySvgFields(root, company) {
   const iconTa = root.querySelector('#company-iconSvg');
   if (logoTa instanceof HTMLTextAreaElement) logoTa.value = company?.logoSvg || '';
   if (iconTa instanceof HTMLTextAreaElement) iconTa.value = company?.iconSvg || '';
+  syncSvgFieldPreview(root, 'company-logoSvg', company?.logoSvg);
+  syncSvgFieldPreview(root, 'company-iconSvg', company?.iconSvg);
 }
 
 function usesLogoAsIconFallback(company) {
@@ -5940,7 +5981,10 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
       fileWrap.hidden = hasPng;
     }
     if (removeBtn instanceof HTMLButtonElement) {
-      removeBtn.hidden = !hasPng && !(company?.logoSource === 'admin' && company?.logoPath);
+      removeBtn.hidden = !hasLogo;
+    }
+    if (preview instanceof HTMLImageElement && !url) {
+      preview.removeAttribute('src');
     }
     syncCompanySvgFields(root, company);
   };
@@ -6028,6 +6072,10 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
       },
     });
   });
+
+  if (opts.company) refreshPreview(opts.company);
+
+  return { refreshPreview };
 }
 
 function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
@@ -6058,6 +6106,9 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
     }
     if (removeBtn instanceof HTMLButtonElement) {
       removeBtn.hidden = !hasRemovableIcon;
+    }
+    if (preview instanceof HTMLImageElement && !url) {
+      preview.removeAttribute('src');
     }
     if (fallbackHint instanceof HTMLElement) {
       fallbackHint.hidden = !usesLogoAsIconFallback(company);
@@ -6186,16 +6237,19 @@ function bindCompanyForm(root, company, fontCatalog) {
 
   const companyAlert = root.querySelector('#company-alert');
   let resyncCompanyForm = () => {};
+  let refreshLogoPreview = () => {};
   let refreshIconPreview = () => {};
   const onBrandCompany = (next) => {
     syncCompanySvgFields(root, next);
+    refreshLogoPreview(next);
     refreshIconPreview(next);
     resyncCompanyForm();
   };
-  bindCompanyLogoUpload(root, companyAlert, {
+  const logoBranding = bindCompanyLogoUpload(root, companyAlert, {
     company,
     onCompany: onBrandCompany,
   });
+  refreshLogoPreview = logoBranding.refreshPreview;
   const iconBranding = bindCompanyIconUpload(root, companyAlert, company, {
     onCompany: onBrandCompany,
   });
@@ -6296,6 +6350,7 @@ function bindCompanyForm(root, company, fontCatalog) {
         companyPendingGeo = null;
         if (json.company) {
           syncCompanySvgFields(root, json.company);
+          logoBranding.refreshPreview(json.company);
           iconBranding.refreshPreview(json.company);
           companyAutosave.resync?.();
         }
@@ -7264,7 +7319,7 @@ function renderCompanyPanel(company, fontCatalog) {
                 `<div class="prof-logo-upload">` +
                   `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
                     `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
-                    `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
+                    `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogo ? '' : ' hidden'}>×</button>` +
                   `</div>` +
                   `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng ? ' hidden' : ''}>` +
                     `<input id="company-logo-file" class="prof-logo-file-input" type="file" accept="image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp" hidden />` +
@@ -7297,11 +7352,17 @@ function renderCompanyPanel(company, fontCatalog) {
             `<div class="prof-branding-uploads">` +
               `<div class="prof-branding-upload-item">` +
                 `<div class="prof-field"><label for="company-logoSvg">Logo SVG</label>` +
+                `<div id="company-logoSvg-preview-wrap" class="prof-logo-preview-wrap"${c.logoSvg ? '' : ' hidden'}>` +
+                  `<img id="company-logoSvg-preview" class="prof-logo-preview" src="${escHtml(svgPreviewDataUri(c.logoSvg))}" alt="" />` +
+                `</div>` +
                 `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.logoSvg || '')}</textarea>` +
                 `<span class="prof-hint">Wordmark for the site header. Clear the field to fall back to the logo image above, then the display name.</span></div>` +
               `</div>` +
               `<div class="prof-branding-upload-item">` +
                 `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
+                `<div id="company-iconSvg-preview-wrap" class="prof-logo-preview-wrap"${c.iconSvg ? '' : ' hidden'}>` +
+                  `<img id="company-iconSvg-preview" class="prof-icon-preview" src="${escHtml(svgPreviewDataUri(c.iconSvg))}" alt="" />` +
+                `</div>` +
                 `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.iconSvg || '')}</textarea>` +
                 `<span class="prof-hint">Square mark for the homepage hero. Clear the field to fall back to the icon image above, then the display name.</span></div>` +
               `</div>` +
