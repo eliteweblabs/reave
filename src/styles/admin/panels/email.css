@@ -1660,9 +1660,6 @@ html.reave-agent-asleep
   width: 1.125rem;
   height: 1.125rem;
 }
-.wk-file-actions .de-share-btn {
-  color: var(--icon-muted);
-}
 /* Email detail archive: between share and delete on ≥640px only (swipe on small).
    Both classes so display:none outranks .ios-icon-btn { display: inline-flex }. */
 @media (max-width: 639px) {
