@@ -23,6 +23,7 @@ const avatarOverrides = siteContent.homepage.heroDemoAvatars ?? {};
 const demoScenes = HERO_DEMO_SCENES.map((scene) => ({
   ...scene,
   userAvatar: avatarOverrides[scene.id] || siteMediaSrc(scene.userAvatar) || undefined,
+  pinAvatar: siteMediaSrc(scene.pinAvatar) || undefined,
 }));
 const homepage = siteContent.homepage;
 const heroIconIsMark = Boolean(companyHeroIconSvg(company));

@@ -35,6 +35,8 @@ export type HeroDemoScene = {
   turns: HeroDemoTurn[];
   /** Headshot for the business owner in this scene's user messages. */
   userAvatar?: string;
+  /** Map-pin face for gps-locate — keep distinct from the chat user. */
+  pinAvatar?: string;
   /** Pause after the last turn before the scene fades (ms). */
   holdMs?: number;
 };
@@ -159,7 +161,8 @@ export function heroDemoMentionKind(name: string): "contact" | "team" {
 export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "field-checkin",
-    userAvatar: "hero-field-checkin",
+    userAvatar: "hero-henderson-billing",
+    pinAvatar: "hero-field-checkin",
     holdMs: 1000,
     turns: [
       {

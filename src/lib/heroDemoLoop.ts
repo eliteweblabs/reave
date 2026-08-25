@@ -1970,7 +1970,7 @@ async function playAssistantTurn(
   isAlive: () => boolean,
   priorAssistantRow: HTMLElement | null,
   mapboxToken = "",
-  userAvatarUrl?: string,
+  pinAvatarUrl?: string,
 ): Promise<HTMLElement | null> {
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
@@ -2018,7 +2018,7 @@ async function playAssistantTurn(
       reducedMotion,
       isAlive,
       mapboxToken,
-      userAvatarUrl,
+      pinAvatarUrl,
     );
     return null;
   }
@@ -2440,7 +2440,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
         isAlive,
         lastAssistantRow,
         mapboxToken,
-        scene.userAvatar,
+        scene.pinAvatar,
       );
 
       // The chip press is the user's choice — don't follow with a mock user bubble.
