@@ -48,7 +48,6 @@ import {
 } from './detail-tabs.js?v=20260807b';
 import {
   openMediaPicker,
-  imageMediaFilter,
   projectFileMediaFilter,
   fetchMediaAsFile,
 } from './media-picker.js?v=20260813b';
@@ -2969,35 +2968,10 @@ function createWorkBodyEditor(opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'wk-md-editor';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'wk-md-toolbar';
-
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/jpeg,image/png,image/gif,image/webp';
-  fileInput.multiple = true;
-  fileInput.className = 'wk-md-file-input';
-  fileInput.hidden = true;
-
-  const uploadBtn = document.createElement('button');
-  uploadBtn.type = 'button';
-  uploadBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
-  setDeBtnLabel(uploadBtn, 'Upload', 'share');
-  uploadBtn.addEventListener('click', () => fileInput.click());
-
-  const libraryBtn = document.createElement('button');
-  libraryBtn.type = 'button';
-  libraryBtn.className = 'de-btn de-btn-secondary';
-  libraryBtn.textContent = 'Library';
-
-  toolbar.appendChild(fileInput);
-  toolbar.appendChild(uploadBtn);
-  toolbar.appendChild(libraryBtn);
-
   const surface = document.createElement('div');
-  surface.className = 'wk-md-surface de-textarea';
+  surface.className = 'wk-md-surface';
   surface.contentEditable = 'true';
-  surface.spellcheck = false;
+  surface.spellcheck = true;
   surface.setAttribute('role', 'textbox');
   surface.setAttribute('aria-multiline', 'true');
   if (opts.placeholder) surface.dataset.placeholder = opts.placeholder;
@@ -3094,33 +3068,6 @@ function createWorkBodyEditor(opts = {}) {
     if (changed) syncMarkdown();
   }
 
-  fileInput.addEventListener('change', () => {
-    const files = [...(fileInput.files || [])];
-    fileInput.value = '';
-    if (!files.length) return;
-    void (async () => {
-      for (const file of files) {
-        try {
-          await ingestImageFile(file);
-        } catch {
-          /* toast already shown */
-        }
-      }
-    })();
-  });
-
-  libraryBtn.addEventListener('click', () => {
-    void openMediaPicker({
-      title: 'Insert from library',
-      hint: 'Choose an image to copy into this project and insert in the notes. JPEG, PNG, GIF, or WebP — max 10 MB.',
-      filter: imageMediaFilter,
-      onPick: async (item) => {
-        const file = await fetchMediaAsFile(item);
-        await ingestImageFile(file);
-      },
-    });
-  });
-
   surface.addEventListener('input', syncMarkdown);
 
   surface.addEventListener('paste', (e) => {
@@ -3169,7 +3116,6 @@ function createWorkBodyEditor(opts = {}) {
     })();
   });
 
-  wrap.appendChild(toolbar);
   wrap.appendChild(surface);
   wrap.appendChild(ta);
 
