@@ -31,7 +31,7 @@ import {
 } from './admin-ui.js?v=20260825a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260825a';
-import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
+import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260825c';
 
 function section(root, title, hint, build) {
   const el = document.createElement('section');

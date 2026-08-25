@@ -109,8 +109,7 @@
 .os-dialog-btn,
 .os-dialog-btn--primary,
 .prof-btn-primary,
-.prof-btn-secondary,
-.admin-setup-alert-btn--primary {
+.prof-btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -141,8 +140,7 @@
 .de-btn-primary:hover,
 .de-placeholder-create-btn:hover,
 .os-dialog-btn--primary:hover:not(:disabled),
-.prof-btn-primary:hover:not(:disabled),
-.admin-setup-alert-btn--primary:hover:not(:disabled) {
+.prof-btn-primary:hover:not(:disabled) {
   filter: brightness(1.06);
   transform: translateY(-1px);
   color: #fff;
@@ -170,8 +168,7 @@
 .de-btn-ghost,
 .de-btn--secondary,
 .os-dialog-btn--ghost,
-.prof-btn-secondary,
-.admin-setup-alert-btn {
+.prof-btn-secondary {
   border-radius: var(--radius-pill, 999px);
   color: var(--fg, var(--site-fg, #171717));
   -webkit-text-fill-color: var(--fg, var(--site-fg, #171717));
@@ -193,8 +190,7 @@
 .de-btn-ghost:hover,
 .de-btn--secondary:hover,
 .os-dialog-btn--ghost:hover,
-.prof-btn-secondary:hover:not(:disabled),
-.admin-setup-alert-btn:hover:not(:disabled) {
+.prof-btn-secondary:hover:not(:disabled) {
   color: var(--fg, var(--site-fg, #171717));
   -webkit-text-fill-color: var(--fg, var(--site-fg, #171717));
   background: var(--brand-glass-bg-hover);
@@ -208,7 +204,6 @@
 .de-btn-primary,
 .os-dialog-btn--primary,
 .prof-btn-primary,
-.admin-setup-alert-btn--primary,
 .de-placeholder-create-btn {
   color: #fff;
   -webkit-text-fill-color: #fff;
@@ -220,8 +215,7 @@
 .de-btn-primary:hover,
 .de-placeholder-create-btn:hover,
 .os-dialog-btn--primary:hover:not(:disabled),
-.prof-btn-primary:hover:not(:disabled),
-.admin-setup-alert-btn--primary:hover:not(:disabled) {
+.prof-btn-primary:hover:not(:disabled) {
   filter: brightness(1.06);
   color: #fff;
   -webkit-text-fill-color: #fff;
@@ -230,8 +224,7 @@
 /** Destructive confirm — same pill, danger fill. */
 .brand-btn-danger,
 .de-btn-danger,
-.os-dialog-btn--danger,
-.admin-setup-alert-btn--danger {
+.os-dialog-btn--danger {
   color: #fff;
   -webkit-text-fill-color: #fff;
   background: var(--danger, #dc2626);
@@ -241,8 +234,7 @@
 
 .brand-btn-danger:hover,
 .de-btn-danger:hover,
-.os-dialog-btn--danger:hover,
-.admin-setup-alert-btn--danger:hover {
+.os-dialog-btn--danger:hover {
   color: #fff;
   -webkit-text-fill-color: #fff;
   background: var(--danger-hover, #b91c1c);

@@ -118,7 +118,7 @@ import {
   buildAdminNotice,
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
-} from './admin-notice.js?v=20260812c';
+} from './admin-notice.js?v=20260825c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
 import {
   captureFilterTabsScroll,
@@ -4363,7 +4363,7 @@ function buildReviewAlertBanner(item) {
     actions.push({
       label: label || notifyActionLabels[key] || key,
       iconKey: iconKey || NOTICE_ACTION_ICONS[key],
-      primary: primary ?? actions.length === 0,
+        primary: primary ?? false,
       ...rest,
     });
   };

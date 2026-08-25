@@ -54,7 +54,7 @@ import {
   formatRuleProcessLabel,
   insertDragWithinScope,
 } from './email-triage-lab.js?v=20260824b';
-import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
+import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initRulesPanel(). */
