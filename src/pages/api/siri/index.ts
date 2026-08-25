@@ -135,6 +135,44 @@ function textResponse(text: string, status = 200): Response {
 }
 
 /**
+ * Apple Shortcuts treats HTTP 4xx as a failed request and shows a generic
+ * "Bad Request" (often attributed to Cloudflare) instead of the response body.
+ * Speakable Siri errors stay 200 so Show Result / Speak Text can read them.
+ */
+function siriResultStatus(result: SiriResponse): number {
+  if (result.ok) return 200;
+  if (result.code === 'anthropic_credits') return 503;
+  return 200;
+}
+
+async function parseSiriBody(
+  request: Request,
+): Promise<{ ok: true; body: Record<string, unknown> } | { ok: false; text: string }> {
+  const raw = await request.text();
+  if (!raw.trim()) {
+    return { ok: false, text: 'The shortcut sent an empty body.' };
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return { ok: true, body: parsed as Record<string, unknown> };
+    }
+    return { ok: false, text: 'The shortcut body must be a JSON object.' };
+  } catch {
+    const params = new URLSearchParams(raw);
+    const body: Record<string, unknown> = {};
+    for (const [key, value] of params.entries()) body[key] = value;
+    if (typeof body.action === 'string' && body.action.trim()) {
+      return { ok: true, body };
+    }
+    return {
+      ok: false,
+      text: 'The shortcut sent invalid JSON. Use a Text request body with quoted variable pills — not the JSON field list.',
+    };
+  }
+}
+
+/**
  * Check authentication: deployment owner session or X-Siri-Key header.
  */
 async function isAuthenticated(context: APIContext): Promise<boolean> {
@@ -161,12 +199,11 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+  const parsedBody = await parseSiriBody(context.request);
+  if (!parsedBody.ok) {
+    return textResponse(parsedBody.text, 200);
   }
+  const body = parsedBody.body;
 
   const action = String(body.action ?? '').trim().toLowerCase();
   const format = String(body.format ?? 'json').trim().toLowerCase();
@@ -261,16 +298,15 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       }
       default:
-        return json({ ok: false, error: `Unknown action: ${action}` }, 400);
+        return textResponse(`Unknown action: ${action || '(missing)'}`, 200);
     }
 
-    // Return as plain text if format=text and we have text
-    const failStatus = result.code === 'anthropic_credits' ? 503 : 400;
+    const status = siriResultStatus(result);
     if (format === 'text' && result.text) {
-      return textResponse(result.text, result.ok ? 200 : failStatus);
+      return textResponse(result.text, status);
     }
 
-    return json(result, result.ok ? 200 : failStatus);
+    return json(result, status);
   } catch (e) {
     return json(
       {
@@ -1040,7 +1076,12 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
   if (!hasFeature('billing') || !isCraterConfigured()) return billingUnavailable();
 
   const customerName = String(
-    params.customer_name ?? params.customer ?? params.client ?? params.name ?? '',
+    params.customer_name ??
+      params.customerName ??
+      params.customer ??
+      params.client ??
+      params.name ??
+      '',
   ).trim();
   if (!customerName) {
     return {

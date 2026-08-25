@@ -40,8 +40,8 @@ On your iPhone/iPad:
 4. Configure:
    - **URL**: `https://reave.app/api/siri`
    - **Method**: POST
-   - **Request Body**: JSON (see examples below)
-   - **Headers**: Add header `X-Siri-Key` with value `your-key-from-railway`
+   - **Request Body**: **Text** (build JSON in a Text action with quoted variable pills — do not use the JSON field list)
+   - **Headers**: `X-Siri-Key` = `your-key-from-railway` and `Content-Type` = `application/json`
 5. Add action: **Show Result** (displays the response)
 6. Name your shortcut (e.g., "List Contacts")
 7. Tap the info button → Add to Siri → record a phrase like "list my contacts"
@@ -701,10 +701,19 @@ The endpoint has no built-in rate limiting. If needed, add Cloudflare rate limit
 - Verify `SIRI_API_KEY` is set on Railway
 - Make sure the key in your shortcut matches Railway exactly (no extra spaces)
 
+### "400 Bad Request" / Cloudflare error
+
+Apple Shortcuts treats HTTP 4xx as a failed network request and hides the real reply. The API now returns speakable text on 200 so **Show Result** can read it. If you still see a generic failure:
+
+- Change **Request Body** from **JSON** (key/value list) to **Text**
+- Build the JSON in a **Text** action and insert variables as **blue pills inside quotes**
+- Keep `Content-Type: application/json` and `X-Siri-Key` in Headers
+- Confirm the customer key is exactly `customer_name` (aliases: `customer`, `client`, `name`)
+
 ### "Invalid JSON"
 
 - Ensure the request body is valid JSON
-- Use **Text** type (not Dictionary) in Shortcuts → Get Contents of URL
+- Use **Text** type (not Dictionary / JSON fields) in Shortcuts → Get Contents of URL
 - Test your JSON at [jsonlint.com](https://jsonlint.com/)
 
 ### "Unauthorized"
