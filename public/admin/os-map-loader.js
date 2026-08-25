@@ -7294,12 +7294,18 @@ function renderCompanyPanel(company, fontCatalog) {
           profSection(
             'SVG Logo and Icon',
             'Paste raw <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup. These render first — header uses logo SVG, homepage hero uses icon SVG.',
-            `<div class="prof-field"><label for="company-logoSvg">Logo SVG</label>` +
-            `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.logoSvg || '')}</textarea>` +
-            `<span class="prof-hint">Wordmark for the site header. Clear the field to fall back to the logo image above, then the display name.</span></div>` +
-            `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
-            `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.iconSvg || '')}</textarea>` +
-            `<span class="prof-hint">Square mark for the homepage hero. Clear the field to fall back to the icon image above, then the display name.</span></div>`,
+            `<div class="prof-branding-uploads">` +
+              `<div class="prof-branding-upload-item">` +
+                `<div class="prof-field"><label for="company-logoSvg">Logo SVG</label>` +
+                `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.logoSvg || '')}</textarea>` +
+                `<span class="prof-hint">Wordmark for the site header. Clear the field to fall back to the logo image above, then the display name.</span></div>` +
+              `</div>` +
+              `<div class="prof-branding-upload-item">` +
+                `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
+                `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.iconSvg || '')}</textarea>` +
+                `<span class="prof-hint">Square mark for the homepage hero. Clear the field to fall back to the icon image above, then the display name.</span></div>` +
+              `</div>` +
+            `</div>`,
           ) +
           profSection(
             'Typography',
