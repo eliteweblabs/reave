@@ -242,8 +242,9 @@ const trailingCtas = ctas.slice(1);
     display: none;
   }
 
+  /* Unused on phones and it breaks the CTA row. Keep on desktop for debug. */
   @media (max-width: 640px) {
-    .home-hero-demo-control[data-hero-demo-pause] {
+    .home-hero-demo-controls {
       display: none;
     }
   }
