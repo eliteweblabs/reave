@@ -2479,6 +2479,10 @@ function dashboardGridKeys() {
 
 function closeMarketingOverlay() {
   const marketing = document.querySelector('[data-marketing-menu]');
+  if (typeof window.__setOverlayMenuOpen === 'function') {
+    window.__setOverlayMenuOpen(marketing, false);
+    return;
+  }
   const toggle = document.querySelector('[data-marketing-menu-toggle]');
   if (marketing) marketing.hidden = true;
   toggle?.classList.remove('is-open');
@@ -2491,6 +2495,10 @@ function setAccountMenuOpen(open) {
   const menu = document.getElementById('topbar-profile-menu');
   const toggle = document.getElementById('topbar-profile-toggle');
   if (!menu || !toggle) return;
+  if (typeof window.__setOverlayMenuOpen === 'function') {
+    window.__setOverlayMenuOpen(menu, open);
+    return;
+  }
   if (open) closeMarketingOverlay();
   menu.hidden = !open;
   toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -9566,10 +9574,10 @@ function initTopbarMenus() {
     });
   }
 
-  const backdrop = document.querySelector('[data-account-menu-backdrop]');
-  if (backdrop && !backdrop.dataset.bound) {
-    backdrop.dataset.bound = '1';
-    backdrop.addEventListener('click', () => closeTopbarMenus());
+  const accountMenu = document.getElementById('topbar-profile-menu');
+  if (accountMenu && !accountMenu.dataset.footerNavBound) {
+    accountMenu.dataset.footerNavBound = '1';
+    accountMenu.addEventListener('overlay-menu:close', () => syncFooterNav());
   }
 
   for (const key of window.__installConfig?.profileMenu || []) {

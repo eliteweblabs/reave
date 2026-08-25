@@ -305,6 +305,8 @@ interface ImportMetaEnv {
 /** Vapi web SDK attaches the constructor at runtime (`VoiceChatButton.astro`). */
 interface Window {
   Vapi?: new (...args: unknown[]) => unknown;
+  __setOverlayMenuOpen?: (root: HTMLElement | null, open: boolean) => void;
+  __syncOverlayMenuScrollLock?: () => void;
 }
 
 /**

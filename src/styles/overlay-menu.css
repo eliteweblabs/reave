@@ -1,6 +1,6 @@
 /**
  * Shared right-drawer overlay — marketing hamburger and account menu.
- * Keep both entry points on this chrome; do not add a second flyout.
+ * Both entry points use OverlayMenu + OverlayMenuToggle; do not add a second flyout.
  */
 .overlay-menu[hidden] {
   display: none !important;
@@ -228,98 +228,52 @@ html[data-theme="dark"] {
   width: 100%;
 }
 
+/*
+ * Drawer actions use the same three button styles as the rest of the site:
+ * filled pill (.brand-btn), glass pill (.brand-btn + .brand-btn-glass), circle.
+ */
 .overlay-menu-action {
   flex: 1 1 0;
   min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   min-height: 44px;
-  padding: 0.55rem 0.45rem;
-  border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
-  border-radius: 10px;
-  background: var(--site-card, rgba(23, 23, 23, 0.03));
-  font-family: var(--font-secondary, ui-sans-serif, system-ui, sans-serif);
+  padding: 0.65rem 1rem;
   font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
-  color: var(--site-fg, #171717);
-  text-decoration: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  box-shadow: none;
+  transform: none;
 }
 
 .overlay-menu-action:hover:not(:disabled) {
-  color: var(--site-fg, #171717);
-  background: var(--brand-glass-bg-hover, rgba(23, 23, 23, 0.07));
-  border-color: var(--site-border, rgba(23, 23, 23, 0.16));
+  transform: none;
+  filter: none;
   text-decoration: none;
 }
 
-.overlay-menu-action--danger {
-  color: rgba(248, 113, 113, 0.92);
+.overlay-menu-action--danger,
+.overlay-menu-action--danger.brand-btn-glass {
+  color: #b91c1c;
 }
 
 .overlay-menu-action--danger:hover:not(:disabled) {
-  color: #fca5a5;
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(248, 113, 113, 0.28);
+  color: #991b1b;
+}
+
+html[data-theme="dark"] {
+  .overlay-menu-action--danger,
+  .overlay-menu-action--danger.brand-btn-glass {
+    color: rgba(248, 113, 113, 0.92);
+  }
+
+  .overlay-menu-action--danger:hover:not(:disabled) {
+    color: #fca5a5;
+  }
 }
 
 [data-account-menu] .overlay-menu-footer {
   border-top-color: rgba(15, 23, 42, 0.08);
 }
 
-[data-account-menu] .overlay-menu-action {
-  border-color: rgba(15, 23, 42, 0.1);
-  background: rgba(15, 23, 42, 0.03);
-  color: rgba(15, 23, 42, 0.78);
-}
-
-[data-account-menu] .overlay-menu-action:hover:not(:disabled) {
-  color: #000;
-  background: rgba(15, 23, 42, 0.06);
-  border-color: rgba(15, 23, 42, 0.16);
-}
-
-[data-account-menu] .overlay-menu-action--danger {
-  color: #b91c1c;
-}
-
-[data-account-menu] .overlay-menu-action--danger:hover:not(:disabled) {
-  color: #991b1b;
-  background: rgba(185, 28, 28, 0.08);
-  border-color: rgba(185, 28, 28, 0.22);
-}
-
-html[data-theme="dark"] {
-  [data-account-menu] .overlay-menu-footer {
-    border-top-color: rgba(255, 255, 255, 0.08);
-  }
-
-  [data-account-menu] .overlay-menu-action {
-    border-color: rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    color: rgba(255, 255, 255, 0.82);
-  }
-
-  [data-account-menu] .overlay-menu-action:hover:not(:disabled) {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.16);
-  }
-
-  [data-account-menu] .overlay-menu-action--danger {
-    color: rgba(248, 113, 113, 0.92);
-  }
-
-  [data-account-menu] .overlay-menu-action--danger:hover:not(:disabled) {
-    color: #fca5a5;
-    background: rgba(239, 68, 68, 0.12);
-    border-color: rgba(248, 113, 113, 0.28);
-  }
+html[data-theme="dark"] [data-account-menu] .overlay-menu-footer {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .overlay-menu-action:disabled {
@@ -328,10 +282,24 @@ html[data-theme="dark"] {
 }
 
 .overlay-menu-action--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
-  width: 44px;
-  min-width: 44px;
+  width: calc(36px * var(--app-header-chrome-scale, 1));
+  height: calc(36px * var(--app-header-chrome-scale, 1));
+  min-width: calc(36px * var(--app-header-chrome-scale, 1));
+  min-height: calc(36px * var(--app-header-chrome-scale, 1));
   padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--site-fg, #171717);
+  box-shadow: none;
+}
+
+.overlay-menu-action--icon:hover {
+  background: var(--site-card, rgba(23, 23, 23, 0.04));
 }
 
 .overlay-menu-action--icon svg {
@@ -339,24 +307,7 @@ html[data-theme="dark"] {
 }
 
 .overlay-menu-footer-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0.75rem 1.2rem;
-  border-radius: 999px;
-  font-family: var(--font-primary, ui-sans-serif, system-ui, sans-serif);
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: #000;
-  -webkit-text-fill-color: #000;
-  background: #fff;
-  text-decoration: none;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-
-.overlay-menu-footer-cta:hover {
-  filter: brightness(1.06);
-  text-decoration: none;
+  width: 100%;
 }
 
 html.overlay-menu-open,
@@ -386,9 +337,102 @@ html.account-menu-open .admin-setup-alerts {
 
 html.overlay-menu-open .app-header-logo,
 html.overlay-menu-open .marketing-nav,
+html.overlay-menu-open .overlay-menu-toggle,
 html.account-menu-open .topbar-end {
   position: relative;
   z-index: 2100;
+}
+
+.overlay-menu-toggle,
+.marketing-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: calc(36px * var(--app-header-chrome-scale, 1));
+  height: calc(36px * var(--app-header-chrome-scale, 1));
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--site-fg, #171717);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.overlay-menu-toggle:hover,
+.marketing-nav-toggle:hover {
+  background: var(--site-card, rgba(23, 23, 23, 0.04));
+  color: var(--site-fg, #171717);
+}
+
+.app-header--admin .overlay-menu-toggle,
+.app-header--admin .marketing-nav-toggle {
+  color: var(--nav-icon, var(--fg, #e9eef6));
+}
+
+.app-header--admin .overlay-menu-toggle:hover,
+.app-header--admin .marketing-nav-toggle:hover {
+  background: transparent;
+  color: var(--nav-icon-hover, var(--fg, #e9eef6));
+}
+
+html[data-theme="light"] .app-header--admin .overlay-menu-toggle,
+html[data-theme="light"] .app-header--admin .marketing-nav-toggle {
+  color: #0f172a;
+}
+
+.overlay-menu-toggle:active,
+.marketing-nav-toggle:active {
+  transform: scale(0.94);
+}
+
+.overlay-menu-toggle-icon,
+.marketing-nav-toggle-icon {
+  position: absolute;
+  inset: 0;
+  width: 20px;
+  height: 20px;
+  margin: auto;
+}
+
+.overlay-menu-toggle-icon--close,
+.marketing-nav-toggle-icon--close {
+  display: none;
+}
+
+.overlay-menu-toggle.is-open .overlay-menu-toggle-icon--open,
+.marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
+  display: none;
+}
+
+.overlay-menu-toggle.is-open .overlay-menu-toggle-icon--close,
+.marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
+  display: block;
+}
+
+/* Account pages have no hamburger — the dismiss X is `hidden` until an overlay opens. */
+.overlay-menu-toggle--dismiss[hidden],
+.marketing-nav-toggle.overlay-menu-toggle--dismiss[hidden] {
+  display: none !important;
+}
+
+.overlay-menu-toggle--dismiss .overlay-menu-toggle-icon--open,
+.overlay-menu-toggle--dismiss .marketing-nav-toggle-icon--open {
+  display: none;
+}
+
+.overlay-menu-toggle--dismiss .overlay-menu-toggle-icon--close,
+.overlay-menu-toggle--dismiss .marketing-nav-toggle-icon--close {
+  display: block;
+}
+
+@media (min-width: 900px) {
+  .overlay-menu-toggle--nav,
+  .marketing-nav-toggle:not(.overlay-menu-toggle--dismiss) {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
