@@ -5,24 +5,17 @@
  * session — Meta's servers POST a signed_request. Drop the stored token.
  */
 import type { APIContext } from 'astro';
-import { deleteSocialToken } from '../../../../../lib/social/tokenStore.ts';
+import { jsonResponse } from '../../../../../lib/apiResponse';
+import { handleInstagramTokenRemoval } from '../../../../../lib/social/instagramCallbacks';
 
 export const prerender = false;
 
-export async function POST(_context: APIContext): Promise<Response> {
-  try {
-    await deleteSocialToken('instagram');
-  } catch (e) {
-    console.error('[social-oauth] Instagram deauthorize failed', e);
-  }
-  return new Response(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
+export async function POST(context: APIContext): Promise<Response> {
+  const result = await handleInstagramTokenRemoval(context);
+  if (result instanceof Response) return result;
+  return jsonResponse({ ok: true });
 }
 
 export async function GET(): Promise<Response> {
-  return new Response(JSON.stringify({ ok: true, service: 'instagram-deauthorize' }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return new Response(null, { status: 404 });
 }

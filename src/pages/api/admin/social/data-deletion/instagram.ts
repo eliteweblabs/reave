@@ -6,33 +6,24 @@
  */
 import { randomBytes } from 'node:crypto';
 import type { APIContext } from 'astro';
-import { requestOrigin } from '../../../../../lib/requestOrigin.ts';
-import { deleteSocialToken } from '../../../../../lib/social/tokenStore.ts';
+import { jsonResponse } from '../../../../../lib/apiResponse';
+import { requestOrigin } from '../../../../../lib/requestOrigin';
+import { handleInstagramTokenRemoval } from '../../../../../lib/social/instagramCallbacks';
 
 export const prerender = false;
 
 export async function POST(context: APIContext): Promise<Response> {
-  try {
-    await deleteSocialToken('instagram');
-  } catch (e) {
-    console.error('[social-oauth] Instagram data deletion failed', e);
-  }
+  const result = await handleInstagramTokenRemoval(context);
+  if (result instanceof Response) return result;
+
   const confirmation = randomBytes(8).toString('hex');
   const origin = requestOrigin(context.request);
-  return new Response(
-    JSON.stringify({
-      url: `${origin.replace(/\/+$/, '')}/privacy`,
-      confirmation_code: confirmation,
-    }),
-    {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-    },
-  );
+  return jsonResponse({
+    url: `${origin.replace(/\/+$/, '')}/privacy`,
+    confirmation_code: confirmation,
+  });
 }
 
 export async function GET(): Promise<Response> {
-  return new Response(JSON.stringify({ ok: true, service: 'instagram-data-deletion' }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return new Response(null, { status: 404 });
 }

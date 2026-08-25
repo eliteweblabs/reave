@@ -26,6 +26,31 @@ const MAX_GREP_MATCHES = 200;
 const MAX_GREP_LINE_LEN = 500;
 const EXEC_TIMEOUT_MS = 60_000;
 
+/** Minimal env for shell children — never forward secrets from process.env. */
+const SAFE_EXEC_ENV_KEYS = [
+  'PATH',
+  'HOME',
+  'USER',
+  'LOGNAME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TERM',
+  'SHELL',
+  'NODE_ENV',
+  'npm_config_cache',
+  'npm_config_prefix',
+] as const;
+
+function safeExecEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { FORCE_COLOR: '0' };
+  for (const key of SAFE_EXEC_ENV_KEYS) {
+    const value = process.env[key];
+    if (value) env[key] = value;
+  }
+  return env;
+}
+
 /** Block obviously destructive or exfiltration-oriented shell patterns. */
 const BLOCKED_EXEC_PATTERNS: RegExp[] = [
   /\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|--recursive\b)/i,
@@ -358,7 +383,7 @@ export async function codeDevExecCommand(command: string): Promise<CodeDevResult
         cwd: root,
         timeout: EXEC_TIMEOUT_MS,
         maxBuffer: 512 * 1024,
-        env: { ...process.env, FORCE_COLOR: '0' },
+        env: safeExecEnv(),
         windowsHide: true,
       },
       (err, stdout, stderr) => {
