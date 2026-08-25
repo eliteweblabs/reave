@@ -34,6 +34,8 @@
   --site-accent: #171717;
   --brand-btn-bg: #111;
   --brand-btn-fg: #fff;
+  /* Label on --brand-gradient fills. Marketing dark inverts the gradient. */
+  --brand-on-gradient: #fff;
   --demo-fg: var(--site-fg);
   --demo-fg-muted: var(--site-fg-muted);
   --demo-fill: color-mix(in srgb, var(--site-fg) 8%, transparent);
@@ -122,8 +124,8 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
   background: var(--brand-gradient);
   text-decoration: none;
   white-space: nowrap;
@@ -143,8 +145,8 @@
 .prof-btn-primary:hover:not(:disabled) {
   filter: brightness(1.06);
   transform: translateY(-1px);
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
   text-decoration: none;
 }
 
@@ -292,6 +294,21 @@
   display: none;
 }
 
+/*
+ * Mobile: do not bleed the wallpaper past the visual viewport. Safari clips
+ * that overflow at the toolbar and paints a full-width hairline under the
+ * hero CTAs. Keep the layer flush to the screen so the canvas meets chrome
+ * without a seam.
+ */
+@media (max-width: 768px) {
+  .site-bg-atmosphere {
+    --site-bg-bleed-top: env(safe-area-inset-top, 0px);
+    --site-bg-bleed-bottom: env(safe-area-inset-bottom, 0px);
+    top: 0;
+    bottom: 0;
+  }
+}
+
 /**
  * Standalone pattern / mesh nodes — folded into .site-bg-atmosphere::after.
  * Hide leftovers so they cannot paint a second, document-sized layer.
@@ -350,15 +367,39 @@ html.site-marketing[data-theme="dark"] {
     0 2px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
   --brand-glass-border-color: rgba(255, 255, 255, 0.22) !important;
   --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4) !important;
+  --brand-on-gradient: var(--brand-btn-fg);
 }
 
-html.site-marketing .app-header-logo-svg,
-html.site-marketing .app-header-logo-img,
+/*
+ * Filled marketing CTAs hard-code white labels for the colorful / black
+ * gradient. After the dark invert those fills are near-white, so force
+ * the on-gradient token onto every primary pill (homepage Demo, features,
+ * pricing, compare, demo-loader, header CTAs).
+ */
+html.site-marketing[data-theme="dark"] :is(
+  .brand-btn,
+  .marketing-nav-cta,
+  [class*="btn--primary"]
+) {
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
+}
+
 html.site-marketing .blm-tile img,
 html.site-marketing .fx-built-logo,
 html.site-marketing .fx-built-logo-probe,
 html.site-marketing .client-logo-item img {
   filter: none;
+}
+
+/*
+ * Header wordmark is black ink. Marketing used to set filter:none on it to
+ * undo a grayscale pass, which also killed the dark-mode invert and left
+ * reΛve.app invisible on the dark canvas.
+ */
+html[data-theme="dark"] .app-header-logo-svg,
+html[data-theme="dark"] .app-header-logo-img {
+  filter: invert(1);
 }
 
 /** Count badges — iOS-style red fill, white numeral */

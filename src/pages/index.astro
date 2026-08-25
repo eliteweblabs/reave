@@ -2,7 +2,6 @@
 import Layout from "../layouts/Layout.astro";
 import LandingLayout from "../layouts/LandingLayout.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
-import HomeDialogueSection from "../components/home/HomeDialogueSection.astro";
 import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
 import HomeFeaturedProjectSection from "../components/home/HomeFeaturedProjectSection.astro";
@@ -68,7 +67,6 @@ if (isLogin) {
           <FeaturesPageContent embedded hideIntro showLogoStack={false} showAccordion={false} />
         )}
         <HomeFeaturedProjectSection />
-        {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}
       </div>
     </Layout>
@@ -99,7 +97,6 @@ if (isLogin) {
       .home-scroll :global(.fx-custom-h2),
       .home-scroll :global(.fx-closing-h2),
       .home-scroll :global(.home-featured-copy h2),
-      .home-scroll :global(.home-dialogue-header h2),
       .home-scroll :global(.home-section-hero h2) {
         font-size: var(--home-section-title-size);
         font-weight: var(--home-section-title-weight);
