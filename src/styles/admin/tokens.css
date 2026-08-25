@@ -106,13 +106,14 @@
   --radius-button: var(--radius-pill);
   --control-h: 2.75rem;
   /* Icon-only buttons — locked boxes. createIosIconBtn({ size: 'sm'|'md'|'lg' }).
-     md matches the circular agent control. */
+     md matches the circular agent control. Padding is (box − glyph) / 2. */
   --icon-btn-sm: 24px;
   --icon-btn-sm-glyph: 12px;
   --icon-btn-md: 36px;
   --icon-btn-md-glyph: 16px;
   --icon-btn-lg: 44px;
   --icon-btn-lg-glyph: 20px;
+  --icon-btn-pad: calc((var(--icon-btn-box, var(--icon-btn-md)) - var(--icon-btn-glyph, var(--icon-btn-md-glyph))) / 2);
   /* Destructive / delete affordances — one red everywhere */
   --danger: #dc2626;
   --danger-hover: #b91c1c;

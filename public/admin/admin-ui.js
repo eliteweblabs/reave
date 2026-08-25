@@ -1762,13 +1762,15 @@ export function wrapEditableHeaderTitle(titleEl, opts = {}) {
     mountContactAvatars(leading);
   }
 
-  const icon = document.createElement('span');
-  icon.className = 'de-header-title-edit-icon';
-  icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = IOS_ICONS.edit;
-
   wrap.appendChild(titleEl);
-  wrap.appendChild(icon);
+
+  if (opts.editIcon !== false) {
+    const icon = document.createElement('span');
+    icon.className = 'de-header-title-edit-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = IOS_ICONS.edit;
+    wrap.appendChild(icon);
+  }
 
   if (opts.clickable && typeof opts.onActivate === 'function') {
     const activate = (e) => {
@@ -1912,6 +1914,7 @@ export function createEditableHeaderTitleInput(opts = {}) {
   return {
     el: wrapEditableHeaderTitle(input, {
       leading: opts.leading,
+      editIcon: opts.editIcon,
     }),
     input,
   };

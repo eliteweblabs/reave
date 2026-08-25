@@ -1084,7 +1084,7 @@
   min-width: var(--icon-btn-box, var(--icon-btn-md));
   min-height: var(--icon-btn-box, var(--icon-btn-md));
   margin: 0;
-  padding: 0;
+  padding: var(--icon-btn-pad);
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -1094,13 +1094,8 @@
 .agent-btn svg,
 .de-new-btn.em-agent-btn svg {
   display: block;
-  width: var(--icon-btn-glyph, var(--icon-btn-md-glyph));
-  height: var(--icon-btn-glyph, var(--icon-btn-md-glyph));
-}
-/* Hat brim fills more of the 24 box than Lucide share/trash — shrink to match. */
-.agent-icon {
-  transform-origin: center;
-  transform: scale(0.78);
+  width: 100%;
+  height: 100%;
 }
 /* Header row: keep the glow from eating into the truncated title. */
 .de-header-actions > .agent-btn,

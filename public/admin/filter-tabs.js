@@ -6,7 +6,7 @@
  * Chip tones match email list notices (.em-cat-*) and sibling list tags.
  */
 
-import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260825f';
+import { bindConfirmDeleteButton, IOS_ICONS } from './admin-ui.js?v=20260825h';
 import { escHtml } from './shared.js?v=20260810a';
 
 /** Instant scroll — CSS scroll-behavior:smooth would animate every panel re-render otherwise. */

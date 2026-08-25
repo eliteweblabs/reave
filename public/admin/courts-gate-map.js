@@ -4,7 +4,7 @@
  */
 
 import { adminFetch, readAdminJson, escHtml } from './shared.js?v=20260810a';
-import { iosIcon } from './admin-ui.js?v=20260825f';
+import { iosIcon } from './admin-ui.js?v=20260825h';
 
 const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
 const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';

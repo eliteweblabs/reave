@@ -11,7 +11,7 @@
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
  */
 
-import { createTimingRing, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260825f';
+import { createTimingRing, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260825h';
 
 const UNDO_WINDOW_MS = 5000;
 const SHAKE_THRESHOLD = 18;

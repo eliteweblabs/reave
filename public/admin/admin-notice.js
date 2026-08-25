@@ -8,7 +8,7 @@
  * Styles live on `.admin-setup-alert*` in src/styles/admin/shell.css.
  */
 
-import { iosIcon, createBrandBtn, createIosIconBtn } from './admin-ui.js?v=20260825f';
+import { iosIcon, createBrandBtn, createIosIconBtn } from './admin-ui.js?v=20260825h';
 
 export const ADMIN_NOTICE_DISMISS_SVG = iosIcon('x', 16);
 

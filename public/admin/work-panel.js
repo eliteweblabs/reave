@@ -33,7 +33,7 @@ import {
   looksLikeHttpUrl,
   contactAvatarHtml,
   mountContactAvatars,
-} from './admin-ui.js?v=20260825f';
+} from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260824a';
@@ -3215,6 +3215,8 @@ function renderNewWorkForm(pane) {
       value: workState.draft?.title || '',
       placeholder: postNew(),
       ariaLabel: postTitleLabel(),
+      leading: iosIcon('briefcase', 20),
+      editIcon: false,
     },
   });
   header.classList.add('pane-header');
@@ -3495,6 +3497,8 @@ function renderEditWorkForm(pane) {
       value: workState.draft?.title || listJob?.title || '',
       placeholder: postTitleLabel(),
       ariaLabel: postTitleLabel(),
+      leading: iosIcon('briefcase', 20),
+      editIcon: false,
     },
   });
   header.classList.add('pane-header');
