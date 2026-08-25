@@ -2556,7 +2556,7 @@ function dashboardSectionItems(order) {
 function buildHomeMapTile(key, m, iconName) {
   const tile = document.createElement('button');
   tile.type = 'button';
-  tile.className = 'brand-btn brand-btn-glass home-dashboard-tile';
+  tile.className = 'home-dashboard-tile';
   tile.innerHTML =
     `<span class="home-dashboard-tile-icon">${navIcon(iconName || mapIconName(key))}</span>` +
     `<span class="home-dashboard-tile-label">${escHtml(m.title)}</span>`;
@@ -2568,7 +2568,7 @@ function buildHomeMapTile(key, m, iconName) {
 
 function buildHomeLinkTile(item) {
   const tile = document.createElement('a');
-  tile.className = 'brand-btn brand-btn-glass home-dashboard-tile';
+  tile.className = 'home-dashboard-tile';
   tile.href = item.href;
   if (item.href.startsWith('http')) {
     tile.target = '_blank';
