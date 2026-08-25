@@ -74,6 +74,28 @@ const apiFeatures = listDemoLoaderFeatures();
 
 type Chip = (typeof apiFeatures)[number];
 
+/** Homepage intro cluster — the pills from the marketing still, not the full marquee. */
+const INTRO_CHIP_IDS = [
+  "ai_agent",
+  "knowledge_base",
+  "media_library",
+  "dynamic_todos",
+  "portal_assistant",
+  "white_label",
+  "mobile_pwa",
+  "passkeys",
+  "chat_commands",
+  "projects_work",
+  "phone_sign_in",
+  "two_way_sms",
+  "client_portal",
+  "stock_photos",
+] as const;
+
+const introChips = INTRO_CHIP_IDS.map((id) => apiFeatures.find((chip) => chip.id === id)).filter(
+  (chip): chip is Chip => Boolean(chip),
+);
+
 /** Mobile / tablet / desktop row counts for the chip marquee. */
 const CHIP_ROW_LAYOUTS = [
   { key: "mobile", rows: 6 },
@@ -480,7 +502,7 @@ const customPrompts: PromptExample[] = [
       introOnly ? (
         <div class="fx-chips fx-chips--cluster" data-no-scroll-fade aria-label="Platform features">
           {
-            apiFeatures.map((chip) => {
+            introChips.map((chip) => {
               const classes = ["fx-chip", chip.kind === "nav" && "fx-chip--link"];
               return chip.href ? (
                 <a class:list={classes} href={chip.href} data-feature-id={chip.id}>
