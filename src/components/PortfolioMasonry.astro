@@ -188,19 +188,23 @@ const items: SitePortfolioItem[] = getSiteContent().portfolio ?? [];
   }
 
   .masonry-tags li {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-family: var(--font-primary);
     font-size: clamp(8px, 0.75vw, 10px);
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    text-transform: lowercase;
     color: #111;
     -webkit-text-fill-color: #111;
-    padding: 3px 7px;
+    height: 1.8em;
+    padding: 0 0.8em;
     border-radius: 999px;
     border: 1px solid #fff;
     background: #fff;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1;
   }
 
   @media (hover: hover) and (pointer: fine) {
