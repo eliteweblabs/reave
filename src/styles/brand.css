@@ -34,6 +34,14 @@
   --site-accent: #171717;
   --brand-btn-bg: #111;
   --brand-btn-fg: #fff;
+  --demo-fg: var(--site-fg);
+  --demo-fg-muted: var(--site-fg-muted);
+  --demo-fill: color-mix(in srgb, var(--site-fg) 8%, transparent);
+  --demo-fill-strong: color-mix(in srgb, var(--site-fg) 14%, transparent);
+  --demo-fill-press: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  --demo-line: var(--site-border);
+  --demo-bone: color-mix(in srgb, var(--site-fg) 16%, transparent);
+  --demo-avatar-bg: color-mix(in srgb, var(--site-fg) 10%, var(--site-canvas));
   --site-mesh-glow: none;
   --site-mesh-bottom: none;
   --site-mesh-atmosphere: none;
