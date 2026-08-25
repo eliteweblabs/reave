@@ -34,6 +34,8 @@
   --site-accent: #171717;
   --brand-btn-bg: #111;
   --brand-btn-fg: #fff;
+  /* Label on --brand-gradient fills. Marketing dark inverts the gradient. */
+  --brand-on-gradient: #fff;
   --demo-fg: var(--site-fg);
   --demo-fg-muted: var(--site-fg-muted);
   --demo-fill: color-mix(in srgb, var(--site-fg) 8%, transparent);
@@ -91,7 +93,7 @@
   }
 }
 
-/** Filled primary CTAs — company gradient, always white label. */
+/** Filled primary CTAs — company gradient, label from --brand-on-gradient. */
 .brand-btn {
   display: inline-flex;
   align-items: center;
@@ -105,8 +107,8 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
   background: var(--brand-gradient);
   text-decoration: none;
   white-space: nowrap;
@@ -121,8 +123,8 @@
 .brand-btn:hover {
   filter: brightness(1.06);
   transform: translateY(-1px);
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
   text-decoration: none;
 }
 
@@ -259,6 +261,22 @@ html.site-marketing[data-theme="dark"] {
     0 2px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
   --brand-glass-border-color: rgba(255, 255, 255, 0.22) !important;
   --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4) !important;
+  --brand-on-gradient: var(--brand-btn-fg);
+}
+
+/*
+ * Filled marketing CTAs hard-code white labels for the colorful / black
+ * gradient. After the dark invert those fills are near-white, so force
+ * the on-gradient token onto every primary pill (homepage Demo, features,
+ * pricing, compare, demo-loader, header CTAs).
+ */
+html.site-marketing[data-theme="dark"] :is(
+  .brand-btn,
+  .marketing-nav-cta,
+  [class*="btn--primary"]
+) {
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
 }
 
 html.site-marketing .app-header-logo-svg,
