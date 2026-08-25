@@ -1097,6 +1097,11 @@
   width: var(--icon-btn-glyph, var(--icon-btn-md-glyph));
   height: var(--icon-btn-glyph, var(--icon-btn-md-glyph));
 }
+/* Hat brim fills more of the 24 box than Lucide share/trash — shrink to match. */
+.agent-icon {
+  transform-origin: center;
+  transform: scale(0.78);
+}
 /* Header row: keep the glow from eating into the truncated title. */
 .de-header-actions > .agent-btn,
 .de-header-actions > .de-new-btn.em-agent-btn.em-header-action-btn {
