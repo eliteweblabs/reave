@@ -12,7 +12,7 @@ import {
   bindSwipeListScroll,
   swipeDeleteAction,
   attachIosPullToRefresh,
-} from './admin-ui.js?v=20260825a';
+} from './admin-ui.js?v=20260825f';
 import { mountListFilterTabs, captureFilterTabsScroll } from './filter-tabs.js?v=20260823a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton, showModuleCatalog } from './shared.js?v=20260810a';

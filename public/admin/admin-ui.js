@@ -1767,8 +1767,8 @@ export function wrapEditableHeaderTitle(titleEl, opts = {}) {
   icon.setAttribute('aria-hidden', 'true');
   icon.innerHTML = IOS_ICONS.edit;
 
-  wrap.appendChild(icon);
   wrap.appendChild(titleEl);
+  wrap.appendChild(icon);
 
   if (opts.clickable && typeof opts.onActivate === 'function') {
     const activate = (e) => {
@@ -1893,6 +1893,12 @@ export function cancelTitleFocus() {
  * over one-off title inputs so work, todo, clients, chat rename, etc. match.
  * @returns {{ el: HTMLElement, input: HTMLInputElement }}
  */
+function syncEditableHeaderTitleSize(input) {
+  if (!(input instanceof HTMLInputElement)) return;
+  const sample = input.value || input.placeholder || 'W';
+  input.size = Math.max(1, sample.length);
+}
+
 export function createEditableHeaderTitleInput(opts = {}) {
   const input = document.createElement('input');
   input.type = 'text';
@@ -1901,6 +1907,8 @@ export function createEditableHeaderTitleInput(opts = {}) {
   if (opts.placeholder) input.placeholder = opts.placeholder;
   if (opts.value != null) input.value = opts.value;
   input.setAttribute('aria-label', opts.ariaLabel || opts.placeholder || 'Title');
+  syncEditableHeaderTitleSize(input);
+  input.addEventListener('input', () => syncEditableHeaderTitleSize(input));
   return {
     el: wrapEditableHeaderTitle(input, {
       leading: opts.leading,

@@ -10,7 +10,7 @@ import {
   initSidebarLayout,
   syncAdminSplitView,
   scanPanelSidebars,
-} from './admin-ui.js?v=20260825a';
+} from './admin-ui.js?v=20260825f';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { mountListFilterTabs, captureFilterTabsScroll } from './filter-tabs.js?v=20260813a';

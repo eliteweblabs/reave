@@ -204,8 +204,9 @@
   min-height: 12rem;
 }
 .de-pane--drawer .de-header-title-input {
-  font-size: max(16px, 1.05rem);
+  font-size: 1.25rem;
   font-weight: 700;
+  line-height: 1.2;
 }
 /* Labels sit on `.de-label` (semibold); inputs use `font: inherit`, so
    placeholders and values were picking up 600. Keep form copy regular —

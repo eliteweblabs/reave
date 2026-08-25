@@ -594,6 +594,13 @@ button.de-placeholder-action:active {
 .pane-header .de-header-title-input {
   font-size: 0.9rem;
 }
+#clients-editor .detail-chrome .de-header-title-input,
+#clients-editor .detail-chrome .de-doc-name,
+#work-editor .detail-chrome .de-header-title-input,
+#work-editor .detail-chrome .de-doc-name {
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
 .pane-header-secondary {
   flex: 0 0 auto;
   min-height: var(--pane-chrome-scale-4, 1.625rem);
@@ -651,7 +658,7 @@ button.de-placeholder-action:active {
   display: inline-flex;
 }
 .de-doc-name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -670,27 +677,35 @@ button.de-placeholder-action:active {
   color: var(--fg);
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 0;
   outline: none;
-  width: 100%;
-  min-width: 0;
+  box-shadow: none;
+  width: auto;
+  min-width: 1ch;
+  max-width: 100%;
+  field-sizing: content;
   overflow: hidden;
   text-overflow: ellipsis;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .de-header-title-input::placeholder {
   color: var(--muted);
   opacity: 0.85;
 }
 .de-header-title-input:focus {
-  background: var(--card);
-  border: 1px solid #3b82f6;
-  padding: 0.15rem 0.45rem;
-  white-space: normal;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  white-space: nowrap;
 }
 .de-header-title-field {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  width: fit-content;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -699,6 +714,7 @@ button.de-placeholder-action:active {
   flex: none;
   display: inline-flex;
   align-items: center;
+  order: 0;
 }
 .de-header-title-leading .cl-list-avatar {
   width: 1.65rem;
@@ -712,6 +728,7 @@ button.de-placeholder-action:active {
   flex: none;
   display: inline-flex;
   align-items: center;
+  order: 2;
   color: var(--muted);
   opacity: 0.72;
   pointer-events: none;
@@ -735,8 +752,10 @@ button.de-placeholder-action:active {
 }
 .de-header-title-field .de-header-title-input,
 .de-header-title-field > .de-doc-name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  width: auto;
+  order: 1;
 }
 .de-doc-slug {
   font-size: 0.72rem;
@@ -2737,12 +2756,6 @@ button.de-placeholder-action:active {
   #clients-editor.de-pane-active .detail-chrome > .de-header .de-doc-name,
   #work-editor.de-pane-active .detail-chrome > .de-header .de-doc-name {
     padding-right: 0.15rem;
-  }
-  #clients-editor.de-pane-active .detail-chrome > .de-header .de-header-title-input,
-  #work-editor.de-pane-active .detail-chrome > .de-header .de-header-title-input,
-  #clients-editor.de-pane-active .detail-chrome > .de-header .de-doc-name,
-  #work-editor.de-pane-active .detail-chrome > .de-header .de-doc-name {
-    font-size: 0.84rem;
   }
   #work-editor .sliding-pill-select {
     gap: 0;
