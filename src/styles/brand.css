@@ -199,6 +199,21 @@
   display: none;
 }
 
+/*
+ * Mobile: do not bleed the wallpaper past the visual viewport. Safari clips
+ * that overflow at the toolbar and paints a full-width hairline under the
+ * hero CTAs. Keep the layer flush to the screen so the canvas meets chrome
+ * without a seam.
+ */
+@media (max-width: 768px) {
+  .site-bg-atmosphere {
+    --site-bg-bleed-top: env(safe-area-inset-top, 0px);
+    --site-bg-bleed-bottom: env(safe-area-inset-bottom, 0px);
+    top: 0;
+    bottom: 0;
+  }
+}
+
 /**
  * Standalone pattern / mesh nodes — folded into .site-bg-atmosphere::after.
  * Hide leftovers so they cannot paint a second, document-sized layer.

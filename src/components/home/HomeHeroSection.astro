@@ -124,18 +124,20 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
+    min-height: 100lvh;
     overflow: hidden;
     scroll-margin-top: 0;
   }
 
   /* Icon + headline — bounding-box center = viewport center */
   .home-hero-brand {
+    --home-hero-icon-size: clamp(190px, 42vw, 312px);
     position: relative;
     z-index: 10;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0;
+    gap: 0.85rem;
     width: min(100%, 540px);
     padding: 0 20px;
     pointer-events: none;
@@ -145,8 +147,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: relative;
     z-index: 1;
     flex: none;
-    width: clamp(190px, 42vw, 312px);
-    height: clamp(190px, 42vw, 312px);
+    width: var(--home-hero-icon-size);
+    height: var(--home-hero-icon-size);
     pointer-events: none;
     overflow: visible;
   }
@@ -315,7 +317,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-title {
     position: relative;
     z-index: 1;
-    margin: -3.75rem 0 0;
+    /*
+     * The square wrap includes Illustrator padding under the mark. Pull the
+     * headline up by that empty band; flex gap is the space after the tips.
+     * A fixed -3.75rem sat on the letterforms on phones.
+     */
+    margin: calc(var(--home-hero-icon-size) * -0.3) 0 0;
     font-family: var(--font-primary);
     font-size: clamp(1.39rem, 3.9vw, 2.625rem);
     font-weight: 700;

@@ -246,4 +246,11 @@ const trailingCtas = ctas.slice(1);
   .home-hero-demo-control[hidden] {
     display: none;
   }
+
+  /* Owner transport is desktop-only — pause/skip crowd the mobile CTA row. */
+  @media (max-width: 640px) {
+    .home-hero-demo-controls {
+      display: none;
+    }
+  }
 </style>
