@@ -38,6 +38,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 >
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
+      <span class="home-hero-icon-glow" aria-hidden="true">
+        <span class="home-hero-icon-glow-core"></span>
+        <span class="home-hero-icon-glow-bloom"></span>
+      </span>
       <BrandIconInline company={company} />
     </div>
     <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
@@ -142,10 +146,74 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: clamp(150px, 32vw, 240px);
     height: clamp(150px, 32vw, 240px);
     pointer-events: none;
+    overflow: visible;
+  }
+
+  .home-hero-icon-glow {
+    position: absolute;
+    inset: -42%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .home-hero-icon-glow-core,
+  .home-hero-icon-glow-bloom {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      #f87171,
+      #fbbf24,
+      #34d399,
+      #38bdf8,
+      #818cf8,
+      #c084fc,
+      #f472b6,
+      #f87171
+    );
+    -webkit-mask-image: radial-gradient(closest-side, #000 22%, transparent 72%);
+    mask-image: radial-gradient(closest-side, #000 22%, transparent 72%);
+  }
+
+  .home-hero-icon-glow-core {
+    inset: 18%;
+    filter: blur(28px);
+    opacity: 0.16;
+    animation: homeHeroIconGlowSpin 18s linear infinite;
+  }
+
+  .home-hero-icon-glow-bloom {
+    filter: blur(48px);
+    opacity: 0.08;
+    animation: homeHeroIconGlowSpin 28s linear infinite reverse;
+  }
+
+  @keyframes homeHeroIconGlowSpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  :global(html[data-theme="dark"]) .home-hero-icon-glow-core {
+    opacity: 0.22;
+  }
+
+  :global(html[data-theme="dark"]) .home-hero-icon-glow-bloom {
+    opacity: 0.12;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-icon-glow-core,
+    .home-hero-icon-glow-bloom {
+      animation: none;
+    }
   }
 
   .home-hero-icon-wrap :global(svg),
   .home-hero-icon-wrap :global(img) {
+    position: relative;
+    z-index: 1;
     display: block;
     width: 100%;
     height: 100%;
@@ -153,6 +221,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-icon-wrap :global(.home-hero-icon-name) {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
