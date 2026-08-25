@@ -1,7 +1,6 @@
 ---
 /**
- * Homepage hero CTAs — floor of the lockup grid in HomeHeroSection.
- * Hide when #contact scrolls into view (same class as before).
+ * Homepage hero CTAs — pinned to the viewport floor; hide at #contact.
  */
 import { ArrowRight } from "lucide-astro";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -98,26 +97,42 @@ const trailingCtas = ctas.slice(1);
 
 <style is:global>
   .home-sticky-ctas {
-    z-index: 10;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end;
     align-items: center;
-    width: 100%;
-    max-width: 100%;
-    margin-top: 1rem;
-    padding: 0 0 env(safe-area-inset-bottom, 0px);
+    width: fit-content;
+    max-width: calc(100vw - 40px);
+    margin-inline: auto;
+    padding:
+      10px
+      max(28px, env(safe-area-inset-right, 0px))
+      calc(20px + env(safe-area-inset-bottom, 0px))
+      max(28px, env(safe-area-inset-left, 0px));
     overflow: visible;
     box-sizing: border-box;
     text-align: center;
     pointer-events: none;
-    transition: opacity 0.4s ease, visibility 0s linear 0s;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0s;
   }
 
   .home-sticky-ctas.is-contact-occluding {
+    transform: translateY(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -126,6 +141,7 @@ const trailingCtas = ctas.slice(1);
     }
 
     .home-sticky-ctas.is-contact-occluding {
+      transform: none;
       opacity: 0;
       visibility: hidden;
       pointer-events: none;

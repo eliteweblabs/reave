@@ -1,9 +1,8 @@
 ---
 /**
  * Homepage hero — lockup fills the viewport below the header:
- *   brand is dead-centered in the space above the CTAs (1fr / auto / 1fr),
- *   chat flex-grows in the lower 1fr (width-capped), CTAs sit on the floor.
- * Chat still scrolls inside its own lane.
+ *   brand is dead-centered (1fr / auto / 1fr), chat grows in the lower 1fr.
+ * CTAs are viewport-fixed (outside the lockup) and hide at #contact.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import HomeStickyCtas from "./HomeStickyCtas.astro";
@@ -92,11 +91,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
         </div>
       )
     }
-
-    <HomeStickyCtas siteContent={siteContent} />
   </div>
-
 </section>
+
+<HomeStickyCtas siteContent={siteContent} />
 
 {
   showHeroDemo && (
@@ -141,25 +139,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-lockup {
     flex: 1 1 auto;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
     grid-template-areas:
       "above"
       "brand"
-      "demo"
-      "ctas";
+      "demo";
     justify-items: center;
     align-items: stretch;
     width: 100%;
     min-height: 0;
-    padding: 0 20px;
+    padding: 0 20px var(--home-hero-copy-h);
     box-sizing: border-box;
-  }
-
-  .home-hero-lockup > :global(.home-sticky-ctas) {
-    grid-area: ctas;
-    justify-self: center;
-    width: min(100%, 540px);
-    margin-top: 0.5rem;
   }
 
   /* Icon + headline — dead center X/Y in the canvas above the CTA row. */

@@ -2301,7 +2301,10 @@ export function initHeroDemoLoop(root: HTMLElement) {
     null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
-  const copyEl = hero?.querySelector<HTMLElement>("[data-hero-copy]") ?? null;
+  const copyEl =
+    hero?.querySelector<HTMLElement>("[data-hero-copy]") ??
+    document.querySelector<HTMLElement>("[data-hero-copy]") ??
+    null;
   if (!viewport || !stack || !hero) return;
 
   depthBlurEnabled = !isSafariBrowser();
