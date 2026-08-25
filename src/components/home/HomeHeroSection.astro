@@ -5,7 +5,7 @@
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import HomeStickyCtas from "./HomeStickyCtas.astro";
-import { getCompanyConfig } from "../../lib/companyConfig";
+import { companyHeroIconSvg, getCompanyConfig } from "../../lib/companyConfig";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
 import { siteMediaSrc } from "../../lib/siteMedia";
@@ -24,6 +24,7 @@ const demoScenes = HERO_DEMO_SCENES.map((scene) => ({
   userAvatar: avatarOverrides[scene.id] || siteMediaSrc(scene.userAvatar) || undefined,
 }));
 const homepage = siteContent.homepage;
+const heroIconIsMark = Boolean(companyHeroIconSvg(company));
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 const mapboxToken = getPublicMapboxAccessToken() || "";
 ---
@@ -36,7 +37,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 >
   <div class="home-hero-lockup">
     <div class="home-hero-brand" data-hero-brand>
-      <div class="home-hero-icon-wrap" data-hero-icon>
+      <div class:list={["home-hero-icon-wrap", heroIconIsMark && "home-hero-icon-wrap--mark"]} data-hero-icon>
         <span class="home-hero-icon-glow" aria-hidden="true">
           <span class="home-hero-icon-glow-wash"></span>
           <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
@@ -107,6 +108,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero {
     --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
     --home-hero-demo-fade: clamp(36px, 6vh, 56px);
+    --home-hero-icon-size: clamp(190px, 42vw, 312px);
+    /*
+     * Pasted mark SVGs are 512² canvases; the AV letterforms sit above ~28.5%
+     * empty box. Collapse that so the tagline can sit 0.94rem under the ink.
+     */
+    --home-hero-icon-ink-below: 0.285;
     position: relative;
     z-index: 0;
     width: 100%;
@@ -138,7 +145,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0;
+    gap: 0.94rem;
     width: 100%;
     pointer-events: none;
   }
@@ -147,10 +154,14 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: relative;
     z-index: 1;
     flex: none;
-    width: clamp(190px, 42vw, 312px);
-    height: clamp(190px, 42vw, 312px);
+    width: var(--home-hero-icon-size);
+    height: var(--home-hero-icon-size);
     pointer-events: none;
     overflow: visible;
+  }
+
+  .home-hero-icon-wrap--mark {
+    margin-bottom: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-below) * -1);
   }
 
   /*
@@ -316,7 +327,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-title {
     z-index: 1;
-    margin: -3.75rem 0 0;
+    margin: 0;
     font-family: var(--font-primary);
     font-size: clamp(1.39rem, 3.9vw, 2.625rem);
     font-weight: 700;
