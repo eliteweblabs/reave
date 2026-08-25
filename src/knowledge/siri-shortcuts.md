@@ -419,7 +419,7 @@ Dictating `"Call the plumber tomorrow at 3"` stores title `Call the plumber` due
 
 **Parameters**:
 - `customer_name` (required): Customer name as it appears in Crater. Aliases: `customer`, `client`, `name`.
-- `amount` (required): Payment amount in whole dollars (also accepts `$250` strings). Alias: `payment_amount`.
+- `amount` (required): Payment amount in whole dollars. Accepts numerals, `$250`, and spoken currency (`100 bucks`, `100 dollars`). Alias: `payment_amount`. Quote the Shortcuts variable in the JSON body (`"amount": "Amount"`) so dictation like `100 bucks` stays valid JSON.
 - `payment_mode` (optional): `CASH`, `CHECK`, `CREDIT_CARD`, `BANK_TRANSFER`, or `OTHER`. Voice-friendly aliases like `card`, `ach`, and `cheque` work. Aliases: `mode`, `method`.
 - `payment_date` (optional): `YYYY-MM-DD` (defaults to today in Crater). Alias: `date`.
 - `notes` (optional): Free-text note. Alias: `note`.

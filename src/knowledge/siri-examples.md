@@ -337,7 +337,7 @@ Example: saying "Call the plumber tomorrow at 3" stores **Call the plumber** due
 
 6. **Show Result** / **Speak Text**
 
-**Tip**: If Crater says the customer or invoice is ambiguous, re-run with a fuller customer name or add `invoice_id`.
+**Tip**: If Crater says the customer or invoice is ambiguous, re-run with a fuller customer name or add `invoice_id`. Dictate `100`, `$100`, or `100 bucks` — keep the Amount pill inside quotes so the JSON stays valid.
 
 ---
 

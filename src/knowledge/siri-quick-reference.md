@@ -199,7 +199,7 @@ Everything in the quick audit plus Playwright UX/UI, broken links, and tech stac
 
 **Requires** `billing` feature + Crater (`CRATER_API_BASE_URL`, `CRATER_API_TOKEN`).
 
-**Optional**: `payment_date` (`YYYY-MM-DD`), `notes`, `invoice_id`. Customer aliases: `customer`, `client`, `name`. Mode aliases: `mode`, `method` (`cash`, `check`/`cheque`, `card`/`credit card`, `ach`/`bank transfer`, `other`).
+**Optional**: `payment_date` (`YYYY-MM-DD`), `notes`, `invoice_id`. Customer aliases: `customer`, `client`, `name`. Mode aliases: `mode`, `method` (`cash`, `check`/`cheque`, `card`/`credit card`, `ach`/`bank transfer`, `other`). Amount accepts `$250`, `100 bucks`, and `100 dollars` — quote the Shortcuts variable (`"amount": "Amount"`).
 
 ---
 

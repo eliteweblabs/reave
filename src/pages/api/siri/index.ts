@@ -31,7 +31,8 @@
  * - stop_time_tracking: { action: "stop_time_tracking" } — stop timer and log hours
  * - time_tracking_status: { action: "time_tracking_status" } — current timer or recent project prompt
  * - record_payment / add_payment / create_payment: { action: "record_payment", customer_name, amount,
- *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater
+ *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater.
+ *   Amount accepts numerals, $250, and spoken currency (100 bucks / 100 dollars).
  * - prompt / ask / chat / ask_agent: { action: "prompt", message: string, thread_id?, async? }
  *   Freeform prompt to the knowledge agent. Waits briefly for a spoken reply;
  *   longer turns continue in the background and push when done.
@@ -968,13 +969,24 @@ function parsePaymentAmount(raw: unknown): number | null {
   if (typeof raw === 'number') {
     return Number.isFinite(raw) ? raw : null;
   }
-  const cleaned = String(raw ?? '')
-    .trim()
-    .replace(/[$,\s]/g, '')
+  const text = String(raw ?? '').trim();
+  if (!text) return null;
+
+  // Spoken / Shortcuts input: "$100", "100 bucks", "100 dollars", "USD 250.50"
+  const cleaned = text
+    .replace(/[$,]/g, '')
+    .replace(/\b(usd|us\s*dollars?|dollars?|bucks?)\b/gi, '')
+    .replace(/\s+/g, '')
     .replace(/^usd/i, '');
-  if (!cleaned) return null;
-  const amount = Number(cleaned);
-  return Number.isFinite(amount) ? amount : null;
+  if (cleaned) {
+    const amount = Number(cleaned);
+    if (Number.isFinite(amount)) return amount;
+  }
+
+  const match = text.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const extracted = Number(match[1]);
+  return Number.isFinite(extracted) ? extracted : null;
 }
 
 function normalizePaymentMode(
