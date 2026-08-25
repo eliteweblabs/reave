@@ -126,11 +126,13 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--site-fg, #171717);
+    color: #111;
+    -webkit-text-fill-color: #111;
     padding: 4px 8px;
     border-radius: 999px;
-    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.16));
-    background: var(--site-card, rgba(23, 23, 23, 0.04));
+    border: 1px solid #fff;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(23, 23, 23, 0.12);
     line-height: 1.2;
   }
 
