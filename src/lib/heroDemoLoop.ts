@@ -2295,7 +2295,10 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const hero = root.closest<HTMLElement>(".home-hero");
   const viewport = root.querySelector<HTMLElement>("[data-hero-demo-viewport]");
   const stack = root.querySelector<HTMLElement>("[data-hero-demo-stack]");
-  const controls = hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ?? null;
+  const controls =
+    document.querySelector<HTMLElement>("[data-hero-demo-controls]") ??
+    hero?.querySelector<HTMLElement>("[data-hero-demo-controls]") ??
+    null;
   const iconEl = hero?.querySelector<HTMLElement>("[data-hero-icon]") ?? null;
   const brandEl = hero?.querySelector<HTMLElement>("[data-hero-brand]") ?? null;
   // CTAs are viewport-fixed under .home-hero (data-hero-copy).

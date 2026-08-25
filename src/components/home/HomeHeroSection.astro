@@ -8,7 +8,6 @@
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
-import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
 import { siteMediaSrc } from "../../lib/siteMedia";
@@ -29,8 +28,6 @@ const demoScenes = HERO_DEMO_SCENES.map((scene) => ({
 const homepage = siteContent.homepage;
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 const showHeroCtas = (homepage.ctas?.length ?? 0) > 0;
-const userId = Astro.locals.auth()?.userId ?? null;
-const showDemoControls = Boolean(userId && (await isDeploymentOwner(Astro)));
 const mapboxToken = getPublicMapboxAccessToken() || "";
 ---
 
@@ -86,24 +83,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     )
   }
 
-  {
-    showHeroDemo && showDemoControls && (
-      <div class="home-hero-demo-controls" data-hero-demo-controls data-state="paused">
-        <button type="button" class="home-hero-demo-control" data-hero-demo-play aria-label="Play demo">
-          {/* IOS_ICONS.play — keep in sync with public/admin/admin-ui.js */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-        </button>
-        <button type="button" class="home-hero-demo-control" data-hero-demo-pause aria-label="Pause demo" hidden>
-          {/* IOS_ICONS.pause — keep in sync with public/admin/admin-ui.js */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>
-        </button>
-        <button type="button" class="home-hero-demo-control" data-hero-demo-next aria-label="Next demo scene">
-          {/* IOS_ICONS.skip-forward — keep in sync with public/admin/admin-ui.js */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></svg>
-        </button>
-      </div>
-    )
-  }
 </section>
 
 {
@@ -276,55 +255,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-demo--stopped {
     opacity: 0;
     transition: opacity 1.13s ease;
-  }
-
-  /* Admin-only testing transport — sits above the chat lane. */
-  .home-hero-demo-controls {
-    position: absolute;
-    z-index: 12;
-    left: 50%;
-    bottom: calc(var(--home-hero-copy-h, 120px) + 12px);
-    transform: translateX(-50%);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.28rem;
-    padding: 0.22rem;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    background: rgba(10, 10, 14, 0.72);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    pointer-events: auto;
-  }
-
-  .home-hero-demo-control {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.88);
-    cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  .home-hero-demo-control:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-  }
-
-  .home-hero-demo-control:focus-visible {
-    outline: 2px solid rgba(255, 255, 255, 0.45);
-    outline-offset: 1px;
-  }
-
-  .home-hero-demo-control[hidden] {
-    display: none;
   }
 
   .home-hero-demo-viewport {
