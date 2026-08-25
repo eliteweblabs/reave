@@ -252,7 +252,13 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	input[type="radio"],
 	select,
 	summary,
-	[role="button"] {
+	[role="button"],
+	.brand-btn,
+	.brand-btn-glass,
+	.fx-chip,
+	.fx-btn,
+	a[class*="-btn"],
+	a[class*="-cta"] {
 		-webkit-user-select: none;
 		user-select: none;
 		-webkit-touch-callout: none;
