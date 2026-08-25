@@ -202,18 +202,20 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     inset: 14%;
     background: conic-gradient(
       from 0deg,
-      #d4d4d4,
-      #a3a3a3,
-      #737373,
-      #525252,
-      #737373,
-      #a3a3a3,
-      #d4d4d4,
-      #d4d4d4
+      #f87171,
+      #fbbf24,
+      #34d399,
+      #38bdf8,
+      #818cf8,
+      #c084fc,
+      #f472b6,
+      #f87171
     );
     filter: blur(26px);
     opacity: 0.14;
-    animation: homeHeroGlowSpin 22s linear infinite;
+    animation:
+      homeHeroGlowSpin 22s linear infinite,
+      homeHeroGlowHue 18s linear infinite;
   }
 
   .home-hero-icon-glow-lava {
@@ -226,27 +228,33 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-icon-glow-lava--a {
     left: 6%;
     top: 16%;
-    background: radial-gradient(circle, #a3a3a3 0%, transparent 72%);
+    background: radial-gradient(circle, #f472b6 0%, transparent 72%);
     animation: homeHeroLavaA 15s ease-in-out infinite;
   }
 
   .home-hero-icon-glow-lava--b {
     right: 4%;
     top: 10%;
-    background: radial-gradient(circle, #737373 0%, transparent 72%);
+    background: radial-gradient(circle, #38bdf8 0%, transparent 72%);
     animation: homeHeroLavaB 19s ease-in-out infinite;
   }
 
   .home-hero-icon-glow-lava--c {
     left: 26%;
     bottom: 8%;
-    background: radial-gradient(circle, #525252 0%, transparent 72%);
+    background: radial-gradient(circle, #c084fc 0%, transparent 72%);
     animation: homeHeroLavaC 17s ease-in-out infinite;
   }
 
   @keyframes homeHeroGlowSpin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  @keyframes homeHeroGlowHue {
+    to {
+      filter: blur(26px) hue-rotate(360deg);
     }
   }
 
