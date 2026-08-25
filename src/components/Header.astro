@@ -593,8 +593,11 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   .app-header > .app-header-scrim {
     position: absolute;
     top: calc(-1 * var(--safe-top));
-    left: calc(-1 * var(--app-header-inline-pad));
-    right: calc(-1 * var(--app-header-inline-pad));
+    /* Padding-box of the header is already viewport-wide. Negative insets
+     * used to cancel padding actually bleed 1rem past each edge and — on
+     * iOS, where this bar is position:absolute — widen the document. */
+    left: 0;
+    right: 0;
     height: var(--app-header-scrim-h);
     z-index: 0;
     pointer-events: none;
