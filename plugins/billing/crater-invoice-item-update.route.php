@@ -3,7 +3,7 @@
  * Paste into eliteweblabs/crater → routes/api-custom.php
  * immediately after the POST /api/custom/invoice/{id}/items route.
  *
- * REΛVE calls PUT /api/custom/invoice/{invoiceId}/items/{itemId} when the
+ * reΛVe.app calls PUT /api/custom/invoice/{invoiceId}/items/{itemId} when the
  * admin agent needs to rename or correct a line-item on an existing invoice
  * (e.g. fixing a typo in the item name without deleting/re-adding the row).
  */

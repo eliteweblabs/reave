@@ -203,7 +203,7 @@ export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Pro
     .toBuffer();
 }
 
-/** HTTP ETag values must be ASCII — hash display names that may contain Unicode (e.g. REΛVE). */
+/** HTTP ETag values must be ASCII — hash display names that may contain Unicode (e.g. reΛVe.app). */
 function brandingNameTag(name: string): string {
   return createHash('sha256').update(name, 'utf8').digest('base64url').slice(0, 12);
 }

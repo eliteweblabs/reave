@@ -6,7 +6,7 @@ export type AnthropicKeySource = 'reave' | 'client' | 'none';
 
 /**
  * Client installs without their own Anthropic key inherit the official
- * REΛVE host key. Official REΛVE never reports `reave` (it *is* the source).
+ * reΛVe.app host key. Official reΛVe.app never reports `reave` (it *is* the source).
  */
 export function getAnthropicKeySource(): AnthropicKeySource {
   if (!serverEnv('ANTHROPIC_API_KEY')?.trim()) return 'none';

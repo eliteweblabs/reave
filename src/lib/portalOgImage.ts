@@ -33,7 +33,7 @@ export type PortalShareMeta = {
   iconUrl: string;
 };
 
-/** Browser tab / OG title: "Parlee Cycles · Online Presence Diagnostic by REΛVE Automation". */
+/** Browser tab / OG title: "Parlee Cycles · Online Presence Diagnostic by reΛVe.app Automation". */
 export function formatPortalPageTitle(businessName: string, providerName?: string): string {
   const business = businessName.trim() || 'Contact';
   const provider = (providerName ?? cachedCompanyBrandName()).trim();

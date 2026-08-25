@@ -1,6 +1,6 @@
 import { projectRoot } from './projectRoot';
 /**
- * First-run client setup — steps REΛVE cannot complete from the deploy wizard
+ * First-run client setup — steps reΛVe.app cannot complete from the deploy wizard
  * (device install, the client’s mailbox admin, their own API keys).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';

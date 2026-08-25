@@ -3,7 +3,7 @@
  *
  * GitHub cannot create PATs via API. Apply creates eliteweblabs/{slug}-site
  * and a restricted GitHub App installed on that repo only. Never reuse this
- * host’s GITHUB_APP_* — on reave.app that App is for the REΛVE site, not the client.
+ * host’s GITHUB_APP_* — on reave.app that App is for the reΛVe.app site, not the client.
  */
 import {
   githubAddRepoToAppInstallation,

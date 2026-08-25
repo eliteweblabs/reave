@@ -398,9 +398,9 @@ select,
   z-index: 1;
   flex-shrink: 0;
   /* Cancel header inline pad so cards align with dashboard (1rem sides). */
-  margin-left: calc(-1 * var(--app-header-inline-pad, 0.5rem));
-  margin-right: calc(-1 * var(--app-header-inline-pad, 0.5rem));
-  width: calc(100% + 2 * var(--app-header-inline-pad, 0.5rem));
+  margin-left: calc(-1 * var(--app-header-inline-pad, 1rem));
+  margin-right: calc(-1 * var(--app-header-inline-pad, 1rem));
+  width: calc(100% + 2 * var(--app-header-inline-pad, 1rem));
   padding: 0.45rem 1rem;
   box-sizing: border-box;
 }

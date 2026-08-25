@@ -120,6 +120,9 @@ const showOverlayFooter =
   kind="marketing"
   htmlClass="marketing-menu-open"
 >
+  <div class="overlay-menu-theme">
+    <ThemeToggle />
+  </div>
   {
     navGroups.map((group) => (
       <section class="overlay-menu-group" aria-labelledby={`menu-${group.id}`}>
@@ -280,6 +283,16 @@ const showOverlayFooter =
     gap: 0.05rem;
     min-width: 0;
     overflow: hidden;
+  }
+
+  .marketing-nav-desktop .theme-toggle {
+    flex-shrink: 0;
+  }
+
+  .overlay-menu-theme {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.25rem;
   }
 
   .marketing-nav-actions {

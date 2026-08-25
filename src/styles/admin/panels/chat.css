@@ -367,10 +367,17 @@ body.sidebar-resize-active * {
   flex-shrink: 0;
 }
 .ch-reave-key-flag--banner {
-  margin: 0.45rem 0.75rem 0;
-  align-self: flex-start;
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--footer-nav-h) + 0.5rem);
+  transform: translateX(-50%);
+  margin: 0;
+  z-index: 5;
   font-size: 0.7rem;
   padding: 0.32rem 0.62rem 0.32rem 0.48rem;
+}
+#chat-panel .ch-sidebar:has(.ch-reave-key-flag--banner:not([hidden])) .ch-list {
+  padding-bottom: calc(var(--footer-scroll-pad) + 2.5rem);
 }
 @media (prefers-color-scheme: dark) {
   .ch-reave-key-flag {

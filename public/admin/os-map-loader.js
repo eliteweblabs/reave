@@ -1388,8 +1388,8 @@ function createChatReaveKeyFlag(variant = 'chip') {
   const el = document.createElement(variant === 'banner' ? 'div' : 'span');
   el.className = variant === 'banner' ? 'ch-reave-key-flag ch-reave-key-flag--banner' : 'ch-reave-key-flag';
   el.hidden = !isReaveSharedAnthropicKey();
-  el.title = 'This install uses the shared REΛVE Claude API key. Add the client’s ANTHROPIC_API_KEY to use their own.';
-  el.innerHTML = `${iosIcon('key', variant === 'banner' ? 14 : 12)}<span>REΛVE key</span>`;
+  el.title = 'This install uses the shared reΛVe.app Claude API key. Add the client’s ANTHROPIC_API_KEY to use their own.';
+  el.innerHTML = `${iosIcon('key', variant === 'banner' ? 14 : 12)}<span>reΛVe.app key</span>`;
   return el;
 }
 

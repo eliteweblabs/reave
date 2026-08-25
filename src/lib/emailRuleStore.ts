@@ -867,7 +867,7 @@ function collapseCatalogClones(rules: EmailRuleRecord[]): {
 /**
  * Seed / sync DEFAULT_RULES.
  * Customer installs: overwrite catalog content from the repo (read-only).
- * REΛVE production: seed missing catalog rows only — home can edit/create universal rules.
+ * reΛVe.app production: seed missing catalog rows only — home can edit/create universal rules.
  */
 export function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRecord[]; changed: boolean } {
   const now = new Date().toISOString();
@@ -1158,7 +1158,7 @@ export async function storeUpdateEmailRule(
     return {
       ok: false,
       error:
-        'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Only the REΛVE install can edit them.',
+        'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Only the reΛVe.app install can edit them.',
       code: 'forbidden',
     };
   }

@@ -1,6 +1,6 @@
 # inventory-api
 
-Multi-channel e-commerce inventory microservice for REΛVE. Normalizes product stock across **Shopify**, **WooCommerce**, **Square**, and future platforms (BigCommerce, Amazon, eBay, Etsy).
+Multi-channel e-commerce inventory microservice for reΛVe.app. Normalizes product stock across **Shopify**, **WooCommerce**, **Square**, and future platforms (BigCommerce, Amazon, eBay, Etsy).
 
 Bootstrap source lives in `bootstrap/inventory-api/` until extracted to `eliteweblabs/inventory-api` on GitHub.
 

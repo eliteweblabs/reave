@@ -1,5 +1,5 @@
 /**
- * BrightLocal API client — REΛVE agency account only.
+ * BrightLocal API client — reΛVe.app agency account only.
  *
  * One-time Citation Builder campaigns (ownership model), not ongoing rental sync.
  * Docs: https://developer.brightlocal.com /
@@ -52,7 +52,7 @@ export function seoDirectoryStatus(): SeoDirectoryStatus {
           'Feed citation coverage into Maps & Directories audit scores',
         ]
       : [
-          'Set BRIGHTLOCAL_API_KEY on the service (REΛVE agency account)',
+          'Set BRIGHTLOCAL_API_KEY on the service (reΛVe.app agency account)',
           'Confirm API access includes Citation Builder + Locations',
           'Then wire campaign create/track endpoints',
         ],

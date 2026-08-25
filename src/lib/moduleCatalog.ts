@@ -5,8 +5,8 @@
  * Numeric ids are consecutive inside each band (no gaps):
  * Core 001–100, Work 101–200, Social 201–300, E-commerce 301–400,
  * Web Development 401–500, Other 501–600, Internal 601–700,
- * Google™ Workspace 701–800 (client mail/DNS — not a REΛVE app feature),
- * Hosting 801–900 (managed care plans from /hosting — not a REΛVE app feature).
+ * Google™ Workspace 701–800 (client mail/DNS — not a reΛVe.app feature),
+ * Hosting 801–900 (managed care plans from /hosting — not a reΛVe.app feature).
  * Assignment order is a stable shuffle — ids are not A–Z rank.
  */
 import {

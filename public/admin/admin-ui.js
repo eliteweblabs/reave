@@ -102,7 +102,7 @@ export const IOS_ICONS = {
   /* IOS_ICONS.dashboard — layout-dashboard; keep in sync with AdminFooterNav LayoutDashboard */
   dashboard:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
-  /* IOS_ICONS.key — Lucide key; shared REΛVE Claude key flag in chat */
+  /* IOS_ICONS.key — Lucide key; shared reΛVe.app Claude key flag in chat */
   key: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>',
   /* IOS_ICONS.map-pin — Lucide map-pin; court / office pin on Knowledge gate */
   'map-pin':

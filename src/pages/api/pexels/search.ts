@@ -49,7 +49,7 @@ export async function GET(context: APIContext): Promise<Response> {
     return json(
       {
         error: 'Pexels is not configured',
-        hint: 'Set PEXELS_API_KEY in Railway → REΛVE App service → Variables',
+        hint: 'Set PEXELS_API_KEY in Railway → reΛVe.app App service → Variables',
       },
       503,
     );

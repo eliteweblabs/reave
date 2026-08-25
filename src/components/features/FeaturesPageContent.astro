@@ -173,7 +173,7 @@ const after: Section[] = [
   {
     id: "google-workspace",
     icon: MailCheck,
-    title: "Google™ Workspace setup — not a REΛVE login",
+    title: "Google™ Workspace setup — not a reΛVe.app login",
     teaser: FEATURE_BLURBS.google_workspace,
     body: [
       FEATURE_BLURBS.google_workspace,
@@ -429,11 +429,11 @@ const customPrompts: PromptExample[] = [
       */}
       {embedded ? (
         <h2 class="fx-h1">
-          Runs the whole business — not a pile of separate apps.
+          Runs the whole business — not your credit card.
         </h2>
       ) : (
         <h1 class="fx-h1">
-          Runs the whole business — not a pile of separate apps.
+          Runs the whole business — not your credit card.
         </h1>
       )}
       <p class="fx-lead">
@@ -899,7 +899,7 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-chips {
-    --fx-chip-duration: 70s;
+    --fx-chip-duration: 95s;
     /* Mobile size stays 1×; grows linearly to 1.5× by the desktop chip layout (~1100px). */
     --fx-chip-scale: clamp(1, calc(1 + 0.5 * (100vw - 375px) / 725px), 1.5);
     /* Marquee is in normal flow; sticky CTAs live outside .home-hero. */
@@ -939,7 +939,7 @@ const customPrompts: PromptExample[] = [
   @media (min-width: 768px) {
     .fx-chips {
       /* Longer tracks (4 rows) — keep the drift feeling slow. */
-      --fx-chip-duration: 85s;
+      --fx-chip-duration: 115s;
     }
 
     .fx-chips-set--mobile {
@@ -953,7 +953,7 @@ const customPrompts: PromptExample[] = [
 
   @media (min-width: 1100px) {
     .fx-chips {
-      --fx-chip-duration: 100s;
+      --fx-chip-duration: 135s;
     }
 
     .fx-chips-set--tablet {
@@ -1001,29 +1001,30 @@ const customPrompts: PromptExample[] = [
 
   .fx-chip {
     flex: 0 0 auto;
+    font-family: var(--font-primary);
     font-size: calc(0.74rem * var(--fx-chip-scale));
-    font-weight: 600;
+    font-weight: 400;
     letter-spacing: 0.01em;
-    color: var(--site-fg-muted, #525252);
+    color: var(--brand-btn-fg, #fff);
+    -webkit-text-fill-color: var(--brand-btn-fg, #fff);
     padding: calc(5px * var(--fx-chip-scale)) calc(12px * var(--fx-chip-scale));
     border-radius: 999px;
-    background: var(--site-card, rgba(23, 23, 23, 0.03));
-    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+    background: var(--brand-btn-bg, #111);
+    border: none;
     white-space: nowrap;
     text-decoration: none;
   }
 
   .fx-chip--link {
     text-decoration: none;
-    color: rgba(187, 247, 208, 0.85);
-    border-color: rgba(74, 222, 128, 0.22);
-    background: rgba(74, 222, 128, 0.08);
-    transition: background 0.15s ease, border-color 0.15s ease;
+    color: var(--brand-btn-fg, #fff);
+    -webkit-text-fill-color: var(--brand-btn-fg, #fff);
+    background: var(--brand-btn-bg, #111);
+    transition: filter 0.15s ease;
   }
 
   .fx-chip--link:hover {
-    background: rgba(74, 222, 128, 0.14);
-    border-color: rgba(74, 222, 128, 0.36);
+    filter: brightness(1.08);
   }
 
   /* ---------- Replaced-app logo wall ---------- */

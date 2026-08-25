@@ -1,5 +1,5 @@
 /**
- * Agent tools for SEO Directory API Kit (BrightLocal — REΛVE agency account).
+ * Agent tools for SEO Directory API Kit (BrightLocal — reΛVe.app agency account).
  */
 
 import { hasFeature } from '../../src/lib/features';

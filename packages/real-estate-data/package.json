@@ -1,7 +1,7 @@
 {
   "name": "@reave/plugin-real-estate-data",
   "version": "0.1.0",
-  "description": "REΛVE plugin — property lookup tools for agents (sqft, year built, tax, comps, zoning)",
+  "description": "reΛVe.app plugin — property lookup tools for agents (sqft, year built, tax, comps, zoning)",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

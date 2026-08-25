@@ -41,7 +41,7 @@ export async function storeListTodos(opts?: ListTodosOpts): Promise<TodoItem[]> 
   return rows ?? [];
 }
 
-/** One-shot migration for the official REΛVE install. Never runs on customer installs. */
+/** One-shot migration for the official reΛVe.app install. Never runs on customer installs. */
 export async function storeSeedTodosFromMarkdownIfEmpty(): Promise<number> {
   if (!isCanonicalReaveInstall()) return 0;
   return dbSeedTodosFromMarkdownIfEmpty();
