@@ -39,7 +39,7 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
     <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
     <title>Session — {company.name}</title>
     <Favicon />
     <BrandFontHead fonts={company.fonts} />
@@ -150,9 +150,9 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0a0d14;
-      --fg: #f1f5f9;
-      --muted: #94a3b8;
+      --bg: #111111;
+      --fg: #e5e5e5;
+      --muted: #a3a3a3;
       --card-border: rgba(255, 255, 255, 0.1);
       --surface-hover: rgba(255, 255, 255, 0.06);
     }
