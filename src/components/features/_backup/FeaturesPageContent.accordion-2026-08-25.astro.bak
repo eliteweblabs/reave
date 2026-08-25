@@ -1,3 +1,9 @@
+<!--
+  PARKED 2026-08-25 — homepage accordion snapshot. Not compiled.
+  Live accordion still renders on /features and /features-tight.
+  Restore on / by copying <section class="fx-list"> back into
+  FeaturesPageContent.astro and removing showAccordion={false}.
+-->
 ---
 /**
  * Sales-deck-style tour of the whole platform — used on /features and embedded on the homepage.
@@ -41,11 +47,6 @@ interface Props {
   coreOnly?: boolean;
   /** Preview: denser spacing; hide accordion body paragraphs. */
   tight?: boolean;
-  /**
-   * Core-features accordion (“Baseline baked in”). Off on the homepage —
-   * snapshot in `_backup/`. Default: on unless this block is embedded.
-   */
-  showAccordion?: boolean;
 }
 
 const {
@@ -54,7 +55,6 @@ const {
   showPricing = false,
   coreOnly = false,
   tight = false,
-  showAccordion = !embedded,
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -539,8 +539,6 @@ const customPrompts: PromptExample[] = [
       !coreOnly && showPricing && <FeaturesPricingSection />
     }
 
-    {
-      showAccordion && (
     <section class="fx-list" aria-label="Core features">
       {/*
         Do not fade this whole (very tall) section. view() range is
@@ -702,8 +700,6 @@ const customPrompts: PromptExample[] = [
         }
       </div>
     </section>
-      )
-    }
 
     <section class="fx-examples scroll-fade-in" aria-label="Example questions out of the box">
       <p class="fx-examples-kicker">Out of the box</p>

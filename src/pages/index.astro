@@ -61,7 +61,9 @@ if (isLogin) {
         <HomeHeroSection siteContent={siteContent} />
 
         {homepage.showIntegrations && <HomeIntegrationsSection />}
-        {homepage.showFeatures && <FeaturesPageContent embedded showLogoStack={false} />}
+        {homepage.showFeatures && (
+          <FeaturesPageContent embedded showLogoStack={false} showAccordion={false} />
+        )}
         <HomeFeaturedProjectSection />
         {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}
@@ -79,6 +81,27 @@ if (isLogin) {
         max-width: 100%;
         padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
         overflow: clip;
+        /*
+         * Section titles sit under the hero h1 (up to 2.625rem / 700).
+         * One scale for every h2 on this scroll so they don’t leapfrog
+         * the lockup — integrations used to hit 40px, features 2.75rem.
+         */
+        --home-section-title-size: clamp(1.5rem, 3.5vw, 2rem);
+        --home-section-title-weight: 600;
+      }
+
+      .home-scroll :global(.home-integrations-copy h2),
+      .home-scroll :global(.fx-h1),
+      .home-scroll :global(.fx-examples-h2),
+      .home-scroll :global(.fx-custom-h2),
+      .home-scroll :global(.fx-closing-h2),
+      .home-scroll :global(.home-featured-copy h2),
+      .home-scroll :global(.home-dialogue-header h2),
+      .home-scroll :global(.home-section-hero h2) {
+        font-size: var(--home-section-title-size);
+        font-weight: var(--home-section-title-weight);
+        letter-spacing: -0.03em;
+        line-height: 1.12;
       }
     </style>
   )
