@@ -423,25 +423,31 @@ const customPrompts: PromptExample[] = [
     {
       !coreOnly && (
     <>
-    <section class="fx-hero scroll-fade-in">
+    <section class="fx-hero">
       {/*
         Standalone /features keeps this as the page h1. On the homepage it is
         embedded under HomeHeroSection's h1, so demote to h2 — same visual class.
+
+        Fade the copy only — not this section. The chip marquee’s mask +
+        infinite transform is a known iOS Safari tripwire for view()
+        timelines on the following block (“Baseline baked in” stuck faded).
       */}
-      {embedded ? (
-        <h2 class="fx-h1">
-          Runs the whole business — not your credit card.
-        </h2>
-      ) : (
-        <h1 class="fx-h1">
-          Runs the whole business — not your credit card.
-        </h1>
-      )}
-      <p class="fx-lead">
-        Contacts, billing, projects, inbox, scheduling, newsletters, social metrics,
-        website editing, and white-label branding — one login, one AI agent that is Siri capable,
-        and a dead simple client portal with passwordless MagicLinks. Add industry spec plugins to supercharge your workflows.
-      </p>
+      <div class="fx-hero-copy scroll-fade-in">
+        {embedded ? (
+          <h2 class="fx-h1">
+            Runs the whole business — not your credit card.
+          </h2>
+        ) : (
+          <h1 class="fx-h1">
+            Runs the whole business — not your credit card.
+          </h1>
+        )}
+        <p class="fx-lead">
+          Contacts, billing, projects, inbox, scheduling, newsletters, social metrics,
+          website editing, and white-label branding — one login, one AI agent that is Siri capable,
+          and a dead simple client portal with passwordless MagicLinks. Add industry spec plugins to supercharge your workflows.
+        </p>
+      </div>
     </section>
     {/*
       Keep the marquee outside the fading hero. Infinite translateX + mask-image
@@ -528,13 +534,21 @@ const customPrompts: PromptExample[] = [
     }
 
     <section class="fx-list" aria-label="Core features">
-      <h2 class="fx-list-h2 scroll-fade-in">Baseline baked in</h2>
-      <p class="fx-list-lead scroll-fade-in">
-        {company.name} comes with 90% of what you need on day zero — including a virtual
-        assistant and a learning layer that picks up your playbooks as you go. We customize
-        the other 10% to bridge the gaps in a spaghetti network of services — giving you
-        a truly unified, all-in-one business operating system.
-      </p>
+      {/*
+        Do not fade this whole (very tall) section. view() range is
+        entry→cover 28%, so the heading + first card stay near opacity 0
+        while only the top is on screen — and a parent fade × card fade
+        makes the copy nearly invisible. Intro + each acc-item fade alone.
+      */}
+      <div class="fx-list-intro scroll-fade-in">
+        <h2 class="fx-list-h2">Baseline baked in</h2>
+        <p class="fx-list-lead">
+          {company.name} comes with 90% of what you need on day zero — including a virtual
+          assistant and a learning layer that picks up your playbooks as you go. We customize
+          the other 10% to bridge the gaps in a spaghetti network of services — giving you
+          a truly unified, all-in-one business operating system.
+        </p>
+      </div>
 
       <div class="acc-list" data-acc-list>
         <div class="acc-item acc-item--ninety scroll-fade-in" data-acc-item id="feature-ninety">
@@ -919,8 +933,8 @@ const customPrompts: PromptExample[] = [
     margin-inline: -20px;
     margin-bottom: 48px;
     overflow: clip;
-    contain: paint;
     isolation: isolate;
+    contain: layout paint;
     -webkit-mask-image: linear-gradient(
       90deg,
       transparent 0%,
@@ -935,6 +949,10 @@ const customPrompts: PromptExample[] = [
       #000 90%,
       transparent 100%
     );
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
   }
 
   .fx-chips-set {

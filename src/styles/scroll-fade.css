@@ -8,6 +8,10 @@
  * footer (never reaches cover 28% at the bottom of the page), and
  * horizontal marquees (they have their own motion — and their overflow
  * poisons view() progress for later siblings if they stay fade subjects).
+ * Feature chips and the tall .fx-list wrapper are also out: a
+ * masked/transforming marquee inside a view() section stalls the next
+ * block’s fade on iOS, and fading a huge section × each card stacks
+ * opacity near 0.
  */
 @keyframes scroll-fade-in {
   from {
@@ -42,7 +46,7 @@
     body.be-body section:not(:has(.scroll-fade-in)),
     body.be-body article:not(:has(.scroll-fade-in)),
     body.be-body li
-  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.fx-chips):not(.fx-chips *):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
+  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.fx-chips):not(.fx-chips *):not(.fx-hero):not(.fx-list):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
     animation: scroll-fade-in linear both;
     animation-timeline: view();
     animation-timeline: view(block);
@@ -72,7 +76,7 @@ html.scroll-fade-io :is(
   body.be-body section:not(:has(.scroll-fade-in)),
   body.be-body article:not(:has(.scroll-fade-in)),
   body.be-body li
-):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not(.portfolio-masonry):not(.masonry-item):not(.fx-chips):not([data-no-scroll-fade]) {
+):not(.home-hero):not(.ed-hero):not(.hero):not(.fx-hero):not(.fx-list):not(.fx-chips):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]) {
   opacity: 0;
   transform: translateY(18px);
 }
