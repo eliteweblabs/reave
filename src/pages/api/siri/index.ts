@@ -33,6 +33,7 @@
  * - record_payment / add_payment / create_payment: { action: "record_payment", customer_name, amount,
  *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater.
  *   Amount accepts numerals, $250, and spoken currency (100 bucks / 100 dollars).
+ *   Omitted payment_mode defaults to OTHER (Crater will not accept a blank mode).
  * - prompt / ask / chat / ask_agent: { action: "prompt", message: string, thread_id?, async? }
  *   Freeform prompt to the knowledge agent. Waits briefly for a spoken reply;
  *   longer turns continue in the background and push when done.
@@ -1100,14 +1101,16 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
     };
   }
 
-  const paymentMode = normalizePaymentMode(params.payment_mode ?? params.mode ?? params.method);
-  if (paymentMode === null) {
+  const specifiedMode = normalizePaymentMode(params.payment_mode ?? params.mode ?? params.method);
+  if (specifiedMode === null) {
     return {
       ok: false,
       error: 'invalid payment_mode',
       text: 'Payment mode must be cash, check, credit card, bank transfer, or other.',
     };
   }
+  // Crater record-payment returns needs_selection when mode is omitted.
+  const paymentMode = specifiedMode ?? 'OTHER';
 
   const paymentDateRaw = params.payment_date ?? params.date;
   const paymentDate =
@@ -1155,7 +1158,7 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
     };
   }
 
-  const modeBit = paymentMode ? ` via ${paymentModeLabel(paymentMode)}` : '';
+  const modeBit = specifiedMode ? ` via ${paymentModeLabel(specifiedMode)}` : '';
   const invoiceBit = invoiceId != null ? ` on invoice ${invoiceId}` : '';
   const dateBit = paymentDate ? ` for ${paymentDate}` : '';
 
