@@ -142,6 +142,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       pathname={path}
       signedIn={Boolean(userId)}
       hideAccountNav={showHeaderHomeProfile}
+      showAdminEntry={showAdminEntry}
       siteContent={siteContent}
     />
   )}
@@ -214,7 +215,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       ) : (
         <div class="topbar-profile-cluster">
           {showDeployIndicator && <DeployStatusDot publicAccess={deployStatusPublic} />}
-          {showAdminEntry && (
+          {showAdminEntry && !showMarketingNav && (
             <a
               href="/admin/"
               class="brand-btn app-header-admin-cta app-header-admin-entry"

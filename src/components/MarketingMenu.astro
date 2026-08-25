@@ -17,10 +17,18 @@ interface Props {
   signedIn: boolean;
   /** When the signed-in avatar menu lives in the header end cluster (homepage). */
   hideAccountNav?: boolean;
+  /** Signed-in admin pill — lives in primary nav / hamburger, not the header cluster. */
+  showAdminEntry?: boolean;
   siteContent?: SiteContentConfig;
 }
 
-const { pathname, signedIn, hideAccountNav = false, siteContent: siteContentProp } = Astro.props;
+const {
+  pathname,
+  signedIn,
+  hideAccountNav = false,
+  showAdminEntry = false,
+  siteContent: siteContentProp,
+} = Astro.props;
 const showAccountNav = signedIn && !hideAccountNav;
 
 const siteContent = siteContentProp ?? getSiteContent();
@@ -29,6 +37,8 @@ const navGroups = siteNavGroupsForUser(signedIn, siteContent);
 const demoCta = siteDemoCta(siteContent);
 const showDemoCta = siteShowDemoCta(signedIn, siteContent, pathname);
 const showSignIn = siteContent.nav.showSignIn !== false;
+const showOverlayFooter =
+  (!signedIn && showDemoCta && Boolean(demoCta)) || (signedIn && showAccountNav);
 ---
 
 <div class="marketing-nav" data-marketing-nav>
@@ -50,8 +60,20 @@ const showSignIn = siteContent.nav.showSignIn !== false;
   </nav>
 
   {
-    (showDemoCta && demoCta) || (!signedIn && showSignIn) || showAccountNav ? (
+    (showDemoCta && demoCta) || (!signedIn && showSignIn) || showAccountNav || showAdminEntry ? (
       <div class="marketing-nav-actions">
+        {
+          showAdminEntry && (
+            <a
+              href="/admin/"
+              class="brand-btn marketing-nav-admin app-header-admin-entry"
+              aria-label="Admin"
+            >
+              admin
+              <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+            </a>
+          )
+        }
         {
           showDemoCta && demoCta && (
             <a class="marketing-nav-cta" href={demoCta.href}>
@@ -128,8 +150,26 @@ const showSignIn = siteContent.nav.showSignIn !== false;
         ))
       }
 
+      {
+        showAdminEntry && (
+          <div class="overlay-menu-admin">
+            <a
+              href="/admin/"
+              class="brand-btn marketing-nav-admin app-header-admin-entry"
+              aria-label="Admin"
+              data-marketing-menu-link
+            >
+              admin
+              <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+            </a>
+          </div>
+        )
+      }
+
     </div>
 
+    {
+      showOverlayFooter && (
     <footer class="overlay-menu-footer">
       <div class="overlay-menu-footer-row">
         {
@@ -179,6 +219,8 @@ const showSignIn = siteContent.nav.showSignIn !== false;
         }
       </div>
     </footer>
+      )
+    }
   </div>
 </div>
 
@@ -362,6 +404,34 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     text-decoration: none;
   }
 
+  .marketing-nav-actions .marketing-nav-admin {
+    display: none;
+    flex-shrink: 0;
+    height: auto;
+    padding: 0.38rem 0.75rem 0.38rem 0.85rem;
+    gap: 0.28rem;
+    font-size: 0.75rem;
+  }
+
+  .marketing-nav-actions .marketing-nav-admin svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .overlay-menu-admin {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+  }
+
+  .overlay-menu-admin .marketing-nav-admin {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.92rem;
+  }
+
   @media (min-width: 900px) {
     .marketing-nav-desktop {
       display: flex;
@@ -372,6 +442,10 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     }
 
     .marketing-nav-cta {
+      display: inline-flex;
+    }
+
+    .marketing-nav-actions .marketing-nav-admin {
       display: inline-flex;
     }
   }
