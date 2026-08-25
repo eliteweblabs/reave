@@ -1,7 +1,9 @@
 ---
 /**
- * Homepage hero — one flex lockup (mark + headline + chat + CTAs) centered
- * in the viewport below the header. Chat still scrolls inside its own lane.
+ * Homepage hero — lockup fills the viewport below the header:
+ *   brand is dead-centered in the space above the CTAs (1fr / auto / 1fr),
+ *   chat flex-grows in the lower 1fr (width-capped), CTAs sit on the floor.
+ * Chat still scrolls inside its own lane.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import HomeStickyCtas from "./HomeStickyCtas.astro";
@@ -121,9 +123,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     isolation: isolate;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: stretch;
     box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
     min-height: 100vh;
     min-height: 100dvh;
     padding-top: var(--app-header-offset, 3.25rem);
@@ -132,21 +136,38 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-lockup {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: min(100%, 540px);
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "above"
+      "brand"
+      "demo"
+      "ctas";
+    justify-items: center;
+    align-items: stretch;
+    width: 100%;
+    min-height: 0;
     padding: 0 20px;
+    box-sizing: border-box;
   }
 
-  /* Icon + headline */
+  .home-hero-lockup > :global(.home-sticky-ctas) {
+    grid-area: ctas;
+    justify-self: center;
+    width: min(100%, 540px);
+    margin-top: 0.5rem;
+  }
+
+  /* Icon + headline — dead center X/Y in the canvas above the CTA row. */
   .home-hero-brand {
+    grid-area: brand;
     z-index: 10;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 0.94rem;
-    width: 100%;
     pointer-events: none;
   }
 
@@ -362,17 +383,18 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
-  /* Chat lane — in-flow under the headline; stack still scrolls inside. */
+  /* Chat lane — grows in the lower 1fr; width stays capped. Stack scrolls inside. */
   .home-hero-demo {
     --hero-sk-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.2);
+    grid-area: demo;
     z-index: 8;
-    width: 100%;
+    align-self: stretch;
+    justify-self: center;
+    width: min(100%, 540px);
     display: flex;
     flex-direction: column;
-    flex: none;
-    height: clamp(160px, 26vh, 240px);
-    min-height: 160px;
-    margin-top: 0.75rem;
+    min-height: 0;
+    margin-top: 0;
     box-sizing: border-box;
     /*
      * overflow + mask clip descendants. Parked cards sit on the lane floor, so
