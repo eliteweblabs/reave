@@ -178,7 +178,9 @@ export async function dbUpsertMemory(input: {
   content: string;
   source: MemorySource;
   sourceThreadId?: string | null;
-}): Promise<{ ok: true; memory: AgentMemory; created: boolean } | { ok: false; error: string }> {
+}): Promise<
+  { ok: true; memory: AgentMemory; created: boolean; changed: boolean } | { ok: false; error: string }
+> {
   try {
     const pool = await ensureSchema();
     if (!pool) return { ok: false, error: 'DATABASE_URL is not set' };
@@ -199,6 +201,7 @@ export async function dbUpsertMemory(input: {
     if (!existing) existing = await findSimilar(pool, input.userId, scope, content);
 
     if (existing) {
+      const changed = existing.content !== content || existing.kind !== kind;
       const { rows } = await pool.query(
         `UPDATE agent_memories
          SET content = $2, kind = $3, source = $4, source_thread_id = COALESCE($5, source_thread_id),
@@ -207,7 +210,12 @@ export async function dbUpsertMemory(input: {
          RETURNING ${COLUMNS}`,
         [existing.id, content, kind, input.source, input.sourceThreadId ?? null],
       );
-      return { ok: true, memory: mapRow(rows[0] as Record<string, unknown>), created: false };
+      return {
+        ok: true,
+        memory: mapRow(rows[0] as Record<string, unknown>),
+        created: false,
+        changed,
+      };
     }
 
     const { rows } = await pool.query(
@@ -216,7 +224,7 @@ export async function dbUpsertMemory(input: {
        RETURNING ${COLUMNS}`,
       [input.userId, scope, kind, key, content, input.source, input.sourceThreadId ?? null],
     );
-    return { ok: true, memory: mapRow(rows[0] as Record<string, unknown>), created: true };
+    return { ok: true, memory: mapRow(rows[0] as Record<string, unknown>), created: true, changed: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     log.warn('upsert failed', { error: msg });

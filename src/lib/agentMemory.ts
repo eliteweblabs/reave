@@ -206,6 +206,47 @@ export function formatMemoriesForPrompt(memories: AgentMemory[], totalCount = me
   return [header, ...lines, footer].filter(Boolean).join('\n');
 }
 
+export type MemoryUpdateNotifyInput = {
+  id?: number;
+  content: string;
+};
+
+/** Phone + dashboard copy when durable recall is created or rewritten. */
+export function formatMemoryUpdateNotification(opts: {
+  memories: MemoryUpdateNotifyInput[];
+  created?: boolean;
+}): { title: string; body: string; tag: string; url: string } {
+  const items = opts.memories
+    .map((m) => ({
+      id: typeof m.id === 'number' && Number.isFinite(m.id) ? m.id : undefined,
+      content: normalizeMemoryContent(m.content),
+    }))
+    .filter((m) => m.content);
+  const n = items.length;
+  const created = opts.created !== false;
+  const title =
+    n > 1
+      ? created
+        ? `🧠 ${n} memories saved`
+        : `🧠 ${n} memories updated`
+      : created
+        ? '🧠 Memory saved'
+        : '🧠 Memory updated';
+  const body =
+    items.map((m) => m.content).join(' · ') || 'Agent durable recall was updated.';
+  const ids = items.map((m) => m.id).filter((id): id is number => id != null);
+  const tag =
+    n === 1 && ids[0] != null
+      ? `memory-${ids[0]}`
+      : `memory-batch-${ids.join('-') || 'new'}`;
+  return {
+    title,
+    body,
+    tag,
+    url: '/admin?tab=dashboard',
+  };
+}
+
 export function shouldSkipMemoryExtract(opts: {
   userText: string;
   assistantText: string;

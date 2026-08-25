@@ -151,6 +151,7 @@ export function inferPushAlertKind(tag: string, url: string): PushAlertKind {
     return 'engagement';
   }
   if (t.startsWith('critical-') || t.startsWith('demo-request-')) return 'critical';
+  if (t.startsWith('memory-')) return 'system';
   if (t.startsWith('email-') || u.includes('tab=email')) return 'email';
   return 'system';
 }

@@ -17,6 +17,7 @@ Casual one-off tasks, deploy status, and secrets are not stored.
 1. Mid-turn: the agent calls `remember` when something durable shows up — the owner does **not** have to say “remember this.”
 2. After the reply: a background Haiku pass extracts anything the turn missed.
 3. Dedup is by `key` and similar wording. Repeating the same fact updates the existing note.
+4. A new or rewritten note sends a Web Push + dashboard banner (`🧠 Memory saved` / `updated`). Identical re-saves and owner edits from `POST /api/admin/memories` stay quiet. Several extract items from one turn share one notification.
 
 Personal facts are scoped to the signed-in admin. Shared business habits are install-wide.
 
