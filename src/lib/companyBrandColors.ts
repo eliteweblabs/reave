@@ -13,15 +13,6 @@ export const DEFAULT_SITE_BRAND_SECONDARY = '#c026d3';
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
-/** Black / white / gray leftovers from the canvas flatten — not real brand accents. */
-function isAchromaticBrandHex(hex: string): boolean {
-  const h = hex.slice(1);
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return Math.max(r, g, b) - Math.min(r, g, b) < 16;
-}
-
 export function normalizeBrandColorHex(raw: string | null | undefined): string | null {
   const t = (raw ?? '').trim();
   if (!t) return null;
@@ -35,9 +26,7 @@ export function normalizeBrandColorHex(raw: string | null | undefined): string |
 }
 
 function effectiveBrandHex(raw: string | null | undefined, fallback: string): string {
-  const hex = normalizeBrandColorHex(raw);
-  if (!hex || isAchromaticBrandHex(hex)) return fallback;
-  return hex;
+  return normalizeBrandColorHex(raw) ?? fallback;
 }
 
 export function resolveCompanyBrandColors(
