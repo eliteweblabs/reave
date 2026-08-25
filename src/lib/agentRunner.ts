@@ -821,7 +821,7 @@ async function runKnowledgeAgentInner(
       } else {
         const siteRepo = githubWebsiteRepoSlug() || 'this install’s website repo';
         sysParts.push(
-          `Website GitHub: you may only edit ${siteRepo}. You cannot change the REΛVE app or any other repo. Always commit in this same turn with write_github_file on main — clients will not say “commit”, “save”, or “publish.” When they say “undo that”, “change it back”, “go back”, “never mind”, “put it back”, or “I don’t like that”, call undo_website_change immediately. Never open a PR. Report the commit SHA/URL. Do not claim the site is updated unless the tool succeeds.${deployDefer}`,
+          `Website GitHub: you may only edit ${siteRepo}. You cannot change the reΛVe.app or any other repo. Always commit in this same turn with write_github_file on main — clients will not say “commit”, “save”, or “publish.” When they say “undo that”, “change it back”, “go back”, “never mind”, “put it back”, or “I don’t like that”, call undo_website_change immediately. Never open a PR. Report the commit SHA/URL. Do not claim the site is updated unless the tool succeeds.${deployDefer}`,
         );
       }
       if (isOpsInstall()) {
@@ -947,12 +947,12 @@ async function runKnowledgeAgentInner(
   if (hasWebsiteEditor()) {
     if (isOpsInstall()) {
       sysParts.push(
-        'Agentic Website Editor (ops): the official REΛVE marketing site lives in this app repo. Client installs each have their own front-end repo (eliteweblabs/{slug}-site). The deploy wizard creates that repo and a restricted GitHub App for it (GITHUB_APP_*) — GitHub cannot mint PATs. Never point a client GITHUB_TOKEN at eliteweblabs/reave. read_knowledge slug "content-management".',
+        'Agentic Website Editor (ops): the official reΛVe.app marketing site lives in this app repo. Client installs each have their own front-end repo (eliteweblabs/{slug}-site). The deploy wizard creates that repo and a restricted GitHub App for it (GITHUB_APP_*) — GitHub cannot mint PATs. Never point a client GITHUB_TOKEN at eliteweblabs/reave. read_knowledge slug "content-management".',
       );
     } else {
       const siteRepo = githubWebsiteRepoSlug() || 'the configured website repo';
       sysParts.push(
-        `Agentic Website Editor: this install’s public website is ${siteRepo} — a separate front-end repo, not the REΛVE app. When the owner asks to change headline, nav, copy, or images: read_github_file first, then write_github_file on main in this same turn. Do not wait for them to say commit/save/publish. Casual phrases: “undo that” / “change it back” / “go back” / “never mind” / “put it back” / “I don’t like that” → undo_website_change. Pair with search_stock_photos for imagery. Images belong in the media library (slug → /api/media/{slug}), not git. read_knowledge slug "content-management" or "website". Do not claim the site is updated unless write_github_file or undo_website_change succeeds.`,
+        `Agentic Website Editor: this install’s public website is ${siteRepo} — a separate front-end repo, not the reΛVe.app. When the owner asks to change headline, nav, copy, or images: read_github_file first, then write_github_file on main in this same turn. Do not wait for them to say commit/save/publish. Casual phrases: “undo that” / “change it back” / “go back” / “never mind” / “put it back” / “I don’t like that” → undo_website_change. Pair with search_stock_photos for imagery. Images belong in the media library (slug → /api/media/{slug}), not git. read_knowledge slug "content-management" or "website". Do not claim the site is updated unless write_github_file or undo_website_change succeeds.`,
       );
     }
   }

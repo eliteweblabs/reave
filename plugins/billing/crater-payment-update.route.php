@@ -3,7 +3,7 @@
  * Paste into eliteweblabs/crater → routes/api-custom.php
  * immediately after the POST /api/custom/record-payment route.
  *
- * REΛVE calls PUT /api/custom/payment/{id} when the admin agent needs to
+ * reΛVe.app calls PUT /api/custom/payment/{id} when the admin agent needs to
  * update a payment's method, date, notes, or amount (e.g. fix Apple Pay
  * not being recorded correctly on the first try).
  */

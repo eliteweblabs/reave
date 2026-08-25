@@ -2,10 +2,10 @@
 
 ## Overview
 
-Contacts can now flow both directions between REΛVE and external devices. This enables:
+Contacts can now flow both directions between reΛVe.app and external devices. This enables:
 
 1. **Manual import** from CSV/vCard files (iPhone exports, Mac Contacts, etc.)
-2. **Bidirectional CardDAV sync** (contacts created on iPhone automatically sync to REΛVE)
+2. **Bidirectional CardDAV sync** (contacts created on iPhone automatically sync to reΛVe.app)
 3. **Bulk import** from exported contact databases
 
 ## Manual Import
@@ -56,14 +56,14 @@ Jane Smith,jane@example.com,555-5678,Tech Corp,Designer contact
 
 CardDAV sync is **already bidirectional** at the protocol level:
 
-- **Outbound** (REΛVE → iPhone): New/updated contacts in REΛVE sync to your device
-- **Inbound** (iPhone → REΛVE): New/updated contacts on your device sync to REΛVE
+- **Outbound** (reΛVe.app → iPhone): New/updated contacts in reΛVe.app sync to your device
+- **Inbound** (iPhone → reΛVe.app): New/updated contacts on your device sync to reΛVe.app
 
 ### Setup
 
 1. Configure CardDAV on your iPhone (see `/knowledge/carddav.md`)
-2. Any contact you create or edit on your iPhone will automatically sync to REΛVE
-3. Changes made in REΛVE will sync back to your iPhone
+2. Any contact you create or edit on your iPhone will automatically sync to reΛVe.app
+3. Changes made in reΛVe.app will sync back to your iPhone
 
 ### Known Limitations
 
@@ -124,14 +124,14 @@ Upload a CSV or vCard file to bulk-import contacts.
 ### Client Handoff
 
 1. Freelancer exports contacts to `.vcf`
-2. Agency uploads the file to their REΛVE workspace
+2. Agency uploads the file to their reΛVe.app workspace
 3. All client contacts are instantly available to the team
 
-### iPhone → REΛVE Migration
+### iPhone → reΛVe.app Migration
 
 **Option A: CardDAV Sync** (automatic, ongoing)
 - Set up CardDAV on iPhone
-- Any new contact on iPhone syncs to REΛVE automatically
+- Any new contact on iPhone syncs to reΛVe.app automatically
 
 **Option B: One-Time Import** (bulk, manual)
 - Export vCard from iCloud.com

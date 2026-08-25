@@ -4,7 +4,7 @@ Live retail product search, price lookup, and line-item quotes via **materials-a
 
 ## Status
 
-Proxy routes and agent tools ship with REΛVE. **Mock provider** works for demos; live Home Depot pricing needs an upstream key on materials-api.
+Proxy routes and agent tools ship with reΛVe.app. **Mock provider** works for demos; live Home Depot pricing needs an upstream key on materials-api.
 
 ## Feature gate
 

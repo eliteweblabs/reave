@@ -644,7 +644,7 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /data-ss-col="cover"/);
   assert.match(back, /data-ss-col="stack"/);
   assert.match(back, /1fr 1fr 1fr/);
-  assert.doesNotMatch(back, /REΛVE builds with/);
+  assert.doesNotMatch(back, /reΛVe.app builds with/);
   assert.doesNotMatch(back, /Managed hosting/);
   assert.doesNotMatch(back, /We host it/);
   assert.doesNotMatch(back, /This is not spam/);

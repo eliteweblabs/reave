@@ -3,7 +3,7 @@
  * Paste into eliteweblabs/crater → routes/api-custom.php
  * immediately after the PUT /api/custom/payment/{id} route.
  *
- * REΛVE calls DELETE /api/custom/payment/{id} when the admin agent needs to
+ * reΛVe.app calls DELETE /api/custom/payment/{id} when the admin agent needs to
  * remove a duplicate or erroneous payment record entirely.
  */
 

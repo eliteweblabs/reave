@@ -1,6 +1,6 @@
 # Website — client website tools
 
-This install’s **web tools** are the client Website module. Use them to edit the **dedicated front-end repo** (`GITHUB_WEBSITE_REPO`) and find imagery. You cannot edit the REΛVE app. Do **not** list Railway, Kinsta, Cloudflare, or Name.com as web tools — those are agency/ops APIs and are not on a client install.
+This install’s **web tools** are the client Website module. Use them to edit the **dedicated front-end repo** (`GITHUB_WEBSITE_REPO`) and find imagery. You cannot edit the reΛVe.app. Do **not** list Railway, Kinsta, Cloudflare, or Name.com as web tools — those are agency/ops APIs and are not on a client install.
 
 ## What you have
 

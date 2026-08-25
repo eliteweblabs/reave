@@ -2,7 +2,7 @@
  * Homepage chrome — marketing, client landing, or Clerk login.
  *
  * New / standalone installs are unbranded login until Company settings (DB)
- * or that install’s own site config supplies a public site. Official REΛVE
+ * or that install’s own site config supplies a public site. Official reΛVe.app
  * never becomes a login wall.
  */
 

@@ -29,13 +29,13 @@
     "ctas": [{ "href": "/admin", "label": "Open Dashboard", "variant": "primary" }]
   },
   "landing": {
-    "title": "Paulino Auto Group | REΛVE",
+    "title": "Paulino Auto Group | reΛVe.app",
     "description": "Paulino Auto Group business OS — dispositions, inventory wizard, and dealership operations.",
     "themeColor": "#0b1f33",
     "eyebrow": "Dealership OS",
     "name": "Paulino Auto Group",
     "role": "Auto Group",
-    "tagline": "Inventory, dispositions, and dealership workflows on REΛVE.",
+    "tagline": "Inventory, dispositions, and dealership workflows on reΛVe.app.",
     "contact": {
       "heading": "Contact",
       "officeLines": ["Fitchburg, MA"]

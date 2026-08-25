@@ -141,7 +141,7 @@ export async function PUT(context: APIContext): Promise<Response> {
       {
         ok: false,
         error:
-          'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Only the REΛVE install can edit them.',
+          'Catalog rules come from DEFAULT_RULES in the repo and update on every deploy. Only the reΛVe.app install can edit them.',
       },
       403,
     );

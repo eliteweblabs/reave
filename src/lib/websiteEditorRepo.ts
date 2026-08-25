@@ -2,7 +2,7 @@
  * Per-install front-end website repo for the Agentic Website Editor.
  *
  * Client installs edit a dedicated repo in the agency GitHub account. They
- * cannot write to the REΛVE app repo (eliteweblabs/reave) or any other repo.
+ * cannot write to the reΛVe.app repo (eliteweblabs/reave) or any other repo.
  * Official / ops installs keep the existing app + sibling-repo tools.
  */
 import { normalizeRepoSlug, type GithubResult } from './githubClient';
@@ -20,7 +20,7 @@ function appRepoSlug(): string {
 
 export const GITHUB_WEBSITE_OWNER = 'eliteweblabs';
 
-/** Repos a client install must never edit — the REΛVE app itself. */
+/** Repos a client install must never edit — the reΛVe.app itself. */
 export const PROTECTED_APP_REPOS = ['eliteweblabs/reave'] as const;
 
 export function defaultWebsiteRepoSlug(installSlug: string): string {
@@ -70,13 +70,13 @@ export function lockedWebsiteEditorRepo(opts: {
     return {
       ok: false,
       error:
-        'websiteRepo cannot be the REΛVE app. Point it at this install’s dedicated front-end repo.',
+        'websiteRepo cannot be the reΛVe.app. Point it at this install’s dedicated front-end repo.',
     };
   }
   if (requested && requested.toLowerCase() !== site.toLowerCase()) {
     return {
       ok: false,
-      error: `This install can only edit ${site}. The REΛVE app and other repos are not writable from here.`,
+      error: `This install can only edit ${site}. The reΛVe.app and other repos are not writable from here.`,
     };
   }
   return { ok: true, data: site };

@@ -263,7 +263,7 @@ export const COST_SCENARIOS: CostScenario[] = [
     note: '12–24 mo × $1.5–2K/mo, plus ~36% waste on licenses',
   },
   {
-    label: 'REΛVE Operations tier',
+    label: 'reΛVe.app Operations tier',
     year1: '~$14K',
     year3: '~$19K',
     tone: 'reave',
@@ -342,7 +342,7 @@ export const TCO_CUMULATIVE_K = {
     },
     {
       id: 'reave',
-      label: 'REΛVE',
+      label: 'reΛVe.app',
       color: '#a855f7',
       values: [4.1, 5.3, 6.4, 7.5, 8.6, 9.8, 10.9, 12, 13.1, 14.3, 15.4, 19],
     },

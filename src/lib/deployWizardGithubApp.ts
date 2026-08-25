@@ -120,7 +120,7 @@ export function buildGithubAppManifest(opts: {
     redirect_url: callback,
     setup_url: callback,
     callback_urls: [callback],
-    description: `REΛVE website editor for ${repo}. Contents write on that repo only — never eliteweblabs/reave.`,
+    description: `reΛVe.app website editor for ${repo}. Contents write on that repo only — never eliteweblabs/reave.`,
     public: false,
     default_permissions: { contents: 'write', metadata: 'read' },
     default_events: [],

@@ -2,7 +2,7 @@
 
 When the owner asks to **update their public website** — headline, navigation, page copy, or images — handle it in chat. There is no separate CMS admin.
 
-**Client installs do not edit the REΛVE app.** Each install has its own front-end website repo in the agency GitHub account (`websiteRepo` / `GITHUB_WEBSITE_REPO`, usually `eliteweblabs/{slug}-site`). Tools are locked to that repo. Only the agency owner (official REΛVE / ops) can change `eliteweblabs/reave`.
+**Client installs do not edit the reΛVe.app.** Each install has its own front-end website repo in the agency GitHub account (`websiteRepo` / `GITHUB_WEBSITE_REPO`, usually `eliteweblabs/{slug}-site`). Tools are locked to that repo. Only the agency owner (official reΛVe.app / ops) can change `eliteweblabs/reave`.
 
 ## Always commit this turn
 
@@ -35,13 +35,13 @@ Writes use this install’s **GitHub App** (copied by the deploy wizard). Tokens
 
 ## Where website content lives
 
-The files live in **this install’s website repo**, not in the REΛVE app (`config/sites/` on reave is the agency marketing skin — leave it alone on a client install).
+The files live in **this install’s website repo**, not in the reΛVe.app (`config/sites/` on reave is the agency marketing skin — leave it alone on a client install).
 
 Typical front-end layout (read first — repos vary):
 
 - `index.html` / `src/pages/` — routes and page copy
 - JSON or config files for headline, nav, and section toggles
-- Media library on this REΛVE install — company photos (Admin → Media). Public URL is `/api/media/{slug}`
+- Media library on this reΛVe.app install — company photos (Admin → Media). Public URL is `/api/media/{slug}`
 
 Always **read before write**. For long pages, use `write_github_file` with `append:true` in sections — one oversized call gets cut off.
 
@@ -77,7 +77,7 @@ For **WordPress client sites** with the companion plugin (`wordpress_content`), 
 
 ## Rules
 
-- **Lock:** only the configured website repo. Refuse anything that would touch REΛVE.
+- **Lock:** only the configured website repo. Refuse anything that would touch reΛVe.app.
 - **Never open a PR** — commit straight to `main`
 - **Never invent URLs** on sites you cannot write to
 - Do not claim the site is updated unless `write_github_file` or `undo_website_change` succeeds
