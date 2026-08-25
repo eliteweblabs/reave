@@ -59,7 +59,7 @@
   justify-content: center;
   gap: 0.15rem;
   padding: var(--dash-stat-pad-y) var(--dash-stat-pad-x);
-  border-radius: var(--radius-pill);
+  border-radius: 14px;
   border: none;
   background: var(--surface-muted);
   color: var(--fg);
@@ -81,8 +81,17 @@
 .dash-stat--external:hover .dash-stat-external {
   opacity: 0.9;
 }
+/* Tiles are cards, not brand-btn pills — keep rounded-rect even if they are <button>/<a>. */
+#dashboard-panel button.dash-stat {
+  border-radius: 14px;
+}
+#dashboard-panel button.dash-inbox-item {
+  border-radius: 10px;
+}
 #dashboard-panel button.home-dashboard-tile,
 #dashboard-panel a.home-dashboard-tile {
+  border-radius: 12px;
+  color: inherit;
   text-decoration: none;
 }
 .dash-stat:hover {

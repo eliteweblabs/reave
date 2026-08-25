@@ -100,6 +100,7 @@
  * Icon-only chrome is the circle (.ios-icon-btn / .agent-btn / .de-new-btn.ch-new-btn).
  * Admin leftovers (de-btn*, os-dialog-btn*, prof-btn*, empty-state create)
  * share these rules so a radius/color change here updates every CTA.
+ * Dashboard tiles (.home-dashboard-tile, .dash-stat) are cards — do not add these classes.
  */
 .brand-btn,
 .de-btn,
