@@ -6,7 +6,6 @@
  * stacking context.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
-import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
@@ -57,7 +56,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       >
         <template id="hero-demo-agent-avatar">
           <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-            <ReaveIcon class="home-hero-demo-avatar-icon" />
+            <BrandIconInline
+              company={company}
+              class="home-hero-demo-avatar-icon"
+              idPrefix="hero-demo-agent"
+            />
           </span>
         </template>
         <template id="hero-demo-user-avatar">
@@ -380,10 +383,25 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: block;
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    color: var(--site-fg, #171717);
   }
 
-  html[data-theme="light"] .home-hero-demo-avatar-icon {
+  html[data-theme="dark"] .home-hero-demo-avatar-icon {
     filter: invert(1);
+  }
+
+  .home-hero-demo-avatar-icon.home-hero-icon-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-family: var(--font-primary);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    text-align: center;
   }
 
   .home-hero-demo-avatar-photo {
