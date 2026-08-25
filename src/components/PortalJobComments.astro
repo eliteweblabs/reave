@@ -77,7 +77,7 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     aria-label="Ask a question or share an update"
     placeholder="Ask a question or share an update…"
   />
-  <button class="work-comment-submit" type="button">Add comment</button>
+  <button class="brand-btn brand-btn-solid work-comment-submit" type="button">Add comment</button>
 </div>
 
 <script define:vars={{ commentEndpoint, clientAvatarUrl, staffAvatarUrl, jobSlug }}>
@@ -218,7 +218,7 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
 
   .portal-job-comments :global(.work-comment) {
     padding: 16px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--site-card-border);
   }
 
   .portal-job-comments :global(.work-comment:last-child) {
@@ -238,8 +238,8 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     height: 40px;
     border-radius: 50%;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--site-border);
+    border: 1px solid var(--site-border);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -255,13 +255,13 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
   .portal-job-comments :global(.work-comment-avatar-fallback) {
     font-size: 15px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--site-fg-muted);
     line-height: 1;
   }
 
   .portal-job-comments :global(.work-comment-staff .work-comment-avatar) {
-    border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.35);
-    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.12);
+    border-color: var(--site-border, rgba(23, 23, 23, 0.1));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .portal-job-comments :global(.work-comment-main) {
@@ -280,17 +280,17 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
   .portal-job-comments :global(.work-comment-author) {
     font-size: 14px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.92);
+    color: var(--site-fg);
   }
 
   .portal-job-comments :global(.work-comment-staff .work-comment-author) {
-    color: var(--portal-accent, #d8b4fe);
+    color: var(--site-fg, #171717);
   }
 
   .portal-job-comments :global(.work-comment-time) {
     flex: none;
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.42);
+    color: var(--site-fg-faint);
     white-space: nowrap;
   }
 
@@ -298,7 +298,7 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
     margin: 0;
     font-size: 14px;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg);
     white-space: pre-wrap;
     word-break: break-word;
   }
@@ -306,10 +306,10 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
   .work-comment-input {
     margin-bottom: 10px;
     width: 100%;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--site-card);
+    border: 1px solid var(--site-border);
     border-radius: 10px;
-    color: #fff;
+    color: var(--site-fg);
     font-family: inherit;
     font-size: 14px;
     line-height: 1.5;
@@ -320,16 +320,17 @@ const commentEndpoint = `/api/c/${encodeURIComponent(contactUid)}/work/${encodeU
   }
 
   .work-comment-input:focus {
-    border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.6);
+    border-color: var(--site-fg, #171717);
   }
 
   .work-comment-submit {
     width: 100%;
     padding: 12px;
-    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-    border: 1px solid var(--portal-brand-fill-border, transparent);
+    background: var(--brand-btn-bg, #111);
+    border: 1px solid transparent;
     border-radius: 12px;
-    color: #fff;
+    color: var(--brand-btn-fg, #fff);
+    -webkit-text-fill-color: var(--brand-btn-fg, #fff);
     font: inherit;
     font-size: 14px;
     font-weight: 600;

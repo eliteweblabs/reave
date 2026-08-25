@@ -36,7 +36,6 @@ import { resolveClientHeroLogoUrl, resolveClientLogoUrl } from '../../lib/client
 import { NO_LOGO_FOUND_HTML } from '../../lib/clientLogoCopy';
 import { isPortalAssistantConfigured } from '../../lib/portalAssistant';
 import PortalAssistantWidget from '../../components/PortalAssistantWidget.astro';
-import { resolvePortalBrandColors, portalBrandCssVars, type PortalBrandColors } from '../../lib/portalBrandColors';
 import { getClientUptimeView } from '../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH, formatPortalPageTitle } from '../../lib/portalOgImage';
@@ -52,6 +51,8 @@ import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
 import ViewportMeta from '../../components/ViewportMeta.astro';
 import SiteBackground from '../../components/SiteBackground.astro';
+import ThemeInit from '../../components/ThemeInit.astro';
+import { companyHtmlStyleAttr } from '../../lib/companyBrandColors';
 import '../../styles/brand.css';
 import '../../styles/mobile-touch.css';
 import PortalOutreachSheet from '../../components/PortalOutreachSheet.astro';
@@ -413,7 +414,7 @@ const billingSections: BillingSectionBlock[] = portalBillingView
 const pageTitle = formatPortalPageTitle(brandTitle, org.name);
 const appTitle = brandTitle;
 const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
-const themeColor = org.brandPrimary;
+const themeColor = '#ffffff';
 const portalUrl = uid ? `${origin}/c/${encodeURIComponent(uid)}` : origin;
 const ogDescription = clientTagline || `${brandTitle} client portal`;
 const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : LOGO_ICON_OG_PATH;
@@ -432,18 +433,13 @@ const showAssistant =
 const clientFirstName = contact ? splitClientNameParts(contact).firstName : '';
 const outreachGreetingName = contact ? contactGreetingName(contact) : company;
 
-let portalBrand: PortalBrandColors | null = null;
-if (contact && uid) {
-  portalBrand = await resolvePortalBrandColors(uid, portal);
-}
-const portalBrandStyle = portalBrand ? portalBrandCssVars(portalBrand) : null;
-
 const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" style={companyHtmlStyleAttr(org.fonts, org.brandPrimary, org.brandSecondary)}>
   <head>
+    <ThemeInit />
     <meta charset="UTF-8" />
     <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
@@ -480,9 +476,9 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       rel="stylesheet"
     />
   </head>
-  <body class:list={[{ 'portal-branded': !!portalBrand }]} style={portalBrandStyle ?? undefined}>
+  <body>
     <SiteBackground />
-    <Header portalBrand={portalBrand} />
+    <Header />
     {
       notFound ? (
         <main class="wrap empty">
@@ -504,9 +500,9 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
             <div id="entries-list"></div>
 
-            <button class="add-btn" id="add-entry" type="button">+ Add another</button>
+            <button class="brand-btn brand-btn-glass add-btn" id="add-entry" type="button">+ Add another</button>
 
-            <button class="submit-btn" id="submit-btn" type="button">Submit</button>
+            <button class="brand-btn brand-btn-solid submit-btn" id="submit-btn" type="button">Submit</button>
           </div>
 
           <div id="submit-success" style="display:none">
@@ -540,12 +536,12 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
           {showQuickActions && (
             <nav class="actions" aria-label={`Contact ${providerName}`}>
-              <a class="action" href={vcardHref} aria-label={addContactsLabel}>
+              <a class="brand-btn brand-btn-glass action" href={vcardHref} aria-label={addContactsLabel}>
                 <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></span><span class="action-label">{addContactsLabel}</span>
               </a>
               {scheduleHref && (
                 <a
-                  class="action"
+                  class="brand-btn brand-btn-glass action"
                   href={scheduleHref}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -559,7 +555,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           {showTabs && (
             <div class="tabbar" role="tablist">
               {tabs.map((t) => (
-                <button class={`tab ${t.id === initialTab ? 'active' : ''}`} data-tab-btn={t.id} type="button">
+                <button
+                  class={`tab brand-btn ${t.id === initialTab ? 'brand-btn-solid active' : 'brand-btn-glass'}`}
+                  data-tab-btn={t.id}
+                  type="button"
+                >
                   {t.label}
                 </button>
               ))}
@@ -720,7 +720,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                                 <span class="inv-due">{money(inv.due)}</span>
                                 {inv.url && (
                                   <a
-                                    class="pay"
+                                    class="brand-btn brand-btn-solid pay"
                                     href={inv.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -849,7 +849,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               ) : (
                 <div class="vault-empty">
                   <p class="muted">Account details &amp; credentials for your {postAlias.singular}. Keep this link private.</p>
-                  <a class="vault-submit-link" href="?submit">Add account details</a>
+                  <a class="brand-btn brand-btn-solid vault-submit-link" href="?submit">Add account details</a>
                 </div>
               )}
             </section>
@@ -917,7 +917,12 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-tab-btn');
-          document.querySelectorAll('[data-tab-btn]').forEach((b) => b.classList.toggle('active', b === btn));
+          document.querySelectorAll('[data-tab-btn]').forEach((b) => {
+            const on = b === btn;
+            b.classList.toggle('active', on);
+            b.classList.toggle('brand-btn-solid', on);
+            b.classList.toggle('brand-btn-glass', !on);
+          });
           document
             .querySelectorAll('[data-tab-panel]')
             .forEach((p) => p.classList.toggle('active', p.getAttribute('data-tab-panel') === id));
@@ -1037,7 +1042,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     </script>
 
     <style is:global>
-      :root { color-scheme: dark; }
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
       html {
         background-color: var(--site-canvas);
@@ -1046,20 +1050,13 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         margin: 0;
         min-height: 100%;
         background-color: var(--site-canvas);
-        color: #fff;
+        color: var(--site-fg, #171717);
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
       body {
         position: relative;
-        /* Pre-Astro-7 mesh stops — matches Layout atmosphere. */
-        background-image:
-          radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
-          radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-          radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%),
-          radial-gradient(ellipse 90% 60% at 50% 100%, rgba(192, 38, 211, 0.14) 0%, transparent 55%);
-        background-repeat: no-repeat;
       }
       button,
       .tab,
@@ -1083,7 +1080,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .wrap:has([data-tab-panel="audit"].active) {
         max-width: 960px;
       }
-      .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: rgba(255, 255, 255, 0.55); }
+      .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: var(--site-fg-muted, #525252); }
       .hero { text-align: center; margin-bottom: 24px; }
       .hero h1 { margin: 18px 0 4px; font-size: 30px; font-weight: 700; line-height: 1.15; }
       .hero-no-logo {
@@ -1092,19 +1089,19 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         font-size: 14px;
         font-weight: 400;
         line-height: 1.45;
-        color: rgba(255, 255, 255, 0.5);
+        color: var(--site-fg-muted, #525252);
       }
       .hero-no-logo strong {
         display: block;
         margin-bottom: 4px;
         font-size: 15px;
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.72);
+        color: var(--site-fg, #171717);
       }
       .hero-updated {
         margin: 0;
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.35);
+        color: var(--site-fg-faint, #a3a3a3);
       }
       .hero h1 + .hero-updated,
       .hero-no-logo + .hero-updated {
@@ -1127,24 +1124,25 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .overview-intro .client-tagline {
         margin: 0 auto;
         max-width: 420px;
-        color: rgba(255, 255, 255, 0.6);
+        color: var(--site-fg-muted, #525252);
         font-size: 14px;
         line-height: 1.55;
       }
       .overview-intro .client-website {
         display: inline-block;
         margin-top: 8px;
-        color: var(--portal-accent, #d8b4fe);
+        color: var(--site-fg, #171717);
         font-size: 13px;
-        text-decoration: none;
+        text-decoration: underline;
+        text-underline-offset: 2px;
       }
       .overview-intro .client-website:active { opacity: 0.8; }
       .overview-intro .client-contact {
         margin: 8px 0 0;
-        color: rgba(255, 255, 255, 0.45);
+        color: var(--site-fg-faint, #a3a3a3);
         font-size: 14px;
       }
-      .company { margin: 0; color: rgba(255, 255, 255, 0.55); font-size: 15px; }
+      .company { margin: 0; color: var(--site-fg-muted, #525252); font-size: 15px; }
 
       .actions {
         display: grid;
@@ -1153,15 +1151,19 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         gap: 10px;
         margin-bottom: 22px;
       }
-      .action {
-        display: flex; flex-direction: column; align-items: center; gap: 6px;
-        padding: 14px 6px; border-radius: 16px;
-        border: 1px solid rgba(var(--portal-primary-rgb, 168, 85, 247), 0.35);
-        background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.1);
-        color: #fff; text-decoration: none; font-size: 12px; font-weight: 500;
-        transition: transform 0.15s, background 0.2s, border-color 0.2s;
+      .action.brand-btn {
+        flex-direction: column;
+        width: 100%;
+        height: auto;
+        gap: 6px;
+        padding: 14px 10px;
+        border-radius: 16px;
+        font-size: 12px;
+        font-weight: 500;
+        white-space: normal;
+        box-shadow: none;
       }
-      .action:active { transform: scale(0.97); background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.22); border-color: var(--portal-primary, #a855f7); }
+      .action:active { transform: scale(0.97); }
       .action.action--icon-only { padding: 14px 10px; }
       .action .ico {
         display: inline-flex;
@@ -1169,7 +1171,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         justify-content: center;
         width: 20px;
         height: 20px;
-        color: rgba(255, 255, 255, 0.88);
+        color: currentColor;
       }
       .action .ico svg { display: block; }
       .action-label {
@@ -1180,48 +1182,47 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
       .tabbar {
         display: flex; gap: 6px; padding: 5px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--site-card, rgba(23, 23, 23, 0.03));
+        border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
         border-radius: 14px; margin-bottom: 22px;
       }
-      .tab {
-        flex: 1; padding: 10px 8px; border: none; border-radius: 10px;
-        background: transparent; color: rgba(255, 255, 255, 0.6);
-        font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
-        transition: background 0.2s, color 0.2s;
-      }
-      .tab.active {
-        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-        border: 1px solid var(--portal-brand-fill-border, transparent);
-        color: #fff;
+      .tabbar .tab.brand-btn {
+        flex: 1;
+        height: auto;
+        padding: 10px 8px;
+        border-radius: 10px;
+        box-shadow: none;
+        font-size: 14px;
+        font-weight: 600;
       }
 
       .panel { display: none; }
       .panel.active { display: block; }
 
-      .muted { color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; }
+      .muted { color: var(--site-fg-muted, #525252); font-size: 15px; line-height: 1.6; }
 
       .headline { font-size: 20px; font-weight: 600; margin: 0 0 12px; }
       .body {
-        font-size: 16px; line-height: 1.7; color: rgba(255, 255, 255, 0.9);
+        font-size: 16px; line-height: 1.7; color: var(--site-fg, #171717);
         padding: 18px 20px; border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--site-card-border, rgba(23, 23, 23, 0.1));
+        background: var(--site-card, rgba(23, 23, 23, 0.03));
         word-wrap: break-word; overflow-wrap: anywhere;
       }
-      .body a { color: var(--portal-accent, #d8b4fe); }
+      .body a { color: var(--site-fg, #171717); }
       .fields {
         margin-top: 18px; display: flex; flex-direction: column; gap: 1px;
-        border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px; overflow: hidden; border: 1px solid var(--site-card-border);
       }
-      .field { display: flex; justify-content: space-between; gap: 16px; padding: 14px 18px; background: rgba(255, 255, 255, 0.04); }
-      .field-label { color: rgba(255, 255, 255, 0.5); font-size: 14px; }
+      .field { display: flex; justify-content: space-between; gap: 16px; padding: 14px 18px; background: var(--site-card); }
+      .field-label { color: var(--site-fg-muted); font-size: 14px; }
       .field-value { text-align: right; font-size: 15px; font-weight: 500; word-break: break-word; }
 
       .billing-head {
         display: flex; justify-content: space-between; align-items: baseline;
         padding: 4px 2px 16px;
       }
-      .billing-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255, 255, 255, 0.5); }
+      .billing-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--site-fg-muted); }
       .billing-total { font-size: 24px; font-weight: 700; }
       .billing-total.due { color: #fca5a5; }
       .billing-total.clear { color: #86efac; }
@@ -1229,40 +1230,40 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .bill-group { margin-bottom: 18px; }
       .group-title {
         font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px;
-        color: rgba(255, 255, 255, 0.4); margin: 0 0 8px 2px;
+        color: var(--site-fg-faint); margin: 0 0 8px 2px;
       }
       .uptime-block { margin-top: 20px; }
       .uptime-monitors, .uptime-incidents {
         list-style: none; margin: 0 0 12px; padding: 0;
-        border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px; overflow: hidden; border: 1px solid var(--site-card-border);
       }
       .uptime-monitor, .uptime-incident {
         display: flex; align-items: flex-start; gap: 10px;
-        padding: 12px 16px; background: rgba(255, 255, 255, 0.04);
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 12px 16px; background: var(--site-card);
+        border-top: 1px solid var(--site-border);
       }
       .uptime-monitor:first-child, .uptime-incident:first-child { border-top: none; }
       .uptime-dot {
         width: 10px; height: 10px; border-radius: 50%; margin-top: 5px;
-        background: rgba(255, 255, 255, 0.35); flex-shrink: 0;
+        background: var(--site-fg-faint); flex-shrink: 0;
       }
       .uptime-monitor.up .uptime-dot { background: #86efac; }
       .uptime-monitor.down .uptime-dot { background: #fca5a5; }
       .uptime-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
       .uptime-name { font-weight: 600; font-size: 15px; }
-      .uptime-meta { font-size: 13px; color: rgba(255, 255, 255, 0.55); }
+      .uptime-meta { font-size: 13px; color: var(--site-fg-muted); }
       .uptime-incident { flex-direction: column; gap: 4px; }
       .uptime-incident-type { font-size: 13px; font-weight: 600; text-transform: capitalize; }
-      .uptime-incident-when { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
-      .uptime-incident-msg { font-size: 13px; color: rgba(255, 255, 255, 0.7); }
+      .uptime-incident-when { font-size: 12px; color: var(--site-fg-faint); }
+      .uptime-incident-msg { font-size: 13px; color: var(--site-fg-muted); }
       .invoices {
         list-style: none; margin: 0; padding: 0;
-        border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px; overflow: hidden; border: 1px solid var(--site-card-border);
       }
       .invoice {
         display: flex; justify-content: space-between; align-items: center; gap: 12px;
-        padding: 13px 16px; background: rgba(255, 255, 255, 0.04);
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 13px 16px; background: var(--site-card);
+        border-top: 1px solid var(--site-border);
       }
       .invoice:first-child { border-top: none; }
       .invoice-stack {
@@ -1273,8 +1274,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .invoice-block {
         border-radius: 14px;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--site-card-border);
+        background: var(--site-card);
       }
       .invoice-block .invoice,
       .invoice-block > summary.invoice {
@@ -1293,14 +1294,14 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         flex: none;
         width: 8px;
         height: 8px;
-        border-right: 2px solid rgba(255, 255, 255, 0.45);
-        border-bottom: 2px solid rgba(255, 255, 255, 0.45);
+        border-right: 2px solid var(--site-fg-faint);
+        border-bottom: 2px solid var(--site-fg-faint);
         transform: rotate(45deg);
         transition: transform 0.2s;
         margin-top: -2px;
       }
       .invoice-block[open] > summary.invoice {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid var(--site-border);
       }
       .invoice-block[open] > summary.invoice::after {
         transform: rotate(-135deg);
@@ -1310,13 +1311,13 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         list-style: none;
         margin: 0;
         padding: 0;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        background: rgba(0, 0, 0, 0.16);
+        border-top: 1px solid var(--site-border);
+        background: var(--site-card);
       }
       .invoice-payments-standalone {
         border-radius: 14px;
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--site-card-border);
       }
       .invoice-payment {
         display: flex;
@@ -1324,70 +1325,59 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         align-items: center;
         gap: 12px;
         padding: 11px 16px 11px 28px;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        border-top: 1px solid var(--site-border);
       }
       .invoice-payment:first-child { border-top: none; }
       .invoice-payment .pay-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
       .invoice-payment .pay-date { font-size: 14px; font-weight: 600; }
-      .invoice-payment .pay-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
+      .invoice-payment .pay-meta { font-size: 12px; color: var(--site-fg-faint); }
       .invoice-payment .pay-amount { font-size: 14px; font-weight: 600; flex: none; color: #86efac; }
       .inv-main { display: flex; flex-direction: column; gap: 2px; }
       .inv-num { font-size: 15px; font-weight: 600; }
-      .inv-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); text-transform: capitalize; }
+      .inv-meta { font-size: 12px; color: var(--site-fg-faint); text-transform: capitalize; }
       .inv-side { display: flex; align-items: center; gap: 12px; }
       .inv-due { font-size: 15px; font-weight: 600; }
-      .inv-due.paid { color: rgba(255, 255, 255, 0.5); }
+      .inv-due.paid { color: var(--site-fg-muted); }
       .inv-due.upcoming { color: #fcd34d; }
-      .pay {
-        padding: 7px 16px; border-radius: 999px;
-        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-        border: 1px solid var(--portal-brand-fill-border, transparent);
-        color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
+      .pay.brand-btn {
+        padding: 7px 16px;
+        font-size: 13px;
       }
       .pay:active { opacity: 0.85; }
-      .view { color: var(--portal-accent, #d8b4fe); text-decoration: none; font-size: 13px; font-weight: 500; }
+      .view { color: var(--site-fg, #171717); text-decoration: none; font-size: 13px; font-weight: 500; }
 
       /* Documents tab */
       .doc-card {
         display: flex; align-items: center; justify-content: space-between; gap: 12px;
         padding: 14px 16px; margin-bottom: 10px; border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
-        text-decoration: none; color: #fff; transition: background 0.2s, border-color 0.2s;
+        border: 1px solid var(--site-card-border); background: var(--site-card);
+        text-decoration: none; color: var(--site-fg); transition: background 0.2s, border-color 0.2s;
       }
-      .doc-card:active { background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.15); border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.4); }
+      .doc-card:active { background: var(--site-card); border-color: var(--site-border); }
       .doc-card-left { flex: 1; min-width: 0; }
       .doc-card-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .doc-card-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
-      .doc-card-arrow { font-size: 18px; color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.8); flex: none; }
+      .doc-card-meta { font-size: 12px; color: var(--site-fg-faint); }
+      .doc-card-arrow { font-size: 18px; color: var(--site-fg-muted, #525252); flex: none; }
 
-      .data-note { color: rgba(255, 255, 255, 0.5); font-size: 13px; margin: 0 0 14px; }
+      .data-note { color: var(--site-fg-muted); font-size: 13px; margin: 0 0 14px; }
       .vault-empty {
         text-align: center;
         padding: 28px 20px;
         border-radius: 14px;
-        border: 1px dashed rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.02);
+        border: 1px dashed var(--site-border);
+        background: var(--site-card);
       }
       .vault-empty .muted { margin: 0 0 16px; }
-      .vault-submit-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+      .vault-submit-link.brand-btn {
         width: 100%;
         max-width: 280px;
         padding: 14px 20px;
-        border-radius: 14px;
-        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-        border: 1px solid var(--portal-brand-fill-border, transparent);
-        color: #fff;
-        text-decoration: none;
         font-size: 15px;
-        font-weight: 600;
       }
       .vault-submit-link:active { opacity: 0.85; }
       .data-card {
         margin-bottom: 12px; border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--site-card-border); background: var(--site-card);
         overflow: hidden;
       }
       .data-card > summary.data-label {
@@ -1416,14 +1406,14 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         flex: none;
         width: 8px;
         height: 8px;
-        border-right: 2px solid rgba(255, 255, 255, 0.45);
-        border-bottom: 2px solid rgba(255, 255, 255, 0.45);
+        border-right: 2px solid var(--site-fg-faint);
+        border-bottom: 2px solid var(--site-fg-faint);
         transform: rotate(45deg);
         transition: transform 0.2s;
         margin-top: -2px;
       }
       .data-card[open] > summary.data-label {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        border-bottom: 1px solid var(--site-card-border);
       }
       .data-card[open] > summary.data-label::after {
         transform: rotate(-135deg);
@@ -1431,20 +1421,20 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       .data-card-body { padding: 12px 16px 14px; }
       .data-card-body > :first-child { margin-top: 0; }
-      .data-url { display: block; color: var(--portal-accent, #d8b4fe); font-size: 14px; margin-bottom: 8px; word-break: break-all; }
-      .data-value { font-size: 14px; color: rgba(255, 255, 255, 0.85); white-space: pre-wrap; word-break: break-word; }
+      .data-url { display: block; color: var(--site-fg, #171717); font-size: 14px; margin-bottom: 8px; word-break: break-all; }
+      .data-value { font-size: 14px; color: var(--site-fg); white-space: pre-wrap; word-break: break-word; }
       .cred { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-      .cred-key { width: 42px; font-size: 12px; color: rgba(255, 255, 255, 0.45); flex: none; }
+      .cred-key { width: 42px; font-size: 12px; color: var(--site-fg-faint); flex: none; }
       .cred-val {
         flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px;
-        background: rgba(0, 0, 0, 0.3); padding: 7px 10px; border-radius: 8px;
-        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff;
+        background: var(--site-card); padding: 7px 10px; border-radius: 8px;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--site-fg);
       }
       .cred-val.secret { -webkit-text-security: disc; text-security: disc; }
       .cred-val.secret.revealed { -webkit-text-security: none; text-security: none; }
       .mini {
-        flex: none; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.15);
-        background: rgba(255, 255, 255, 0.06); color: #fff; font: inherit; font-size: 12px; cursor: pointer;
+        flex: none; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--site-border);
+        background: var(--site-border); color: var(--site-fg); font: inherit; font-size: 12px; cursor: pointer;
       }
       .mini-icon {
         display: inline-flex;
@@ -1455,78 +1445,74 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         padding: 0;
       }
       .mini-icon svg { display: block; }
-      .mini:active { background: rgba(255, 255, 255, 0.14); }
+      .mini:active { background: var(--site-border); }
 
       .empty { display: flex; min-height: 80vh; align-items: center; justify-content: center; text-align: center; }
       .empty .card h1 { font-size: 22px; margin: 18px 0 10px; }
-      .empty .card p { color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; max-width: 340px; margin: 0 auto; }
+      .empty .card p { color: var(--site-fg-muted); font-size: 15px; line-height: 1.6; max-width: 340px; margin: 0 auto; }
 
       /* Submit mode */
       .submit-intro {
-        color: rgba(255, 255, 255, 0.6); font-size: 15px; line-height: 1.6;
+        color: var(--site-fg-muted); font-size: 15px; line-height: 1.6;
         margin: 0 0 20px;
       }
-      .submit-intro strong { color: rgba(255, 255, 255, 0.9); }
+      .submit-intro strong { color: var(--site-fg); }
       .entry-card {
         padding: 16px; margin-bottom: 14px; border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--site-border); background: var(--site-card);
         display: flex; flex-direction: column; gap: 10px;
       }
       .entry-header { display: flex; justify-content: space-between; align-items: center; }
-      .entry-num { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255, 255, 255, 0.4); }
+      .entry-num { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--site-fg-faint); }
       .entry-field-label {
         font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
-        color: rgba(255, 255, 255, 0.5); margin-top: 2px;
+        color: var(--site-fg-muted); margin-top: 2px;
       }
       .entry-required { color: #f87171; }
       .entry-remove {
-        background: none; border: none; color: rgba(255, 255, 255, 0.35);
+        background: none; border: none; color: var(--site-fg-faint);
         font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
       }
-      .entry-remove:hover { color: rgba(255, 255, 255, 0.7); }
+      .entry-remove:hover { color: var(--site-fg-muted); }
       .entry-label, .entry-value {
-        width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 10px; color: #fff; font-family: inherit; font-size: 15px;
+        width: 100%; background: var(--site-card); border: 1px solid var(--site-border);
+        border-radius: 10px; color: var(--site-fg); font-family: inherit; font-size: 15px;
         padding: 11px 14px; outline: none; resize: none;
         transition: border-color 0.2s;
       }
-      .entry-label::placeholder, .entry-value::placeholder { color: rgba(255, 255, 255, 0.3); }
-      .entry-label:focus, .entry-value:focus { border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.6); }
+      .entry-label::placeholder, .entry-value::placeholder { color: var(--site-fg-faint); }
+      .entry-label:focus, .entry-value:focus { border-color: var(--site-fg); }
       .entry-label.input-error { border-color: #f87171; }
       .entry-value { font-size: 14px; line-height: 1.5; }
-      .add-btn {
-        display: flex; align-items: center; justify-content: center;
-        width: 100%; padding: 13px; margin-bottom: 14px;
-        border: 1px dashed rgba(255, 255, 255, 0.2); border-radius: 12px;
-        background: transparent; color: rgba(255, 255, 255, 0.5);
-        font: inherit; font-size: 14px; cursor: pointer;
-        transition: border-color 0.2s, color 0.2s;
+      .add-btn.brand-btn {
+        width: 100%;
+        padding: 13px;
+        margin-bottom: 14px;
+        border-radius: 12px;
+        font-size: 14px;
       }
-      .add-btn:hover { border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.5); color: rgba(255, 255, 255, 0.8); }
-      .submit-btn {
-        width: 100%; padding: 16px;
-        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-        border: 1px solid var(--portal-brand-fill-border, transparent);
-        border-radius: 14px; color: #fff;
-        font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
-        transition: opacity 0.2s, transform 0.15s;
+      .submit-btn.brand-btn {
+        width: 100%;
+        padding: 16px;
+        border-radius: 14px;
+        font-size: 16px;
       }
       .submit-btn:active { transform: scale(0.98); }
       .submit-btn:disabled { opacity: 0.5; cursor: default; }
       .success-card {
         text-align: center; padding: 48px 24px;
-        border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
+        border-radius: 20px; border: 1px solid var(--site-card-border);
+        background: var(--site-card);
       }
       .success-icon {
         font-size: 36px; width: 64px; height: 64px; border-radius: 50%;
-        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
-        border: 1px solid var(--portal-brand-fill-border, transparent);
+        background: var(--brand-btn-bg, #111);
+        color: var(--brand-btn-fg, #fff);
         display: flex; align-items: center; justify-content: center;
-        margin: 0 auto 20px; color: #fff;
+        margin: 0 auto 20px;
       }
       .success-card h2 { margin: 0 0 10px; font-size: 22px; }
-      .success-card p { margin: 0; color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; }
+      .success-card p { margin: 0; color: var(--site-fg-muted); font-size: 15px; line-height: 1.6; }
     </style>
     {
       !notFound && (
