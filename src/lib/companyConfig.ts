@@ -32,16 +32,19 @@ import {
   defaultPublicEmailForDomain,
   officialReavePublicEmailPatch,
 } from './reavePublicEmail';
+import { shareSafeText } from './shareSafeText';
+
+export { shareSafeText } from './shareSafeText';
 
 /**
  * Make a string safe to use as an HTTP header value. `fetch` requires header
  * values to be ISO-8859-1 (Latin1); any code point above U+00FF throws
  * "Cannot convert argument to a ByteString". Brand names may contain stylized
- * non-ASCII glyphs (e.g. "λ"), so strip anything outside printable ASCII before
- * building User-Agent strings and similar headers from them.
+ * non-ASCII glyphs (e.g. "λ"), so fold wordmark letters then strip anything
+ * outside printable ASCII before building User-Agent strings from them.
  */
 export function headerSafe(value: string): string {
-  return value.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+  return shareSafeText(value);
 }
 
 /** Sync cache — updated whenever getCompanyConfig resolves. */
