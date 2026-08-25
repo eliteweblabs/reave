@@ -91,6 +91,16 @@ export async function parseCompanyBrandUpload(
   return { ok: true, kind: 'raster', mediaType, dataBase64: buffer.toString('base64') };
 }
 
+/** Social share cards must be raster — crawlers do not render SVG og:image. */
+export async function parseCompanyOgUpload(
+  file: Pick<File, 'type' | 'name' | 'size' | 'text' | 'arrayBuffer'>,
+): Promise<ParsedCompanyBrandUpload> {
+  if (isBrandSvgUploadFile(file)) {
+    return { ok: false, error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' };
+  }
+  return parseCompanyBrandUpload(file);
+}
+
 /** Static logo paths removed from /public but still stored in company config. */
 const LEGACY_PUBLIC_LOGO_PATHS: Record<string, string> = {
   '/logo.png': '/reave-logo.png',

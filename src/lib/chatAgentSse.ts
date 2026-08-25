@@ -80,6 +80,21 @@ export function createChatAgentSseResponse(
           // client resolve a turn it has already finished.
           if (sentTerminal) return;
           sentTerminal = true;
+          // Close as soon as the turn resolves. `run` often still has work
+          // after `done` (deferred git push, title, drain). Holding the HTTP
+          // body open for that work is what left mobile composers locked on a
+          // finished reply — iOS especially can sit on the last SSE frame
+          // until the socket closes, and without heartbeats the idle timer
+          // is easy to miss while the keyboard is open.
+          try {
+            controller.enqueue(encodeChatAgentSseEvent(event));
+            controller.enqueue(new TextEncoder().encode(': end\n\n'));
+            controller.close();
+          } catch {
+            /* already closed */
+          }
+          clientGone = true;
+          return;
         }
         try {
           controller.enqueue(encodeChatAgentSseEvent(event));
@@ -183,6 +198,27 @@ export function isSseStalledError(err: unknown): err is SseStalledError {
   return (err as { name?: string })?.name === 'SseStalledError';
 }
 
+/** Merge abort signals so a server-idle watchdog can unblock a hung SSE read. */
+export function combineAbortSignals(
+  ...signals: Array<AbortSignal | undefined>
+): AbortSignal | undefined {
+  const live = signals.filter((signal): signal is AbortSignal => Boolean(signal));
+  if (live.length === 0) return undefined;
+  if (live.length === 1) return live[0];
+  const any = (AbortSignal as { any?: (list: AbortSignal[]) => AbortSignal }).any;
+  if (typeof any === 'function') return any(live);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  for (const signal of live) {
+    if (signal.aborted) {
+      controller.abort();
+      return controller.signal;
+    }
+    signal.addEventListener('abort', abort, { once: true });
+  }
+  return controller.signal;
+}
+
 /**
  * Consume a fetch SSE body; yields parsed { event, data } blocks.
  *
@@ -200,18 +236,25 @@ export async function* readSseStream(
   const idleTimeoutMs = opts.idleTimeoutMs ?? 0;
   let buffer = '';
   let abandoned = false;
+  let lastByteAt = Date.now();
 
   // A read already in flight cannot be interrupted by checking the signal on the
   // next pass, so both the idle deadline and cancellation race the read itself.
+  // Wall-clock polling (not a single setTimeout) so a delayed iOS timer still
+  // notices that the socket has been quiet for too long.
   const read = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
     const racers: Promise<ReadableStreamReadResult<Uint8Array>>[] = [reader.read()];
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let idleTimer: ReturnType<typeof setInterval> | undefined;
     let onAbort: (() => void) | undefined;
 
     if (idleTimeoutMs > 0) {
       racers.push(
         new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new SseStalledError(idleTimeoutMs)), idleTimeoutMs);
+          const tickMs = Math.min(1_000, idleTimeoutMs);
+          idleTimer = setInterval(() => {
+            const idleMs = Date.now() - lastByteAt;
+            if (idleMs >= idleTimeoutMs) reject(new SseStalledError(idleMs));
+          }, tickMs);
         }),
       );
     }
@@ -228,7 +271,7 @@ export async function* readSseStream(
     try {
       return await Promise.race(racers);
     } finally {
-      if (timer) clearTimeout(timer);
+      if (idleTimer) clearInterval(idleTimer);
       if (onAbort) signal?.removeEventListener('abort', onAbort);
     }
   };
@@ -247,6 +290,7 @@ export async function* readSseStream(
       }
       const { done, value } = chunk;
       if (done) break;
+      lastByteAt = Date.now();
       buffer += decoder.decode(value, { stream: true });
       const blocks = buffer.split('\n\n');
       buffer = blocks.pop() ?? '';

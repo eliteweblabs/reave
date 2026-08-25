@@ -5,7 +5,7 @@ import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
-import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import CookieNotice from "../components/CookieNotice.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import "../styles/scroll-fade.css";
@@ -13,6 +13,7 @@ import "../styles/scroll-fade.css";
 export interface Props {
   title?: string;
   description?: string;
+  /** Overrides the Company default share image (admin → Company → Social sharing). */
   ogImage?: string;
   themeColor?: string;
 }
@@ -31,6 +32,7 @@ const isEditorial = landing.variant === "editorial";
 const title = titleProp ?? landing.title ?? company.name;
 const description = descriptionProp ?? landing.description ?? company.description;
 const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);
+const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 const themeColor = themeColorProp ?? landing.themeColor ?? (isEditorial ? "#f4efe6" : "#01061d");
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
@@ -60,8 +62,8 @@ const htmlStyle = isEditorial
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageSafe} />
-    {isEditorial && <meta property="og:image:width" content="1200" />}
-    {isEditorial && <meta property="og:image:height" content="630" />}
+    {(isEditorial || isCompanyOg) && <meta property="og:image:width" content="1200" />}
+    {(isEditorial || isCompanyOg) && <meta property="og:image:height" content="630" />}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={landing.name ?? company.name} />
     <meta name="twitter:description" content={description} />

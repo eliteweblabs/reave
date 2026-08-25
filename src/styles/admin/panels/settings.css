@@ -770,6 +770,18 @@
   background: rgba(255, 255, 255, 0.04);
   padding: 0.35rem;
 }
+.prof-og-preview-wrap {
+  display: block;
+  max-width: min(100%, 320px);
+}
+.prof-og-preview {
+  display: block;
+  width: min(100%, 320px);
+  aspect-ratio: 1200 / 630;
+  object-fit: cover;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
 .prof-logo-remove {
   position: absolute;
   z-index: 1;

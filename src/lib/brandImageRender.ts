@@ -9,7 +9,7 @@ import { SITE } from '../config/site';
 import { sanitizeInlineSvg, resolveSvgAssetUrls } from './brandSvg';
 import { rasterizeBrandIcon } from './brandIconRaster';
 import type { StoredCompanyConfig } from './companyConfigStore';
-import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from './portalOgImage';
+import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from './ogImageSize';
 import { punchSolidNeutralBackground } from './logoContrastAdapt';
 
 export type BrandMarkSource =
@@ -187,7 +187,27 @@ export async function renderCompanyBrandIconPng(
   return renderBrandMarkSquarePng(sources, letter, size, opts);
 }
 
+async function renderUploadedOgPng(dataBase64: string): Promise<Buffer | null> {
+  try {
+    return await sharp(Buffer.from(dataBase64, 'base64'))
+      .rotate()
+      .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT, {
+        fit: 'cover',
+        position: 'centre',
+      })
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
 export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Promise<Buffer> {
+  if (stored?.ogData) {
+    const uploaded = await renderUploadedOgPng(stored.ogData);
+    if (uploaded) return uploaded;
+  }
+
   const letter = brandMarkLetter(stored?.name ?? '');
   const sources = collectBrandMarkSources(stored);
   const markSize = 512;
@@ -220,6 +240,7 @@ export function brandingEtag(
     stored?.iconSvg?.trim() ? 'I' : '',
     stored?.logoData ? 'l' : '',
     stored?.logoSvg?.trim() ? 'L' : '',
+    stored?.ogData ? 'o' : '',
     opts?.transparent ? 't' : '',
   ].join('');
   const nameTag = brandingNameTag(stored?.name ?? '');

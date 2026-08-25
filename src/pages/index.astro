@@ -60,10 +60,10 @@ if (isLogin) {
       <div class="home-scroll">
         <HomeHeroSection siteContent={siteContent} />
 
-        {homepage.showIntegrations && <HomeIntegrationsSection />}
         {homepage.showFeatures && (
           <FeaturesPageContent embedded showLogoStack={false} showAccordion={false} />
         )}
+        {homepage.showIntegrations && <HomeIntegrationsSection />}
         <HomeFeaturedProjectSection />
         {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
         {homepage.showContact && <HomeContactSection />}

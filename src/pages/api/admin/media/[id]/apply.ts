@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/media/[id]/apply — copy a library item into branding slots.
  *
- * Body JSON: { target: 'company-logo' | 'company-icon' | 'client-logo' | 'client-icon', uid?: string }
+ * Body JSON: { target: 'company-logo' | 'company-icon' | 'company-og' | 'client-logo' | 'client-icon', uid?: string }
  */
 
 import type { APIContext } from 'astro';
@@ -10,6 +10,7 @@ import {
   setStoredCompanyConfig,
   setStoredCompanyIcon,
   setStoredCompanyLogo,
+  setStoredCompanyOg,
 } from '../../../../../lib/companyConfigStore';
 import {
   setClientPortalIcon,
@@ -23,7 +24,7 @@ import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
-type ApplyTarget = 'company-logo' | 'company-icon' | 'client-logo' | 'client-icon';
+type ApplyTarget = 'company-logo' | 'company-icon' | 'company-og' | 'client-logo' | 'client-icon';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -37,6 +38,7 @@ function parseTarget(raw: unknown): ApplyTarget | null {
   if (
     t === 'company-logo' ||
     t === 'company-icon' ||
+    t === 'company-og' ||
     t === 'client-logo' ||
     t === 'client-icon'
   ) {
@@ -102,6 +104,19 @@ export async function POST(context: APIContext): Promise<Response> {
             mediaType: blob.mediaType,
           });
     if (!ok) return json({ ok: false, error: 'Failed to apply icon' }, 500);
+    const company = await getCompanyConfig(context.request);
+    return json({ ok: true, company });
+  }
+
+  if (target === 'company-og') {
+    if (blob.kind === 'svg') {
+      return json({ ok: false, error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' }, 400);
+    }
+    const ok = await setStoredCompanyOg({
+      dataBase64: blob.dataBase64,
+      mediaType: blob.mediaType,
+    });
+    if (!ok) return json({ ok: false, error: 'Failed to apply share image' }, 500);
     const company = await getCompanyConfig(context.request);
     return json({ ok: true, company });
   }

@@ -449,9 +449,30 @@ export async function POST(context: APIContext): Promise<Response> {
             cancelled: false,
             errorMessage: AGENT_EMPTY_REPLY_NOTE,
           });
-        const persisted = await persistAssistantReply(ownerUserId, id, text, opts.agentUsage);
+        const persisted = await withDeadline(
+          persistAssistantReply(ownerUserId, id, text, opts.agentUsage),
+          12_000,
+          'Persist assistant reply',
+        ).catch((err) => {
+          if (isAgentTimeoutError(err)) {
+            console.warn('[chats] persist timed out; sending streamed reply anyway', { threadId: id });
+            return {
+              ok: false,
+              assistantMessage: {
+                role: 'assistant' as const,
+                content: text,
+                ...(opts.agentUsage ? { agent_usage: opts.agentUsage } : {}),
+              },
+            };
+          }
+          throw err;
+        });
         try {
-          const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
+          const ensuredTitle = await withDeadline(
+            storeEnsureChatTitle(ownerUserId, id),
+            5_000,
+            'Ensure chat title',
+          );
           if (ensuredTitle) title = ensuredTitle;
         } catch {
           /* title is cosmetic — never block the reply on it */
