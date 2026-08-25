@@ -22,7 +22,8 @@ const FEATURE_LABELS: Record<string, string> = {
   site_audits: 'Website Audit',
   site_monitoring: 'Website Change Monitoring',
   uptime_monitoring: 'Uptime Monitoring',
-  documents: 'Document Signing Templates',
+  documents: 'Dynamic Documents',
+  digital_signature: 'Digital Signature',
   voice: 'Telnyx Voice Agent',
   vapi: 'VAPI Assistant',
   carddav: 'CardDAV (iOS Contacts Sync)',
@@ -202,7 +203,7 @@ ${modulePicker}
 - [ ] \`INSTALL_CONFIG=${install}\`
 - [ ] \`CONTACT_API_BASE_URL\` + \`CONTACT_API_KEY\`
 - [ ] Resend inbound + \`RESEND_*\`
-- [ ] \`ANTHROPIC_API_KEY\` (blank copies the REΛVE host key) + \`AGENT_ALERT_USER_ID\`
+- [ ] \`ANTHROPIC_API_KEY\` (blank copies the reΛVe.app host key) + \`AGENT_ALERT_USER_ID\`
 
 ## Step 2 — Client baseline
 

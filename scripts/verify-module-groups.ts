@@ -8,6 +8,7 @@ import {
   FEATURE_LABELS,
   FEATURE_MARKETING,
   formatCatalogTitle,
+  FEATURE_REQUIRES,
   FEATURE_SALE_SHEET,
   isDeployableFeature,
   isHostingFeature,
@@ -63,6 +64,11 @@ assert.equal(FEATURE_LABELS.online_reviews, 'Reviews Triage');
 assert.equal(FEATURE_LABELS.scheduling, 'Cal.com Scheduling & Meetings');
 assert.equal(FEATURE_LABELS.billing, 'Crater Billing & Invoices');
 assert.equal(FEATURE_LABELS.email_marketing, 'Newsletter & Email Automation');
+assert.equal(FEATURE_LABELS.documents, 'Dynamic Documents');
+assert.equal(FEATURE_LABELS.digital_signature, 'Digital Signature');
+assert.ok(FEATURE_SALE_SHEET.has('digital_signature'));
+assert.equal(moduleDisplayGroupId('digital_signature'), 'work');
+assert.equal(FEATURE_REQUIRES.digital_signature, 'documents');
 for (const [id, label] of Object.entries(FEATURE_LABELS)) {
   assert.equal(label, formatCatalogTitle(label), `${id} title should be title case`);
   assert.doesNotMatch(label, /\band\b/i, `${id} title should use & instead of and`);

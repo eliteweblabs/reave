@@ -9,6 +9,7 @@
     "site_monitoring",
     "uptime_monitoring",
     "documents",
+    "digital_signature",
     "voice",
     "carddav",
     "scheduling",

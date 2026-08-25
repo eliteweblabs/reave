@@ -14,6 +14,7 @@ export const FEATURE_IDS = [
   'site_monitoring',
   'uptime_monitoring',
   'documents',
+  'digital_signature',
   'voice',
   'vapi',
   'carddav',
@@ -199,7 +200,8 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   analytic_audit: 'Search & Analytics Audit',
   site_monitoring: 'Website Change Monitoring',
   uptime_monitoring: 'Uptime Monitoring',
-  documents: 'Document Signing Templates',
+  documents: 'Dynamic Documents',
+  digital_signature: 'Digital Signature',
   voice: 'Telnyx Voice Agent',
   vapi: 'VAPI Voice Agent',
   carddav: 'CardDAV Contact Sync',
@@ -237,19 +239,20 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   client_portal: 'Branded portal for each client at /c/:uid',
   web_handoff: 'Secure credential & data handoff in the portal Data tab',
   portal_assistant: 'Speed-dial support chat for clients in the portal',
-  billing: 'Quotes, invoices, & payments via Crater',
+  billing: 'Get paid without leaving the work — send a quote, collect the invoice, or log a payment with Siri*.',
   site_audits: 'Automated website presence & technical audits',
   analytic_audit: 'Google Search Console, GA4, Plausible, IndexNow',
   site_monitoring: 'Watch pages for changes via ChangeDetection.io',
   uptime_monitoring: 'UptimeRobot checks & outage alerts',
-  documents: 'Reusable templates for e-sign workflows',
+  documents: 'Spins up pre-filled NDA, 1040, or anything else in a branded template with the client\'s name, company, & contact info — send it as-is, no editing.',
+  digital_signature: 'They sign on their phone — legally binding, with a full audit trail of who, when, & from where.',
   voice: 'Phone agent & call routing on Telnyx',
   vapi: 'Voice assistant powered by Vapi',
   carddav: 'Sync contacts to iOS & other CardDAV clients',
   scheduling: 'Bookings, availability, & meeting links via Cal.com',
   dev_infra: 'Railway, Kinsta, & deploy tooling — owner installs only',
   code_dev: 'Agent read/write/list/exec on the local codebase — owner/agency installs only',
-  email_marketing: 'Welcome, follow-ups, review requests, & broadcasts',
+  email_marketing: 'Automatically welcome them, follow up, & ask for the review — scheduled or bespoke emails that bring them back, without another email tool.',
   fleet_tracking: 'Live vehicle location & GPS history',
   dealership_wizard: 'Inventory browse & guided deal flow',
   namecom_dns: 'Name.com DNS — zone records & nameservers, agency/ops installs only',
@@ -260,7 +263,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   online_reviews:
     'Google™, Apple Maps, Yelp, Facebook, & Tripadvisor — queue replies in one place',
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
-  content_management: 'Edit the install’s own front-end repo through the agent — not the REΛVE app',
+  content_management: 'Edit the install’s own front-end repo through the agent — not the reΛVe.app',
   stock_photos: 'Royalty-free search for pages, decks, & newsletters',
   wordpress_content:
     'Agent updates posts, pages, media, menus, & redirects on a WordPress™ site via Reave Connect',
@@ -292,7 +295,7 @@ export type FeatureVisibility = 'public' | 'private' | 'service';
  * (demo loader, /modules, /features, marketing chips). Private modules are
  * super-admin / ops-only and are not sold as add-ons. Service modules are
  * not deployable app features — they stay on the official catalog / sales
- * sheet as work REΛVE offers outside the install.
+ * sheet as work reΛVe.app offers outside the install.
  */
 export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
   deploy_wizard: 'private',
@@ -313,12 +316,18 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'website',
   'billing',
   'documents',
+  'digital_signature',
   'scheduling',
   'email_marketing',
   'time_tracking',
   'real_estate_data',
   'google_workspace',
 ]);
+
+/** Optional module that must already be on before this one can be sold or enabled. */
+export const FEATURE_REQUIRES: Partial<Record<FeatureId, FeatureId>> = {
+  digital_signature: 'documents',
+};
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 
@@ -385,7 +394,7 @@ export function formatClientWebsiteToolInventory(opts: {
   const lines = ['Client website tools on this install (not hosting or registrar APIs):'];
   if (opts.editor) {
     lines.push(
-      '- Website editor: this install’s front-end repo only (not REΛVE). Commit every edit in the same turn; “undo that” reverts the last commit.',
+      '- Website editor: this install’s front-end repo only (not reΛVe.app). Commit every edit in the same turn; “undo that” reverts the last commit.',
     );
   }
   if (opts.stockPhotos) {

@@ -2,6 +2,7 @@
   "features": [
     "client_portal",
     "documents",
+    "digital_signature",
     "scheduling",
     "carddav",
     "online_reviews",
@@ -50,6 +51,7 @@
   "moduleStatus": {
     "client_portal": "deployed",
     "documents": "deployed",
+    "digital_signature": "deployed",
     "scheduling": "deployed",
     "carddav": "request",
     "online_reviews": "deployed",

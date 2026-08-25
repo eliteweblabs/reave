@@ -203,6 +203,7 @@ function normalizeFeatureIds(raw: unknown): string[] {
     'site_monitoring',
     'uptime_monitoring',
     'documents',
+    'digital_signature',
     'voice',
     'vapi',
     'carddav',

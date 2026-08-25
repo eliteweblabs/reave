@@ -16,6 +16,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   site_monitoring: ['rules', '__system__'],
   uptime_monitoring: ['analytics', '__system__'],
   documents: ['documents'],
+  digital_signature: ['documents'],
   voice: ['__system__'],
   vapi: ['vapi'],
   carddav: ['profile'],

@@ -380,7 +380,7 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     id: 'calcom-web-app',
     label: 'calcom-web-app',
     kind: 'api',
-    description: 'Cal.com admin UI (same Docker image as REΛVE.app — not the GitHub fork).',
+    description: 'Cal.com admin UI (same Docker image as reΛVe.app — not the GitHub fork).',
     image: 'calcom/cal.com:latest',
     features: ['scheduling'],
   },
@@ -656,7 +656,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
     description:
-      'Claude API key for the admin agent. Leave blank to use this host’s REΛVE key (chat shows a shared-key flag). Paste the client’s key to use theirs.',
+      'Claude API key for the admin agent. Leave blank to use this host’s reΛVe.app key (chat shows a shared-key flag). Paste the client’s key to use theirs.',
   }),
   v({
     name: 'RESEND_API_KEY',
@@ -1169,7 +1169,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: 'calcom-web-app',
     kind: 'literal',
     value: 'true',
-    description: 'Public signup off — owner is provisioned from REΛVE identity.',
+    description: 'Public signup off — owner is provisioned from reΛVe.app identity.',
     features: ['scheduling'],
   }),
 
@@ -1655,10 +1655,10 @@ export type DeployWizardPlanInput = {
 /** Secrets filled from identity (not copied from this host). */
 export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM_NAME']);
 
-/** Secrets that must not be copied from the REΛVE host (client-scoped tokens). */
+/** Secrets that must not be copied from the reΛVe.app host (client-scoped tokens). */
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
 
-/** Secrets that show a paste field (Anthropic is optional — blank copies the REΛVE host key). */
+/** Secrets that show a paste field (Anthropic is optional — blank copies the reΛVe.app host key). */
 export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY']);
 
 /** Operator secrets that block Apply when empty. Resend is copied from this host on apply. */
@@ -1938,6 +1938,9 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   // Legacy deploy wizard calls still pass extras: ['materials'] — treat as the module.
   if ((input.extras ?? []).includes('materials') && !features.includes('materials_pricing')) {
     features.push('materials_pricing');
+  }
+  if (features.includes('digital_signature') && !features.includes('documents')) {
+    features.push('documents');
   }
   const featureSet = new Set<string>(features);
   const extras = [...new Set(input.extras ?? [])].filter((id): id is DeployWizardExtraId => {

@@ -225,8 +225,14 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
   },
   {
     id: 'documents',
-    label: 'Document Signing',
+    label: 'Dynamic Documents',
     modules: ['documents'],
+    kind: 'capability',
+  },
+  {
+    id: 'digital-signature',
+    label: 'Digital Signature',
+    modules: ['digital_signature'],
     kind: 'capability',
   },
   {

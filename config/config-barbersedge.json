@@ -3,6 +3,7 @@
     "client_portal",
     "web_handoff",
     "documents",
+    "digital_signature",
     "scheduling",
     "site_audits",
     "content_management"

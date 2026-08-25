@@ -7,7 +7,7 @@
  *
  * `default` is the unbranded new-install fallback (Clerk login on `/`).
  * Company name/logo still come from admin Company settings (Postgres).
- * Official REΛVE uses config-reave.json and is never a login wall.
+ * Official reΛVe.app uses config-reave.json and is never a login wall.
  */
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -29,6 +29,7 @@ const FEATURE_IDS_LIST = [
   'site_monitoring',
   'uptime_monitoring',
   'documents',
+  'digital_signature',
   'voice',
   'vapi',
   'carddav',
@@ -69,7 +70,7 @@ export const PROFILE_MENU_KEYS = [
   'settings',
   'socials',
   'addons',
-  'industries', // REΛVE-only; stripped from client payload on other installs
+  'industries', // reΛVe.app-only; stripped from client payload on other installs
   'catalog', // legacy; catalog editor now lives in dashboard → Modules
   'vapi',
   'lead-scanner',
@@ -146,7 +147,7 @@ export type InstallConfig = {
   siteContentKey?: string;
   /**
    * Homepage chrome for this install (`default` marketing, `landing` client site, `login` Clerk).
-   * Ignored on the official REΛVE host / install — reave.app stays the marketing homepage.
+   * Ignored on the official reΛVe.app host / install — reave.app stays the marketing homepage.
    */
   homepageTemplate?: HomepageTemplate;
   /**
@@ -169,18 +170,18 @@ export type InstallConfigClient = Pick<
   InstallConfig,
   'features' | 'footerNav' | 'profileMenu' | 'homepageVoice' | 'chatFocusSkin'
 > & {
-  /** True only on the official REΛVE Railway install — may create/edit universal rules. */
+  /** True only on the official reΛVe.app Railway install — may create/edit universal rules. */
   canManageUniversalRules?: boolean;
   /**
    * Personal contact type + Personal rule-scope chrome.
    * Reave / super-admin install only — other installs hide the label.
    */
   showPersonal?: boolean;
-  /** Deploy wizard (`/deploy`) — official REΛVE Railway install only. */
+  /** Deploy wizard (`/deploy`) — official reΛVe.app Railway install only. */
   showDeployWizard?: boolean;
-  /** Industries / deploy-playbook editor — official REΛVE Railway install only. */
+  /** Industries / deploy-playbook editor — official reΛVe.app Railway install only. */
   showIndustries?: boolean;
-  /** Module catalog editor — official REΛVE Railway install only. */
+  /** Module catalog editor — official reΛVe.app Railway install only. */
   showModuleCatalog?: boolean;
   /** Home-grid cards: enabled modules with dashboard:true, plus core OS tiles. */
   dashboardCards?: DashboardCard[];
@@ -241,7 +242,7 @@ export function installConfigSlug(): string {
 }
 
 /**
- * Official REΛVE Railway production install (reave.app).
+ * Official reΛVe.app Railway production install (reave.app).
  * Only this install may create or edit universal email catalog rules.
  */
 export function isCanonicalReaveInstall(): boolean {
