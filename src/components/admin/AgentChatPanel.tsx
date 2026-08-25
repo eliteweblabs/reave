@@ -2413,28 +2413,21 @@ function ComposerStopButton({
 /**
  * If the reply is already on screen but assistant-ui still says the turn is
  * running (lost `done` event, iOS holding the SSE socket), drop the local lock
- * once the server confirms the run is gone.
+ * once the server confirms the run is gone — including when the user leaves
+ * and comes back. A stuck `isRunning` used to skip recovery on that path.
  */
 function useReleaseStuckRun(
   threadId: string,
   showRunning: boolean,
   deployChatLocked: boolean,
   useExternalProgress: boolean,
+  replyOnScreen: boolean,
   onStopExternal?: () => void,
 ) {
   const runtime = useThreadRuntime();
   const idleStreakRef = useRef(0);
 
-  const releaseIfIdle = useCallback(async () => {
-    if (!showRunning || deployChatLocked) return;
-    const status = await fetchRunProgress(threadId);
-    if (!status || isChatRunActive(status)) {
-      idleStreakRef.current = 0;
-      return;
-    }
-    idleStreakRef.current += 1;
-    if (idleStreakRef.current < 2) return;
-    idleStreakRef.current = 0;
+  const dropLocalRun = useCallback(() => {
     if (useExternalProgress) {
       onStopExternal?.();
       return;
@@ -2444,7 +2437,29 @@ function useReleaseStuckRun(
     } catch {
       /* already idle */
     }
-  }, [deployChatLocked, onStopExternal, runtime, showRunning, threadId, useExternalProgress]);
+  }, [onStopExternal, runtime, useExternalProgress]);
+
+  const releaseIfIdle = useCallback(
+    async (opts?: { immediate?: boolean }) => {
+      if (!showRunning || deployChatLocked) return;
+      const status = await fetchRunProgress(threadId);
+      const serverIdle = Boolean(status) && !isChatRunActive(status);
+      if (opts?.immediate) {
+        if (serverIdle || (replyOnScreen && !status)) dropLocalRun();
+        idleStreakRef.current = 0;
+        return;
+      }
+      if (!serverIdle) {
+        idleStreakRef.current = 0;
+        return;
+      }
+      idleStreakRef.current += 1;
+      if (idleStreakRef.current < 2 && !replyOnScreen) return;
+      idleStreakRef.current = 0;
+      dropLocalRun();
+    },
+    [deployChatLocked, dropLocalRun, replyOnScreen, showRunning, threadId],
+  );
 
   useEffect(() => {
     if (!showRunning || deployChatLocked) {
@@ -2452,10 +2467,19 @@ function useReleaseStuckRun(
       return;
     }
     const id = window.setInterval(() => void releaseIfIdle(), 2_000);
-    return () => window.clearInterval(id);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void releaseIfIdle({ immediate: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+    };
   }, [deployChatLocked, releaseIfIdle, showRunning]);
 
-  return releaseIfIdle;
+  return { releaseIfIdle, dropLocalRun };
 }
 
 function ClaudeComposer({
@@ -2494,21 +2518,34 @@ function ClaudeComposer({
   const fieldRef = useRef<ComposerFieldHandle | null>(null);
   const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const lastAssistantText = useAuiState((s) => lastAssistantMessageText(s.thread.messages));
+  const replyOnScreen = lastAssistantText.trim().length > 0;
   const showRunning = isRunning || Boolean(useExternalProgress);
-  const sendBlocked = deployChatLocked || queuedSend || showRunning;
+  // ComposerPrimitive.Send is itself disabled while isRunning. Once a reply is
+  // visible, do not hard-lock our button — the user can interrupt and send.
+  const sendBlocked = deployChatLocked || queuedSend || (showRunning && !replyOnScreen);
+  const canInterruptSend = showRunning && replyOnScreen && !deployChatLocked && !queuedSend;
   const { elapsed } = useAgentRunStatus(
     threadId,
     externalProgress ?? null,
     Boolean(useExternalProgress),
     streamedProgress ?? null,
   );
-  const releaseIfIdle = useReleaseStuckRun(
+  const { releaseIfIdle, dropLocalRun } = useReleaseStuckRun(
     threadId,
     showRunning,
     deployChatLocked,
     Boolean(useExternalProgress),
+    replyOnScreen,
     onStopExternal,
   );
+  const interruptAndSend = useCallback(() => {
+    dropLocalRun();
+    void fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, { method: 'POST' }).catch(
+      () => {},
+    );
+    if (composer.getState().canSend) void composer.send();
+  }, [composer, dropLocalRun, threadId]);
   const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked);
   const mentions = useMentions(pendingMentionsRef, fieldRef);
   const sendBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -2553,11 +2590,12 @@ function ClaudeComposer({
       e.preventDefault();
       if (!composer.getState().canSend) return;
       sentByTouchRef.current = true;
-      void composer.send();
+      if (canInterruptSend) interruptAndSend();
+      else void composer.send();
     };
     btn.addEventListener('touchstart', onTouchStart, { passive: false });
     return () => btn.removeEventListener('touchstart', onTouchStart);
-  }, [composer, sendBlocked]);
+  }, [canInterruptSend, composer, interruptAndSend, sendBlocked]);
 
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
@@ -2654,9 +2692,11 @@ function ClaudeComposer({
                 ? 'Queued — this will send when the new version is live'
                 : deployChatLocked
                   ? 'Keep typing — send unlocks when the new version is live'
-                  : showRunning
-                    ? `Keep typing — send unlocks when the agent finishes · ${elapsed}`
-                    : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
+                  : canInterruptSend
+                    ? 'Send now — this stops the current turn'
+                    : showRunning
+                      ? `Keep typing — send unlocks when the agent finishes · ${elapsed}`
+                      : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
             </span>
             <span className="aui-composer-actions">
               {showRunning ? (
@@ -2678,6 +2718,25 @@ function ClaudeComposer({
                         : 'Send paused until the agent finishes'
                   }
                   disabled
+                >
+                  <SendIcon />
+                </button>
+              ) : canInterruptSend ? (
+                <button
+                  ref={sendBtnRef}
+                  type="button"
+                  className="aui-composer-send"
+                  aria-label="Stop the current turn and send"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    if (sentByTouchRef.current) {
+                      sentByTouchRef.current = false;
+                      e.preventDefault();
+                      return;
+                    }
+                    interruptAndSend();
+                  }}
                 >
                   <SendIcon />
                 </button>
@@ -2802,6 +2861,7 @@ function useRecoverInFlightRun(
   threadId: string,
   propsRef: RefObject<AgentChatPanelProps>,
   localRunning: boolean,
+  onLocalRunAbandoned?: () => void,
 ) {
   const [recovering, setRecovering] = useState(false);
   const [recoveryProgress, setRecoveryProgress] = useState<AgentProgress | null>(null);
@@ -2809,6 +2869,8 @@ function useRecoverInFlightRun(
   const recoveringRef = useRef(false);
   const localRunningRef = useRef(localRunning);
   localRunningRef.current = localRunning;
+  const onLocalRunAbandonedRef = useRef(onLocalRunAbandoned);
+  onLocalRunAbandonedRef.current = onLocalRunAbandoned;
 
   const stopRecovery = useCallback(async () => {
     try {
@@ -2864,7 +2926,13 @@ function useRecoverInFlightRun(
     const poll = async () => {
       // While this tab is streaming the run itself, the adapter owns the UI (and
       // has its own recovery); a second spinner here would just duplicate it.
+      // Exception: a stuck local `isRunning` after the server already finished
+      // used to skip this poll forever — leaving the app and coming back
+      // never unlocked Send.
       if (localRunningRef.current) {
+        const status = await fetchRunProgress(threadId);
+        if (cancelled) return;
+        if (status && !isChatRunActive(status)) onLocalRunAbandonedRef.current?.();
         schedule(RECOVERY_IDLE_POLL_MS);
         return;
       }
@@ -3063,10 +3131,19 @@ function AgentChatThreadBody({
   const focusComposerRef = useRef<(() => void) | null>(null);
   const autoFocusDoneRef = useRef(false);
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const runtime = useThreadRuntime();
+  const abandonStuckLocalRun = useCallback(() => {
+    try {
+      runtime.cancelRun();
+    } catch {
+      /* already idle */
+    }
+  }, [runtime]);
   const { recovering, recoveryProgress, recoveryText, stopRecovery } = useRecoverInFlightRun(
     threadId,
     propsRef,
     isRunning,
+    abandonStuckLocalRun,
   );
   const lightbox = useContext(ChatLightboxContext);
   const lightboxOpen = Boolean(lightbox?.isOpen);
