@@ -88,7 +88,7 @@ export function fileUpsertMemory(input: {
   content: string;
   source: MemorySource;
   sourceThreadId?: string | null;
-}): { ok: true; memory: AgentMemory; created: boolean } {
+}): { ok: true; memory: AgentMemory; created: boolean; changed: boolean } {
   const payload = readPayload();
   const key = normalizeMemoryKey(input.key, input.content);
   const content = normalizeMemoryContent(input.content);
@@ -105,6 +105,7 @@ export function fileUpsertMemory(input: {
     );
 
   if (existing) {
+    const changed = existing.content !== content || existing.kind !== kind;
     existing.content = content;
     existing.kind = kind;
     existing.source = input.source;
@@ -112,7 +113,7 @@ export function fileUpsertMemory(input: {
     existing.hit_count += 1;
     existing.updated_at = now;
     writePayload(payload);
-    return { ok: true, memory: existing, created: false };
+    return { ok: true, memory: existing, created: false, changed };
   }
 
   const memory: AgentMemory = {
@@ -131,7 +132,7 @@ export function fileUpsertMemory(input: {
   };
   payload.memories.push(memory);
   writePayload(payload);
-  return { ok: true, memory, created: true };
+  return { ok: true, memory, created: true, changed: true };
 }
 
 export function fileDeleteMemory(opts: {

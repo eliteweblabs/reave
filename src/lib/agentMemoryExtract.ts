@@ -7,7 +7,9 @@ import { AUTO_AGENT_MODELS } from './agentModel';
 import {
   parseExtractedMemories,
   shouldSkipMemoryExtract,
+  type AgentMemory,
 } from './agentMemory';
+import { notifyAgentMemoryUpdated } from './agentMemoryNotify';
 import { storeListMemories, storeUpsertMemory } from './agentMemoryStore';
 import { createAnthropicMessage, type AnthropicMessagesResponse } from './anthropicMessages';
 import { runWithAgentContext } from './agentContext';
@@ -74,7 +76,8 @@ async function extractAndStoreMemories(opts: {
   }
 
   const drafts = parseExtractedMemories(textFromAnthropic(result.data));
-  let saved = 0;
+  const changed: AgentMemory[] = [];
+  let createdAny = false;
   for (const draft of drafts) {
     const upserted = await storeUpsertMemory({
       userId: opts.userId,
@@ -84,11 +87,21 @@ async function extractAndStoreMemories(opts: {
       content: draft.content,
       source: 'extract',
       sourceThreadId: opts.threadId ?? null,
+      silent: true,
     });
-    if (upserted.ok) saved += 1;
+    if (upserted.ok && upserted.changed) {
+      changed.push(upserted.memory);
+      if (upserted.created) createdAny = true;
+    }
   }
-  if (saved) log.info('extracted memories', { saved, threadId: opts.threadId });
-  return saved;
+  if (changed.length) {
+    log.info('extracted memories', { saved: changed.length, threadId: opts.threadId });
+    void notifyAgentMemoryUpdated({
+      memories: changed,
+      created: createdAny,
+    }).catch((e) => log.warn('extract notify failed', e));
+  }
+  return changed.length;
 }
 
 /** Queue a non-blocking extract. Safe to call from the agent finish path. */

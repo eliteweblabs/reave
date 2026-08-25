@@ -3,6 +3,8 @@
  */
 
 import { MAX_INJECTED_MEMORIES, formatMemoriesForPrompt, type AgentMemory, type MemoryKind, type MemoryScope, type MemorySource } from './agentMemory';
+import { notifyAgentMemoryUpdated } from './agentMemoryNotify';
+import { createLogger } from './logger';
 import {
   dbCountMemories,
   dbDeleteMemory,
@@ -18,6 +20,12 @@ import {
   fileTouchMemories,
   fileUpsertMemory,
 } from './fileAgentMemories';
+
+const log = createLogger('memory:store');
+
+export type MemoryUpsertResult =
+  | { ok: true; memory: AgentMemory; created: boolean; changed: boolean }
+  | { ok: false; error: string };
 
 export { isMemoryDbConfigured };
 
@@ -52,9 +60,23 @@ export async function storeUpsertMemory(input: {
   content: string;
   source: MemorySource;
   sourceThreadId?: string | null;
-}): Promise<{ ok: true; memory: AgentMemory; created: boolean } | { ok: false; error: string }> {
-  if (memoryStorageBackend() === 'postgres') return dbUpsertMemory(input);
-  return fileUpsertMemory(input);
+  /** Skip phone/dashboard notify (extract batches its own push; owner edits stay quiet). */
+  silent?: boolean;
+}): Promise<MemoryUpsertResult> {
+  const result =
+    memoryStorageBackend() === 'postgres' ? await dbUpsertMemory(input) : fileUpsertMemory(input);
+  if (
+    result.ok &&
+    result.changed &&
+    !input.silent &&
+    input.source !== 'owner'
+  ) {
+    void notifyAgentMemoryUpdated({
+      memories: [result.memory],
+      created: result.created,
+    }).catch((e) => log.warn('memory notify failed', e));
+  }
+  return result;
 }
 
 export async function storeDeleteMemory(opts: {
