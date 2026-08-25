@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 186 52" fill="none" role="img" aria-labelledby="uc-law-sf-title">
+  <title id="uc-law-sf-title">UC Law San Francisco</title>
+  <!--
+    UC Law SF wordmark  UC Law on one serif baseline,
+    SAN FRANCISCO stacked over Law in small tracked caps.
+    Recreated from the current brand lockup (no seal / Hastings line).
+  -->
+  <text
+    x="0"
+    y="46"
+    font-family="'Times New Roman', Times, 'Liberation Serif', serif"
+    font-size="36"
+    font-weight="600"
+    fill="#1a1a1a"
+  >UC</text>
+  <g transform="translate(72 0)">
+    <text
+      x="0"
+      y="12"
+      font-family="Arial, Helvetica, sans-serif"
+      font-size="6.75"
+      font-weight="700"
+      letter-spacing="0.85"
+      fill="#1a1a1a"
+    >SAN FRANCISCO</text>
+    <text
+      x="0"
+      y="46"
+      font-family="'Times New Roman', Times, 'Liberation Serif', serif"
+      font-size="36"
+      font-weight="600"
+      fill="#1a1a1a"
+    >Law</text>
+  </g>
+</svg>
