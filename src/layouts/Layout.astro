@@ -8,7 +8,8 @@ import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
 import { SITE } from "../config/site";
-import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from "../lib/ogImageSize";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
@@ -27,7 +28,7 @@ export interface Props {
   description?: string;
   /**
    * Absolute or root-relative path to the OG / social-share image.
-   * Defaults to SITE.ogImage.
+   * Overrides the Company default (admin → Company → Social sharing).
    */
   ogImage?: string;
   /** OG type. Defaults to "website". */
@@ -78,6 +79,7 @@ const ogImageAbsolute = ogImage.startsWith("http")
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${LOGO_ICON_OG_PATH}`
   : ogImageAbsolute;
+const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
@@ -120,6 +122,8 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImageSafe} />
+		{isCompanyOg && <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />}
+		{isCompanyOg && <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />}
 		{shareSiteName && <meta property="og:site_name" content={shareSiteName} />}
 
 		<!-- Twitter Card -->
