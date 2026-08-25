@@ -843,18 +843,16 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     height: var(--app-header-logo-h);
   }
 
-  .app-header-logo-img {
-    display: block;
-    height: var(--app-header-logo-h);
-    width: auto;
-    max-width: 100%;
-  }
-
+  /* Raster + SVG share one contain box so width caps do not squash uploads. */
+  .app-header-logo-img,
   .app-header-logo-svg {
     display: block;
-    height: var(--app-header-logo-h);
+    height: 100%;
     width: auto;
     max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: left center;
   }
 
   html[data-theme="dark"] .app-header-logo-svg,
