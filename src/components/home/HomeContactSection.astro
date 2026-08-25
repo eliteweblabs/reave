@@ -97,7 +97,7 @@ const vcardLabel = company.name ? `Add ${company.name}` : "Add contact";
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #a855f7;
+    color: var(--site-fg, #171717);
     text-decoration: none;
     transition:
       color 0.2s,
@@ -105,12 +105,12 @@ const vcardLabel = company.name ? `Add ${company.name}` : "Add contact";
   }
 
   a.contact-icon:hover {
-    color: #ec4899;
+    color: var(--site-fg-muted, #525252);
     transform: scale(1.08);
   }
 
   .contact-icon--muted {
-    color: rgba(255, 255, 255, 0.25);
+    color: var(--site-fg-faint, #a3a3a3);
     cursor: default;
   }
 

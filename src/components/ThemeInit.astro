@@ -1,0 +1,19 @@
+---
+/**
+ * Blocking theme paint — default light so the public canvas is never stuck black.
+ * Stored choice wins; otherwise light.
+ */
+---
+<script is:inline>
+  (function () {
+    try {
+      var stored = localStorage.getItem("reave-theme");
+      var theme = stored === "dark" || stored === "light" ? stored : "light";
+      document.documentElement.setAttribute("data-theme", theme);
+      document.documentElement.style.colorScheme = theme;
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "light");
+      document.documentElement.style.colorScheme = "light";
+    }
+  })();
+</script>

@@ -17,6 +17,7 @@ import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import CookieNotice from "../components/CookieNotice.astro";
+import ThemeInit from "../components/ThemeInit.astro";
 import "../styles/brand.css";
 
 export interface Props {
@@ -53,7 +54,7 @@ const {
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
-const themeColor = themeColorProp ?? company.brandPrimary;
+const themeColor = themeColorProp ?? "#ffffff";
 const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
 const ogImage = ogImageProp ?? companyOgImageUrl(company);
@@ -90,6 +91,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 <!doctype html>
 <html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
 	<head>
+		<ThemeInit />
 		<meta charset="UTF-8" />
 		<ViewportMeta />
 		<meta name="theme-color" content={themeColor} />
@@ -184,7 +186,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * kills iOS pull-to-refresh.
 		 */
 		min-height: 100%;
-		background-color: var(--site-canvas, #000);
+		background-color: var(--site-canvas, #fff);
 	}
 
 	html,
@@ -198,15 +200,23 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * Explicit root color is Safari 26’s Liquid Glass fallback. Pad
 		 * header / CTAs with env(safe-area-inset-*), not the wallpaper.
 		 */
-		background-color: var(--site-canvas, #000);
-		color: #e5e5e5;
+		background-color: var(--site-canvas, #fff);
+		color: var(--site-fg, #171717);
+		color-scheme: light dark;
+	}
+
+	html[data-theme="light"] {
+		color-scheme: light;
+	}
+
+	html[data-theme="dark"] {
 		color-scheme: dark;
 	}
 
 	body {
 		min-height: 100%;
 		position: relative;
-		background-color: var(--site-canvas, #000);
+		background-color: var(--site-canvas, #fff);
 	}
 
 	h1,
@@ -306,7 +316,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	@media (min-width: 769px) {
 		html,
 		body {
-			background-color: var(--site-canvas, #000);
+			background-color: var(--site-canvas, #fff);
 		}
 	}
 </style>

@@ -184,14 +184,14 @@ const trailingCtas = ctas.slice(1);
   }
 
   .home-sticky-ctas__btn--primary {
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+    color: var(--brand-btn-fg, #fff);
+    -webkit-text-fill-color: var(--brand-btn-fg, #fff);
+    background: var(--brand-btn-bg, #111);
+    box-shadow: 0 0 0 1px var(--site-border, rgba(23, 23, 23, 0.1));
   }
 
   .home-sticky-ctas__btn--primary:hover {
-    background: #ededed;
+    filter: brightness(1.08);
     transform: translateY(-1px);
     text-decoration: none;
   }

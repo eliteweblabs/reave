@@ -2,9 +2,11 @@
 import Header from "../Header.astro";
 import Favicon from "../Favicon.astro";
 import ViewportMeta from "../ViewportMeta.astro";
+import ThemeInit from "../ThemeInit.astro";
 import { isClerkFrontendConfigured } from "../../lib/clerkClient";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import "../../styles/mobile-touch.css";
+import "../../styles/brand.css";
 
 const company = await getCompanyConfig(Astro.request);
 const clerkReady = isClerkFrontendConfigured();
@@ -13,6 +15,7 @@ const clerkReady = isClerkFrontendConfigured();
 <!doctype html>
 <html lang="en">
   <head>
+    <ThemeInit />
     <meta charset="UTF-8" />
     <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
@@ -47,10 +50,11 @@ const clerkReady = isClerkFrontendConfigured();
     margin: 0;
     width: 100%;
     min-height: 100%;
-    color-scheme: dark;
+    color-scheme: light dark;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background: #050505;
+    background: var(--site-canvas, #fff);
+    color: var(--site-fg, #171717);
   }
 
   .login-stage {
@@ -60,7 +64,7 @@ const clerkReady = isClerkFrontendConfigured();
     gap: 0.75rem;
     padding: 5rem 1.5rem 2rem;
     text-align: center;
-    color: #f4f4f5;
+    color: var(--site-fg, #171717);
   }
 
   .login-stage h1 {
@@ -72,7 +76,7 @@ const clerkReady = isClerkFrontendConfigured();
 
   .login-stage p {
     margin: 0;
-    color: rgba(244, 244, 245, 0.62);
+    color: var(--site-fg-muted, #525252);
     font-size: 0.95rem;
   }
 </style>

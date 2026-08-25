@@ -4,7 +4,6 @@
 import { brandFontCssVars, type ResolvedBrandFonts } from './brandFonts';
 import {
   buildPortalBrandColors,
-  isLightPortalBrand,
   portalBrandCssVars,
   type PortalBrandColors,
 } from './portalBrandColors';
@@ -56,10 +55,6 @@ export function companyBrandCssVars(primaryRaw?: string | null, secondaryRaw?: s
   vars['--brand-glow-filter'] = 'none';
   vars['--create-fab-bg'] = vars['--brand-gradient']!;
   vars['--create-fab-shadow'] = '0 1px 2px rgba(0, 0, 0, 0.12)';
-  if (!isLightPortalBrand(colors)) {
-    vars['--site-canvas'] = colors.primary;
-    vars['--site-status-bar'] = colors.primary;
-  }
   return vars;
 }
 

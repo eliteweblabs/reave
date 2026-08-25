@@ -6,6 +6,7 @@ import { getInstallConfigClient, PROFILE_MENU_LABELS, type ProfileMenuKey } from
 import SignInSheet from "./SignInSheet.astro";
 import BrandLogoInline from "./BrandLogoInline.astro";
 import MarketingMenu from "./MarketingMenu.astro";
+import ThemeToggle from "./ThemeToggle.astro";
 import type { SiteContentConfig } from "../lib/siteContent";
 import { isDeploymentOwner } from "../lib/deploymentOwner";
 import { serverEnv } from "../lib/serverEnv";
@@ -146,6 +147,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   )}
 
   <div class="app-header-end topbar-end">
+    <ThemeToggle />
     {showHeaderSignIn && (
       <div class="topbar-auth-cluster">
         <button
@@ -519,14 +521,12 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
      */
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.12);
-      --footer-nav-glass-bg: rgba(10, 13, 20, 0.88);
-      --nav-icon: rgba(255, 255, 255, 0.58);
-      --nav-icon-hover: rgba(255, 255, 255, 0.88);
-      --nav-icon-active: #ffffff;
-    }
+  html[data-theme="dark"] {
+    --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.12);
+    --footer-nav-glass-bg: rgba(10, 13, 20, 0.88);
+    --nav-icon: rgba(255, 255, 255, 0.58);
+    --nav-icon-hover: rgba(255, 255, 255, 0.88);
+    --nav-icon-active: #ffffff;
   }
 
   /*
@@ -548,6 +548,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     min-height: 0;
     overflow: visible;
     background-color: transparent;
+    color: var(--site-fg, #171717);
     --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top, 0px);
@@ -559,6 +560,11 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+  }
+
+  html.marketing-menu-open .app-header,
+  html.overlay-menu-open .app-header {
+    z-index: 2100;
   }
 
   @media (max-width: 768px) {
@@ -842,6 +848,11 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     width: calc(var(--app-header-logo-h) * (926.878 / 262.015));
   }
 
+  html[data-theme="light"] .app-header-logo-svg,
+  html[data-theme="light"] .home-hero-icon {
+    filter: invert(1);
+  }
+
   .app-header-logo-name {
     display: block;
     width: max-content;
@@ -856,8 +867,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     line-height: var(--app-header-logo-h);
     white-space: nowrap;
     text-overflow: ellipsis;
-    color: #fff;
-    -webkit-text-fill-color: #fff;
+    color: var(--site-fg, #171717);
+    -webkit-text-fill-color: var(--site-fg, #171717);
   }
 
   .app-header--portal-brand .topbar-profile-btn--admin {
@@ -934,15 +945,15 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     border: none;
     border-radius: 50%;
     background: transparent;
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg, #171717);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
   }
 
   .marketing-nav-toggle:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
+    background: var(--site-card, rgba(23, 23, 23, 0.04));
+    color: var(--site-fg, #171717);
   }
 
   .marketing-nav-toggle:active {
@@ -981,7 +992,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     border-radius: 50%;
     border: none;
     background: transparent;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--site-fg-muted, #525252);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -994,7 +1005,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .app-header-signin:hover {
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--site-fg, #171717);
   }
 
   .app-header-signin svg {
@@ -1016,8 +1027,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   .app-header-admin-cta.brand-btn,
   .app-header-admin-cta.brand-btn:hover {
-    color: #fff;
-    -webkit-text-fill-color: #fff;
+    color: var(--brand-btn-fg, #fff);
+    -webkit-text-fill-color: var(--brand-btn-fg, #fff);
   }
 
   .app-header-admin-cta svg,
@@ -1076,12 +1087,12 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   .app-header:not(.app-header--admin) .topbar-profile-btn {
     background: transparent;
-    color: rgba(255, 255, 255, 0.58);
+    color: var(--site-fg-muted, #525252);
   }
 
   .app-header:not(.app-header--admin) .topbar-profile-btn:hover,
   html.account-menu-open .app-header:not(.app-header--admin) .topbar-profile-btn {
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg, #171717);
   }
 
   .topbar-push-btn {
@@ -1111,14 +1122,12 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     display: none !important;
   }
 
-  @media (prefers-color-scheme: dark) {
-    .topbar-push-btn {
-      color: #f8fafc;
-    }
+  html[data-theme="dark"] .topbar-push-btn {
+    color: #f8fafc;
+  }
 
-    .topbar-push-btn:hover {
-      color: #fff;
-    }
+  html[data-theme="dark"] .topbar-push-btn:hover {
+    color: #fff;
   }
 
   .app-header-icon-btn svg,

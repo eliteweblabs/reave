@@ -18,12 +18,22 @@
     "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
   /*
-   * Near-black canvas. A faint top wash can come back later; keep the hook.
+   * Theme canvas — light by default. Dark lives on html[data-theme="dark"].
+   * Company colors are accents, not the page wallpaper.
    * Full-bleed: html/body + this layer paint to the screen edges
    * (`viewport-fit=cover`). Safe-area insets pad header / CTAs, not the wallpaper.
    */
-  --site-canvas: #000;
-  --site-status-bar: #000;
+  --site-canvas: #fff;
+  --site-status-bar: #fff;
+  --site-fg: #171717;
+  --site-fg-muted: #525252;
+  --site-fg-faint: #a3a3a3;
+  --site-border: rgba(23, 23, 23, 0.1);
+  --site-card: rgba(23, 23, 23, 0.03);
+  --site-card-border: rgba(23, 23, 23, 0.1);
+  --site-accent: #171717;
+  --brand-btn-bg: #111;
+  --brand-btn-fg: #fff;
   --site-mesh-glow: none;
   --site-mesh-bottom: none;
   --site-mesh-atmosphere: none;
@@ -41,15 +51,13 @@
   --brand-glow-filter: none;
   --create-fab-bg: var(--brand-gradient);
   --create-fab-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  --brand-glass-bg: rgba(255, 255, 255, 0.07);
-  --brand-glass-bg-hover: rgba(255, 255, 255, 0.12);
-  --brand-glass-border-color: rgba(255, 255, 255, 0.24);
-  --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4);
+  --brand-glass-bg: rgba(23, 23, 23, 0.04);
+  --brand-glass-bg-hover: rgba(23, 23, 23, 0.07);
+  --brand-glass-border-color: rgba(23, 23, 23, 0.14);
+  --brand-glass-border-color-hover: rgba(23, 23, 23, 0.22);
   --brand-glass-blur: blur(16px) saturate(1.35);
-  --brand-glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 20px rgba(0, 0, 0, 0.18);
-  --brand-glass-shadow-hover:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 28px rgba(0, 0, 0, 0.22);
+  --brand-glass-shadow: none;
+  --brand-glass-shadow-hover: none;
   --home-section-padding-y: 80px;
 }
 
@@ -69,7 +77,7 @@
   }
 }
 
-/** Filled primary CTAs (header, hero, marketing) — white on black. */
+/** Filled primary CTAs (header, hero, marketing) — pills, theme-aware. */
 .brand-btn {
   display: inline-flex;
   align-items: center;
@@ -77,34 +85,35 @@
   gap: 6px;
   padding: 0.45rem 0.9rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   font-family: var(--font-primary);
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
-  color: #000;
-  -webkit-text-fill-color: #000;
-  background: #fff;
+  color: var(--brand-btn-fg, #fff);
+  -webkit-text-fill-color: var(--brand-btn-fg, #fff);
+  background: var(--brand-btn-bg, #111);
   text-decoration: none;
   white-space: nowrap;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 0 0 1px var(--site-border, rgba(23, 23, 23, 0.1));
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .brand-btn:hover {
-  background: #ededed;
+  filter: brightness(1.08);
   transform: translateY(-1px);
-  color: #000;
-  -webkit-text-fill-color: #000;
+  color: var(--brand-btn-fg, #fff);
+  -webkit-text-fill-color: var(--brand-btn-fg, #fff);
   text-decoration: none;
 }
 
-/** Frosted outline pill buttons on dark marketing surfaces. */
+/** Outline pills on marketing surfaces. */
 .brand-btn-glass {
-  color: rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  color: var(--site-fg, #171717);
   background: var(--brand-glass-bg);
   border: 1px solid var(--brand-glass-border-color);
   backdrop-filter: var(--brand-glass-blur);
@@ -119,7 +128,7 @@
 }
 
 .brand-btn-glass:hover {
-  color: #fff;
+  color: var(--site-fg, #171717);
   background: var(--brand-glass-bg-hover);
   border-color: var(--brand-glass-border-color-hover);
   box-shadow: var(--brand-glass-shadow-hover);
@@ -186,11 +195,33 @@
   display: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --brand-gradient-shadow: none;
-    --create-fab-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  }
+html[data-theme="dark"] {
+  --site-canvas: #111;
+  --site-status-bar: #111;
+  --site-fg: #e5e5e5;
+  --site-fg-muted: #a3a3a3;
+  --site-fg-faint: rgba(255, 255, 255, 0.38);
+  --site-border: rgba(255, 255, 255, 0.12);
+  --site-card: rgba(255, 255, 255, 0.04);
+  --site-card-border: rgba(255, 255, 255, 0.1);
+  --site-accent: #fff;
+  --brand-btn-bg: #fff;
+  --brand-btn-fg: #111;
+  --brand-glass-bg: rgba(255, 255, 255, 0.07);
+  --brand-glass-bg-hover: rgba(255, 255, 255, 0.12);
+  --brand-glass-border-color: rgba(255, 255, 255, 0.24);
+  --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4);
+  --brand-gradient-shadow: none;
+  --create-fab-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="light"] {
+  --brand-glass-bg: rgba(23, 23, 23, 0.04);
+  --brand-glass-bg-hover: rgba(23, 23, 23, 0.07);
+  --brand-glass-border-color: rgba(23, 23, 23, 0.14);
+  --brand-glass-border-color-hover: rgba(23, 23, 23, 0.22);
+  --brand-glass-shadow: none;
+  --brand-glass-shadow-hover: none;
 }
 
 /** Count badges — iOS-style red fill, white numeral */

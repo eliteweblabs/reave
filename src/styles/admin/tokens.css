@@ -235,8 +235,7 @@
     --pane-header-clearance: 0.1rem;
   }
 }
-@media (prefers-color-scheme: dark) {
-  :root {
+html[data-theme="dark"] {
     --bg: #0a0d14;
     --grid: #1a2230;
     --fg: #e9eef6;
@@ -300,5 +299,4 @@
     --icon-muted: rgba(255, 255, 255, 0.72);
     --list-row-odd: #121722;
     --list-row-even: #171d2a;
-  }
 }

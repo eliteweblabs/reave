@@ -291,7 +291,7 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     font-size: 0.82rem;
     font-weight: 500;
     letter-spacing: -0.01em;
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--site-fg, #171717);
     background: rgba(255, 255, 255, 0.06);
     cursor: pointer;
     white-space: nowrap;
@@ -300,8 +300,8 @@ const showSignIn = siteContent.nav.showSignIn !== false;
   }
 
   .marketing-nav-signin:hover {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.1);
+    color: var(--site-fg, #171717);
+    background: var(--site-card, rgba(23, 23, 23, 0.04));
   }
 
   .marketing-nav-inline {
@@ -318,19 +318,19 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     font-size: 0.82rem;
     font-weight: 500;
     letter-spacing: -0.01em;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--site-fg-muted, #525252);
     text-decoration: none;
     transition: color 0.15s ease, background 0.15s ease;
   }
 
   .marketing-nav-link:hover {
-    color: rgba(255, 255, 255, 0.92);
+    color: var(--site-fg, #171717);
     background: rgba(255, 255, 255, 0.06);
     text-decoration: none;
   }
 
   .marketing-nav-link.is-active {
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .marketing-nav-link--button {

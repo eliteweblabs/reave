@@ -54,7 +54,7 @@ const rootClass = embedded
       max(1rem, env(safe-area-inset-right, 0px))
       calc(var(--cf-input-h) + 1.5rem + env(safe-area-inset-bottom, 0px))
       max(1rem, env(safe-area-inset-left, 0px));
-    color: #fff;
+    color: var(--site-fg, #171717);
     font-family: "Inter", sans-serif;
   }
 
@@ -64,8 +64,8 @@ const rootClass = embedded
     margin: 16px 0 0;
     padding: 20px 18px 24px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--site-card-border, rgba(23, 23, 23, 0.1));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .conversational-form-root .conversation {
@@ -104,9 +104,9 @@ const rootClass = embedded
     padding: 10px 14px;
     border-radius: 14px;
     border-bottom-left-radius: 4px;
-    background: rgba(18, 16, 26, 0.92);
-    border: 1px solid rgba(168, 85, 247, 0.35);
-    color: rgba(255, 255, 255, 0.95);
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
+    border: 1px solid var(--site-card-border, rgba(23, 23, 23, 0.1));
+    color: var(--site-fg, #171717);
   }
 
   .conversational-form-root .message.robot .word {
@@ -124,9 +124,9 @@ const rootClass = embedded
     padding: 10px 14px;
     border-radius: 14px;
     border-bottom-right-radius: 4px;
-    background: rgba(168, 85, 247, 0.14);
-    border: 1px solid rgba(236, 72, 153, 0.4);
-    color: rgba(255, 255, 255, 0.95);
+    background: var(--site-card, rgba(23, 23, 23, 0.04));
+    border: 1px solid var(--site-card-border, rgba(23, 23, 23, 0.12));
+    color: var(--site-fg, #171717);
   }
 
   .conversational-form-root .options-wrapper {
@@ -144,9 +144,9 @@ const rootClass = embedded
   .conversational-form-root .option-btn {
     padding: 10px 18px;
     border-radius: 10px;
-    border: 1px solid rgba(168, 85, 247, 0.5);
-    background: rgba(168, 85, 247, 0.12);
-    color: #fff;
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.14));
+    background: var(--site-card, rgba(23, 23, 23, 0.04));
+    color: var(--site-fg, #171717);
     font-size: 14px;
     cursor: pointer;
     transition:
@@ -156,13 +156,13 @@ const rootClass = embedded
   }
 
   .conversational-form-root .option-btn:hover {
-    background: rgba(168, 85, 247, 0.28);
-    border-color: #a855f7;
+    background: var(--brand-glass-bg-hover, rgba(23, 23, 23, 0.07));
+    border-color: var(--site-fg, #171717);
     transform: translateY(-1px);
   }
 
   .conversational-form-root .loading-msg {
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--site-fg-muted, #525252);
     font-style: italic;
     font-size: 14px;
     align-self: flex-start;
@@ -201,8 +201,8 @@ const rootClass = embedded
     flex: 1;
     min-width: 0;
     border-radius: 999px;
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.14));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
     overflow: hidden;
     transition:
       border-color 0.2s,
@@ -210,8 +210,8 @@ const rootClass = embedded
   }
 
   .conversational-form-root .input-pill:focus-within {
-    border-color: #a855f7;
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+    border-color: var(--site-fg, #171717);
+    box-shadow: none;
   }
 
   .conversational-form-root .input-pill input {
@@ -222,13 +222,13 @@ const rootClass = embedded
     border: none;
     border-radius: 0;
     background: transparent;
-    color: #fff;
+    color: var(--site-fg, #171717);
     font-size: 16px;
     outline: none;
   }
 
   .conversational-form-root .input-pill input::placeholder {
-    color: rgba(255, 255, 255, 0.42);
+    color: var(--site-fg-faint, #a3a3a3);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -239,8 +239,8 @@ const rootClass = embedded
     padding: 10px 18px;
     border: none;
     border-radius: 0;
-    background: linear-gradient(135deg, #a855f7, #ec4899);
-    color: #fff;
+    background: var(--brand-btn-bg, #111);
+    color: var(--brand-btn-fg, #fff);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -277,16 +277,16 @@ const rootClass = embedded
   }
 
   .conversational-form-root #success-message h2 {
-    background: linear-gradient(135deg, #a855f7, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    background: none;
+    color: var(--site-fg, #171717);
+    -webkit-text-fill-color: var(--site-fg, #171717);
     margin: 0 0 8px;
     font-size: 22px;
   }
 
   .conversational-form-root #success-message p {
     margin: 0;
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--site-fg-muted, #525252);
   }
 
   .conversational-form-root #error-message {
@@ -322,8 +322,8 @@ const rootClass = embedded
     max-width: 100%;
     padding: 14px 16px;
     border-radius: 12px;
-    border: 1px solid rgba(168, 85, 247, 0.35);
-    background: rgba(168, 85, 247, 0.1);
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.12));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
     animation: cfFadeIn 0.3s ease;
   }
 
@@ -331,7 +331,7 @@ const rootClass = embedded
     margin: 0 0 10px;
     font-size: 14px;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.92);
+    color: var(--site-fg, #171717);
   }
 
   .conversational-form-root .sms-consent-label {
@@ -349,14 +349,14 @@ const rootClass = embedded
     width: 16px;
     height: 16px;
     flex-shrink: 0;
-    accent-color: #a855f7;
+    accent-color: var(--site-fg, #171717);
   }
 
   .conversational-form-root .sms-consent-disclaimer {
     margin: 0 0 8px;
     font-size: 12px;
     line-height: 1.55;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--site-fg-muted, #525252);
   }
 
   .conversational-form-root .sms-consent-links {
@@ -365,7 +365,7 @@ const rootClass = embedded
   }
 
   .conversational-form-root .sms-consent-links a {
-    color: #c084fc;
+    color: var(--site-accent, #171717);
     text-decoration: underline;
     text-underline-offset: 2px;
   }

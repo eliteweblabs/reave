@@ -15,7 +15,7 @@
 .overlay-menu-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(23, 23, 23, 0.35);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: overlay-menu-fade-in 0.28s ease-out;
@@ -27,7 +27,7 @@
   .overlay-menu-backdrop {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: rgba(0, 0, 0, 0.78);
+    background: rgba(23, 23, 23, 0.45);
   }
 }
 
@@ -39,9 +39,9 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: rgba(8, 8, 10, 0.96);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: -24px 0 80px rgba(0, 0, 0, 0.45);
+  background: var(--site-canvas, #fff);
+  border-left: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+  box-shadow: -24px 0 80px rgba(23, 23, 23, 0.12);
   animation: overlay-menu-slide-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -88,7 +88,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--site-fg-muted, #525252);
 }
 
 .overlay-menu-list {
@@ -114,7 +114,7 @@
   font-weight: 500;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: rgba(255, 255, 255, 0.92);
+  color: var(--site-fg, #171717);
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -122,13 +122,13 @@
 }
 
 .overlay-menu-link:hover {
-  color: #fff;
+  color: var(--site-fg, #171717);
   background: transparent;
   text-decoration: none;
 }
 
 .overlay-menu-link.is-active {
-  color: var(--brand-pink, #fff);
+  color: var(--site-accent, var(--site-fg, #171717));
   background: transparent;
   box-shadow: none;
   text-decoration: none;
@@ -177,7 +177,7 @@
   transition: none;
 }
 
-@media (prefers-color-scheme: dark) {
+html[data-theme="dark"] {
   [data-account-menu] .overlay-menu-panel {
     background: rgba(8, 8, 10, 0.96);
     border-left-color: rgba(255, 255, 255, 0.08);
@@ -211,7 +211,7 @@
   padding:
     16px 28px
     calc(16px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
 }
 
 .overlay-menu-footer-row {
@@ -236,15 +236,15 @@
   justify-content: center;
   min-height: 44px;
   padding: 0.55rem 0.45rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--site-card, rgba(23, 23, 23, 0.03));
   font-family: var(--font-secondary, ui-sans-serif, system-ui, sans-serif);
   font-size: 0.78rem;
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.1;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--site-fg, #171717);
   text-decoration: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -252,9 +252,9 @@
 }
 
 .overlay-menu-action:hover:not(:disabled) {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--site-fg, #171717);
+  background: var(--brand-glass-bg-hover, rgba(23, 23, 23, 0.07));
+  border-color: var(--site-border, rgba(23, 23, 23, 0.16));
   text-decoration: none;
 }
 
@@ -294,7 +294,7 @@
   border-color: rgba(185, 28, 28, 0.22);
 }
 
-@media (prefers-color-scheme: dark) {
+html[data-theme="dark"] {
   [data-account-menu] .overlay-menu-footer {
     border-top-color: rgba(255, 255, 255, 0.08);
   }

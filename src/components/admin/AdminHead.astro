@@ -2,6 +2,7 @@
 import Favicon from "../Favicon.astro";
 import BrandFontHead from "../BrandFontHead.astro";
 import ViewportMeta from "../ViewportMeta.astro";
+import ThemeInit from "../ThemeInit.astro";
 import type { ResolvedBrandFonts } from "../../lib/brandFonts";
 
 interface Props {
@@ -17,6 +18,7 @@ const docTitle = pageTitle?.trim() || `${appName} Admin`;
 ---
 
 <head>
+  <ThemeInit />
   <meta charset="utf-8" />
   <ViewportMeta />
   <meta name="robots" content="noindex, nofollow" />

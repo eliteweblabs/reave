@@ -7,6 +7,7 @@ import Header from "../../components/Header.astro";
 import AdminHead from "../../components/admin/AdminHead.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import "../../styles/mobile-touch.css";
+import "../../styles/brand.css";
 
 const company = await getCompanyConfig(Astro.request);
 const { userId } = Astro.locals.auth();
@@ -38,9 +39,10 @@ if (userId) {
     margin: 0;
     width: 100%;
     min-height: 100%;
-    color-scheme: dark;
+    color-scheme: light dark;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
-    background: #050505;
+    background: var(--site-canvas, #fff);
+    color: var(--site-fg, #171717);
   }
 </style>
