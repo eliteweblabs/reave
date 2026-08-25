@@ -3,12 +3,14 @@
  *
  * Letter landscape reads left → right as the unfolded brochure:
  * inner gate (sale-sheet module tiles), back cover (custom builds +
- * chat-bubble objections above the stack marks), front cover (full logo dead
+ * chat-bubble objections above the client marks), front cover (full logo dead
  * center + diagnostic). Same HTML for every client.
  */
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { BRANDING_ICON_PATH } from './companyLogo';
 import type { CatalogRow } from './moduleCatalog';
-import { PLATFORM_STACK, SIMPLE_ICONS_CDN, type StackTech } from './platformStack';
+import { projectRoot } from './projectRoot';
 
 /** Official square mark as PNG — `/api/branding/icon`, not the website SVG. */
 const SALES_SHEET_ICON_PNG = `${BRANDING_ICON_PATH}?size=256&transparent=1`;
@@ -122,24 +124,79 @@ export function salesSheetBackModules(rows: readonly CatalogRow[]): SalesSheetBa
     .sort((a, b) => a.label.localeCompare(b.label, 'en', { sensitivity: 'base' }));
 }
 
-/** Leave-behind subset of `PLATFORM_STACK` — the marks that stay on the back. */
-const SALES_SHEET_STACK_SLUGS = [
-  'anthropic',
-  'astro',
-  'clerk',
-  'cloudflare',
-  'github',
-  'plausibleanalytics',
-  'railway',
-  'resend',
-  'supabase',
+/**
+ * About-page client marks on the back cover — same `clientLogos` list as
+ * `/about` (`config/sites/reave-config.json` → media library). Curated subset
+ * so two print rows stay readable.
+ */
+export const SALES_SHEET_CLIENT_LOGO_NAMES = [
+  'Porsche',
+  'The New York Times',
+  'Red Bull',
+  'Chase Bank',
+  'Worcester Polytechnic Institute',
+  'Kingdom Trails',
+  'Mohegan Sun',
+  'Coinbase',
 ] as const;
 
-export const SALES_SHEET_STACK: StackTech[] = SALES_SHEET_STACK_SLUGS.map((slug) => {
-  const tech = PLATFORM_STACK.find((item) => item.slug === slug);
-  if (!tech) throw new Error(`Unknown sales-sheet stack slug: ${slug}`);
-  return tech;
-}).sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+function clientLogoKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function mediaSlugFromSrc(src: string): string {
+  const fromUrl = src.match(/\/api\/media\/([^/?#]+)/)?.[1] || '';
+  return decodeURIComponent(fromUrl).trim();
+}
+
+function clientLogoSrc(ref?: string): string {
+  const value = (ref ?? '').trim();
+  if (!value) return '';
+  if (
+    value.startsWith('/') ||
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('data:')
+  ) {
+    return value;
+  }
+  return `/api/media/${encodeURIComponent(value)}`;
+}
+
+function displaySlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+function loadAboutClientLogos(): { name: string; src: string }[] {
+  const path = join(projectRoot(), 'config', 'sites', 'reave-config.json');
+  if (!existsSync(path)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8')) as {
+      clientLogos?: { name?: string; image?: string }[];
+    };
+    return (raw.clientLogos || [])
+      .map((logo) => ({
+        name: String(logo.name || '').trim(),
+        src: clientLogoSrc(logo.image),
+      }))
+      .filter((logo) => logo.name && logo.src);
+  } catch {
+    return [];
+  }
+}
+
+export function salesSheetClientLogos(): SalesSheetBackLogo[] {
+  const byName = new Map(loadAboutClientLogos().map((logo) => [clientLogoKey(logo.name), logo]));
+  return SALES_SHEET_CLIENT_LOGO_NAMES.flatMap((name) => {
+    const logo = byName.get(clientLogoKey(name));
+    if (!logo) return [];
+    return [{
+      name: logo.name,
+      slug: mediaSlugFromSrc(logo.src) || displaySlug(logo.name),
+      src: logo.src,
+    }];
+  });
+}
 
 /** Side and bottom inset. Top stays a hair larger so the mast still clears. */
 export const SALES_SHEET_PRINT_INSET = '0.2in';
@@ -172,7 +229,7 @@ export const SALES_SHEET_BACK_QA: SalesSheetBackQa[] = [
   },
 ];
 
-/** Chat-thread objections on the back cover, above the stack marks. */
+/** Chat-thread objections on the back cover, above the client marks. */
 export const SALES_SHEET_BACK_COVER_QA: SalesSheetBackQa[] = [
   {
     q: 'How can you offer these services for so cheap?',
@@ -189,23 +246,7 @@ export const SALES_SHEET_BACK_COVER_QA: SalesSheetBackQa[] = [
 ];
 
 export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): SalesSheetBackLogo[] {
-  if (overrides.length) {
-    const hasAnthropic = overrides.some((logo) => /anthropic|claude/i.test(`${logo.name} ${logo.slug} ${logo.src}`));
-    if (hasAnthropic) return overrides;
-    const anthropic = SALES_SHEET_STACK.find((tech) => tech.slug === 'anthropic');
-    if (!anthropic) return overrides;
-    return [
-      ...overrides,
-      { name: anthropic.name, slug: anthropic.slug, src: SIMPLE_ICONS_CDN(anthropic.slug) },
-    ];
-  }
-  return SALES_SHEET_STACK.map((tech) => ({
-    name: tech.name,
-    slug: tech.slug,
-    src: tech.iconSrc
-      ? `/api/media/${tech.iconSrc}`
-      : tech.iconHref || SIMPLE_ICONS_CDN(tech.slug),
-  }));
+  return overrides.length ? overrides : salesSheetClientLogos();
 }
 
 function esc(s: string): string {
@@ -663,24 +704,29 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   list-style: none;
   margin: 0.35em auto 0;
   padding: 0;
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
-  gap: 0;
+  justify-items: center;
+  column-gap: 0.4em;
+  row-gap: 0.55em;
   width: 100%;
 }
 .ss-sheet-back .ss-stack-item {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
+  width: 100%;
 }
 .ss-sheet-back .ss-stack-logo {
   display: block;
-  width: clamp(12px, 1.7cqi, 16px);
-  height: clamp(12px, 1.7cqi, 16px);
+  height: clamp(13px, 1.85cqi, 18px);
+  width: auto;
+  max-width: 100%;
   object-fit: contain;
-  filter: brightness(0);
+  filter: grayscale(1) brightness(0);
+  opacity: 0.75;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -746,7 +792,7 @@ export function renderSalesSheetBackHtml(opts: {
         <ul class="ss-back-locals" aria-label="Local clients">${localItems}</ul>
         <div class="ss-back-platform" data-ss-col="stack">
           ${backCoverQaHtml(iconSrc)}
-          <ul class="ss-stack" aria-label="Platform stack">${stackItems}</ul>
+          <ul class="ss-stack" aria-label="Clients">${stackItems}</ul>
         </div>
       </section>
       <section class="ss-back-col ss-back-col--cover" data-ss-col="cover">

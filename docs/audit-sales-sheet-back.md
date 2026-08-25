@@ -9,10 +9,11 @@ Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
 Code source of truth for ranks and front copy: `src/lib/salesSheetCascade.ts`.
 Front template: `src/documents/audit-onepager-landscape.md` (US Letter landscape).
-Stack logos: curated `SALES_SHEET_STACK` in A–Z name order (Anthropic, Astro,
-Clerk, Cloudflare, GitHub, Plausible, Railway, Resend, Supabase) —
-black marks only, no labels, no “builds with” line, pinned to the bottom of
-the **back** (center) panel. Chat-bubble objections
+Client logos: curated `SALES_SHEET_CLIENT_LOGO_NAMES` from the `/about`
+`clientLogos` list (Porsche, The New York Times, Red Bull, Chase Bank,
+Worcester Polytechnic Institute, Kingdom Trails, Mohegan Sun, Coinbase) —
+two rows of four, matched height, desaturated at 75% black, no labels,
+pinned to the bottom of the **back** (center) panel. Chat-bubble objections
 (`SALES_SHEET_BACK_COVER_QA`) sit directly above those marks.
 Cover line: “Online presence diagnostic” / independent systems scan (same as
 `/digital-audit`). Inner gate: add-on catalog modules with the sale-sheet
@@ -34,8 +35,8 @@ Do not use the admin dark theme on the front. Near-black type, one accent, lots 
 The back keeps a white sheet over `/reave-bg-pattern.svg` at **5% black**
 (opacity 0.05, grayscale), full-bleed to the Letter edge. Type stays inset
 on the columns. Each column fades the pattern with a white radial — the
-50% stop is the tall center oval (~52% × 74% of the panel). Stack marks
-are small black `<img>`s, not tiles.
+50% stop is the tall center oval (~52% × 74% of the panel). Client marks
+are small desaturated `<img>`s at 75% black, not tiles.
 
 ---
 
@@ -71,7 +72,7 @@ Unfolded, this is a brochure. Fold the right panel in first:
 2. **Center — Back** — outside back when folded. Custom-build line, Barry Levine
    hosting quote, local clients (Barber's Edge, The Law Office of Barry Levine,
    MDOT.world), then the three objections as left/right chat bubbles, then the
-   curated stack marks along the bottom of this panel.
+   curated about-page client marks along the bottom of this panel.
 3. **Right — Front** — the face of the folded brochure. Full company logo dead
    center, then “Online presence diagnostic” and the independent systems-scan
    lede at the bottom. No page footer on the back.
