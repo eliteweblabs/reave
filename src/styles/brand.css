@@ -47,6 +47,8 @@
   --site-mesh-glow: none;
   --site-mesh-bottom: none;
   --site-mesh-atmosphere: none;
+  /* About-page client marks are dark-ink SVGs. Invert on the dark canvas. */
+  --client-logo-filter: grayscale(1);
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
@@ -336,6 +338,7 @@ html[data-theme="dark"] {
   --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
   --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
   --create-fab-shadow: var(--brand-gradient-shadow);
+  --client-logo-filter: grayscale(1) invert(1);
 }
 
 html[data-theme="light"] {
@@ -387,9 +390,13 @@ html.site-marketing[data-theme="dark"] :is(
 
 html.site-marketing .blm-tile img,
 html.site-marketing .fx-built-logo,
-html.site-marketing .fx-built-logo-probe,
-html.site-marketing .client-logo-item img {
+html.site-marketing .fx-built-logo-probe {
   filter: none;
+}
+
+html.site-marketing .client-logo-item img {
+  /* Beat the scoped component invert so light mode keeps dark ink. */
+  filter: var(--client-logo-filter) !important;
 }
 
 /*
