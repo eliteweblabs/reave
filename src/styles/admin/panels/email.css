@@ -1581,24 +1581,68 @@ html.reave-agent-asleep
   padding-top: 0.85rem;
   border-top: 1px solid var(--card-border);
 }
+.wk-files-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
 .wk-files-title {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 0.35rem;
 }
-.wk-files-hint {
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-bottom: 0.65rem;
+.wk-files-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.wk-files-tools .ios-icon-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+.wk-files-tools .ios-icon-btn svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+.wk-files-tools .de-btn-ghost {
+  padding: 0.28rem 0.7rem;
+}
+.wk-files-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 7.5rem;
+  margin-bottom: 0.75rem;
+  padding: 1.1rem 1rem;
+  border: 1.5px dashed color-mix(in srgb, var(--card-border) 80%, var(--fg) 20%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 88%, var(--fg) 6%);
+  cursor: pointer;
+}
+.wk-files-drop--empty {
+  min-height: 10.5rem;
+}
+.wk-files-drop--active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+  background: color-mix(in srgb, #3b82f6 8%, var(--panel));
+}
+.wk-files-drop .de-btn-primary {
+  pointer-events: auto;
 }
 .wk-files-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 0.55rem;
   margin-bottom: 0.65rem;
+}
+.wk-files-grid[hidden] {
+  display: none;
 }
 .wk-file-card {
   display: flex;
@@ -1671,12 +1715,6 @@ html.reave-agent-asleep
   }
 }
 /* Confirm uses shared .ch-delete-btn.delete-confirm-btn[data-state="confirm"] red */
-.wk-files-upload {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
 .wk-files-input {
   display: none;
 }
