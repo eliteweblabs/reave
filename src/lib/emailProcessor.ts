@@ -472,9 +472,17 @@ export function shouldSendInboxPush(opts: {
   isProjectReply?: boolean;
   automationKind?: string | null;
 }): boolean {
-  // Hard rule: a message classified as junk never notifies.
-  // (Rule status DELETE alone is not enough — later overrides may have cleared junk.)
-  if (opts.category === 'junk' || opts.action.toLowerCase() === 'junk') return false;
+  // Hard rule: junk / DELETE / auto-archive never notify — not even when a
+  // later meeting/project automation flag is set. Dashboard + push stay empty.
+  if (
+    isJunkClassification({
+      category: opts.category,
+      action: opts.action,
+      status: opts.ruleStatus,
+    })
+  ) {
+    return false;
+  }
 
   if (opts.isProjectReply) return true;
   if (
@@ -1464,21 +1472,22 @@ export async function processInboundEmail(
       isUptimeRobot: isUptimeRobotEmail(email),
     });
   const willNotifyPreview =
-    isProjectReply ||
-    Boolean(verificationCode) ||
-    isVerificationCode ||
-    isAuthLink ||
-    (needsExplain && !noKeywordRule) ||
-    agentWillAlertPreview ||
-    Boolean(automationKind) ||
-    shouldSendInboxPush({
-      category,
-      action,
-      ruleNotify: ruleResult.notify || (needsExplain && !noKeywordRule),
-      ruleStatus: ruleResult.status,
-      isProjectReply,
-      automationKind,
-    });
+    !isJunkClassification({ category, action, status: inboxStatus }) &&
+    (isProjectReply ||
+      Boolean(verificationCode) ||
+      isVerificationCode ||
+      isAuthLink ||
+      (needsExplain && !noKeywordRule) ||
+      agentWillAlertPreview ||
+      Boolean(automationKind) ||
+      shouldSendInboxPush({
+        category,
+        action,
+        ruleNotify: ruleResult.notify || (needsExplain && !noKeywordRule),
+        ruleStatus: inboxStatus,
+        isProjectReply,
+        automationKind,
+      }));
   if (willNotifyPreview) {
     const fixed = enforceNotificationNotJunk({
       category,
@@ -1740,22 +1749,26 @@ export async function processInboundEmail(
   }
 
   const matchedRule = ruleResult.matched as EmailRuleRecord | null;
-  const explainNotify = needsExplain && !noKeywordRule;
+  const junkSilent = isJunkClassification({ category, action, status: inboxStatus });
+  const explainNotify = !junkSilent && needsExplain && !noKeywordRule;
   const channels = resolveRuleNotifyChannels(
     matchedRule,
-    ruleResult.notify || explainNotify,
+    !junkSilent && (ruleResult.notify || explainNotify),
   );
   // OTP / auth / explain still want an alert path unless the matched rule
-  // explicitly turns both channels off.
+  // explicitly turns both channels off — never when the row is junk/DELETE.
   const forceKindNotify =
-    Boolean(verificationCode) || isVerificationCode || isAuthLink || explainNotify;
-  const channelsEffective = forceKindNotify
-    ? {
-        push: matchedRule ? channels.push : true,
-        dashboard: matchedRule ? channels.dashboard : true,
-        notify: matchedRule ? channels.notify : true,
-      }
-    : channels;
+    !junkSilent &&
+    (Boolean(verificationCode) || isVerificationCode || isAuthLink || explainNotify);
+  const channelsEffective = junkSilent
+    ? { push: false, dashboard: false, notify: false }
+    : forceKindNotify
+      ? {
+          push: matchedRule ? channels.push : true,
+          dashboard: matchedRule ? channels.dashboard : true,
+          notify: matchedRule ? channels.notify : true,
+        }
+      : channels;
   let notifyActions = resolveRuleNotifyActions(matchedRule);
   if (!matchedRule) {
     if (isVerificationCode || verificationCode) notifyActions = ['copy', 'delete'];
@@ -1767,7 +1780,7 @@ export async function processInboundEmail(
     category,
     action,
     ruleNotify: channelsEffective.notify || explainNotify,
-    ruleStatus: ruleResult.status,
+    ruleStatus: inboxStatus,
     isProjectReply,
     automationKind,
   });

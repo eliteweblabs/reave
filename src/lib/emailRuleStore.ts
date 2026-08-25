@@ -749,6 +749,32 @@ function catalogDefinitionKey(r: {
   });
 }
 
+function catalogPhraseListKey(phrases: readonly string[] | null | undefined): string {
+  return [...(phrases || [])]
+    .map((p) => String(p).trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+    .join('|');
+}
+
+/** Keep home-edited phrases and add any new repo catalog phrases. */
+function mergeCatalogPhrases(
+  existing: readonly string[] | null | undefined,
+  incoming: readonly string[] | null | undefined,
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of [...(existing || []), ...(incoming || [])]) {
+    const phrase = String(raw || '').trim();
+    if (!phrase) continue;
+    const key = phrase.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(phrase);
+  }
+  return out;
+}
+
 function catalogDefKey(def: EmailRule): string {
   return `${String(def.status || '').toUpperCase()}::${[...def.phrases]
     .map((p) => p.trim().toLowerCase())
@@ -857,9 +883,16 @@ export function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRe
     if (existing) {
       chosenIds.add(existing.id);
       if (home) {
-        if (existing.scope !== 'universal') {
-          const idx = next.findIndex((r) => r.id === existing.id);
-          next[idx] = { ...existing, scope: 'universal', updatedAt: now };
+        const idx = next.findIndex((r) => r.id === existing.id);
+        const mergedPhrases = mergeCatalogPhrases(existing.phrases, payload.phrases);
+        const phrasesChanged = catalogPhraseListKey(mergedPhrases) !== catalogPhraseListKey(existing.phrases);
+        if (existing.scope !== 'universal' || phrasesChanged) {
+          next[idx] = {
+            ...existing,
+            phrases: phrasesChanged ? mergedPhrases : existing.phrases,
+            scope: 'universal',
+            updatedAt: now,
+          };
           changed = true;
         }
       } else if (

@@ -27,7 +27,9 @@ import {
   type EmailRuleRecord,
   type EmailRulesConfig,
 } from '../src/lib/emailRuleStore';
-import { deletedOrJunkedEmailBlocksNotification } from '../src/lib/emailJunkNotifyInvariant';
+import { deletedOrJunkedEmailBlocksNotification, isJunkClassification } from '../src/lib/emailJunkNotifyInvariant';
+import { isRoutineNewLoginNotice, looksLikeAuthLinkEmail } from '../src/lib/emailAuthLinkParser';
+import { isLikelyOtpSender, looksLikeOtpEmail } from '../src/lib/emailOtpParser';
 
 const googleSecurity = {
   from: 'Google <no-reply@accounts.google.com>',
@@ -291,6 +293,29 @@ assert.equal(deletedOrJunkedEmailBlocksNotification(null), true);
 assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'junk', status: 'DELETE' }), true);
 assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'internal', status: 'AUTO_ARCHIVED' }), true);
 assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'alert', status: 'NEEDS_CHECK' }), false);
+
+{
+  const facebookLogin = {
+    from: 'security@facebookmail.com',
+    subject: 'Did you just log in near Beverly on a new device?',
+    text: 'Someone just logged into your Facebook account near Beverly. https://www.facebook.com/n/?login_alerts',
+  };
+  assert.equal(isRoutineNewLoginNotice(facebookLogin), true);
+  assert.equal(looksLikeAuthLinkEmail(facebookLogin), false);
+  assert.equal(isLikelyOtpSender(facebookLogin.from), false);
+  assert.equal(looksLikeOtpEmail(facebookLogin), false);
+  assert.equal(classifyEmail(facebookLogin, DEFAULT_RULES).status, 'DELETE');
+  assert.equal(classifyEmail(facebookLogin, DEFAULT_RULES).notify, false);
+}
+
+assert.equal(
+  isJunkClassification({ category: 'junk', action: 'junk', status: 'DELETE' }),
+  true,
+);
+assert.equal(
+  isJunkClassification({ category: 'alert', action: 'alert', status: 'NEEDS_CHECK' }),
+  false,
+);
 
 {
   const shipmentDef = DEFAULT_RULES.find((r) =>

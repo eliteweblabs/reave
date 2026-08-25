@@ -356,9 +356,41 @@ export function createEmailTriageLab(deps) {
     ];
   }
 
+  function composedEmailLooksComplete() {
+    const from = String(state.from || '').trim();
+    const subject = String(state.subject || '').trim();
+    return /@/.test(from) && subject.length >= 8;
+  }
+
+  /** Same field-aware match production uses (phrases in the rule's Search-in fields). */
+  function ruleMatchesComposedEmail(rule) {
+    const fields = rule?.fields?.length ? rule.fields : ['subject', 'body'];
+    const hay = fields
+      .map((f) => {
+        if (f === 'from') return String(state.from || '').toLowerCase();
+        if (f === 'subject') return String(state.subject || '').toLowerCase();
+        return String(state.text || '').toLowerCase();
+      })
+      .join('\n');
+    const phrases = (rule?.phrases || [])
+      .map((p) => String(p || '').trim().toLowerCase())
+      .filter(Boolean);
+    if (!phrases.length) return false;
+    const hits = phrases.map((p) => hay.includes(p));
+    const positive = rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
+    if (!positive) return false;
+    const except = (rule?.exceptPhrases || [])
+      .map((p) => String(p || '').trim().toLowerCase())
+      .filter(Boolean);
+    return !except.some((p) => hay.includes(p));
+  }
+
   function ruleMatchesComposeFilter(rule) {
     const terms = filterTerms();
     if (!terms.length) return true;
+    // Loaded inbox email (from + subject chips): only rules that would actually fire.
+    // Short typed terms still search titles/phrases so you can find a rule by name.
+    if (composedEmailLooksComplete()) return ruleMatchesComposedEmail(rule);
     const chipHay = terms.map((c) => c.text).join(' ').toLowerCase();
     const phrases = (rule.phrases || [])
       .map((p) => String(p || '').trim().toLowerCase())

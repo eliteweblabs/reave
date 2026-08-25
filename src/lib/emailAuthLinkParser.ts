@@ -17,6 +17,23 @@ export type AuthLinkEmailProbe = {
   html?: string;
 };
 
+/**
+ * Routine "new login / new device" notices (Facebook, Instagram, GoDaddy, …).
+ * These are not magic-link emails — they often say "log in" and include a
+ * "secure your account" URL, which used to false-positive as AUTH_LINK and
+ * fire a dashboard/push notification.
+ */
+const ROUTINE_NEW_LOGIN_NOTICE =
+  /\b(?:did you just (?:log\s*in|sign[-\s]?in)|detected a new (?:sign[-\s]?in|login)|there'?s been a new sign[-\s]?in|new login to|(?:log(?:\s*in|ged[\s-]?in)|login) near|logged in(?:to)? your|(?:on|from) a new (?:device|browser)|login from a new)\b/i;
+
+/** True when the message is a new-login / new-device notice, not a magic link. */
+export function isRoutineNewLoginNotice(opts: AuthLinkEmailProbe): boolean {
+  const hay = [opts.subject ?? '', opts.text ?? '', opts.html ?? '']
+    .filter(Boolean)
+    .join('\n');
+  return ROUTINE_NEW_LOGIN_NOTICE.test(hay);
+}
+
 /** Strong activation / magic-link phrasing (not OTP digit codes). */
 const AUTH_LINK_CONTEXT =
   /\b(?:magic\s+(?:sign[-\s]?in\s+)?link|activation\s+link|activate\s+(?:your\s+)?(?:account|email)|secure\s+link\s+to|one[-\s]?click\s+(?:sign[-\s]?in|log\s*in|login)|click\s+(?:here\s+)?to\s+(?:sign[-\s]?in|log\s*in|login|activate|verify|confirm)|sign[-\s]?in\s+link|login\s+link|verify\s+(?:your\s+)?email\s+by\s+clicking|confirm\s+(?:your\s+)?(?:email|account)\s+by\s+clicking|use\s+(?:this|the)\s+link\s+to\s+(?:sign[-\s]?in|log\s*in|login|activate)|your\s+(?:secure\s+)?(?:sign[-\s]?in|login|activation)\s+link)\b/i;
@@ -198,6 +215,8 @@ export function looksLikeAuthLinkEmail(opts: AuthLinkEmailProbe): boolean {
   const body = plainBody(opts.text, opts.html);
   const combined = [subject, body].filter(Boolean).join('\n');
   if (!combined.trim()) return false;
+  // "Did you just log in near …" / "New login to Instagram" are notices, not CTAs.
+  if (isRoutineNewLoginNotice(opts)) return false;
   if (AUTH_LINK_SUBJECT.test(subject) || AUTH_LINK_CONTEXT.test(combined)) return true;
   // CTA button + auth-ish subject without the long phrases (e.g. "Sign in to Claude").
   if (/\b(?:sign[-\s]?in|log\s*in|login|activate|verify)\b/i.test(subject) && extractAuthActionUrl(opts)) {

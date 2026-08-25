@@ -408,9 +408,10 @@ export const DEFAULT_RULES: EmailRule[] = [
     status: 'DELETE',
     scope: 'universal',
     description:
-      'New sign-in / new device notifications — Vercel, GoDaddy, Google, Apple, and others. Pure notification spam; silently deleted on every install, including known/service contacts. Does not apply to unusual/suspicious sign-ins (NEEDS_CHECK).',
+      'New sign-in / new device notifications — Facebook, Instagram, Vercel, GoDaddy, Google, Apple, and others. Pure notification spam; silently deleted on every install, including known/service contacts. No dashboard, no push. Does not apply to unusual/suspicious sign-ins (NEEDS_CHECK).',
     phrases: [
       'detected a new sign-in',
+      'detected a new login',
       'a new sign-in',
       "There's been a new sign-in",
       'signed in to your account',
@@ -420,6 +421,16 @@ export const DEFAULT_RULES: EmailRule[] = [
       'signed in from a new location',
       'new device sign-in',
       'new location or device',
+      'did you just log in',
+      'did you just sign in',
+      'new login to',
+      'login near',
+      'log in near',
+      'logged into your',
+      'logged in to your',
+      'from a new browser',
+      'on a new device',
+      'login from a new',
     ],
     exceptPhrases: [
       'unusual sign-in',

@@ -126,6 +126,46 @@ const scenarios: Scenario[] = [
     expectNotify: false,
   },
   {
+    id: 'facebook-login-near-silent',
+    label: 'Facebook “Did you just log in near …” → silent DELETE (not AUTH_LINK)',
+    email: {
+      from: 'Facebook <security@facebookmail.com>',
+      subject: 'Did you just log in near Beverly on a new device?',
+      text:
+        'Someone just logged into your Facebook account near Beverly, MA on Safari on macOS. ' +
+        'If this wasn\'t you, click here: https://www.facebook.com/n/?login_alerts%2Fstart%2F&fbid=1\n' +
+        'We\'ll continue to notify you whenever your username and password are used to login from a new browser or device.',
+    },
+    expectStatus: 'DELETE',
+    expectNotify: false,
+  },
+  {
+    id: 'instagram-new-login-silent',
+    label: 'Instagram new login notice → silent DELETE',
+    email: {
+      from: 'Instagram <security@mail.instagram.com>',
+      subject: 'New login to Instagram from Mobile Safari on Apple iPhone',
+      text:
+        'We detected a new login to your Instagram account from Mobile Safari on an Apple iPhone. ' +
+        'If this was you, you can ignore this email. https://instagram.com/accounts/login/',
+    },
+    expectStatus: 'DELETE',
+    expectNotify: false,
+  },
+  {
+    id: 'godaddy-new-signin-silent',
+    label: 'GoDaddy new sign-in notice → silent DELETE (not AUTH_LINK)',
+    email: {
+      from: 'GoDaddy <donotreply@godaddy.com>',
+      subject: "Account Info: There's been a new sign-in to your account.",
+      text:
+        'GoDaddy detected a new sign-in to your account from Hartford, Connecticut on Safari/Mac. ' +
+        'If this wasn\'t you, reset your password. https://sso.godaddy.com/login',
+    },
+    expectStatus: 'DELETE',
+    expectNotify: false,
+  },
+  {
     id: 'vercel-detected-signin-silent',
     label: 'Vercel detected a new sign-in → silent DELETE (known contact)',
     email: {

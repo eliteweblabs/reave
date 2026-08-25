@@ -138,11 +138,27 @@ function matchesCustomOtpSender(email: string): boolean {
   return false;
 }
 
+/** Social / notification mail — never treat as an OTP sender (security@facebookmail, etc.). */
+const SOCIAL_NOTIFICATION_OTP_DOMAINS = [
+  'facebookmail.com',
+  'facebook.com',
+  'mail.instagram.com',
+  'instagram.com',
+  'linkedin.com',
+  'linkedinmail.com',
+];
+
+function isSocialNotificationOtpDomain(from?: string): boolean {
+  const domain = senderDomain(from);
+  return SOCIAL_NOTIFICATION_OTP_DOMAINS.some((d) => domainEndsWith(domain, d));
+}
+
 /** Known transactional OTP sender (built-in heuristics + EMAIL_OTP_SENDERS). */
 export function isLikelyOtpSender(from?: string): boolean {
   const email = parseSenderEmailAddress(from);
   if (!email) return false;
   if (/^mailer-daemon@/i.test(email)) return false;
+  if (isSocialNotificationOtpDomain(from)) return false;
   if (matchesCustomOtpSender(email)) return true;
   return matchesSenderPatterns(email, BUILTIN_OTP_SENDER_RES);
 }
@@ -155,6 +171,7 @@ export function isStrictAuthOtpSender(from?: string): boolean {
   const email = parseSenderEmailAddress(from);
   if (!email) return false;
   if (/^mailer-daemon@/i.test(email)) return false;
+  if (isSocialNotificationOtpDomain(from)) return false;
   if (matchesCustomOtpSender(email)) return true;
   return matchesSenderPatterns(email, STRICT_AUTH_OTP_SENDER_RES);
 }
