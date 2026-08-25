@@ -26,7 +26,9 @@ const docTitle = pageTitle?.trim() || `${appName} Admin`;
   <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <!-- black-translucent: PWA paints under the status bar and home indicator
+       (viewport-fit=cover). `default` letterboxes a white safe-area band. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content={appName} />
   <meta name="application-name" content={appName} />
   <link rel="manifest" href="/admin/manifest.webmanifest" />

@@ -359,10 +359,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
 <script>
   /**
-   * Probe env(safe-area-inset-top) once. Admin must do this because iOS reports
-   * 0 while body is position:fixed. Public pages freeze the first non-zero
-   * value so live env() cannot resize the bar mid-scroll (that bounce).
-   * Never write --safe-top from visualViewport — chasing the toolbar is worse.
+   * Probe env(safe-area-inset-*) once. Admin must do this because iOS reports
+   * 0 on :root while body is position:fixed. Public pages freeze the first
+   * non-zero top value so live env() cannot resize the bar mid-scroll.
+   * Never write these from visualViewport — chasing the toolbar is worse.
    */
   function overlayMenuTouchGuard(e: TouchEvent) {
     const open = document.querySelector(".overlay-menu:not([hidden])");
@@ -388,22 +388,35 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   (window as Window & { __syncOverlayMenuScrollLock?: () => void }).__syncOverlayMenuScrollLock =
     syncOverlayMenuScrollLock;
 
-  function probeSafeAreaInsetTop() {
+  function probeSafeAreaInset(side: "top" | "bottom") {
     const probe = document.createElement("div");
+    const pad = side === "bottom" ? "padding-bottom" : "padding-top";
+    const env =
+      side === "bottom" ? "safe-area-inset-bottom" : "safe-area-inset-top";
+    const edge = side === "bottom" ? "bottom:0" : "top:0";
     probe.style.cssText =
-      "position:fixed;top:0;left:0;height:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;";
+      `position:fixed;${edge};left:0;height:0;${pad}:env(${env},0px);pointer-events:none;visibility:hidden;`;
     document.documentElement.appendChild(probe);
-    const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+    const value =
+      parseFloat(
+        getComputedStyle(probe)[side === "bottom" ? "paddingBottom" : "paddingTop"],
+      ) || 0;
     probe.remove();
-    return insetTop;
+    return value;
   }
 
   function syncAppHeaderSafeArea() {
     const isAdmin = Boolean(document.querySelector(".app-header--admin"));
     if (!isAdmin && document.documentElement.dataset.safeTopFrozen === "1") return;
-    const insetTop = probeSafeAreaInsetTop();
+    const insetTop = probeSafeAreaInset("top");
     if (!isAdmin && insetTop <= 0) return;
     document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+    if (isAdmin) {
+      document.documentElement.style.setProperty(
+        "--safe-bottom",
+        `${probeSafeAreaInset("bottom")}px`,
+      );
+    }
     if (!isAdmin) document.documentElement.dataset.safeTopFrozen = "1";
   }
 
@@ -485,7 +498,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     scheduleAdminChromeLayout();
     const obs = new ResizeObserver(() => scheduleAdminChromeLayout());
     obs.observe(topbar);
-    window.visualViewport?.addEventListener("resize", scheduleAdminChromeLayout, { passive: true });
+    window.visualViewport?.addEventListener(
+      "resize",
+      () => {
+        if (isAdminShell()) syncAppHeaderSafeArea();
+        scheduleAdminChromeLayout();
+      },
+      { passive: true },
+    );
     window.visualViewport?.addEventListener("scroll", scheduleAdminChromeLayout, { passive: true });
     window.addEventListener("resize", scheduleAdminChromeLayout, { passive: true });
     if (isAdminShell()) {

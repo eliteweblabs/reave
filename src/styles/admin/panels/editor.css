@@ -388,7 +388,7 @@
 .de-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 var(--sidebar-inset) var(--footer-scroll-pad);
+  padding: 0 var(--sidebar-inset) 0;
 }
 .de-empty {
   padding: 0.8rem 0.4rem;
