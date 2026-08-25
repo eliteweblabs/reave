@@ -125,7 +125,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   <a
     href={logoHref}
-    class="app-header-logo brand"
+    class="app-header-logo"
     aria-label={logoAriaLabel}
   >
     <span class="app-header-logo-clip" aria-hidden="true">
@@ -825,6 +825,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     align-items: center;
     flex-shrink: 0;
     line-height: 0;
+    color: inherit;
     text-decoration: none;
   }
 
@@ -850,8 +851,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     max-width: 100%;
   }
 
-  html[data-theme="light"] .app-header-logo-svg,
-  html[data-theme="light"] .home-hero-icon {
+  html[data-theme="dark"] .app-header-logo-svg,
+  html[data-theme="dark"] svg.home-hero-icon {
     filter: invert(1);
   }
 

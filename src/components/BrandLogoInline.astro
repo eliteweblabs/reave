@@ -23,14 +23,14 @@ const displayName = company.name?.trim() || 'Business OS';
   inlineLogoSvg ? (
     <InlineBrandSvg
       svg={inlineLogoSvg}
-      class="app-header-logo-svg brand-img logo-img"
+      class="app-header-logo-svg"
       idPrefix="header-logo"
     />
   ) : logoImageUrl ? (
     <img
       src={logoImageUrl}
       alt={displayName}
-      class="app-header-logo-img brand-img logo-img"
+      class="app-header-logo-img"
       width="926"
       height="262"
       decoding="async"
