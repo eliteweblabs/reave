@@ -394,6 +394,15 @@ html.site-marketing .fx-built-logo-probe {
   filter: none;
 }
 
+/* Beat the rule above — white baked fills must invert on the light canvas. */
+html.site-marketing .blm-tile--invert img {
+  filter: invert(1);
+}
+
+html.site-marketing[data-theme="dark"] .blm-tile--invert img {
+  filter: none;
+}
+
 html.site-marketing .client-logo-item img {
   /* Beat the scoped component invert so light mode keeps dark ink. */
   filter: var(--client-logo-filter) !important;
@@ -408,7 +417,6 @@ html[data-theme="dark"] .app-header-logo-svg,
 html[data-theme="dark"] .app-header-logo-img {
   filter: invert(1);
 }
-
 /** Count badges — iOS-style red fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {

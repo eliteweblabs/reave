@@ -23,6 +23,10 @@
  *
  * Prefix a filename with a two-digit number to control display order;
  * unprefixed files sort alphabetically after the numbered ones.
+ *
+ * Paper-white brand fills (`color: "#FFFFFF"`) stay white in the baked SVG so
+ * they still read on dark. The homepage /features marquee tags those slugs
+ * (PAPER_WHITE_REPLACED_APP_IMAGES) with `.blm-tile--invert` on light.
  */
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -48,6 +52,7 @@ const ICONS = [
   { slug: "openai", version: PRE_SALESFORCE_REMOVAL, file: "04-chatgpt.svg", name: "ChatGPT", color: "#412991" },
   { slug: "quickbooks", version: CURRENT, file: "05-quickbooks.svg", name: "QuickBooks", color: "#2CA01C" },
   { slug: "slack", version: PRE_SALESFORCE_REMOVAL, file: "06-slack.svg", name: "Slack", color: "#4A154B" },
+  // Paper-white fills: BrandLogoMarquee adds .blm-tile--invert on the light canvas.
   { slug: "notion", version: CURRENT, file: "09-notion.svg", name: "Notion", color: "#FFFFFF" },
   { slug: "trello", version: CURRENT, file: "10-trello.svg", name: "Trello", color: "#0052CC" },
   { slug: "asana", version: CURRENT, file: "11-asana.svg", name: "Asana", color: "#F06A6A" },
@@ -71,6 +76,7 @@ const ICONS = [
   { slug: "square", version: CURRENT, file: "29-square.svg", name: "Square", color: "#FFFFFF" },
   { slug: "paypal", version: CURRENT, file: "30-paypal.svg", name: "PayPal", color: "#009CDE" },
   { slug: "googleanalytics", version: CURRENT, file: "31-google-analytics.svg", name: "Google Analytics", color: "#E37400" },
+  // Paper-white fill — see Notion note above.
   { slug: "buffer", version: CURRENT, file: "32-buffer.svg", name: "Buffer", color: "#FFFFFF" },
   { slug: "hootsuite", version: CURRENT, file: "33-hootsuite.svg", name: "Hootsuite", color: "#FF4C46" },
   { slug: "wordpress", version: CURRENT, file: "34-wordpress.svg", name: "WordPress", color: "#21759B" },
