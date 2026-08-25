@@ -31,11 +31,20 @@
   ].join(",");
 
   const SKIP_CLOSEST =
-    ".home-hero, .ed-hero, .hero, .ed-header, .be-header, .ed-nav, .testimonials-marquee, .home-integrations-marquees, footer, .site-foot, .site-foot-wrap, .portfolio-masonry, .masonry-item, [data-no-scroll-fade]";
+    ".home-hero, .ed-hero, .hero, .ed-header, .be-header, .ed-nav, .testimonials-marquee, .home-integrations-marquees, .fx-chips, footer, .site-foot, .site-foot-wrap, .portfolio-masonry, .masonry-item, [data-no-scroll-fade]";
 
   function shouldFade(el: Element): el is HTMLElement {
     if (!(el instanceof HTMLElement)) return false;
     if (el.closest(SKIP_CLOSEST)) return false;
+    // Tall wrappers with their own fading children must not also fade —
+    // parent opacity multiplies and view() progress stays mid-range.
+    if (
+      el.matches("section, article") &&
+      !el.classList.contains("scroll-fade-in") &&
+      el.querySelector(".scroll-fade-in")
+    ) {
+      return false;
+    }
     return true;
   }
 

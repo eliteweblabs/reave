@@ -6,7 +6,8 @@
  *
  * Excluded: homepage / landing heroes (already on-screen), chrome, site
  * footer (never reaches cover 28% at the bottom of the page), and
- * horizontal marquees (they have their own motion).
+ * horizontal marquees (they have their own motion — and their overflow
+ * poisons view() progress for later siblings if they stay fade subjects).
  */
 @keyframes scroll-fade-in {
   from {
@@ -22,8 +23,8 @@
 @supports (animation-timeline: view()) {
   :is(
     .scroll-fade-in,
-    main#main-content section,
-    main#main-content article,
+    main#main-content section:not(:has(.scroll-fade-in)),
+    main#main-content article:not(:has(.scroll-fade-in)),
     main#main-content form,
     main#main-content > * > header,
     main#main-content .acc-item,
@@ -33,17 +34,18 @@
     main#main-content .demo-card,
     main#main-content .about-block,
     main#main-content .doc-header,
-    body.landing-body main section,
-    body.landing-body main article,
-    body.editorial-body main section,
-    body.editorial-body main article,
+    body.landing-body main section:not(:has(.scroll-fade-in)),
+    body.landing-body main article:not(:has(.scroll-fade-in)),
+    body.editorial-body main section:not(:has(.scroll-fade-in)),
+    body.editorial-body main article:not(:has(.scroll-fade-in)),
     body.be-body main,
-    body.be-body section,
-    body.be-body article,
+    body.be-body section:not(:has(.scroll-fade-in)),
+    body.be-body article:not(:has(.scroll-fade-in)),
     body.be-body li
-  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
+  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.fx-chips):not(.fx-chips *):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
     animation: scroll-fade-in linear both;
     animation-timeline: view();
+    animation-timeline: view(block);
     animation-range: entry 0% cover 28%;
   }
 }
@@ -51,8 +53,8 @@
 /* IntersectionObserver fallback — activated by ScrollFadeIn.astro */
 html.scroll-fade-io :is(
   .scroll-fade-in,
-  main#main-content section,
-  main#main-content article,
+  main#main-content section:not(:has(.scroll-fade-in)),
+  main#main-content article:not(:has(.scroll-fade-in)),
   main#main-content form,
   main#main-content > * > header,
   main#main-content .acc-item,
@@ -62,15 +64,15 @@ html.scroll-fade-io :is(
   main#main-content .demo-card,
   main#main-content .about-block,
   main#main-content .doc-header,
-  body.landing-body main section,
-  body.landing-body main article,
-  body.editorial-body main section,
-  body.editorial-body main article,
+  body.landing-body main section:not(:has(.scroll-fade-in)),
+  body.landing-body main article:not(:has(.scroll-fade-in)),
+  body.editorial-body main section:not(:has(.scroll-fade-in)),
+  body.editorial-body main article:not(:has(.scroll-fade-in)),
   body.be-body main,
-  body.be-body section,
-  body.be-body article,
+  body.be-body section:not(:has(.scroll-fade-in)),
+  body.be-body article:not(:has(.scroll-fade-in)),
   body.be-body li
-):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]) {
+):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not(.portfolio-masonry):not(.masonry-item):not(.fx-chips):not([data-no-scroll-fade]) {
   opacity: 0;
   transform: translateY(18px);
 }
