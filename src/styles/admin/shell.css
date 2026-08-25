@@ -63,6 +63,22 @@ body {
   scroll-padding-bottom: var(--footer-scroll-pad);
 }
 
+/* Footer clearance is a trailing spacer, not host padding-bottom. Host padding
+ * clips cards above the home-indicator band (a permanent white gap in PWA). */
+.ch-list::after,
+.de-list::after {
+  content: "";
+  display: block;
+  height: var(--footer-scroll-pad);
+  pointer-events: none;
+}
+.ch-list:has(> .list-empty-state:only-child)::after,
+.de-list:has(> .list-empty-state:only-child)::after,
+.ch-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child)::after,
+.de-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child)::after {
+  display: none;
+}
+
 /* Floating header clearance — transparent top bar; inset on columns, not panel shells.
  * Content always clears the measured header height (safe-area + logo row + alerts). */
 #chat-panel > .ch-sidebar,
