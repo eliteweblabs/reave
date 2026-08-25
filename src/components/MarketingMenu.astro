@@ -174,7 +174,7 @@ const showOverlayFooter =
         <div class="overlay-menu-footer-row">
           {
             !signedIn && showDemoCta && demoCta && (
-              <a class="overlay-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
+              <a class="brand-btn overlay-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
                 Demo now
                 <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
               </a>
@@ -185,21 +185,21 @@ const showOverlayFooter =
               <nav class="overlay-menu-footer-actions" aria-label="Account actions">
                 <a
                   href="/admin/profile"
-                  class="overlay-menu-action"
+                  class="brand-btn brand-btn-glass overlay-menu-action"
                   data-marketing-menu-link
                 >
                   Profile
                 </a>
                 <button
                   type="button"
-                  class="overlay-menu-action overlay-menu-action--danger"
+                  class="brand-btn brand-btn-glass overlay-menu-action overlay-menu-action--danger"
                   data-marketing-sign-out
                 >
                   Sign out
                 </button>
                 <button
                   type="button"
-                  class="overlay-menu-action"
+                  class="brand-btn brand-btn-glass overlay-menu-action"
                   disabled
                   aria-disabled="true"
                   title="Settings coming soon"
