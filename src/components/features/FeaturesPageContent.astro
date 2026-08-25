@@ -74,28 +74,6 @@ const apiFeatures = listDemoLoaderFeatures();
 
 type Chip = (typeof apiFeatures)[number];
 
-/** Homepage intro cluster — the pills from the marketing still, not the full marquee. */
-const INTRO_CHIP_IDS = [
-  "ai_agent",
-  "knowledge_base",
-  "media_library",
-  "dynamic_todos",
-  "portal_assistant",
-  "white_label",
-  "mobile_pwa",
-  "passkeys",
-  "chat_commands",
-  "projects_work",
-  "phone_sign_in",
-  "two_way_sms",
-  "client_portal",
-  "stock_photos",
-] as const;
-
-const introChips = INTRO_CHIP_IDS.map((id) => apiFeatures.find((chip) => chip.id === id)).filter(
-  (chip): chip is Chip => Boolean(chip),
-);
-
 /** Mobile / tablet / desktop row counts for the chip marquee. */
 const CHIP_ROW_LAYOUTS = [
   { key: "mobile", rows: 6 },
@@ -498,26 +476,6 @@ const customPrompts: PromptExample[] = [
         </p>
       </div>
     </section>
-    {
-      introOnly ? (
-        <div class="fx-chips fx-chips--cluster" data-no-scroll-fade aria-label="Platform features">
-          {
-            introChips.map((chip) => {
-              const classes = ["fx-chip", chip.kind === "nav" && "fx-chip--link"];
-              return chip.href ? (
-                <a class:list={classes} href={chip.href} data-feature-id={chip.id}>
-                  {chip.label}
-                </a>
-              ) : (
-                <span class:list={classes} data-feature-id={chip.id}>
-                  {chip.label}
-                </span>
-              );
-            })
-          }
-        </div>
-      ) : (
-    <>
     {/*
       Keep the marquee outside the fading hero. Infinite translateX + mask-image
       inside a view() subject inflates the scrollport so later sections stall
@@ -570,9 +528,6 @@ const customPrompts: PromptExample[] = [
         ))
       }
     </div>
-    </>
-      )
-    }
     </>
       )
     }
@@ -1157,25 +1112,6 @@ const customPrompts: PromptExample[] = [
 
   .fx-chip--link:hover {
     filter: brightness(1.08);
-  }
-
-  .fx-chips--cluster {
-    --fx-chip-scale: 1.05;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: 8px 10px;
-    width: 100%;
-    max-width: 640px;
-    align-self: center;
-    margin: 0 auto;
-    padding: 0 4px;
-    overflow: visible;
-    isolation: auto;
-    contain: none;
-    -webkit-mask-image: none;
-    mask-image: none;
   }
 
   /* ---------- Replaced-app logo wall ---------- */

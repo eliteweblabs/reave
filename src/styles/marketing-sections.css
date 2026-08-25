@@ -209,9 +209,4 @@ html {
   .home-scroll .fx-page--intro .fx-lead {
     font-size: 1.05rem;
   }
-
-  .home-scroll .fx-chips--cluster {
-    --fx-chip-scale: 1.18;
-    gap: 10px 12px;
-  }
 }
