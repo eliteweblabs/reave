@@ -8,7 +8,7 @@
  * Styles live on `.admin-setup-alert*` in src/styles/admin/shell.css.
  */
 
-import { iosIcon } from './admin-ui.js?v=20260812c';
+import { iosIcon, createBrandBtn, createIosIconBtn } from './admin-ui.js?v=20260825c';
 
 export const ADMIN_NOTICE_DISMISS_SVG = iosIcon('x', 16);
 
@@ -35,26 +35,26 @@ export const NOTICE_ACTION_ICONS = {
  * @returns {HTMLButtonElement}
  */
 export function appendAdminNoticeAction(toolbar, opts) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  const variants = [];
-  if (opts.primary) variants.push('admin-setup-alert-btn--primary');
-  if (opts.danger) variants.push('admin-setup-alert-btn--danger');
   const iconKey = opts.iconKey || null;
-  if (iconKey) variants.push('admin-setup-alert-btn--icon');
-  btn.className = `admin-setup-alert-btn${variants.length ? ` ${variants.join(' ')}` : ''}`.trim();
   if (iconKey) {
-    btn.innerHTML = iosIcon(iconKey, 18);
-    btn.setAttribute('aria-label', opts.label);
-    btn.title = opts.title || opts.label;
-  } else {
-    btn.textContent = opts.label;
-    if (opts.title) btn.title = opts.title;
+    const btn = createIosIconBtn({
+      iconKey,
+      label: opts.title || opts.label,
+      className: 'ios-icon-btn admin-setup-alert-icon-btn',
+      onClick: (el) => opts.onClick(el),
+    });
+    if (opts.disabled) btn.disabled = true;
+    toolbar.appendChild(btn);
+    return btn;
   }
-  if (opts.disabled) btn.disabled = true;
-  btn.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    opts.onClick(btn);
+  const variant = opts.danger ? 'danger' : opts.primary ? 'filled' : 'glass';
+  const btn = createBrandBtn({
+    variant,
+    label: opts.label,
+    title: opts.title,
+    disabled: opts.disabled,
+    className: 'admin-setup-alert-btn',
+    onClick: (el) => opts.onClick(el),
   });
   toolbar.appendChild(btn);
   return btn;
@@ -118,17 +118,14 @@ export function buildAdminNotice(opts) {
     }
   }
 
-  const dismiss = document.createElement('button');
-  dismiss.type = 'button';
-  dismiss.className = 'admin-setup-alert-dismiss';
-  dismiss.setAttribute('aria-label', opts.dismissLabel || 'Dismiss');
-  dismiss.innerHTML = ADMIN_NOTICE_DISMISS_SVG;
-  if (opts.onDismiss) {
-    dismiss.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      opts.onDismiss(dismiss, ev);
-    });
-  }
+  const dismiss = createIosIconBtn({
+    iconKey: 'x',
+    label: opts.dismissLabel || 'Dismiss',
+    className: 'ios-icon-btn admin-setup-alert-dismiss',
+    onClick: opts.onDismiss
+      ? (btn, ev) => opts.onDismiss(btn, ev)
+      : undefined,
+  });
 
   const iconUrl = opts.iconUrl || null;
   if (iconUrl) {

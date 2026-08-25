@@ -10,7 +10,7 @@ import {
   mountContactAvatars,
 } from './admin-ui.js?v=20260824b';
 import { escHtml, showPersonal } from './shared.js?v=20260810a';
-import { osAlert } from './os-dialog.js?v=20260824b';
+import { osAlert } from './os-dialog.js?v=20260825a';
 
 /** Mirror of src/lib/emailBody.looksLikeHtml for client-side preview. */
 function looksLikeHtml(text) {

@@ -46,7 +46,7 @@ import {
 } from './admin-ui.js?v=20260824b';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260824b';
+import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260825a';
 import {
   createEmailTriageLab,
   formatRuleWhenClause,
@@ -54,7 +54,7 @@ import {
   formatRuleProcessLabel,
   insertDragWithinScope,
 } from './email-triage-lab.js?v=20260824b';
-import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260812e';
+import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initRulesPanel(). */
@@ -298,7 +298,7 @@ function processIsSilentFile(process) {
 
 function processHintText(process) {
   if (process === 'delete') {
-    return 'Matched mail is filed as junk and hidden from the inbox. No notification.';
+    return 'Matched mail is deleted. It does not stay in Junk. No notification.';
   }
   if (process === 'archive') {
     return 'Matched mail is filed to Archive. No notification.';

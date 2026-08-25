@@ -13,7 +13,7 @@
  * Known contacts are a junk green light: the catalog marketing DELETE
  * catch-all (unsubscribe / opt-out) does not apply to senders in Contacts.
  * Other catalog DELETE rules (new sign-in notices) still apply. Personal
- * sender DELETE rules still run and can junk.
+ * sender DELETE rules still run and delete the message.
  *
  * Triage is sequential priority — never parallel.
  * First enabled match wins; later rules are skipped (short-circuit).
@@ -335,7 +335,7 @@ export const DEFAULT_RULES: EmailRule[] = [
     status: 'NEEDS_CHECK',
     scope: 'universal',
     description:
-      'Security and auth alerts — flag for review. Deliberately omits bare "Security alert" so Google Account sign-in notices can be auto-junked by a sender-specific DELETE rule without fighting this catch-all.',
+      'Security and auth alerts — flag for review. Deliberately omits bare "Security alert" so Google Account sign-in notices can be auto-deleted by a sender-specific DELETE rule without fighting this catch-all.',
     phrases: [
       'sign in was removed',
       'App password used',
@@ -447,7 +447,7 @@ export const DEFAULT_RULES: EmailRule[] = [
     status: 'DELETE',
     scope: 'universal',
     description:
-      'Marketing trash — file silently, no alert. Does not apply to known contacts (personal sender DELETE rules still can).',
+      'Marketing trash — deleted on ingest, no alert. Does not apply to known contacts (personal sender DELETE rules still can).',
     phrases: [
       'unsubscribe',
       'you received this because',

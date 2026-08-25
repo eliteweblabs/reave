@@ -1299,6 +1299,59 @@ export async function storeDeleteSeededInboxEmails(): Promise<{ deleted: number;
   return deleteSeededFromFile();
 }
 
+async function deleteSilentDeleteJunkFromPg(): Promise<{ deleted: number; ids: string[] }> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return { deleted: 0, ids: [] };
+    const { rows } = await pool.query<{ id: string }>(
+      `DELETE FROM email_inbox
+       WHERE category = 'junk' AND upper(status) = 'DELETE'
+       RETURNING id`,
+    );
+    const ids = rows.map((r) => r.id);
+    return { deleted: ids.length, ids };
+  } catch (e) {
+    console.error('[email-inbox] pg silent-delete junk purge failed', e);
+    return { deleted: 0, ids: [] };
+  }
+}
+
+function deleteSilentDeleteJunkFromFile(): { deleted: number; ids: string[] } {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return { deleted: 0, ids: [] };
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const keep: EmailInboxRecord[] = [];
+  const ids: string[] = [];
+  for (const event of events) {
+    if (event.category === 'junk' && String(event.status || '').toUpperCase() === 'DELETE') {
+      ids.push(event.id);
+    } else {
+      keep.push(event);
+    }
+  }
+  if (!ids.length) return { deleted: 0, ids: [] };
+  return writeFileEvents(keep) ? { deleted: ids.length, ids } : { deleted: 0, ids: [] };
+}
+
+/**
+ * Remove junk rows that were filed by a DELETE rule (legacy: auto-delete
+ * used to quarantine instead of deleting). Manual / AI junk uses status JUNK.
+ */
+export async function storeDeleteSilentDeleteJunkInbox(): Promise<{ deleted: number; ids: string[] }> {
+  const result = databaseUrl() ? await deleteSilentDeleteJunkFromPg() : deleteSilentDeleteJunkFromFile();
+  if (!result.deleted) return result;
+  const { dismissEmailRelatedNotifications } = await import('./emailNotificationSync');
+  for (const id of result.ids) {
+    await dismissEmailRelatedNotifications(id, {
+      markAutomationAck: false,
+      syncBadge: false,
+    }).catch(() => undefined);
+  }
+  const { scheduleReviewsBadgePush } = await import('./pushBadgeSync');
+  scheduleReviewsBadgePush();
+  return result;
+}
+
 /** Inbox rows whose delete_after_at has passed — for scheduled cleanup. */
 export async function storeListExpiredEmailInbox(limit = 50): Promise<EmailInboxRecord[]> {
   const capped = Math.max(1, Math.min(limit, 200));

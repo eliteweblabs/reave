@@ -1171,6 +1171,64 @@ export function createListEmptyState(opts = {}) {
   return btn;
 }
 
+const BRAND_BTN_VARIANT_CLASS = {
+  filled: 'brand-btn',
+  solid: 'brand-btn brand-btn-solid',
+  glass: 'brand-btn brand-btn-glass',
+  danger: 'brand-btn brand-btn-danger',
+};
+
+/**
+ * Official text button — filled / solid / glass / danger pills.
+ * Use this instead of hand-rolled <button> + de-btn / os-dialog-btn / prof-btn.
+ */
+export function createBrandBtn(opts = {}) {
+  const {
+    variant = 'filled',
+    label = '',
+    iconKey,
+    href,
+    onClick,
+    className = '',
+    type = 'button',
+    title,
+    disabled = false,
+  } = opts;
+  const el = href ? document.createElement('a') : document.createElement('button');
+  if (href) {
+    el.href = href;
+    if (/^https?:/i.test(href)) {
+      el.target = '_blank';
+      el.rel = 'noopener noreferrer';
+    }
+  } else {
+    el.type = type;
+  }
+  el.className = [BRAND_BTN_VARIANT_CLASS[variant] || BRAND_BTN_VARIANT_CLASS.filled, className]
+    .filter(Boolean)
+    .join(' ');
+  if (title) {
+    el.title = title;
+    el.setAttribute('aria-label', title);
+  }
+  if (disabled && !href) el.disabled = true;
+  if (iconKey) {
+    el.classList.add('de-btn-with-icon');
+    el.innerHTML =
+      `<span class="de-btn-icon" aria-hidden="true">${iosIcon(iconKey, 16)}</span>` +
+      `<span class="de-btn-label">${label}</span>`;
+  } else {
+    el.textContent = label;
+  }
+  if (typeof onClick === 'function') {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick(el, e);
+    });
+  }
+  return el;
+}
+
 /** Detail-pane placeholder — optional Create New button or tap-to-create for the whole block. */
 export function createPanePlaceholder(opts = {}) {
   const { innerHtml, onAction, onCreate, btnLabel = 'Create New', ariaLabel } = opts;
@@ -1185,15 +1243,14 @@ export function createPanePlaceholder(opts = {}) {
   }
   el.innerHTML = innerHtml;
   if (onCreate) {
-    const createBtn = document.createElement('button');
-    createBtn.type = 'button';
-    createBtn.className = 'de-placeholder-create-btn';
-    createBtn.textContent = btnLabel;
-    createBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      onCreate(createBtn);
-    });
-    el.appendChild(createBtn);
+    el.appendChild(
+      createBrandBtn({
+        variant: 'filled',
+        label: btnLabel,
+        className: 'de-placeholder-create-btn',
+        onClick: (btn) => onCreate(btn),
+      }),
+    );
   }
   return el;
 }
