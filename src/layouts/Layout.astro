@@ -12,6 +12,7 @@ import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from "../lib/ogImageSize";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
+import { shareSafeText } from "../lib/shareSafeText";
 import { hasFeature } from "../lib/features";
 import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
@@ -61,13 +62,13 @@ const description = descriptionProp ?? company.description;
 const ogImage = ogImageProp ?? companyOgImageUrl(company);
 /** Browser tab title — "Page | Company | Tagline" (tagline from admin → Company → description). */
 const titleParts = [title, company.name, company.description]
-  .map((part) => part?.trim())
+  .map((part) => shareSafeText(part?.trim() ?? ""))
   .filter((part, i, arr): part is string => Boolean(part) && arr.indexOf(part) === i);
 const pageTitle = titleParts.join(" | ");
-/** Link-preview title — page name on inner pages, company name on homepage. */
-const shareTitle = title?.trim() || company.name;
+/** Link-preview title — page name on inner pages, company name on homepage. ASCII-folded so iMessage does not render reΛVe as re/\Ve. */
+const shareTitle = shareSafeText(title?.trim() || company.name);
 /** Omit on homepage: og:site_name + og:title with the same value renders as "Name · Name" in iMessage/Slack. */
-const shareSiteName = title?.trim() ? company.name : undefined;
+const shareSiteName = title?.trim() ? shareSafeText(company.name) : undefined;
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical =

@@ -188,7 +188,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
-    filter: grayscale(100%) invert(100%);
+    filter: var(--client-logo-filter, grayscale(1));
     opacity: 0.6;
     transition: opacity 0.2s ease;
   }

@@ -46,6 +46,7 @@
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
     "check:logo-contrast": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-logo-contrast-adapt.ts",
     "check:company-og": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-company-og-image.ts",
+    "check:share-safe-text": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-share-safe-text.ts",
     "check:qr-brand": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-qr-brand-mark.ts",
     "check:audit-report": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-report-card.ts",
     "check:audit-notifications": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-notifications.ts",

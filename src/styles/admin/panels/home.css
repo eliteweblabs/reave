@@ -81,7 +81,7 @@
 .dash-stat--external:hover .dash-stat-external {
   opacity: 0.9;
 }
-/* Override global pill buttons — dashboard cards stay rounded-rect. */
+/* Tiles are cards, not brand-btn pills — keep rounded-rect even if they are <button>/<a>. */
 #dashboard-panel button.dash-stat {
   border-radius: 14px;
 }

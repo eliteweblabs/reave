@@ -24,7 +24,12 @@ import { ensureProjectForMeetingEmail } from './emailMeetingProject';
 import { resolveContact, getContact, getClientKind, siteBaseUrl, type ClientKind } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
-import { storeRecordEmailInbox, storeUpdateEmailInbox, type EmailInboxRecord } from './emailInboxStore';
+import {
+  storeDeleteEmailInbox,
+  storeRecordEmailInbox,
+  storeUpdateEmailInbox,
+  type EmailInboxRecord,
+} from './emailInboxStore';
 import { linkProjectItem } from './projectLinks';
 import { hasFeature } from './features';
 import { detectMeetingFollowUp } from './emailMeetingFollowup';
@@ -89,7 +94,11 @@ import {
   formatAttachmentListForPrompt,
   normalizeEmailAttachments,
 } from './emailAttachments';
-import { enforceNotificationNotJunk, isJunkClassification } from './emailJunkNotifyInvariant';
+import {
+  enforceNotificationNotJunk,
+  isJunkClassification,
+  shouldHardDeleteOnDeleteRule,
+} from './emailJunkNotifyInvariant';
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
 
 /** ISO timestamp for OTP / auth-link auto-delete, or null when disabled. TTL from admin Settings (fallback: `EMAIL_OTP_TTL_MINUTES` / 5). */
@@ -128,6 +137,8 @@ export interface ProcessedEmailResult {
   wouldNotify?: boolean;
   wouldAgentAlert?: boolean;
   wouldForwardTo?: string | null;
+  /** Matched DELETE rule — message is removed, not filed as junk. */
+  wouldDelete?: boolean;
   aiClassify?: AiClassifyResult | null;
   proposedMeetingStart?: string | null;
   deleteAfterAt?: string | null;
@@ -1515,12 +1526,43 @@ export async function processInboundEmail(
     );
   }
 
+  const hardDelete = shouldHardDeleteOnDeleteRule({
+    category,
+    inboxStatus,
+    ruleStatus: ruleResult.status,
+    isVerificationCode,
+    isAuthLink,
+  });
+  if (hardDelete) action = 'deleted';
+
   if (dryRun) {
     if (suppressDuplicateMeetingAlert) {
       automationKind = null;
       pushAudit('dedupe', 'Would suppress duplicate meeting alert', routeNote);
     }
-    pushAudit('persist', 'Would write inbox row', `${inboxStatus} · ${category} · ${action}`);
+    if (hardDelete) {
+      pushAudit(
+        'persist',
+        'Would delete inbox row',
+        'DELETE rule — remove the message; do not file as junk',
+        matchedRuleLink,
+      );
+    } else {
+      pushAudit('persist', 'Would write inbox row', `${inboxStatus} · ${category} · ${action}`);
+    }
+  } else if (hardDelete) {
+    pushAudit(
+      'persist',
+      'Deleted inbox row',
+      'DELETE rule — removed after classify; not filed as junk',
+      matchedRuleLink,
+    );
+    if (options?.existingInboxId) {
+      await storeDeleteEmailInbox(options.existingInboxId).catch((e) =>
+        console.warn('[email] DELETE-rule cleanup failed', e),
+      );
+    }
+    inboxRecord = null;
   } else {
     const persistFields = {
       from,
@@ -2005,6 +2047,7 @@ export async function processInboundEmail(
     wouldNotify,
     wouldAgentAlert: Boolean(automationKind) || isProjectReply || agentWillAlert,
     wouldForwardTo: forwardTo,
+    wouldDelete: hardDelete,
     aiClassify,
     proposedMeetingStart,
     deleteAfterAt,
