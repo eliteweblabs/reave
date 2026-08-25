@@ -4,7 +4,7 @@
  * and content_management is not (deploy repair still needs write_github_file).
  *
  * Client installs are locked to this install’s website repo. Ops / official
- * REΛVE can still pass a sibling repo for deploy repair.
+ * reΛVe.app can still pass a sibling repo for deploy repair.
  */
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../src/lib/devStatus';
 import {
@@ -180,7 +180,7 @@ export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
   const ops = isOpsInstall();
   const siteRepo = githubWebsiteRepoSlug() || (ops ? githubRepoSlug() : 'this install’s website repo');
   const defaultBranch = githubDefaultBranch();
-  const clientRepoNote = `Always this install’s website repo (${siteRepo}). Cannot write to the REΛVE app.`;
+  const clientRepoNote = `Always this install’s website repo (${siteRepo}). Cannot write to the reΛVe.app.`;
   const repoProps = ops
     ? repoParam(`owner/repo (defaults to ${siteRepo} / GITHUB_REPO)`)
     : {};
@@ -192,7 +192,7 @@ export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
         name: 'get_git_status',
         description: ops
           ? 'Snapshot of the GitHub repo (source of truth): current/default branch, latest commits, branch count, and whether the live site is on the latest commit. Pass repo for sibling services. Local uncommitted/unstaged changes are NOT visible here.'
-          : `Snapshot of ${siteRepo} (this install’s front-end website). Latest commits and whether the live site matches. You cannot inspect the REΛVE app repo.`,
+          : `Snapshot of ${siteRepo} (this install’s front-end website). Latest commits and whether the live site matches. You cannot inspect the reΛVe.app repo.`,
         parameters: {
           type: 'object',
           properties: {

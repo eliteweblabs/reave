@@ -7,7 +7,7 @@ visibility: private
 
 # Deploy wizard
 
-Super-admin module for the official REΛVE Railway install only. Do not add `deploy_wizard` to client `features[]`.
+Super-admin module for the official reΛVe.app Railway install only. Do not add `deploy_wizard` to client `features[]`.
 
 ## Sibling services
 

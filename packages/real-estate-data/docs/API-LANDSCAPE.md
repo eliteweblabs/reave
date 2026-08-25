@@ -52,7 +52,7 @@ Rough survey of U.S. property data sources suitable for agent tools. This plugin
 
 ## Tier 3 — Not API-first (manual / future)
 
-- **Floor plans:** Often in MLS listing photos, appraiser sketches, or uploaded project docs — consider REΛVE **Documents** integration
+- **Floor plans:** Often in MLS listing photos, appraiser sketches, or uploaded project docs — consider reΛVe.app **Documents** integration
 - **Easements / covenants:** County recorder PDFs — OCR + RAG later
 - **Inspection reports:** User-uploaded; not public API
 
@@ -80,5 +80,5 @@ Future: `composite` provider that tries PropData first, falls back to AssessorSe
 - [ ] Geocode → normalize address before lookup
 - [ ] Cache layer (Cloudflare KV / Postgres) keyed by parcel id
 - [ ] Permit lookup by city + address (Socrata adapter)
-- [ ] Link property results to REΛVE **Contacts** / **Projects** by address
+- [ ] Link property results to reΛVe.app **Contacts** / **Projects** by address
 - [ ] Admin settings UI for provider + API key (today: env vars only)

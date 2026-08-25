@@ -550,7 +550,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     overflow: visible;
     background-color: transparent;
     color: var(--site-fg, #171717);
-    --app-header-inline-pad: max(0.5rem, env(safe-area-inset-left, 0px));
+    --app-header-inline-pad: max(1rem, env(safe-area-inset-left, 0px));
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top, 0px);
     padding-top: var(--safe-top);
@@ -571,6 +571,12 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   @media (max-width: 768px) {
     .app-header:not(.app-header--admin) {
       position: absolute;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .app-header--admin {
+      --app-header-inline-pad: max(0.75rem, env(safe-area-inset-left, 0px));
     }
   }
 
@@ -833,22 +839,20 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     display: flex;
     align-items: center;
     width: max-content;
-    max-width: min(16vw, 265px);
+    max-width: 160px;
     height: var(--app-header-logo-h);
   }
 
-  .app-header-logo-img {
-    display: block;
-    height: var(--app-header-logo-h);
-    width: auto;
-    max-width: 100%;
-  }
-
+  /* Raster + SVG share one contain box so width caps do not squash uploads. */
+  .app-header-logo-img,
   .app-header-logo-svg {
     display: block;
-    height: var(--app-header-logo-h);
+    height: 100%;
     width: auto;
     max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: left center;
   }
 
   html[data-theme="dark"] .app-header-logo-svg,

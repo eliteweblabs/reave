@@ -1,5 +1,5 @@
 /**
- * Guard: Clerk login homepage is config-driven and never applies to official REΛVE.
+ * Guard: Clerk login homepage is config-driven and never applies to official reΛVe.app.
  * Run: npm run check:homepage-login
  */
 import assert from 'node:assert/strict';
@@ -68,7 +68,7 @@ assert.equal(
     isDemo: false,
   }),
   'default',
-  'canonical REΛVE ignores login template',
+  'canonical reΛVe.app ignores login template',
 );
 
 assert.equal(
@@ -163,7 +163,7 @@ assert.equal(
     requestHost: 'app.levineslaw.com',
   }),
   'login',
-  'client host must not inherit REΛVE marketing when INSTALL_CONFIG=reave',
+  'client host must not inherit reΛVe.app marketing when INSTALL_CONFIG=reave',
 );
 
 assert.equal(

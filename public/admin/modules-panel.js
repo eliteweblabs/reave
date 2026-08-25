@@ -1,6 +1,6 @@
 /**
  * Admin modules — inbox-style catalog + deploy status.
- * Official REΛVE host can edit the sale-sheet catalog from this list.
+ * Official reΛVe.app host can edit the sale-sheet catalog from this list.
  */
 import {
   iosIcon,

@@ -1,5 +1,5 @@
 /**
- * Install identity published by the REΛVE Railway node.
+ * Install identity published by the reΛVe.app Railway node.
  *
  * Siblings (Cal.com, Crater, …) should reference these values — do not re-type
  * icon, username, or email on each new service. Runtime resolution reads

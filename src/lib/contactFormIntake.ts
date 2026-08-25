@@ -365,7 +365,7 @@ export async function processContactFormIntake(
   let smsOptInConfirmationSent = false;
   if (smsOptIn === true && phone) {
     const company = await getCompanyConfig();
-    const brandName = company.name?.trim() || 'REΛVE';
+    const brandName = company.name?.trim() || 'reΛVe.app';
     smsOptInConfirmationSent = await sendSmsOptInConfirmation({ phone, brandName });
     if (!smsOptInConfirmationSent) warnings.push('sms_opt_in_confirmation_failed');
   }

@@ -5,9 +5,11 @@ import InlineBrandSvg from './InlineBrandSvg.astro';
 
 export interface Props {
   company: CompanyConfig;
+  class?: string;
+  idPrefix?: string;
 }
 
-const { company } = Astro.props;
+const { company, class: className = 'home-hero-icon', idPrefix = 'hero-icon' } = Astro.props;
 const inlineIconSvg = companyHeroIconSvg(company);
 const iconImageUrl = inlineIconSvg ? '' : companyHeroIconImageUrl(company);
 const displayName = company.name?.trim() || 'Business OS';
@@ -17,19 +19,19 @@ const displayName = company.name?.trim() || 'Business OS';
   inlineIconSvg ? (
     <InlineBrandSvg
       svg={inlineIconSvg}
-      class="home-hero-icon"
-      idPrefix="hero-icon"
+      class={className}
+      idPrefix={idPrefix}
     />
   ) : iconImageUrl ? (
     <img
       src={iconImageUrl}
       alt=""
-      class="home-hero-icon"
+      class={className}
       width="512"
       height="512"
       decoding="async"
     />
   ) : (
-    <span class="home-hero-icon-name">{displayName}</span>
+    <span class:list={[className, 'home-hero-icon-name']}>{displayName}</span>
   )
 }

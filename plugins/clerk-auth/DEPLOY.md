@@ -13,7 +13,7 @@ delete other Clerk applications.
 |---|---|---|
 | `CLERK_SECRET_KEY` | For user/session/org tools | `sk_live_…` or `sk_test_…` — from Clerk dashboard → API Keys |
 
-Set via Railway Variables → REΛVE Automation App → production.
+Set via Railway Variables → reΛVe.app Automation App → production.
 
 Clerk is baseline on every package — not an optional `features[]` module. Admin tools load when the key above is set.
 

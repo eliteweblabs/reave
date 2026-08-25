@@ -6,7 +6,6 @@
  * stacking context.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
-import ReaveIcon from "../../components/ReaveIconAnimated.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
@@ -39,6 +38,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 >
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
+      <span class="home-hero-icon-glow" aria-hidden="true">
+        <span class="home-hero-icon-glow-wash"></span>
+        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
+        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
+        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
+      </span>
       <BrandIconInline company={company} />
     </div>
     <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
@@ -57,7 +62,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       >
         <template id="hero-demo-agent-avatar">
           <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-            <ReaveIcon class="home-hero-demo-avatar-icon" />
+            <BrandIconInline
+              company={company}
+              class="home-hero-demo-avatar-icon"
+              idPrefix="hero-demo-agent"
+            />
           </span>
         </template>
         <template id="hero-demo-user-avatar">
@@ -110,23 +119,23 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: 100%;
     max-width: 100%;
     isolation: isolate;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
     overflow: hidden;
     scroll-margin-top: 0;
   }
 
-  /* Icon + headline — highest layer, dead centre of the viewport */
+  /* Icon + headline — bounding-box center = viewport center */
   .home-hero-brand {
-    position: absolute;
+    position: relative;
     z-index: 10;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(10px, 2vh, 16px);
+    gap: 0;
     width: min(100%, 540px);
     padding: 0 20px;
     pointer-events: none;
@@ -136,20 +145,158 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: relative;
     z-index: 1;
     flex: none;
-    width: clamp(150px, 32vw, 240px);
-    height: clamp(150px, 32vw, 240px);
+    width: clamp(190px, 42vw, 312px);
+    height: clamp(190px, 42vw, 312px);
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /*
+   * Faint rainbow backlight — slow lava-lamp drift behind the mark,
+   * not a hard outline and not a big cloudy disc.
+   */
+  .home-hero-icon-glow {
+    position: absolute;
+    inset: 6%;
+    z-index: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .home-hero-icon-glow-wash,
+  .home-hero-icon-glow-lava {
+    position: absolute;
+    border-radius: 50%;
     pointer-events: none;
   }
 
-  .home-hero-icon-wrap :global(svg),
-  .home-hero-icon-wrap :global(img) {
+  .home-hero-icon-glow-wash {
+    inset: 14%;
+    background: conic-gradient(
+      from 0deg,
+      #f87171,
+      #fbbf24,
+      #34d399,
+      #38bdf8,
+      #818cf8,
+      #c084fc,
+      #f472b6,
+      #f87171
+    );
+    filter: blur(26px);
+    opacity: 0.14;
+    animation:
+      homeHeroGlowSpin 22s linear infinite,
+      homeHeroGlowHue 18s linear infinite;
+  }
+
+  .home-hero-icon-glow-lava {
+    width: 52%;
+    height: 52%;
+    filter: blur(20px);
+    opacity: 0.2;
+  }
+
+  .home-hero-icon-glow-lava--a {
+    left: 6%;
+    top: 16%;
+    background: radial-gradient(circle, #f472b6 0%, transparent 72%);
+    animation: homeHeroLavaA 15s ease-in-out infinite;
+  }
+
+  .home-hero-icon-glow-lava--b {
+    right: 4%;
+    top: 10%;
+    background: radial-gradient(circle, #38bdf8 0%, transparent 72%);
+    animation: homeHeroLavaB 19s ease-in-out infinite;
+  }
+
+  .home-hero-icon-glow-lava--c {
+    left: 26%;
+    bottom: 8%;
+    background: radial-gradient(circle, #c084fc 0%, transparent 72%);
+    animation: homeHeroLavaC 17s ease-in-out infinite;
+  }
+
+  @keyframes homeHeroGlowSpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes homeHeroGlowHue {
+    to {
+      filter: blur(26px) hue-rotate(360deg);
+    }
+  }
+
+  @keyframes homeHeroLavaA {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+    }
+    40% {
+      transform: translate(16%, -10%) scale(1.1);
+    }
+    70% {
+      transform: translate(-8%, 14%) scale(0.92);
+    }
+  }
+
+  @keyframes homeHeroLavaB {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1.05);
+    }
+    35% {
+      transform: translate(-14%, 12%) scale(0.9);
+    }
+    65% {
+      transform: translate(10%, -8%) scale(1.12);
+    }
+  }
+
+  @keyframes homeHeroLavaC {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(0.96);
+    }
+    45% {
+      transform: translate(12%, -14%) scale(1.14);
+    }
+    75% {
+      transform: translate(-10%, 8%) scale(1);
+    }
+  }
+
+  :global(html[data-theme="dark"]) .home-hero-icon-glow-wash {
+    opacity: 0.2;
+  }
+
+  :global(html[data-theme="dark"]) .home-hero-icon-glow-lava {
+    opacity: 0.28;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-icon-glow-wash,
+    .home-hero-icon-glow-lava {
+      animation: none;
+    }
+  }
+
+  .home-hero-icon-wrap > :global(svg),
+  .home-hero-icon-wrap > :global(img) {
+    position: relative;
+    z-index: 1;
     display: block;
     width: 100%;
     height: 100%;
     filter: none;
   }
 
-  .home-hero-icon-wrap :global(.home-hero-icon-name) {
+  .home-hero-icon-wrap > :global(.home-hero-icon-name) {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -168,7 +315,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-title {
     position: relative;
     z-index: 1;
-    margin: 0;
+    margin: -3.75rem 0 0;
     font-family: var(--font-primary);
     font-size: clamp(1.39rem, 3.9vw, 2.625rem);
     font-weight: 700;
@@ -190,11 +337,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     .home-hero {
       /* Keep the chat lane tucked under the raised brand block. */
       --home-hero-brand-bottom: 32%;
-    }
-
-    /* Mid-screen feels low on phones — lift icon + title ~10% of the viewport. */
-    .home-hero-brand {
-      top: 40%;
     }
 
     .home-hero-title {
@@ -380,10 +522,25 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: block;
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    color: var(--site-fg, #171717);
   }
 
-  html[data-theme="light"] .home-hero-demo-avatar-icon {
+  html[data-theme="dark"] .home-hero-demo-avatar-icon {
     filter: invert(1);
+  }
+
+  .home-hero-demo-avatar-icon.home-hero-icon-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-family: var(--font-primary);
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    text-align: center;
   }
 
   .home-hero-demo-avatar-photo {

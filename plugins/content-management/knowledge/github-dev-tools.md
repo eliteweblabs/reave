@@ -9,9 +9,9 @@ The Agentic Website Editor writes files via the GitHub REST API. Read-only statu
 | Install | What you may edit |
 |---------|-------------------|
 | **Client** (`website` / `content_management`, not ops) | Only `websiteRepo` / `GITHUB_WEBSITE_REPO` (usually `eliteweblabs/{slug}-site`). Tools ignore other `repo` arguments. No `create_github_repo`. |
-| **Ops / official REΛVE** | This app (`eliteweblabs/reave`) plus named sibling services. You provision each client’s front-end repo. |
+| **Ops / official reΛVe.app** | This app (`eliteweblabs/reave`) plus named sibling services. You provision each client’s front-end repo. |
 
-Client installs do **not** get a PAT. GitHub cannot create PATs via API. The deploy wizard creates a **restricted GitHub App** for `eliteweblabs/{slug}-site` (`GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY`) and mints a 1-hour Contents token scoped to that repo on each write. Do not copy the official REΛVE `GITHUB_TOKEN` onto a client.
+Client installs do **not** get a PAT. GitHub cannot create PATs via API. The deploy wizard creates a **restricted GitHub App** for `eliteweblabs/{slug}-site` (`GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY`) and mints a 1-hour Contents token scoped to that repo on each write. Do not copy the official reΛVe.app `GITHUB_TOKEN` onto a client.
 
 On a deployed container there is often no git binary and no `.git` checkout, so `exec_command`/shell `git push` will not work — the GitHub API is the only way to persist code there.
 
@@ -21,8 +21,8 @@ On a deployed container there is often no git binary and no `.git` checkout, so 
 |----------|---------|
 | `GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY` | Client website editor — mint a Contents token for `GITHUB_WEBSITE_REPO` only |
 | `GITHUB_WEBSITE_REPO` | `owner/repo` for this install’s front-end (overrides `websiteRepo` in install config) |
-| `GITHUB_TOKEN` | Ops / official REΛVE PAT. Optional on clients. Never copy this host token to a client. |
-| `GITHUB_REPO` | App / Railway service repo (REΛVE). **Not** the client website target. |
+| `GITHUB_TOKEN` | Ops / official reΛVe.app PAT. Optional on clients. Never copy this host token to a client. |
+| `GITHUB_REPO` | App / Railway service repo (reΛVe.app). **Not** the client website target. |
 | `websiteRepo` | Same as `GITHUB_WEBSITE_REPO`, in `config/config-{slug}.json` |
 
 **GitHub App permissions (client website editor):** Contents read+write, Metadata read. Installation: selected repositories only — never `eliteweblabs/reave`.

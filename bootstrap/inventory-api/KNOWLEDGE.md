@@ -1,6 +1,6 @@
 # inventory-api (agent playbook)
 
-Multi-channel inventory search for REΛVE — Shopify, WooCommerce, Square, and more via `inventory-api`.
+Multi-channel inventory search for reΛVe.app — Shopify, WooCommerce, Square, and more via `inventory-api`.
 
 ## When to use
 

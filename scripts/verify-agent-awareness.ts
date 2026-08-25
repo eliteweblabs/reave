@@ -119,12 +119,12 @@ assert.equal(
 );
 
 const identity = formatOwnerIdentityBlock({
-  companyName: 'REΛVE',
+  companyName: 'reΛVe.app',
   domain: 'reave.app',
   ownerName: 'Tony',
   ownerEmail: 'tony@example.com',
 });
-assert.match(identity, /You work for REΛVE \(reave.app\)/);
+assert.match(identity, /You work for reΛVe.app \(reave.app\)/);
 assert.match(identity, /Tony <tony@example.com>/);
 assert.match(identity, /EVERY Session/);
 
