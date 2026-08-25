@@ -27,8 +27,11 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const localProgress = getAgentProgress(userId, id);
   const localRunning = isAgentRunActive(userId, id);
-  if (localRunning || localProgress) {
-    return json({ ok: true, progress: localProgress, running: localRunning });
+  // Only report a live run when this process still owns it. Leftover progress
+  // after the run map is cleared used to keep `running || progress` recovery
+  // (and the composer lock) stuck on a finished reply.
+  if (localRunning) {
+    return json({ ok: true, progress: localProgress, running: true });
   }
 
   // Another replica may still be draining the turn after a deploy cutover.

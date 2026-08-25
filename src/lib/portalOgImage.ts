@@ -15,9 +15,10 @@ import {
 import { enrichClientPortalBrand } from './clientBrand';
 import { adaptLogoContrast } from './logoContrastAdapt';
 import { cachedCompanyBrandName, getCompanyConfig } from './companyConfig';
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from './ogImageSize';
 
-export const PORTAL_OG_WIDTH = 1200;
-export const PORTAL_OG_HEIGHT = 630;
+export const PORTAL_OG_WIDTH = OG_IMAGE_WIDTH;
+export const PORTAL_OG_HEIGHT = OG_IMAGE_HEIGHT;
 
 const LOGO_FETCH_TIMEOUT_MS = 8_000;
 const OG_BG = { r: 10, g: 10, b: 10 };

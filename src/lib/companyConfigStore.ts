@@ -46,6 +46,9 @@ export type StoredCompanyConfig = {
   logoSvg?: string | null;
   /** Owner-pasted inline SVG for homepage hero icon. */
   iconSvg?: string | null;
+  /** Admin-uploaded default social-share (OG) image. */
+  ogData?: string | null;
+  ogMediaType?: string | null;
   vapiAssistantId?: string | null;
   vapiFirstMessage?: string | null;
   vapiSystemPrompt?: string | null;
@@ -149,6 +152,8 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_google_specs TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS brand_primary TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS brand_secondary TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS portal_outreach_notice TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_data TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_media_type TEXT;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -248,6 +253,8 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     iconMediaType: typeof o.iconMediaType === 'string' && o.iconMediaType ? o.iconMediaType.trim() : null,
     logoSvg: typeof o.logoSvg === 'string' && o.logoSvg.trim() ? o.logoSvg : null,
     iconSvg: typeof o.iconSvg === 'string' && o.iconSvg.trim() ? o.iconSvg : null,
+    ogData: typeof o.ogData === 'string' && o.ogData ? o.ogData : null,
+    ogMediaType: typeof o.ogMediaType === 'string' && o.ogMediaType ? o.ogMediaType.trim() : null,
     vapiAssistantId: str('vapiAssistantId') || null,
     vapiFirstMessage: typeof o.vapiFirstMessage === 'string' ? o.vapiFirstMessage : null,
     vapiSystemPrompt: typeof o.vapiSystemPrompt === 'string' ? o.vapiSystemPrompt : null,
@@ -361,6 +368,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     brand_primary: string | null;
     brand_secondary: string | null;
     portal_outreach_notice: string | null;
+    og_data: string | null;
+    og_media_type: string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -373,7 +382,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_telegram, social_whatsapp, social_substack, social_yelp, social_google_business,
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
-            brand_primary, brand_secondary, portal_outreach_notice, updated_at
+            brand_primary, brand_secondary, portal_outreach_notice, og_data, og_media_type, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -434,6 +443,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     brandPrimary: row.brand_primary,
     brandSecondary: row.brand_secondary,
     portalOutreachNotice: row.portal_outreach_notice,
+    ogData: row.og_data,
+    ogMediaType: row.og_media_type,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -495,6 +506,8 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        brand_primary = $50,
        brand_secondary = $51,
        portal_outreach_notice = $52,
+       og_data = $53,
+       og_media_type = $54,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -552,6 +565,8 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.brandPrimary ?? null,
       config.brandSecondary ?? null,
       config.portalOutreachNotice ?? null,
+      config.ogData ?? null,
+      config.ogMediaType ?? null,
     ],
   );
   if ((result.rowCount ?? 0) > 0) return true;
@@ -665,6 +680,20 @@ export async function clearStoredCompanyIcon(): Promise<boolean> {
     iconMediaType: null,
     iconPath: null,
     iconSvg: null,
+  });
+}
+
+export async function setStoredCompanyOg(og: StoredCompanyLogo): Promise<boolean> {
+  return setStoredCompanyConfig({
+    ogData: og.dataBase64,
+    ogMediaType: og.mediaType,
+  });
+}
+
+export async function clearStoredCompanyOg(): Promise<boolean> {
+  return setStoredCompanyConfig({
+    ogData: null,
+    ogMediaType: null,
   });
 }
 

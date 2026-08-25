@@ -293,6 +293,7 @@ import {
 import {
   openMediaPicker,
   brandingMediaFilter,
+  brandingRasterMediaFilter,
   applyMediaToTarget,
 } from './media-picker.js?v=20260813b';
 import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260820a';
@@ -5939,6 +5940,18 @@ function hasCustomCompanyIcon(company) {
   );
 }
 
+function hasUploadedCompanyOg(company) {
+  return company?.ogHasRaster === true;
+}
+
+function companyOgPreviewUrl(company) {
+  const version = company?.logoVersion || company?.iconVersion || '';
+  const bust = `_=${Date.now()}`;
+  return version
+    ? `/api/branding/og.png?v=${encodeURIComponent(version)}&${bust}`
+    : `/api/branding/og.png?${bust}`;
+}
+
 function syncSvgFieldPreview(root, fieldId, svg) {
   const wrap = root.querySelector(`#${fieldId}-preview-wrap`);
   const img = root.querySelector(`#${fieldId}-preview`);
@@ -6201,6 +6214,124 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   return { refreshPreview };
 }
 
+function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
+  const fileInput = root.querySelector('#company-og-file');
+  const uploadBtn = root.querySelector('#company-og-upload-btn');
+  const fileWrap = root.querySelector('#company-og-file-wrap');
+  const previewWrap = root.querySelector('#company-og-preview-wrap');
+  const preview = root.querySelector('#company-og-preview');
+  const removeBtn = root.querySelector('#company-og-remove');
+  const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
+  let lastCompany = initialCompany || null;
+
+  const refreshPreview = (company) => {
+    lastCompany = company;
+    const hasCustom = hasUploadedCompanyOg(company);
+    const url = companyOgPreviewUrl(company);
+
+    if (preview instanceof HTMLImageElement) {
+      preview.src = url;
+    }
+    if (previewWrap instanceof HTMLElement) {
+      previewWrap.hidden = false;
+    }
+    if (fileWrap instanceof HTMLElement) {
+      fileWrap.hidden = hasCustom;
+    }
+    if (removeBtn instanceof HTMLButtonElement) {
+      removeBtn.hidden = !hasCustom;
+    }
+  };
+
+  uploadBtn?.addEventListener('click', () => {
+    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
+  });
+
+  fileInput?.addEventListener('change', async () => {
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
+    const file = fileInput.files[0];
+    const fd = new FormData();
+    fd.append('og', file);
+    if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
+    fileInput.disabled = true;
+    if (uploadBtn instanceof HTMLButtonElement) {
+      uploadBtn.disabled = true;
+      uploadBtn.textContent = 'Uploading…';
+    }
+    if (preview instanceof HTMLImageElement) {
+      preview.src = URL.createObjectURL(file);
+    }
+    if (previewWrap instanceof HTMLElement) previewWrap.hidden = false;
+    try {
+      const res = await adminFetch('/api/admin/company/og', { method: 'POST', body: fd });
+      const json = await readAdminJson(res, 'share image upload');
+      if (res.ok && json.company) {
+        refreshPreview(json.company);
+        onCompany?.(json.company);
+        showProfileAlert(companyAlert, 'Share image updated.', 'success');
+      } else {
+        refreshPreview(lastCompany);
+        showProfileAlert(companyAlert, json.error || 'Share image upload failed.', 'error');
+      }
+    } catch (e) {
+      refreshPreview(lastCompany);
+      showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
+    } finally {
+      fileInput.value = '';
+      fileInput.disabled = false;
+      if (uploadBtn instanceof HTMLButtonElement) {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload';
+      }
+      if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
+    }
+  });
+
+  removeBtn?.addEventListener('click', async () => {
+    if (!(removeBtn instanceof HTMLButtonElement)) return;
+    removeBtn.disabled = true;
+    try {
+      const res = await adminFetch('/api/admin/company/og', { method: 'DELETE' });
+      const json = await readAdminJson(res, 'share image delete');
+      if (res.ok && json.company) {
+        refreshPreview(json.company);
+        onCompany?.(json.company);
+        showProfileAlert(companyAlert, 'Share image removed. Pages will use the generated logo card.', 'success');
+      } else {
+        showProfileAlert(companyAlert, json.error || 'Could not remove share image.', 'error');
+      }
+    } catch (e) {
+      showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
+    } finally {
+      removeBtn.disabled = false;
+    }
+  });
+
+  root.querySelector('#company-og-library')?.addEventListener('click', () => {
+    void openMediaPicker({
+      title: 'Choose share image',
+      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB). 1200×630 works best for link previews.',
+      emptyHint:
+        'No share images in the library yet. Close and upload a file here, or add one from the Media tab.',
+      emptyFilteredHint:
+        'Library files are present, but none are PNG, JPEG, or WebP in the size limit.',
+      filter: brandingRasterMediaFilter,
+      onPick: async (item) => {
+        const json = await applyMediaToTarget(item.id, 'company-og');
+        if (json.company) {
+          refreshPreview(json.company);
+          onCompany?.(json.company);
+        }
+        showProfileAlert(companyAlert, 'Share image updated from library.', 'success');
+      },
+    });
+  });
+
+  if (initialCompany) refreshPreview(initialCompany);
+
+  return { refreshPreview };
+}
+
 function bindProfileForm(root) {
   bindFormattedPhoneInputs(root);
   bindAutosaveForm(root, {
@@ -6247,10 +6378,12 @@ function bindCompanyForm(root, company, fontCatalog) {
   let resyncCompanyForm = () => {};
   let refreshLogoPreview = () => {};
   let refreshIconPreview = () => {};
+  let refreshOgPreview = () => {};
   const onBrandCompany = (next) => {
     syncCompanySvgFields(root, next);
     refreshLogoPreview(next);
     refreshIconPreview(next);
+    refreshOgPreview(next);
     resyncCompanyForm();
   };
   const logoBranding = bindCompanyLogoUpload(root, companyAlert, {
@@ -6262,6 +6395,10 @@ function bindCompanyForm(root, company, fontCatalog) {
     onCompany: onBrandCompany,
   });
   refreshIconPreview = iconBranding.refreshPreview;
+  const ogBranding = bindCompanyOgUpload(root, companyAlert, company, {
+    onCompany: onBrandCompany,
+  });
+  refreshOgPreview = ogBranding.refreshPreview;
 
   const addressInput = root.querySelector('#company-address');
   const mapHost = root.querySelector('#company-map-host');
@@ -7353,6 +7490,23 @@ function renderCompanyPanel(company, fontCatalog) {
               `</div>` +
             `</div>` +
             `<span class="prof-hint prof-hint--block">Pick a PNG, JPEG, WebP, or SVG from the Media library, or upload a file here. An SVG file fills the paste fields below.</span>`,
+          ) +
+          profSection(
+            'Social sharing',
+            'Default image for Facebook, iMessage, Slack, and X. Individual pages can override this.',
+            `<div class="prof-field"><label for="company-og-file">Share image</label>` +
+            `<div class="prof-logo-upload">` +
+              `<div id="company-og-preview-wrap" class="prof-logo-preview-wrap prof-og-preview-wrap">` +
+                `<img id="company-og-preview" class="prof-og-preview" src="${escHtml(companyOgPreviewUrl(c))}" alt="" />` +
+                `<button type="button" id="company-og-remove" class="prof-logo-remove" aria-label="Remove share image"${hasUploadedCompanyOg(c) ? '' : ' hidden'}>×</button>` +
+              `</div>` +
+              `<div id="company-og-file-wrap" class="prof-logo-file-wrap"${hasUploadedCompanyOg(c) ? ' hidden' : ''}>` +
+                `<input id="company-og-file" class="prof-logo-file-input" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" hidden />` +
+                `<button type="button" id="company-og-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
+              `</div>` +
+              `<button type="button" id="company-og-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
+            `</div>` +
+            `<span class="prof-hint">1200×630 PNG, JPEG, or WebP. Leave empty to generate a card from the logo or icon. A page that sets its own share image wins.</span></div>`,
           ) +
           profSection(
             'SVG Logo and Icon',

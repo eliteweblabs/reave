@@ -170,6 +170,8 @@ export type CompanyConfig = {
   logoHasRaster: boolean;
   /** True when an admin-uploaded raster (PNG/JPEG/WebP) is stored for the icon. */
   iconHasRaster: boolean;
+  /** True when an admin-uploaded default social-share (OG) image is stored. */
+  ogHasRaster: boolean;
   /** Vapi assistant UUID — admin setting, env fallback. */
   vapiAssistantId: string;
   /** Spoken greeting template (supports {{companyName}}). */
@@ -356,7 +358,7 @@ export function companyFaviconUrls(company: CompanyConfig): CompanyFaviconUrls {
   };
 }
 
-/** Runtime OG / Twitter card image from admin branding. */
+/** Runtime OG / Twitter card — uploaded share image, else generated from logo/icon. */
 export function companyOgImageUrl(company: CompanyConfig): string {
   const version = companyBrandingVersion(company);
   if (!version) return BRANDING_OG_PATH;
@@ -513,6 +515,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
     iconHasRaster: Boolean(stored?.iconData && stored?.iconMediaType),
+    ogHasRaster: Boolean(stored?.ogData && stored?.ogMediaType),
     ...logo,
     ...icon,
   };
