@@ -286,6 +286,15 @@ html.site-marketing .client-logo-item img {
   filter: none;
 }
 
+/* Beat the rule above — white baked fills must invert on the light canvas. */
+html.site-marketing .blm-tile--invert img {
+  filter: invert(1);
+}
+
+html.site-marketing[data-theme="dark"] .blm-tile--invert img {
+  filter: none;
+}
+
 /** Count badges — iOS-style red fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {
