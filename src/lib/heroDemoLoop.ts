@@ -2482,8 +2482,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
       if (!running || gen !== loopGeneration || offscreen) break;
 
       if (skipped) {
-        // Admin "next": replay the pinned test scene (or advance normally).
-        if (startIdx >= 0) sceneIndex = startIdx;
+        // Skip the inter-scene gap and play the next scene immediately.
         continue;
       }
 
@@ -2525,15 +2524,16 @@ export function initHeroDemoLoop(root: HTMLElement) {
   const userNext = () => {
     if (offscreen) return;
     demoClock.userPaused = false;
-    demoClock.skipScene = true;
     window.clearTimeout(hideTimer);
     root.hidden = false;
     root.classList.remove("home-hero-demo--stopped");
     if (!running) {
-      if (startIdx >= 0) sceneIndex = startIdx;
+      // sceneIndex already points at the next scene after the last play.
       running = true;
       const gen = ++loopGeneration;
       void loop(gen);
+    } else {
+      demoClock.skipScene = true;
     }
     syncControls();
   };
