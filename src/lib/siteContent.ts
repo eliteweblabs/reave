@@ -406,7 +406,7 @@ function fallbackReaveConfig(): SiteContentConfig {
     homepage: {
       heroHeadlineHtml: 'Small Business, <br class="home-hero-title-break" />Smaller Workday',
       showHeroDemo: true,
-      showDialogue: true,
+      showDialogue: false,
       showIntegrations: true,
       showFeatures: true,
       showContact: true,
