@@ -645,14 +645,14 @@
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: var(--accent, #7c3aed);
+  color: var(--fg);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
 }
 .em-compose-agent:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent, #7c3aed) 10%, transparent);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
 }
 .em-compose-agent:disabled {
   opacity: 0.45;

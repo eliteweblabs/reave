@@ -379,7 +379,7 @@ function renderAnalyticsDashboard(root, d, status) {
   const chart =
     `<section class="ana-section">` +
       `<h2 class="soc-section-title">Visitors over time</h2>` +
-      analyticsSparkline(d?.series, '#6366f1') +
+      analyticsSparkline(d?.series, 'currentColor') +
     `</section>`;
 
   const pages = analyticsBreakdownTable('Top pages', Array.isArray(d?.topPages) ? d.topPages : [], 'Page');

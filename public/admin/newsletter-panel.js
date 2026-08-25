@@ -182,7 +182,7 @@ function renderNewsletterEditor() {
                 ? '#f87171'
                 : s.status === 'skipped'
                   ? '#a1a1aa'
-                  : '#c084fc';
+                  : 'var(--muted, #a1a1aa)';
           return `
         <div class="nl-log-row">
           <span class="nl-log-status" style="color:${color}">${escHtml(s.status)}</span>

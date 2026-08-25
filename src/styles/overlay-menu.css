@@ -199,7 +199,7 @@ html[data-theme="dark"] {
 }
 
 .overlay-menu-link--primary {
-  color: var(--brand-pink, #e879f9);
+  color: var(--site-fg, #171717);
 }
 
 .overlay-menu-link--button {

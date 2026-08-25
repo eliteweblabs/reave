@@ -67,8 +67,8 @@
   --create-fab-shadow: var(--brand-gradient-shadow);
   --brand-glass-bg: rgba(255, 255, 255, 0.42);
   --brand-glass-bg-hover: rgba(255, 255, 255, 0.58);
-  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
-  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
+  --brand-glass-border-color: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  --brand-glass-border-color-hover: color-mix(in srgb, var(--site-fg) 40%, transparent);
   --brand-glass-blur: blur(16px) saturate(1.35);
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
@@ -241,16 +241,16 @@ html[data-theme="dark"] {
   --brand-btn-fg: #111;
   --brand-glass-bg: rgba(17, 17, 17, 0.42);
   --brand-glass-bg-hover: rgba(17, 17, 17, 0.58);
-  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
-  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
+  --brand-glass-border-color: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  --brand-glass-border-color-hover: color-mix(in srgb, var(--site-fg) 40%, transparent);
   --create-fab-shadow: var(--brand-gradient-shadow);
 }
 
 html[data-theme="light"] {
   --brand-glass-bg: rgba(255, 255, 255, 0.42);
   --brand-glass-bg-hover: rgba(255, 255, 255, 0.58);
-  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
-  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
+  --brand-glass-border-color: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  --brand-glass-border-color-hover: color-mix(in srgb, var(--site-fg) 40%, transparent);
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
 }

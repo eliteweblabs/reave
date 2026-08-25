@@ -168,9 +168,9 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   .aw-root { position: relative; }
 
   .aw-fab--site {
-    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--brand-gradient, var(--brand-btn-bg, #111));
     border: 1px solid transparent;
-    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(168, 85, 247, 0.45)), 0 2px 8px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)), 0 2px 8px rgba(0, 0, 0, 0.35);
     transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
@@ -264,7 +264,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     color: #fff;
   }
   .aw-root--site .aw-header-icon {
-    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--brand-gradient, var(--brand-btn-bg, #111));
   }
   .aw-root--portal .aw-header-icon {
     background: var(--brand-btn-bg, #111);
@@ -346,7 +346,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     outline: none;
   }
   .aw-input::placeholder { color: rgba(255, 255, 255, 0.35); }
-  .aw-root--site .aw-input:focus { border-color: rgba(168, 85, 247, 0.6); }
+  .aw-root--site .aw-input:focus { border-color: color-mix(in srgb, var(--site-fg, #171717) 45%, transparent); }
   .aw-root--portal .aw-input:focus { border-color: rgba(255, 255, 255, 0.55); }
   .aw-send {
     flex: none;
@@ -362,7 +362,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     transition: opacity 0.15s ease, transform 0.1s ease;
   }
   .aw-root--site .aw-send {
-    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--brand-gradient, var(--brand-btn-bg, #111));
   }
   .aw-root--portal .aw-send {
     background: var(--brand-btn-bg, #111);
@@ -435,7 +435,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     border-bottom-left-radius: 4px;
   }
   .aw-root--site .aw-msg-user .aw-bubble {
-    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--brand-gradient, var(--brand-btn-bg, #111));
     color: #fff;
     border-bottom-right-radius: 4px;
   }

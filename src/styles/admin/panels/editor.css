@@ -1178,9 +1178,9 @@ button.de-placeholder-action:active {
 .nl-title { font-size: 1.15rem; font-weight: 700; color: var(--fg); }
 .nl-sub { font-size: 0.82rem; color: var(--muted, #a1a1aa); margin-top: 0.15rem; }
 .nl-warn {
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  color: #d8b4fe;
+  background: color-mix(in srgb, var(--fg) 6%, var(--panel, transparent));
+  border: 1px solid var(--panel-border, var(--card-border));
+  color: var(--fg);
   border-radius: 10px;
   padding: 0.7rem 0.85rem;
   font-size: 0.82rem;
@@ -1225,7 +1225,7 @@ button.de-placeholder-action:active {
   content: ''; position: absolute; top: 2px; left: 2px;
   width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s;
 }
-.nl-switch input:checked + .nl-switch-track { background: #a855f7; }
+.nl-switch input:checked + .nl-switch-track { background: var(--fg); }
 .nl-switch input:checked + .nl-switch-track::after { transform: translateX(16px); }
 .nl-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; color: var(--muted, #a1a1aa); }
 .nl-field > span em { font-style: normal; opacity: 0.7; }
@@ -1255,8 +1255,8 @@ button.de-placeholder-action:active {
   font: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer;
 }
 .nl-btn:hover { background: rgba(255,255,255,0.09); }
-.nl-btn-primary { background: #a855f7; border-color: #a855f7; color: #fff; }
-.nl-btn-primary:hover { background: #9333ea; }
+.nl-btn-primary { background: var(--fg); border-color: var(--fg); color: var(--bg, #fff); }
+.nl-btn-primary:hover { filter: brightness(1.08); }
 .nl-btn:disabled { opacity: 0.5; cursor: default; }
 .nl-send-status { font-size: 0.78rem; color: var(--muted, #a1a1aa); }
 .nl-preview-box { border-top: 1px solid var(--panel-border, #2a2a2e); padding-top: 0.75rem; }

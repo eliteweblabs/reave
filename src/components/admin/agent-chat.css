@@ -795,8 +795,8 @@
   gap: 0.65rem;
   padding: 0.85rem 1rem;
   border-radius: 1rem;
-  border: 1px solid color-mix(in srgb, var(--brand, #6366f1) 35%, transparent);
-  background: color-mix(in srgb, var(--brand, #6366f1) 8%, var(--surface, #111));
+  border: 1px solid color-mix(in srgb, var(--fg) 22%, transparent);
+  background: color-mix(in srgb, var(--fg) 8%, var(--surface, var(--panel, #111)));
   color: var(--fg);
 }
 
@@ -935,13 +935,13 @@
   padding: 0.05em 0.15em;
   border-radius: 0.3em;
   font-weight: 600;
-  color: var(--brand-primary, #6d28d9);
-  background: color-mix(in srgb, var(--brand-primary, #6d28d9) 12%, transparent);
+  color: var(--brand-primary, var(--fg));
+  background: color-mix(in srgb, var(--brand-primary, var(--fg)) 12%, transparent);
 }
 
 .aui-mention-chip--team {
-  color: var(--brand-secondary, #2563eb);
-  background: color-mix(in srgb, var(--brand-secondary, #2563eb) 12%, transparent);
+  color: var(--brand-secondary, var(--fg));
+  background: color-mix(in srgb, var(--brand-secondary, var(--fg)) 12%, transparent);
 }
 
 .aui-helper-empty {

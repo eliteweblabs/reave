@@ -833,7 +833,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .topbar-sleep-toggle-switch[aria-checked='true'] {
-    background: #6366f1;
+    background: var(--site-accent, #171717);
   }
 
   .topbar-sleep-toggle-switch[aria-checked='true']::after {
@@ -1349,14 +1349,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     height: var(--app-header-profile-h);
     padding: 0 0.65rem 0 0.55rem;
     gap: 0.35rem;
-    background: rgba(168, 85, 247, 0.14);
-    color: #e9d5ff;
+    background: color-mix(in srgb, var(--site-fg, #171717) 10%, transparent);
+    color: var(--site-fg, #171717);
   }
 
   .topbar-profile-btn--admin:hover,
   html.account-menu-open .topbar-profile-btn--admin {
-    background: rgba(168, 85, 247, 0.22);
-    color: #f3e8ff;
+    background: color-mix(in srgb, var(--site-fg, #171717) 16%, transparent);
+    color: var(--site-fg, #171717);
   }
 
   .topbar-admin-label {
