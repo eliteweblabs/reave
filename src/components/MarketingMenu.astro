@@ -2,7 +2,7 @@
 /**
  * Vercel-style marketing navigation — Sign in on desktop, hamburger drawer on small screens.
  */
-import { ArrowRight, LayoutDashboard, X } from "lucide-astro";
+import { ArrowRight, LayoutDashboard } from "lucide-astro";
 import {
   marketingNavActivePath,
   siteDemoCta,
@@ -49,67 +49,44 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     }
   </nav>
 
-  <div class="marketing-nav-actions">
-    {
-      showDemoCta && demoCta && (
-        <a class="marketing-nav-cta" href={demoCta.href}>
-          Demo now
-          <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-        </a>
-      )
-    }
-    {
-      !signedIn && showSignIn ? (
-        <button
-          type="button"
-          class="marketing-nav-signin"
-          data-ios-sheet-open="sign-in-sheet"
-        >
-          Sign in
-        </button>
-      ) : showAccountNav ? (
-        <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
-          <a href="/admin/?tab=dashboard" class="marketing-nav-link">
-            Administration
-          </a>
-          <button
-            type="button"
-            class="marketing-nav-link marketing-nav-link--button"
-            data-marketing-sign-out-inline
-          >
-            Sign out
-          </button>
-        </nav>
-      ) : null
-    }
-
-    <button
-      type="button"
-      class="marketing-nav-toggle"
-      data-marketing-menu-toggle
-      aria-label="Open menu"
-      aria-expanded="false"
-      aria-controls="marketing-menu-panel"
-    >
-    <svg
-      class="marketing-nav-toggle-icon marketing-nav-toggle-icon--open"
-      xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.75"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="4" x2="20" y1="8" y2="8" />
-      <line x1="4" x2="20" y1="16" y2="16" />
-    </svg>
-    <X class="marketing-nav-toggle-icon marketing-nav-toggle-icon--close" size={20} strokeWidth={1.75} aria-hidden="true" />
-  </button>
-  </div>
+  {
+    (showDemoCta && demoCta) || (!signedIn && showSignIn) || showAccountNav ? (
+      <div class="marketing-nav-actions">
+        {
+          showDemoCta && demoCta && (
+            <a class="marketing-nav-cta" href={demoCta.href}>
+              Demo now
+              <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+            </a>
+          )
+        }
+        {
+          !signedIn && showSignIn ? (
+            <button
+              type="button"
+              class="marketing-nav-signin"
+              data-ios-sheet-open="sign-in-sheet"
+            >
+              Sign in
+            </button>
+          ) : showAccountNav ? (
+            <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
+              <a href="/admin/?tab=dashboard" class="marketing-nav-link">
+                Administration
+              </a>
+              <button
+                type="button"
+                class="marketing-nav-link marketing-nav-link--button"
+                data-marketing-sign-out-inline
+              >
+                Sign out
+              </button>
+            </nav>
+          ) : null
+        }
+      </div>
+    ) : null
+  }
 </div>
 
 <div class="overlay-menu" data-marketing-menu hidden>
@@ -385,52 +362,6 @@ const showSignIn = siteContent.nav.showSignIn !== false;
     text-decoration: none;
   }
 
-  .marketing-nav-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    width: calc(36px * var(--app-header-chrome-scale, 1));
-    height: calc(36px * var(--app-header-chrome-scale, 1));
-    padding: 0;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.88);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
-  }
-
-  .marketing-nav-toggle:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
-  }
-
-  .marketing-nav-toggle:active {
-    transform: scale(0.94);
-  }
-
-  .marketing-nav-toggle-icon {
-    position: absolute;
-    inset: 0;
-    width: 20px;
-    height: 20px;
-    margin: auto;
-  }
-
-  .marketing-nav-toggle-icon--close {
-    display: none;
-  }
-
-  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
-    display: none;
-  }
-
-  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
-    display: block;
-  }
-
   @media (min-width: 900px) {
     .marketing-nav-desktop {
       display: flex;
@@ -442,10 +373,6 @@ const showSignIn = siteContent.nav.showSignIn !== false;
 
     .marketing-nav-cta {
       display: inline-flex;
-    }
-
-    .marketing-nav-toggle {
-      display: none;
     }
   }
 

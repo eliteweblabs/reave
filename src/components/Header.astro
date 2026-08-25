@@ -258,6 +258,51 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
         </div>
       ))}
 
+    {showMarketingNav && (
+      <button
+        type="button"
+        class="marketing-nav-toggle"
+        data-marketing-menu-toggle
+        aria-label="Open menu"
+        aria-expanded="false"
+        aria-controls="marketing-menu-panel"
+      >
+        <svg
+          class="marketing-nav-toggle-icon marketing-nav-toggle-icon--open"
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="4" x2="20" y1="8" y2="8" />
+          <line x1="4" x2="20" y1="16" y2="16" />
+        </svg>
+        <svg
+          class="marketing-nav-toggle-icon marketing-nav-toggle-icon--close"
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
+    )}
+
   </div>
 
   {adminShell && (
@@ -876,6 +921,58 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     gap: 0.45rem;
     flex: 0 0 auto;
     flex-shrink: 0;
+  }
+
+  .marketing-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: calc(36px * var(--app-header-chrome-scale, 1));
+    height: calc(36px * var(--app-header-chrome-scale, 1));
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.88);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+  }
+
+  .marketing-nav-toggle:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+  }
+
+  .marketing-nav-toggle:active {
+    transform: scale(0.94);
+  }
+
+  .marketing-nav-toggle-icon {
+    position: absolute;
+    inset: 0;
+    width: 20px;
+    height: 20px;
+    margin: auto;
+  }
+
+  .marketing-nav-toggle-icon--close {
+    display: none;
+  }
+
+  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
+    display: none;
+  }
+
+  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
+    display: block;
+  }
+
+  @media (min-width: 900px) {
+    .marketing-nav-toggle {
+      display: none;
+    }
   }
 
   .app-header-signin {
