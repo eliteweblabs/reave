@@ -30,7 +30,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #a855f7;
+  color: var(--site-fg-muted, #a3a3a3);
   margin: 0 0 14px;
 }
 
@@ -525,7 +525,7 @@
 }
 
 .dl-switch:focus-visible {
-  outline: 2px solid #a855f7;
+  outline: 2px solid var(--site-fg, #fff);
   outline-offset: 2px;
 }
 
@@ -548,7 +548,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: #c4b5fd;
+  color: rgba(255, 255, 255, 0.72);
   text-decoration: none;
 }
 
@@ -800,7 +800,7 @@
 
 .dw-svc-name {
   font-size: 0.78rem;
-  color: #c4b5fd;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .dw-repo {

@@ -1077,7 +1077,7 @@ const customPrompts: PromptExample[] = [
     border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
     overflow: hidden;
     background:
-      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(168, 85, 247, 0.12), transparent 70%),
+      radial-gradient(ellipse 80% 60% at 50% 0%, color-mix(in srgb, var(--site-fg) 10%, transparent), transparent 70%),
       var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
@@ -1086,7 +1086,7 @@ const customPrompts: PromptExample[] = [
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: #38bdf8;
+    color: var(--site-fg-muted, #525252);
     margin: 0 0 12px;
   }
 
@@ -1156,7 +1156,7 @@ const customPrompts: PromptExample[] = [
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: #c4b5fd;
+    color: var(--site-fg-muted, #525252);
     margin: 0 0 12px;
   }
 
@@ -1206,28 +1206,28 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-prompt-card--default {
-    border-color: rgba(168, 85, 247, 0.18);
+    border-color: var(--site-card-border, rgba(23, 23, 23, 0.1));
     background:
-      radial-gradient(ellipse 80% 100% at 0% 50%, rgba(168, 85, 247, 0.08), transparent 70%),
-      rgba(255, 255, 255, 0.02);
+      radial-gradient(ellipse 80% 100% at 0% 50%, color-mix(in srgb, var(--site-fg) 8%, transparent), transparent 70%),
+      var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .fx-prompt-card--custom {
-    border-color: rgba(244, 114, 182, 0.2);
+    border-color: var(--site-card-border, rgba(23, 23, 23, 0.1));
     background:
-      radial-gradient(ellipse 80% 100% at 0% 50%, rgba(244, 114, 182, 0.08), transparent 70%),
-      rgba(255, 255, 255, 0.02);
+      radial-gradient(ellipse 80% 100% at 0% 50%, color-mix(in srgb, var(--site-fg) 8%, transparent), transparent 70%),
+      var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .fx-prompt-icon {
     position: absolute;
     left: 16px;
     top: 18px;
-    color: #d8b4fe;
+    color: var(--site-fg-muted, #525252);
   }
 
   .fx-prompt-card--custom .fx-prompt-icon {
-    color: #f9a8d4;
+    color: var(--site-fg-faint, #a3a3a3);
   }
 
   .fx-prompt-text {
@@ -1263,31 +1263,31 @@ const customPrompts: PromptExample[] = [
   }
 
   .acc-item.open {
-    border-color: rgba(192, 38, 211, 0.28);
+    border-color: color-mix(in srgb, var(--site-fg) 22%, var(--site-border));
     background: var(--site-card, rgba(23, 23, 23, 0.05));
   }
 
   .acc-item--ninety {
-    border-color: rgba(56, 189, 248, 0.22);
+    border-color: color-mix(in srgb, var(--site-fg) 18%, var(--site-border));
     background:
-      radial-gradient(ellipse 90% 80% at 0% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
-      rgba(255, 255, 255, 0.03);
+      radial-gradient(ellipse 90% 80% at 0% 0%, color-mix(in srgb, var(--site-fg) 8%, transparent), transparent 60%),
+      var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .acc-item--ninety.open {
-    border-color: rgba(56, 189, 248, 0.42);
+    border-color: color-mix(in srgb, var(--site-fg) 32%, var(--site-border));
     background:
-      radial-gradient(ellipse 90% 80% at 0% 0%, rgba(56, 189, 248, 0.12), transparent 60%),
-      rgba(255, 255, 255, 0.04);
+      radial-gradient(ellipse 90% 80% at 0% 0%, color-mix(in srgb, var(--site-fg) 12%, transparent), transparent 60%),
+      var(--site-card, rgba(23, 23, 23, 0.04));
   }
 
   .acc-icon--ninety {
-    background: rgba(56, 189, 248, 0.16);
-    color: #7dd3fc;
+    background: color-mix(in srgb, var(--site-fg) 14%, transparent);
+    color: var(--site-fg, #171717);
   }
 
   .acc-item--ninety.open .acc-chev {
-    color: #7dd3fc;
+    color: var(--site-fg, #171717);
   }
 
   .acc-badge {
@@ -1300,8 +1300,8 @@ const customPrompts: PromptExample[] = [
     font-weight: 800;
     letter-spacing: 0.04em;
     vertical-align: middle;
-    color: #0c4a6e;
-    background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+    color: var(--site-canvas, #fff);
+    background: var(--site-fg, #171717);
   }
 
   .ninety-meter {
@@ -1329,14 +1329,14 @@ const customPrompts: PromptExample[] = [
 
   .ninety-meter-core {
     flex: 9;
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(99, 102, 241, 0.45) 100%);
+    background: linear-gradient(135deg, #525252 0%, #171717 100%);
     border-right: 1px dashed rgba(255, 255, 255, 0.2);
   }
 
   .ninety-meter-custom {
     flex: 1;
     min-width: 72px;
-    background: rgba(56, 189, 248, 0.12);
+    background: color-mix(in srgb, var(--site-fg) 12%, transparent);
   }
 
   .ninety-meter-label {
@@ -1381,8 +1381,8 @@ const customPrompts: PromptExample[] = [
     border-radius: 11px;
     display: grid;
     place-items: center;
-    background: rgba(168, 85, 247, 0.14);
-    color: #d8b4fe;
+    background: color-mix(in srgb, var(--site-fg) 10%, transparent);
+    color: var(--site-fg-muted, #525252);
   }
 
   .acc-heading {
@@ -1418,7 +1418,7 @@ const customPrompts: PromptExample[] = [
 
   .acc-item.open .acc-chev {
     transform: rotate(180deg);
-    color: #d8b4fe;
+    color: var(--site-fg, #171717);
   }
 
   .acc-panel {

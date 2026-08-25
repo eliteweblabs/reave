@@ -337,19 +337,19 @@ export const TCO_CUMULATIVE_K = {
     {
       id: 'saas',
       label: 'Box SaaS',
-      color: '#f87171',
+      color: '#737373',
       values: [5.3, 10.5, 15.8, 21, 26.3, 31.5, 36.8, 42, 47.3, 52.5, 57.8, 63],
     },
     {
       id: 'reave',
       label: 'reΛVe.app',
-      color: '#a855f7',
+      color: '#171717',
       values: [4.1, 5.3, 6.4, 7.5, 8.6, 9.8, 10.9, 12, 13.1, 14.3, 15.4, 19],
     },
     {
       id: 'custom',
       label: 'Custom dev',
-      color: '#fb923c',
+      color: '#a3a3a3',
       values: [37.5, 75, 78.8, 82.5, 86.3, 90, 93.8, 97.5, 101.3, 105, 108.8, 120],
     },
   ],
@@ -360,6 +360,6 @@ export const SPECTRUM_RADIAL = WASTE_SPECTRUM.map((tier, i) => ({
   id: tier.id,
   label: tier.theme,
   value: 20 + i * 18,
-  color: ['#4ade80', '#a3e635', '#fbbf24', '#fb923c', '#f87171'][i] ?? '#f87171',
+  color: ['#e5e5e5', '#a3a3a3', '#737373', '#525252', '#171717'][i] ?? '#171717',
   stat: tier.stat,
 }));

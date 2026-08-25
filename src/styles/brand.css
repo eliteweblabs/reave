@@ -239,6 +239,47 @@ html[data-theme="light"] {
   --brand-glass-shadow-hover: none;
 }
 
+/*
+ * Marketing pages only — desaturate company brand tokens (inline on <html>)
+ * and media. Admin / portal / forms keep full color.
+ */
+html.site-marketing {
+  --brand-pink: #737373 !important;
+  --brand-magenta: #525252 !important;
+  --brand-indigo: #404040 !important;
+  --brand-pink-rgb: 115, 115, 115 !important;
+  --brand-magenta-rgb: 82, 82, 82 !important;
+  --brand-indigo-rgb: 64, 64, 64 !important;
+  --brand-gradient: linear-gradient(145deg, #3a3a3a 0%, #171717 52%, #111 100%) !important;
+  --brand-gradient-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+  --brand-glass-border-color: rgba(23, 23, 23, 0.22) !important;
+  --brand-glass-border-color-hover: rgba(23, 23, 23, 0.4) !important;
+  --create-fab-bg: var(--brand-gradient) !important;
+  --create-fab-shadow: var(--brand-gradient-shadow) !important;
+}
+
+html.site-marketing[data-theme="dark"] {
+  --brand-pink: #d4d4d4 !important;
+  --brand-magenta: #a3a3a3 !important;
+  --brand-indigo: #e5e5e5 !important;
+  --brand-pink-rgb: 212, 212, 212 !important;
+  --brand-magenta-rgb: 163, 163, 163 !important;
+  --brand-indigo-rgb: 229, 229, 229 !important;
+  --brand-gradient: linear-gradient(145deg, #e5e5e5 0%, #f5f5f5 52%, #fff 100%) !important;
+  --brand-gradient-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+  --brand-glass-border-color: rgba(255, 255, 255, 0.22) !important;
+  --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4) !important;
+}
+
+html.site-marketing img,
+html.site-marketing video,
+html.site-marketing .app-header-logo-svg,
+html.site-marketing .app-header-logo-img {
+  filter: grayscale(1);
+}
+
 /** Count badges — iOS-style red fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {
