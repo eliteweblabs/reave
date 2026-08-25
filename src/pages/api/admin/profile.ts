@@ -1,6 +1,10 @@
 import type { APIContext } from "astro";
 import { clerkClient } from "@clerk/astro/server";
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import {
+  isHtmlSignature,
+  sanitizeSignatureHtml,
+} from '../../../lib/userEmailSignature';
 
 export const prerender = false;
 
@@ -60,6 +64,12 @@ export async function POST(context: APIContext): Promise<Response> {
     const user = await client.users.getUser(userId);
     const existing = (user.publicMetadata ?? {}) as Record<string, string>;
 
+    const signatureRaw = emailSignature ?? '';
+    const signatureStored =
+      signatureRaw && isHtmlSignature(signatureRaw)
+        ? sanitizeSignatureHtml(signatureRaw)
+        : signatureRaw;
+
     await client.users.updateUser(userId, {
       firstName: firstName ?? undefined,
       lastName: lastName ?? undefined,
@@ -68,7 +78,7 @@ export async function POST(context: APIContext): Promise<Response> {
         phone: phone ?? "",
         timezone: timezone ?? "",
         address: address ?? "",
-        emailSignature: emailSignature ?? "",
+        emailSignature: signatureStored,
       },
     });
 
