@@ -39,8 +39,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
       <span class="home-hero-icon-glow" aria-hidden="true">
-        <span class="home-hero-icon-glow-core"></span>
-        <span class="home-hero-icon-glow-bloom"></span>
+        <BrandIconInline
+          company={company}
+          class="home-hero-icon-glow-mark"
+          idPrefix="hero-icon-glow"
+        />
       </span>
       <BrandIconInline company={company} />
     </div>
@@ -133,7 +136,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(10px, 2vh, 16px);
+    gap: 0;
     width: min(100%, 540px);
     padding: 0 20px;
     pointer-events: none;
@@ -143,75 +146,70 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: relative;
     z-index: 1;
     flex: none;
-    width: clamp(150px, 32vw, 240px);
-    height: clamp(150px, 32vw, 240px);
+    width: clamp(190px, 42vw, 312px);
+    height: clamp(190px, 42vw, 312px);
     pointer-events: none;
     overflow: visible;
   }
 
+  /*
+   * Glow is a drop-shadow of the mark — a ~20–25px stroke of light that
+   * follows the letters, not a circular cloud behind them.
+   */
   .home-hero-icon-glow {
     position: absolute;
-    inset: -42%;
+    inset: 0;
     z-index: 0;
     pointer-events: none;
   }
 
-  .home-hero-icon-glow-core,
-  .home-hero-icon-glow-bloom {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: conic-gradient(
-      from 0deg,
-      #f87171,
-      #fbbf24,
-      #34d399,
-      #38bdf8,
-      #818cf8,
-      #c084fc,
-      #f472b6,
-      #f87171
-    );
-    -webkit-mask-image: radial-gradient(closest-side, #000 22%, transparent 72%);
-    mask-image: radial-gradient(closest-side, #000 22%, transparent 72%);
+  .home-hero-icon-glow-mark,
+  .home-hero-icon-glow :global(svg),
+  .home-hero-icon-glow :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
-  .home-hero-icon-glow-core {
-    inset: 18%;
-    filter: blur(28px);
-    opacity: 0.16;
-    animation: homeHeroIconGlowSpin 18s linear infinite;
+  .home-hero-icon-glow :global(svg),
+  .home-hero-icon-glow :global(img) {
+    filter:
+      brightness(0) invert(1)
+      drop-shadow(0 0 8px #f87171)
+      drop-shadow(0 0 10px #38bdf8)
+      drop-shadow(0 0 12px #c084fc);
+    opacity: 0.7;
   }
 
-  .home-hero-icon-glow-bloom {
-    filter: blur(48px);
-    opacity: 0.08;
-    animation: homeHeroIconGlowSpin 28s linear infinite reverse;
+  .home-hero-icon-glow :global(.home-hero-icon-name) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 8px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.35rem, 3.2vw, 2rem);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+    text-align: center;
+    color: #000;
+    filter:
+      drop-shadow(0 0 8px #f87171)
+      drop-shadow(0 0 10px #38bdf8)
+      drop-shadow(0 0 12px #c084fc);
+    opacity: 0.7;
   }
 
-  @keyframes homeHeroIconGlowSpin {
-    to {
-      transform: rotate(360deg);
-    }
+  :global(html[data-theme="dark"]) .home-hero-icon-glow :global(svg),
+  :global(html[data-theme="dark"]) .home-hero-icon-glow :global(img),
+  :global(html[data-theme="dark"]) .home-hero-icon-glow :global(.home-hero-icon-name) {
+    opacity: 0.85;
   }
 
-  :global(html[data-theme="dark"]) .home-hero-icon-glow-core {
-    opacity: 0.22;
-  }
-
-  :global(html[data-theme="dark"]) .home-hero-icon-glow-bloom {
-    opacity: 0.12;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .home-hero-icon-glow-core,
-    .home-hero-icon-glow-bloom {
-      animation: none;
-    }
-  }
-
-  .home-hero-icon-wrap :global(svg),
-  .home-hero-icon-wrap :global(img) {
+  .home-hero-icon-wrap > :global(svg),
+  .home-hero-icon-wrap > :global(img) {
     position: relative;
     z-index: 1;
     display: block;
@@ -220,7 +218,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     filter: none;
   }
 
-  .home-hero-icon-wrap :global(.home-hero-icon-name) {
+  .home-hero-icon-wrap > :global(.home-hero-icon-name) {
     position: relative;
     z-index: 1;
     display: flex;
@@ -241,7 +239,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-title {
     position: relative;
     z-index: 1;
-    margin: 0;
+    margin: -3.75rem 0 0;
     font-family: var(--font-primary);
     font-size: clamp(1.39rem, 3.9vw, 2.625rem);
     font-weight: 700;
