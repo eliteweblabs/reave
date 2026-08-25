@@ -1027,10 +1027,6 @@ const customPrompts: PromptExample[] = [
     animation-direction: var(--fx-chip-direction, normal);
   }
 
-  .fx-chips:hover .fx-chips-track {
-    animation-play-state: paused;
-  }
-
   @keyframes fx-chips-scroll {
     from {
       transform: translateX(0);
@@ -1054,6 +1050,9 @@ const customPrompts: PromptExample[] = [
     border: none;
     white-space: nowrap;
     text-decoration: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .fx-chip--link {
