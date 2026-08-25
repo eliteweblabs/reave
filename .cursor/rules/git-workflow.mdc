@@ -1,15 +1,17 @@
 ---
-description: Git workflow — commit and push after every change; no PRs; ship directly to main
+description: HARD RULE — commit and push origin/main after every change; no PRs; solo repo
 alwaysApply: true
 ---
 
-# Git Workflow
+# Git Workflow — COMMIT AND PUSH EVERY TIME
 
-**End-of-turn gate:** if this turn changed the repo, `git commit` and `git push origin/main` before you reply. Uncommitted work is a failed turn.
+This is a solo repo. The owner is the only person working on it. They are **not** looking at localhost. Production (Railway from `main`) is how they see every change. If you do not push, **nothing moved**.
+
+**Non-negotiable end-of-turn gate:** if this turn changed the repo, `git commit` and `git push origin main` **before you reply**. Uncommitted or unpushed work is a failed turn. Do not wait to be asked. Do not “leave it for review.” Do not open a PR.
 
 ## Commit and push after every change
 
-**Always commit and push after every successful code change.** Do not leave uncommitted work for the user. Do not batch multiple changes into one push at the end of a long session — one commit and push per change.
+**Always commit and push after every successful code change.** Do not leave uncommitted work. Do not batch multiple changes into one push at the end of a long session — one commit and push per change.
 
 This applies before ending a chat turn whenever files were changed, a build was fixed, or any task touched the repo.
 

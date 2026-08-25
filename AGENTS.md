@@ -6,9 +6,11 @@ If the user asked you to do something and you have a tool or a standard public p
 
 Google Workspace / Gmail on a Cloudflare domain: call `cloudflare_dns` action `setup_google_workspace` immediately (five standard Google MX + SPF). Do not ask whether Workspace is purchased. See `.cursor/rules/execute-dont-ask.mdc` and `plugins/dev-infra/knowledge/google-workspace-dns.md`.
 
-## Commit and push after every change
+## Commit and push after every change (HARD RULE)
 
-**Always commit and push after every successful code change.** Do not leave uncommitted work for the user. Do not batch changes into one commit at the end of a session.
+This is a solo repo. The owner reviews work on production, not localhost. If you do not `git push origin main`, **nothing moved**.
+
+**Always commit and push after every successful code change.** Do not leave uncommitted work. Do not wait to be asked. Do not open a PR. Do not batch changes into one commit at the end of a session.
 
 For each change:
 
