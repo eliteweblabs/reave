@@ -298,7 +298,7 @@ function processIsSilentFile(process) {
 
 function processHintText(process) {
   if (process === 'delete') {
-    return 'Matched mail is filed as junk and hidden from the inbox. No notification.';
+    return 'Matched mail is deleted. It does not stay in Junk. No notification.';
   }
   if (process === 'archive') {
     return 'Matched mail is filed to Archive. No notification.';
