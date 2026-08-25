@@ -6,7 +6,10 @@
  *
  * Excluded: homepage / landing heroes (already on-screen), chrome, site
  * footer (never reaches cover 28% at the bottom of the page), and
- * horizontal marquees (they have their own motion).
+ * horizontal marquees (they have their own motion). Feature chips and
+ * the tall .fx-list wrapper are also out: a masked/transforming marquee
+ * inside a view() section stalls the next block’s fade on iOS, and
+ * fading a huge section × each card stacks opacity near 0.
  */
 @keyframes scroll-fade-in {
   from {
@@ -41,7 +44,7 @@
     body.be-body section,
     body.be-body article,
     body.be-body li
-  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
+  ):not(.home-hero):not(.ed-hero):not(.hero):not(.ed-header):not(.be-header):not(.ed-nav):not(.home-hero *):not(.testimonials-marquee *):not(.home-integrations-marquees *):not(.fx-chips):not(.fx-chips *):not(.fx-hero):not(.fx-list):not(.ed-header *):not(.ed-nav *):not(.be-header *):not(footer):not(.site-foot):not(.site-foot-wrap):not(.site-foot *):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]):not([data-no-scroll-fade] *) {
     animation: scroll-fade-in linear both;
     animation-timeline: view();
     animation-range: entry 0% cover 28%;
@@ -70,7 +73,7 @@ html.scroll-fade-io :is(
   body.be-body section,
   body.be-body article,
   body.be-body li
-):not(.home-hero):not(.ed-hero):not(.hero):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]) {
+):not(.home-hero):not(.ed-hero):not(.hero):not(.fx-hero):not(.fx-list):not(.fx-chips):not(.is-inview):not(footer):not(.site-foot):not(.site-foot-wrap):not(.portfolio-masonry):not(.masonry-item):not([data-no-scroll-fade]) {
   opacity: 0;
   transform: translateY(18px);
 }

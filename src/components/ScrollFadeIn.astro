@@ -31,11 +31,13 @@
   ].join(",");
 
   const SKIP_CLOSEST =
-    ".home-hero, .ed-hero, .hero, .ed-header, .be-header, .ed-nav, .testimonials-marquee, .home-integrations-marquees, footer, .site-foot, .site-foot-wrap, .portfolio-masonry, .masonry-item, [data-no-scroll-fade]";
+    ".home-hero, .ed-hero, .hero, .ed-header, .be-header, .ed-nav, .testimonials-marquee, .home-integrations-marquees, .fx-chips, footer, .site-foot, .site-foot-wrap, .portfolio-masonry, .masonry-item, [data-no-scroll-fade]";
 
   function shouldFade(el: Element): el is HTMLElement {
     if (!(el instanceof HTMLElement)) return false;
     if (el.closest(SKIP_CLOSEST)) return false;
+    // Wrappers only — copy / cards inside still fade. See scroll-fade.css.
+    if (el.classList.contains("fx-hero") || el.classList.contains("fx-list")) return false;
     return true;
   }
 
