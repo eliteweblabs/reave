@@ -446,7 +446,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     --safe-top: env(safe-area-inset-top, 0px);
     --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
     --app-header-chrome-scale: 1.333;
-    --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
+    --app-header-logo-w: clamp(100px, 16vw, 150px);
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-icon-h: calc(16px * var(--app-header-chrome-scale));
     --app-header-signin-h: calc(32px * var(--app-header-chrome-scale));
@@ -792,19 +792,21 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   .app-header-logo-clip {
     display: flex;
     align-items: center;
-    width: max-content;
-    max-width: 160px;
-    height: var(--app-header-logo-h);
+    width: var(--app-header-logo-w);
+    min-width: 100px;
+    max-width: 150px;
+    height: auto;
+    max-height: calc(var(--app-header-h) - 0.5rem);
   }
 
-  /* Raster + SVG share one contain box so width caps do not squash uploads. */
+  /* Width drives the wordmark; max-height keeps square uploads in the bar. */
   .app-header-logo-img,
   .app-header-logo-svg {
     display: block;
-    height: 100%;
-    width: auto;
+    width: 100%;
+    height: auto;
     max-width: 100%;
-    max-height: 100%;
+    max-height: calc(var(--app-header-h) - 0.5rem);
     object-fit: contain;
     object-position: left center;
   }
@@ -816,16 +818,15 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   .app-header-logo-name {
     display: block;
-    width: max-content;
+    width: 100%;
     max-width: 100%;
     min-width: 0;
-    height: var(--app-header-logo-h);
     overflow: hidden;
     font-family: var(--font-primary);
-    font-size: 1.15rem;
+    font-size: clamp(0.95rem, 2.2vw, 1.2rem);
     font-weight: 600;
     letter-spacing: -0.03em;
-    line-height: var(--app-header-logo-h);
+    line-height: 1.15;
     white-space: nowrap;
     text-overflow: ellipsis;
     color: var(--site-fg, #171717);
