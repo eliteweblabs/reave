@@ -202,6 +202,10 @@ html[data-theme="dark"] {
   color: var(--brand-pink, #e879f9);
 }
 
+html[data-theme="dark"] .overlay-menu-link--primary {
+  color: var(--site-accent, #fff);
+}
+
 .overlay-menu-link--button {
   font: inherit;
 }
