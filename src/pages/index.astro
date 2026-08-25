@@ -110,27 +110,6 @@ if (isLogin) {
       .home-scroll :global(.fx-page--intro .fx-h1) {
         font-weight: 700;
       }
-
-      /*
-       * Mobile: each homepage section should feel like one screen.
-       * min-height only — taller blocks (contact form, featured shot) just grow.
-       */
-      @media (max-width: 768px) {
-        .home-scroll :global(.home-integrations),
-        .home-scroll :global(.home-featured),
-        .home-scroll :global(.home-dialogue),
-        .home-scroll :global([data-home-section="contact"]),
-        .home-scroll :global(.fx-page--tour .fx-examples),
-        .home-scroll :global(.fx-page--tour .fx-custom),
-        .home-scroll :global(.fx-page--tour .fx-closing) {
-          min-height: 100svh;
-          min-height: 100dvh;
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-        }
-      }
     </style>
   )
 }
