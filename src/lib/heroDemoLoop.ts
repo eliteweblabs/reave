@@ -88,6 +88,80 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+/** Force layout so iOS Safari interpolates the next class change instead of snapping. */
+function flushPaint(el: Element): void {
+  void el.getBoundingClientRect();
+}
+
+/**
+ * Add a transition class after a paint flush. WebKit skips interpolation when
+ * the end state is applied in the same frame the node (or its width/transform)
+ * first exists.
+ */
+async function addTransitionClass(el: HTMLElement, className: string): Promise<void> {
+  flushPaint(el);
+  await nextFrame();
+  flushPaint(el);
+  el.classList.add(className);
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - (1 - t) ** 3;
+}
+
+function signaturePath(svg: HTMLElement | null): SVGPathElement | null {
+  return svg?.querySelector("path") ?? null;
+}
+
+/**
+ * Hide the signature stroke until we tick dashoffset in JS. CSS
+ * `stroke-dashoffset` animations/transitions are a known iOS Safari no-op
+ * (especially on innerHTML SVG under ancestor transforms).
+ */
+function armSignatureStroke(svg: HTMLElement | null): void {
+  const path = signaturePath(svg);
+  if (!path) return;
+  path.setAttribute("pathLength", "1");
+  path.style.strokeDasharray = "1";
+  path.style.strokeDashoffset = "1";
+}
+
+async function playSignatureDraw(
+  svg: HTMLElement | null,
+  isAlive: () => boolean,
+): Promise<void> {
+  const path = signaturePath(svg);
+  if (!path) return;
+
+  armSignatureStroke(svg);
+  flushPaint(svg ?? path);
+  await nextFrame();
+
+  const duration = Math.max(1, scaleMs(1200));
+  const start = performance.now();
+
+  await new Promise<void>((resolve) => {
+    const tick = (now: number) => {
+      if (!isAlive()) {
+        path.style.strokeDashoffset = "0";
+        resolve();
+        return;
+      }
+      const t = Math.min(1, (now - start) / duration);
+      path.style.strokeDashoffset = String(1 - easeOutCubic(t));
+      if (t < 1) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+
+  svg?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+}
+
 async function wait(ms: number): Promise<void> {
   let remaining = scaleMs(ms);
   while (remaining > 0) {
@@ -485,7 +559,7 @@ async function playInvoicePaymentSkeleton(
     if (reducedMotion) {
       card.classList.add("home-hero-demo-sk-invoice--settled");
     } else {
-      void card.offsetWidth;
+      flushPaint(card);
       card.classList.add("home-hero-demo-sk-invoice--pop");
     }
   }
@@ -504,7 +578,7 @@ async function playInvoicePaymentSkeleton(
   if (!isAlive()) return;
 
   if (payments) {
-    void payments.offsetHeight;
+    flushPaint(payments);
     payments.classList.remove("home-hero-demo-sk-invoice-payments--pending");
     payments.classList.add("home-hero-demo-sk-invoice-payments--open");
     relayout(true);
@@ -513,7 +587,7 @@ async function playInvoicePaymentSkeleton(
   // Stagger the three payment bones left → right; each one grows the row.
   for (const bone of payBones) {
     if (!isAlive()) return;
-    bone.classList.add("home-hero-demo-sk-bone--pay-in");
+    await addTransitionClass(bone, "home-hero-demo-sk-bone--pay-in");
     relayout(true);
     await wait(170);
   }
@@ -667,7 +741,7 @@ async function playInvoiceReviewSkeleton(
       await wait(700);
       return;
     }
-    void card.offsetWidth;
+    flushPaint(card);
     card.classList.add("home-hero-demo-sk-invoice--pop");
   }
 
@@ -676,18 +750,18 @@ async function playInvoiceReviewSkeleton(
 
   for (const bone of headerBones) {
     if (!isAlive()) return;
-    bone.classList.add("home-hero-demo-sk-bone--draw-in");
+    await addTransitionClass(bone, "home-hero-demo-sk-bone--draw-in");
     await wait(130);
   }
 
   if (clientBone) {
-    clientBone.classList.add("home-hero-demo-sk-bone--draw-in");
+    await addTransitionClass(clientBone, "home-hero-demo-sk-bone--draw-in");
     await wait(150);
   }
   if (!isAlive()) return;
 
   if (lines) {
-    void lines.offsetHeight;
+    flushPaint(lines);
     lines.classList.remove("home-hero-demo-sk-invoice-lines--pending");
     lines.classList.add("home-hero-demo-sk-invoice-lines--open");
     relayout(true);
@@ -697,15 +771,14 @@ async function playInvoiceReviewSkeleton(
   for (const spec of REVIEW_LINE_ITEMS) {
     if (!isAlive() || !lines) return;
     const line = appendReviewLineItem(lines, spec);
-    void line.offsetWidth;
-    line.classList.add("home-hero-demo-sk-invoice-line--in");
+    await addTransitionClass(line, "home-hero-demo-sk-invoice-line--in");
     line.classList.add("home-hero-demo-sk-invoice-line--scan");
     relayout(true);
     await wait(45);
 
     for (const bone of line.querySelectorAll<HTMLElement>("[data-hero-sk-draw]")) {
       if (!isAlive()) return;
-      bone.classList.add("home-hero-demo-sk-bone--draw-in");
+      await addTransitionClass(bone, "home-hero-demo-sk-bone--draw-in");
       await wait(120);
     }
 
@@ -716,7 +789,7 @@ async function playInvoiceReviewSkeleton(
   if (!isAlive()) return;
 
   if (footer) {
-    void footer.offsetHeight;
+    flushPaint(footer);
     footer.classList.remove("home-hero-demo-sk-invoice-footer--pending");
     footer.classList.add("home-hero-demo-sk-invoice-footer--open");
     relayout(true);
@@ -725,7 +798,7 @@ async function playInvoiceReviewSkeleton(
 
   for (const bone of footerBones) {
     if (!isAlive()) return;
-    bone.classList.add("home-hero-demo-sk-bone--draw-in");
+    await addTransitionClass(bone, "home-hero-demo-sk-bone--draw-in");
     await wait(130);
   }
 
@@ -838,7 +911,7 @@ function createContractSkeletonCard(): HTMLElement {
   signBlock.innerHTML =
     '<span class="home-hero-demo-sk-contract-sign-label"></span>' +
     '<svg class="home-hero-demo-sk-contract-signature" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-    '<path class="home-hero-demo-sk-contract-signature-path" d="M8 24 C18 8, 28 8, 36 20 C42 30, 48 30, 56 18 C64 6, 74 10, 82 22 C90 34, 102 28, 112 16 C120 8, 132 12, 148 22" />' +
+    '<path class="home-hero-demo-sk-contract-signature-path" pathLength="1" d="M8 24 C18 8, 28 8, 36 20 C42 30, 48 30, 56 18 C64 6, 74 10, 82 22 C90 34, 102 28, 112 16 C120 8, 132 12, 148 22" />' +
     "</svg>" +
     '<span class="home-hero-demo-sk-contract-sign-rule"></span>';
 
@@ -846,6 +919,7 @@ function createContractSkeletonCard(): HTMLElement {
   card.appendChild(body);
   card.appendChild(signBlock);
   row.appendChild(card);
+  armSignatureStroke(row.querySelector(".home-hero-demo-sk-contract-signature"));
   return row;
 }
 
@@ -911,7 +985,7 @@ async function playDashboardNotification(
     if (reducedMotion) {
       card.classList.add("home-hero-demo-sk-notif--settled");
     } else {
-      void card.offsetWidth;
+      flushPaint(card);
       card.classList.add("home-hero-demo-sk-notif--pop");
     }
   }
@@ -933,16 +1007,19 @@ async function playContractSkeleton(
 
   sceneEl.appendChild(row);
   relayout(true);
+  armSignatureStroke(signature);
 
   if (card) {
     if (reducedMotion) {
       card.classList.add("home-hero-demo-sk-contract--settled");
       for (const line of lines) line.classList.add("home-hero-demo-sk-contract-line--in");
       signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+      const path = signaturePath(signature);
+      if (path) path.style.strokeDashoffset = "0";
       await wait(900);
       return;
     }
-    void card.offsetWidth;
+    flushPaint(card);
     card.classList.add("home-hero-demo-sk-contract--pop");
   }
 
@@ -951,7 +1028,7 @@ async function playContractSkeleton(
 
   for (const line of lines) {
     if (!isAlive()) return;
-    line.classList.add("home-hero-demo-sk-contract-line--in");
+    await addTransitionClass(line, "home-hero-demo-sk-contract-line--in");
     relayout(true);
     await wait(140);
   }
@@ -959,8 +1036,7 @@ async function playContractSkeleton(
   await wait(280);
   if (!isAlive()) return;
 
-  signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
-  await wait(1400);
+  await playSignatureDraw(signature, isAlive);
   if (!isAlive()) return;
 }
 
@@ -1320,7 +1396,7 @@ async function playGpsLocateSkeleton(
   relayout(true);
 
   if (card) {
-    void card.offsetWidth;
+    flushPaint(card);
     card.classList.add(reducedMotion ? "home-hero-demo-sk-gps--settled" : "home-hero-demo-sk-gps--pop");
   }
 
