@@ -84,13 +84,23 @@ function forceExternalLinks(html: string): string {
 }
 
 /** Store inbound HTML for inbox rendering (scripts stripped). */
-export function normalizeEmailHtml(text?: string, html?: string, max = MAX_STORED_EMAIL_HTML): string {
+export function normalizeEmailHtml(
+  text?: string,
+  html?: string,
+  max = MAX_STORED_EMAIL_HTML,
+  opts?: { keepStyles?: boolean },
+): string {
   let raw = (html ?? '').trim();
   if (!raw && text?.trim() && looksLikeHtml(text)) raw = text.trim();
   if (!raw) return '';
-  raw = stripScriptTags(raw);
+  raw = sanitizeEmailHtml(raw, opts);
   if (raw.length > max) return `${raw.slice(0, max)}\n<!-- truncated -->`;
   return raw;
+}
+
+/** Store outbound HTML we authored — keep inline styles for the sent preview. */
+export function normalizeSentEmailHtml(text?: string, html?: string, max = MAX_STORED_EMAIL_HTML): string {
+  return normalizeEmailHtml(text, html, max, { keepStyles: true });
 }
 
 /** HTML to render in the inbox detail view (stored html, or legacy html-in-text fallback). */
@@ -99,6 +109,15 @@ export function resolveEmailHtmlForDisplay(bodyHtml?: string, bodyText?: string)
   if (html) return forceExternalLinks(stripScriptTags(html));
   const text = (bodyText ?? '').trim();
   if (text && looksLikeHtml(text)) return forceExternalLinks(stripScriptTags(text));
+  return '';
+}
+
+/** Outbound mail we authored — keep inline styles so the sent preview matches the client. */
+export function resolveSentEmailHtmlForDisplay(bodyHtml?: string, bodyText?: string): string {
+  const html = (bodyHtml ?? '').trim();
+  if (html) return forceExternalLinks(sanitizeEmailHtml(html, { keepStyles: true }));
+  const text = (bodyText ?? '').trim();
+  if (text && looksLikeHtml(text)) return forceExternalLinks(sanitizeEmailHtml(text, { keepStyles: true }));
   return '';
 }
 
