@@ -338,19 +338,31 @@ const showOverlayFooter =
     font-size: 0.82rem;
     font-weight: 500;
     letter-spacing: -0.01em;
-    color: var(--site-fg-muted, #525252);
+    color: #000;
     text-decoration: none;
     transition: color 0.15s ease, background 0.15s ease;
   }
 
+  html[data-theme="dark"] .marketing-nav-link {
+    color: #fff;
+  }
+
   .marketing-nav-link:hover {
-    color: var(--site-fg, #171717);
+    color: #000;
     background: rgba(255, 255, 255, 0.06);
     text-decoration: none;
   }
 
+  html[data-theme="dark"] .marketing-nav-link:hover {
+    color: #fff;
+  }
+
   .marketing-nav-link.is-active {
-    color: var(--site-fg, #171717);
+    color: #000;
+  }
+
+  html[data-theme="dark"] .marketing-nav-link.is-active {
+    color: #fff;
   }
 
   .marketing-nav-link--button {

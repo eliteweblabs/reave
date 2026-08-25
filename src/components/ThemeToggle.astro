@@ -34,9 +34,29 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  .app-header:not(.app-header--admin) .theme-toggle,
+  .marketing-nav .theme-toggle {
+    color: #000;
+  }
+
+  html[data-theme="dark"] .app-header:not(.app-header--admin) .theme-toggle,
+  html[data-theme="dark"] .marketing-nav .theme-toggle {
+    color: #fff;
+  }
+
   .theme-toggle:hover {
     color: var(--site-fg, #171717);
     background: none;
+  }
+
+  .app-header:not(.app-header--admin) .theme-toggle:hover,
+  .marketing-nav .theme-toggle:hover {
+    color: #000;
+  }
+
+  html[data-theme="dark"] .app-header:not(.app-header--admin) .theme-toggle:hover,
+  html[data-theme="dark"] .marketing-nav .theme-toggle:hover {
+    color: #fff;
   }
 
   .theme-toggle-icon {
