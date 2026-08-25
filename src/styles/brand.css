@@ -126,10 +126,25 @@
   text-decoration: none;
 }
 
+/** Solid fill — ink on light, bone on dark. No gradient wash. */
+.brand-btn-solid {
+  background: var(--brand-btn-bg, #111);
+  color: var(--brand-btn-fg, #fff);
+  -webkit-text-fill-color: var(--brand-btn-fg, #fff);
+  box-shadow: none;
+}
+
+.brand-btn-solid:hover {
+  color: var(--brand-btn-fg, #fff);
+  -webkit-text-fill-color: var(--brand-btn-fg, #fff);
+  filter: brightness(1.06);
+}
+
 /** Secondary pills — primary-color stroke, frosted blur. */
 .brand-btn-glass {
   border-radius: 999px;
   color: var(--site-fg, #171717);
+  -webkit-text-fill-color: var(--site-fg, #171717);
   background: var(--brand-glass-bg);
   border: 1px solid var(--brand-glass-border-color);
   backdrop-filter: var(--brand-glass-blur);
@@ -145,6 +160,7 @@
 
 .brand-btn-glass:hover {
   color: var(--site-fg, #171717);
+  -webkit-text-fill-color: var(--site-fg, #171717);
   background: var(--brand-glass-bg-hover);
   border-color: var(--brand-glass-border-color-hover);
   box-shadow: var(--brand-glass-shadow-hover);

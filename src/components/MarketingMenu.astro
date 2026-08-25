@@ -340,7 +340,8 @@ const showOverlayFooter =
     letter-spacing: -0.01em;
     color: #000;
     text-decoration: none;
-    transition: color 0.15s ease, background 0.15s ease;
+    /* Numeric weights interpolate; most faces still snap 500→700, but the timing matches color/bg. */
+    transition: color 0.15s ease, background 0.15s ease, font-weight 0.15s ease;
   }
 
   html[data-theme="dark"] .marketing-nav-link {
@@ -348,21 +349,13 @@ const showOverlayFooter =
   }
 
   .marketing-nav-link:hover {
-    color: #000;
+    font-weight: 700;
     background: rgba(255, 255, 255, 0.06);
     text-decoration: none;
   }
 
-  html[data-theme="dark"] .marketing-nav-link:hover {
-    color: #fff;
-  }
-
   .marketing-nav-link.is-active {
-    color: #000;
-  }
-
-  html[data-theme="dark"] .marketing-nav-link.is-active {
-    color: #fff;
+    font-weight: 700;
   }
 
   .marketing-nav-link--button {

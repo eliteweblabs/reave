@@ -415,6 +415,8 @@ async function ensureCompanySchema(pool: pg.Pool): Promise<void> {
     INSERT INTO company_config (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
     ALTER TABLE company_config ADD COLUMN IF NOT EXISTS description TEXT;
     ALTER TABLE company_config ADD COLUMN IF NOT EXISTS support_phone TEXT;
+    ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_data TEXT;
+    ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_media_type TEXT;
   `);
 }
 

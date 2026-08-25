@@ -60,9 +60,12 @@ if (isLogin) {
       <div class="home-scroll">
         <HomeHeroSection siteContent={siteContent} />
 
+        {homepage.showFeatures && (
+          <FeaturesPageContent embedded introOnly />
+        )}
         {homepage.showIntegrations && <HomeIntegrationsSection />}
         {homepage.showFeatures && (
-          <FeaturesPageContent embedded showLogoStack={false} showAccordion={false} />
+          <FeaturesPageContent embedded hideIntro showLogoStack={false} showAccordion={false} />
         )}
         <HomeFeaturedProjectSection />
         {homepage.showDialogue && <HomeDialogueSection variant="editorial" id="dialogue" />}
@@ -102,6 +105,10 @@ if (isLogin) {
         font-weight: var(--home-section-title-weight);
         letter-spacing: -0.03em;
         line-height: 1.12;
+      }
+
+      .home-scroll :global(.fx-page--intro .fx-h1) {
+        font-weight: 700;
       }
     </style>
   )

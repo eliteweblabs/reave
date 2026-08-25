@@ -9,7 +9,7 @@ import { SITE } from '../config/site';
 import { sanitizeInlineSvg, resolveSvgAssetUrls } from './brandSvg';
 import { rasterizeBrandIcon } from './brandIconRaster';
 import type { StoredCompanyConfig } from './companyConfigStore';
-import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from './portalOgImage';
+import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from './ogImageSize';
 import { punchSolidNeutralBackground } from './logoContrastAdapt';
 
 export type BrandMarkSource =
@@ -28,12 +28,35 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
+function firstAlnum(value: string): string {
+  const match = value.match(/\p{L}|\p{N}/u);
+  return match?.[0] ?? '';
+}
+
 /** First letter or digit from the display name — used for icon fallbacks. */
 export function brandMarkLetter(name: string): string {
   const trimmed = (name || SITE.name).trim();
   if (!trimmed) return 'B';
-  const match = trimmed.match(/\p{L}|\p{N}/u);
-  return (match?.[0] ?? trimmed[0]).toUpperCase();
+  return (firstAlnum(trimmed) || trimmed[0] || 'B').toUpperCase();
+}
+
+/**
+ * One or two initials from the display name.
+ * Two words → first letter of each; one token → first two letters (or one).
+ */
+export function brandMarkInitials(name: string): string {
+  const trimmed = (name || SITE.name).trim();
+  if (!trimmed) return 'B';
+  const words = trimmed.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (words.length >= 2) {
+    const a = firstAlnum(words[0] ?? '');
+    const b = firstAlnum(words[1] ?? '');
+    if (a && b) return (a + b).toUpperCase();
+  }
+  const chars = [...trimmed].filter((c) => /\p{L}|\p{N}/u.test(c));
+  if (chars.length >= 2) return `${chars[0]}${chars[1]}`.toUpperCase();
+  if (chars.length === 1) return chars[0]!.toUpperCase();
+  return 'B';
 }
 
 function pushRaster(
@@ -61,13 +84,35 @@ export function collectBrandMarkSources(stored: StoredCompanyConfig | null): Bra
   return sources;
 }
 
-async function rasterizeSvgSource(svg: string, size: number): Promise<Buffer | null> {
+/** Icon SVG → icon PNG. No logo fallback — caller supplies initials. */
+export function collectCompanyIconSources(stored: StoredCompanyConfig | null): BrandMarkSource[] {
+  const sources: BrandMarkSource[] = [];
+  if (!stored) return sources;
+  pushSvg(sources, stored.iconSvg);
+  pushRaster(sources, stored.iconData, stored.iconMediaType);
+  return sources;
+}
+
+async function rasterizeSvgSource(
+  svg: string,
+  size: number,
+  fit: 'cover' | 'contain' = 'cover',
+): Promise<Buffer | null> {
   try {
     const input = Buffer.from(svg, 'utf8');
     const meta = await sharp(input).metadata();
     const longest = Math.max(meta.width || size, meta.height || size, 1);
     const density = Math.round(72 * Math.max(1, size / longest));
     const png = await sharp(input, { density }).png().toBuffer();
+    if (fit === 'contain') {
+      return sharp(png)
+        .resize(size, size, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        })
+        .png()
+        .toBuffer();
+    }
     return rasterizeBrandIcon(png, size);
   } catch {
     return null;
@@ -93,7 +138,7 @@ async function rasterizeSource(
       }
       return rasterizeBrandIcon(source.buffer, size);
     }
-    return rasterizeSvgSource(source.svg, size);
+    return rasterizeSvgSource(source.svg, size, fit);
   } catch {
     return null;
   }
@@ -101,7 +146,9 @@ async function rasterizeSource(
 
 function buildLetterSvg(letter: string, size: number, transparent: boolean): string {
   const safe = escapeXml(letter);
-  const fontSize = Math.round(size * 0.52);
+  const two = [...letter].length > 1;
+  const fontSize = Math.round(size * (two ? 0.4 : 0.52));
+  const tracking = two ? ' letter-spacing="-0.06em"' : '';
   const background = transparent
     ? ''
     : `<rect width="${size}" height="${size}" fill="#09090b"/>`;
@@ -113,7 +160,7 @@ function buildLetterSvg(letter: string, size: number, transparent: boolean): str
       <stop offset="100%" stop-color="#e4e4e7"/>
     </linearGradient>
   </defs>
-  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" fill="url(#brand-letter)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="${fontSize}" font-weight="700">${safe}</text>
+  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" fill="url(#brand-letter)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="${fontSize}" font-weight="700"${tracking}>${safe}</text>
 </svg>`;
 }
 
@@ -187,7 +234,40 @@ export async function renderCompanyBrandIconPng(
   return renderBrandMarkSquarePng(sources, letter, size, opts);
 }
 
+/** Square icon for QR / compact marks: SVG → uploaded icon → initials. */
+export async function renderCompanyIconMarkPng(
+  stored: StoredCompanyConfig | null,
+  size: number,
+  opts?: { transparent?: boolean; fit?: 'cover' | 'contain' },
+): Promise<Buffer> {
+  const initials = brandMarkInitials(stored?.name ?? '');
+  return renderBrandMarkSquarePng(collectCompanyIconSources(stored), initials, size, {
+    fit: opts?.fit ?? 'contain',
+    transparent: opts?.transparent ?? false,
+  });
+}
+
+async function renderUploadedOgPng(dataBase64: string): Promise<Buffer | null> {
+  try {
+    return await sharp(Buffer.from(dataBase64, 'base64'))
+      .rotate()
+      .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT, {
+        fit: 'cover',
+        position: 'centre',
+      })
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
 export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Promise<Buffer> {
+  if (stored?.ogData) {
+    const uploaded = await renderUploadedOgPng(stored.ogData);
+    if (uploaded) return uploaded;
+  }
+
   const letter = brandMarkLetter(stored?.name ?? '');
   const sources = collectBrandMarkSources(stored);
   const markSize = 512;
@@ -220,6 +300,7 @@ export function brandingEtag(
     stored?.iconSvg?.trim() ? 'I' : '',
     stored?.logoData ? 'l' : '',
     stored?.logoSvg?.trim() ? 'L' : '',
+    stored?.ogData ? 'o' : '',
     opts?.transparent ? 't' : '',
   ].join('');
   const nameTag = brandingNameTag(stored?.name ?? '');

@@ -131,6 +131,7 @@ export type SiteLandingReview = {
 export type SiteLandingConfig = {
   title?: string;
   description?: string;
+  /** Per-page share image. Overrides admin → Company → Social sharing. */
   ogImage?: string;
   themeColor?: string;
   /** "editorial" = Campion-style scrolling site. Default keeps the original navy landing. */

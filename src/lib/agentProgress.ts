@@ -54,6 +54,16 @@ export function clearAgentProgress(userId: string, threadId: string): void {
 }
 
 /**
+ * The progress API is only "still going" when a replica owns the run.
+ * Leftover in-memory progress after `clearAgentRun` must not keep the composer locked.
+ */
+export function isChatRunActive(
+  status: { running?: boolean } | null | undefined,
+): boolean {
+  return Boolean(status?.running);
+}
+
+/**
  * Compare the bits the chat UI actually shows. `updatedAt` ticks on every
  * heartbeat, so treating that as a change remounts the thread and steals
  * focus / closes image previews while the agent is still thinking.
