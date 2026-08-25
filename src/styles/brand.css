@@ -18,45 +18,29 @@
     "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
   /*
-   * Soft radial atmosphere on a deep purple canvas.
+   * Near-black canvas. A faint top wash can come back later; keep the hook.
    * Full-bleed: html/body + this layer paint to the screen edges
    * (`viewport-fit=cover`). Safe-area insets pad header / CTAs, not the wallpaper.
    */
-  --site-canvas: #0c0614;
+  --site-canvas: #000;
   --site-status-bar: #000;
-  --site-mesh-glow:
-    radial-gradient(ellipse 100% 45% at 50% 0%, rgba(192, 38, 211, 0.16) 0%, transparent 70%),
-    radial-gradient(ellipse 80% 55% at 15% 0%, rgba(255, 0, 255, 0.2) 0%, transparent 62%),
-    radial-gradient(ellipse 70% 50% at 85% 4%, rgba(99, 102, 241, 0.2) 0%, transparent 58%);
-  /*
-   * Lower-third wash — sit the ellipse in the viewport, not on the layer’s
-   * bottom edge. Safari clips this fixed wallpaper at the visual viewport,
-   * so a 50% 100% radial painted a hard purple line under the hero CTAs.
-   */
-  --site-mesh-bottom:
-    radial-gradient(ellipse 90% 48% at 50% 62%, rgba(192, 38, 211, 0.12) 0%, transparent 72%);
-  --site-mesh-atmosphere: var(--site-mesh-glow), var(--site-mesh-bottom);
-  --brand-pink: #f472b6;
-  --brand-magenta: #c026d3;
-  --brand-indigo: #6366f1;
+  --site-mesh-glow: none;
+  --site-mesh-bottom: none;
+  --site-mesh-atmosphere: none;
+  --brand-pink: #fff;
+  --brand-magenta: #a1a1a1;
+  --brand-indigo: #888;
   /* Comma-separated RGB for rgba(var(--brand-*-rgb), a) — set from Company colors. */
-  --brand-pink-rgb: 244, 114, 182;
-  --brand-magenta-rgb: 192, 38, 211;
-  --brand-indigo-rgb: 99, 102, 241;
+  --brand-pink-rgb: 255, 255, 255;
+  --brand-magenta-rgb: 161, 161, 161;
+  --brand-indigo-rgb: 136, 136, 136;
   --reave-bg-pattern-url: url("/reave-bg-pattern.svg");
   --reave-bg-pattern-tile: 400%;
-  --brand-gradient: linear-gradient(
-    145deg,
-    var(--brand-pink) 0%,
-    var(--brand-magenta) 52%,
-    var(--brand-indigo) 100%
-  );
-  --brand-gradient-shadow:
-    0 2px 16px rgba(var(--brand-magenta-rgb), 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4);
-  --brand-glow-filter: drop-shadow(0 8px 28px rgba(var(--brand-magenta-rgb), 0.38))
-    drop-shadow(0 0 26px rgba(var(--brand-magenta-rgb), 0.22));
+  --brand-gradient: #111;
+  --brand-gradient-shadow: none;
+  --brand-glow-filter: none;
   --create-fab-bg: var(--brand-gradient);
-  --create-fab-shadow: var(--brand-gradient-shadow);
+  --create-fab-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   --brand-glass-bg: rgba(255, 255, 255, 0.07);
   --brand-glass-bg-hover: rgba(255, 255, 255, 0.12);
   --brand-glass-border-color: rgba(255, 255, 255, 0.24);
@@ -74,44 +58,18 @@
  */
 @media (min-width: 769px) {
   :root {
-    /*
-     * Logo light — circular gradient centered on the viewport top-left; only the
-     * southeast quadrant is visible (135° sweep down/right).
-     */
-    --site-mesh-glow:
-      radial-gradient(
-        circle farthest-corner at 0 0,
-        rgba(244, 114, 182, 0.22) 0%,
-        rgba(192, 38, 211, 0.13) 16%,
-        rgba(99, 102, 241, 0.05) 38%,
-        transparent 58%
-      );
-    /*
-     * Page lift — transparent for the first ~20vmin from the corner (logo band),
-     * then a long, soft brighten so the chevron pattern reads on the rest of
-     * the viewport (~20% lighter than the flat canvas).
-     */
-    --site-mesh-lift:
-      radial-gradient(
-        circle 140vmax at 0 0,
-        transparent 0,
-        transparent 20vmin,
-        rgba(26, 16, 40, 0.38) 48%,
-        rgba(30, 20, 46, 0.22) 72%,
-        rgba(32, 22, 50, 0.1) 100%
-      );
-    --site-mesh-bottom:
-      radial-gradient(ellipse 90% 50% at 55% 100%, rgba(192, 38, 211, 0.07) 0%, transparent 68%);
-    --site-mesh-atmosphere:
-      var(--site-mesh-glow), var(--site-mesh-lift), var(--site-mesh-bottom);
+    --site-mesh-glow: none;
+    --site-mesh-lift: none;
+    --site-mesh-bottom: none;
+    --site-mesh-atmosphere: none;
   }
 
   .site-bg-atmosphere {
-    --site-bg-pattern-opacity: 0.08;
+    --site-bg-pattern-opacity: 0;
   }
 }
 
-/** Filled company-color pill — primary CTAs (header, hero, marketing). */
+/** Filled primary CTAs (header, hero, marketing) — white on black. */
 .brand-btn {
   display: inline-flex;
   align-items: center;
@@ -119,28 +77,28 @@
   gap: 6px;
   padding: 0.45rem 0.9rem;
   border: none;
-  border-radius: 999px;
+  border-radius: 8px;
   font-family: var(--font-primary);
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
-  color: #fff;
-  -webkit-text-fill-color: #fff;
-  background: var(--brand-gradient);
+  color: #000;
+  -webkit-text-fill-color: #000;
+  background: #fff;
   text-decoration: none;
   white-space: nowrap;
-  box-shadow: var(--brand-gradient-shadow);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .brand-btn:hover {
-  filter: brightness(1.06);
+  background: #ededed;
   transform: translateY(-1px);
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: #000;
+  -webkit-text-fill-color: #000;
   text-decoration: none;
 }
 
@@ -204,16 +162,7 @@
 }
 
 .site-bg-atmosphere::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: var(--reave-bg-pattern-url);
-  background-repeat: repeat;
-  background-size: var(--reave-bg-pattern-tile) var(--reave-bg-pattern-tile);
-  background-position: var(--reave-bg-pattern-position);
-  mix-blend-mode: soft-light;
-  opacity: var(--site-bg-pattern-opacity, 0.085);
-  pointer-events: none;
+  display: none;
 }
 
 /*
@@ -225,25 +174,6 @@
  */
 .site-bg-atmosphere-veil {
   display: none;
-}
-
-@media (max-width: 768px) {
-  .site-bg-atmosphere-veil {
-    display: block;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1;
-    height: 88px;
-    pointer-events: none;
-    background: linear-gradient(
-      to top,
-      var(--site-canvas) 0%,
-      color-mix(in srgb, var(--site-canvas) 70%, transparent) 28%,
-      transparent 100%
-    );
-  }
 }
 
 /**
@@ -258,9 +188,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --brand-gradient-shadow:
-      0 2px 16px rgba(var(--brand-magenta-rgb), 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
-    --create-fab-shadow: var(--brand-gradient-shadow);
+    --brand-gradient-shadow: none;
+    --create-fab-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
   }
 }
 

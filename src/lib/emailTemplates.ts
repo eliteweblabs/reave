@@ -6,8 +6,8 @@
  * automatically; inline styles provide the light-mode fallback for
  * clients that strip <style> blocks (Gmail, older Outlook).
  *
- * Visual language mirrors the public site: dark logo header, brand
- * gradient pill CTAs (pink → magenta), and Space Grotesk typography.
+ * Visual language mirrors the public site: dark logo header, black
+ * CTAs, and Space Grotesk typography.
  */
 import { getCompanyConfig, deckQuantumHeroLogo } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
@@ -63,9 +63,7 @@ export async function brandedEmailHtml(opts: {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
   const brandName = company.name || 'Business OS';
-  const brandPrimary = company.brandPrimary || '#f472b6';
-  const brandSecondary = company.brandSecondary || '#c026d3';
-  const brandGradient = `linear-gradient(135deg, ${brandPrimary}, ${brandSecondary})`;
+  const brandLink = '#111111';
   const logoUrl = emailLogoAbsoluteUrl(company, base);
   const homeUrl = base;
   const fontStack =
@@ -83,14 +81,12 @@ export async function brandedEmailHtml(opts: {
     )
     .join('\n');
 
-  // Solid secondary = Outlook fallback; gradient for Apple Mail & modern clients.
-  // Dark label matches homepage primary CTAs (#0b0512 on brand gradient).
   const ctaHtml = opts.cta
     ? `
       <tr>
         <td style="padding:8px 0 20px" align="center">
           <a href="${esc(opts.cta.url)}" class="email-cta"
-             style="display:inline-block;background-color:${esc(brandSecondary)};background-image:${esc(brandGradient)};color:#0b0512;font-family:${fontStack};font-size:15px;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:999px;letter-spacing:0.01em;mso-padding-alt:0;text-align:center">
+             style="display:inline-block;background-color:#111111;color:#ffffff;font-family:${fontStack};font-size:15px;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:8px;letter-spacing:0.01em;mso-padding-alt:0;text-align:center">
             ${esc(opts.cta.label)}
           </a>
         </td>
@@ -120,7 +116,7 @@ export async function brandedEmailHtml(opts: {
             ${opts.metaRows
               .map(([label, value, href]) => {
                 const valueCell = href
-                  ? `<a href="${esc(href)}" class="email-link email-meta-value" style="color:${esc(brandSecondary)};font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${esc(value)}</a>`
+                  ? `<a href="${esc(href)}" class="email-link email-meta-value" style="color:${esc(brandLink)};font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${esc(value)}</a>`
                   : `<span class="email-meta-value" style="color:#1a1a1a;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</span>`;
                 return `<tr>
                     <td class="email-meta-label" style="padding:8px 16px 8px 0;font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
@@ -148,7 +144,7 @@ export async function brandedEmailHtml(opts: {
           opts.unsubscribeUrl
             ? `You're receiving this because you're a contact of ${esc(brandName)}. <a href="${esc(
                 opts.unsubscribeUrl,
-              )}" class="email-link" style="color:${esc(brandSecondary)};text-decoration:underline">Unsubscribe</a>.`
+              )}" class="email-link" style="color:${esc(brandLink)};text-decoration:underline">Unsubscribe</a>.`
             : ''
         }</p></td></tr>`
       : '';
@@ -238,7 +234,7 @@ export async function brandedEmailHtml(opts: {
                 Baked in Boston
               </p>
               <p class="email-footer-text" style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
-                Sent by <a href="${esc(homeUrl)}" class="email-link" style="color:${esc(brandSecondary)};text-decoration:none">${esc(brandName)}</a>
+                Sent by <a href="${esc(homeUrl)}" class="email-link" style="color:${esc(brandLink)};text-decoration:none">${esc(brandName)}</a>
               </p>
             </td>
           </tr>

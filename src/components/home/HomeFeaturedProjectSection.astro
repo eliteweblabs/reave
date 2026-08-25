@@ -88,10 +88,8 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
     aspect-ratio: 4 / 3;
     object-fit: cover;
     object-position: var(--image-position, center);
-    filter: grayscale(100%);
-    transition:
-      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 1.2s ease;
+    filter: none;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .home-featured-copy h2 {
@@ -159,7 +157,6 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
     .home-featured-visual:hover img,
     .home-featured-visual:focus-visible img {
       transform: scale(1.03);
-      filter: grayscale(0%);
     }
   }
 

@@ -6347,12 +6347,11 @@ function applyCompanyBrandPreview(root) {
   const primary = root.querySelector('#company-brandPrimary');
   const secondary = root.querySelector('#company-brandSecondary');
   if (!(primary instanceof HTMLInputElement) || !(secondary instanceof HTMLInputElement)) return;
-  const p = normalizeHexColor(primary.value) || '#f472b6';
-  const s = normalizeHexColor(secondary.value) || '#c026d3';
+  const p = normalizeHexColor(primary.value) || '#ffffff';
+  const s = normalizeHexColor(secondary.value) || '#a1a1a1';
   const pRgb = hexToRgbChannels(p);
   const sRgb = hexToRgbChannels(s);
   const gradient = `linear-gradient(135deg, ${p}, ${s})`;
-  const shadow = `0 2px 16px rgba(${sRgb}, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4)`;
   const rootStyle = document.documentElement.style;
   rootStyle.setProperty('--brand-pink', p);
   rootStyle.setProperty('--brand-magenta', s);
@@ -6361,13 +6360,10 @@ function applyCompanyBrandPreview(root) {
   rootStyle.setProperty('--brand-magenta-rgb', sRgb);
   rootStyle.setProperty('--brand-indigo-rgb', sRgb);
   rootStyle.setProperty('--brand-gradient', gradient);
-  rootStyle.setProperty('--brand-gradient-shadow', shadow);
+  rootStyle.setProperty('--brand-gradient-shadow', 'none');
   rootStyle.setProperty('--create-fab-bg', gradient);
-  rootStyle.setProperty('--create-fab-shadow', shadow);
-  rootStyle.setProperty(
-    '--brand-glow-filter',
-    `drop-shadow(0 8px 28px rgba(${pRgb}, 0.38)) drop-shadow(0 0 26px rgba(${pRgb}, 0.22))`,
-  );
+  rootStyle.setProperty('--create-fab-shadow', '0 1px 2px rgba(0, 0, 0, 0.12)');
+  rootStyle.setProperty('--brand-glow-filter', 'none');
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -7312,17 +7308,17 @@ function renderCompanyPanel(company, fontCatalog) {
           ) +
           profSection(
             'Colors',
-            'Brand colors map to site-wide CSS variables — <code>--brand-pink</code>, <code>--brand-magenta</code>, gradients, buttons, and glow effects on marketing pages and admin.',
+            'Brand colors map to site-wide CSS variables — <code>--brand-pink</code>, <code>--brand-magenta</code>, gradients, and buttons on marketing pages and admin.',
             `<div class="prof-field-row prof-field-row--colors">` +
               `<div class="prof-field"><label for="company-brandPrimary">Primary color</label>` +
               `<div class="prof-color-input-row">` +
-                `<input type="color" id="company-brandPrimary-swatch" value="${escHtml(c.brandPrimary || '#f472b6')}" aria-label="Primary color swatch" />` +
-                `<input id="company-brandPrimary" name="brandPrimary" type="text" value="${escHtml(c.brandPrimary || '')}" placeholder="#f472b6" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+                `<input type="color" id="company-brandPrimary-swatch" value="${escHtml(c.brandPrimary || '#ffffff')}" aria-label="Primary color swatch" />` +
+                `<input id="company-brandPrimary" name="brandPrimary" type="text" value="${escHtml(c.brandPrimary || '')}" placeholder="#ffffff" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
               `</div></div>` +
               `<div class="prof-field"><label for="company-brandSecondary">Secondary color</label>` +
               `<div class="prof-color-input-row">` +
-                `<input type="color" id="company-brandSecondary-swatch" value="${escHtml(c.brandSecondary || '#c026d3')}" aria-label="Secondary color swatch" />` +
-                `<input id="company-brandSecondary" name="brandSecondary" type="text" value="${escHtml(c.brandSecondary || '')}" placeholder="#c026d3" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+                `<input type="color" id="company-brandSecondary-swatch" value="${escHtml(c.brandSecondary || '#a1a1a1')}" aria-label="Secondary color swatch" />` +
+                `<input id="company-brandSecondary" name="brandSecondary" type="text" value="${escHtml(c.brandSecondary || '')}" placeholder="#a1a1a1" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
               `</div></div>` +
             `</div>`,
           ) +

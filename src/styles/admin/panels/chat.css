@@ -932,7 +932,7 @@ body.admin-split-view #chat-panel .ch-compose {
   line-height: 1;
   color: #fff;
   background: var(--brand-gradient);
-  box-shadow: 0 8px 28px rgba(var(--brand-magenta-rgb), 0.38);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
   cursor: pointer;
   transition: opacity 0.18s, transform 0.18s, visibility 0s linear 0.18s;

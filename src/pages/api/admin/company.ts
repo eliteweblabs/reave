@@ -57,10 +57,10 @@ export async function POST(context: APIContext): Promise<Response> {
     }
   }
   if (body.brandPrimary !== undefined && body.brandPrimary.trim() && !normalizeBrandColorHex(body.brandPrimary)) {
-    return json({ error: 'Primary color must be a valid hex value (e.g. #f472b6).' }, 400);
+    return json({ error: 'Primary color must be a valid hex value (e.g. #rrggbb).' }, 400);
   }
   if (body.brandSecondary !== undefined && body.brandSecondary.trim() && !normalizeBrandColorHex(body.brandSecondary)) {
-    return json({ error: 'Secondary color must be a valid hex value (e.g. #c026d3).' }, 400);
+    return json({ error: 'Secondary color must be a valid hex value (e.g. #rrggbb).' }, 400);
   }
 
   delete body.domain;

@@ -779,23 +779,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   .app-header-logo-clip {
     display: flex;
     align-items: center;
-    height: var(--app-header-logo-h);
+    width: max-content;
     max-width: min(42vw, 280px);
-  }
-
-  .app-header-logo-clip :global(svg) {
-    filter: var(--brand-glow-filter);
-  }
-
-  /*
-   * drop-shadow filters on fixed header chrome smear/tear during iOS Safari
-   * scroll (reads as the wordmark "bouncing" with purple artifacts). Keep the
-   * glow on fine-pointer hover devices only.
-   */
-  @media (hover: none), (pointer: coarse) {
-    .app-header-logo-clip :global(svg) {
-      filter: none;
-    }
+    height: var(--app-header-logo-h);
   }
 
   .app-header-logo-img {
@@ -813,26 +799,20 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   .app-header-logo-name {
     display: block;
+    width: max-content;
     max-width: 100%;
+    min-width: 0;
     height: var(--app-header-logo-h);
     overflow: hidden;
     font-family: var(--font-primary);
     font-size: 1.15rem;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: -0.03em;
     line-height: var(--app-header-logo-h);
     white-space: nowrap;
     text-overflow: ellipsis;
-    background-image: linear-gradient(
-      90deg,
-      var(--brand-pink, #f472b6) 0%,
-      var(--brand-magenta, #c026d3) 52%,
-      var(--brand-indigo, #6366f1) 100%
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
   }
 
   .app-header--portal-brand .topbar-profile-btn--admin {

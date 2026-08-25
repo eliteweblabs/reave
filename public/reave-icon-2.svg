@@ -29,13 +29,8 @@
       }
     </style>
     <radialGradient id="radial-gradient" cx="253.686" cy="255.442" fx="253.686" fy="255.442" r="174.913" gradientTransform="translate(0 -383.163) scale(1 2.5)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f0f"/>
-      <stop offset=".126" stop-color="#f800fe"/>
-      <stop offset=".298" stop-color="#e700fc"/>
-      <stop offset=".496" stop-color="#ca00fa"/>
-      <stop offset=".714" stop-color="#a200f6"/>
-      <stop offset=".946" stop-color="#6f00f2"/>
-      <stop offset="1" stop-color="#6300f1"/>
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#e4e4e7"/>
     </radialGradient>
     <filter id="luminosity-invert" x="40" y="123" width="427" height="264" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
       <feColorMatrix result="cm" values="-1 0 0 0 1 0 -1 0 0 1 0 0 -1 0 1 0 0 0 1 0"/>

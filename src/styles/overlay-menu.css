@@ -128,7 +128,7 @@
 }
 
 .overlay-menu-link.is-active {
-  color: var(--brand-pink, #f472b6);
+  color: var(--brand-pink, #fff);
   background: transparent;
   box-shadow: none;
   text-decoration: none;
@@ -347,11 +347,11 @@
   font-family: var(--font-primary, ui-sans-serif, system-ui, sans-serif);
   font-size: 0.92rem;
   font-weight: 600;
-  color: #fff;
-  -webkit-text-fill-color: #fff;
-  background: var(--brand-gradient);
+  color: #000;
+  -webkit-text-fill-color: #000;
+  background: #fff;
   text-decoration: none;
-  box-shadow: 0 8px 24px rgba(var(--brand-magenta-rgb), 0.32);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .overlay-menu-footer-cta:hover {

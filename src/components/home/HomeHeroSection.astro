@@ -139,8 +139,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   /* Icon + headline — highest layer, dead centre of the viewport */
   .home-hero-brand {
-    /* Soft circular halo behind icon + title. Light mode: white. */
-    --home-hero-brand-glow-rgb: 0, 0, 0;
     position: absolute;
     z-index: 10;
     left: 50%;
@@ -153,30 +151,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: min(100%, 540px);
     padding: 0 20px;
     pointer-events: none;
-  }
-
-  .home-hero-brand::before {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 42%;
-    z-index: 0;
-    width: min(150%, 560px);
-    aspect-ratio: 1;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(
-      circle,
-      rgba(var(--home-hero-brand-glow-rgb), 0.55) 0%,
-      rgba(var(--home-hero-brand-glow-rgb), 0.28) 40%,
-      rgba(var(--home-hero-brand-glow-rgb), 0) 72%
-    );
-    pointer-events: none;
-  }
-
-  /* White halo once light theme is wired (data-theme="light" on :root). */
-  :root[data-theme="light"] .home-hero-brand {
-    --home-hero-brand-glow-rgb: 255, 255, 255;
   }
 
   .home-hero-icon-wrap {
@@ -193,7 +167,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: block;
     width: 100%;
     height: 100%;
-    filter: var(--brand-glow-filter);
+    filter: none;
   }
 
   .home-hero-title {
@@ -687,10 +661,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     white-space: nowrap;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-weight: 700;
-    background-image: var(--brand-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
   }
 
   .home-hero-demo-actions {

@@ -27,6 +27,7 @@ cloud-agent-settings-export.json
 src/knowledge/chats/*.md
 !src/knowledge/chats/.gitkeep
 src/knowledge/agent-memories.json
+src/knowledge/company-config.json
 src/knowledge/social-tokens.json
 src/knowledge/integration-tokens.json
 src/knowledge/.media/

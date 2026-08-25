@@ -16,8 +16,8 @@ html {
 .marketing-bg-photo {
   position: absolute;
   inset: 0;
-  opacity: 0.5;
-  filter: grayscale(100%) contrast(1.08) brightness(0.82);
+  opacity: 1;
+  filter: none;
 }
 
 .sketch-draw-reveal {
@@ -42,8 +42,8 @@ html {
 
 .sketch-draw-reveal[data-sketch-draw-ready="1"] .sketch-draw-reveal__fallback[hidden],
 .sketch-draw-reveal[data-sketch-draw-ready="1"] .sketch-draw-reveal__canvas:not([hidden]) {
-  opacity: 0.5;
-  filter: grayscale(100%) contrast(1.08) brightness(0.82);
+  opacity: 1;
+  filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -53,18 +53,11 @@ html {
 }
 
 .marketing-bg-grain {
-  position: absolute;
-  inset: 0;
-  opacity: 0.28;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
+  display: none;
 }
 
 .marketing-bg-scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 1) 100%);
+  display: none;
 }
 
 .home-section {

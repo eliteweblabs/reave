@@ -8,16 +8,8 @@
       }
     </style>
     <linearGradient id="linear-gradient" x1="44.763" y1="219.655" x2="465.187" y2="293.787" gradientTransform="translate(0 512) scale(1 -1)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f0f"/>
-      <stop offset=".411" stop-color="#fd00fe"/>
-      <stop offset=".559" stop-color="#f600fe"/>
-      <stop offset=".665" stop-color="#ea00fd"/>
-      <stop offset=".75" stop-color="#d900fb"/>
-      <stop offset=".824" stop-color="#c300f9"/>
-      <stop offset=".888" stop-color="#a800f7"/>
-      <stop offset=".945" stop-color="#8900f4"/>
-      <stop offset=".998" stop-color="#6400f1"/>
-      <stop offset="1" stop-color="#6300f1"/>
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#e4e4e7"/>
     </linearGradient>
   </defs>
   <g id="Layer_1" focusable="false">

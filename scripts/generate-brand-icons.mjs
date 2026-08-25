@@ -34,9 +34,8 @@ function buildAvMarkSvg(size, { transparent = false } = {}) {
   ${background}
   <defs>
     <linearGradient id="brand" gradientUnits="userSpaceOnUse" x1="${ox}" y1="${oy + markH}" x2="${ox + markW}" y2="${oy}">
-      <stop offset="0%" stop-color="#f472b6"/>
-      <stop offset="52%" stop-color="#c026d3"/>
-      <stop offset="100%" stop-color="#6366f1"/>
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e4e4e7"/>
     </linearGradient>
   </defs>
   <g transform="translate(${ox - 241 * sx}, ${oy - 214 * sy}) scale(${sx}, ${sy})">

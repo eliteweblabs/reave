@@ -49,10 +49,11 @@ const {
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
-	themeColor = "#0c0614",
+	themeColor: themeColorProp,
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
+const themeColor = themeColorProp ?? company.brandPrimary;
 const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
 const ogImage = ogImageProp ?? companyOgImageUrl(company);
@@ -183,7 +184,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * kills iOS pull-to-refresh.
 		 */
 		min-height: 100%;
-		background-color: var(--site-canvas, #0c0614);
+		background-color: var(--site-canvas, #000);
 	}
 
 	html,
@@ -197,7 +198,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		 * Explicit root color is Safari 26’s Liquid Glass fallback. Pad
 		 * header / CTAs with env(safe-area-inset-*), not the wallpaper.
 		 */
-		background-color: var(--site-canvas, #0c0614);
+		background-color: var(--site-canvas, #000);
 		color: #e5e5e5;
 		color-scheme: dark;
 	}
@@ -205,7 +206,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	body {
 		min-height: 100%;
 		position: relative;
-		background-color: var(--site-canvas, #0c0614);
+		background-color: var(--site-canvas, #000);
 	}
 
 	h1,
@@ -305,7 +306,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 	@media (min-width: 769px) {
 		html,
 		body {
-			background-color: var(--site-canvas, #0c0614);
+			background-color: var(--site-canvas, #000);
 		}
 	}
 </style>
