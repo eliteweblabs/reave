@@ -359,13 +359,21 @@ html.site-marketing[data-theme="dark"] {
   --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4) !important;
 }
 
-html.site-marketing .app-header-logo-svg,
-html.site-marketing .app-header-logo-img,
 html.site-marketing .blm-tile img,
 html.site-marketing .fx-built-logo,
 html.site-marketing .fx-built-logo-probe,
 html.site-marketing .client-logo-item img {
   filter: none;
+}
+
+/*
+ * Header wordmark is black ink. Marketing used to set filter:none on it to
+ * undo a grayscale pass, which also killed the dark-mode invert and left
+ * reΛve.app invisible on the dark canvas.
+ */
+html[data-theme="dark"] .app-header-logo-svg,
+html[data-theme="dark"] .app-header-logo-img {
+  filter: invert(1);
 }
 
 /** Count badges — iOS-style red fill, white numeral */
