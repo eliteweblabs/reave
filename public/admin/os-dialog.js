@@ -139,7 +139,10 @@ export function osDialog(opts) {
     const mkBtn = (label, cls, value) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `os-dialog-btn ${cls}`.trim();
+      const extras = [];
+      if (cls.includes('ghost')) extras.push('brand-btn-glass');
+      else if (cls.includes('danger')) extras.push('brand-btn-danger');
+      btn.className = ['brand-btn', 'os-dialog-btn', cls, ...extras].filter(Boolean).join(' ');
       btn.textContent = label;
       btn.addEventListener('click', () => finish(value));
       actionsEl.appendChild(btn);

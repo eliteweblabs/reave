@@ -560,22 +560,6 @@ button.de-placeholder-action:active {
 .de-placeholder-icon svg { display: block; }
 .de-placeholder-create-btn {
   margin-top: 1rem;
-  padding: 0.5rem 1.25rem;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #fff;
-  background: var(--brand-gradient);
-  box-shadow: var(--brand-gradient-shadow);
-  border: none;
-  border-radius: var(--radius-input);
-  cursor: pointer;
-}
-.de-placeholder-create-btn:hover {
-  filter: brightness(1.08);
-}
-.de-placeholder-create-btn:active {
-  filter: brightness(0.96);
 }
 
 .de-header {
@@ -898,52 +882,17 @@ button.de-placeholder-action:active {
   border-top: 1px solid var(--panel-border);
   flex: 0 0 auto;
 }
-.de-btn {
-  appearance: none;
-  -webkit-appearance: none;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.25;
-  border-radius: 8px;
-  padding: 0.38rem 0.9rem;
-  cursor: pointer;
-  border: 1px solid transparent;
-  -webkit-tap-highlight-color: transparent;
+.de-btn:disabled,
+.prof-btn-primary:disabled,
+.prof-btn-secondary:disabled,
+.os-dialog-btn--primary:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
-.de-btn:disabled { opacity: 0.45; cursor: default; }
 .de-btn:focus { outline: none; }
 .de-btn:focus-visible:not(:disabled) {
   outline: 2px solid #3b82f6;
   outline-offset: 1px;
-}
-.de-btn-primary {
-  color: #fff;
-  background: #2563eb;
-  border-color: #3b82f6;
-}
-.de-btn-primary:not(:disabled):hover { background: #1d4ed8; }
-.de-btn-primary:not(:disabled):active { background: #1e40af; }
-.de-btn-ghost {
-  color: var(--muted);
-  background: transparent;
-  border-color: var(--panel-border);
-}
-.de-btn-ghost:hover { color: var(--fg); border-color: #4b5563; }
-.de-btn-danger {
-  color: #f85149;
-  background: transparent;
-  border-color: #f8514940;
-}
-.de-btn-danger:hover { background: #f8514915; border-color: #f85149; }
-.de-btn-secondary {
-  color: var(--fg);
-  background: color-mix(in srgb, var(--fg) 6%, transparent);
-  border-color: var(--card-border);
-}
-.de-btn-secondary:not(:disabled):hover {
-  background: color-mix(in srgb, var(--fg) 10%, transparent);
-  border-color: #4b5563;
 }
 .de-btn-with-icon {
   display: inline-flex;
@@ -3689,7 +3638,7 @@ button.de-placeholder-action:active {
   padding: 0;
   margin: 0;
   border: none;
-  border-radius: var(--radius-input);
+  border-radius: 50%;
   background: transparent;
   color: #0a84ff;
   cursor: pointer;

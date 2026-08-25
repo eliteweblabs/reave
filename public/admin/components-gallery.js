@@ -7,6 +7,7 @@ import {
   IOS_ICONS,
   iosIcon,
   createIosIconBtn,
+  createBrandBtn,
   createAgentBtn,
   createPanelBackBtn,
   createFabNewBtn,
@@ -27,9 +28,9 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260819c';
+} from './admin-ui.js?v=20260825a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
-import { osAlert, osConfirm } from './os-dialog.js?v=20260815a';
+import { osAlert, osConfirm } from './os-dialog.js?v=20260825a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js';
 
 function section(root, title, hint, build) {
@@ -162,17 +163,18 @@ function mount() {
 
   section(
     root,
-    'FAB + text buttons',
-    '<code>createFabNewBtn</code> and <code>de-btn*</code> variants (<code>setDeBtnLabel</code> for icon+label).',
+    'Official buttons',
+    'Text CTAs go through <code>createBrandBtn</code> — filled, solid, glass, danger. Circle chrome is <code>createFabNewBtn</code> / <code>createIosIconBtn</code>. Legacy <code>de-btn*</code> classes alias the same pills.',
     (el) => {
       const r = row(el);
       const setStatus = statusLine(el);
       r.appendChild(createFabNewBtn('New item', () => setStatus('New')));
-      r.appendChild(deBtn('Primary', 'primary'));
-      r.appendChild(deBtn('Secondary', 'secondary'));
-      r.appendChild(deBtn('Ghost', 'ghost'));
-      r.appendChild(deBtn('Danger', 'danger'));
-      r.appendChild(deBtn('Save', 'primary', 'check'));
+      r.appendChild(createBrandBtn({ label: 'Filled', onClick: () => setStatus('Filled') }));
+      r.appendChild(createBrandBtn({ variant: 'solid', label: 'Solid', onClick: () => setStatus('Solid') }));
+      r.appendChild(createBrandBtn({ variant: 'glass', label: 'Glass', onClick: () => setStatus('Glass') }));
+      r.appendChild(createBrandBtn({ variant: 'danger', label: 'Danger', onClick: () => setStatus('Danger', 'warn') }));
+      r.appendChild(createBrandBtn({ variant: 'filled', label: 'Save', iconKey: 'check', onClick: () => setStatus('Save') }));
+      r.appendChild(deBtn('Legacy de-btn', 'secondary'));
       r.querySelectorAll('.de-btn').forEach((btn) => {
         btn.addEventListener('click', () => setStatus(btn.textContent.trim() || 'Clicked'));
       });
