@@ -304,18 +304,19 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     --opd-panel: #131a22;
     --opd-panel-alt: #161e28;
     --opd-hairline: #232e3b;
-    --opd-text: #edf1f7;
-    --opd-muted: #8a96a8;
-    --opd-dim: #5c6779;
-    --opd-cyan: #45c7e8;
+    --opd-text: #f4f7fb;
+    --opd-muted: #c5ced9;
+    --opd-dim: #9aa6b5;
+    --opd-cyan: #7ad7ef;
     --opd-good: #3ecf8e;
     --opd-warn: #f2b84b;
     --opd-risk: #f2884b;
-    --opd-crit: #f2545b;
+    --opd-crit: #ff6b72;
     --opd-sans: 'Inter', system-ui, sans-serif;
     --opd-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
     --opd-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+    color-scheme: dark;
     color: var(--opd-text);
     font-family: var(--opd-sans);
     background:
@@ -526,7 +527,7 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     font-family: var(--opd-mono);
     font-size: 11px;
     font-weight: 600;
-    color: var(--opd-muted);
+    color: var(--opd-text);
     text-transform: uppercase;
     letter-spacing: 0.02em;
     line-height: 1.35;
@@ -539,7 +540,9 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     flex: none;
     background: var(--opd-cyan);
   }
+  .opd-stat-crit { color: #ffb3b7; }
   .opd-stat-crit .opd-stat-dot { background: var(--opd-crit); }
+  .opd-stat-risk { color: #ffc49a; }
   .opd-stat-risk .opd-stat-dot { background: var(--opd-risk); }
 
   .grade-a, .grade-b { color: var(--opd-good); }
@@ -601,13 +604,21 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     width: 42px;
     height: 42px;
     border-radius: 50%;
-    border: 2px solid currentColor;
+    border: none;
     display: grid;
     place-items: center;
     font-family: var(--opd-display);
     font-weight: 700;
     font-size: 15px;
+    color: #0b0e13;
+    background: var(--opd-dim);
   }
+  .opd-grade-ring.grade-a,
+  .opd-grade-ring.grade-b { background: var(--opd-good); }
+  .opd-grade-ring.grade-c { background: var(--opd-warn); }
+  .opd-grade-ring.grade-d { background: var(--opd-risk); }
+  .opd-grade-ring.grade-f,
+  .opd-grade-ring.grade-na { background: var(--opd-crit); color: #fff; }
   .opd-grade-ring.sm {
     width: 32px;
     height: 32px;
@@ -623,14 +634,14 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
 
   .opd-source {
     font-family: var(--opd-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--opd-muted);
     border-top: 1px dashed var(--opd-hairline);
     padding-top: 10px;
-    line-height: 1.4;
+    line-height: 1.45;
   }
   .opd-source span {
-    color: var(--opd-cyan);
+    color: var(--opd-text);
     font-weight: 700;
     margin-right: 8px;
   }

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { getPgPool } from './pgPool';
 import { parseSenderEmail } from './emailAddress';
+import { normalizeEmailBody, normalizeSentEmailHtml } from './emailBody';
 import { serverEnv } from './serverEnv';
 
 export type ProjectOutboundEmailRecord = {
@@ -22,6 +23,8 @@ export type ProjectOutboundEmailRecord = {
   sentAt: string;
   sentBy: string | null;
   source: string;
+  bodyText?: string | null;
+  bodyHtml?: string | null;
 };
 
 export type RecordProjectOutboundInput = {
@@ -33,6 +36,8 @@ export type RecordProjectOutboundInput = {
   resendId?: string | null;
   sentBy?: string | null;
   source?: string;
+  bodyText?: string | null;
+  bodyHtml?: string | null;
 };
 
 export type OutboundEmailListRecord = ProjectOutboundEmailRecord;
@@ -51,7 +56,9 @@ CREATE TABLE IF NOT EXISTS project_outbound_emails (
   resend_id     TEXT,
   sent_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   sent_by       TEXT,
-  source        TEXT NOT NULL DEFAULT 'unknown'
+  source        TEXT NOT NULL DEFAULT 'unknown',
+  body_text     TEXT,
+  body_html     TEXT
 );
 CREATE INDEX IF NOT EXISTS project_outbound_emails_to_idx
   ON project_outbound_emails (to_email, sent_at DESC);
@@ -59,6 +66,8 @@ CREATE INDEX IF NOT EXISTS project_outbound_emails_contact_idx
   ON project_outbound_emails (contact_uid, sent_at DESC) WHERE contact_uid IS NOT NULL;
 CREATE INDEX IF NOT EXISTS project_outbound_emails_job_idx
   ON project_outbound_emails (job_slug, sent_at DESC);
+ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS body_text TEXT;
+ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS body_html TEXT;
 `;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -101,6 +110,18 @@ function writeFileRows(rows: ProjectOutboundEmailRecord[]): void {
   writeFileSync(FILE_PATH, JSON.stringify({ rows: rows.slice(0, MAX_FILE_ROWS) }, null, 2), 'utf8');
 }
 
+function clipOutboundBodies(input: {
+  bodyText?: string | null;
+  bodyHtml?: string | null;
+}): { bodyText: string | null; bodyHtml: string | null } {
+  const bodyText = normalizeEmailBody(input.bodyText || undefined, input.bodyHtml || undefined);
+  const bodyHtml = normalizeSentEmailHtml(input.bodyText || undefined, input.bodyHtml || undefined);
+  return {
+    bodyText: bodyText || null,
+    bodyHtml: bodyHtml || null,
+  };
+}
+
 function rowToRecord(row: {
   id: string;
   job_slug: string;
@@ -112,6 +133,8 @@ function rowToRecord(row: {
   sent_at: Date | string;
   sent_by: string | null;
   source: string;
+  body_text?: string | null;
+  body_html?: string | null;
 }): ProjectOutboundEmailRecord {
   return {
     id: row.id,
@@ -124,6 +147,8 @@ function rowToRecord(row: {
     sentAt: new Date(row.sent_at).toISOString(),
     sentBy: row.sent_by,
     source: row.source,
+    bodyText: row.body_text ?? null,
+    bodyHtml: row.body_html ?? null,
   };
 }
 
@@ -133,6 +158,7 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
   const toEmail = normalizeToEmail(input.toEmail);
   if (!toEmail.includes('@')) return;
 
+  const bodies = clipOutboundBodies(input);
   const record: ProjectOutboundEmailRecord = {
     id: randomUUID(),
     jobSlug,
@@ -144,6 +170,8 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
     sentAt: new Date().toISOString(),
     sentBy: input.sentBy?.trim() || null,
     source: input.source?.trim() || 'unknown',
+    bodyText: bodies.bodyText,
+    bodyHtml: bodies.bodyHtml,
   };
 
   try {
@@ -151,8 +179,8 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
     if (pool) {
       await pool.query(
         `INSERT INTO project_outbound_emails
-          (id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_by, source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          (id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_by, source, body_text, body_html)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           record.id,
           record.jobSlug,
@@ -163,6 +191,8 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
           record.resendId,
           record.sentBy,
           record.source,
+          record.bodyText,
+          record.bodyHtml,
         ],
       );
       return;
@@ -267,4 +297,74 @@ export async function listOutboundEmails(limit = 200): Promise<OutboundEmailList
   return readFileRows()
     .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
     .slice(0, capped);
+}
+
+export async function getOutboundEmail(id: string): Promise<ProjectOutboundEmailRecord | null> {
+  const key = id.trim();
+  if (!key) return null;
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rows } = await pool.query<{
+        id: string;
+        job_slug: string;
+        job_title: string;
+        contact_uid: string | null;
+        to_email: string;
+        subject: string;
+        resend_id: string | null;
+        sent_at: Date;
+        sent_by: string | null;
+        source: string;
+        body_text: string | null;
+        body_html: string | null;
+      }>(
+        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, body_text, body_html
+         FROM project_outbound_emails
+         WHERE id = $1
+         LIMIT 1`,
+        [key],
+      );
+      return rows[0] ? rowToRecord(rows[0]) : null;
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] pg get failed', e);
+  }
+
+  return readFileRows().find((r) => r.id === key) ?? null;
+}
+
+export async function updateOutboundEmailBodies(
+  id: string,
+  input: { bodyText?: string | null; bodyHtml?: string | null },
+): Promise<void> {
+  const key = id.trim();
+  if (!key) return;
+  const bodies = clipOutboundBodies(input);
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      await pool.query(
+        `UPDATE project_outbound_emails
+         SET body_text = $2, body_html = $3
+         WHERE id = $1`,
+        [key, bodies.bodyText, bodies.bodyHtml],
+      );
+      return;
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] pg body update failed', e);
+  }
+
+  try {
+    const rows = readFileRows();
+    const idx = rows.findIndex((r) => r.id === key);
+    if (idx === -1) return;
+    rows[idx] = { ...rows[idx]!, bodyText: bodies.bodyText, bodyHtml: bodies.bodyHtml };
+    writeFileRows(rows);
+  } catch (e) {
+    console.warn('[project-outbound-email] file body update failed', e);
+  }
 }

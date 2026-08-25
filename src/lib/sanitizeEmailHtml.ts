@@ -41,7 +41,7 @@ function isUnsafeUrl(value: string): boolean {
 }
 
 /** Sanitize inbound/stored email HTML for safe inbox rendering. */
-export function sanitizeEmailHtml(html: string): string {
+export function sanitizeEmailHtml(html: string, opts?: { keepStyles?: boolean }): string {
   const trimmed = html.trim();
   if (!trimmed) return '';
 
@@ -62,7 +62,7 @@ export function sanitizeEmailHtml(html: string): string {
     if (!attribs) return;
     for (const [name, value] of Object.entries(attribs)) {
       const lower = name.toLowerCase();
-      if (lower.startsWith('on') || lower === 'style') {
+      if (lower.startsWith('on') || (lower === 'style' && !opts?.keepStyles)) {
         $(rawEl).removeAttr(name);
         continue;
       }
