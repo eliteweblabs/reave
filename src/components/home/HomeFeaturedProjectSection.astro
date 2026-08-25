@@ -98,7 +98,7 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
     font-weight: 600;
     letter-spacing: -0.03em;
     line-height: 1.08;
-    color: #fefefe;
+    color: var(--site-fg, #171717);
     margin: 0 0 14px;
   }
 
@@ -106,7 +106,7 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
     font-family: var(--font-content);
     font-size: 15px;
     line-height: 1.65;
-    color: rgba(254, 254, 254, 0.62);
+    color: var(--site-fg-muted, #525252);
     margin: 0 0 18px;
     max-width: 46ch;
   }
@@ -126,7 +126,7 @@ const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--site-fg, #171717);
     padding: 4px 8px;
     border-radius: 999px;
     border: 1px solid rgba(168, 85, 247, 0.45);

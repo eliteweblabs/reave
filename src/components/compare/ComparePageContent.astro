@@ -170,7 +170,7 @@ const graphData = {
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.12;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .cg-lead {
@@ -179,7 +179,7 @@ const graphData = {
     font-family: var(--font-content);
     font-size: 1rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.65);
+    color: var(--site-fg-muted, #525252);
   }
 
   .cg-cta-row {
@@ -202,10 +202,10 @@ const graphData = {
   }
 
   .cg-btn--primary {
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    background: var(--brand-gradient);
+    box-shadow: var(--brand-gradient-shadow);
   }
 
   .cg-btn--primary:hover {
@@ -249,7 +249,7 @@ const graphData = {
     margin: 0;
     font-size: 1.05rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--site-fg, #171717);
     letter-spacing: -0.01em;
   }
 
@@ -298,13 +298,13 @@ const graphData = {
     margin: 12px 0 0;
     font-size: 0.78rem;
     line-height: 1.55;
-    color: rgba(255, 255, 255, 0.52);
+    color: var(--site-fg-muted, #525252);
     min-height: 2.4em;
     flex-shrink: 0;
   }
 
   .cg-caption :global(strong) {
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg, #171717);
     font-weight: 700;
   }
 
@@ -314,7 +314,7 @@ const graphData = {
   }
 
   .cg-sources-title {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--site-fg-faint, #a3a3a3);
   }
 
   .cg-sources-list {
@@ -328,7 +328,7 @@ const graphData = {
 
   .cg-sources-list li {
     font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--site-fg-faint, #a3a3a3);
   }
 
   @media (max-width: 768px) {

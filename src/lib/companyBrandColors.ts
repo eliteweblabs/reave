@@ -8,14 +8,19 @@ import {
   type PortalBrandColors,
 } from './portalBrandColors';
 
-export const DEFAULT_SITE_BRAND_PRIMARY = '#ffffff';
-export const DEFAULT_SITE_BRAND_SECONDARY = '#a1a1a1';
-
-/** Previous magenta pair — treat as unset so the Vercel defaults win. */
-const LEGACY_SITE_BRAND_PRIMARY = '#f472b6';
-const LEGACY_SITE_BRAND_SECONDARY = '#c026d3';
+export const DEFAULT_SITE_BRAND_PRIMARY = '#f472b6';
+export const DEFAULT_SITE_BRAND_SECONDARY = '#c026d3';
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/** Black / white / gray leftovers from the canvas flatten — not real brand accents. */
+function isAchromaticBrandHex(hex: string): boolean {
+  const h = hex.slice(1);
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return Math.max(r, g, b) - Math.min(r, g, b) < 16;
+}
 
 export function normalizeBrandColorHex(raw: string | null | undefined): string | null {
   const t = (raw ?? '').trim();
@@ -29,13 +34,9 @@ export function normalizeBrandColorHex(raw: string | null | undefined): string |
   return `#${hex}`.toLowerCase();
 }
 
-function effectiveBrandHex(
-  raw: string | null | undefined,
-  fallback: string,
-  legacy: string,
-): string {
+function effectiveBrandHex(raw: string | null | undefined, fallback: string): string {
   const hex = normalizeBrandColorHex(raw);
-  if (!hex || hex === legacy) return fallback;
+  if (!hex || isAchromaticBrandHex(hex)) return fallback;
   return hex;
 }
 
@@ -43,18 +44,19 @@ export function resolveCompanyBrandColors(
   primaryRaw?: string | null,
   secondaryRaw?: string | null,
 ): PortalBrandColors {
-  const primary = effectiveBrandHex(primaryRaw, DEFAULT_SITE_BRAND_PRIMARY, LEGACY_SITE_BRAND_PRIMARY);
-  const secondary = effectiveBrandHex(secondaryRaw, DEFAULT_SITE_BRAND_SECONDARY, LEGACY_SITE_BRAND_SECONDARY);
+  const primary = effectiveBrandHex(primaryRaw, DEFAULT_SITE_BRAND_PRIMARY);
+  const secondary = effectiveBrandHex(secondaryRaw, DEFAULT_SITE_BRAND_SECONDARY);
   return buildPortalBrandColors(primary, secondary) ?? buildPortalBrandColors(DEFAULT_SITE_BRAND_PRIMARY, DEFAULT_SITE_BRAND_SECONDARY)!;
 }
 
 export function companyBrandCssVars(primaryRaw?: string | null, secondaryRaw?: string | null): Record<string, string> {
   const colors = resolveCompanyBrandColors(primaryRaw, secondaryRaw);
   const vars = portalBrandCssVars(colors);
-  vars['--brand-gradient-shadow'] = 'none';
+  vars['--brand-gradient-shadow'] =
+    `0 2px 16px rgba(${colors.secondaryRgb}, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.35)`;
   vars['--brand-glow-filter'] = 'none';
   vars['--create-fab-bg'] = vars['--brand-gradient']!;
-  vars['--create-fab-shadow'] = '0 1px 2px rgba(0, 0, 0, 0.12)';
+  vars['--create-fab-shadow'] = vars['--brand-gradient-shadow']!;
   return vars;
 }
 

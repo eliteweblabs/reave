@@ -45,24 +45,30 @@
   --site-mesh-glow: none;
   --site-mesh-bottom: none;
   --site-mesh-atmosphere: none;
-  --brand-pink: #fff;
-  --brand-magenta: #a1a1a1;
-  --brand-indigo: #888;
+  --brand-pink: #f472b6;
+  --brand-magenta: #c026d3;
+  --brand-indigo: #6366f1;
   /* Comma-separated RGB for rgba(var(--brand-*-rgb), a) — set from Company colors. */
-  --brand-pink-rgb: 255, 255, 255;
-  --brand-magenta-rgb: 161, 161, 161;
-  --brand-indigo-rgb: 136, 136, 136;
+  --brand-pink-rgb: 244, 114, 182;
+  --brand-magenta-rgb: 192, 38, 211;
+  --brand-indigo-rgb: 99, 102, 241;
   --reave-bg-pattern-url: url("/reave-bg-pattern.svg");
   --reave-bg-pattern-tile: 400%;
-  --brand-gradient: #111;
-  --brand-gradient-shadow: none;
+  --brand-gradient: linear-gradient(
+    145deg,
+    var(--brand-pink) 0%,
+    var(--brand-magenta) 52%,
+    var(--brand-indigo) 100%
+  );
+  --brand-gradient-shadow:
+    0 2px 16px rgba(var(--brand-magenta-rgb), 0.35), 0 0 0 1px rgba(255, 255, 255, 0.35);
   --brand-glow-filter: none;
   --create-fab-bg: var(--brand-gradient);
-  --create-fab-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  --brand-glass-bg: rgba(23, 23, 23, 0.04);
-  --brand-glass-bg-hover: rgba(23, 23, 23, 0.07);
-  --brand-glass-border-color: rgba(23, 23, 23, 0.14);
-  --brand-glass-border-color-hover: rgba(23, 23, 23, 0.22);
+  --create-fab-shadow: var(--brand-gradient-shadow);
+  --brand-glass-bg: rgba(255, 255, 255, 0.42);
+  --brand-glass-bg-hover: rgba(255, 255, 255, 0.58);
+  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
+  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
   --brand-glass-blur: blur(16px) saturate(1.35);
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
@@ -85,7 +91,7 @@
   }
 }
 
-/** Filled primary CTAs (header, hero, marketing) — pills, theme-aware. */
+/** Filled primary CTAs — company gradient, always white label. */
 .brand-btn {
   display: inline-flex;
   align-items: center;
@@ -99,26 +105,26 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
-  color: var(--brand-btn-fg, #fff);
-  -webkit-text-fill-color: var(--brand-btn-fg, #fff);
-  background: var(--brand-btn-bg, #111);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: var(--brand-gradient);
   text-decoration: none;
   white-space: nowrap;
-  box-shadow: 0 0 0 1px var(--site-border, rgba(23, 23, 23, 0.1));
+  box-shadow: var(--brand-gradient-shadow);
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: filter 0.15s ease, transform 0.15s ease;
 }
 
 .brand-btn:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
   transform: translateY(-1px);
-  color: var(--brand-btn-fg, #fff);
-  -webkit-text-fill-color: var(--brand-btn-fg, #fff);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
   text-decoration: none;
 }
 
-/** Outline pills on marketing surfaces. */
+/** Secondary pills — primary-color stroke, frosted blur. */
 .brand-btn-glass {
   border-radius: 999px;
   color: var(--site-fg, #171717);
@@ -215,19 +221,18 @@ html[data-theme="dark"] {
   --site-accent: #fff;
   --brand-btn-bg: #fff;
   --brand-btn-fg: #111;
-  --brand-glass-bg: rgba(255, 255, 255, 0.07);
-  --brand-glass-bg-hover: rgba(255, 255, 255, 0.12);
-  --brand-glass-border-color: rgba(255, 255, 255, 0.24);
-  --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4);
-  --brand-gradient-shadow: none;
-  --create-fab-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --brand-glass-bg: rgba(17, 17, 17, 0.42);
+  --brand-glass-bg-hover: rgba(17, 17, 17, 0.58);
+  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
+  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
+  --create-fab-shadow: var(--brand-gradient-shadow);
 }
 
 html[data-theme="light"] {
-  --brand-glass-bg: rgba(23, 23, 23, 0.04);
-  --brand-glass-bg-hover: rgba(23, 23, 23, 0.07);
-  --brand-glass-border-color: rgba(23, 23, 23, 0.14);
-  --brand-glass-border-color-hover: rgba(23, 23, 23, 0.22);
+  --brand-glass-bg: rgba(255, 255, 255, 0.42);
+  --brand-glass-bg-hover: rgba(255, 255, 255, 0.58);
+  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
+  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
 }

@@ -3,6 +3,7 @@
  * Vercel-style marketing navigation — Sign in on desktop, hamburger drawer on small screens.
  */
 import { ArrowRight, LayoutDashboard } from "lucide-astro";
+import ThemeToggle from "./ThemeToggle.astro";
 import {
   marketingNavActivePath,
   siteDemoCta,
@@ -57,6 +58,7 @@ const showOverlayFooter =
         </a>
       ))
     }
+    <ThemeToggle />
   </nav>
 
   {
@@ -389,13 +391,13 @@ const showOverlayFooter =
     font-family: var(--font-primary);
     font-size: 0.82rem;
     font-weight: 600;
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    background: var(--brand-gradient);
     text-decoration: none;
     white-space: nowrap;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
-    transition: background 0.15s ease, transform 0.15s ease;
+    box-shadow: var(--brand-gradient-shadow);
+    transition: filter 0.15s ease, transform 0.15s ease;
   }
 
   .marketing-nav-cta:hover {

@@ -102,7 +102,7 @@ const stack = PLATFORM_STACK.map((tech) => ({
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.2;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .fx-built-with-lead {
@@ -111,7 +111,7 @@ const stack = PLATFORM_STACK.map((tech) => ({
     font-family: var(--font-content);
     font-size: 0.94rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--site-fg-muted, #525252);
   }
 
   .fx-deploy-modes {
@@ -134,14 +134,14 @@ const stack = PLATFORM_STACK.map((tech) => ({
     font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: -0.01em;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .fx-deploy-mode-desc {
     margin: 0;
     font-size: 0.76rem;
     line-height: 1.5;
-    color: rgba(255, 255, 255, 0.52);
+    color: var(--site-fg-muted, #525252);
   }
 
   .fx-built-with-sub {
@@ -150,7 +150,7 @@ const stack = PLATFORM_STACK.map((tech) => ({
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.38);
+    color: var(--site-fg-faint, #a3a3a3);
   }
 
   .fx-built-grid {
@@ -214,7 +214,7 @@ const stack = PLATFORM_STACK.map((tech) => ({
     font-size: 0.68rem;
     font-weight: 700;
     line-height: 1.2;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--site-fg, #171717);
     text-align: center;
   }
 
@@ -222,7 +222,7 @@ const stack = PLATFORM_STACK.map((tech) => ({
     font-size: 0.58rem;
     font-weight: 500;
     line-height: 1.25;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--site-fg-faint, #a3a3a3);
     text-align: center;
   }
 

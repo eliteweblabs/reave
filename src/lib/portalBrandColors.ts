@@ -275,8 +275,7 @@ export function portalBrandCssVars(colors: PortalBrandColors): Record<string, st
     '--brand-pink-rgb': colors.primaryRgb,
     '--brand-magenta-rgb': colors.secondaryRgb,
     '--brand-indigo-rgb': colors.secondaryRgb,
-    // Light / white brands use a black fill so admin controls stay visible.
-    '--brand-gradient': light ? '#111111' : gradient,
+    '--brand-gradient': gradient,
     '--brand-glow-filter': 'none',
   };
 }

@@ -144,7 +144,7 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     font-family: var(--font-content);
     font-size: 1.05rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--site-fg-muted, #525252);
   }
 
   .about-page-main {
@@ -254,10 +254,10 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
   }
 
   .about-btn--primary {
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    background: var(--brand-gradient);
+    box-shadow: var(--brand-gradient-shadow);
   }
 
   .about-btn--primary:hover {

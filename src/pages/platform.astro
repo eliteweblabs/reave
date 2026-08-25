@@ -71,7 +71,7 @@ const company = await getCompanyConfig(Astro.request);
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.12;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .platform-lead {
@@ -80,7 +80,7 @@ const company = await getCompanyConfig(Astro.request);
     font-family: var(--font-content);
     font-size: 1.02rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--site-fg-muted, #525252);
   }
 
   .platform-cta-row {
@@ -107,10 +107,10 @@ const company = await getCompanyConfig(Astro.request);
   }
 
   .platform-btn--primary {
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    background: var(--brand-gradient);
+    box-shadow: var(--brand-gradient-shadow);
   }
 
   .platform-btn--primary:hover {

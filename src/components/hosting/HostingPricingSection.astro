@@ -154,7 +154,7 @@ const featureGroups = [
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.2;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .hx-pricing-lead {
@@ -163,7 +163,7 @@ const featureGroups = [
     max-width: 620px;
     font-size: 0.95rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--site-fg-muted, #525252);
   }
 
   .hx-plan-grid {
@@ -211,7 +211,7 @@ const featureGroups = [
     margin: 0 0 6px;
     font-size: 1.2rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .hx-plan-card-tagline {
@@ -232,20 +232,20 @@ const featureGroups = [
     font-size: 2rem;
     font-weight: 700;
     letter-spacing: -0.03em;
-    color: #fff;
+    color: var(--site-fg, #171717);
     font-variant-numeric: tabular-nums;
   }
 
   .hx-plan-card-price-unit {
     font-size: 0.9rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--site-fg-muted, #525252);
   }
 
   .hx-plan-card-equiv {
     margin: 0 0 12px;
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--site-fg-faint, #a3a3a3);
     font-variant-numeric: tabular-nums;
   }
 
@@ -253,7 +253,7 @@ const featureGroups = [
     margin: 0 0 14px;
     font-size: 0.82rem;
     line-height: 1.55;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--site-fg-muted, #525252);
   }
 
   .hx-plan-feature-list {
@@ -271,7 +271,7 @@ const featureGroups = [
     padding-left: 14px;
     font-size: 0.8rem;
     line-height: 1.45;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--site-fg-muted, #525252);
   }
 
   .hx-plan-feature-list li::before {
@@ -286,7 +286,7 @@ const featureGroups = [
   }
 
   .hx-plan-feature--plus {
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg, #171717);
     font-weight: 600;
   }
 
@@ -298,7 +298,7 @@ const featureGroups = [
     margin: 0;
     font-size: 0.78rem;
     line-height: 1.5;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--site-fg-faint, #a3a3a3);
     font-style: italic;
   }
 
@@ -321,14 +321,14 @@ const featureGroups = [
     margin: 0 0 8px;
     font-size: 1.02rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .hx-stack-card-lead {
     margin: 0 0 12px;
     font-size: 0.78rem;
     line-height: 1.5;
-    color: rgba(255, 255, 255, 0.52);
+    color: var(--site-fg-muted, #525252);
   }
 
   .hx-stack-feature-list {
@@ -345,7 +345,7 @@ const featureGroups = [
     padding-left: 14px;
     font-size: 0.76rem;
     line-height: 1.45;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--site-fg-muted, #525252);
   }
 
   .hx-stack-feature-list li::before {
@@ -390,10 +390,10 @@ const featureGroups = [
   }
 
   .hx-btn--primary {
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    background: var(--brand-gradient);
+    box-shadow: var(--brand-gradient-shadow);
   }
 
   .hx-btn--primary:hover {

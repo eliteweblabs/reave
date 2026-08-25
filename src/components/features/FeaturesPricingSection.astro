@@ -122,10 +122,10 @@ const heading =
     margin-bottom: 56px;
     padding: 28px 22px 32px;
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
     background:
       radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 197, 94, 0.1), transparent 70%),
-      rgba(255, 255, 255, 0.02);
+      var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .fx-pricing-kicker {
@@ -151,7 +151,7 @@ const heading =
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.2;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .fx-pricing-lead {
@@ -159,15 +159,15 @@ const heading =
     max-width: 620px;
     font-size: 0.95rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--site-fg-muted, #525252);
   }
 
   .fx-pricing-table-wrap {
     overflow-x: auto;
     margin-bottom: 16px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .fx-pricing-table {
@@ -181,7 +181,7 @@ const heading =
   .fx-pricing-table th,
   .fx-pricing-table td {
     padding: 12px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
   }
 
   .fx-pricing-table thead th {
@@ -189,8 +189,8 @@ const heading =
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.48);
-    background: rgba(255, 255, 255, 0.03);
+    color: var(--site-fg-muted, #525252);
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .fx-pricing-table tbody th {
@@ -202,7 +202,7 @@ const heading =
 
   .fx-pricing-table tbody td {
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg, #171717);
     font-variant-numeric: tabular-nums;
   }
 
@@ -215,7 +215,7 @@ const heading =
     margin: 0 0 20px;
     font-size: 0.78rem;
     line-height: 1.5;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--site-fg-faint, #a3a3a3);
     font-style: italic;
   }
 
@@ -230,22 +230,22 @@ const heading =
   .fx-tier-card {
     padding: 18px 18px 16px;
     border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
   }
 
   .fx-tier-card-title {
     margin: 0 0 8px;
     font-size: 1.05rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .fx-tier-card-summary {
     margin: 0 0 10px;
     font-size: 0.82rem;
     line-height: 1.55;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--site-fg-muted, #525252);
   }
 
   .fx-tier-card-price {
@@ -270,7 +270,7 @@ const heading =
     padding-left: 14px;
     font-size: 0.8rem;
     line-height: 1.45;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--site-fg-muted, #525252);
   }
 
   .fx-tier-feature-list li::before {
@@ -287,13 +287,13 @@ const heading =
   .fx-tier-feature-list a {
     color: inherit;
     text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.22);
+    text-decoration-color: var(--site-border, rgba(23, 23, 23, 0.22));
     text-underline-offset: 2px;
   }
 
   .fx-tier-feature-list a:hover {
-    color: #fff;
-    text-decoration-color: rgba(255, 255, 255, 0.45);
+    color: var(--site-fg, #171717);
+    text-decoration-color: var(--site-fg-muted, #525252);
   }
 
   .fx-cta-row {

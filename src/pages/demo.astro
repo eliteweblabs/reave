@@ -169,7 +169,7 @@ if (!demo.adminUrl) {
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.12;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .demo-lead {
@@ -178,7 +178,7 @@ if (!demo.adminUrl) {
     font-family: var(--font-content);
     font-size: 1.02rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--site-fg-muted, #525252);
   }
 
   .demo-btn {
@@ -195,10 +195,10 @@ if (!demo.adminUrl) {
   }
 
   .demo-btn--primary {
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    background: var(--brand-gradient);
+    box-shadow: var(--brand-gradient-shadow);
   }
 
   .demo-btn--primary:hover {
@@ -229,8 +229,8 @@ if (!demo.adminUrl) {
     gap: 10px;
     padding: 24px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
     text-decoration: none;
     transition:
       border-color 0.15s ease,
@@ -239,8 +239,8 @@ if (!demo.adminUrl) {
   }
 
   a.demo-card:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--site-card-border, rgba(23, 23, 23, 0.16));
+    background: var(--site-card, rgba(23, 23, 23, 0.06));
     transform: translateY(-1px);
     text-decoration: none;
   }
@@ -251,8 +251,8 @@ if (!demo.adminUrl) {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
+    color: var(--site-fg, #171717);
+    background: var(--site-card, rgba(23, 23, 23, 0.06));
   }
 
   .demo-card-title {
@@ -261,7 +261,7 @@ if (!demo.adminUrl) {
     font-size: 1.15rem;
     font-weight: 600;
     letter-spacing: -0.02em;
-    color: #fff;
+    color: var(--site-fg, #171717);
   }
 
   .demo-card-body {
@@ -270,7 +270,7 @@ if (!demo.adminUrl) {
     font-family: var(--font-content);
     font-size: 0.95rem;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--site-fg-muted, #525252);
   }
 
   .demo-card-cta {
@@ -281,6 +281,6 @@ if (!demo.adminUrl) {
     font-family: var(--font-secondary);
     font-size: 13px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg, #171717);
   }
 </style>

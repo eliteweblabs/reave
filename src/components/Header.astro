@@ -148,7 +148,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   )}
 
   <div class="app-header-end topbar-end">
-    <ThemeToggle />
+    {!showMarketingNav && <ThemeToggle />}
     {showHeaderSignIn && (
       <div class="topbar-auth-cluster">
         <button
@@ -833,7 +833,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     display: flex;
     align-items: center;
     width: max-content;
-    max-width: min(42vw, 280px);
+    max-width: min(16vw, 265px);
     height: var(--app-header-logo-h);
   }
 
@@ -1030,8 +1030,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   .app-header-admin-cta.brand-btn,
   .app-header-admin-cta.brand-btn:hover {
-    color: var(--brand-btn-fg, #fff);
-    -webkit-text-fill-color: var(--brand-btn-fg, #fff);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
   }
 
   .app-header-admin-cta svg,
