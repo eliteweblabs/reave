@@ -43,7 +43,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
   createAgentBtn,
-} from './admin-ui.js?v=20260824b';
+} from './admin-ui.js?v=20260825a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260824b';

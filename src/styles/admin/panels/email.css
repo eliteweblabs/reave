@@ -403,13 +403,13 @@
   color: var(--danger-hover, #b91c1c);
   background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
 }
-/* Ring sits just outside the glyph — not stretched to the 44pt hit target. */
+/* Ring sits just outside the glyph — not stretched to the hit box. */
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring-holder {
   inset: auto;
   top: 50%;
   left: 50%;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
+  height: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
   transform: translate(-50%, -50%);
 }
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring {
@@ -418,8 +418,8 @@
 }
 .ios-icon-btn.delete-confirm-btn .timing-ring-host,
 .ios-icon-btn.delete-confirm-btn .timing-ring {
-  width: 1.65rem;
-  height: 1.65rem;
+  width: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
+  height: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
 }
 .ios-icon-btn.delete-confirm-btn[data-state="confirm"] .delete-confirm-icon {
   position: relative;
@@ -1078,9 +1078,11 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
+  box-sizing: border-box;
+  width: var(--icon-btn-box, var(--icon-btn-md));
+  height: var(--icon-btn-box, var(--icon-btn-md));
+  min-width: var(--icon-btn-box, var(--icon-btn-md));
+  min-height: var(--icon-btn-box, var(--icon-btn-md));
   margin: 0;
   padding: 0;
   border: none;
@@ -1092,6 +1094,8 @@
 .agent-btn svg,
 .de-new-btn.em-agent-btn svg {
   display: block;
+  width: var(--icon-btn-glyph, var(--icon-btn-md-glyph));
+  height: var(--icon-btn-glyph, var(--icon-btn-md-glyph));
 }
 /* Header row: keep the glow from eating into the truncated title. */
 .de-header-actions > .agent-btn,
@@ -1601,12 +1605,8 @@ html.reave-agent-asleep
   gap: 0.2rem;
 }
 .wk-files-tools .ios-icon-btn {
-  width: 2.25rem;
-  height: 2.25rem;
-}
-.wk-files-tools .ios-icon-btn svg {
-  width: 1.125rem;
-  height: 1.125rem;
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
 }
 .wk-files-tools .de-btn-ghost {
   padding: 0.28rem 0.7rem;
@@ -1696,13 +1696,9 @@ html.reave-agent-asleep
   margin-top: 0.15rem;
 }
 .wk-file-actions .ios-icon-btn {
-  width: 2.25rem;
-  height: 2.25rem;
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
   flex-shrink: 0;
-}
-.wk-file-actions .ios-icon-btn svg {
-  width: 1.125rem;
-  height: 1.125rem;
 }
 .wk-file-actions .de-share-btn {
   color: #0a84ff;

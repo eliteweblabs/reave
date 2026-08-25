@@ -35,7 +35,7 @@ import {
   pullRefreshContentRoot,
   createSearchFieldAdornment,
   syncSearchFieldAdornment,
-} from './admin-ui.js?v=20260821b';
+} from './admin-ui.js?v=20260825a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260810a';
 import { postLower } from './post-alias.js?v=20260805a';

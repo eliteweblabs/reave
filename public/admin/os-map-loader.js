@@ -110,7 +110,7 @@ import {
   setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260822a';
+} from './admin-ui.js?v=20260825a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {

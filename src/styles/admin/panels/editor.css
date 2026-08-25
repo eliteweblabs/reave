@@ -253,8 +253,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: var(--icon-btn-box, var(--icon-btn-md));
+  height: var(--icon-btn-box, var(--icon-btn-md));
   padding: 0;
   border: none;
   border-radius: 8px;
@@ -616,12 +616,8 @@ button.de-placeholder-action:active {
   box-sizing: border-box;
 }
 .pane-header-secondary .ios-icon-btn {
-  width: calc(var(--pane-chrome-scale-4, 1.625rem) - 0.1rem);
-  height: calc(var(--pane-chrome-scale-4, 1.625rem) - 0.1rem);
-}
-.pane-header-secondary .ios-icon-btn svg {
-  width: 14px;
-  height: 14px;
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
 }
 @media (max-width: 639px) {
   /* settings-subheader keeps its own topbar padding-top — do not override. */
@@ -636,11 +632,6 @@ button.de-placeholder-action:active {
       max(0.5rem, env(safe-area-inset-right, 0px))
       0.15rem
       max(0.5rem, env(safe-area-inset-left, 0px));
-  }
-  .pane-header.de-header:not(.settings-subheader) .ios-icon-btn,
-  .pane-header:not(.settings-subheader) > .de-header .ios-icon-btn {
-    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
   }
   .pane-header .de-header-actions {
     gap: 0.15rem;
@@ -2788,19 +2779,6 @@ button.de-placeholder-action:active {
       0.15rem
       var(--detail-pad-x);
   }
-  #clients-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn,
-  #work-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn {
-    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-  }
-  #clients-editor.de-pane-active .detail-chrome > .de-header .agent-btn,
-  #work-editor.de-pane-active .detail-chrome > .de-header .agent-btn,
-  #clients-editor.de-pane-active .detail-chrome > .de-header .de-new-btn.em-agent-btn,
-  #work-editor.de-pane-active .detail-chrome > .de-header .de-new-btn.em-agent-btn {
-    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    min-width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-  }
   #clients-editor.de-pane-active .de-header-actions,
   #work-editor.de-pane-active .de-header-actions {
     gap: 0.15rem;
@@ -3678,14 +3656,31 @@ button.de-placeholder-action:active {
   width: 100%;
 }
 
-/* iOS-style icon toolbar buttons (SF Symbol affordances, 44pt touch targets) */
+/* iOS-style icon toolbar buttons — size classes lock box + glyph. */
+.ios-icon-btn--sm {
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
+}
+.ios-icon-btn--md {
+  --icon-btn-box: var(--icon-btn-md);
+  --icon-btn-glyph: var(--icon-btn-md-glyph);
+}
+.ios-icon-btn--lg {
+  --icon-btn-box: var(--icon-btn-lg);
+  --icon-btn-glyph: var(--icon-btn-lg-glyph);
+}
 .ios-icon-btn {
+  --icon-btn-box: var(--icon-btn-md);
+  --icon-btn-glyph: var(--icon-btn-md-glyph);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 2.75rem;
-  height: 2.75rem;
+  box-sizing: border-box;
+  width: var(--icon-btn-box);
+  height: var(--icon-btn-box);
+  min-width: var(--icon-btn-box);
+  min-height: var(--icon-btn-box);
   padding: 0;
   margin: 0;
   border: none;
@@ -3708,8 +3703,12 @@ button.de-placeholder-action:active {
 }
 .ios-icon-btn svg:not(.delete-confirm-ring):not(.timing-ring) {
   display: block;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--icon-btn-glyph);
+  height: var(--icon-btn-glyph);
+  flex: 0 0 auto;
+}
+.de-header-actions > .ios-icon-btn {
+  border-radius: 50%;
 }
 .ios-icon-btn .delete-confirm-ring,
 .ios-icon-btn .timing-ring-host,
@@ -3991,8 +3990,8 @@ button.de-placeholder-action:active {
   flex: 0 0 auto;
 }
 .cl-vault-row-actions .ios-icon-btn {
-  width: 2.25rem;
-  height: 2.25rem;
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
 }
 .cl-vault-row-actions .ios-icon-btn[hidden] {
   display: none;

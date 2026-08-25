@@ -10,7 +10,7 @@
  * available via admin-ui.js for callers that only need the title row.
  */
 
-import { createPaneSubheader } from './admin-ui.js?v=20260821c';
+import { createPaneSubheader } from './admin-ui.js?v=20260825a';
 
 // Re-export so panels can import header chrome from this one module.
 

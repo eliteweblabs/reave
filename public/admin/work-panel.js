@@ -33,7 +33,7 @@ import {
   looksLikeHttpUrl,
   contactAvatarHtml,
   mountContactAvatars,
-} from './admin-ui.js?v=20260821c';
+} from './admin-ui.js?v=20260825a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260824a';
@@ -4361,6 +4361,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
   const downloadAllBtn = createIosIconBtn({
     iconKey: 'download',
     label: 'Download all',
+    size: 'sm',
     onClick: () => {
       void downloadAllProjectFiles();
     },
@@ -4534,12 +4535,14 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       actions.appendChild(
         paneShareIcon({
           label: `Share ${file.filename || 'file'}`,
+          size: 'sm',
           onClick: () => shareProjectFile(file),
         }),
       );
       actions.appendChild(
         paneDeleteIcon({
           label: `Delete ${file.filename || 'file'}`,
+          size: 'sm',
           onClick: () => {
             const snapshot = file;
             const prev = currentFiles.slice();
