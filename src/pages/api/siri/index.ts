@@ -1,5 +1,6 @@
 /**
  * POST /api/siri — unified endpoint for Siri Shortcuts commands
+ * GET /api/siri?action=… — same actions via query string (avoids Shortcuts JSON-body 400s)
  *
  * Accepts JSON with { action, ...params } and returns text/JSON suitable for Siri display.
  * Designed for Apple Shortcuts → Get Contents of URL → Show Result workflow.
@@ -187,7 +188,13 @@ async function isAuthenticated(context: APIContext): Promise<boolean> {
   return !(auth instanceof Response);
 }
 
-export async function POST(context: APIContext): Promise<Response> {
+function paramsFromUrl(url: URL): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  for (const [key, value] of url.searchParams.entries()) body[key] = value;
+  return body;
+}
+
+async function authorizeSiri(context: APIContext): Promise<Response | null> {
   if (!(await isAuthenticated(context))) {
     return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or sign in as deployment owner.' }, 401);
   }
@@ -199,13 +206,35 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!rate.ok) {
     return json({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
   }
+  return null;
+}
 
+export async function GET(context: APIContext): Promise<Response> {
+  const blocked = await authorizeSiri(context);
+  if (blocked) return blocked;
+  return dispatchSiri(context, paramsFromUrl(new URL(context.request.url)));
+}
+
+export async function POST(context: APIContext): Promise<Response> {
+  const blocked = await authorizeSiri(context);
+  if (blocked) return blocked;
+
+  const query = paramsFromUrl(new URL(context.request.url));
   const parsedBody = await parseSiriBody(context.request);
-  if (!parsedBody.ok) {
-    return textResponse(parsedBody.text, 200);
+  const body = parsedBody.ok ? { ...query, ...parsedBody.body } : query;
+  if (!String(body.action ?? '').trim()) {
+    return textResponse(
+      parsedBody.ok
+        ? 'Missing action.'
+        : parsedBody.text,
+      200,
+    );
   }
-  const body = parsedBody.body;
 
+  return dispatchSiri(context, body);
+}
+
+async function dispatchSiri(context: APIContext, body: Record<string, unknown>): Promise<Response> {
   const action = String(body.action ?? '').trim().toLowerCase();
   const format = String(body.format ?? 'json').trim().toLowerCase();
   const todoTimeZone = isTodoAction(action)
@@ -1101,7 +1130,13 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
     };
   }
 
-  const specifiedMode = normalizePaymentMode(params.payment_mode ?? params.mode ?? params.method);
+  const specifiedMode = normalizePaymentMode(
+    params.payment_mode ??
+      params.payment_method ??
+      params.paymentMethod ??
+      params.mode ??
+      params.method,
+  );
   if (specifiedMode === null) {
     return {
       ok: false,
