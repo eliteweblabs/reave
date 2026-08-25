@@ -61,6 +61,7 @@ import {
   IOS_ICONS,
   agentIconSvg,
   createIosIconBtn,
+  createBrandBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
@@ -117,7 +118,7 @@ import {
   buildAdminNotice,
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
-} from './admin-notice.js?v=20260812c';
+} from './admin-notice.js?v=20260825c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
 import {
   captureFilterTabsScroll,
@@ -126,7 +127,7 @@ import {
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
 } from './filter-tabs.js?v=20260813a';
-import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260824b';
+import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260825a';
 import {
   initWorkPanel,
   workState,
@@ -554,12 +555,14 @@ function createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel = 'Create N
   placeholder.className = 'de-placeholder';
   placeholder.innerHTML = placeholderHtml(iconName, bodyHtml);
   if (onCreate) {
-    const createBtn = document.createElement('button');
-    createBtn.type = 'button';
-    createBtn.className = 'de-placeholder-create-btn';
-    createBtn.textContent = btnLabel;
-    createBtn.addEventListener('click', () => onCreate());
-    placeholder.appendChild(createBtn);
+    placeholder.appendChild(
+      createBrandBtn({
+        variant: 'filled',
+        label: btnLabel,
+        className: 'de-placeholder-create-btn',
+        onClick: () => onCreate(),
+      }),
+    );
   }
   if (extra) placeholder.appendChild(extra);
   return placeholder;
@@ -2417,18 +2420,26 @@ function emailDashboardLinkKeys() {
 function buildEmailDashboardLinkGrid() {
   const keys = emailDashboardLinkKeys();
   if (!keys.length) return null;
-  const grid = document.createElement('div');
-  grid.className = 'home-dashboard-grid em-empty-dash-links';
+  const row = document.createElement('div');
+  row.className = 'em-empty-dash-links';
   for (const key of keys) {
     const m = MAPS[key];
     if (!m) continue;
+    const iconKey = mapIconName(key);
     if (m.link) {
-      grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
+      row.appendChild(createBrandBtn({ variant: 'glass', href: m.link, label: m.title, iconKey }));
     } else {
-      grid.appendChild(buildHomeMapTile(key, m));
+      row.appendChild(
+        createBrandBtn({
+          variant: 'glass',
+          label: m.title,
+          iconKey,
+          onClick: () => setActiveMap(key, { force: true }),
+        }),
+      );
     }
   }
-  return grid;
+  return row;
 }
 
 function dashboardCardsFromConfig() {
@@ -4352,7 +4363,7 @@ function buildReviewAlertBanner(item) {
     actions.push({
       label: label || notifyActionLabels[key] || key,
       iconKey: iconKey || NOTICE_ACTION_ICONS[key],
-      primary: primary ?? actions.length === 0,
+        primary: primary ?? false,
       ...rest,
     });
   };
@@ -10350,7 +10361,16 @@ function filteredSentEvents() {
   let events = emailState.sentEvents || [];
   if (!q) return events;
   return events.filter((ev) =>
-    matchesListSearch(q, ev.subject, ev.toEmail, ev.jobTitle, ev.jobSlug, ev.source, ev.resendId),
+    matchesListSearch(
+      q,
+      ev.subject,
+      ev.toEmail,
+      ev.jobTitle,
+      ev.jobSlug,
+      ev.source,
+      ev.resendId,
+      ev.bodyText,
+    ),
   );
 }
 
@@ -13221,7 +13241,18 @@ async function loadEmailSentEvents(quiet) {
     const res = await adminFetch('/api/email/sent?limit=200');
     const data = await readAdminJson(res, 'Sent mail');
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    emailState.sentEvents = data.events || [];
+    const prev = emailState.sentEvents || [];
+    emailState.sentEvents = (data.events || []).map((ev) => {
+      const old = prev.find((p) => p.id === ev.id);
+      if (!old) return ev;
+      return {
+        ...ev,
+        bodyHtml: old.bodyHtml || ev.bodyHtml,
+        bodyText: old.bodyText || ev.bodyText,
+        _fullLoaded: old._fullLoaded,
+        _bodyLoadFailed: old._bodyLoadFailed,
+      };
+    });
   } catch (e) {
     if (e.message === 'Session expired') throw e;
     if (!quiet) console.warn('[email] sent fetch failed', e);
@@ -13622,9 +13653,28 @@ function sentShareText(ev) {
     ev.toEmail,
     ev.resendId ? `Resend ID: ${ev.resendId}` : '',
     ev.sentAt ? `Sent: ${new Date(ev.sentAt).toLocaleString()}` : '',
+    ev.bodyText || '',
   ]
     .filter(Boolean)
     .join('\n\n');
+}
+
+async function fetchFullSentRecord(ev) {
+  if (!ev?.id) return ev;
+  if (ev._fullLoaded && (ev.bodyText || ev.bodyHtml)) return ev;
+  try {
+    const res = await adminFetch(`/api/email/sent/${encodeURIComponent(ev.id)}`);
+    const data = await readAdminJson(res, 'Sent mail');
+    if (!res.ok || !data.event) {
+      return { ...ev, _fullLoaded: true, _bodyLoadFailed: true };
+    }
+    const full = { ...ev, ...data.event, _fullLoaded: true };
+    const idx = (emailState.sentEvents || []).findIndex((e) => e.id === ev.id);
+    if (idx !== -1) emailState.sentEvents[idx] = { ...emailState.sentEvents[idx], ...full };
+    return full;
+  } catch {
+    return { ...ev, _fullLoaded: true, _bodyLoadFailed: true };
+  }
 }
 
 function normalizeEmailRecipient(raw) {
@@ -15485,8 +15535,8 @@ function renderEmailPane() {
         mapKey: 'email',
         iconName: 'mail',
         bodyHtml:
-          '<p>Select a sent message to verify delivery.</p>' +
-          '<p class="em-hint">Outbound mail sent from Compose, Reply, or share flows is logged here with a Resend reference when available.</p>',
+          '<p>Select a sent message to see what went out.</p>' +
+          '<p class="em-hint">Outbound mail sent from Compose, Reply, or share flows is logged here with the message body and a Resend reference when available.</p>',
         btnLabel: 'Compose',
         onCreate: () => startNewEmail(),
         extra: buildEmailDashboardLinkGrid(),
@@ -15515,6 +15565,8 @@ function renderEmailPane() {
 
     const detail = document.createElement('div');
     detail.className = 'em-detail';
+    const bodyHtmlSource = String(sent.bodyHtml || '').trim();
+    const plainBody = String(sent.bodyText || '').trim();
     let detailHtml =
       `<div class="em-item-row"><span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(sent.source))}</span></div>` +
       `<div class="em-detail-meta">` +
@@ -15526,13 +15578,37 @@ function renderEmailPane() {
         (sent.resendId
           ? `<span><strong>Resend ID</strong> <code class="em-resend-id">${escHtml(sent.resendId)}</code></span>`
           : '') +
-      `</div>` +
-      `<p class="em-hint">Use the Resend ID to confirm delivery in your Resend dashboard when troubleshooting.</p>`;
+      `</div>`;
+    if (bodyHtmlSource) {
+      detailHtml +=
+        `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Sent message"></iframe></div>`;
+    } else if (plainBody) {
+      detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
+    } else if (sent._bodyLoadFailed) {
+      detailHtml += `<p class="em-hint">Could not load the sent message body.</p>`;
+    } else if (!sent._fullLoaded) {
+      detailHtml += `<p class="em-hint em-sent-body-loading">Loading the message that was sent…</p>`;
+    } else {
+      detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
+    }
+    if (sent.resendId) {
+      detailHtml +=
+        `<p class="em-hint">Use the Resend ID to confirm delivery in your Resend dashboard when troubleshooting.</p>`;
+    }
     detail.innerHTML = detailHtml;
     const projectBtn = detail.querySelector('.em-project-link');
     if (projectBtn && sent.jobSlug) {
       projectBtn.addEventListener('click', () => {
         setActiveMap('work', { force: true, workSlug: sent.jobSlug });
+      });
+    }
+    const bodyFrame = detail.querySelector('.em-detail-body-frame');
+    if (bodyFrame && bodyHtmlSource) {
+      bodyFrame.srcdoc = bodyHtmlSource;
+    }
+    if (!sent._fullLoaded) {
+      void fetchFullSentRecord(sent).then((full) => {
+        if (emailState.inboxFilter === 'sent' && emailState.activeId === full.id) renderEmailPane();
       });
     }
     pane.appendChild(detail);

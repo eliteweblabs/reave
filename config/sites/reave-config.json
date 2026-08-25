@@ -118,7 +118,7 @@
   "homepage": {
     "heroHeadlineHtml": "Small Business, <br class=\"home-hero-title-break\" />Smaller Workday",
     "showHeroDemo": true,
-    "showDialogue": true,
+    "showDialogue": false,
     "showIntegrations": true,
     "showFeatures": true,
     "showContact": true,
@@ -136,7 +136,7 @@
       }
     ],
     "heroDemoAvatars": {
-      "field-checkin": "hero-field-checkin",
+      "field-checkin": "hero-henderson-billing",
       "nda-signing": "hero-nda-signing",
       "henderson-billing": "hero-henderson-billing",
       "inventory-channels": "hero-inventory-channels",

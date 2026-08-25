@@ -252,6 +252,8 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
     sentBy: getAgentContext().userId ?? null,
     source: inReplyToEmailId ? 'agent_reply' : 'agent_send_email',
     jobSlug,
+    bodyText: text,
+    bodyHtml: html ?? null,
   });
   return JSON.stringify({
     success: true,

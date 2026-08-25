@@ -53,11 +53,15 @@ const {
 const sheetId = `aw-sheet-${instanceId}`;
 const fabId = `aw-fab-${instanceId}`;
 
-const contactBits = [
-  supportPhone ? `call/text ${supportPhone}` : '',
-  supportEmail ? `email ${supportEmail}` : '',
-].filter(Boolean);
-const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${contactBits.join(' · ')}` : '';
+const phoneHref = supportPhone
+  ? `tel:${supportPhone.replace(/[^\d+]/g, '')}`
+  : '';
+const emailHref = (() => {
+  const email = supportEmail.trim();
+  if (!email || /[\s"'<>\\]/.test(email) || !email.includes('@')) return '';
+  return `mailto:${email}`;
+})();
+const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
 ---
 
 <div
@@ -137,7 +141,18 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
         </button>
       </form>
 
-      {footerNote && <p class="aw-footer">{footerNote}</p>}
+      {showFooter && (
+        <p class="aw-footer">
+          {footerPrefix && <>{footerPrefix}{' '}</>}
+          {phoneHref && (
+            <a class="aw-footer-link" href={phoneHref}>call/text {supportPhone}</a>
+          )}
+          {phoneHref && emailHref && <span aria-hidden="true"> · </span>}
+          {emailHref && (
+            <a class="aw-footer-link" href={emailHref}>email {supportEmail}</a>
+          )}
+        </p>
+      )}
     </div>
   </IosBottomSheet>
 </div>
@@ -167,10 +182,19 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
 <style>
   .aw-root { position: relative; }
 
+  .aw-root--site {
+    --aw-fill: var(--brand-gradient, var(--brand-btn-bg, #111));
+    --aw-link: var(--site-fg, #171717);
+  }
+  .aw-root--portal {
+    --aw-fill: var(--brand-btn-bg, #111);
+    --aw-link: var(--site-fg, #171717);
+  }
+
   .aw-fab--site {
-    background: var(--brand-gradient, var(--brand-btn-bg, #111));
+    background: var(--aw-fill);
     border: 1px solid transparent;
-    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)), 0 2px 8px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)), 0 2px 8px rgba(0, 0, 0, 0.18);
     transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
@@ -249,9 +273,9 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 14px 14px 16px;
-    background: rgba(255, 255, 255, 0.04);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 4px 14px 12px 16px;
+    background: transparent;
+    border-bottom: none;
   }
   .aw-header-icon {
     flex: none;
@@ -262,17 +286,15 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     align-items: center;
     justify-content: center;
     color: #fff;
-  }
-  .aw-root--site .aw-header-icon {
-    background: var(--brand-gradient, var(--brand-btn-bg, #111));
+    background: var(--aw-fill);
   }
   .aw-root--portal .aw-header-icon {
     background: var(--brand-btn-bg, #111);
     color: var(--brand-btn-fg, #fff);
   }
   .aw-header-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .aw-header-name { font-size: 14px; font-weight: 700; color: #fff; }
-  .aw-header-sub { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+  .aw-header-name { font-size: 14px; font-weight: 700; color: var(--site-fg, #171717); }
+  .aw-header-sub { font-size: 12px; color: var(--aw-link); }
   .aw-close {
     flex: none;
     width: 30px;
@@ -282,11 +304,11 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     justify-content: center;
     border-radius: 50%;
     border: none;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.7);
+    background: color-mix(in srgb, var(--aw-link) 12%, transparent);
+    color: var(--aw-link);
     cursor: pointer;
   }
-  .aw-close:active { background: rgba(255, 255, 255, 0.14); }
+  .aw-close:active { background: color-mix(in srgb, var(--aw-link) 22%, transparent); }
 
   .aw-messages {
     flex: 1;
@@ -312,7 +334,7 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.45);
+    background: color-mix(in srgb, var(--aw-link) 70%, transparent);
     animation: aw-bounce 1.2s infinite ease-in-out;
   }
   .aw-typing span:nth-child(2) { animation-delay: 0.15s; }
@@ -328,8 +350,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     align-items: flex-end;
     gap: 8px;
     padding: 10px 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.02);
+    border-top: none;
+    background: transparent;
   }
   .aw-input {
     flex: 1;
@@ -337,17 +359,23 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     max-height: 110px;
     padding: 10px 13px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(0, 0, 0, 0.3);
-    color: #fff;
+    border: 1.5px solid color-mix(in srgb, var(--aw-link) 42%, var(--site-border, rgba(23, 23, 23, 0.1)));
+    background: color-mix(in srgb, var(--aw-link) 6%, var(--site-canvas, #fff));
+    color: var(--site-fg, #171717);
     font: inherit;
     font-size: 14.5px;
     line-height: 1.4;
     outline: none;
   }
-  .aw-input::placeholder { color: rgba(255, 255, 255, 0.35); }
-  .aw-root--site .aw-input:focus { border-color: color-mix(in srgb, var(--site-fg, #171717) 45%, transparent); }
-  .aw-root--portal .aw-input:focus { border-color: rgba(255, 255, 255, 0.55); }
+  .aw-input::placeholder { color: var(--site-fg-muted, #525252); }
+  .aw-input:focus {
+    border-color: var(--aw-link);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--aw-link) 18%, transparent);
+  }
+  .aw-root--portal .aw-input {
+    border-color: var(--site-border, rgba(23, 23, 23, 0.1));
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
+  }
   .aw-send {
     flex: none;
     width: 38px;
@@ -359,10 +387,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     justify-content: center;
     color: #fff;
     cursor: pointer;
+    background: var(--aw-fill);
     transition: opacity 0.15s ease, transform 0.1s ease;
-  }
-  .aw-root--site .aw-send {
-    background: var(--brand-gradient, var(--brand-btn-bg, #111));
   }
   .aw-root--portal .aw-send {
     background: var(--brand-btn-bg, #111);
@@ -376,18 +402,33 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     margin: 0;
     padding: 0 16px 12px;
     font-size: 11.5px;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--site-fg-muted, #525252);
     text-align: center;
+  }
+  .aw-footer-link {
+    color: var(--aw-link);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .aw-root--site .aw-footer-link:hover,
+  .aw-root--site .aw-footer-link:focus-visible {
+    color: var(--brand-indigo, #6366f1);
   }
 </style>
 
 <style is:global>
   .aw-sheet {
-    --ios-sheet-bg: #121016;
-    --ios-sheet-fg: #fff;
-    --ios-sheet-muted: rgba(255, 255, 255, 0.55);
-    --ios-sheet-border: rgba(255, 255, 255, 0.1);
-    --ios-sheet-grabber: rgba(255, 255, 255, 0.28);
+    --ios-sheet-bg: var(--site-canvas, #fff);
+    --ios-sheet-fg: var(--site-fg, #171717);
+    --ios-sheet-muted: var(--site-fg-muted, #525252);
+    --ios-sheet-border: var(--site-border, rgba(23, 23, 23, 0.1));
+    --ios-sheet-grabber: color-mix(in srgb, var(--brand-magenta, #c026d3) 48%, var(--site-fg-faint, #a3a3a3));
+    --ios-sheet-close-bg: color-mix(in srgb, var(--brand-magenta, #c026d3) 10%, transparent);
+    --ios-sheet-close-hover: color-mix(in srgb, var(--brand-magenta, #c026d3) 18%, transparent);
+    --ios-sheet-link: var(--brand-magenta, #c026d3);
+    color-scheme: light;
+  }
+  html[data-theme="dark"] .aw-sheet {
     color-scheme: dark;
   }
 
@@ -398,8 +439,8 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   .aw-sheet .ios-sheet {
     height: min(85dvh, 640px);
     max-height: min(85dvh, 640px);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55);
+    border-color: color-mix(in srgb, var(--brand-magenta, #c026d3) 20%, var(--ios-sheet-border));
+    box-shadow: 0 -8px 40px rgba(var(--brand-magenta-rgb, 192, 38, 211), 0.12), 0 -2px 16px rgba(0, 0, 0, 0.08);
   }
 
   .aw-sheet .ios-sheet-body {
@@ -429,13 +470,17 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     white-space: pre-wrap;
   }
   .aw-msg-assistant .aw-bubble {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.92);
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+    color: var(--site-fg, #171717);
     border-bottom-left-radius: 4px;
   }
+  .aw-root--site .aw-msg-assistant .aw-bubble {
+    background: var(--site-card, rgba(23, 23, 23, 0.03));
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
+  }
   .aw-root--site .aw-msg-user .aw-bubble {
-    background: var(--brand-gradient, var(--brand-btn-bg, #111));
+    background: var(--aw-fill);
     color: #fff;
     border-bottom-right-radius: 4px;
   }
@@ -444,13 +489,23 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     color: var(--brand-btn-fg, #fff);
     border-bottom-right-radius: 4px;
   }
-  .aw-root--site .aw-bubble a { color: var(--site-fg, #171717); text-decoration: underline; }
-  .aw-root--portal .aw-bubble a { color: inherit; text-decoration: underline; }
+  .aw-root--site .aw-bubble a {
+    color: var(--aw-link, var(--brand-magenta, #c026d3));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .aw-root--portal .aw-bubble a {
+    color: inherit;
+    text-decoration: underline;
+  }
   .aw-msg-user .aw-bubble a { color: #fff; }
   .aw-bubble strong { font-weight: 700; }
   .aw-bubble.aw-bubble-error {
-    background: rgba(248, 113, 113, 0.12);
-    border-color: rgba(248, 113, 113, 0.3);
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.35);
+    color: #b91c1c;
+  }
+  html[data-theme="dark"] .aw-bubble.aw-bubble-error {
     color: #fca5a5;
   }
 

@@ -11,7 +11,7 @@ import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { isDemoMode } from '../../../../lib/demoMode';
 import { hasFeature } from '../../../../lib/features';
-import { FEATURE_LABELS, isPrivateFeature, isServiceFeature } from '../../../../lib/featureCatalog';
+import { FEATURE_LABELS, FEATURE_REQUIRES, isPrivateFeature, isServiceFeature } from '../../../../lib/featureCatalog';
 import { isCraterConfigured, craterCreateInvoice } from '../../../../lib/craterClient';
 import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import {
@@ -63,6 +63,13 @@ export async function POST(context: APIContext): Promise<Response> {
   }
   if (hasFeature(featureRaw)) {
     return json({ ok: false, error: 'This module is already on for this install.' }, 400);
+  }
+  const requires = FEATURE_REQUIRES[featureRaw];
+  if (requires && !hasFeature(requires)) {
+    return json({
+      ok: false,
+      error: `${FEATURE_LABELS[featureRaw]} requires ${FEATURE_LABELS[requires]}.`,
+    }, 400);
   }
 
   const price = resolvedModulePrice(featureRaw);
@@ -120,7 +127,7 @@ export async function POST(context: APIContext): Promise<Response> {
       items: [
         {
           name: `${label} (first month)`,
-          description: `REΛVE add-on · ${featureRaw} · ${formatModulePrice(price)}`,
+          description: `reΛVe.app add-on · ${featureRaw} · ${formatModulePrice(price)}`,
           quantity: 1,
           price: price.amount,
         },

@@ -286,6 +286,8 @@ async function sendPortalShare(opts: {
         resendId: r.id,
         sentBy: sentBy ?? null,
         source,
+        bodyText: text,
+        bodyHtml: html,
       });
     } else if (recipient.contactUid) {
       void logOutboundEmailForProject({
@@ -296,6 +298,8 @@ async function sendPortalShare(opts: {
         source,
         contactUid: recipient.contactUid,
         jobSlug: jobSlug || null,
+        bodyText: text,
+        bodyHtml: html,
       });
     }
 

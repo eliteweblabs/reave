@@ -1,5 +1,5 @@
 /**
- * Static duplex back for `/admin/sales-sheet` — the REΛVE trifold, not the client audit.
+ * Static duplex back for `/admin/sales-sheet` — the reΛVe.app trifold, not the client audit.
  *
  * Letter landscape reads left → right as the unfolded brochure:
  * inner gate (sale-sheet module tiles), back cover (custom builds +
@@ -41,6 +41,7 @@ export type SalesSheetBackModule = {
 const FEATURE_MOD_ICONS: Record<string, string> = {
   billing: 'receipt',
   documents: 'file-text',
+  digital_signature: 'edit',
   email_marketing: 'send',
   google_workspace: 'mail',
   materials_pricing: 'shopping-bag',
@@ -61,6 +62,8 @@ const IOS_ICON_PATHS: Record<string, string> = {
     '<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',
   'file-text':
     '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+  edit:
+    '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
   image:
     '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
   mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
@@ -142,7 +145,7 @@ export const SALES_SHEET_STACK: StackTech[] = SALES_SHEET_STACK_SLUGS.map((slug)
 export const SALES_SHEET_PRINT_INSET = '0.2in';
 export const SALES_SHEET_PRINT_INSET_TOP = '0.25in';
 
-/** Nearby shops named on the REΛVE back — matches /about + /#portfolio. */
+/** Nearby shops named on the reΛVe.app back — matches /about + /#portfolio. */
 export const SALES_SHEET_LOCAL_CLIENTS = [
   "Barber's Edge",
   'The Law Office of Barry Levine',

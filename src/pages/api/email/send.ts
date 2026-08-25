@@ -117,6 +117,8 @@ export async function POST(context: APIContext): Promise<Response> {
       source: inReplyToEmailId ? 'admin_reply' : 'admin_compose',
       jobSlug,
       contactUid,
+      bodyText: sendText,
+      bodyHtml: sendHtml ?? null,
     });
   }
 

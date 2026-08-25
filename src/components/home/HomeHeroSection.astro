@@ -23,6 +23,7 @@ const avatarOverrides = siteContent.homepage.heroDemoAvatars ?? {};
 const demoScenes = HERO_DEMO_SCENES.map((scene) => ({
   ...scene,
   userAvatar: avatarOverrides[scene.id] || siteMediaSrc(scene.userAvatar) || undefined,
+  pinAvatar: siteMediaSrc(scene.pinAvatar) || undefined,
 }));
 const homepage = siteContent.homepage;
 const heroIconIsMark = Boolean(companyHeroIconSvg(company));
@@ -131,6 +132,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     height: 100dvh;
     min-height: 100vh;
     min-height: 100dvh;
+    min-height: 100lvh;
     padding-top: var(--app-header-offset, 3.25rem);
     overflow: hidden;
     scroll-margin-top: 0;
@@ -361,6 +363,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   @media (max-width: 640px) {
+    /* Phone mark was clamp(190px, 42vw) — about 50% too large on a 390-wide screen. */
+    .home-hero {
+      --home-hero-icon-size: clamp(96px, 22vw, 140px);
+    }
+
     .home-hero-title {
       white-space: normal;
       text-wrap: balance;
@@ -501,6 +508,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     justify-content: flex-end;
     padding-inline-start: var(--demo-gutter);
     transform-origin: bottom right;
+    --hero-picker-gutter: calc(1.85rem + 0.55rem);
+    --hero-picker-shift-x: 0px;
   }
 
   .home-hero-demo-msg--assistant {
@@ -633,12 +642,21 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     50% { opacity: 0; }
   }
 
+  /*
+   * Slash + mention popovers sit on the composing row (not 100vw). Chat parks
+   * the newest turn on the lane floor, so both open *above* the bubble. Width
+   * is the row minus the avatar gutter — `100vw` overflowed the demo canvas.
+   */
   .home-hero-demo-slash-picker {
     position: absolute;
-    right: calc(1.85rem + 0.55rem);
-    bottom: calc(100% + 10px);
+    right: calc(var(--hero-picker-gutter, 2.4rem) + var(--hero-picker-shift-x, 0px));
+    bottom: calc(100% + 8px);
+    left: auto;
+    top: auto;
     z-index: 5;
-    width: min(16.5rem, calc(100vw - 3rem));
+    box-sizing: border-box;
+    width: min(16.5rem, calc(100% - var(--hero-picker-gutter, 2.4rem)));
+    max-width: calc(100% - 8px);
     max-height: 12rem;
     overflow-y: auto;
     padding: 0.28rem 0;
@@ -708,13 +726,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     overflow: visible;
   }
 
-  /* @-mention picker — drops *below* the composing bubble (unlike slash). */
+  /* Same lane as slash — above the bubble so it cannot fall off the canvas. */
   .home-hero-demo-mention-picker {
     position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
+    right: calc(var(--hero-picker-gutter, 2.4rem) + var(--hero-picker-shift-x, 0px));
+    bottom: calc(100% + 8px);
+    left: auto;
+    top: auto;
     z-index: 20;
-    width: min(20.5rem, calc(100vw - 2.5rem));
+    box-sizing: border-box;
+    width: min(20.5rem, calc(100% - var(--hero-picker-gutter, 2.4rem)));
+    max-width: calc(100% - 8px);
     max-height: 12rem;
     overflow-y: auto;
     padding: 0.22rem 0;
@@ -723,8 +745,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     background: var(--site-canvas, #fff);
     box-shadow: 0 10px 32px color-mix(in srgb, var(--site-fg) 16%, transparent);
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
-    transform-origin: top right;
+    transform: translateY(8px) scale(0.98);
+    transform-origin: bottom right;
     transition:
       opacity 0.37s ease,
       transform 0.37s ease;
@@ -738,7 +760,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-demo-mention-picker--exit {
     opacity: 0;
-    transform: translateY(-4px) scale(0.98);
+    transform: translateY(4px) scale(0.98);
   }
 
   .home-hero-demo-mention-picker-list {
@@ -999,11 +1021,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: 2.1rem;
   }
 
-  /* Payment bones start collapsed; stagger L→R via --pay-in. */
+  /* Payment bones start collapsed; stagger L→R via --pay-in.
+   * Avoid scale(0) — WebKit culls that layer and snaps the end state on iOS. */
   .home-hero-demo-sk-invoice-payment [data-hero-sk-pay] {
     height: 0;
     opacity: 0;
-    transform: translateX(-10px) scale(0.9);
+    transform: translateX(-10px);
     transition:
       height 0.34s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.3s ease,
@@ -1013,14 +1036,14 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-demo-sk-bone--pay-label.home-hero-demo-sk-bone--pay-in {
     height: 0.32rem;
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateX(0);
   }
 
   .home-hero-demo-sk-bone--pay-detail.home-hero-demo-sk-bone--pay-in,
   .home-hero-demo-sk-bone--pay-amt.home-hero-demo-sk-bone--pay-in {
     height: 0.4rem;
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateX(0);
   }
 
   .home-hero-demo-sk-bone--total-pulse {
@@ -1155,18 +1178,26 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     border-top-color: var(--demo-line, var(--site-border));
   }
 
+  /*
+   * L→R wipe. clip-path (percent → percent) interpolates on iOS Safari;
+   * scaleX(0) and width:0 → var() do not — WebKit snaps those to the end frame.
+   */
   .home-hero-demo-sk-invoice--review [data-hero-sk-draw] {
-    transform: scaleX(0);
+    transform: none;
     transform-origin: left center;
     opacity: 0;
+    -webkit-clip-path: inset(0 100% 0 0);
+    clip-path: inset(0 100% 0 0);
     transition:
-      transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+      clip-path 0.34s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.26s ease;
   }
 
   .home-hero-demo-sk-invoice--review [data-hero-sk-draw].home-hero-demo-sk-bone--draw-in {
-    transform: scaleX(1);
+    transform: none;
     opacity: 1;
+    -webkit-clip-path: inset(0 0% 0 0);
+    clip-path: inset(0 0% 0 0);
   }
 
   /* Dashboard notification toast — mirrors admin review alerts (see shell.css). */
@@ -1287,19 +1318,22 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-demo-sk-contract-line {
     display: block;
     height: 0.38rem;
-    width: 0;
-    max-width: var(--hero-contract-line-w, 90%);
+    width: var(--hero-contract-line-w, 90%);
+    max-width: 100%;
     border-radius: 4px;
     background: var(--demo-bone, var(--site-card));
     opacity: 0;
+    -webkit-clip-path: inset(0 100% 0 0);
+    clip-path: inset(0 100% 0 0);
     transition:
-      width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      clip-path 0.42s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.28s ease;
   }
 
   .home-hero-demo-sk-contract-line--in {
-    width: var(--hero-contract-line-w, 90%);
     opacity: 1;
+    -webkit-clip-path: inset(0 0% 0 0);
+    clip-path: inset(0 0% 0 0);
   }
 
   .home-hero-demo-sk-contract-sign {
@@ -1324,24 +1358,19 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     overflow: visible;
   }
 
+  /* pathLength="1" on the path — dash 1/1 is the hidden start. JS ticks offset. */
   .home-hero-demo-sk-contract-signature-path {
     fill: none;
     stroke: var(--demo-fg, var(--site-fg));
     stroke-width: 2.6;
     stroke-linecap: round;
     stroke-linejoin: round;
-    stroke-dasharray: 240;
-    stroke-dashoffset: 240;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
   }
 
   .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path {
-    animation: heroDemoSkContractSign 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  }
-
-  @keyframes heroDemoSkContractSign {
-    to {
-      stroke-dashoffset: 0;
-    }
+    stroke-dashoffset: 0;
   }
 
   .home-hero-demo-sk-contract-sign-rule {
@@ -1725,7 +1754,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     .home-hero-demo-sk-bone--total-pulse::after,
     .home-hero-demo-sk-notif--pop,
     .home-hero-demo-sk-contract--pop,
-    .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path,
     .home-hero-demo-sk-gps--pop,
     .home-hero-demo-sk-gps-marker--in,
     .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
@@ -1746,6 +1774,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       transition: none;
       width: var(--hero-contract-line-w, 90%);
       opacity: 1;
+      -webkit-clip-path: inset(0 0% 0 0);
+      clip-path: inset(0 0% 0 0);
     }
 
     .home-hero-demo-sk-contract-signature-path {
@@ -1795,8 +1825,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
 
     .home-hero-demo-sk-invoice--review [data-hero-sk-draw] {
-      transform: scaleX(1);
+      transform: none;
       opacity: 1;
+      -webkit-clip-path: inset(0 0% 0 0);
+      clip-path: inset(0 0% 0 0);
     }
   }
 </style>

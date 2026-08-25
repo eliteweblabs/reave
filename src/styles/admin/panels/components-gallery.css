@@ -121,7 +121,10 @@
   border-radius: 8px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  color: #0a84ff;
+  color: var(--icon-muted);
+}
+.cg-icon-cell--danger {
+  color: var(--danger, #dc2626);
 }
 
 .cg-icon-cell span {

@@ -96,6 +96,8 @@ export async function sendInboundThreadReply(
     source: opts?.source ?? 'inbound_reply',
     jobSlug: opts?.jobSlug ?? event.jobSlug,
     contactUid: opts?.contactUid ?? event.contactUid,
+    bodyText: message.text,
+    bodyHtml: message.html ?? null,
   });
 
   return { ok: true, to, emailId: result.id };
