@@ -1,7 +1,10 @@
 ---
 import type { CompanyConfig } from '../lib/companyConfig';
-import { companyLogoUrl, hasCompanyHeaderLogoImage } from '../lib/companyConfig';
-import { svgHasExternalRasterRefs } from '../lib/brandSvg';
+import {
+  companyLogoUrl,
+  companyUsableInlineSvg,
+  hasCompanyHeaderLogoImage,
+} from '../lib/companyConfig';
 import InlineBrandSvg from './InlineBrandSvg.astro';
 
 export interface Props {
@@ -9,10 +12,7 @@ export interface Props {
 }
 
 const { company } = Astro.props;
-const customSvg = company.logoSvg?.trim() ?? '';
-/** Illustrator exports embed PNG sidecars (inner glow masks) — skip those and use the display name. */
-const inlineLogoSvg =
-  customSvg && !svgHasExternalRasterRefs(customSvg) ? customSvg : '';
+const inlineLogoSvg = companyUsableInlineSvg(company.logoSvg);
 const logoImageUrl = hasCompanyHeaderLogoImage(company)
   ? companyLogoUrl(company.logoPath, company.logoVersion)
   : '';
@@ -20,7 +20,13 @@ const displayName = company.name?.trim() || 'Business OS';
 ---
 
 {
-  logoImageUrl ? (
+  inlineLogoSvg ? (
+    <InlineBrandSvg
+      svg={inlineLogoSvg}
+      class="app-header-logo-svg brand-img logo-img"
+      idPrefix="header-logo"
+    />
+  ) : logoImageUrl ? (
     <img
       src={logoImageUrl}
       alt={displayName}
@@ -28,12 +34,6 @@ const displayName = company.name?.trim() || 'Business OS';
       width="926"
       height="262"
       decoding="async"
-    />
-  ) : inlineLogoSvg ? (
-    <InlineBrandSvg
-      svg={inlineLogoSvg}
-      class="app-header-logo-svg brand-img logo-img"
-      idPrefix="header-logo"
     />
   ) : (
     <span class="app-header-logo-name">{displayName}</span>

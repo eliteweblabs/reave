@@ -10,6 +10,7 @@ import {
   BRANDING_OG_PATH,
   normalizePublicLogoPath,
 } from './companyLogo';
+import { svgHasExternalRasterRefs } from './brandSvg';
 import { BRAND_ICON_SIZES } from './brandIconRaster';
 import {
   getStoredCompanyConfig,
@@ -161,9 +162,9 @@ export type CompanyConfig = {
   iconSource: 'admin' | 'default' | 'logo';
   /** Bust browser cache after admin icon changes. */
   iconVersion: string;
-  /** Inline SVG for header wordmark (admin paste or empty = built-in animated default). */
+  /** Inline SVG for header wordmark (admin paste; wins over the uploaded image). */
   logoSvg: string;
-  /** Inline SVG for homepage hero icon (admin paste or empty = built-in animated default). */
+  /** Inline SVG for homepage hero icon (admin paste; wins over the uploaded image). */
   iconSvg: string;
   /** Vapi assistant UUID — admin setting, env fallback. */
   vapiAssistantId: string;
@@ -358,14 +359,37 @@ export function companyOgImageUrl(company: CompanyConfig): string {
   return `${BRANDING_OG_PATH}?v=${encodeURIComponent(version)}`;
 }
 
-/** Inline SVG for the homepage hero — icon SVG first, then logo SVG. */
+/** Pasted SVG that is safe to inline (skip Illustrator PNG sidecars). */
+export function companyUsableInlineSvg(raw?: string | null): string {
+  const svg = trim(raw);
+  if (!svg || svgHasExternalRasterRefs(svg)) return '';
+  return svg;
+}
+
+/** Inline SVG for the homepage hero — pasted icon SVG only. */
 export function companyHeroIconSvg(company: CompanyConfig): string {
-  return trim(company.iconSvg) || trim(company.logoSvg);
+  return companyUsableInlineSvg(company.iconSvg);
 }
 
 /** Admin-uploaded header logo image (not inline SVG). */
 export function hasCompanyHeaderLogoImage(company: CompanyConfig): boolean {
   return company.logoSource === 'admin' && Boolean(trim(company.logoPath));
+}
+
+/** Admin-uploaded square icon image (not the built-in default mark). */
+export function hasCompanyIconImage(company: CompanyConfig): boolean {
+  return company.iconSource === 'admin' && Boolean(trim(company.iconPath));
+}
+
+/** Raster fallback for the homepage hero when no pasted SVG is usable. */
+export function companyHeroIconImageUrl(company: CompanyConfig): string {
+  if (hasCompanyIconImage(company)) {
+    return brandIconUrl(512, companyBrandingVersion(company));
+  }
+  if (hasCompanyHeaderLogoImage(company)) {
+    return companyLogoUrl(company.logoPath, company.logoVersion);
+  }
+  return '';
 }
 
 /** Staff / team avatar — square mark from admin branding API. */

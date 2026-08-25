@@ -5802,8 +5802,12 @@ function bindAutosaveForm(scope, opts) {
 
   form.addEventListener('submit', (e) => e.preventDefault());
 
+  const resync = () => {
+    baseline = serializeFormData(form);
+  };
+
   settingsAutosaveFlush = flush;
-  return { flush };
+  return { flush, resync };
 }
 
 async function flushSettingsAutosave() {
@@ -5831,9 +5835,6 @@ function companyLogoPreviewUrl(company) {
   if (hasUploadedCompanyLogoPng(company)) {
     const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
     return `/api/branding/logo${v}`;
-  }
-  if (company?.logoSvg?.trim()) {
-    return svgPreviewDataUri(company.logoSvg);
   }
   if (company?.logoSource === 'admin' && company.logoPath && company.logoSource !== 'hidden') {
     const path = String(company.logoPath);
@@ -5893,27 +5894,24 @@ function syncHeaderProfileIcon(url) {
 }
 
 function hasCustomCompanyLogo(company) {
-  return hasUploadedCompanyLogoPng(company) || !!(company?.logoSvg?.trim()) || (
+  return hasUploadedCompanyLogoPng(company) || (
     company?.logoSource === 'admin' && !!companyLogoPreviewUrl(company)
   );
 }
 
 function hasCustomCompanyIcon(company) {
-  return (
-    hasUploadedCompanyIconPng(company) ||
-    hasLegacyCompanyIconPath(company) ||
-    !!(company?.iconSvg?.trim())
-  );
+  return hasUploadedCompanyIconPng(company) || hasLegacyCompanyIconPath(company);
+}
+
+function syncCompanySvgFields(root, company) {
+  const logoTa = root.querySelector('#company-logoSvg');
+  const iconTa = root.querySelector('#company-iconSvg');
+  if (logoTa instanceof HTMLTextAreaElement) logoTa.value = company?.logoSvg || '';
+  if (iconTa instanceof HTMLTextAreaElement) iconTa.value = company?.iconSvg || '';
 }
 
 function usesLogoAsIconFallback(company) {
   return company?.iconSource === 'logo' && hasCustomCompanyLogo(company) && !hasCustomCompanyIcon(company);
-}
-
-function svgPreviewDataUri(svg) {
-  const t = String(svg || '').trim();
-  if (!t) return '';
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(t)}`;
 }
 
 function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
@@ -5930,7 +5928,6 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
     lastCompany = company;
     const hasLogo = hasCustomCompanyLogo(company);
     const hasPng = hasUploadedCompanyLogoPng(company);
-    const hasSvg = !!(company?.logoSvg?.trim());
     const url = hasLogo ? companyLogoPreviewUrl(company) : '';
 
     if (preview instanceof HTMLImageElement) {
@@ -5940,11 +5937,12 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
       previewWrap.hidden = !hasLogo;
     }
     if (fileWrap instanceof HTMLElement) {
-      fileWrap.hidden = hasPng || hasSvg;
+      fileWrap.hidden = hasPng;
     }
     if (removeBtn instanceof HTMLButtonElement) {
-      removeBtn.hidden = !hasPng && !hasSvg && !(company?.logoSource === 'admin' && company?.logoPath);
+      removeBtn.hidden = !hasPng && !(company?.logoSource === 'admin' && company?.logoPath);
     }
+    syncCompanySvgFields(root, company);
   };
 
   uploadBtn?.addEventListener('click', () => {
@@ -6056,7 +6054,7 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
       previewWrap.hidden = !hasIcon;
     }
     if (fileWrap instanceof HTMLElement) {
-      fileWrap.hidden = hasPng || !!(company?.iconSvg?.trim());
+      fileWrap.hidden = hasPng;
     }
     if (removeBtn instanceof HTMLButtonElement) {
       removeBtn.hidden = !hasRemovableIcon;
@@ -6064,6 +6062,7 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
     if (fallbackHint instanceof HTMLElement) {
       fallbackHint.hidden = !usesLogoAsIconFallback(company);
     }
+    syncCompanySvgFields(root, company);
     window.__companyStaffAvatarUrl = avatarUrl;
     syncHeaderProfileIcon(`${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`);
   };
@@ -6186,12 +6185,20 @@ function bindCompanyForm(root, company, fontCatalog) {
   }
 
   const companyAlert = root.querySelector('#company-alert');
+  let resyncCompanyForm = () => {};
   let refreshIconPreview = () => {};
+  const onBrandCompany = (next) => {
+    syncCompanySvgFields(root, next);
+    refreshIconPreview(next);
+    resyncCompanyForm();
+  };
   bindCompanyLogoUpload(root, companyAlert, {
     company,
-    onCompany(next) { refreshIconPreview(next); },
+    onCompany: onBrandCompany,
   });
-  const iconBranding = bindCompanyIconUpload(root, companyAlert, company);
+  const iconBranding = bindCompanyIconUpload(root, companyAlert, company, {
+    onCompany: onBrandCompany,
+  });
   refreshIconPreview = iconBranding.refreshPreview;
 
   const addressInput = root.querySelector('#company-address');
@@ -6273,7 +6280,7 @@ function bindCompanyForm(root, company, fontCatalog) {
   }
 
   bindFormattedPhoneInputs(root);
-  bindAutosaveForm(root, {
+  const companyAutosave = bindAutosaveForm(root, {
     formSelector: '#company-form',
     alertEl: companyAlert,
     async save(payload) {
@@ -6287,11 +6294,16 @@ function bindCompanyForm(root, company, fontCatalog) {
       const json = await res.json();
       if (res.ok) {
         companyPendingGeo = null;
-        if (json.company) iconBranding.refreshPreview(json.company);
+        if (json.company) {
+          syncCompanySvgFields(root, json.company);
+          iconBranding.refreshPreview(json.company);
+          companyAutosave.resync?.();
+        }
       }
       return { ok: res.ok, error: json.error };
     },
   });
+  resyncCompanyForm = () => companyAutosave.resync?.();
   companyFontPickers = mountCompanyBrandFontPickers(root, fontCatalog);
   bindCompanyFontPreview(root, fontCatalog);
   bindCompanyBrandColors(root);
@@ -7245,16 +7257,16 @@ function renderCompanyPanel(company, fontCatalog) {
           ) +
           profSection(
             'Logo &amp; icon',
-            'PNG, JPEG, WebP, or SVG. Logo powers the header (image → SVG → company name). Icon is optional — favicons, OG, PWA, and avatars use it when set, otherwise the logo.',
+            'PNG, JPEG, or WebP. Used when no SVG is pasted in the group below. Header and homepage: SVG → image → company name.',
             `<div class="prof-branding-uploads">` +
               `<div class="prof-branding-upload-item">` +
                 `<label for="company-logo-file">Logo</label>` +
                 `<div class="prof-logo-upload">` +
                   `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
                     `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
-                    `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
+                    `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogoPng || (c.logoSource === 'admin' && c.logoPath) ? '' : ' hidden'}>×</button>` +
                   `</div>` +
-                  `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng || (c.logoSvg && String(c.logoSvg).trim()) ? ' hidden' : ''}>` +
+                  `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng ? ' hidden' : ''}>` +
                     `<input id="company-logo-file" class="prof-logo-file-input" type="file" accept="image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp" hidden />` +
                     `<button type="button" id="company-logo-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
                   `</div>` +
@@ -7268,7 +7280,7 @@ function renderCompanyPanel(company, fontCatalog) {
                     `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
                     `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasRemovableIcon ? '' : ' hidden'}>×</button>` +
                   `</div>` +
-                  `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng || (c.iconSvg && String(c.iconSvg).trim()) ? ' hidden' : ''}>` +
+                  `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng ? ' hidden' : ''}>` +
                     `<input id="company-icon-file" class="prof-logo-file-input" type="file" accept="image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp" hidden />` +
                     `<button type="button" id="company-icon-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
                   `</div>` +
@@ -7277,7 +7289,17 @@ function renderCompanyPanel(company, fontCatalog) {
                 `<span id="company-icon-fallback-hint" class="prof-hint"${usesLogoAsIconFallback(c) ? '' : ' hidden'}>Favicons and avatars use the logo until you add an icon.</span>` +
               `</div>` +
             `</div>` +
-            `<span class="prof-hint prof-hint--block">Pick a PNG, JPEG, WebP, or SVG from the Media library, or upload a file here.</span>`,
+            `<span class="prof-hint prof-hint--block">Pick a PNG, JPEG, WebP, or SVG from the Media library, or upload a file here. An SVG file fills the paste fields below.</span>`,
+          ) +
+          profSection(
+            'SVG Logo and Icon',
+            'Paste raw <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup. These render first — header uses logo SVG, homepage hero uses icon SVG.',
+            `<div class="prof-field"><label for="company-logoSvg">Logo SVG</label>` +
+            `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.logoSvg || '')}</textarea>` +
+            `<span class="prof-hint">Wordmark for the site header. Clear the field to fall back to the logo image above, then the display name.</span></div>` +
+            `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
+            `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.iconSvg || '')}</textarea>` +
+            `<span class="prof-hint">Square mark for the homepage hero. Clear the field to fall back to the icon image above, then the display name.</span></div>`,
           ) +
           profSection(
             'Typography',

@@ -104,13 +104,6 @@ export function companyLogoHtml(company?: PrintCompany): string {
     return `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
   }
 
-  if (company.logoSource === 'admin' && company.logoPath) {
-    const src = companyLogoUrl(company.logoPath, company.logoVersion);
-    if (src) {
-      return `<img class="doc-onepager-logo-img" src="${esc(src)}" alt="${esc(name)}" />`;
-    }
-  }
-
   const svg = company.logoSvg?.trim();
   if (svg && !svgHasExternalRasterRefs(svg)) {
     const prepared = prepareInlineBrandSvg(svg, {
@@ -118,6 +111,13 @@ export function companyLogoHtml(company?: PrintCompany): string {
       idPrefix: 'doc-logo',
     });
     if (prepared) return prepared;
+  }
+
+  if (company.logoSource === 'admin' && company.logoPath) {
+    const src = companyLogoUrl(company.logoPath, company.logoVersion);
+    if (src) {
+      return `<img class="doc-onepager-logo-img" src="${esc(src)}" alt="${esc(name)}" />`;
+    }
   }
 
   if (company.logoSource !== 'hidden') {

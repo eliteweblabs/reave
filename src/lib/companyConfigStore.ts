@@ -42,9 +42,9 @@ export type StoredCompanyConfig = {
   iconPath?: string | null;
   iconData?: string | null;
   iconMediaType?: string | null;
-  /** Owner-pasted inline SVG for header wordmark (animated). */
+  /** Owner-pasted inline SVG for header wordmark. */
   logoSvg?: string | null;
-  /** Owner-pasted inline SVG for homepage hero icon (animated). */
+  /** Owner-pasted inline SVG for homepage hero icon. */
   iconSvg?: string | null;
   vapiAssistantId?: string | null;
   vapiFirstMessage?: string | null;
@@ -627,7 +627,6 @@ export async function setStoredCompanyLogo(logo: StoredCompanyLogo): Promise<boo
     logoData: logo.dataBase64,
     logoMediaType: logo.mediaType,
     logoPath: null,
-    logoSvg: null,
   });
 }
 
@@ -636,7 +635,6 @@ export async function clearStoredCompanyLogo(): Promise<boolean> {
     logoData: null,
     logoMediaType: null,
     logoPath: null,
-    logoSvg: null,
   });
 }
 
@@ -657,7 +655,6 @@ export async function setStoredCompanyIcon(icon: StoredCompanyLogo): Promise<boo
     iconData: icon.dataBase64,
     iconMediaType: icon.mediaType,
     iconPath: null,
-    iconSvg: null,
   });
 }
 
@@ -666,7 +663,6 @@ export async function clearStoredCompanyIcon(): Promise<boolean> {
     iconData: null,
     iconMediaType: null,
     iconPath: null,
-    iconSvg: null,
   });
 }
 
