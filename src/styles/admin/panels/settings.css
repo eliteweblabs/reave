@@ -432,38 +432,7 @@
 .prof-actions {
   padding-top: 0.25rem;
 }
-.prof-btn-primary {
-  font: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #fff;
-  background: #2563eb;
-  border: 1px solid #3b82f6;
-  border-radius: 8px;
-  padding: 0.55rem 1rem;
-  cursor: pointer;
-}
-.prof-btn-primary:hover {
-  background: #1d4ed8;
-}
-.prof-btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.prof-btn-secondary {
-  font: inherit;
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: var(--fg, #e9eef6);
-  background: transparent;
-  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.15));
-  border-radius: 8px;
-  padding: 0.45rem 0.85rem;
-  cursor: pointer;
-}
-.prof-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
+.prof-btn-primary:disabled,
 .prof-btn-secondary:disabled {
   opacity: 0.6;
   cursor: not-allowed;

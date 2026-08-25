@@ -3,7 +3,12 @@
  * Lazy-started on dashboard / inbound / uptime poll traffic — mirrors newsletterScheduler.
  */
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
-import { storeDeleteEmailInbox, storeDeleteInboxNotForInstall, storeListExpiredEmailInbox } from './emailInboxStore';
+import {
+  storeDeleteEmailInbox,
+  storeDeleteInboxNotForInstall,
+  storeDeleteSilentDeleteJunkInbox,
+  storeListExpiredEmailInbox,
+} from './emailInboxStore';
 import { installEmailDomains } from './inboundEmailInstall';
 import { ensureSeededInboxClearedOnLiveEmail } from './seededInboxCleanup';
 import { serverEnv } from './serverEnv';
@@ -14,6 +19,7 @@ let _timer: ReturnType<typeof setInterval> | null = null;
 let _running = false;
 let _foreignPurgeStarted = false;
 let _seededInboxCleanupStarted = false;
+let _silentDeleteJunkPurged = false;
 
 /** Poll interval for expired-row cleanup (default 1 minute). */
 function pollIntervalMs(): number {
@@ -41,6 +47,16 @@ export async function runEmailCleanup(): Promise<{ deleted: number }> {
   }
 }
 
+async function purgeSilentDeleteJunkOnce(): Promise<void> {
+  if (_silentDeleteJunkPurged) return;
+  _silentDeleteJunkPurged = true;
+  const { deleted } = await storeDeleteSilentDeleteJunkInbox();
+  if (!deleted) return;
+  console.info('[email-cleanup] purged DELETE-rule junk that was filed instead of deleted', {
+    deleted,
+  });
+}
+
 async function purgeForeignInstallInboxOnce(): Promise<void> {
   if (_foreignPurgeStarted) return;
   _foreignPurgeStarted = true;
@@ -65,6 +81,9 @@ export function ensureEmailCleanupScheduler(): void {
   void runEmailCleanup().catch((e) => console.warn('[email-cleanup] initial run failed', e));
   void purgeForeignInstallInboxOnce().catch((e) =>
     console.warn('[email-cleanup] foreign-install purge failed', e),
+  );
+  void purgeSilentDeleteJunkOnce().catch((e) =>
+    console.warn('[email-cleanup] silent-delete junk purge failed', e),
   );
   if (!_seededInboxCleanupStarted) {
     _seededInboxCleanupStarted = true;

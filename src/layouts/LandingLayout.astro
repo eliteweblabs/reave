@@ -2,6 +2,7 @@
 import Favicon from "../components/Favicon.astro";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
+import { shareSafeText } from "../lib/shareSafeText";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
@@ -29,8 +30,9 @@ const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const landing = siteContent.landing ?? {};
 const isEditorial = landing.variant === "editorial";
-const title = titleProp ?? landing.title ?? company.name;
+const title = shareSafeText(titleProp ?? landing.title ?? company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
+const shareTitle = shareSafeText(landing.name ?? company.name);
 const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);
 const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 const themeColor = themeColorProp ?? landing.themeColor ?? (isEditorial ? "#f4efe6" : "#01061d");
@@ -57,7 +59,7 @@ const htmlStyle = isEditorial
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <meta property="og:title" content={landing.name ?? company.name} />
+    <meta property="og:title" content={shareTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
@@ -65,7 +67,7 @@ const htmlStyle = isEditorial
     {(isEditorial || isCompanyOg) && <meta property="og:image:width" content="1200" />}
     {(isEditorial || isCompanyOg) && <meta property="og:image:height" content="630" />}
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={landing.name ?? company.name} />
+    <meta name="twitter:title" content={shareTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageSafe} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

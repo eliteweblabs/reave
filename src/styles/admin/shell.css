@@ -516,21 +516,11 @@ select,
   --notice-accent: 251, 191, 36;
 }
 .admin-setup-alert-toolbar {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
   gap: 0.45rem;
-  width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.admin-setup-alert-toolbar[data-action-count='1'] {
-  grid-template-columns: minmax(0, 1fr);
-}
-.admin-setup-alert-toolbar[data-action-count='3'] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.admin-setup-alert-toolbar .admin-setup-alert-btn {
-  width: 100%;
-  min-height: 2.25rem;
-  text-align: center;
 }
 .admin-setup-alert-copy {
   flex: 1;
@@ -732,63 +722,19 @@ select,
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .admin-setup-alert-btn {
-  font: inherit;
-  font-size: 0.74rem;
-  font-weight: 600;
-  padding: 0.42rem 0.7rem;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border);
-  background: var(--accent-select-bg);
-  color: var(--fg);
-  cursor: pointer;
-  white-space: nowrap;
+  flex: 0 0 auto;
+  width: auto;
 }
-.admin-setup-alert-btn--icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.42rem;
-  min-width: 2.25rem;
-  line-height: 0;
-}
-.admin-setup-alert-btn--icon svg {
-  display: block;
-  flex-shrink: 0;
-}
-.admin-setup-alert-btn--primary {
-  border: none;
-  background: var(--brand-gradient);
-  color: #fff;
-}
-.admin-setup-alert-btn--primary:hover {
-  filter: brightness(1.06);
-  background: var(--brand-gradient);
-}
-.admin-setup-alert-btn--danger {
-  border-color: rgba(248, 113, 113, 0.45);
-  background: rgba(220, 38, 38, 0.88);
-  color: #fff;
-}
-.admin-setup-alert-btn--danger:hover {
-  background: rgba(185, 28, 28, 0.95);
-  border-color: rgba(185, 28, 28, 0.95);
+.admin-setup-alert-icon-btn.ios-icon-btn,
+.admin-setup-alert-dismiss.ios-icon-btn {
+  width: 2.25rem;
+  height: 2.25rem;
 }
 .admin-setup-alert-dismiss {
   position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
+  top: 0.35rem;
+  right: 0.35rem;
   z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
 }
 /* Keep the visible X small, but give the control a 44px finger target so the
    top-right dismiss cannot lose to the Triage action below it. */
@@ -881,9 +827,10 @@ select,
   font: inherit;
   resize: vertical;
 }
-.admin-setup-alert-dismiss:hover {
-  background: var(--surface-hover);
-  color: var(--fg);
+.admin-setup-alert-toolbar .admin-setup-alert-icon-btn,
+.admin-setup-alert-actions .admin-setup-alert-icon-btn {
+  width: 2.25rem;
+  min-height: 2.25rem;
 }
 @media (min-width: 640px) {
   .admin-setup-alert:has(.admin-setup-alert-head),

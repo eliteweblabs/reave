@@ -61,6 +61,7 @@ import {
   IOS_ICONS,
   agentIconSvg,
   createIosIconBtn,
+  createBrandBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
@@ -110,14 +111,14 @@ import {
   setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260822a';
+} from './admin-ui.js?v=20260825a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
   buildAdminNotice,
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
-} from './admin-notice.js?v=20260812c';
+} from './admin-notice.js?v=20260825c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
 import {
   captureFilterTabsScroll,
@@ -126,7 +127,7 @@ import {
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
 } from './filter-tabs.js?v=20260813a';
-import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260824b';
+import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260825a';
 import {
   initWorkPanel,
   workState,
@@ -554,12 +555,14 @@ function createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel = 'Create N
   placeholder.className = 'de-placeholder';
   placeholder.innerHTML = placeholderHtml(iconName, bodyHtml);
   if (onCreate) {
-    const createBtn = document.createElement('button');
-    createBtn.type = 'button';
-    createBtn.className = 'de-placeholder-create-btn';
-    createBtn.textContent = btnLabel;
-    createBtn.addEventListener('click', () => onCreate());
-    placeholder.appendChild(createBtn);
+    placeholder.appendChild(
+      createBrandBtn({
+        variant: 'filled',
+        label: btnLabel,
+        className: 'de-placeholder-create-btn',
+        onClick: () => onCreate(),
+      }),
+    );
   }
   if (extra) placeholder.appendChild(extra);
   return placeholder;
@@ -2417,18 +2420,26 @@ function emailDashboardLinkKeys() {
 function buildEmailDashboardLinkGrid() {
   const keys = emailDashboardLinkKeys();
   if (!keys.length) return null;
-  const grid = document.createElement('div');
-  grid.className = 'home-dashboard-grid em-empty-dash-links';
+  const row = document.createElement('div');
+  row.className = 'em-empty-dash-links';
   for (const key of keys) {
     const m = MAPS[key];
     if (!m) continue;
+    const iconKey = mapIconName(key);
     if (m.link) {
-      grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
+      row.appendChild(createBrandBtn({ variant: 'glass', href: m.link, label: m.title, iconKey }));
     } else {
-      grid.appendChild(buildHomeMapTile(key, m));
+      row.appendChild(
+        createBrandBtn({
+          variant: 'glass',
+          label: m.title,
+          iconKey,
+          onClick: () => setActiveMap(key, { force: true }),
+        }),
+      );
     }
   }
-  return grid;
+  return row;
 }
 
 function dashboardCardsFromConfig() {
@@ -4352,7 +4363,7 @@ function buildReviewAlertBanner(item) {
     actions.push({
       label: label || notifyActionLabels[key] || key,
       iconKey: iconKey || NOTICE_ACTION_ICONS[key],
-      primary: primary ?? actions.length === 0,
+        primary: primary ?? false,
       ...rest,
     });
   };

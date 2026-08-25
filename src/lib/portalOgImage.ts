@@ -15,6 +15,7 @@ import {
 import { enrichClientPortalBrand } from './clientBrand';
 import { adaptLogoContrast } from './logoContrastAdapt';
 import { cachedCompanyBrandName, getCompanyConfig } from './companyConfig';
+import { shareSafeText } from './shareSafeText';
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from './ogImageSize';
 
 export const PORTAL_OG_WIDTH = OG_IMAGE_WIDTH;
@@ -34,10 +35,10 @@ export type PortalShareMeta = {
   iconUrl: string;
 };
 
-/** Browser tab / OG title: "Parlee Cycles · Online Presence Diagnostic by reΛVe.app Automation". */
+/** Browser tab / OG title: "Parlee Cycles · Online Presence Diagnostic by reave.app Automation". */
 export function formatPortalPageTitle(businessName: string, providerName?: string): string {
-  const business = businessName.trim() || 'Contact';
-  const provider = (providerName ?? cachedCompanyBrandName()).trim();
+  const business = shareSafeText(businessName) || 'Contact';
+  const provider = shareSafeText(providerName ?? cachedCompanyBrandName());
   return provider
     ? `${business} · Online Presence Diagnostic by ${provider}`
     : `${business} · Online Presence Diagnostic`;

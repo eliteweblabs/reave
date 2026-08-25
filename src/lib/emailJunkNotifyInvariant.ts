@@ -34,10 +34,29 @@ export function isJunkClassification(opts: {
   return (
     category === 'junk' ||
     action === 'junk' ||
+    action === 'deleted' ||
     status === 'JUNK' ||
     status === 'DELETE' ||
     status === 'AUTO_ARCHIVED'
   );
+}
+
+/**
+ * A matched DELETE rule must remove the message. Junk is only for manual /
+ * AI quarantine (status JUNK) and AUTO_ARCHIVED filing — not auto-delete.
+ */
+export function shouldHardDeleteOnDeleteRule(opts: {
+  category?: string | null;
+  inboxStatus?: string | null;
+  ruleStatus?: string | null;
+  isVerificationCode?: boolean;
+  isAuthLink?: boolean;
+}): boolean {
+  if (opts.isVerificationCode || opts.isAuthLink) return false;
+  const inboxStatus = String(opts.inboxStatus || '').toUpperCase();
+  const ruleStatus = String(opts.ruleStatus || '').toUpperCase();
+  if (inboxStatus !== 'DELETE' || ruleStatus !== 'DELETE') return false;
+  return String(opts.category || '').toLowerCase() === 'junk';
 }
 
 export function looksLikeClientReplyUrgency(opts: {
