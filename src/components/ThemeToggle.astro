@@ -1,33 +1,48 @@
 ---
 /**
- * Header light/dark control. Icons: IOS_ICONS.sun / IOS_ICONS.moon.
+ * Light/dark control. Icons: IOS_ICONS.sun / IOS_ICONS.moon.
  */
 ---
 <button
   type="button"
-  class="app-header-icon-btn theme-toggle"
+  class="theme-toggle"
   data-theme-toggle
   aria-label="Switch to dark theme"
   title="Theme"
 >
   <!-- IOS_ICONS.moon — keep in sync with public/admin/admin-ui.js -->
-  <svg class="theme-toggle-icon theme-toggle-icon--moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+  <svg class="theme-toggle-icon theme-toggle-icon--moon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
   <!-- IOS_ICONS.sun — keep in sync with public/admin/admin-ui.js -->
-  <svg class="theme-toggle-icon theme-toggle-icon--sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+  <svg class="theme-toggle-icon theme-toggle-icon--sun" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
 </button>
 
 <style is:global>
   .theme-toggle {
-    position: relative;
-    background: transparent;
-    border-color: var(--site-border, rgba(23, 23, 23, 0.12));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0.35rem 0.45rem;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
     color: var(--site-fg-muted, #525252);
+    cursor: pointer;
+    line-height: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .theme-toggle:hover {
+    color: var(--site-fg, #171717);
+    background: none;
   }
 
   .theme-toggle-icon {
-    position: absolute;
-    inset: 0;
-    margin: auto;
+    display: block;
+    width: 12px;
+    height: 12px;
   }
 
   .theme-toggle-icon--sun {
@@ -40,6 +55,14 @@
 
   html[data-theme="dark"] .theme-toggle-icon--sun {
     display: block;
+  }
+
+  .app-header--admin .theme-toggle {
+    color: var(--nav-icon, var(--muted, rgba(255, 255, 255, 0.55)));
+  }
+
+  .app-header--admin .theme-toggle:hover {
+    color: var(--fg, #e9eef6);
   }
 </style>
 
