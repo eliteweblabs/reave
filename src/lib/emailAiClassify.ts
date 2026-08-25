@@ -99,7 +99,7 @@ export function mapAiLabelToOutcome(label: AiEmailLabel): {
     case 'failed_payment':
       return { category: 'alert', action: 'failed_payment', status: 'FAILED_PAYMENT' };
     case 'junk':
-      return { category: 'junk', action: 'junk', status: 'DELETE' };
+      return { category: 'junk', action: 'junk', status: 'JUNK' };
     case 'google_alert':
       return { category: 'alert', action: 'google_alert', status: 'GOOGLE_ALERT' };
     case 'alert':

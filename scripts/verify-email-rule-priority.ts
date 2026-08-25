@@ -27,7 +27,12 @@ import {
   type EmailRuleRecord,
   type EmailRulesConfig,
 } from '../src/lib/emailRuleStore';
-import { deletedOrJunkedEmailBlocksNotification, isJunkClassification } from '../src/lib/emailJunkNotifyInvariant';
+import {
+  deletedOrJunkedEmailBlocksNotification,
+  isJunkClassification,
+  shouldHardDeleteOnDeleteRule,
+} from '../src/lib/emailJunkNotifyInvariant';
+import { mapAiLabelToOutcome } from '../src/lib/emailAiClassify';
 import { isRoutineNewLoginNotice, looksLikeAuthLinkEmail } from '../src/lib/emailAuthLinkParser';
 import { isLikelyOtpSender, looksLikeOtpEmail } from '../src/lib/emailOtpParser';
 
@@ -313,9 +318,48 @@ assert.equal(
   true,
 );
 assert.equal(
+  isJunkClassification({ category: 'junk', action: 'deleted', status: 'DELETE' }),
+  true,
+);
+assert.equal(
   isJunkClassification({ category: 'alert', action: 'alert', status: 'NEEDS_CHECK' }),
   false,
 );
+
+assert.equal(
+  shouldHardDeleteOnDeleteRule({
+    category: 'junk',
+    inboxStatus: 'DELETE',
+    ruleStatus: 'DELETE',
+  }),
+  true,
+);
+assert.equal(
+  shouldHardDeleteOnDeleteRule({
+    category: 'junk',
+    inboxStatus: 'JUNK',
+    ruleStatus: 'UNMATCHED',
+  }),
+  false,
+);
+assert.equal(
+  shouldHardDeleteOnDeleteRule({
+    category: 'receipt',
+    inboxStatus: 'RECEIPT',
+    ruleStatus: 'DELETE',
+  }),
+  false,
+);
+assert.equal(
+  shouldHardDeleteOnDeleteRule({
+    category: 'junk',
+    inboxStatus: 'DELETE',
+    ruleStatus: 'DELETE',
+    isVerificationCode: true,
+  }),
+  false,
+);
+assert.equal(mapAiLabelToOutcome('junk').status, 'JUNK');
 
 {
   const shipmentDef = DEFAULT_RULES.find((r) =>

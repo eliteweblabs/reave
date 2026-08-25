@@ -34,6 +34,8 @@
   --site-accent: #171717;
   --brand-btn-bg: #111;
   --brand-btn-fg: #fff;
+  /* Label on --brand-gradient fills. Marketing dark inverts the gradient. */
+  --brand-on-gradient: #fff;
   --demo-fg: var(--site-fg);
   --demo-fg-muted: var(--site-fg-muted);
   --demo-fill: color-mix(in srgb, var(--site-fg) 8%, transparent);
@@ -45,6 +47,8 @@
   --site-mesh-glow: none;
   --site-mesh-bottom: none;
   --site-mesh-atmosphere: none;
+  /* About-page client marks are dark-ink SVGs. Invert on the dark canvas. */
+  --client-logo-filter: grayscale(1);
   --brand-pink: #f472b6;
   --brand-magenta: #c026d3;
   --brand-indigo: #6366f1;
@@ -91,22 +95,39 @@
   }
 }
 
-/** Filled primary CTAs — company gradient, always white label. */
-.brand-btn {
+/*
+ * Official text buttons — one look, many class aliases.
+ *   filled  .brand-btn
+ *   solid   .brand-btn.brand-btn-solid
+ *   glass   .brand-btn.brand-btn-glass
+ *   danger  .brand-btn.brand-btn-danger  (or filled .os-dialog-btn--danger)
+ * Icon-only chrome is the circle (.ios-icon-btn / .agent-btn / .de-new-btn.ch-new-btn).
+ * Admin leftovers (de-btn*, os-dialog-btn*, prof-btn*, empty-state create)
+ * share these rules so a radius/color change here updates every CTA.
+ * Dashboard tiles (.home-dashboard-tile, .dash-stat) are cards — do not add these classes.
+ */
+.brand-btn,
+.de-btn,
+.de-btn-primary,
+.de-placeholder-create-btn,
+.os-dialog-btn,
+.os-dialog-btn--primary,
+.prof-btn-primary,
+.prof-btn-secondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 0.45rem 0.9rem;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 999px);
   font-family: var(--font-primary);
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1;
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
   background: var(--brand-gradient);
   text-decoration: none;
   white-space: nowrap;
@@ -118,11 +139,16 @@
   transition: filter 0.15s ease, transform 0.15s ease;
 }
 
-.brand-btn:hover {
+.brand-btn:hover,
+.de-btn:hover,
+.de-btn-primary:hover,
+.de-placeholder-create-btn:hover,
+.os-dialog-btn--primary:hover:not(:disabled),
+.prof-btn-primary:hover:not(:disabled) {
   filter: brightness(1.06);
   transform: translateY(-1px);
-  color: #fff;
-  -webkit-text-fill-color: #fff;
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
   text-decoration: none;
 }
 
@@ -141,10 +167,15 @@
 }
 
 /** Secondary pills — primary-color stroke, frosted blur. */
-.brand-btn-glass {
-  border-radius: 999px;
-  color: var(--site-fg, #171717);
-  -webkit-text-fill-color: var(--site-fg, #171717);
+.brand-btn-glass,
+.de-btn-secondary,
+.de-btn-ghost,
+.de-btn--secondary,
+.os-dialog-btn--ghost,
+.prof-btn-secondary {
+  border-radius: var(--radius-pill, 999px);
+  color: var(--fg, var(--site-fg, #171717));
+  -webkit-text-fill-color: var(--fg, var(--site-fg, #171717));
   background: var(--brand-glass-bg);
   border: 1px solid var(--brand-glass-border-color);
   backdrop-filter: var(--brand-glass-blur);
@@ -158,13 +189,61 @@
     box-shadow 0.15s ease;
 }
 
-.brand-btn-glass:hover {
-  color: var(--site-fg, #171717);
-  -webkit-text-fill-color: var(--site-fg, #171717);
+.brand-btn-glass:hover,
+.de-btn-secondary:hover,
+.de-btn-ghost:hover,
+.de-btn--secondary:hover,
+.os-dialog-btn--ghost:hover,
+.prof-btn-secondary:hover:not(:disabled) {
+  color: var(--fg, var(--site-fg, #171717));
+  -webkit-text-fill-color: var(--fg, var(--site-fg, #171717));
   background: var(--brand-glass-bg-hover);
   border-color: var(--brand-glass-border-color-hover);
   box-shadow: var(--brand-glass-shadow-hover);
   text-decoration: none;
+  filter: none;
+}
+
+/* Re-assert filled after glass — aliases share a base class with their variant. */
+.de-btn-primary,
+.os-dialog-btn--primary,
+.prof-btn-primary,
+.de-placeholder-create-btn {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: var(--brand-gradient);
+  border: none;
+  box-shadow: var(--brand-gradient-shadow);
+}
+
+.de-btn-primary:hover,
+.de-placeholder-create-btn:hover,
+.os-dialog-btn--primary:hover:not(:disabled),
+.prof-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+/** Destructive confirm — same pill, danger fill. */
+.brand-btn-danger,
+.de-btn-danger,
+.os-dialog-btn--danger {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: var(--danger, #dc2626);
+  border: 1px solid var(--danger, #dc2626);
+  box-shadow: none;
+}
+
+.brand-btn-danger:hover,
+.de-btn-danger:hover,
+.os-dialog-btn--danger:hover {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  background: var(--danger-hover, #b91c1c);
+  border-color: var(--danger-hover, #b91c1c);
+  filter: none;
 }
 
 /*
@@ -217,6 +296,21 @@
   display: none;
 }
 
+/*
+ * Mobile: do not bleed the wallpaper past the visual viewport. Safari clips
+ * that overflow at the toolbar and paints a full-width hairline under the
+ * hero CTAs. Keep the layer flush to the screen so the canvas meets chrome
+ * without a seam.
+ */
+@media (max-width: 768px) {
+  .site-bg-atmosphere {
+    --site-bg-bleed-top: env(safe-area-inset-top, 0px);
+    --site-bg-bleed-bottom: env(safe-area-inset-bottom, 0px);
+    top: 0;
+    bottom: 0;
+  }
+}
+
 /**
  * Standalone pattern / mesh nodes — folded into .site-bg-atmosphere::after.
  * Hide leftovers so they cannot paint a second, document-sized layer.
@@ -244,6 +338,7 @@ html[data-theme="dark"] {
   --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
   --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
   --create-fab-shadow: var(--brand-gradient-shadow);
+  --client-logo-filter: grayscale(1) invert(1);
 }
 
 html[data-theme="light"] {
@@ -275,14 +370,27 @@ html.site-marketing[data-theme="dark"] {
     0 2px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
   --brand-glass-border-color: rgba(255, 255, 255, 0.22) !important;
   --brand-glass-border-color-hover: rgba(255, 255, 255, 0.4) !important;
+  --brand-on-gradient: var(--brand-btn-fg);
 }
 
-html.site-marketing .app-header-logo-svg,
-html.site-marketing .app-header-logo-img,
+/*
+ * Filled marketing CTAs hard-code white labels for the colorful / black
+ * gradient. After the dark invert those fills are near-white, so force
+ * the on-gradient token onto every primary pill (homepage Demo, features,
+ * pricing, compare, demo-loader, header CTAs).
+ */
+html.site-marketing[data-theme="dark"] :is(
+  .brand-btn,
+  .marketing-nav-cta,
+  [class*="btn--primary"]
+) {
+  color: var(--brand-on-gradient);
+  -webkit-text-fill-color: var(--brand-on-gradient);
+}
+
 html.site-marketing .blm-tile img,
 html.site-marketing .fx-built-logo,
-html.site-marketing .fx-built-logo-probe,
-html.site-marketing .client-logo-item img {
+html.site-marketing .fx-built-logo-probe {
   filter: none;
 }
 
@@ -295,6 +403,20 @@ html.site-marketing[data-theme="dark"] .blm-tile--invert img {
   filter: none;
 }
 
+html.site-marketing .client-logo-item img {
+  /* Beat the scoped component invert so light mode keeps dark ink. */
+  filter: var(--client-logo-filter) !important;
+}
+
+/*
+ * Header wordmark is black ink. Marketing used to set filter:none on it to
+ * undo a grayscale pass, which also killed the dark-mode invert and left
+ * reΛve.app invisible on the dark canvas.
+ */
+html[data-theme="dark"] .app-header-logo-svg,
+html[data-theme="dark"] .app-header-logo-img {
+  filter: invert(1);
+}
 /** Count badges — iOS-style red fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {
