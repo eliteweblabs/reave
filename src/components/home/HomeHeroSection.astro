@@ -112,9 +112,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     --home-hero-demo-fade: clamp(36px, 6vh, 56px);
     --home-hero-icon-size: clamp(190px, 42vw, 312px);
     /*
-     * Pasted mark SVGs are 512² canvases; the AV letterforms sit above ~28.5%
-     * empty box. Collapse that so the tagline can sit 0.94rem under the ink.
+     * Pasted mark SVGs are 512² canvases. The AV letterforms sit inside
+     * ~26.9% empty box above and ~28.5% below. Collapse both so the brand
+     * row hugs the ink — otherwise grid-centering the square canvas leaves
+     * ~85–90px more space above the lockup than below.
      */
+    --home-hero-icon-ink-above: 0.269;
     --home-hero-icon-ink-below: 0.285;
     position: relative;
     z-index: 0;
@@ -182,6 +185,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-icon-wrap--mark {
+    margin-top: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-above) * -1);
     margin-bottom: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-below) * -1);
   }
 
