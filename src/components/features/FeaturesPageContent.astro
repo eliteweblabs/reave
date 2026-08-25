@@ -46,6 +46,12 @@ interface Props {
    * snapshot in `_backup/`. Default: on unless this block is embedded.
    */
   showAccordion?: boolean;
+  /**
+   * Homepage slot: heading + lead + pills only (no examples / custom / close).
+   */
+  introOnly?: boolean;
+  /** Homepage rest of the tour — skip the heading + pills already shown above. */
+  hideIntro?: boolean;
 }
 
 const {
@@ -55,7 +61,12 @@ const {
   coreOnly = false,
   tight = false,
   showAccordion = !embedded,
+  introOnly = false,
+  hideIntro = false,
 } = Astro.props;
+
+const showIntro = !coreOnly && !hideIntro;
+const showTour = !introOnly;
 
 const company = await getCompanyConfig(Astro.request);
 /** Same `features` payload as GET /api/demo/loader (module extras from FEATURE_MARKETING). */
@@ -425,9 +436,19 @@ const customPrompts: PromptExample[] = [
 ];
 ---
 
-<div class:list={["fx-page", embedded && "fx-page--embedded", tight && "fx-page--tight"]} data-features-content>
+<div
+  class:list={[
+    "fx-page",
+    embedded && "fx-page--embedded",
+    introOnly && "fx-page--intro",
+    hideIntro && "fx-page--tour",
+    tight && "fx-page--tight",
+  ]}
+  data-features-content
+  id={introOnly ? "features" : undefined}
+>
     {
-      !coreOnly && (
+      showIntro && (
     <>
     <section class="fx-hero">
       {/*
@@ -455,6 +476,26 @@ const customPrompts: PromptExample[] = [
         </p>
       </div>
     </section>
+    {
+      introOnly ? (
+        <div class="fx-chips fx-chips--cluster" data-no-scroll-fade aria-label="Platform features">
+          {
+            apiFeatures.map((chip) => {
+              const classes = ["fx-chip", chip.kind === "nav" && "fx-chip--link"];
+              return chip.href ? (
+                <a class:list={classes} href={chip.href} data-feature-id={chip.id}>
+                  {chip.label}
+                </a>
+              ) : (
+                <span class:list={classes} data-feature-id={chip.id}>
+                  {chip.label}
+                </span>
+              );
+            })
+          }
+        </div>
+      ) : (
+    <>
     {/*
       Keep the marquee outside the fading hero. Infinite translateX + mask-image
       inside a view() subject inflates the scrollport so later sections stall
@@ -510,9 +551,12 @@ const customPrompts: PromptExample[] = [
     </>
       )
     }
+    </>
+      )
+    }
 
     {
-      !coreOnly && showLogoStack && (
+      showTour && !coreOnly && showLogoStack && (
         <section class="fx-stack scroll-fade-in" aria-label="Apps this platform replaces">
           <p class="fx-stack-kicker">Replace the stack</p>
           <h2 class="fx-stack-h2">
@@ -536,11 +580,11 @@ const customPrompts: PromptExample[] = [
     }
 
     {
-      !coreOnly && showPricing && <FeaturesPricingSection />
+      showTour && !coreOnly && showPricing && <FeaturesPricingSection />
     }
 
     {
-      showAccordion && (
+      showTour && showAccordion && (
     <section class="fx-list" aria-label="Core features">
       {/*
         Do not fade this whole (very tall) section. view() range is
@@ -705,6 +749,8 @@ const customPrompts: PromptExample[] = [
       )
     }
 
+    {
+      showTour && (
     <section class="fx-examples scroll-fade-in" aria-label="Example questions out of the box">
       <p class="fx-examples-kicker">Out of the box</p>
       <h2 class="fx-examples-h2">{company.name} learns by default.</h2>
@@ -748,9 +794,11 @@ const customPrompts: PromptExample[] = [
         <a class="fx-btn fx-btn--ghost brand-btn-glass" href="/modules">Browse optional modules</a>
       </div>
     </section>
+      )
+    }
 
     {
-      !coreOnly && (
+      showTour && !coreOnly && (
     <section class="fx-closing scroll-fade-in">
       <h2 class="fx-closing-h2">Ready to see it running?</h2>
       <p class="fx-closing-lead">
@@ -839,6 +887,28 @@ const customPrompts: PromptExample[] = [
   .fx-page--embedded {
     min-height: 0;
     padding: var(--home-section-padding-y) 20px;
+  }
+
+  .fx-page--intro {
+    min-height: 100svh;
+    min-height: 100dvh;
+    box-sizing: border-box;
+    justify-content: center;
+    gap: 0;
+    padding-top: calc(var(--app-header-offset, 3.25rem) + 16px);
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .fx-page--intro .fx-hero {
+    max-width: 640px;
+  }
+
+  .fx-page--intro .fx-lead {
+    margin-bottom: 28px;
+  }
+
+  .fx-page--tour {
+    padding-top: 8px;
   }
 
   .fx-hero,
@@ -1065,6 +1135,25 @@ const customPrompts: PromptExample[] = [
 
   .fx-chip--link:hover {
     filter: brightness(1.08);
+  }
+
+  .fx-chips--cluster {
+    --fx-chip-scale: 1.05;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 8px 10px;
+    width: 100%;
+    max-width: 640px;
+    align-self: center;
+    margin: 0 auto;
+    padding: 0 4px;
+    overflow: visible;
+    isolation: auto;
+    contain: none;
+    -webkit-mask-image: none;
+    mask-image: none;
   }
 
   /* ---------- Replaced-app logo wall ---------- */
