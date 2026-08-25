@@ -100,7 +100,7 @@ const disclaimer = smsConsentDisclaimer(brandName);
   }
 
   .required {
-    color: #ec4899;
+    color: var(--danger, #f87171);
   }
 
   .field input,
@@ -108,7 +108,7 @@ const disclaimer = smsConsentDisclaimer(brandName);
     width: 100%;
     padding: 12px 14px;
     border-radius: 10px;
-    border: 1px solid rgba(168, 85, 247, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.22);
     background: rgba(255, 255, 255, 0.06);
     color: #fff;
     font-size: 16px;
@@ -120,8 +120,8 @@ const disclaimer = smsConsentDisclaimer(brandName);
 
   .field input:focus,
   .field textarea:focus {
-    border-color: #a855f7;
-    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.18);
+    border-color: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
   }
 
   .field textarea {
@@ -132,8 +132,8 @@ const disclaimer = smsConsentDisclaimer(brandName);
   .sms-consent-block {
     padding: 16px;
     border-radius: 12px;
-    border: 1px solid rgba(168, 85, 247, 0.28);
-    background: rgba(168, 85, 247, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .sms-consent-heading {
@@ -158,7 +158,7 @@ const disclaimer = smsConsentDisclaimer(brandName);
     width: 16px;
     height: 16px;
     flex-shrink: 0;
-    accent-color: #a855f7;
+    accent-color: #fff;
   }
 
   .sms-consent-disclaimer {
@@ -174,13 +174,13 @@ const disclaimer = smsConsentDisclaimer(brandName);
   }
 
   .sms-consent-links a {
-    color: #c084fc;
+    color: #fff;
     text-decoration: underline;
     text-underline-offset: 2px;
   }
 
   .sms-consent-links a:hover {
-    color: #ec4899;
+    color: rgba(255, 255, 255, 0.78);
   }
 
   .submit-btn {
@@ -188,8 +188,8 @@ const disclaimer = smsConsentDisclaimer(brandName);
     padding: 12px 22px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #a855f7, #ec4899);
-    color: #fff;
+    background: var(--brand-btn-bg, #fff);
+    color: var(--brand-btn-fg, #111);
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;

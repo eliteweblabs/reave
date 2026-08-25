@@ -71,8 +71,8 @@
   --create-fab-shadow: var(--brand-gradient-shadow);
   --brand-glass-bg: rgba(255, 255, 255, 0.42);
   --brand-glass-bg-hover: rgba(255, 255, 255, 0.58);
-  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
-  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
+  --brand-glass-border-color: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  --brand-glass-border-color-hover: color-mix(in srgb, var(--site-fg) 40%, transparent);
   --brand-glass-blur: blur(16px) saturate(1.35);
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
@@ -335,8 +335,8 @@ html[data-theme="dark"] {
   --brand-btn-fg: #111;
   --brand-glass-bg: rgba(17, 17, 17, 0.42);
   --brand-glass-bg-hover: rgba(17, 17, 17, 0.58);
-  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
-  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
+  --brand-glass-border-color: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  --brand-glass-border-color-hover: color-mix(in srgb, var(--site-fg) 40%, transparent);
   --create-fab-shadow: var(--brand-gradient-shadow);
   --client-logo-filter: grayscale(1) invert(1);
 }
@@ -344,8 +344,8 @@ html[data-theme="dark"] {
 html[data-theme="light"] {
   --brand-glass-bg: rgba(255, 255, 255, 0.42);
   --brand-glass-bg-hover: rgba(255, 255, 255, 0.58);
-  --brand-glass-border-color: rgba(var(--brand-pink-rgb), 0.55);
-  --brand-glass-border-color-hover: rgba(var(--brand-pink-rgb), 0.88);
+  --brand-glass-border-color: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  --brand-glass-border-color-hover: color-mix(in srgb, var(--site-fg) 40%, transparent);
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
 }
@@ -394,6 +394,15 @@ html.site-marketing .fx-built-logo-probe {
   filter: none;
 }
 
+/* Beat the rule above — white baked fills must invert on the light canvas. */
+html.site-marketing .blm-tile--invert img {
+  filter: invert(1);
+}
+
+html.site-marketing[data-theme="dark"] .blm-tile--invert img {
+  filter: none;
+}
+
 html.site-marketing .client-logo-item img {
   /* Beat the scoped component invert so light mode keeps dark ink. */
   filter: var(--client-logo-filter) !important;
@@ -408,7 +417,6 @@ html[data-theme="dark"] .app-header-logo-svg,
 html[data-theme="dark"] .app-header-logo-img {
   filter: invert(1);
 }
-
 /** Count badges — iOS-style red fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {

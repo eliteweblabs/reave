@@ -16,6 +16,7 @@ import {
   createTimingRing,
   restartTimingRing,
   createCopyIconBtn,
+  IOS_ICON_BTN_SIZES,
   createSlidingPillSelect,
   createListEmptyState,
   createCenteredListEmpty,
@@ -142,6 +143,29 @@ function mount() {
 
   section(
     root,
+    'Icon button sizes',
+    'Every icon control takes <code>size: \'sm\' | \'md\' | \'lg\'</code> — that class locks the box and glyph (<code>24/12</code>, <code>36/16</code>, <code>44/20</code>). Default is <code>md</code>, the same box as <code>createAgentBtn</code>.',
+    (el) => {
+      const setStatus = statusLine(el);
+      for (const size of /** @type {const} */ (['sm', 'md', 'lg'])) {
+        const r = row(el, `${size} · ${IOS_ICON_BTN_SIZES[size].box}×${IOS_ICON_BTN_SIZES[size].box}`);
+        r.classList.add('cg-row--toolbar', 'de-header-actions');
+        r.appendChild(
+          createIosIconBtn({
+            iconKey: 'archive',
+            label: `Archive ${size}`,
+            size,
+            onClick: () => setStatus(`Archive ${size}`),
+          }),
+        );
+        r.appendChild(paneDeleteIcon({ label: `Delete ${size}`, size, onClick: () => setStatus(`Delete ${size}`, 'warn') }));
+        r.appendChild(createAgentBtn({ label: `Agent ${size}`, size, onClick: () => setStatus(`Agent ${size}`) }));
+      }
+    },
+  );
+
+  section(
+    root,
     'Timing ring',
     'Sealed <code>createTimingRing</code> — stopwatch and countdown share one SVG center inside a shadow root so parent toast/toolbar CSS cannot steal the countdown. Undo toast and armed <code>paneDeleteIcon</code> both use this. Tap the pill to restart.',
     (el) => {
@@ -190,7 +214,7 @@ function mount() {
       grid.className = 'cg-icon-grid';
       for (const key of Object.keys(IOS_ICONS)) {
         const cell = document.createElement('div');
-        cell.className = 'cg-icon-cell';
+        cell.className = key === 'trash' ? 'cg-icon-cell cg-icon-cell--danger' : 'cg-icon-cell';
         cell.innerHTML = iosIcon(key, 20);
         const cap = document.createElement('span');
         cap.textContent = key;

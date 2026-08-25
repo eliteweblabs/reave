@@ -253,8 +253,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: var(--icon-btn-box, var(--icon-btn-md));
+  height: var(--icon-btn-box, var(--icon-btn-md));
   padding: 0;
   border: none;
   border-radius: 8px;
@@ -388,7 +388,7 @@
 .de-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 var(--sidebar-inset) var(--footer-scroll-pad);
+  padding: 0 var(--sidebar-inset) 0;
 }
 .de-empty {
   padding: 0.8rem 0.4rem;
@@ -600,12 +600,8 @@ button.de-placeholder-action:active {
   box-sizing: border-box;
 }
 .pane-header-secondary .ios-icon-btn {
-  width: calc(var(--pane-chrome-scale-4, 1.625rem) - 0.1rem);
-  height: calc(var(--pane-chrome-scale-4, 1.625rem) - 0.1rem);
-}
-.pane-header-secondary .ios-icon-btn svg {
-  width: 14px;
-  height: 14px;
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
 }
 @media (max-width: 639px) {
   /* settings-subheader keeps its own topbar padding-top — do not override. */
@@ -620,11 +616,6 @@ button.de-placeholder-action:active {
       max(0.5rem, env(safe-area-inset-right, 0px))
       0.15rem
       max(0.5rem, env(safe-area-inset-left, 0px));
-  }
-  .pane-header.de-header:not(.settings-subheader) .ios-icon-btn,
-  .pane-header:not(.settings-subheader) > .de-header .ios-icon-btn {
-    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
   }
   .pane-header .de-header-actions {
     gap: 0.15rem;
@@ -1136,9 +1127,9 @@ button.de-placeholder-action:active {
 .nl-title { font-size: 1.15rem; font-weight: 700; color: var(--fg); }
 .nl-sub { font-size: 0.82rem; color: var(--muted, #a1a1aa); margin-top: 0.15rem; }
 .nl-warn {
-  background: rgba(168, 85, 247, 0.1);
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  color: #d8b4fe;
+  background: color-mix(in srgb, var(--fg) 6%, var(--panel, transparent));
+  border: 1px solid var(--panel-border, var(--card-border));
+  color: var(--fg);
   border-radius: 10px;
   padding: 0.7rem 0.85rem;
   font-size: 0.82rem;
@@ -1183,7 +1174,7 @@ button.de-placeholder-action:active {
   content: ''; position: absolute; top: 2px; left: 2px;
   width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s;
 }
-.nl-switch input:checked + .nl-switch-track { background: #a855f7; }
+.nl-switch input:checked + .nl-switch-track { background: var(--fg); }
 .nl-switch input:checked + .nl-switch-track::after { transform: translateX(16px); }
 .nl-field { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; color: var(--muted, #a1a1aa); }
 .nl-field > span em { font-style: normal; opacity: 0.7; }
@@ -1213,8 +1204,8 @@ button.de-placeholder-action:active {
   font: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer;
 }
 .nl-btn:hover { background: rgba(255,255,255,0.09); }
-.nl-btn-primary { background: #a855f7; border-color: #a855f7; color: #fff; }
-.nl-btn-primary:hover { background: #9333ea; }
+.nl-btn-primary { background: var(--fg); border-color: var(--fg); color: var(--bg, #fff); }
+.nl-btn-primary:hover { filter: brightness(1.08); }
 .nl-btn:disabled { opacity: 0.5; cursor: default; }
 .nl-send-status { font-size: 0.78rem; color: var(--muted, #a1a1aa); }
 .nl-preview-box { border-top: 1px solid var(--panel-border, #2a2a2e); padding-top: 0.75rem; }
@@ -2737,19 +2728,6 @@ button.de-placeholder-action:active {
       0.15rem
       var(--detail-pad-x);
   }
-  #clients-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn,
-  #work-editor.de-pane-active .detail-chrome > .de-header .ios-icon-btn {
-    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-  }
-  #clients-editor.de-pane-active .detail-chrome > .de-header .agent-btn,
-  #work-editor.de-pane-active .detail-chrome > .de-header .agent-btn,
-  #clients-editor.de-pane-active .detail-chrome > .de-header .de-new-btn.em-agent-btn,
-  #work-editor.de-pane-active .detail-chrome > .de-header .de-new-btn.em-agent-btn {
-    width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    height: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-    min-width: calc(var(--pane-chrome-scale-6, 2.4375rem) - 0.35rem);
-  }
   #clients-editor.de-pane-active .de-header-actions,
   #work-editor.de-pane-active .de-header-actions {
     gap: 0.15rem;
@@ -3627,27 +3605,46 @@ button.de-placeholder-action:active {
   width: 100%;
 }
 
-/* iOS-style icon toolbar buttons (SF Symbol affordances, 44pt touch targets) */
+/* iOS-style icon toolbar buttons — size classes lock box + glyph.
+   Default chrome is grayscale; trash stays danger red in every state. */
+.ios-icon-btn--sm {
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
+}
+.ios-icon-btn--md {
+  --icon-btn-box: var(--icon-btn-md);
+  --icon-btn-glyph: var(--icon-btn-md-glyph);
+}
+.ios-icon-btn--lg {
+  --icon-btn-box: var(--icon-btn-lg);
+  --icon-btn-glyph: var(--icon-btn-lg-glyph);
+}
 .ios-icon-btn {
+  --icon-btn-box: var(--icon-btn-md);
+  --icon-btn-glyph: var(--icon-btn-md-glyph);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 2.75rem;
-  height: 2.75rem;
+  box-sizing: border-box;
+  width: var(--icon-btn-box);
+  height: var(--icon-btn-box);
+  min-width: var(--icon-btn-box);
+  min-height: var(--icon-btn-box);
   padding: 0;
   margin: 0;
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: #0a84ff;
+  color: var(--icon-muted);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: color 0.12s, background 0.12s, opacity 0.12s;
 }
 .ios-icon-btn:hover {
-  background: rgba(10, 132, 255, 0.12);
+  color: var(--fg);
+  background: var(--surface-hover);
 }
 .ios-icon-btn:active {
   opacity: 0.55;
@@ -3655,10 +3652,23 @@ button.de-placeholder-action:active {
 .ios-icon-btn.is-copy-success {
   color: #167c3e;
 }
+.ios-icon-btn.ch-delete-btn,
+.ios-icon-btn.delete-confirm-btn {
+  color: var(--danger, #dc2626);
+}
+.ios-icon-btn.ch-delete-btn:hover,
+.ios-icon-btn.delete-confirm-btn:hover {
+  color: var(--danger-hover, #b91c1c);
+  background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
+}
 .ios-icon-btn svg:not(.delete-confirm-ring):not(.timing-ring) {
   display: block;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: var(--icon-btn-glyph);
+  height: var(--icon-btn-glyph);
+  flex: 0 0 auto;
+}
+.de-header-actions > .ios-icon-btn {
+  border-radius: 50%;
 }
 .ios-icon-btn .delete-confirm-ring,
 .ios-icon-btn .timing-ring-host,
@@ -3940,8 +3950,8 @@ button.de-placeholder-action:active {
   flex: 0 0 auto;
 }
 .cl-vault-row-actions .ios-icon-btn {
-  width: 2.25rem;
-  height: 2.25rem;
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
 }
 .cl-vault-row-actions .ios-icon-btn[hidden] {
   display: none;

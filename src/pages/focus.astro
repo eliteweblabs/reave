@@ -333,7 +333,7 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
   }
 
   .focus-prompt-btn-primary {
-    background: var(--create-fab-bg, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--create-fab-bg, var(--brand-btn-bg, #111));
     border-color: transparent;
     color: #fff;
     font-weight: 500;

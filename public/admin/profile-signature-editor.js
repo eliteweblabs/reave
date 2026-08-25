@@ -3,7 +3,7 @@
  */
 import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260811d';
 import { openMediaPicker, imageMediaFilter } from './media-picker.js?v=20260813b';
-import { setDeBtnLabel } from './admin-ui.js?v=20260816a';
+import { setDeBtnLabel } from './admin-ui.js?v=20260825a';
 
 const SIG_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const SIG_IMAGE_MAX_BYTES = 2 * 1024 * 1024;

@@ -119,7 +119,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     <a
       id="admin-special-back"
       href={backHref}
-      class="app-header-back ios-icon-btn nav-chevron-btn"
+      class="app-header-back ios-icon-btn ios-icon-btn--lg nav-chevron-btn"
       aria-label={backLabel}
       title={backLabel}
     >
@@ -359,10 +359,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
 <script>
   /**
-   * Probe env(safe-area-inset-top) once. Admin must do this because iOS reports
-   * 0 while body is position:fixed. Public pages freeze the first non-zero
-   * value so live env() cannot resize the bar mid-scroll (that bounce).
-   * Never write --safe-top from visualViewport — chasing the toolbar is worse.
+   * Probe env(safe-area-inset-*) once. Admin must do this because iOS reports
+   * 0 on :root while body is position:fixed. Public pages freeze the first
+   * non-zero top value so live env() cannot resize the bar mid-scroll.
+   * Never write these from visualViewport — chasing the toolbar is worse.
    */
   function overlayMenuTouchGuard(e: TouchEvent) {
     const open = document.querySelector(".overlay-menu:not([hidden])");
@@ -388,29 +388,87 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   (window as Window & { __syncOverlayMenuScrollLock?: () => void }).__syncOverlayMenuScrollLock =
     syncOverlayMenuScrollLock;
 
-  function probeSafeAreaInsetTop() {
+  function probeSafeAreaInset(side: "top" | "bottom") {
     const probe = document.createElement("div");
+    const pad = side === "bottom" ? "padding-bottom" : "padding-top";
+    const env =
+      side === "bottom" ? "safe-area-inset-bottom" : "safe-area-inset-top";
+    const edge = side === "bottom" ? "bottom:0" : "top:0";
     probe.style.cssText =
-      "position:fixed;top:0;left:0;height:0;padding-top:env(safe-area-inset-top,0px);pointer-events:none;visibility:hidden;";
+      `position:fixed;${edge};left:0;height:0;${pad}:env(${env},0px);pointer-events:none;visibility:hidden;`;
     document.documentElement.appendChild(probe);
-    const insetTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+    const value =
+      parseFloat(
+        getComputedStyle(probe)[side === "bottom" ? "paddingBottom" : "paddingTop"],
+      ) || 0;
     probe.remove();
-    return insetTop;
+    return value;
   }
 
   function syncAppHeaderSafeArea() {
     const isAdmin = Boolean(document.querySelector(".app-header--admin"));
     if (!isAdmin && document.documentElement.dataset.safeTopFrozen === "1") return;
-    const insetTop = probeSafeAreaInsetTop();
+    const insetTop = probeSafeAreaInset("top");
     if (!isAdmin && insetTop <= 0) return;
     document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+    if (isAdmin) {
+      document.documentElement.style.setProperty(
+        "--safe-bottom",
+        `${probeSafeAreaInset("bottom")}px`,
+      );
+    }
     if (!isAdmin) document.documentElement.dataset.safeTopFrozen = "1";
+  }
+
+  /** URL bar deltas are ~40–100px; keyboards are much larger. Same floor as ios-sheet.js. */
+  const ADMIN_KEYBOARD_MIN_PX = 140;
+  const ADMIN_KEYBOARD_CLASS = "admin-keyboard-open";
+  let adminChromeLayoutRaf = 0;
+
+  function isAdminShell() {
+    return Boolean(document.querySelector(".app-header--admin"));
+  }
+
+  /** Layout viewport that the visual viewport no longer covers (keyboard, not URL bar). */
+  function adminKeyboardInset() {
+    const vv = window.visualViewport;
+    if (!vv) return 0;
+    return Math.max(0, Math.round(window.innerHeight - vv.height));
+  }
+
+  /**
+   * iOS pans position:fixed chrome with visualViewport.offsetTop when a field
+   * is focused, so the logo header and list search slide under the status bar.
+   * Pin admin shells to the visual viewport while the keypad is open — same
+   * approach as public/ios-sheet.js.
+   */
+  function syncAdminKeyboardPin() {
+    if (!isAdminShell()) return;
+    const vv = window.visualViewport;
+    const keyboardOpen = adminKeyboardInset() >= ADMIN_KEYBOARD_MIN_PX;
+    const root = document.documentElement;
+    if (keyboardOpen && vv) {
+      root.classList.add(ADMIN_KEYBOARD_CLASS);
+      root.style.setProperty("--vv-offset-top", `${Math.round(vv.offsetTop)}px`);
+      root.style.setProperty("--vv-offset-left", `${Math.round(vv.offsetLeft)}px`);
+      root.style.setProperty("--vv-width", `${Math.round(vv.width)}px`);
+      root.style.setProperty("--vv-height", `${Math.round(vv.height)}px`);
+      return;
+    }
+    root.classList.remove(ADMIN_KEYBOARD_CLASS);
+    root.style.removeProperty("--vv-offset-top");
+    root.style.removeProperty("--vv-offset-left");
+    root.style.removeProperty("--vv-width");
+    root.style.removeProperty("--vv-height");
   }
 
   /** Keep pane clearance aligned with the visible header band (row bottom + setup alerts). */
   function syncTopbarMeasuredHeight() {
     const topbar = document.getElementById("topbar");
     if (!topbar) return;
+    // Rects are visual-viewport-relative. A keyboard pan would collapse
+    // --topbar-measured-h and let the search header sit under the status bar.
+    if (isAdminShell() && adminKeyboardInset() >= ADMIN_KEYBOARD_MIN_PX) return;
     const alerts = document.getElementById("admin-setup-alerts");
     let clearance = 0;
     if (alerts && !alerts.hidden) {
@@ -424,14 +482,36 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     document.documentElement.style.setProperty("--topbar-measured-h", `${clearance}px`);
   }
 
+  function scheduleAdminChromeLayout() {
+    if (adminChromeLayoutRaf) return;
+    adminChromeLayoutRaf = window.requestAnimationFrame(() => {
+      adminChromeLayoutRaf = 0;
+      syncAdminKeyboardPin();
+      syncTopbarMeasuredHeight();
+    });
+  }
+
   function bindTopbarHeightObserver() {
     const topbar = document.getElementById("topbar");
     if (!topbar || topbar.dataset.topbarHeightObs === "1") return;
     topbar.dataset.topbarHeightObs = "1";
-    syncTopbarMeasuredHeight();
-    const obs = new ResizeObserver(() => syncTopbarMeasuredHeight());
+    scheduleAdminChromeLayout();
+    const obs = new ResizeObserver(() => scheduleAdminChromeLayout());
     obs.observe(topbar);
-    window.visualViewport?.addEventListener("resize", syncTopbarMeasuredHeight, { passive: true });
+    window.visualViewport?.addEventListener(
+      "resize",
+      () => {
+        if (isAdminShell()) syncAppHeaderSafeArea();
+        scheduleAdminChromeLayout();
+      },
+      { passive: true },
+    );
+    window.visualViewport?.addEventListener("scroll", scheduleAdminChromeLayout, { passive: true });
+    window.addEventListener("resize", scheduleAdminChromeLayout, { passive: true });
+    if (isAdminShell()) {
+      document.addEventListener("focusin", scheduleAdminChromeLayout, true);
+      document.addEventListener("focusout", scheduleAdminChromeLayout, true);
+    }
   }
 
   syncAppHeaderSafeArea();
@@ -439,7 +519,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   document.addEventListener("astro:page-load", () => {
     syncAppHeaderSafeArea();
     bindTopbarHeightObserver();
-    syncTopbarMeasuredHeight();
+    scheduleAdminChromeLayout();
   });
 </script>
 
@@ -833,7 +913,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .topbar-sleep-toggle-switch[aria-checked='true'] {
-    background: #6366f1;
+    background: var(--site-accent, #171717);
   }
 
   .topbar-sleep-toggle-switch[aria-checked='true']::after {
@@ -1350,14 +1430,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     height: var(--app-header-profile-h);
     padding: 0 0.65rem 0 0.55rem;
     gap: 0.35rem;
-    background: rgba(168, 85, 247, 0.14);
-    color: #e9d5ff;
+    background: color-mix(in srgb, var(--site-fg, #171717) 10%, transparent);
+    color: var(--site-fg, #171717);
   }
 
   .topbar-profile-btn--admin:hover,
   html.account-menu-open .topbar-profile-btn--admin {
-    background: rgba(168, 85, 247, 0.22);
-    color: #f3e8ff;
+    background: color-mix(in srgb, var(--site-fg, #171717) 16%, transparent);
+    color: var(--site-fg, #171717);
   }
 
   .topbar-admin-label {

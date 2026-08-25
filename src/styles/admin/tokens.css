@@ -105,6 +105,14 @@
   --radius-input: 8px;
   --radius-button: var(--radius-pill);
   --control-h: 2.75rem;
+  /* Icon-only buttons — locked boxes. createIosIconBtn({ size: 'sm'|'md'|'lg' }).
+     md matches the circular agent control. */
+  --icon-btn-sm: 24px;
+  --icon-btn-sm-glyph: 12px;
+  --icon-btn-md: 36px;
+  --icon-btn-md-glyph: 16px;
+  --icon-btn-lg: 44px;
+  --icon-btn-lg-glyph: 20px;
   /* Destructive / delete affordances — one red everywhere */
   --danger: #dc2626;
   --danger-hover: #b91c1c;

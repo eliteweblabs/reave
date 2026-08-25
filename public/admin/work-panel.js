@@ -33,7 +33,7 @@ import {
   looksLikeHttpUrl,
   contactAvatarHtml,
   mountContactAvatars,
-} from './admin-ui.js?v=20260821c';
+} from './admin-ui.js?v=20260825a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260824a';
@@ -4330,41 +4330,121 @@ function workRelatedChats(related, sourceChatId) {
   return chats;
 }
 
+const WORK_FILE_ACCEPT = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+]);
+
+function acceptedWorkFiles(list) {
+  return [...(list || [])].filter(
+    (file) =>
+      WORK_FILE_ACCEPT.has(file.type) || /\.(jpe?g|png|gif|webp|pdf)$/i.test(file.name || ''),
+  );
+}
+
 function mountWorkFilesSection(container, slug, initialFiles) {
   const section = document.createElement('div');
   section.className = 'wk-files-section';
 
+  const head = document.createElement('div');
+  head.className = 'wk-files-head';
   const title = document.createElement('div');
   title.className = 'wk-files-title';
   title.textContent = 'File repository';
-  section.appendChild(title);
+  head.appendChild(title);
 
-  const hint = document.createElement('div');
-  hint.className = 'wk-files-hint';
-  hint.textContent = 'Images from matching emails and linked chats are saved here automatically.';
-  section.appendChild(hint);
+  const tools = document.createElement('div');
+  tools.className = 'wk-files-tools';
+  const downloadAllBtn = createIosIconBtn({
+    iconKey: 'download',
+    label: 'Download all',
+    size: 'sm',
+    onClick: () => {
+      void downloadAllProjectFiles();
+    },
+  });
+  downloadAllBtn.disabled = !(initialFiles?.length);
+  const libraryBtn = document.createElement('button');
+  libraryBtn.type = 'button';
+  libraryBtn.className = 'de-btn de-btn-ghost';
+  libraryBtn.textContent = 'Library';
+  tools.appendChild(downloadAllBtn);
+  tools.appendChild(libraryBtn);
+  head.appendChild(tools);
+  section.appendChild(head);
 
-  const grid = document.createElement('div');
-  grid.className = 'wk-files-grid';
-  section.appendChild(grid);
+  const drop = document.createElement('div');
+  drop.className = 'wk-files-drop';
+  drop.tabIndex = 0;
+  drop.setAttribute('role', 'button');
+  drop.setAttribute('aria-label', 'Upload files');
 
-  const uploadRow = document.createElement('div');
-  uploadRow.className = 'wk-files-upload';
   const uploadInput = document.createElement('input');
   uploadInput.type = 'file';
   uploadInput.accept = 'image/jpeg,image/png,image/gif,image/webp,application/pdf';
   uploadInput.multiple = true;
   uploadInput.className = 'wk-files-input';
-  const downloadAllBtn = document.createElement('button');
-  downloadAllBtn.type = 'button';
-  downloadAllBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
-  setDeBtnLabel(downloadAllBtn, 'Download all', 'download');
-  downloadAllBtn.disabled = !(initialFiles?.length);
-  downloadAllBtn.addEventListener('click', async () => {
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'de-btn de-btn-primary de-btn-with-icon';
+  setDeBtnLabel(uploadBtn, 'Upload files', 'upload');
+  uploadBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    uploadInput.click();
+  });
+
+  drop.appendChild(uploadInput);
+  drop.appendChild(uploadBtn);
+  section.appendChild(drop);
+
+  const grid = document.createElement('div');
+  grid.className = 'wk-files-grid';
+  section.appendChild(grid);
+
+  drop.addEventListener('click', (e) => {
+    if (e.target.closest('button, input')) return;
+    uploadInput.click();
+  });
+  drop.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    uploadInput.click();
+  });
+
+  let dragDepth = 0;
+  drop.addEventListener('dragenter', (e) => {
+    if (![...e.dataTransfer?.types || []].includes('Files')) return;
+    e.preventDefault();
+    dragDepth += 1;
+    drop.classList.add('wk-files-drop--active');
+  });
+  drop.addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer?.types || []].includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  drop.addEventListener('dragleave', () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) drop.classList.remove('wk-files-drop--active');
+  });
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    drop.classList.remove('wk-files-drop--active');
+    const files = acceptedWorkFiles(e.dataTransfer?.files);
+    if (!files.length) return;
+    void uploadFilesToProject(files).catch(() => {});
+  });
+
+  async function downloadAllProjectFiles() {
     if (!currentFiles.length) return;
     downloadAllBtn.disabled = true;
-    const label = getDeBtnLabel(downloadAllBtn);
-    updateDeBtnLabel(downloadAllBtn, 'Preparing…');
+    const prevTitle = downloadAllBtn.title;
+    downloadAllBtn.title = 'Preparing…';
     try {
       const res = await fetch(`/api/work/${encodeURIComponent(slug)}/files/download-all`, {
         credentials: 'same-origin',
@@ -4392,24 +4472,10 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     } catch (e) {
       alert(`Download failed: ${e.message}`);
     } finally {
-      updateDeBtnLabel(downloadAllBtn, label);
+      downloadAllBtn.title = prevTitle;
       downloadAllBtn.disabled = !currentFiles.length;
     }
-  });
-  const uploadBtn = document.createElement('button');
-  uploadBtn.type = 'button';
-  uploadBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
-  setDeBtnLabel(uploadBtn, 'Upload files', 'share');
-  uploadBtn.addEventListener('click', () => uploadInput.click());
-  const libraryBtn = document.createElement('button');
-  libraryBtn.type = 'button';
-  libraryBtn.className = 'de-btn de-btn-secondary';
-  libraryBtn.textContent = 'Library';
-  uploadRow.appendChild(downloadAllBtn);
-  uploadRow.appendChild(uploadInput);
-  uploadRow.appendChild(uploadBtn);
-  uploadRow.appendChild(libraryBtn);
-  section.appendChild(uploadRow);
+  }
 
   let currentFiles = initialFiles || [];
 
@@ -4433,14 +4499,10 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     currentFiles = files || [];
     downloadAllBtn.disabled = !currentFiles.length;
     grid.innerHTML = '';
-    if (!files?.length) {
-      const empty = document.createElement('div');
-      empty.className = 'de-empty';
-      empty.style.padding = '0.5rem 0';
-      empty.textContent = 'No files yet.';
-      grid.appendChild(empty);
-      return;
-    }
+    const empty = !currentFiles.length;
+    grid.hidden = empty;
+    drop.classList.toggle('wk-files-drop--empty', empty);
+    if (empty) return;
     for (const file of files) {
       const card = document.createElement('div');
       card.className = 'wk-file-card';
@@ -4473,12 +4535,14 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       actions.appendChild(
         paneShareIcon({
           label: `Share ${file.filename || 'file'}`,
+          size: 'sm',
           onClick: () => shareProjectFile(file),
         }),
       );
       actions.appendChild(
         paneDeleteIcon({
           label: `Delete ${file.filename || 'file'}`,
+          size: 'sm',
           onClick: () => {
             const snapshot = file;
             const prev = currentFiles.slice();
@@ -4534,7 +4598,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
   }
 
   uploadInput.addEventListener('change', () => {
-    const files = [...uploadInput.files];
+    const files = acceptedWorkFiles(uploadInput.files);
     uploadInput.value = '';
     void uploadFilesToProject(files).catch(() => {});
   });

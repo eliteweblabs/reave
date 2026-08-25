@@ -45,6 +45,7 @@
     "check:homepage-login": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-homepage-login.ts",
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
     "check:logo-contrast": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-logo-contrast-adapt.ts",
+    "check:replaced-logo-invert": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-replaced-app-logo-invert.ts",
     "check:company-og": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-company-og-image.ts",
     "check:share-safe-text": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-share-safe-text.ts",
     "check:qr-brand": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-qr-brand-mark.ts",

@@ -63,6 +63,22 @@ body {
   scroll-padding-bottom: var(--footer-scroll-pad);
 }
 
+/* Footer clearance is a trailing spacer, not host padding-bottom. Host padding
+ * clips cards above the home-indicator band (a permanent white gap in PWA). */
+.ch-list::after,
+.de-list::after {
+  content: "";
+  display: block;
+  height: var(--footer-scroll-pad);
+  pointer-events: none;
+}
+.ch-list:has(> .list-empty-state:only-child)::after,
+.de-list:has(> .list-empty-state:only-child)::after,
+.ch-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child)::after,
+.de-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child)::after {
+  display: none;
+}
+
 /* Floating header clearance — transparent top bar; inset on columns, not panel shells.
  * Content always clears the measured header height (safe-area + logo row + alerts). */
 #chat-panel > .ch-sidebar,
@@ -102,6 +118,48 @@ body {
     --topbar-measured-h,
     calc(var(--topbar-h) + var(--setup-alert-h, 0px))
   );
+}
+
+/* iOS keypad pans position:fixed chrome with visualViewport.offsetTop.
+ * Header.astro sets --vv-* and .admin-keyboard-open while the keys are up. */
+html.admin-keyboard-open .app-header--admin {
+  top: var(--vv-offset-top, 0px);
+  left: var(--vv-offset-left, 0px);
+  right: auto;
+  width: var(--vv-width, 100%);
+}
+html.admin-keyboard-open :is(
+  #dashboard-panel,
+  #settings-panel,
+  #doc-editor,
+  #chat-panel,
+  #email-panel,
+  #knowledge-editor,
+  #work-editor,
+  #todo-editor,
+  #schedule-panel,
+  #clients-editor,
+  #social-panel,
+  #online-reviews-panel,
+  #analytics-panel,
+  #fleet-panel,
+  #modules-panel,
+  #media-panel,
+  #rule-editor,
+  #newsletter-editor,
+  #sales-sheet-editor,
+  #search-overlay
+) {
+  top: var(--vv-offset-top, 0px);
+  left: var(--vv-offset-left, 0px);
+  width: var(--vv-width, 100%);
+  height: var(--vv-height, 100dvh);
+  right: auto;
+  bottom: auto;
+}
+html.admin-keyboard-open .admin-footer-nav {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* App panels — no browser zoom; canvas (#wrap) keeps custom pinch/pan. */
