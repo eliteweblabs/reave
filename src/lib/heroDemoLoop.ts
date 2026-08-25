@@ -1640,12 +1640,72 @@ function buildSlashPicker(): HTMLElement {
   return panel;
 }
 
+const PICKER_LANE_PAD = 8;
+
+function demoPickerLane(from: HTMLElement): HTMLElement | null {
+  return (
+    from.closest<HTMLElement>("[data-hero-demo-viewport]") ??
+    from.closest<HTMLElement>(".home-hero-demo")
+  );
+}
+
+/**
+ * Keep slash/mention popovers inside the demo lane. They used to size against
+ * `100vw` and (mentions) drop below the newest bubble — both miss the canvas
+ * on phones. Also avoid `scrollIntoView`, which scrolls the document on iOS.
+ */
+function fitPickerInLane(picker: HTMLElement, lane: HTMLElement): void {
+  const row = picker.closest<HTMLElement>(".home-hero-demo-msg");
+  if (row) row.style.setProperty("--hero-picker-shift-x", "0px");
+  picker.style.maxHeight = "";
+
+  const laneRect = lane.getBoundingClientRect();
+  const rect = picker.getBoundingClientRect();
+  if (laneRect.width < 8 || rect.width < 8) return;
+
+  let shiftX = 0;
+  if (rect.right > laneRect.right - PICKER_LANE_PAD) {
+    shiftX = rect.right - (laneRect.right - PICKER_LANE_PAD);
+  }
+  if (rect.left - shiftX < laneRect.left + PICKER_LANE_PAD) {
+    shiftX = rect.left - (laneRect.left + PICKER_LANE_PAD);
+  }
+  if (row && shiftX !== 0) {
+    row.style.setProperty("--hero-picker-shift-x", `${shiftX}px`);
+  }
+
+  const after = picker.getBoundingClientRect();
+  if (after.top < laneRect.top + PICKER_LANE_PAD) {
+    const allowed = after.bottom - (laneRect.top + PICKER_LANE_PAD);
+    picker.style.maxHeight = `${Math.max(72, Math.floor(allowed))}px`;
+  }
+}
+
+function showDemoPicker(picker: HTMLElement, visibleClass: string): void {
+  picker.classList.add(visibleClass);
+  const lane = demoPickerLane(picker);
+  if (lane) {
+    flushPaint(picker);
+    fitPickerInLane(picker, lane);
+  }
+}
+
+function scrollPickerOptionIntoView(picker: HTMLElement, item: HTMLElement): void {
+  const paneRect = picker.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  if (itemRect.top < paneRect.top) {
+    picker.scrollTop -= paneRect.top - itemRect.top;
+  } else if (itemRect.bottom > paneRect.bottom) {
+    picker.scrollTop += itemRect.bottom - paneRect.bottom;
+  }
+}
+
 function setSlashPickerHighlight(picker: HTMLElement, index: number) {
   picker.querySelectorAll<HTMLElement>(".home-hero-demo-slash-option").forEach((item, i) => {
     item.classList.toggle("active", i === index);
     if (i === index) {
       item.setAttribute("aria-selected", "true");
-      item.scrollIntoView({ block: "nearest" });
+      scrollPickerOptionIntoView(picker, item);
     } else {
       item.removeAttribute("aria-selected");
     }
@@ -1711,8 +1771,12 @@ function buildMentionPicker(options: HeroDemoMentionOption[]): HTMLElement {
 function setMentionPickerHighlight(picker: HTMLElement, index: number) {
   picker.querySelectorAll<HTMLElement>(".home-hero-demo-mention-option").forEach((item, i) => {
     item.classList.toggle("active", i === index);
-    if (i === index) item.setAttribute("aria-selected", "true");
-    else item.removeAttribute("aria-selected");
+    if (i === index) {
+      item.setAttribute("aria-selected", "true");
+      scrollPickerOptionIntoView(picker, item);
+    } else {
+      item.removeAttribute("aria-selected");
+    }
   });
 }
 
@@ -1815,14 +1879,15 @@ async function playMentionPickerSegment(
     if (!isAlive()) return;
   }
 
-  const bubble = textEl.closest<HTMLElement>(".home-hero-demo-bubble");
-  if (!bubble) return;
+  const row = textEl.closest<HTMLElement>(".home-hero-demo-msg");
+  if (!row) return;
 
   const picker = buildMentionPicker(pickerOptions);
-  bubble.appendChild(picker);
+  row.appendChild(picker);
   requestAnimationFrame(() => {
-    picker.classList.add("home-hero-demo-mention-picker--visible");
+    showDemoPicker(picker, "home-hero-demo-mention-picker--visible");
   });
+  relayout();
 
   if (typedQuery) {
     await typeText(textEl, typedQuery, MENTION_CHAR_MS, isAlive, relayout);
@@ -1987,7 +2052,7 @@ async function playUserTurn(
     const picker = buildSlashPicker();
     row.appendChild(picker);
     requestAnimationFrame(() => {
-      picker.classList.add("home-hero-demo-slash-picker--visible");
+      showDemoPicker(picker, "home-hero-demo-slash-picker--visible");
     });
     relayout();
     await animateSlashPickerToTarget(picker, activeSlash, reducedMotion, isAlive);

@@ -501,6 +501,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     justify-content: flex-end;
     padding-inline-start: var(--demo-gutter);
     transform-origin: bottom right;
+    --hero-picker-gutter: calc(1.85rem + 0.55rem);
+    --hero-picker-shift-x: 0px;
   }
 
   .home-hero-demo-msg--assistant {
@@ -633,12 +635,21 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     50% { opacity: 0; }
   }
 
+  /*
+   * Slash + mention popovers sit on the composing row (not 100vw). Chat parks
+   * the newest turn on the lane floor, so both open *above* the bubble. Width
+   * is the row minus the avatar gutter — `100vw` overflowed the demo canvas.
+   */
   .home-hero-demo-slash-picker {
     position: absolute;
-    right: calc(1.85rem + 0.55rem);
-    bottom: calc(100% + 10px);
+    right: calc(var(--hero-picker-gutter, 2.4rem) + var(--hero-picker-shift-x, 0px));
+    bottom: calc(100% + 8px);
+    left: auto;
+    top: auto;
     z-index: 5;
-    width: min(16.5rem, calc(100vw - 3rem));
+    box-sizing: border-box;
+    width: min(16.5rem, calc(100% - var(--hero-picker-gutter, 2.4rem)));
+    max-width: calc(100% - 8px);
     max-height: 12rem;
     overflow-y: auto;
     padding: 0.28rem 0;
@@ -708,13 +719,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     overflow: visible;
   }
 
-  /* @-mention picker — drops *below* the composing bubble (unlike slash). */
+  /* Same lane as slash — above the bubble so it cannot fall off the canvas. */
   .home-hero-demo-mention-picker {
     position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
+    right: calc(var(--hero-picker-gutter, 2.4rem) + var(--hero-picker-shift-x, 0px));
+    bottom: calc(100% + 8px);
+    left: auto;
+    top: auto;
     z-index: 20;
-    width: min(20.5rem, calc(100vw - 2.5rem));
+    box-sizing: border-box;
+    width: min(20.5rem, calc(100% - var(--hero-picker-gutter, 2.4rem)));
+    max-width: calc(100% - 8px);
     max-height: 12rem;
     overflow-y: auto;
     padding: 0.22rem 0;
@@ -723,8 +738,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     background: var(--site-canvas, #fff);
     box-shadow: 0 10px 32px color-mix(in srgb, var(--site-fg) 16%, transparent);
     opacity: 0;
-    transform: translateY(-8px) scale(0.98);
-    transform-origin: top right;
+    transform: translateY(8px) scale(0.98);
+    transform-origin: bottom right;
     transition:
       opacity 0.37s ease,
       transform 0.37s ease;
@@ -738,7 +753,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   .home-hero-demo-mention-picker--exit {
     opacity: 0;
-    transform: translateY(-4px) scale(0.98);
+    transform: translateY(4px) scale(0.98);
   }
 
   .home-hero-demo-mention-picker-list {
