@@ -5,32 +5,29 @@
  * ?force=1 sends due emails even outside the configured send window.
  */
 import type { APIRoute } from 'astro';
+import { createPollRoute } from '../../../lib/api/pollRoute';
 import { hasFeature } from '../../../lib/features';
 import { processDueNewsletterSends } from '../../../lib/newsletterEngine';
 import { ensureNewsletterScheduler, newsletterPollSecret } from '../../../lib/newsletterScheduler';
-import { authorizePollOrOwner } from '../../../lib/pollRouteAuth';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
+const poll = createPollRoute({
+  getSecret: newsletterPollSecret,
+  feature: {
+    check: () => hasFeature('email_marketing'),
+    error: 'email_marketing not enabled',
+  },
+  ensureScheduler: ensureNewsletterScheduler,
+  run: async (context) => {
+    const force = context.url.searchParams.get('force') === '1';
+    return processDueNewsletterSends({ limit: 200, ignoreWindow: force });
+  },
+  mapStatus: (result) => {
+    const ok = result && typeof result === 'object' && (result as { ok?: boolean }).ok === true;
+    return ok ? 200 : 503;
+  },
+});
 
-export const GET: APIRoute = async (context) => {
-  const key = context.url.searchParams.get('key')?.trim() ?? null;
-  const auth = await authorizePollOrOwner(context, key, newsletterPollSecret);
-  if (auth instanceof Response) return auth;
-
-  if (!hasFeature('email_marketing')) {
-    return json({ ok: false, error: 'email_marketing not enabled' }, 404);
-  }
-  ensureNewsletterScheduler();
-  const force = context.url.searchParams.get('force') === '1';
-  const result = await processDueNewsletterSends({ limit: 200, ignoreWindow: force });
-  return json(result, result.ok ? 200 : 503);
-};
-
-export const POST: APIRoute = GET;
+export const GET: APIRoute = poll;
+export const POST: APIRoute = poll;

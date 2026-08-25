@@ -1,15 +1,10 @@
 import type { APIContext } from "astro";
 import { clerkClient } from "@clerk/astro/server";
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
+import { isHtmlSignature, sanitizeSignatureHtml } from '../../../lib/userEmailSignature';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -20,7 +15,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const client = clerkClient(context);
     const user = await client.users.getUser(userId);
     const meta = (user.publicMetadata ?? {}) as Record<string, string>;
-    return json({
+    return jsonResponse({
       ok: true,
       profile: {
         firstName: user.firstName ?? "",
@@ -34,7 +29,7 @@ export async function GET(context: APIContext): Promise<Response> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return json({ error: message }, 500);
+    return jsonResponse({ error: message }, 500);
   }
 }
 
@@ -43,17 +38,16 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
-  let body: Record<string, string>;
-  try {
-    body = await context.request.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  const parsed = await readJsonBody(context.request);
+  if (parsed instanceof Response) return parsed;
+  const body = parsed.body as Record<string, string>;
 
   const { firstName, lastName, phone, timezone, address, emailSignature } = body;
+  const rawSignature = emailSignature ?? "";
+  const safeSignature =
+    rawSignature && isHtmlSignature(rawSignature)
+      ? sanitizeSignatureHtml(rawSignature)
+      : rawSignature;
 
   try {
     const client = clerkClient(context);
@@ -68,19 +62,13 @@ export async function POST(context: APIContext): Promise<Response> {
         phone: phone ?? "",
         timezone: timezone ?? "",
         address: address ?? "",
-        emailSignature: emailSignature ?? "",
+        emailSignature: safeSignature,
       },
     });
 
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: message }, 500);
   }
 }

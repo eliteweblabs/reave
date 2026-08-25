@@ -6,6 +6,7 @@ import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
 import { clerkSecretKey } from './clerkClient';
 import { escHtml } from './escHtml';
+import { sanitizeHtmlFragment } from './sanitizeHtmlFragment';
 
 async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
   const secretKey = clerkSecretKey();
@@ -51,11 +52,7 @@ export function isHtmlSignature(signature: string): boolean {
 
 /** Strip scripts and inline handlers from admin-authored signature HTML. */
 export function sanitizeSignatureHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-    .replace(/javascript:/gi, '')
-    .trim();
+  return sanitizeHtmlFragment(html);
 }
 
 export function signatureToPlainText(signature: string): string {

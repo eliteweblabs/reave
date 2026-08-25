@@ -42,6 +42,25 @@ function isHealthLiveProbe(pathname: string): boolean {
   return pathname.replace(/\/$/, "") === "/api/health/live";
 }
 
+function isAdminProtectedPath(pathname: string): boolean {
+  const normalized = pathname.replace(/\/$/, "") || "/";
+  return (
+    normalized === "/admin" ||
+    normalized.startsWith("/admin/") ||
+    normalized.startsWith("/api/admin/")
+  );
+}
+
+function isProductionRuntime(): boolean {
+  return Boolean(import.meta.env.PROD);
+}
+
+function clerkUnavailableResponse(): Response {
+  return applySecurityHeaders(
+    new Response("Authentication service unavailable", { status: 503 }),
+  );
+}
+
 /** Service worker scripts must revalidate every load so fixes reach installed PWAs. */
 function isServiceWorkerScript(pathname: string): boolean {
   return pathname === "/admin/sw.js" || pathname === "/c/sw.js";
@@ -245,6 +264,14 @@ async function runAppMiddleware(
   context: Parameters<MiddlewareHandler>[0],
   next: Parameters<MiddlewareHandler>[1],
 ): Promise<Response> {
+  const pathname = new URL(context.request.url).pathname;
+  const adminProtected = isAdminProtectedPath(pathname);
+
+  if (adminProtected && isProductionRuntime() && !isClerkRuntimeConfigured()) {
+    console.error("[middleware] Clerk keys missing — blocking admin route in production");
+    return clerkUnavailableResponse();
+  }
+
   if (!isClerkRuntimeConfigured()) {
     console.warn("[middleware] Clerk keys missing — serving without auth hydration");
     return appHandler(context, next);
@@ -254,6 +281,9 @@ async function runAppMiddleware(
     return clerkResponse ?? appHandler(context, next);
   } catch (err) {
     console.error("[middleware] clerkMiddleware failed", err);
+    if (adminProtected && isProductionRuntime()) {
+      return clerkUnavailableResponse();
+    }
     return appHandler(context, next);
   }
 }

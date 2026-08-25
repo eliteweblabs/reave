@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { jsonResponse } from './apiResponse';
 import { requireDashboardUser } from './dashboardAuth';
 import { secretMatches } from './secretCompare';
 
@@ -10,7 +11,11 @@ export async function authorizePollOrOwner(
   key: string | null,
   getExpectedSecret: () => string | null | undefined,
 ): Promise<{ via: 'key' | 'owner'; userId?: string } | Response> {
-  if (secretMatches(key, getExpectedSecret())) {
+  const expected = getExpectedSecret()?.trim();
+  if (key && !expected) {
+    return jsonResponse({ ok: false, error: 'Poll secret is not configured' }, 503);
+  }
+  if (secretMatches(key, expected)) {
     return { via: 'key' };
   }
   const auth = await requireDashboardUser(context);
