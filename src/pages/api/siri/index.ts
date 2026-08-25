@@ -1105,10 +1105,14 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
   const modeBit = paymentMode ? ` via ${paymentModeLabel(paymentMode)}` : '';
   const invoiceBit = invoiceId != null ? ` on invoice ${invoiceId}` : '';
   const dateBit = paymentDate ? ` for ${paymentDate}` : '';
+  const recordedName =
+    result.data && typeof result.data === 'object' && 'customer_name' in result.data
+      ? String((result.data as { customer_name?: unknown }).customer_name ?? customerName)
+      : customerName;
 
   return {
     ok: true,
-    text: `Recorded ${formatPaymentDollars(amount)} payment from ${customerName}${modeBit}${invoiceBit}${dateBit}.`,
+    text: `Recorded ${formatPaymentDollars(amount)} payment from ${recordedName}${modeBit}${invoiceBit}${dateBit}.`,
     data: result.data,
   };
 }

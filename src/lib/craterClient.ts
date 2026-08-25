@@ -6,7 +6,7 @@
  * Prices are sent in whole-dollar units; Crater stores cents internally.
  */
 import { serverEnv } from './serverEnv';
-import { clientNameSortKey, extractClientSearchTerms } from './clientSearch';
+import { clientNameSortKey, extractClientSearchTerms, resolveContactEnhanced } from './clientSearch';
 
 function baseUrl(): string | null {
   const raw = serverEnv('CRATER_API_BASE_URL')?.trim();
@@ -611,6 +611,42 @@ export type RecordPaymentInput = {
   invoiceId?: number;
 };
 
+/**
+ * Ask contact-api who this spoken/typed name is before Crater sees it.
+ * Crater only does SQL LIKE, so "Pat Sullivan" would otherwise create a new
+ * customer instead of matching "Patrick Sullivan".
+ */
+async function resolveCraterCustomerName(raw: string): Promise<
+  { ok: true; customerName: string } | { ok: false; error: string; status: number }
+> {
+  const trimmed = raw.trim();
+  const resolved = await resolveContactEnhanced({ name: trimmed });
+  if (!resolved.ok) return { ok: true, customerName: trimmed };
+
+  if ((resolved.match === 'exact' || resolved.match === 'likely') && resolved.contact?.name) {
+    return { ok: true, customerName: resolved.contact.name };
+  }
+
+  if (resolved.match === 'possible') {
+    if (resolved.candidates.length === 1 && resolved.candidates[0]?.name) {
+      return { ok: true, customerName: resolved.candidates[0].name };
+    }
+    if (resolved.candidates.length > 1) {
+      const names = resolved.candidates
+        .map((c) => c.name?.trim())
+        .filter(Boolean)
+        .join(', ');
+      return {
+        ok: false,
+        status: 300,
+        error: `Multiple contacts matched "${trimmed}"${names ? `: ${names}` : ''}. Re-send with a more specific customer_name.`,
+      };
+    }
+  }
+
+  return { ok: true, customerName: trimmed };
+}
+
 export async function craterRecordPayment(
   input: RecordPaymentInput
 ): Promise<CraterResult<Record<string, unknown>>> {
@@ -618,10 +654,14 @@ export async function craterRecordPayment(
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
     return { ok: false, error: 'amount must be a positive number' };
   }
-  return craterFetch<Record<string, unknown>>('/api/custom/record-payment', {
+
+  const resolved = await resolveCraterCustomerName(input.customerName);
+  if (!resolved.ok) return resolved;
+
+  const result = await craterFetch<Record<string, unknown>>('/api/custom/record-payment', {
     method: 'POST',
     body: {
-      customer_name: input.customerName.trim(),
+      customer_name: resolved.customerName,
       amount: input.amount,
       payment_mode: input.paymentMode,
       payment_date: input.paymentDate,
@@ -629,6 +669,13 @@ export async function craterRecordPayment(
       invoice_id: input.invoiceId,
     },
   });
+  if (result.ok && result.data && typeof result.data === 'object') {
+    return {
+      ok: true,
+      data: { ...result.data, customer_name: resolved.customerName },
+    };
+  }
+  return result;
 }
 
 export type CraterRecurringInvoice = {
