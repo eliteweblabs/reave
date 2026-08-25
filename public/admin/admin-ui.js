@@ -135,7 +135,48 @@ export const IOS_ICONS = {
   sun: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
   /* IOS_ICONS.moon — theme toggle (switch to dark) */
   moon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+  /* IOS_ICONS.clock — Lucide clock; running timer (header hook) */
+  clock:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
 };
+
+/**
+ * Clock face with separate hands so a running timer can tick.
+ * Face matches IOS_ICONS.clock; hands are driven by the caller.
+ */
+export function animatedClockIcon(size = 16) {
+  return (
+    `<svg class="animated-clock" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    '<circle cx="12" cy="12" r="10"/>' +
+    '<line class="animated-clock-hour" x1="12" y1="12" x2="12" y2="8"/>' +
+    '<line class="animated-clock-minute" x1="12" y1="12" x2="16.2" y2="12"/>' +
+    '<line class="animated-clock-second" x1="12" y1="13" x2="12" y2="6.4"/>' +
+    '</svg>'
+  );
+}
+
+/** Header slot paid modules mount into (`data-hook-region` on Header.astro). */
+export function getHeaderHookRegion(name = 'header-end') {
+  return document.querySelector(`[data-hook-region="${name}"]`);
+}
+
+export function syncHeaderHookRegionVisibility(region) {
+  if (!region) return;
+  const hasVisible = Array.from(region.children).some((child) => !child.hidden);
+  region.hidden = !hasVisible;
+}
+
+/** Append a module widget to a header hook region. Returns the mounted node. */
+export function mountHeaderHook(name, id, el) {
+  const region = getHeaderHookRegion(name);
+  if (!region) return null;
+  const existing = region.querySelector(`[data-hook-id="${id}"]`);
+  if (existing) return existing;
+  el.dataset.hookId = id;
+  region.appendChild(el);
+  syncHeaderHookRegionVisibility(region);
+  return el;
+}
 
 /** Resize an IOS_ICONS glyph (keeps paths; swaps width/height attrs). */
 export function iosIcon(key, size = 20) {

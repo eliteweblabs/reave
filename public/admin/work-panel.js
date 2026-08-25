@@ -5,6 +5,9 @@
 import {
   IOS_ICONS,
   iosIcon,
+  animatedClockIcon,
+  mountHeaderHook,
+  syncHeaderHookRegionVisibility,
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
@@ -69,6 +72,7 @@ export function initWorkPanel(deps) {
       }
     });
   }
+  mountHeaderTimerHook();
 }
 
 // ---- extracted from os-map-loader.js:10942-13417 ----
@@ -820,6 +824,25 @@ function rememberWorkTimerSlug(slug) {
   applyWorkTimerIndicators();
 }
 
+let lastPublishedTimerKey = '';
+
+function workTimerViewKey(view) {
+  if (!view?.running || !view.timer) return '';
+  return `${view.timer.job_slug}|${view.timer.started_at}`;
+}
+
+function publishWorkTimerView(view) {
+  const next = {
+    running: Boolean(view?.running && view.timer),
+    timer: view?.timer || null,
+  };
+  rememberWorkTimerSlug(next.timer?.job_slug || null);
+  const key = workTimerViewKey(next);
+  if (key === lastPublishedTimerKey) return;
+  lastPublishedTimerKey = key;
+  document.dispatchEvent(new CustomEvent('reave-work-timer-changed', { detail: next }));
+}
+
 function mountWorkTimerBar(host, slug, opts = {}) {
   const bar = document.createElement('div');
   bar.className = 'wk-timer-bar';
@@ -837,12 +860,23 @@ function mountWorkTimerBar(host, slug, opts = {}) {
     }
   };
 
+  const onTimerChanged = (ev) => {
+    if (!bar.isConnected) {
+      cleanup();
+      return;
+    }
+    const next = ev.detail;
+    if (!next || workTimerViewKey(next) === workTimerViewKey(view)) return;
+    applyView(next, { silent: true });
+  };
+
   const cleanup = () => {
     stopTick();
     if (pollId) {
       clearInterval(pollId);
       pollId = null;
     }
+    document.removeEventListener('reave-work-timer-changed', onTimerChanged);
   };
 
   const thisProjectRunning = () => Boolean(view.running && view.timer && view.timer.job_slug === slug);
@@ -918,15 +952,18 @@ function mountWorkTimerBar(host, slug, opts = {}) {
     }, 1000);
   };
 
-  const applyView = (next) => {
+  const applyView = (next, { silent = false } = {}) => {
     view = {
       running: Boolean(next.running && next.timer),
       timer: next.timer || null,
     };
     rememberWorkTimerSlug(view.timer?.job_slug);
+    if (!silent) publishWorkTimerView(view);
     renderBar();
     startTick();
   };
+
+  document.addEventListener('reave-work-timer-changed', onTimerChanged);
 
   async function loadTimer() {
     if (!bar.isConnected) {
@@ -967,6 +1004,223 @@ function mountWorkTimerBar(host, slug, opts = {}) {
       renderBar();
     }
   }
+
+  void loadTimer();
+  pollId = setInterval(() => void loadTimer(), 15000);
+}
+
+function projectTitleFromTimer(timer) {
+  return (timer?.job?.title || timer?.job?.label || timer?.job_slug || 'Project').trim();
+}
+
+function syncAnimatedClockHands(root, startedAt) {
+  if (!root || !startedAt) return;
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start)) return;
+  const total = Math.max(0, (Date.now() - start) / 1000);
+  const second = total % 60;
+  const minute = (total / 60) % 60;
+  const hour = (total / 3600) % 12;
+  const hourEl = root.querySelector('.animated-clock-hour');
+  const minuteEl = root.querySelector('.animated-clock-minute');
+  const secondEl = root.querySelector('.animated-clock-second');
+  if (hourEl) hourEl.setAttribute('transform', `rotate(${hour * 30 + minute * 0.5} 12 12)`);
+  if (minuteEl) minuteEl.setAttribute('transform', `rotate(${minute * 6} 12 12)`);
+  if (secondEl) secondEl.setAttribute('transform', `rotate(${second * 6} 12 12)`);
+}
+
+function mountHeaderTimerHook() {
+  if (!hasInstallFeature('time_tracking')) return;
+  const region = document.querySelector('[data-hook-region="header-end"]');
+  if (!region || region.querySelector('[data-hook-id="time-tracking"]')) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'topbar-timer-hook';
+  wrap.hidden = true;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'topbar-timer-btn';
+  btn.setAttribute('aria-label', 'Timer running');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-haspopup', 'true');
+  btn.setAttribute('aria-controls', 'topbar-timer-tip');
+  btn.innerHTML = animatedClockIcon(16);
+
+  const tip = document.createElement('div');
+  tip.id = 'topbar-timer-tip';
+  tip.className = 'topbar-timer-tip';
+  tip.setAttribute('role', 'tooltip');
+  tip.hidden = true;
+
+  wrap.append(btn, tip);
+  mountHeaderHook('header-end', 'time-tracking', wrap);
+
+  let view = { running: false, timer: null };
+  let tickId = null;
+  let pollId = null;
+  let busy = false;
+  let open = false;
+  let hoverTimer = null;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+  const stopTick = () => {
+    if (tickId) {
+      clearInterval(tickId);
+      tickId = null;
+    }
+  };
+
+  const setOpen = (next) => {
+    open = Boolean(next) && Boolean(view.running && view.timer);
+    wrap.classList.toggle('is-open', open);
+    tip.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+
+  const renderTip = () => {
+    tip.innerHTML = '';
+    if (!view.running || !view.timer) return;
+
+    const elapsed = document.createElement('div');
+    elapsed.className = 'topbar-timer-tip-elapsed';
+    elapsed.textContent = formatElapsedClock(view.timer.started_at);
+
+    const project = document.createElement('a');
+    project.className = 'topbar-timer-tip-project';
+    project.href = `/admin/?tab=work&slug=${encodeURIComponent(view.timer.job_slug)}`;
+    const name = document.createElement('span');
+    name.className = 'topbar-timer-tip-project-name';
+    name.textContent = projectTitleFromTimer(view.timer);
+    project.appendChild(name);
+    project.insertAdjacentHTML('beforeend', iosIcon('chevron-right', 11));
+    project.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      setOpen(false);
+      navigateToWork(view.timer.job_slug);
+    });
+
+    const stopBtn = document.createElement('button');
+    stopBtn.type = 'button';
+    stopBtn.className = 'topbar-timer-tip-stop';
+    stopBtn.disabled = busy;
+    stopBtn.textContent = busy ? 'Stopping…' : 'Stop';
+    stopBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      void stopHeaderTimer();
+    });
+
+    tip.append(elapsed, project, stopBtn);
+  };
+
+  const syncLiveBits = () => {
+    if (!view.running || !view.timer) return;
+    const elapsed = tip.querySelector('.topbar-timer-tip-elapsed');
+    if (elapsed) elapsed.textContent = formatElapsedClock(view.timer.started_at);
+    syncAnimatedClockHands(btn, view.timer.started_at);
+    btn.setAttribute(
+      'aria-label',
+      `Timer running on ${projectTitleFromTimer(view.timer)}, ${formatElapsedClock(view.timer.started_at)}`,
+    );
+  };
+
+  const startTick = () => {
+    stopTick();
+    if (!view.running || !view.timer) return;
+    syncLiveBits();
+    if (reduceMotion) return;
+    tickId = setInterval(syncLiveBits, 100);
+  };
+
+  const applyView = (next, { silent = false } = {}) => {
+    const incoming = {
+      running: Boolean(next.running && next.timer),
+      timer: next.timer || null,
+    };
+    const same = workTimerViewKey(incoming) === workTimerViewKey(view);
+    view = incoming;
+    wrap.hidden = !view.running;
+    syncHeaderHookRegionVisibility(region);
+    if (!view.running) setOpen(false);
+    if (!same) {
+      renderTip();
+      if (!silent) publishWorkTimerView(view);
+    }
+    startTick();
+  };
+
+  async function loadTimer() {
+    try {
+      const res = await adminFetch('/api/work/timer');
+      const data = await res.json();
+      if (!res.ok || !data.ok) return;
+      applyView(data);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function stopHeaderTimer() {
+    if (busy || !view.running) return;
+    busy = true;
+    renderTip();
+    try {
+      const res = await adminFetch('/api/work/timer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || data.text || `HTTP ${res.status}`);
+      applyView(data);
+      const text = typeof data.text === 'string' ? data.text.trim() : '';
+      if (text && shell.showChatToast) shell.showChatToast(text);
+    } catch (e) {
+      shell.osAlert({ title: 'Timer', bodyHtml: escHtml(e.message) });
+    } finally {
+      busy = false;
+      renderTip();
+    }
+  }
+
+  const scheduleOpen = () => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => setOpen(true), 80);
+  };
+  const scheduleClose = () => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => setOpen(false), 120);
+  };
+
+  btn.addEventListener('mouseenter', scheduleOpen);
+  btn.addEventListener('mouseleave', scheduleClose);
+  tip.addEventListener('mouseenter', () => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    setOpen(true);
+  });
+  tip.addEventListener('mouseleave', scheduleClose);
+  btn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    setOpen(!open);
+  });
+  btn.addEventListener('focus', () => setOpen(true));
+  document.addEventListener('click', (ev) => {
+    if (!open) return;
+    if (wrap.contains(ev.target)) return;
+    setOpen(false);
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && open) setOpen(false);
+  });
+  document.addEventListener('reave-work-timer-changed', (ev) => {
+    const next = ev.detail;
+    if (!next || workTimerViewKey(next) === workTimerViewKey(view)) return;
+    applyView(next, { silent: true });
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void loadTimer();
+  });
 
   void loadTimer();
   pollId = setInterval(() => void loadTimer(), 15000);
@@ -1933,7 +2187,7 @@ async function loadWorkTab(opts = {}) {
     if (timerRes?.ok) {
       try {
         const timerData = await timerRes.json();
-        workState.activeTimerSlug = timerData?.ok ? timerData.timer?.job_slug || null : null;
+        if (timerData?.ok) publishWorkTimerView(timerData);
       } catch {
         /* keep previous */
       }
