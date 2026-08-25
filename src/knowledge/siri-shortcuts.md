@@ -40,8 +40,8 @@ On your iPhone/iPad:
 4. Configure:
    - **URL**: `https://reave.app/api/siri`
    - **Method**: POST
-   - **Request Body**: JSON (see examples below)
-   - **Headers**: Add header `X-Siri-Key` with value `your-key-from-railway`
+   - **Request Body**: **Text** (build JSON in a Text action with quoted variable pills — do not use the JSON field list)
+   - **Headers**: `X-Siri-Key` = `your-key-from-railway` and `Content-Type` = `application/json`
 5. Add action: **Show Result** (displays the response)
 6. Name your shortcut (e.g., "List Contacts")
 7. Tap the info button → Add to Siri → record a phrase like "list my contacts"
@@ -419,8 +419,8 @@ Dictating `"Call the plumber tomorrow at 3"` stores title `Call the plumber` due
 
 **Parameters**:
 - `customer_name` (required): Customer name as it appears in Crater. Aliases: `customer`, `client`, `name`.
-- `amount` (required): Payment amount in whole dollars (also accepts `$250` strings). Alias: `payment_amount`.
-- `payment_mode` (optional): `CASH`, `CHECK`, `CREDIT_CARD`, `BANK_TRANSFER`, or `OTHER`. Voice-friendly aliases like `card`, `ach`, and `cheque` work. Aliases: `mode`, `method`.
+- `amount` (required): Payment amount in whole dollars. Accepts numerals, `$250`, and spoken currency (`100 bucks`, `100 dollars`). Alias: `payment_amount`. Quote the Shortcuts variable in the JSON body (`"amount": "Amount"`) so dictation like `100 bucks` stays valid JSON.
+- `payment_mode` (optional, defaults to `OTHER`): `CASH`, `CHECK`, `CREDIT_CARD`, `BANK_TRANSFER`, or `OTHER`. Crater requires a mode — omitting it used to return `needs_selection`. Voice-friendly aliases like `card`, `ach`, and `cheque` work. Aliases: `mode`, `method`.
 - `payment_date` (optional): `YYYY-MM-DD` (defaults to today in Crater). Alias: `date`.
 - `notes` (optional): Free-text note. Alias: `note`.
 - `invoice_id` (optional): Specific open invoice when the customer has more than one. Alias: `invoice`.
@@ -701,10 +701,19 @@ The endpoint has no built-in rate limiting. If needed, add Cloudflare rate limit
 - Verify `SIRI_API_KEY` is set on Railway
 - Make sure the key in your shortcut matches Railway exactly (no extra spaces)
 
+### "400 Bad Request" / Cloudflare error
+
+Apple Shortcuts treats HTTP 4xx as a failed network request and hides the real reply. The API now returns speakable text on 200 so **Show Result** can read it. If you still see a generic failure:
+
+- Change **Request Body** from **JSON** (key/value list) to **Text**
+- Build the JSON in a **Text** action and insert variables as **blue pills inside quotes**
+- Keep `Content-Type: application/json` and `X-Siri-Key` in Headers
+- Confirm the customer key is exactly `customer_name` (aliases: `customer`, `client`, `name`)
+
 ### "Invalid JSON"
 
 - Ensure the request body is valid JSON
-- Use **Text** type (not Dictionary) in Shortcuts → Get Contents of URL
+- Use **Text** type (not Dictionary / JSON fields) in Shortcuts → Get Contents of URL
 - Test your JSON at [jsonlint.com](https://jsonlint.com/)
 
 ### "Unauthorized"

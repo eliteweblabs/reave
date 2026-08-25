@@ -1,5 +1,6 @@
 /**
  * POST /api/siri — unified endpoint for Siri Shortcuts commands
+ * GET /api/siri?action=… — same actions via query string (avoids Shortcuts JSON-body 400s)
  *
  * Accepts JSON with { action, ...params } and returns text/JSON suitable for Siri display.
  * Designed for Apple Shortcuts → Get Contents of URL → Show Result workflow.
@@ -31,7 +32,9 @@
  * - stop_time_tracking: { action: "stop_time_tracking" } — stop timer and log hours
  * - time_tracking_status: { action: "time_tracking_status" } — current timer or recent project prompt
  * - record_payment / add_payment / create_payment: { action: "record_payment", customer_name, amount,
- *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater
+ *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater.
+ *   Amount accepts numerals, $250, and spoken currency (100 bucks / 100 dollars).
+ *   Omitted payment_mode defaults to OTHER (Crater will not accept a blank mode).
  * - prompt / ask / chat / ask_agent: { action: "prompt", message: string, thread_id?, async? }
  *   Freeform prompt to the knowledge agent. Waits briefly for a spoken reply;
  *   longer turns continue in the background and push when done.
@@ -134,6 +137,44 @@ function textResponse(text: string, status = 200): Response {
 }
 
 /**
+ * Apple Shortcuts treats HTTP 4xx as a failed request and shows a generic
+ * "Bad Request" (often attributed to Cloudflare) instead of the response body.
+ * Speakable Siri errors stay 200 so Show Result / Speak Text can read them.
+ */
+function siriResultStatus(result: SiriResponse): number {
+  if (result.ok) return 200;
+  if (result.code === 'anthropic_credits') return 503;
+  return 200;
+}
+
+async function parseSiriBody(
+  request: Request,
+): Promise<{ ok: true; body: Record<string, unknown> } | { ok: false; text: string }> {
+  const raw = await request.text();
+  if (!raw.trim()) {
+    return { ok: false, text: 'The shortcut sent an empty body.' };
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return { ok: true, body: parsed as Record<string, unknown> };
+    }
+    return { ok: false, text: 'The shortcut body must be a JSON object.' };
+  } catch {
+    const params = new URLSearchParams(raw);
+    const body: Record<string, unknown> = {};
+    for (const [key, value] of params.entries()) body[key] = value;
+    if (typeof body.action === 'string' && body.action.trim()) {
+      return { ok: true, body };
+    }
+    return {
+      ok: false,
+      text: 'The shortcut sent invalid JSON. Use a Text request body with quoted variable pills — not the JSON field list.',
+    };
+  }
+}
+
+/**
  * Check authentication: deployment owner session or X-Siri-Key header.
  */
 async function isAuthenticated(context: APIContext): Promise<boolean> {
@@ -147,7 +188,13 @@ async function isAuthenticated(context: APIContext): Promise<boolean> {
   return !(auth instanceof Response);
 }
 
-export async function POST(context: APIContext): Promise<Response> {
+function paramsFromUrl(url: URL): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  for (const [key, value] of url.searchParams.entries()) body[key] = value;
+  return body;
+}
+
+async function authorizeSiri(context: APIContext): Promise<Response | null> {
   if (!(await isAuthenticated(context))) {
     return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or sign in as deployment owner.' }, 401);
   }
@@ -159,14 +206,35 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!rate.ok) {
     return json({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
   }
+  return null;
+}
 
-  let body: Record<string, unknown>;
-  try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+export async function GET(context: APIContext): Promise<Response> {
+  const blocked = await authorizeSiri(context);
+  if (blocked) return blocked;
+  return dispatchSiri(context, paramsFromUrl(new URL(context.request.url)));
+}
+
+export async function POST(context: APIContext): Promise<Response> {
+  const blocked = await authorizeSiri(context);
+  if (blocked) return blocked;
+
+  const query = paramsFromUrl(new URL(context.request.url));
+  const parsedBody = await parseSiriBody(context.request);
+  const body = parsedBody.ok ? { ...query, ...parsedBody.body } : query;
+  if (!String(body.action ?? '').trim()) {
+    return textResponse(
+      parsedBody.ok
+        ? 'Missing action.'
+        : parsedBody.text,
+      200,
+    );
   }
 
+  return dispatchSiri(context, body);
+}
+
+async function dispatchSiri(context: APIContext, body: Record<string, unknown>): Promise<Response> {
   const action = String(body.action ?? '').trim().toLowerCase();
   const format = String(body.format ?? 'json').trim().toLowerCase();
   const todoTimeZone = isTodoAction(action)
@@ -260,16 +328,15 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       }
       default:
-        return json({ ok: false, error: `Unknown action: ${action}` }, 400);
+        return textResponse(`Unknown action: ${action || '(missing)'}`, 200);
     }
 
-    // Return as plain text if format=text and we have text
-    const failStatus = result.code === 'anthropic_credits' ? 503 : 400;
+    const status = siriResultStatus(result);
     if (format === 'text' && result.text) {
-      return textResponse(result.text, result.ok ? 200 : failStatus);
+      return textResponse(result.text, status);
     }
 
-    return json(result, result.ok ? 200 : failStatus);
+    return json(result, status);
   } catch (e) {
     return json(
       {
@@ -968,13 +1035,24 @@ function parsePaymentAmount(raw: unknown): number | null {
   if (typeof raw === 'number') {
     return Number.isFinite(raw) ? raw : null;
   }
-  const cleaned = String(raw ?? '')
-    .trim()
-    .replace(/[$,\s]/g, '')
+  const text = String(raw ?? '').trim();
+  if (!text) return null;
+
+  // Spoken / Shortcuts input: "$100", "100 bucks", "100 dollars", "USD 250.50"
+  const cleaned = text
+    .replace(/[$,]/g, '')
+    .replace(/\b(usd|us\s*dollars?|dollars?|bucks?)\b/gi, '')
+    .replace(/\s+/g, '')
     .replace(/^usd/i, '');
-  if (!cleaned) return null;
-  const amount = Number(cleaned);
-  return Number.isFinite(amount) ? amount : null;
+  if (cleaned) {
+    const amount = Number(cleaned);
+    if (Number.isFinite(amount)) return amount;
+  }
+
+  const match = text.replace(/,/g, '').match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const extracted = Number(match[1]);
+  return Number.isFinite(extracted) ? extracted : null;
 }
 
 function normalizePaymentMode(
@@ -1028,7 +1106,12 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
   if (!hasFeature('billing') || !isCraterConfigured()) return billingUnavailable();
 
   const customerName = String(
-    params.customer_name ?? params.customer ?? params.client ?? params.name ?? '',
+    params.customer_name ??
+      params.customerName ??
+      params.customer ??
+      params.client ??
+      params.name ??
+      '',
   ).trim();
   if (!customerName) {
     return {
@@ -1047,14 +1130,22 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
     };
   }
 
-  const paymentMode = normalizePaymentMode(params.payment_mode ?? params.mode ?? params.method);
-  if (paymentMode === null) {
+  const specifiedMode = normalizePaymentMode(
+    params.payment_mode ??
+      params.payment_method ??
+      params.paymentMethod ??
+      params.mode ??
+      params.method,
+  );
+  if (specifiedMode === null) {
     return {
       ok: false,
       error: 'invalid payment_mode',
       text: 'Payment mode must be cash, check, credit card, bank transfer, or other.',
     };
   }
+  // Crater record-payment returns needs_selection when mode is omitted.
+  const paymentMode = specifiedMode ?? 'OTHER';
 
   const paymentDateRaw = params.payment_date ?? params.date;
   const paymentDate =
@@ -1102,7 +1193,7 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
     };
   }
 
-  const modeBit = paymentMode ? ` via ${paymentModeLabel(paymentMode)}` : '';
+  const modeBit = specifiedMode ? ` via ${paymentModeLabel(specifiedMode)}` : '';
   const invoiceBit = invoiceId != null ? ` on invoice ${invoiceId}` : '';
   const dateBit = paymentDate ? ` for ${paymentDate}` : '';
   const recordedName =
