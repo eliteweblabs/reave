@@ -1,0 +1,53 @@
+---
+/**
+ * Shared right-drawer overlay used by the marketing hamburger and the account menu.
+ * Close lives in OverlayMenuToggle (header, above the drawer) — same control for both.
+ */
+interface Props {
+  id?: string;
+  panelId?: string;
+  label: string;
+  kind: "marketing" | "account";
+  htmlClass: string;
+}
+
+const { id, panelId, label, kind, htmlClass } = Astro.props;
+---
+
+<div
+  class="overlay-menu"
+  id={id}
+  data-overlay-menu
+  data-overlay-html-class={htmlClass}
+  {...(kind === "account" ? { "data-account-menu": true } : { "data-marketing-menu": true })}
+  hidden
+>
+  <div
+    class="overlay-menu-backdrop"
+    data-overlay-menu-backdrop
+    {...(kind === "account"
+      ? { "data-account-menu-backdrop": true }
+      : { "data-marketing-menu-backdrop": true })}
+    aria-hidden="true"
+  >
+  </div>
+  <div
+    id={panelId}
+    class="overlay-menu-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-label={label}
+  >
+    <div class="overlay-menu-scroll">
+      <slot />
+    </div>
+    <slot name="footer" />
+  </div>
+</div>
+
+<script>
+  import { bindOverlayMenuChrome, installOverlayMenuGlobals } from "../lib/overlayMenuDom";
+
+  installOverlayMenuGlobals();
+  bindOverlayMenuChrome();
+</script>

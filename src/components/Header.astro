@@ -6,6 +6,8 @@ import { getInstallConfigClient, PROFILE_MENU_LABELS, type ProfileMenuKey } from
 import SignInSheet from "./SignInSheet.astro";
 import BrandLogoInline from "./BrandLogoInline.astro";
 import MarketingMenu from "./MarketingMenu.astro";
+import OverlayMenu from "./OverlayMenu.astro";
+import OverlayMenuToggle from "./OverlayMenuToggle.astro";
 import ThemeToggle from "./ThemeToggle.astro";
 import type { SiteContentConfig } from "../lib/siteContent";
 import { isDeploymentOwner } from "../lib/deploymentOwner";
@@ -262,48 +264,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       ))}
 
     {showMarketingNav && (
-      <button
-        type="button"
-        class="marketing-nav-toggle"
-        data-marketing-menu-toggle
-        aria-label="Open menu"
-        aria-expanded="false"
-        aria-controls="marketing-menu-panel"
-      >
-        <svg
-          class="marketing-nav-toggle-icon marketing-nav-toggle-icon--open"
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <line x1="4" x2="20" y1="8" y2="8" />
-          <line x1="4" x2="20" y1="16" y2="16" />
-        </svg>
-        <svg
-          class="marketing-nav-toggle-icon marketing-nav-toggle-icon--close"
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
-          <path d="M18 6 6 18" />
-          <path d="m6 6 12 12" />
-        </svg>
-      </button>
+      <OverlayMenuToggle mode="nav" controls="marketing-menu-panel" />
+    )}
+    {showHeaderAccountMenu && !showMarketingNav && (
+      <OverlayMenuToggle mode="dismiss" controls="topbar-profile-menu" />
     )}
 
   </div>
@@ -333,55 +297,45 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 </header>
 
 {showHeaderAccountMenu && (
-  <div
-    class="overlay-menu"
+  <OverlayMenu
     id="topbar-profile-menu"
-    data-account-menu
-    hidden
+    label="Account"
+    kind="account"
+    htmlClass="account-menu-open"
   >
-    <div class="overlay-menu-backdrop" data-account-menu-backdrop aria-hidden="true"></div>
-    <div
-      class="overlay-menu-panel"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Account"
-    >
-      <div class="overlay-menu-scroll">
-        <section class="overlay-menu-group" aria-label={staffPreview ? "Viewing as admin" : "Account"}>
-          {staffPreview && (
-            <h2 class="overlay-menu-group-label">Viewing as admin</h2>
-          )}
-          <ul class="overlay-menu-list">
-            {accountMenuItems.map((key) => (
-              <li>
-                <a
-                  href={`/admin/?tab=${key}`}
-                  id={`topbar-${key}-link`}
-                  class="overlay-menu-link"
-                  data-account-menu-link
-                >
-                  {PROFILE_MENU_LABELS[key]}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-      <footer class="overlay-menu-footer">
-        <div class="overlay-menu-footer-row">
-          <nav class="overlay-menu-footer-actions" aria-label="Account actions">
-            <button
-              type="button"
-              id="topbar-sign-out"
-              class="overlay-menu-action overlay-menu-action--danger"
+    <section class="overlay-menu-group" aria-label={staffPreview ? "Viewing as admin" : "Account"}>
+      {staffPreview && (
+        <h2 class="overlay-menu-group-label">Viewing as admin</h2>
+      )}
+      <ul class="overlay-menu-list">
+        {accountMenuItems.map((key) => (
+          <li>
+            <a
+              href={`/admin/?tab=${key}`}
+              id={`topbar-${key}-link`}
+              class="overlay-menu-link"
+              data-account-menu-link
             >
-              Sign out
-            </button>
-          </nav>
-        </div>
-      </footer>
-    </div>
-  </div>
+              {PROFILE_MENU_LABELS[key]}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <footer slot="footer" class="overlay-menu-footer">
+      <div class="overlay-menu-footer-row">
+        <nav class="overlay-menu-footer-actions" aria-label="Account actions">
+          <button
+            type="button"
+            id="topbar-sign-out"
+            class="overlay-menu-action overlay-menu-action--danger"
+          >
+            Sign out
+          </button>
+        </nav>
+      </div>
+    </footer>
+  </OverlayMenu>
 )}
 
 {!userId && (
@@ -937,58 +891,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     flex-shrink: 0;
   }
 
-  .marketing-nav-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    width: calc(36px * var(--app-header-chrome-scale, 1));
-    height: calc(36px * var(--app-header-chrome-scale, 1));
-    padding: 0;
-    border: none;
-    border-radius: 50%;
-    background: transparent;
-    color: var(--site-fg, #171717);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
-  }
-
-  .marketing-nav-toggle:hover {
-    background: var(--site-card, rgba(23, 23, 23, 0.04));
-    color: var(--site-fg, #171717);
-  }
-
-  .marketing-nav-toggle:active {
-    transform: scale(0.94);
-  }
-
-  .marketing-nav-toggle-icon {
-    position: absolute;
-    inset: 0;
-    width: 20px;
-    height: 20px;
-    margin: auto;
-  }
-
-  .marketing-nav-toggle-icon--close {
-    display: none;
-  }
-
-  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
-    display: none;
-  }
-
-  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
-    display: block;
-  }
-
-  @media (min-width: 900px) {
-    .marketing-nav-toggle {
-      display: none;
-    }
-  }
-
   .app-header-signin {
     width: var(--app-header-signin-h);
     height: var(--app-header-signin-h);
@@ -1367,36 +1269,20 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 {showHeaderAccountMenu && (
   <script>
     /**
-     * Account overlay — same right-drawer chrome as the marketing hamburger.
+     * Account overlay — OverlayMenu chrome (same as the marketing hamburger).
      * Admin shell pages without os-map-loader (e.g. /admin/components) still
      * need toggle + sign-out; settings links are real /admin/?tab=… anchors
      * so they navigate even when the map SPA is not loaded. On /admin/,
      * os-map-loader intercepts those anchors for in-app tab switches.
      */
-    function closeMarketingOverlay() {
-      const marketing = document.querySelector<HTMLElement>("[data-marketing-menu]");
-      const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
-      if (marketing) marketing.hidden = true;
-      toggle?.classList.remove("is-open");
-      toggle?.setAttribute("aria-expanded", "false");
-      toggle?.setAttribute("aria-label", "Open menu");
-      document.documentElement.classList.remove("marketing-menu-open");
-    }
+    import { getAccountOverlay, setOverlayMenuOpen } from "../lib/overlayMenuDom";
 
     function setAccountMenuOpen(open: boolean) {
-      const menu = document.getElementById("topbar-profile-menu");
+      const menu = getAccountOverlay();
       const toggle = document.getElementById("topbar-profile-toggle");
       if (!menu || !toggle) return;
-
-      if (open) closeMarketingOverlay();
-      menu.hidden = !open;
+      setOverlayMenuOpen(menu, open);
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      document.documentElement.classList.toggle("account-menu-open", open);
-      document.documentElement.classList.toggle(
-        "overlay-menu-open",
-        open || Boolean(document.querySelector(".overlay-menu:not([hidden])")),
-      );
-      (window as Window & { __syncOverlayMenuScrollLock?: () => void }).__syncOverlayMenuScrollLock?.();
     }
 
     function bindHeaderProfileMenu() {
@@ -1418,12 +1304,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
           ev.stopPropagation();
           setAccountMenuOpen(profileMenu.hidden);
         });
-      }
-
-      const backdrop = document.querySelector("[data-account-menu-backdrop]");
-      if (backdrop && !("bound" in (backdrop as HTMLElement).dataset)) {
-        (backdrop as HTMLElement).dataset.bound = "1";
-        backdrop.addEventListener("click", () => setAccountMenuOpen(false));
       }
 
       profileMenu?.querySelectorAll("[data-account-menu-link]").forEach((el) => {
@@ -1451,12 +1331,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
         });
       }
 
-      if (!document.documentElement.dataset.headerMenuBound) {
-        document.documentElement.dataset.headerMenuBound = "1";
-        document.addEventListener("keydown", (ev) => {
-          if (ev.key === "Escape") setAccountMenuOpen(false);
-        });
-      }
     }
 
     bindHeaderProfileMenu();

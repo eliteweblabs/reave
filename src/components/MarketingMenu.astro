@@ -3,6 +3,7 @@
  * Vercel-style marketing navigation — Sign in on desktop, hamburger drawer on small screens.
  */
 import { ArrowRight, LayoutDashboard } from "lucide-astro";
+import OverlayMenu from "./OverlayMenu.astro";
 import ThemeToggle from "./ThemeToggle.astro";
 import {
   marketingNavActivePath,
@@ -113,158 +114,124 @@ const showOverlayFooter =
   }
 </div>
 
-<div class="overlay-menu" data-marketing-menu hidden>
-  <div class="overlay-menu-backdrop" data-marketing-menu-backdrop aria-hidden="true"></div>
-  <div
-    id="marketing-menu-panel"
-    class="overlay-menu-panel"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Website menu"
-  >
-    <div class="overlay-menu-scroll">
-      {
-        navGroups.map((group) => (
-          <section class="overlay-menu-group" aria-labelledby={`menu-${group.id}`}>
-            <h2 id={`menu-${group.id}`} class="overlay-menu-group-label">
-              {group.label}
-            </h2>
-            <ul class="overlay-menu-list">
-              {group.links.map((link) => (
-                <li>
-                  <a
-                    href={link.href}
-                    class:list={[
-                      "overlay-menu-link",
-                      link.primary && "overlay-menu-link--primary",
-                      marketingNavActivePath(pathname, link.href) && "is-active",
-                    ]}
-                    target={link.external ? "_blank" : undefined}
-                    rel={link.external ? "noopener noreferrer" : undefined}
-                    data-marketing-menu-link
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))
-      }
-
-      {
-        showAdminEntry && (
-          <div class="overlay-menu-admin">
-            <a
-              href="/admin/"
-              class="brand-btn marketing-nav-admin app-header-admin-entry"
-              aria-label="Admin"
-              data-marketing-menu-link
-            >
-              admin
-              <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
-            </a>
-          </div>
-        )
-      }
-
-    </div>
-
-    {
-      showOverlayFooter && (
-    <footer class="overlay-menu-footer">
-      <div class="overlay-menu-footer-row">
-        {
-          !signedIn && showDemoCta && demoCta && (
-            <a class="overlay-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
-              Demo now
-              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-            </a>
-          )
-        }
-        {
-          signedIn && showAccountNav && (
-            <nav class="overlay-menu-footer-actions" aria-label="Account actions">
+<OverlayMenu
+  panelId="marketing-menu-panel"
+  label="Website menu"
+  kind="marketing"
+  htmlClass="marketing-menu-open"
+>
+  {
+    navGroups.map((group) => (
+      <section class="overlay-menu-group" aria-labelledby={`menu-${group.id}`}>
+        <h2 id={`menu-${group.id}`} class="overlay-menu-group-label">
+          {group.label}
+        </h2>
+        <ul class="overlay-menu-list">
+          {group.links.map((link) => (
+            <li>
               <a
-                href="/admin/profile"
-                class="overlay-menu-action"
+                href={link.href}
+                class:list={[
+                  "overlay-menu-link",
+                  link.primary && "overlay-menu-link--primary",
+                  marketingNavActivePath(pathname, link.href) && "is-active",
+                ]}
+                target={link.external ? "_blank" : undefined}
+                rel={link.external ? "noopener noreferrer" : undefined}
                 data-marketing-menu-link
               >
-                Profile
+                {link.label}
               </a>
-              <button
-                type="button"
-                class="overlay-menu-action overlay-menu-action--danger"
-                data-marketing-sign-out
-              >
-                Sign out
-              </button>
-              <button
-                type="button"
-                class="overlay-menu-action"
-                disabled
-                aria-disabled="true"
-                title="Settings coming soon"
-              >
-                Settings
-              </button>
-              <a
-                href="/admin/?tab=dashboard"
-                class="overlay-menu-action overlay-menu-action--icon"
-                aria-label="Dashboard"
-                data-marketing-menu-link
-              >
-                <LayoutDashboard size={18} strokeWidth={1.75} aria-hidden="true" />
-              </a>
-            </nav>
-          )
-        }
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))
+  }
+
+  {
+    showAdminEntry && (
+      <div class="overlay-menu-admin">
+        <a
+          href="/admin/"
+          class="brand-btn marketing-nav-admin app-header-admin-entry"
+          aria-label="Admin"
+          data-marketing-menu-link
+        >
+          admin
+          <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+        </a>
       </div>
-    </footer>
-      )
-    }
-  </div>
-</div>
+    )
+  }
+
+  {
+    showOverlayFooter && (
+      <footer slot="footer" class="overlay-menu-footer">
+        <div class="overlay-menu-footer-row">
+          {
+            !signedIn && showDemoCta && demoCta && (
+              <a class="overlay-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
+                Demo now
+                <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+              </a>
+            )
+          }
+          {
+            signedIn && showAccountNav && (
+              <nav class="overlay-menu-footer-actions" aria-label="Account actions">
+                <a
+                  href="/admin/profile"
+                  class="overlay-menu-action"
+                  data-marketing-menu-link
+                >
+                  Profile
+                </a>
+                <button
+                  type="button"
+                  class="overlay-menu-action overlay-menu-action--danger"
+                  data-marketing-sign-out
+                >
+                  Sign out
+                </button>
+                <button
+                  type="button"
+                  class="overlay-menu-action"
+                  disabled
+                  aria-disabled="true"
+                  title="Settings coming soon"
+                >
+                  Settings
+                </button>
+                <a
+                  href="/admin/?tab=dashboard"
+                  class="overlay-menu-action overlay-menu-action--icon"
+                  aria-label="Dashboard"
+                  data-marketing-menu-link
+                >
+                  <LayoutDashboard size={18} strokeWidth={1.75} aria-hidden="true" />
+                </a>
+              </nav>
+            )
+          }
+        </div>
+      </footer>
+    )
+  }
+</OverlayMenu>
 
 <script>
-  function setMarketingMenuOpen(open: boolean) {
-    const root = document.querySelector<HTMLElement>("[data-marketing-menu]");
-    const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
-    if (!root || !toggle) return;
+  import { getMarketingOverlay, setOverlayMenuOpen } from "../lib/overlayMenuDom";
 
-    if (open) {
-      const account = document.getElementById("topbar-profile-menu");
-      if (account) account.hidden = true;
-      document.getElementById("topbar-profile-toggle")?.setAttribute("aria-expanded", "false");
-      document.documentElement.classList.remove("account-menu-open");
-    }
-    root.hidden = !open;
-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-    toggle.classList.toggle("is-open", open);
-    document.documentElement.classList.toggle("marketing-menu-open", open);
-    document.documentElement.classList.toggle(
-      "overlay-menu-open",
-      open || Boolean(document.querySelector(".overlay-menu:not([hidden])")),
-    );
-    (window as Window & { __syncOverlayMenuScrollLock?: () => void }).__syncOverlayMenuScrollLock?.();
+  function setMarketingMenuOpen(open: boolean) {
+    setOverlayMenuOpen(getMarketingOverlay(), open);
   }
 
   function bindMarketingMenu() {
-    const root = document.querySelector("[data-marketing-menu]");
-    const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
-    const backdrop = document.querySelector("[data-marketing-menu-backdrop]");
-    if (!root || !toggle) return;
+    const root = getMarketingOverlay();
+    if (!root) return;
     if (document.documentElement.dataset.marketingMenuBound === "1") return;
     document.documentElement.dataset.marketingMenuBound = "1";
-
-    toggle.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      const open = toggle.getAttribute("aria-expanded") !== "true";
-      setMarketingMenuOpen(open);
-    });
-
-    backdrop?.addEventListener("click", () => setMarketingMenuOpen(false));
 
     root.querySelectorAll("[data-marketing-menu-link]").forEach((el) => {
       el.addEventListener("click", () => setMarketingMenuOpen(false));
@@ -289,10 +256,6 @@ const showOverlayFooter =
     document.querySelector("[data-marketing-sign-out-inline]")?.addEventListener("click", (ev) => {
       ev.preventDefault();
       void marketingSignOut();
-    });
-
-    document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape") setMarketingMenuOpen(false);
     });
   }
 

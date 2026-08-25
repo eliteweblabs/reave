@@ -1,6 +1,6 @@
 /**
  * Shared right-drawer overlay — marketing hamburger and account menu.
- * Keep both entry points on this chrome; do not add a second flyout.
+ * Both entry points use OverlayMenu + OverlayMenuToggle; do not add a second flyout.
  */
 .overlay-menu[hidden] {
   display: none !important;
@@ -386,9 +386,102 @@ html.account-menu-open .admin-setup-alerts {
 
 html.overlay-menu-open .app-header-logo,
 html.overlay-menu-open .marketing-nav,
+html.overlay-menu-open .overlay-menu-toggle,
 html.account-menu-open .topbar-end {
   position: relative;
   z-index: 2100;
+}
+
+.overlay-menu-toggle,
+.marketing-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: calc(36px * var(--app-header-chrome-scale, 1));
+  height: calc(36px * var(--app-header-chrome-scale, 1));
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--site-fg, #171717);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.overlay-menu-toggle:hover,
+.marketing-nav-toggle:hover {
+  background: var(--site-card, rgba(23, 23, 23, 0.04));
+  color: var(--site-fg, #171717);
+}
+
+.app-header--admin .overlay-menu-toggle,
+.app-header--admin .marketing-nav-toggle {
+  color: var(--nav-icon, var(--fg, #e9eef6));
+}
+
+.app-header--admin .overlay-menu-toggle:hover,
+.app-header--admin .marketing-nav-toggle:hover {
+  background: transparent;
+  color: var(--nav-icon-hover, var(--fg, #e9eef6));
+}
+
+html[data-theme="light"] .app-header--admin .overlay-menu-toggle,
+html[data-theme="light"] .app-header--admin .marketing-nav-toggle {
+  color: #0f172a;
+}
+
+.overlay-menu-toggle:active,
+.marketing-nav-toggle:active {
+  transform: scale(0.94);
+}
+
+.overlay-menu-toggle-icon,
+.marketing-nav-toggle-icon {
+  position: absolute;
+  inset: 0;
+  width: 20px;
+  height: 20px;
+  margin: auto;
+}
+
+.overlay-menu-toggle-icon--close,
+.marketing-nav-toggle-icon--close {
+  display: none;
+}
+
+.overlay-menu-toggle.is-open .overlay-menu-toggle-icon--open,
+.marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
+  display: none;
+}
+
+.overlay-menu-toggle.is-open .overlay-menu-toggle-icon--close,
+.marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
+  display: block;
+}
+
+/* Account pages have no hamburger — the dismiss X is `hidden` until an overlay opens. */
+.overlay-menu-toggle--dismiss[hidden],
+.marketing-nav-toggle.overlay-menu-toggle--dismiss[hidden] {
+  display: none !important;
+}
+
+.overlay-menu-toggle--dismiss .overlay-menu-toggle-icon--open,
+.overlay-menu-toggle--dismiss .marketing-nav-toggle-icon--open {
+  display: none;
+}
+
+.overlay-menu-toggle--dismiss .overlay-menu-toggle-icon--close,
+.overlay-menu-toggle--dismiss .marketing-nav-toggle-icon--close {
+  display: block;
+}
+
+@media (min-width: 900px) {
+  .overlay-menu-toggle--nav,
+  .marketing-nav-toggle:not(.overlay-menu-toggle--dismiss) {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

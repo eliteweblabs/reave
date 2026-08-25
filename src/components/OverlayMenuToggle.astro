@@ -1,0 +1,67 @@
+---
+/**
+ * Header control for OverlayMenu — hamburger opens the website drawer;
+ * the X (is-open / dismiss) closes whichever overlay is showing.
+ */
+interface Props {
+  mode: "nav" | "dismiss";
+  controls: string;
+}
+
+const { mode, controls } = Astro.props;
+---
+
+<button
+  type="button"
+  class:list={[
+    "overlay-menu-toggle",
+    "marketing-nav-toggle",
+    mode === "nav" && "overlay-menu-toggle--nav",
+    mode === "dismiss" && "overlay-menu-toggle--dismiss",
+  ]}
+  data-overlay-menu-toggle
+  data-overlay-menu-toggle-mode={mode}
+  {...(mode === "nav" ? { "data-marketing-menu-toggle": true } : {})}
+  aria-label={mode === "nav" ? "Open menu" : "Close menu"}
+  aria-expanded="false"
+  aria-controls={controls}
+  hidden={mode === "dismiss" ? true : undefined}
+>
+  {
+    mode === "nav" && (
+      <svg
+        class="overlay-menu-toggle-icon overlay-menu-toggle-icon--open marketing-nav-toggle-icon marketing-nav-toggle-icon--open"
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.75"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <line x1="4" x2="20" y1="8" y2="8" />
+        <line x1="4" x2="20" y1="16" y2="16" />
+      </svg>
+    )
+  }
+  <svg
+    class="overlay-menu-toggle-icon overlay-menu-toggle-icon--close marketing-nav-toggle-icon marketing-nav-toggle-icon--close"
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.75"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </svg>
+</button>
