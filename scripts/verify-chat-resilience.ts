@@ -19,6 +19,7 @@ import {
   withDeadlineFallback,
 } from '../src/lib/agentWatchdog.ts';
 import {
+  combineAbortSignals,
   createChatAgentSseResponse,
   isSseStalledError,
   readSseStream,
@@ -31,7 +32,7 @@ import {
   type PumpableAgentStream,
 } from '../src/lib/chatAgentPump.ts';
 import { AGENT_EMPTY_REPLY_NOTE, describeAgentFailure } from '../src/lib/agentFailure.ts';
-import { sameAgentProgressUi, type AgentProgress } from '../src/lib/agentProgress.ts';
+import { isChatRunActive, sameAgentProgressUi, type AgentProgress } from '../src/lib/agentProgress.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -201,6 +202,38 @@ await test('a stream that goes quiet raises SseStalledError instead of blocking'
     }
   })();
   assert.ok(isSseStalledError(err), 'expected SseStalledError');
+});
+
+await test('done closes the stream even if the server keeps working after', async () => {
+  let continued = false;
+  const res = createChatAgentSseResponse(async (emit) => {
+    emit({ type: 'text', text: 'Just say the word and I will run with it.' });
+    emit({ type: 'done', ok: true });
+    await sleep(400);
+    continued = true;
+  });
+  const started = Date.now();
+  const events = await collectSse(res, 2_000);
+  assert.ok(Date.now() - started < 300, `client waited ${Date.now() - started}ms on post-done work`);
+  assert.equal(events.at(-1)?.type, 'done');
+  await sleep(450);
+  assert.equal(continued, true, 'post-done server work must still run');
+});
+
+await test('leftover progress without a live run does not count as active', () => {
+  const leftover = { running: false, progress: { phase: 'thinking' as const } };
+  assert.equal(isChatRunActive({ running: true }), true);
+  assert.equal(isChatRunActive(leftover), false);
+  assert.equal(isChatRunActive(null), false);
+});
+
+await test('combineAbortSignals aborts when either signal fires', async () => {
+  const a = new AbortController();
+  const b = new AbortController();
+  const combined = combineAbortSignals(a.signal, b.signal);
+  assert.equal(combined?.aborted, false);
+  b.abort();
+  assert.equal(combined?.aborted, true);
 });
 
 await test('an aborted reader stops promptly', async () => {

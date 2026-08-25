@@ -69,10 +69,10 @@ import {
   parseAssistantChatButtons,
   withChatReturnHref,
 } from '../../lib/chatResponseRenderer';
-import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
+import { combineAbortSignals, isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
 import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsage';
 import { armAgentTones, playChatDoneTone, playDeployDoneTone, resumeAgentTones } from '../../lib/agentTones';
-import { sameAgentProgressUi, type AgentProgress } from '../../lib/agentProgress';
+import { isChatRunActive, sameAgentProgressUi, type AgentProgress } from '../../lib/agentProgress';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -976,11 +976,35 @@ function createChatAdapter(
         if (contentType.includes('text/event-stream') && res.body) {
           let streamedText = '';
           let resolved = false;
+          const serverFinished = new AbortController();
+          let sawServerRunning = false;
+          let idlePolls = 0;
+          const watchServerIdle = window.setInterval(() => {
+            void fetchRunProgress(threadId).then((status) => {
+              if (!status) return;
+              if (isChatRunActive(status)) {
+                sawServerRunning = true;
+                idlePolls = 0;
+                return;
+              }
+              if (!streamedText.trim()) return;
+              // The run may not be registered yet on the first poll.
+              if (!sawServerRunning && Date.now() - runStartedAt < 8_000) return;
+              idlePolls += 1;
+              if (idlePolls < 2) return;
+              resolved = true;
+              if (!serverFinished.signal.aborted) serverFinished.abort();
+            });
+          }, 2_000);
 
           try {
-            for await (const { event, data } of readSseStream(res.body, options.abortSignal, {
-              idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
-            })) {
+            for await (const { event, data } of readSseStream(
+              res.body,
+              combineAbortSignals(options.abortSignal, serverFinished.signal),
+              {
+                idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
+              },
+            )) {
               if (event === 'progress') {
                 emitProgress({
                   phase: data.phase === 'tool' ? 'tool' : 'thinking',
@@ -1026,8 +1050,14 @@ function createChatAdapter(
             }
           } catch (err) {
             if (isAbortError(err) && options.abortSignal?.aborted) throw err;
-            if (!isSseStalledError(err) && !(err instanceof TypeError)) throw err;
+            if (isAbortError(err) && serverFinished.signal.aborted && resolved) {
+              void propsRef.current?.onRefreshMessages?.();
+              return;
+            }
+            if (!isSseStalledError(err) && !(err instanceof TypeError) && !isAbortError(err)) throw err;
             // Stalled or network-level failure: the server is still working.
+          } finally {
+            window.clearInterval(watchServerIdle);
           }
 
           if (resolved) return;
@@ -2380,6 +2410,54 @@ function ComposerStopButton({
   );
 }
 
+/**
+ * If the reply is already on screen but assistant-ui still says the turn is
+ * running (lost `done` event, iOS holding the SSE socket), drop the local lock
+ * once the server confirms the run is gone.
+ */
+function useReleaseStuckRun(
+  threadId: string,
+  showRunning: boolean,
+  deployChatLocked: boolean,
+  useExternalProgress: boolean,
+  onStopExternal?: () => void,
+) {
+  const runtime = useThreadRuntime();
+  const idleStreakRef = useRef(0);
+
+  const releaseIfIdle = useCallback(async () => {
+    if (!showRunning || deployChatLocked) return;
+    const status = await fetchRunProgress(threadId);
+    if (!status || isChatRunActive(status)) {
+      idleStreakRef.current = 0;
+      return;
+    }
+    idleStreakRef.current += 1;
+    if (idleStreakRef.current < 2) return;
+    idleStreakRef.current = 0;
+    if (useExternalProgress) {
+      onStopExternal?.();
+      return;
+    }
+    try {
+      runtime.cancelRun();
+    } catch {
+      /* already idle */
+    }
+  }, [deployChatLocked, onStopExternal, runtime, showRunning, threadId, useExternalProgress]);
+
+  useEffect(() => {
+    if (!showRunning || deployChatLocked) {
+      idleStreakRef.current = 0;
+      return;
+    }
+    const id = window.setInterval(() => void releaseIfIdle(), 2_000);
+    return () => window.clearInterval(id);
+  }, [deployChatLocked, releaseIfIdle, showRunning]);
+
+  return releaseIfIdle;
+}
+
 function ClaudeComposer({
   propsRef,
   commands,
@@ -2416,8 +2494,21 @@ function ClaudeComposer({
   const fieldRef = useRef<ComposerFieldHandle | null>(null);
   const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const showRunning = isRunning || useExternalProgress;
+  const showRunning = isRunning || Boolean(useExternalProgress);
   const sendBlocked = deployChatLocked || queuedSend || showRunning;
+  const { elapsed } = useAgentRunStatus(
+    threadId,
+    externalProgress ?? null,
+    Boolean(useExternalProgress),
+    streamedProgress ?? null,
+  );
+  const releaseIfIdle = useReleaseStuckRun(
+    threadId,
+    showRunning,
+    deployChatLocked,
+    Boolean(useExternalProgress),
+    onStopExternal,
+  );
   const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked);
   const mentions = useMentions(pendingMentionsRef, fieldRef);
   const sendBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -2541,6 +2632,7 @@ function ClaudeComposer({
                 clearDeployChatDraft(threadId);
                 onQueuedChange?.(false);
               } else if (deployChatLocked) saveDeployChatDraft(threadId, value);
+              if (showRunning && !deployChatLocked) void releaseIfIdle();
               helpers.onInput(value);
               mentions.onInput(value, caret);
             }}
@@ -2563,7 +2655,7 @@ function ClaudeComposer({
                 : deployChatLocked
                   ? 'Keep typing — send unlocks when the new version is live'
                   : showRunning
-                    ? 'Keep typing — send unlocks when the agent finishes'
+                    ? `Keep typing — send unlocks when the agent finishes · ${elapsed}`
                     : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
             </span>
             <span className="aui-composer-actions">
@@ -2780,7 +2872,7 @@ function useRecoverInFlightRun(
       const status = await fetchRunProgress(threadId);
       if (cancelled) return;
 
-      const active = Boolean(status && (status.running || status.progress));
+      const active = isChatRunActive(status);
       if (active && status) {
         idleStreak = 0;
         checkedForOrphanedTurn = true;
