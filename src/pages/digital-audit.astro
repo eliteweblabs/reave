@@ -154,7 +154,7 @@ const openOptionalDetails = Boolean(prefillUrl);
         <p id="da-error" class="da-error" hidden></p>
 
         <div class="da-actions">
-          <button type="submit" class="da-submit" id="da-submit">
+          <button type="submit" class="brand-btn brand-btn-solid da-submit" id="da-submit">
             Generate
           </button>
         </div>
@@ -180,7 +180,7 @@ const openOptionalDetails = Boolean(prefillUrl);
         />
         {!inProgress && (
           <p class="da-again">
-            <a href="/digital-audit">Run another audit</a>
+            <a class="brand-btn brand-btn-glass" href="/digital-audit">Run another audit</a>
           </p>
         )}
       </div>
@@ -310,7 +310,7 @@ const openOptionalDetails = Boolean(prefillUrl);
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--site-fg-muted);
     margin: 0 0 14px;
   }
 
@@ -321,7 +321,7 @@ const openOptionalDetails = Boolean(prefillUrl);
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.12;
-    color: #fff;
+    color: var(--site-fg);
   }
 
   .da-lead {
@@ -330,7 +330,7 @@ const openOptionalDetails = Boolean(prefillUrl);
     font-family: var(--font-content);
     font-size: 1.02rem;
     line-height: 1.65;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--site-fg-muted);
   }
 
   .da-form {
@@ -350,7 +350,7 @@ const openOptionalDetails = Boolean(prefillUrl);
   .da-label {
     font-size: 0.875rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg);
   }
 
   .da-field input {
@@ -358,9 +358,9 @@ const openOptionalDetails = Boolean(prefillUrl);
     box-sizing: border-box;
     padding: 12px 14px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    background: rgba(255, 255, 255, 0.06);
-    color: #fff;
+    border: 1px solid var(--site-border);
+    background: var(--site-card);
+    color: var(--site-fg);
     font-size: 1rem;
     line-height: 1.3;
     outline: none;
@@ -370,7 +370,7 @@ const openOptionalDetails = Boolean(prefillUrl);
   }
 
   .da-field input::placeholder {
-    color: rgba(255, 255, 255, 0.38);
+    color: var(--site-fg-faint);
   }
 
   .da-field--main input {
@@ -379,21 +379,21 @@ const openOptionalDetails = Boolean(prefillUrl);
   }
 
   .da-field input:focus {
-    border-color: rgba(255, 255, 255, 0.55);
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
+    border-color: var(--site-fg);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--site-fg) 12%, transparent);
   }
 
   .da-more {
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--site-border);
+    background: var(--site-card);
     padding: 4px 14px 10px;
   }
 
   .da-more summary {
     cursor: pointer;
     font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--site-fg-muted);
     padding: 10px 0;
     list-style: none;
   }
@@ -403,7 +403,7 @@ const openOptionalDetails = Boolean(prefillUrl);
   }
 
   .da-more[open] summary {
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg);
   }
 
   .da-more-fields {
@@ -444,7 +444,7 @@ const openOptionalDetails = Boolean(prefillUrl);
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.42);
+    color: var(--site-fg-faint);
     margin: 0 0 14px;
   }
 
@@ -463,39 +463,26 @@ const openOptionalDetails = Boolean(prefillUrl);
     gap: 4px;
     padding: 12px 10px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--site-card-border);
+    background: var(--site-card);
     text-align: left;
   }
 
   .da-stack-name {
     font-size: 0.82rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--site-fg);
   }
 
   .da-stack-role {
     font-size: 0.72rem;
     line-height: 1.35;
-    color: rgba(255, 255, 255, 0.48);
+    color: var(--site-fg-faint);
   }
 
-  .da-submit {
-    appearance: none;
-    border: none;
-    border-radius: 999px;
+  .da-submit.brand-btn {
     padding: 0.75rem 1.5rem;
-    font-family: var(--font-primary);
     font-size: 0.95rem;
-    font-weight: 600;
-    color: #000;
-    -webkit-text-fill-color: #000;
-    background: #fff;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
-    cursor: pointer;
-    transition:
-      transform 0.15s ease,
-      filter 0.15s ease;
   }
 
   .da-submit:disabled {
@@ -510,7 +497,7 @@ const openOptionalDetails = Boolean(prefillUrl);
 
   .da-unavailable {
     text-align: center;
-    color: rgba(255, 255, 255, 0.68);
+    color: var(--site-fg-muted);
   }
 
   .da-results {
@@ -523,14 +510,8 @@ const openOptionalDetails = Boolean(prefillUrl);
     margin: 28px 0 0;
   }
 
-  .da-again a {
-    color: #c084fc;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .da-again a:hover {
-    text-decoration: underline;
+  .da-again .brand-btn {
+    font-size: 0.92rem;
   }
 
   @media (max-width: 560px) {

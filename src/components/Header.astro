@@ -1,7 +1,6 @@
 ---
 import DeployStatusDot from "./DeployStatusDot.astro";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
-import type { PortalBrandColors } from "../lib/portalBrandColors";
 import { getInstallConfigClient, PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import BrandLogoInline from "./BrandLogoInline.astro";
@@ -26,8 +25,6 @@ interface Props {
   profileMenu?: readonly ProfileMenuKey[];
   /** Open the sign-in bottom sheet on load (signed-out admin shell). */
   signInAutoOpen?: boolean;
-  /** Client portal brand colors — tints the REAVE logo and header accents. */
-  portalBrand?: PortalBrandColors | null;
   /** Public site content config (nav, homepage). */
   siteContent?: SiteContentConfig;
   /** Show a back chevron beside the wordmark (AdminSpecialLayout / special pages). */
@@ -43,7 +40,6 @@ const {
   staffPreview = false,
   profileMenu = [],
   signInAutoOpen: signInAutoOpenProp = false,
-  portalBrand = null,
   siteContent,
   specialPage = false,
   backHref: backHrefProp,
@@ -104,7 +100,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     "app-header",
     {
       "app-header--admin": adminShell,
-      "app-header--portal-brand": !!portalBrand,
       "app-header--special": specialPage,
     },
   ]}
@@ -978,17 +973,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     text-overflow: ellipsis;
     color: var(--site-fg, #171717);
     -webkit-text-fill-color: var(--site-fg, #171717);
-  }
-
-  .app-header--portal-brand .topbar-profile-btn--admin {
-    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.14);
-    color: var(--portal-accent, #e9d5ff);
-  }
-
-  .app-header--portal-brand .topbar-profile-btn--admin:hover,
-  html.account-menu-open .app-header--portal-brand .topbar-profile-btn--admin {
-    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.22);
-    color: #fff;
   }
 
   .topbar-dash-date {
