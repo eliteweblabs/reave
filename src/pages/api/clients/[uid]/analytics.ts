@@ -130,6 +130,7 @@ export async function GET(context: APIContext): Promise<Response> {
       siteId: resolvedSiteId,
       ga4PropertyId: propertyId,
       contactUid: uid,
+      websiteUrl: website || (resolvedSiteId ? `https://${resolvedSiteId}` : ''),
     });
 
     return json({ ok: true, dashboard, contactUid: uid });

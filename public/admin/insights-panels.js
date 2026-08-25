@@ -65,9 +65,45 @@ export function initInsightsPanels(deps) {
 // Social inbox lives in social-panel.js (email-style list + reply pane).
 
 const ANALYTICS_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
+const ANALYTICS_SITE_KEY = 'reave-analytics-site-id';
 let analyticsRangeDays = 30;
 let analyticsSource = 'plausible';
+let analyticsSiteId = '';
 let analyticsStatus = null;
+
+function analyticsWiredBadge(wired) {
+  if (!wired) return '';
+  if (wired.registered && wired.scriptInstalled) {
+    return `<span class="ana-wired ana-wired--on">Wired</span>`;
+  }
+  if (wired.registered && wired.scriptInstalled === false) {
+    return `<span class="ana-wired ana-wired--partial">Registered · script missing</span>`;
+  }
+  if (wired.registered) {
+    return `<span class="ana-wired ana-wired--partial">Registered</span>`;
+  }
+  return `<span class="ana-wired ana-wired--off">Not wired</span>`;
+}
+
+function analyticsSitePicker(sites, current) {
+  if (!Array.isArray(sites) || !sites.length) return '';
+  return (
+    `<label class="ana-site-picker">` +
+      `<span class="soc-sub">Site</span>` +
+      `<select data-analytics-site>` +
+        sites
+          .map((s) => {
+            const id = String(s.siteId || '');
+            const label = s.kind === 'client' && s.label && s.label !== id
+              ? `${s.label} (${id})`
+              : s.label || id;
+            return `<option value="${escHtml(id)}"${id === current ? ' selected' : ''}>${escHtml(label)}</option>`;
+          })
+          .join('') +
+      `</select>` +
+    `</label>`
+  );
+}
 
 function analyticsNumFmt(n) {
   const v = Number(n);
@@ -232,6 +268,19 @@ function bindAnalyticsControls(root) {
       void loadAnalyticsTab();
     });
   });
+  root.querySelectorAll('[data-analytics-site]').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      const next = String(sel.value || '').trim();
+      if (!next || next === analyticsSiteId) return;
+      analyticsSiteId = next;
+      try {
+        sessionStorage.setItem(ANALYTICS_SITE_KEY, next);
+      } catch {
+        /* ignore */
+      }
+      void loadAnalyticsTab();
+    });
+  });
   root.querySelectorAll('[data-analytics-disconnect]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       if (!confirm('Disconnect Google Search Console / Analytics from this install?')) return;
@@ -260,6 +309,8 @@ function renderAnalyticsDashboard(root, d, status) {
     ? `<a class="prof-btn-secondary ana-open-link" href="${escHtml(dashboardUrl)}" target="_blank" rel="noopener noreferrer">Open ${source === 'ga4' ? 'GA4' : 'Plausible'}</a>`
     : '';
 
+  const sites = status?.plausible?.sites || [];
+  if (siteId) analyticsSiteId = siteId;
   const header =
     `<div class="soc-header">` +
       `<div class="soc-header-titles">` +
@@ -269,6 +320,8 @@ function renderAnalyticsDashboard(root, d, status) {
         `</p>` +
       `</div>` +
       `<div class="ana-header-actions">` +
+        analyticsWiredBadge(d?.wired) +
+        analyticsSitePicker(sites, siteId || analyticsSiteId) +
         analyticsSourceTabs(d?.availableSources) +
         analyticsRangeTabs() +
         openLink +
@@ -347,6 +400,14 @@ async function loadAnalyticsTab() {
 
   try {
     const params = new URLSearchParams({ range: String(analyticsRangeDays), source: analyticsSource });
+    if (!analyticsSiteId) {
+      try {
+        analyticsSiteId = sessionStorage.getItem(ANALYTICS_SITE_KEY) || '';
+      } catch {
+        analyticsSiteId = '';
+      }
+    }
+    if (analyticsSiteId) params.set('site_id', analyticsSiteId);
     const [dashRes, statusRes] = await Promise.all([
       fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
       fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),

@@ -81,7 +81,7 @@ const SYSTEM_NODES = [
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile · Railway PUBLIC_CLERK_* / CLERK_SECRET_* (+ aliases)', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
-  { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats · agent plausible_stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
+  { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · client sites · agent plausible_stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
   { id: 'google_search_console', title: 'Google Search Console', sub: 'OAuth · search analytics · URL inspect · sitemaps (FEATURES: analytic_audit)', icon: '🔎', brand: 'google', hue: 145, status: true, group: 'external', x: 1400, y: 1420 },
   { id: 'ga4', title: 'Google Analytics 4', sub: 'OAuth · Data API · admin dashboard toggle', icon: '📉', brand: 'googleanalytics', hue: 160, status: true, group: 'external', x: 1400, y: 1540 },
   { id: 'indexnow', title: 'IndexNow', sub: 'Bing/Yandex URL ping · owned sites only', icon: '⚡', hue: 50, status: true, group: 'external', x: 1400, y: 1660 },

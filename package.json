@@ -39,6 +39,7 @@
     "check:seeded-inbox": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-seeded-inbox-cleanup.ts",
     "check:deploy-wizard": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-deploy-wizard.ts",
     "check:social-oauth": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-social-oauth.ts",
+    "check:analytics-sites": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-analytics-sites.ts",
     "check:court-radius": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-court-radius.ts",
     "check:website-editor": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-website-editor-repo.ts",
     "check:homepage-login": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-homepage-login.ts",

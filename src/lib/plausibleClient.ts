@@ -30,14 +30,59 @@ export function plausibleDashboardUrl(siteId: string): string | null {
   return `${base}/${encodeURIComponent(siteId)}`;
 }
 
+/** Bare hostname from a website URL or domain (no www). */
+export function hostnameFromWebsite(raw?: string): string {
+  const trimmed = trim(raw);
+  if (!trimmed) return '';
+  try {
+    const url = trimmed.includes('://') ? new URL(trimmed) : new URL(`https://${trimmed}`);
+    return url.hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return trimmed
+      .replace(/^https?:\/\//i, '')
+      .replace(/\/.*$/, '')
+      .replace(/^www\./i, '')
+      .toLowerCase();
+  }
+}
+
 /** Site id in Plausible (usually the bare domain). */
 export function plausibleSiteId(companyDomain?: string): string {
   const fromEnv = trim(serverEnv('PLAUSIBLE_SITE_ID'));
   if (fromEnv) return fromEnv;
-  const domain = trim(companyDomain)
-    .replace(/^https?:\/\//, '')
-    .replace(/\/.*$/, '');
-  return domain;
+  return hostnameFromWebsite(companyDomain);
+}
+
+export function htmlHasPlausibleScript(html: string, siteId?: string): boolean {
+  if (!html) return false;
+  const domain = hostnameFromWebsite(siteId);
+  if (domain) {
+    const escaped = domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const domainRe = new RegExp(`data-domain=["'](?:www\\.)?${escaped}["']`, 'i');
+    if (domainRe.test(html) && /\/js\/script/i.test(html)) return true;
+  }
+  return /plausible[^"'>\s]*\/js\/script/i.test(html);
+}
+
+/** Fetch a public page and look for the Plausible tracker. null = could not fetch. */
+export async function detectPlausibleScriptOnSite(
+  websiteUrl: string,
+  siteId?: string,
+): Promise<boolean | null> {
+  const raw = trim(websiteUrl);
+  if (!raw) return null;
+  const href = raw.includes('://') ? raw : `https://${raw}`;
+  try {
+    const res = await fetch(href, {
+      headers: { Accept: 'text/html', 'User-Agent': 'reave-analytics-probe' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    return htmlHasPlausibleScript(await res.text(), siteId);
+  } catch {
+    return null;
+  }
 }
 
 export function plausiblePeriodForDays(days: number): string {

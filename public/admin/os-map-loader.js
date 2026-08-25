@@ -141,7 +141,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260824a';
+} from './work-panel.js?v=20260825a';
 import {
   initTodoPanel,
   todoState,
@@ -256,7 +256,7 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260820a';
+} from './insights-panels.js?v=20260825a';
 import {
   initRulesPanel,
   ruleState,

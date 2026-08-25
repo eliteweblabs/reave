@@ -240,8 +240,8 @@ export const TECH_PATTERNS: TechPattern[] = [
     name: 'Plausible',
     category: 'Analytics',
     patterns: {
-      scriptSrc: [/plausible\.io/i],
-      html: [/plausible\.io\/js\//i],
+      scriptSrc: [/plausible\.io/i, /plausible[^"'>\s]*\/js\/script/i],
+      html: [/plausible\.io\/js\//i, /data-domain=["'][^"']+["'][^>]+\/js\/script/i],
     },
   },
   {

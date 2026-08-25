@@ -2,6 +2,7 @@
  * Admin / portal analytics dashboard — Plausible (default) or GA4.
  */
 import {
+  detectPlausibleScriptOnSite,
   isPlausibleConfigured,
   plausibleAggregate,
   plausibleBreakdown,
@@ -59,6 +60,12 @@ export type AnalyticsDashboard = {
   topSources: AnalyticsBreakdownRow[];
   googleConnected?: boolean;
   availableSources: AnalyticsSource[];
+  /** Whether this site is registered in Plausible and has the tracker on the page. */
+  wired?: {
+    apiConfigured: boolean;
+    registered: boolean;
+    scriptInstalled: boolean | null;
+  };
 };
 
 function emptyMetrics() {
@@ -138,17 +145,37 @@ export async function resolveAnalyticsSource(opts: {
   return { source: 'plausible', available };
 }
 
+async function attachPlausibleWired(
+  dashboard: AnalyticsDashboard,
+  websiteUrl?: string,
+): Promise<AnalyticsDashboard> {
+  const siteId = dashboard.siteId;
+  const registered = Boolean(dashboard.configured && !dashboard.failed);
+  const scriptInstalled = siteId
+    ? await detectPlausibleScriptOnSite(websiteUrl || `https://${siteId}`, siteId)
+    : null;
+  return {
+    ...dashboard,
+    wired: {
+      apiConfigured: isPlausibleConfigured(),
+      registered,
+      scriptInstalled,
+    },
+  };
+}
+
 async function buildPlausibleDashboard(
   siteId: string,
   rangeDays: number,
   available: AnalyticsSource[],
   googleConnected: boolean,
+  websiteUrl?: string,
 ): Promise<AnalyticsDashboard> {
   const period = plausiblePeriodForDays(rangeDays);
   const dashboardUrl = plausibleDashboardUrl(siteId);
 
   if (!isPlausibleConfigured()) {
-    return {
+    return attachPlausibleWired({
       configured: false,
       source: 'plausible',
       siteId,
@@ -162,11 +189,11 @@ async function buildPlausibleDashboard(
       topSources: [],
       googleConnected,
       availableSources: available,
-    };
+    }, websiteUrl);
   }
 
   if (!siteId) {
-    return {
+    return attachPlausibleWired({
       configured: true,
       source: 'plausible',
       siteId: '',
@@ -182,7 +209,7 @@ async function buildPlausibleDashboard(
       topSources: [],
       googleConnected,
       availableSources: available,
-    };
+    }, websiteUrl);
   }
 
   const [aggregate, timeseries, pages, sources, realtime] = await Promise.all([
@@ -200,7 +227,7 @@ async function buildPlausibleDashboard(
 
   const failed = [aggregate, timeseries, pages, sources].find((r) => !r.ok);
   if (failed && !failed.ok) {
-    return {
+    return attachPlausibleWired({
       configured: true,
       source: 'plausible',
       siteId,
@@ -216,7 +243,7 @@ async function buildPlausibleDashboard(
       topSources: [],
       googleConnected,
       availableSources: available,
-    };
+    }, websiteUrl);
   }
 
   const agg = aggregate.ok ? aggregate.data.results : undefined;
@@ -228,7 +255,7 @@ async function buildPlausibleDashboard(
       }))
     : [];
 
-  return {
+  return attachPlausibleWired({
     configured: true,
     source: 'plausible',
     siteId,
@@ -247,7 +274,7 @@ async function buildPlausibleDashboard(
     topSources: parseBreakdown(sources.ok ? sources.data.results : undefined, 'source'),
     googleConnected,
     availableSources: available,
-  };
+  }, websiteUrl);
 }
 
 async function buildGa4Dashboard(args: {
@@ -345,6 +372,7 @@ export async function buildAnalyticsDashboard(
     siteId?: string | null;
     ga4PropertyId?: string | null;
     contactUid?: string | null;
+    websiteUrl?: string | null;
   },
 ): Promise<AnalyticsDashboard> {
   const { source, available } = await resolveAnalyticsSource({
@@ -382,5 +410,11 @@ export async function buildAnalyticsDashboard(
   }
 
   const siteId = (opts.siteId || '').trim() || plausibleSiteId(companyDomain);
-  return buildPlausibleDashboard(siteId, opts.rangeDays, available, googleConnected);
+  return buildPlausibleDashboard(
+    siteId,
+    opts.rangeDays,
+    available,
+    googleConnected,
+    opts.websiteUrl?.trim() || undefined,
+  );
 }

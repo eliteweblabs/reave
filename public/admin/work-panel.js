@@ -1536,6 +1536,20 @@ async function mountClientAnalyticsSection(parent, uid) {
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const d = data.dashboard || {};
+    wrap.querySelectorAll('.dash-empty').forEach((el) => el.remove());
+    const wired = d.wired || {};
+    const wiredRow = document.createElement('p');
+    wiredRow.className = 'soc-sub';
+    if (wired.registered && wired.scriptInstalled) {
+      wiredRow.innerHTML = `<span class="ana-wired ana-wired--on">Wired</span> Plausible is registered and the tracker is on the site.`;
+    } else if (wired.registered && wired.scriptInstalled === false) {
+      wiredRow.innerHTML = `<span class="ana-wired ana-wired--partial">Registered · script missing</span> Site is in Plausible, but the tracker is not on the page yet.`;
+    } else if (wired.registered) {
+      wiredRow.innerHTML = `<span class="ana-wired ana-wired--partial">Registered</span> Plausible accepts this site. Could not confirm the tracker.`;
+    } else {
+      wiredRow.innerHTML = `<span class="ana-wired ana-wired--off">Not wired</span> ${escHtml(d.error || 'No Plausible site or tracker for this contact.')}`;
+    }
+    wrap.appendChild(wiredRow);
     if (!d.configured) {
       const empty = document.createElement('p');
       empty.className = 'dash-empty';

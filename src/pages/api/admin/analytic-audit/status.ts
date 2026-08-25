@@ -16,6 +16,7 @@ import {
   isGoogleWebmasterOAuthConfigured,
 } from '../../../../lib/googleWebmasterAuth';
 import { isPlausibleConfigured, plausibleSiteId } from '../../../../lib/plausibleClient';
+import { listAnalyticsSites } from '../../../../lib/analyticsSites';
 import { isIndexNowConfigured } from '../../../../lib/indexNowClient';
 import { isBingWebmasterConfigured } from '../../../../lib/bingWebmasterClient';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
@@ -41,6 +42,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const token = await getIntegrationToken(subject, GOOGLE_WEBMASTER_PROVIDER);
   const google = toIntegrationStatus(token, subject, GOOGLE_WEBMASTER_PROVIDER);
   const company = await getCompanyConfig(context.request);
+  const sites = await listAnalyticsSites(company.domain);
 
   return json({
     ok: true,
@@ -50,6 +52,7 @@ export async function GET(context: APIContext): Promise<Response> {
     plausible: {
       configured: isPlausibleConfigured(),
       siteId: plausibleSiteId(company.domain),
+      sites,
     },
     indexNow: { configured: isIndexNowConfigured() },
     bing: { configured: isBingWebmasterConfigured(), placeholder: true },
