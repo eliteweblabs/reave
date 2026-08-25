@@ -987,40 +987,38 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     grid-area: label;
     width: 28%;
     min-width: 2.4rem;
+    height: 0.32rem;
   }
 
   .home-hero-demo-sk-bone--pay-detail {
     grid-area: detail;
     width: 72%;
+    height: 0.4rem;
   }
 
   .home-hero-demo-sk-bone--pay-amt {
     grid-area: amt;
     width: 2.1rem;
+    height: 0.4rem;
   }
 
-  /* Payment bones start collapsed; stagger L→R via --pay-in. */
+  /* Payment bones start collapsed; stagger L→R via --pay-in (WAAPI on iOS). */
   .home-hero-demo-sk-invoice-payment [data-hero-sk-pay] {
-    height: 0;
     opacity: 0;
-    transform: translateX(-10px) scale(0.9);
+    transform: scaleX(0);
+    transform-origin: left center;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
     transition:
-      height 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.3s ease,
-      transform 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+      transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.3s ease;
   }
 
-  .home-hero-demo-sk-bone--pay-label.home-hero-demo-sk-bone--pay-in {
-    height: 0.32rem;
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-
+  .home-hero-demo-sk-bone--pay-label.home-hero-demo-sk-bone--pay-in,
   .home-hero-demo-sk-bone--pay-detail.home-hero-demo-sk-bone--pay-in,
   .home-hero-demo-sk-bone--pay-amt.home-hero-demo-sk-bone--pay-in {
-    height: 0.4rem;
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: scaleX(1);
   }
 
   .home-hero-demo-sk-bone--total-pulse {
@@ -1159,6 +1157,9 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     transform: scaleX(0);
     transform-origin: left center;
     opacity: 0;
+    /* Own layer — ancestor message scale() makes iOS skip child transitions. */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
     transition:
       transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.26s ease;
@@ -1287,18 +1288,23 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-demo-sk-contract-line {
     display: block;
     height: 0.38rem;
-    width: 0;
+    width: var(--hero-contract-line-w, 90%);
     max-width: var(--hero-contract-line-w, 90%);
     border-radius: 4px;
     background: var(--demo-bone, var(--site-card));
     opacity: 0;
+    /* scaleX, not width % — Safari cannot interpolate 0px → 90%. */
+    transform: scaleX(0);
+    transform-origin: left center;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
     transition:
-      width 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.28s ease;
   }
 
   .home-hero-demo-sk-contract-line--in {
-    width: var(--hero-contract-line-w, 90%);
+    transform: scaleX(1);
     opacity: 1;
   }
 
@@ -1330,18 +1336,9 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     stroke-width: 2.6;
     stroke-linecap: round;
     stroke-linejoin: round;
-    stroke-dasharray: 240;
-    stroke-dashoffset: 240;
-  }
-
-  .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path {
-    animation: heroDemoSkContractSign 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  }
-
-  @keyframes heroDemoSkContractSign {
-    to {
-      stroke-dashoffset: 0;
-    }
+    /* pathLength="1" — CSS-only dashoffset is ignored on iOS; JS writes the attr. */
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
   }
 
   .home-hero-demo-sk-contract-sign-rule {
@@ -1725,7 +1722,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     .home-hero-demo-sk-bone--total-pulse::after,
     .home-hero-demo-sk-notif--pop,
     .home-hero-demo-sk-contract--pop,
-    .home-hero-demo-sk-contract-signature--drawn .home-hero-demo-sk-contract-signature-path,
     .home-hero-demo-sk-gps--pop,
     .home-hero-demo-sk-gps-marker--in,
     .home-hero-demo-sk-gps-marker--active .home-hero-demo-sk-gps-ring {
@@ -1744,7 +1740,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
     .home-hero-demo-sk-contract-line {
       transition: none;
-      width: var(--hero-contract-line-w, 90%);
+      transform: scaleX(1);
+      opacity: 1;
+    }
+
+    .home-hero-demo-sk-invoice-payment [data-hero-sk-pay] {
+      transform: scaleX(1);
       opacity: 1;
     }
 

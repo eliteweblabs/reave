@@ -28,6 +28,163 @@ function scaleMs(ms: number): number {
   return Math.round(ms * timingScale);
 }
 
+const DRAW_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+/**
+ * Web Animations still interpolate on iOS Safari when a chat row's
+ * `transform: scale()` would make CSS transitions snap to the end state.
+ */
+function playWaapi(
+  el: Element,
+  keyframes: Keyframe[],
+  opts: KeyframeAnimationOptions,
+): Animation | null {
+  if (typeof el.animate !== "function") return null;
+  try {
+    return el.animate(keyframes, { fill: "forwards", ...opts });
+  } catch {
+    return null;
+  }
+}
+
+function startDrawIn(
+  el: HTMLElement,
+  className: string,
+  reducedMotion: boolean,
+  ms = 360,
+): void {
+  if (reducedMotion) {
+    el.classList.add(className);
+    return;
+  }
+
+  const anim = playWaapi(
+    el,
+    [
+      { transform: "scaleX(0)", opacity: 0.12 },
+      { transform: "scaleX(1)", opacity: 1 },
+    ],
+    { duration: ms, easing: DRAW_EASE },
+  );
+  if (!anim) {
+    void el.offsetWidth;
+    el.classList.add(className);
+    return;
+  }
+
+  void anim.finished
+    .catch(() => undefined)
+    .finally(() => {
+      el.classList.add(className);
+      try {
+        anim.cancel();
+      } catch {
+        /* already gone with the node */
+      }
+    });
+}
+
+function startPopIn(
+  el: HTMLElement,
+  popClass: string,
+  settledClass: string,
+  reducedMotion: boolean,
+): void {
+  if (reducedMotion) {
+    el.classList.add(settledClass);
+    return;
+  }
+
+  // Linear so the keyframe offsets keep the bounce; a single ease would flatten it.
+  const anim = playWaapi(
+    el,
+    [
+      { opacity: 0, transform: "scale(0.72)" },
+      { opacity: 1, transform: "scale(1.06)", offset: 0.58 },
+      { opacity: 1, transform: "scale(0.985)", offset: 0.78 },
+      { opacity: 1, transform: "scale(1)" },
+    ],
+    { duration: 700, easing: "linear" },
+  );
+  if (!anim) {
+    void el.offsetWidth;
+    el.classList.add(popClass);
+    return;
+  }
+
+  void anim.finished
+    .catch(() => undefined)
+    .finally(() => {
+      el.classList.add(settledClass);
+      try {
+        anim.cancel();
+      } catch {
+        /* already gone with the node */
+      }
+    });
+}
+
+function hideSignaturePath(path: SVGPathElement): void {
+  path.setAttribute("pathLength", "1");
+  path.setAttribute("stroke-dasharray", "1");
+  path.setAttribute("stroke-dashoffset", "1");
+  path.style.strokeDasharray = "1";
+  path.style.strokeDashoffset = "1";
+}
+
+function showSignaturePath(path: SVGPathElement): void {
+  path.setAttribute("stroke-dashoffset", "0");
+  path.style.strokeDashoffset = "0";
+}
+
+/**
+ * Hand-drawn signature. iOS Safari ignores CSS `stroke-dashoffset` on <path>
+ * unless the presentation attribute is written — rAF writes both every frame.
+ */
+async function playSignatureDraw(
+  svg: Element | null,
+  reducedMotion: boolean,
+  isAlive: () => boolean,
+): Promise<void> {
+  const path = svg?.querySelector("path");
+  if (!path) return;
+  const svgPath = path as SVGPathElement;
+  hideSignaturePath(svgPath);
+
+  if (reducedMotion) {
+    showSignaturePath(svgPath);
+    svg?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+    return;
+  }
+
+  void svgPath.getBoundingClientRect();
+  const ms = scaleMs(1200);
+  const start = performance.now();
+
+  await new Promise<void>((resolve) => {
+    const tick = (now: number) => {
+      if (!isAlive()) {
+        showSignaturePath(svgPath);
+        resolve();
+        return;
+      }
+      const t = Math.min(1, (now - start) / ms);
+      const eased = 1 - (1 - t) ** 3;
+      const offset = (1 - eased).toFixed(4);
+      svgPath.setAttribute("stroke-dashoffset", offset);
+      svgPath.style.strokeDashoffset = offset;
+      if (t < 1) requestAnimationFrame(tick);
+      else {
+        showSignaturePath(svgPath);
+        resolve();
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+
+  svg?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+}
+
 /** iPhone / iPod / iPad (including iPadOS that reports as Macintosh + touch). */
 function isIOSDevice(): boolean {
   const ua = navigator.userAgent;
@@ -482,12 +639,12 @@ async function playInvoicePaymentSkeleton(
   relayout(true);
 
   if (card) {
-    if (reducedMotion) {
-      card.classList.add("home-hero-demo-sk-invoice--settled");
-    } else {
-      void card.offsetWidth;
-      card.classList.add("home-hero-demo-sk-invoice--pop");
-    }
+    startPopIn(
+      card,
+      "home-hero-demo-sk-invoice--pop",
+      "home-hero-demo-sk-invoice--settled",
+      reducedMotion,
+    );
   }
 
   if (reducedMotion) {
@@ -513,7 +670,7 @@ async function playInvoicePaymentSkeleton(
   // Stagger the three payment bones left → right; each one grows the row.
   for (const bone of payBones) {
     if (!isAlive()) return;
-    bone.classList.add("home-hero-demo-sk-bone--pay-in");
+    startDrawIn(bone, "home-hero-demo-sk-bone--pay-in", reducedMotion, 340);
     relayout(true);
     await wait(170);
   }
@@ -667,8 +824,12 @@ async function playInvoiceReviewSkeleton(
       await wait(700);
       return;
     }
-    void card.offsetWidth;
-    card.classList.add("home-hero-demo-sk-invoice--pop");
+    startPopIn(
+      card,
+      "home-hero-demo-sk-invoice--pop",
+      "home-hero-demo-sk-invoice--settled",
+      false,
+    );
   }
 
   await wait(780);
@@ -676,12 +837,12 @@ async function playInvoiceReviewSkeleton(
 
   for (const bone of headerBones) {
     if (!isAlive()) return;
-    bone.classList.add("home-hero-demo-sk-bone--draw-in");
+    startDrawIn(bone, "home-hero-demo-sk-bone--draw-in", false, 340);
     await wait(130);
   }
 
   if (clientBone) {
-    clientBone.classList.add("home-hero-demo-sk-bone--draw-in");
+    startDrawIn(clientBone, "home-hero-demo-sk-bone--draw-in", false, 340);
     await wait(150);
   }
   if (!isAlive()) return;
@@ -705,7 +866,7 @@ async function playInvoiceReviewSkeleton(
 
     for (const bone of line.querySelectorAll<HTMLElement>("[data-hero-sk-draw]")) {
       if (!isAlive()) return;
-      bone.classList.add("home-hero-demo-sk-bone--draw-in");
+      startDrawIn(bone, "home-hero-demo-sk-bone--draw-in", false, 340);
       await wait(120);
     }
 
@@ -725,7 +886,7 @@ async function playInvoiceReviewSkeleton(
 
   for (const bone of footerBones) {
     if (!isAlive()) return;
-    bone.classList.add("home-hero-demo-sk-bone--draw-in");
+    startDrawIn(bone, "home-hero-demo-sk-bone--draw-in", false, 340);
     await wait(130);
   }
 
@@ -838,7 +999,7 @@ function createContractSkeletonCard(): HTMLElement {
   signBlock.innerHTML =
     '<span class="home-hero-demo-sk-contract-sign-label"></span>' +
     '<svg class="home-hero-demo-sk-contract-signature" viewBox="0 0 160 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-    '<path class="home-hero-demo-sk-contract-signature-path" d="M8 24 C18 8, 28 8, 36 20 C42 30, 48 30, 56 18 C64 6, 74 10, 82 22 C90 34, 102 28, 112 16 C120 8, 132 12, 148 22" />' +
+    '<path class="home-hero-demo-sk-contract-signature-path" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" d="M8 24 C18 8, 28 8, 36 20 C42 30, 48 30, 56 18 C64 6, 74 10, 82 22 C90 34, 102 28, 112 16 C120 8, 132 12, 148 22" />' +
     "</svg>" +
     '<span class="home-hero-demo-sk-contract-sign-rule"></span>';
 
@@ -846,6 +1007,10 @@ function createContractSkeletonCard(): HTMLElement {
   card.appendChild(body);
   card.appendChild(signBlock);
   row.appendChild(card);
+
+  const signaturePath = row.querySelector("path.home-hero-demo-sk-contract-signature-path");
+  if (signaturePath) hideSignaturePath(signaturePath as SVGPathElement);
+
   return row;
 }
 
@@ -908,12 +1073,12 @@ async function playDashboardNotification(
   relayout(true);
 
   if (card) {
-    if (reducedMotion) {
-      card.classList.add("home-hero-demo-sk-notif--settled");
-    } else {
-      void card.offsetWidth;
-      card.classList.add("home-hero-demo-sk-notif--pop");
-    }
+    startPopIn(
+      card,
+      "home-hero-demo-sk-notif--pop",
+      "home-hero-demo-sk-notif--settled",
+      reducedMotion,
+    );
   }
 
   await wait(reducedMotion ? 700 : 1100);
@@ -938,12 +1103,16 @@ async function playContractSkeleton(
     if (reducedMotion) {
       card.classList.add("home-hero-demo-sk-contract--settled");
       for (const line of lines) line.classList.add("home-hero-demo-sk-contract-line--in");
-      signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
+      await playSignatureDraw(signature, true, isAlive);
       await wait(900);
       return;
     }
-    void card.offsetWidth;
-    card.classList.add("home-hero-demo-sk-contract--pop");
+    startPopIn(
+      card,
+      "home-hero-demo-sk-contract--pop",
+      "home-hero-demo-sk-contract--settled",
+      false,
+    );
   }
 
   await wait(720);
@@ -951,7 +1120,7 @@ async function playContractSkeleton(
 
   for (const line of lines) {
     if (!isAlive()) return;
-    line.classList.add("home-hero-demo-sk-contract-line--in");
+    startDrawIn(line, "home-hero-demo-sk-contract-line--in", false, 420);
     relayout(true);
     await wait(140);
   }
@@ -959,8 +1128,7 @@ async function playContractSkeleton(
   await wait(280);
   if (!isAlive()) return;
 
-  signature?.classList.add("home-hero-demo-sk-contract-signature--drawn");
-  await wait(1400);
+  await playSignatureDraw(signature, false, isAlive);
   if (!isAlive()) return;
 }
 
@@ -1320,8 +1488,12 @@ async function playGpsLocateSkeleton(
   relayout(true);
 
   if (card) {
-    void card.offsetWidth;
-    card.classList.add(reducedMotion ? "home-hero-demo-sk-gps--settled" : "home-hero-demo-sk-gps--pop");
+    startPopIn(
+      card,
+      "home-hero-demo-sk-gps--pop",
+      "home-hero-demo-sk-gps--settled",
+      reducedMotion,
+    );
   }
 
   if (!mapboxToken || !mapEl) {
