@@ -3678,7 +3678,8 @@ button.de-placeholder-action:active {
   width: 100%;
 }
 
-/* iOS-style icon toolbar buttons (SF Symbol affordances, 44pt touch targets) */
+/* iOS-style icon toolbar buttons (SF Symbol affordances, 44pt touch targets).
+   Default chrome is grayscale; trash stays danger red in every state. */
 .ios-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -3691,20 +3692,30 @@ button.de-placeholder-action:active {
   border: none;
   border-radius: var(--radius-input);
   background: transparent;
-  color: #0a84ff;
+  color: var(--icon-muted);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: color 0.12s, background 0.12s, opacity 0.12s;
 }
 .ios-icon-btn:hover {
-  background: rgba(10, 132, 255, 0.12);
+  color: var(--fg);
+  background: var(--surface-hover);
 }
 .ios-icon-btn:active {
   opacity: 0.55;
 }
 .ios-icon-btn.is-copy-success {
   color: #167c3e;
+}
+.ios-icon-btn.ch-delete-btn,
+.ios-icon-btn.delete-confirm-btn {
+  color: var(--danger, #dc2626);
+}
+.ios-icon-btn.ch-delete-btn:hover,
+.ios-icon-btn.delete-confirm-btn:hover {
+  color: var(--danger-hover, #b91c1c);
+  background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
 }
 .ios-icon-btn svg:not(.delete-confirm-ring):not(.timing-ring) {
   display: block;

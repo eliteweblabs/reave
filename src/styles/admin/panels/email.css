@@ -588,15 +588,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 .em-reply-mode-pill:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: var(--border-hover);
+  color: var(--fg);
 }
 .em-reply-mode-pill-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #3b82f6;
+  color: var(--icon-muted);
 }
 .em-reply-mode-pill-icon svg {
   display: block;
@@ -1661,7 +1661,7 @@ html.reave-agent-asleep
   height: 1.125rem;
 }
 .wk-file-actions .de-share-btn {
-  color: #0a84ff;
+  color: var(--icon-muted);
 }
 /* Email detail archive: between share and delete on ≥640px only (swipe on small).
    Both classes so display:none outranks .ios-icon-btn { display: inline-flex }. */

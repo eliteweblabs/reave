@@ -188,7 +188,7 @@ function mount() {
       grid.className = 'cg-icon-grid';
       for (const key of Object.keys(IOS_ICONS)) {
         const cell = document.createElement('div');
-        cell.className = 'cg-icon-cell';
+        cell.className = key === 'trash' ? 'cg-icon-cell cg-icon-cell--danger' : 'cg-icon-cell';
         cell.innerHTML = iosIcon(key, 20);
         const cap = document.createElement('span');
         cap.textContent = key;

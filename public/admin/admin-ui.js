@@ -236,7 +236,7 @@ export function createIosIconBtn(opts = {}) {
   const { iconKey, label, className = 'ios-icon-btn', onClick, confirmDelete = false, confirmTimeout } = opts;
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = normalizeIosIconBtnClass(className);
+  btn.className = normalizeIosIconBtnClass(className, iconKey);
   btn.setAttribute('aria-label', label);
   btn.title = label;
   btn.innerHTML = IOS_ICONS[iconKey] || '';
@@ -261,17 +261,21 @@ const IOS_ICON_BTN_ALT_BASES = [
   'em-filter-tab',
 ];
 
-function normalizeIosIconBtnClass(className) {
+function normalizeIosIconBtnClass(className, iconKey) {
   const classes = String(className || 'ios-icon-btn')
     .trim()
     .split(/\s+/)
     .filter(Boolean);
-  if (classes.length === 0) return 'ios-icon-btn';
+  if (classes.length === 0) classes.push('ios-icon-btn');
   const hasAlt = classes.some((c) =>
     IOS_ICON_BTN_ALT_BASES.some((base) => c === base || c.startsWith(`${base}--`) || c.startsWith(`${base}-`)),
   );
   if (!hasAlt && !classes.includes('ios-icon-btn')) {
     classes.unshift('ios-icon-btn');
+  }
+  /* Trash is always danger red — never inherit the grayscale toolbar color. */
+  if (iconKey === 'trash' && !hasAlt && !classes.includes('ch-delete-btn')) {
+    classes.push('ch-delete-btn');
   }
   return classes.join(' ');
 }
