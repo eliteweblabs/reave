@@ -346,6 +346,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       --home-hero-brand-bottom: 32%;
     }
 
+    /* Phone mark was clamp(190px, 42vw) — about 50% too large on a 390-wide screen. */
+    .home-hero-brand {
+      --home-hero-icon-size: clamp(96px, 22vw, 140px);
+    }
+
     .home-hero-title {
       white-space: normal;
       text-wrap: balance;
