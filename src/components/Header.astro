@@ -454,8 +454,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
     /* Chrome band plus the tail the scrim fades out over, below the bar. */
     --app-header-scrim-h: calc(var(--safe-top) + var(--app-header-h) + 3.75rem);
+    /* Safari overlay chrome is not in safe-area-inset-top — same extra as .site-bg-atmosphere. */
+    --app-header-scrim-bleed: 80px;
     --app-header-chrome-scale: 1.333;
-    --app-header-logo-w: clamp(100px, 16vw, 150px);
+    --app-header-logo-w: clamp(100px, 16vw, 125px);
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-icon-h: calc(16px * var(--app-header-chrome-scale));
     --app-header-signin-h: calc(32px * var(--app-header-chrome-scale));
@@ -526,6 +528,16 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     -webkit-touch-callout: none;
   }
 
+  /*
+   * Stretch the public header box up through Safari’s overlay chrome so the
+   * scrim’s backdrop-filter has a padding box to paint into. Extra top is
+   * matched in padding so the logo/nav stay on the safe-area band.
+   */
+  .app-header:not(.app-header--admin) {
+    top: calc(-1 * var(--app-header-scrim-bleed));
+    padding-top: calc(var(--safe-top) + var(--app-header-scrim-bleed));
+  }
+
   html.marketing-menu-open .app-header,
   html.overlay-menu-open .app-header {
     z-index: 2100;
@@ -592,6 +604,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     display: none;
   }
 
+  .app-header:not(.app-header--admin) > .app-header-scrim {
+    height: calc(var(--app-header-scrim-h) + var(--app-header-scrim-bleed));
+  }
+
   .app-header--admin.app-header--scrim > .app-header-scrim {
     display: block;
     /* Same top pin as public; trim the fade tail so dashboard content peeks sooner. */
@@ -614,6 +630,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     transform: translateZ(0);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
+  }
+
+  .app-header:not(.app-header--admin) .app-header-scrim-flat {
+    height: calc(var(--safe-top) + var(--app-header-scrim-bleed) + 1.25rem);
   }
 
   .app-header-scrim-blur {
@@ -901,7 +921,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     align-items: center;
     width: var(--app-header-logo-w);
     min-width: 100px;
-    max-width: 150px;
+    max-width: 125px;
     height: auto;
     max-height: calc(var(--app-header-h) - 0.5rem);
   }
