@@ -132,6 +132,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     height: 100dvh;
     min-height: 100vh;
     min-height: 100dvh;
+    min-height: 100lvh;
     padding-top: var(--app-header-offset, 3.25rem);
     overflow: hidden;
     scroll-margin-top: 0;
@@ -362,6 +363,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   @media (max-width: 640px) {
+    /* Phone mark was clamp(190px, 42vw) — about 50% too large on a 390-wide screen. */
+    .home-hero {
+      --home-hero-icon-size: clamp(96px, 22vw, 140px);
+    }
+
     .home-hero-title {
       white-space: normal;
       text-wrap: balance;
