@@ -182,6 +182,11 @@ const stack = PLATFORM_STACK.map((tech) => ({
     -webkit-mask: var(--brand-icon, none) center / contain no-repeat;
   }
 
+  /* Paper-white Simple Icons marks vanish on the light marketing canvas. */
+  html.site-marketing .fx-built-logo {
+    filter: none;
+  }
+
   .fx-built-logo-probe {
     position: absolute;
     width: 0;
