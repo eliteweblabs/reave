@@ -14678,7 +14678,121 @@ async function startReplyEmail(ev, mode = 'reply') {
   });
 }
 
+function cloneEmailCompose(compose) {
+  return {
+    to: (Array.isArray(compose?.to) ? compose.to : []).map(normalizeEmailRecipient).filter(Boolean),
+    cc: (Array.isArray(compose?.cc) ? compose.cc : []).map(normalizeEmailRecipient).filter(Boolean),
+    subject: String(compose?.subject || ''),
+    body: String(compose?.body || ''),
+  };
+}
+
+function snapshotActiveEmailCompose() {
+  return {
+    compose: cloneEmailCompose(emailState.compose),
+    replyToId: emailState.replyToId,
+    replyMode: emailState.replyMode,
+    replySourceFull: emailState.replySourceFull,
+    draftId: emailState.activeDraftId,
+  };
+}
+
+function restoreEmailComposeSnapshot(snap) {
+  emailState.composing = true;
+  emailState.sending = false;
+  emailState.compose = cloneEmailCompose(snap.compose);
+  emailState.replyToId = snap.replyToId || null;
+  emailState.replyMode = snap.replyMode || null;
+  emailState.replySourceFull = snap.replySourceFull || null;
+  emailState.activeDraftId = snap.draftId || null;
+  emailState.activeId = snap.draftId || snap.replyToId || null;
+  rememberOpenEmailDraft(snap.draftId || null);
+  getEmailPanel()?.classList.add('em-pane-active');
+  if (MAP?.type !== 'email') {
+    setActiveMap('email', { force: true, emailId: snap.draftId || null });
+    return;
+  }
+  syncAdminTabUrl('email', { emailId: snap.draftId || null });
+  renderEmailPanel();
+  syncFooterNav();
+  requestAnimationFrame(() => {
+    getEmailPanel()?.querySelector('.em-compose-textarea')?.focus();
+  });
+}
+
+function emailSendPayloadFromSnapshot(snap) {
+  const recipients = (Array.isArray(snap.compose.to) ? snap.compose.to : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean);
+  const ccRecipients = (Array.isArray(snap.compose.cc) ? snap.compose.cc : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean);
+  const toEmails = recipients.map((r) => r.email);
+  const ccEmails = ccRecipients.map((r) => r.email);
+  const payload = {
+    to: toEmails.length === 1 ? toEmails[0] : toEmails,
+    subject: String(snap.compose.subject || '').trim(),
+    text: String(snap.compose.body || '').trim(),
+  };
+  if (ccEmails.length) payload.cc = ccEmails.length === 1 ? ccEmails[0] : ccEmails;
+  if (snap.replyToId) payload.inReplyToEmailId = snap.replyToId;
+  return payload;
+}
+
+async function revealSentEmailAfterSend(resendId, replyId) {
+  if (emailState.composing || MAP?.type !== 'email') return;
+  if (replyId) {
+    try {
+      const refresh = await fetch(`/api/email/inbox/${encodeURIComponent(replyId)}`, { cache: 'no-store' });
+      const refreshed = await readApiJson(refresh);
+      if (refreshed.event) {
+        emailState.activeId = replyId;
+        applyEmailPatchResult(replyId, refreshed.event);
+        return;
+      }
+    } catch {
+      await loadEmailTab();
+    }
+    emailState.activeId = replyId;
+    renderEmailPanel();
+    return;
+  }
+  const sent = (emailState.sentEvents || []).find((e) => e.resendId && e.resendId === resendId);
+  if (sent) {
+    emailState.inboxFilter = 'sent';
+    emailState.activeId = sent.id;
+    getEmailPanel()?.classList.add('em-pane-active');
+    renderEmailPanel();
+    syncFooterNav();
+    syncAdminTabUrl('email', { emailId: sent.id });
+    return;
+  }
+  renderEmailPanel();
+}
+
+async function commitQueuedEmailSend(snap) {
+  const payload = emailSendPayloadFromSnapshot(snap);
+  try {
+    const res = await fetch('/api/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await readApiJson(res);
+    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (snap.draftId) void deleteEmailDraftById(snap.draftId);
+    await loadEmailSentEvents(true);
+    if (emailState.composing) return;
+    await revealSentEmailAfterSend(data.id, snap.replyToId);
+  } catch (e) {
+    if (!emailState.composing) restoreEmailComposeSnapshot(snap);
+    osAlert({ title: 'Could not send email', bodyHtml: escHtml(e.message) });
+  }
+}
+
 async function sendEmailCompose() {
+  void ensureShakePermission();
+  syncComposeFromDom();
   const { to, cc, subject, body } = emailState.compose;
   const recipients = (Array.isArray(to) ? to : [])
     .map(normalizeEmailRecipient)
@@ -14687,59 +14801,28 @@ async function sendEmailCompose() {
     .map(normalizeEmailRecipient)
     .filter(Boolean);
   const toEmails = recipients.map((r) => r.email);
-  const ccEmails = ccRecipients.map((r) => r.email);
-  const subjectTrim = subject.trim();
-  const bodyTrim = body.trim();
-  if (!toEmails.length || !subjectTrim || !bodyTrim || emailState.sending) return;
-
-  emailState.sending = true;
-  renderEmailPanel();
-
-  try {
-    const payload = {
-      to: toEmails.length === 1 ? toEmails[0] : toEmails,
-      subject: subjectTrim,
-      text: bodyTrim,
-    };
-    if (ccEmails.length) payload.cc = ccEmails.length === 1 ? ccEmails[0] : ccEmails;
-    if (emailState.replyToId) payload.inReplyToEmailId = emailState.replyToId;
-    const res = await fetch('/api/email/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await readApiJson(res);
-    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    const replyId = emailState.replyToId;
-    const draftId = emailState.activeDraftId;
-    emailState.activeDraftId = null;
-    emailState.compose = { to: [], cc: [], subject: '', body: '' };
-    if (draftId) void deleteEmailDraftById(draftId);
-    await closeEmailCompose({ saveDraft: false });
-    await loadEmailSentEvents(true);
-    if (replyId) {
-      try {
-        const refresh = await fetch(`/api/email/inbox/${encodeURIComponent(replyId)}`, { cache: 'no-store' });
-        const refreshed = await readApiJson(refresh);
-        if (refreshed.event) {
-          emailState.activeId = replyId;
-          applyEmailPatchResult(replyId, refreshed.event);
-        }
-      } catch {
-        await loadEmailTab();
-        emailState.activeId = replyId;
-        renderEmailPanel();
-      }
-      showChatToast('Reply sent');
-    } else {
-      showChatToast('Email sent');
-      renderEmailPanel();
-    }
-  } catch (e) {
-    emailState.sending = false;
+  const subjectTrim = String(subject || '').trim();
+  const bodyTrim = String(body || '').trim();
+  if (!toEmails.length || !subjectTrim || !bodyTrim || emailState.sending) {
     renderEmailPanel();
-    osAlert({ title: 'Could not send email', bodyHtml: escHtml(e.message) });
+    return;
   }
+
+  emailState.compose = {
+    to: recipients,
+    cc: ccRecipients,
+    subject: subjectTrim,
+    body: bodyTrim,
+  };
+  await saveActiveEmailDraft(true);
+  const snapshot = snapshotActiveEmailCompose();
+  await closeEmailCompose({ saveDraft: false });
+  void ensureShakePermission();
+  await queueShakeUndo({
+    key: `send:email:${snapshot.draftId || Date.now()}`,
+    commit: () => commitQueuedEmailSend(snapshot),
+    undo: () => restoreEmailComposeSnapshot(snapshot),
+  });
 }
 
 function emailShareText(ev) {
@@ -14955,7 +15038,10 @@ function renderEmailComposePane(pane) {
   sendBtn.title = emailState.sending ? 'Sending…' : 'Send';
   sendBtn.innerHTML = IOS_ICONS.send || '';
   sendBtn.disabled = emailState.sending;
-  sendBtn.addEventListener('click', () => void sendEmailCompose());
+  sendBtn.addEventListener('click', () => {
+    void ensureShakePermission();
+    void sendEmailCompose();
+  });
 
   actions.appendChild(sendBtn);
   form.appendChild(toField);
