@@ -7,6 +7,7 @@ import {
 } from '../../../lib/companyConfig';
 import { sanitizeInlineSvg } from '../../../lib/brandSvg';
 import { normalizeBrandColorHex } from '../../../lib/companyBrandColors';
+import { emailSafeFontCatalogForAdmin } from '../../../lib/emailSafeFonts';
 import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
@@ -29,7 +30,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const company = await getCompanyConfig(context.request);
   const fontCatalog = await brandFontCatalogForAdminAsync();
-  return json({ ok: true, company, fontCatalog });
+  return json({ ok: true, company, fontCatalog, emailFontCatalog: emailSafeFontCatalogForAdmin() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -101,5 +102,5 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const company = await getCompanyConfig(context.request);
   const fontCatalog = await brandFontCatalogForAdminAsync();
-  return json({ ok: true, company, fontCatalog });
+  return json({ ok: true, company, fontCatalog, emailFontCatalog: emailSafeFontCatalogForAdmin() });
 }

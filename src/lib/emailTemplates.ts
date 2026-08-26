@@ -17,6 +17,7 @@ import {
   getCompanyConfig,
   type CompanyConfig,
 } from './companyConfig';
+import { emailSafeFontById } from './emailSafeFonts';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
 import { signatureHtmlForEmail } from './userEmailSignature';
@@ -85,8 +86,11 @@ export async function brandedEmailHtml(opts: {
   const logoUrl = emailLogoAbsoluteUrl(company, base);
   const iconUrl = emailIconAbsoluteUrl(company, base);
   const homeUrl = base;
-  const fontStack =
-    "Space Grotesk,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  const emailFont = emailSafeFontById(company.emailFont);
+  const fontStack = emailFont.stack;
+  const msoFamily = emailFont.msoFamily;
+  const msoGeneric =
+    emailFont.category === 'serif' ? 'serif' : emailFont.category === 'mono' ? 'monospace' : 'sans-serif';
 
   const logoHeaderHtml = logoUrl
     ? `<img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="140" height="36"
@@ -103,7 +107,7 @@ export async function brandedEmailHtml(opts: {
   const bodyRows = opts.paragraphs
     .map(
       (p) =>
-        `<tr><td style="padding:0 0 16px"><p class="email-text" style="margin:0;color:#1a1a1a;font-size:15px;line-height:1.65">${esc(p).replace(/\n/g, '<br>')}</p></td></tr>`,
+        `<tr><td style="padding:0 0 16px"><p class="email-text" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:15px;line-height:1.65">${esc(p).replace(/\n/g, '<br>')}</p></td></tr>`,
     )
     .join('\n');
 
@@ -133,7 +137,7 @@ export async function brandedEmailHtml(opts: {
       qrHtml = `
       <tr>
         <td style="padding:0 0 20px" align="center">
-          <p class="email-note" style="margin:0 0 10px;color:#999;font-size:12px;line-height:1.5">${esc(qrLabel)}</p>
+          <p class="email-note" style="margin:0 0 10px;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">${esc(qrLabel)}</p>
           <img src="${qrSrc}" alt="QR code" width="168" height="168"
                style="display:block;width:168px;height:168px;margin:0 auto;border:1px solid #e5e5e5;border-radius:8px" />
         </td>
@@ -152,7 +156,7 @@ export async function brandedEmailHtml(opts: {
                   ? `<a href="${esc(href)}" class="email-link email-meta-value" style="color:${esc(brandLink)};font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${esc(value)}</a>`
                   : `<span class="email-meta-value" style="color:#1a1a1a;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</span>`;
                 return `<tr>
-                    <td class="email-meta-label" style="padding:8px 16px 8px 0;font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
+                    <td class="email-meta-label" style="padding:8px 16px 8px 0;font-family:${fontStack};font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
                     <td style="padding:8px 0">${valueCell}</td>
                   </tr>`;
               })
@@ -162,16 +166,16 @@ export async function brandedEmailHtml(opts: {
       : '';
 
   const noteHtml = opts.note
-    ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
+    ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
     : '';
 
   const signatureHtml = opts.signature?.trim()
-    ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-size:14px;line-height:1.55">${signatureHtmlForEmail(opts.signature)}</div></td></tr>`
+    ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-family:${fontStack};font-size:14px;line-height:1.55">${signatureHtmlForEmail(opts.signature)}</div></td></tr>`
     : '';
 
   const complianceHtml =
     opts.unsubscribeUrl || opts.footerAddress
-      ? `<tr><td style="padding:18px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.6">${
+      ? `<tr><td style="padding:18px 0 0"><p class="email-note" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.6">${
           opts.footerAddress ? `${esc(opts.footerAddress)}<br />` : ''
         }${
           opts.unsubscribeUrl
@@ -194,6 +198,11 @@ export async function brandedEmailHtml(opts: {
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>${esc(brandName)}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+  <!--[if mso]>
+  <style type="text/css">
+    table, td, div, p, a, span { font-family: ${msoFamily}, ${msoGeneric} !important; }
+  </style>
+  <![endif]-->
   <style>
     /* ── Dark mode overrides (Apple Mail, Samsung Mail, Outlook iOS/Android) ── */
     @media (prefers-color-scheme: dark) {
@@ -203,12 +212,12 @@ export async function brandedEmailHtml(opts: {
   </style>
 </head>
 <body class="email-outer" style="margin:0;padding:0;background-color:#f4f4f5;font-family:${fontStack};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-outer" style="background-color:#f4f4f5">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-outer" style="background-color:#f4f4f5;font-family:${fontStack}">
     <tr>
-      <td align="center" style="padding:40px 16px 48px">
+      <td align="center" style="padding:40px 16px 48px;font-family:${fontStack}">
 
         <!-- White card — wordmark left, icon in the footer -->
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e5e5;border-radius:12px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e5e5;border-radius:12px;font-family:${fontStack}">
 
           <tr>
             <td style="padding:22px 28px 8px" align="left">
@@ -219,12 +228,12 @@ export async function brandedEmailHtml(opts: {
           </tr>
 
           <tr>
-            <td class="email-card-body" style="padding:12px 28px 8px">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <td class="email-card-body" style="padding:12px 28px 8px;font-family:${fontStack}">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family:${fontStack}">
 
                 <tr>
-                  <td style="padding:0 0 20px">
-                    <p class="email-greeting" style="margin:0;color:#1a1a1a;font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName)},</p>
+                  <td style="padding:0 0 20px;font-family:${fontStack}">
+                    <p class="email-greeting" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName)},</p>
                   </td>
                 </tr>
 
@@ -242,13 +251,13 @@ export async function brandedEmailHtml(opts: {
           </tr>
 
           <tr>
-            <td style="padding:20px 28px 24px;text-align:center;border-top:1px solid #f0f0f0">
+            <td style="padding:20px 28px 24px;text-align:center;border-top:1px solid #f0f0f0;font-family:${fontStack}">
               ${footerIconHtml}
-              <p class="email-footer-text" style="margin:0 0 6px;color:#999;font-size:12px;line-height:1.5;letter-spacing:0.02em">
+              <p class="email-footer-text" style="margin:0 0 6px;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5;letter-spacing:0.02em">
                 Baked in Boston
               </p>
-              <p class="email-footer-text" style="margin:0;color:#999;font-size:12px;line-height:1.5">
-                Sent by <a href="${esc(homeUrl)}" class="email-link" style="color:${esc(brandLink)};text-decoration:none">${esc(brandName)}</a>
+              <p class="email-footer-text" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">
+                Sent by <a href="${esc(homeUrl)}" class="email-link" style="color:${esc(brandLink)};font-family:${fontStack};text-decoration:none">${esc(brandName)}</a>
               </p>
             </td>
           </tr>

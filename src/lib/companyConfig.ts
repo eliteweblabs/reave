@@ -22,6 +22,7 @@ import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 export { DEFAULT_PORTAL_OUTREACH_NOTICE };
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBrandColors';
+import { emailFontStack, normalizeEmailFontId } from './emailSafeFonts';
 import { isCanonicalReaveInstall } from './installConfig';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
@@ -206,6 +207,10 @@ export type CompanyConfig = {
   socialHiddenPlatforms: string[];
   /** Resolved typography from admin Company branding. */
   fonts: ResolvedBrandFonts;
+  /** Email-safe font id for outbound HTML templates. */
+  emailFont: string;
+  /** CSS font-family stack for the chosen email font. */
+  emailFontStack: string;
   /** Admin-selected primary brand color (hex), empty = site default. */
   brandPrimary: string;
   /** Admin-selected secondary brand color (hex), empty = site default. */
@@ -473,6 +478,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   const address = pick(stored?.address, serverEnv('BOOKING_DEFAULT_ADDRESS'));
   const geo = resolveCompanyGeo(stored);
   const fonts = resolveBrandFonts(stored);
+  const emailFont = normalizeEmailFontId(stored?.emailFont);
   const brandColors = resolveCompanyBrandColors(stored?.brandPrimary, stored?.brandSecondary);
   const vapiAssistantId = pick(
     stored?.vapiAssistantId,
@@ -515,6 +521,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     socialGoogleBusiness: trim(stored?.socialGoogleBusiness),
     socialHiddenPlatforms: parseHiddenSocialPlatforms(stored?.socialHiddenPlatforms),
     fonts,
+    emailFont,
+    emailFontStack: emailFontStack(emailFont),
     brandPrimary: brandColors.primary,
     brandSecondary: brandColors.secondary,
     logoSvg: trim(stored?.logoSvg),
@@ -613,6 +621,7 @@ export type CompanyConfigInput = {
   fontPrimary?: string;
   fontSecondary?: string;
   fontContent?: string;
+  emailFont?: string;
   brandPrimary?: string;
   brandSecondary?: string;
   /** Paste full <svg>…</svg> for animated header wordmark. */
@@ -686,6 +695,9 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   }
   if (input.fontContent !== undefined) {
     out.fontContent = normalizeBrandFontInput(input.fontContent, 'content');
+  }
+  if (input.emailFont !== undefined) {
+    out.emailFont = normalizeEmailFontId(input.emailFont);
   }
   if (input.brandPrimary !== undefined) {
     out.brandPrimary = normalizeBrandColorHex(input.brandPrimary);

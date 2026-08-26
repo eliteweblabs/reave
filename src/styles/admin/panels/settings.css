@@ -699,6 +699,12 @@
   line-height: 1.55;
   color: color-mix(in srgb, var(--fg) 72%, transparent);
 }
+.prof-email-font-preview-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--fg);
+}
 .prof-logo-preview-wrap {
   position: relative;
   display: inline-block;

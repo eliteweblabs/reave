@@ -80,6 +80,8 @@ export type StoredCompanyConfig = {
   fontSecondary?: string | null;
   /** Admin-selected content (body) font id */
   fontContent?: string | null;
+  /** Admin-selected email-safe font id for outbound HTML templates. */
+  emailFont?: string | null;
   /** Google Fonts `family=` specs for google:* font ids (survives restarts). */
   fontGoogleSpecs?: Record<string, string> | null;
   /** Admin-selected primary brand color (hex). */
@@ -154,6 +156,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS brand_secondary TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS portal_outreach_notice TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_data TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_media_type TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS email_font TEXT;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -283,6 +286,7 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     fontSecondary: str('fontSecondary') || null,
     fontContent: str('fontContent') || str('fontBody') || null,
     fontGoogleSpecs: parseFontGoogleSpecs(o.fontGoogleSpecs ?? o.font_google_specs),
+    emailFont: str('emailFont') || str('email_font') || null,
     brandPrimary: str('brandPrimary') || str('brand_primary') || null,
     brandSecondary: str('brandSecondary') || str('brand_secondary') || null,
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
@@ -370,6 +374,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     portal_outreach_notice: string | null;
     og_data: string | null;
     og_media_type: string | null;
+    email_font: string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -382,7 +387,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_telegram, social_whatsapp, social_substack, social_yelp, social_google_business,
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
-            brand_primary, brand_secondary, portal_outreach_notice, og_data, og_media_type, updated_at
+            brand_primary, brand_secondary, portal_outreach_notice, og_data, og_media_type,
+            email_font, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -445,6 +451,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     portalOutreachNotice: row.portal_outreach_notice,
     ogData: row.og_data,
     ogMediaType: row.og_media_type,
+    emailFont: row.email_font,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -508,6 +515,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        portal_outreach_notice = $52,
        og_data = $53,
        og_media_type = $54,
+       email_font = $55,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -567,6 +575,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.portalOutreachNotice ?? null,
       config.ogData ?? null,
       config.ogMediaType ?? null,
+      config.emailFont ?? null,
     ],
   );
   if ((result.rowCount ?? 0) > 0) return true;
