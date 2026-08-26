@@ -12254,7 +12254,7 @@ function createEmailProjectDropdown(ev) {
 
   const trigger = document.createElement('button');
   trigger.type = 'button';
-  trigger.className = 'em-btn-group-segment em-project-trigger';
+  trigger.className = 'em-btn-group-segment em-project-trigger de-btn-secondary';
   trigger.setAttribute('aria-label', 'Project');
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.innerHTML =
@@ -12518,7 +12518,7 @@ function createEmailAgentDropdown(ev, opts = {}) {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = opts.inGroup
-    ? 'em-btn-group-segment em-agent-btn em-agent-trigger'
+    ? 'em-btn-group-segment em-agent-btn em-agent-trigger de-btn-primary'
     : 'agent-btn em-header-action-btn em-agent-trigger';
   trigger.setAttribute('aria-label', emailAwaitingTriage ? 'Agent triage' : 'Agent');
   trigger.setAttribute('aria-haspopup', 'menu');
@@ -15655,7 +15655,7 @@ function renderEmailPane() {
   if (!alreadyInLinkedChat) {
     if (shouldShowEmailProjectActions(ev)) {
       const group = document.createElement('div');
-      group.className = 'em-btn-group';
+      group.className = 'em-btn-group brand-btn-pair';
       group.appendChild(createEmailAgentDropdown(ev, { inGroup: true }));
       group.appendChild(createEmailProjectDropdown(ev));
       beforeIcons.push(group);

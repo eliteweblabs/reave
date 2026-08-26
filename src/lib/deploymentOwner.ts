@@ -2,7 +2,7 @@ import type { APIContext } from 'astro';
 import { cachedCompanyBrandName } from './companyConfig';
 import { SITE } from '../config/site';
 import { clerkClient } from '@clerk/astro/server';
-import { agentAlertUserId } from './adminAgentAlert';
+import { agentAlertUserId, agentAlertUserIds } from './systemAlertsThread';
 import { clerkSecretKey } from './clerkClient';
 import { serverEnv } from './serverEnv';
 
@@ -23,9 +23,14 @@ export function deploymentOwnerUsernames(): string[] {
     .filter(Boolean);
   const first = (serverEnv('OWNER_FIRST_NAME') ?? '').trim();
   const last = (serverEnv('OWNER_LAST_NAME') ?? '').trim();
-  const email = (serverEnv('OWNER_EMAIL') ?? '').trim();
-  const extras = [first, last, [first, last].filter(Boolean).join(' '), email];
-  if (email.includes('@')) extras.push(email.split('@')[0]!.trim());
+  const emails = (serverEnv('OWNER_EMAIL') ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const extras = [first, last, [first, last].filter(Boolean).join(' '), ...emails];
+  for (const email of emails) {
+    if (email.includes('@')) extras.push(email.split('@')[0]!.trim());
+  }
   for (const extra of extras) {
     if (extra && !names.some((name) => name.toLowerCase() === extra.toLowerCase())) names.push(extra);
   }
@@ -60,8 +65,7 @@ export function isDeploymentOwnerUser(user: ClerkUserLike): boolean {
 
 export function isDeploymentOwnerId(userId: string | null | undefined): boolean {
   if (!userId) return false;
-  const ownerId = agentAlertUserId();
-  return Boolean(ownerId && ownerId === userId);
+  return agentAlertUserIds().includes(userId);
 }
 
 export async function getAuthUser(context: APIContext) {

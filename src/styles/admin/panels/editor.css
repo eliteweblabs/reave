@@ -84,14 +84,17 @@
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--fg);
-  background: var(--msg-user-bg);
-  border: 1px solid var(--msg-user-border);
+  background: var(--surface-muted);
+  border: 1px solid var(--panel-border);
   border-radius: var(--radius-input);
   cursor: pointer;
   text-align: left;
   flex: 0 0 auto;
 }
-.de-new-btn:hover { background: #265080; border-color: #3a72b8; }
+.de-new-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
 
 /* Sidebar list subheader — search-only (see admin-ui.js listSearchSubheader) */
 .panel-list-subheader {

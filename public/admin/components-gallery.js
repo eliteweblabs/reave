@@ -188,7 +188,7 @@ function mount() {
   section(
     root,
     'Official buttons',
-    'Text CTAs go through <code>createBrandBtn</code> — filled, solid, glass, danger. Circle chrome is <code>createFabNewBtn</code> / <code>createIosIconBtn</code>. Legacy <code>de-btn*</code> classes alias the same pills.',
+    'Text CTAs go through <code>createBrandBtn</code> — filled, solid, glass, danger. Two actions in one pill use <code>brand-btn-pair</code> (primary + secondary). Circle chrome is <code>createFabNewBtn</code> / <code>createIosIconBtn</code>. Legacy <code>de-btn*</code> classes alias the same pills.',
     (el) => {
       const r = row(el);
       const setStatus = statusLine(el);
@@ -198,6 +198,11 @@ function mount() {
       r.appendChild(createBrandBtn({ variant: 'glass', label: 'Glass', onClick: () => setStatus('Glass') }));
       r.appendChild(createBrandBtn({ variant: 'danger', label: 'Danger', onClick: () => setStatus('Danger', 'warn') }));
       r.appendChild(createBrandBtn({ variant: 'filled', label: 'Save', iconKey: 'check', onClick: () => setStatus('Save') }));
+      const pair = document.createElement('div');
+      pair.className = 'brand-btn-pair';
+      pair.appendChild(createBrandBtn({ label: 'Primary', onClick: () => setStatus('Pair primary') }));
+      pair.appendChild(createBrandBtn({ variant: 'glass', label: 'Secondary', onClick: () => setStatus('Pair secondary') }));
+      r.appendChild(pair);
       r.appendChild(deBtn('Legacy de-btn', 'secondary'));
       r.querySelectorAll('.de-btn').forEach((btn) => {
         btn.addEventListener('click', () => setStatus(btn.textContent.trim() || 'Clicked'));

@@ -910,7 +910,7 @@
   gap: 0;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
   background: transparent;
   overflow: visible;
 }
@@ -921,32 +921,24 @@
   font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.2;
-  color: var(--fg);
-  background: var(--msg-user-bg);
-  border: none;
-  border-radius: 0;
   cursor: pointer;
   white-space: nowrap;
 }
-.em-btn-group-segment:hover:not(:disabled) {
-  background: #265080;
-  color: #fff;
+.em-btn-group .em-btn-group-segment.de-btn-primary,
+.em-btn-group .em-btn-group-segment.de-btn-secondary {
+  padding: 0.42rem 0.85rem;
+  min-height: 0;
+  height: auto;
 }
 .em-btn-group-segment:disabled {
   opacity: 0.65;
   cursor: default;
 }
-.em-btn-group > .em-btn-group-segment:first-child,
-.em-btn-group > .em-agent-dropdown .em-btn-group-segment {
-  border-radius: var(--radius-pill) 0 0 var(--radius-pill);
-}
-.em-btn-group > .em-project-dropdown:not(.em-agent-dropdown) .em-btn-group-segment {
-  border-left: none;
-  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
-}
-.em-btn-group > .em-project-dropdown.open .em-btn-group-segment {
-  background: #265080;
-  color: #fff;
+.em-btn-group > .em-project-dropdown:not(.em-agent-dropdown).open .em-btn-group-segment.de-btn-secondary {
+  background: var(--brand-glass-bg-hover);
+  color: var(--fg);
+  -webkit-text-fill-color: var(--fg);
+  border-color: var(--brand-glass-border-color-hover);
 }
 .em-header-action-btn {
   margin: 0;
@@ -1265,6 +1257,7 @@ html.reave-agent-asleep
 .em-btn-group > .em-project-dropdown.open .em-btn-group-segment.em-agent-btn {
   background: var(--brand-gradient);
   color: #fff;
+  -webkit-text-fill-color: #fff;
 }
 .em-agent-dropdown {
   position: relative;
@@ -1302,6 +1295,7 @@ html.reave-agent-asleep
 .em-btn-group > .em-agent-dropdown.open .em-btn-group-segment.em-agent-btn {
   background: var(--brand-gradient);
   color: #fff;
+  -webkit-text-fill-color: #fff;
 }
 .em-agent-menu {
   min-width: 16rem;

@@ -209,14 +209,31 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
                 aria-haspopup="dialog"
                 aria-controls="topbar-profile-menu"
               >
-                <img
-                  src={profileIconSrc}
-                  alt=""
-                  class="topbar-profile-icon-img"
+                <span class="topbar-profile-face" aria-hidden="true">
+                  <img
+                    src={profileIconSrc}
+                    alt=""
+                    class="topbar-profile-icon-img"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </span>
+                <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+                <svg
+                  class="topbar-profile-close"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
                   aria-hidden="true"
-                  loading="eager"
-                  decoding="async"
-                />
+                >
+                  <path d="M18 6 6 18"></path>
+                  <path d="m6 6 12 12"></path>
+                </svg>
               </button>
               <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
             </div>
@@ -250,21 +267,38 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
             aria-haspopup="dialog"
             aria-controls="topbar-profile-menu"
           >
-            {staffPreview ? (
-              <>
-                <Shield size={16} strokeWidth={2} aria-hidden="true" />
-                <span class="topbar-admin-label">Admin</span>
-              </>
-            ) : (
-              <img
-                src={profileIconSrc}
-                alt=""
-                class="topbar-profile-icon-img"
-                aria-hidden="true"
-                loading="eager"
-                decoding="async"
-              />
-            )}
+            <span class="topbar-profile-face" aria-hidden="true">
+              {staffPreview ? (
+                <>
+                  <Shield size={16} strokeWidth={2} />
+                  <span class="topbar-admin-label">Admin</span>
+                </>
+              ) : (
+                <img
+                  src={profileIconSrc}
+                  alt=""
+                  class="topbar-profile-icon-img"
+                  loading="eager"
+                  decoding="async"
+                />
+              )}
+            </span>
+            <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+            <svg
+              class="topbar-profile-close"
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
           </button>
           <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
         </div>
@@ -273,9 +307,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
     {showMarketingNav && (
       <OverlayMenuToggle mode="nav" controls="marketing-menu-panel" />
-    )}
-    {showHeaderAccountMenu && !showMarketingNav && (
-      <OverlayMenuToggle mode="dismiss" controls="topbar-profile-menu" />
     )}
 
   </div>
@@ -1459,12 +1490,44 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     color: var(--nav-icon, var(--muted, rgba(255, 255, 255, 0.55)));
     cursor: pointer;
     padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    display: inline-grid;
+    place-items: center;
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     transition: color 0.15s, background 0.15s;
+  }
+
+  .topbar-profile-face,
+  .topbar-profile-close {
+    grid-area: 1 / 1;
+  }
+
+  .topbar-profile-face {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .topbar-profile-btn--admin .topbar-profile-face {
+    width: auto;
+    height: auto;
+    gap: 0.35rem;
+  }
+
+  .topbar-profile-close {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  html.account-menu-open .topbar-profile-face {
+    opacity: 0;
+  }
+
+  html.account-menu-open .topbar-profile-close {
+    opacity: 1;
   }
 
   .app-header-profile-btn:hover,

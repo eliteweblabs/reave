@@ -225,6 +225,68 @@
   -webkit-text-fill-color: #fff;
 }
 
+/*
+ * Joined pill — one primary + one secondary flush, not a leftover fill color.
+ * Direct children may be the buttons or wrappers (e.g. dropdowns).
+ */
+.brand-btn-pair {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.brand-btn-pair > .de-btn-primary,
+.brand-btn-pair > .de-btn-secondary,
+.brand-btn-pair > .brand-btn,
+.brand-btn-pair > :first-child > .de-btn-primary,
+.brand-btn-pair > :first-child > .de-btn-secondary,
+.brand-btn-pair > :first-child > .brand-btn,
+.brand-btn-pair > :first-child > .em-agent-btn,
+.brand-btn-pair > :last-child > .de-btn-primary,
+.brand-btn-pair > :last-child > .de-btn-secondary,
+.brand-btn-pair > :last-child > .brand-btn,
+.brand-btn-pair > .de-btn-primary:hover,
+.brand-btn-pair > .de-btn-secondary:hover,
+.brand-btn-pair > .brand-btn:hover,
+.brand-btn-pair > :first-child > .de-btn-primary:hover,
+.brand-btn-pair > :first-child > .de-btn-secondary:hover,
+.brand-btn-pair > :first-child > .brand-btn:hover,
+.brand-btn-pair > :first-child > .em-agent-btn:hover,
+.brand-btn-pair > :last-child > .de-btn-primary:hover,
+.brand-btn-pair > :last-child > .de-btn-secondary:hover,
+.brand-btn-pair > :last-child > .brand-btn:hover {
+  transform: none;
+}
+
+.brand-btn-pair > .de-btn-primary:first-child,
+.brand-btn-pair > .de-btn-secondary:first-child,
+.brand-btn-pair > .brand-btn:first-child,
+.brand-btn-pair > :first-child > .de-btn-primary,
+.brand-btn-pair > :first-child > .de-btn-secondary,
+.brand-btn-pair > :first-child > .brand-btn,
+.brand-btn-pair > :first-child > .em-agent-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.brand-btn-pair > .de-btn-primary:last-child,
+.brand-btn-pair > .de-btn-secondary:last-child,
+.brand-btn-pair > .brand-btn:last-child,
+.brand-btn-pair > :last-child > .de-btn-primary,
+.brand-btn-pair > :last-child > .de-btn-secondary,
+.brand-btn-pair > :last-child > .brand-btn {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.brand-btn-pair > .de-btn-primary:first-child,
+.brand-btn-pair > .brand-btn:not(.brand-btn-glass):first-child,
+.brand-btn-pair > :first-child > .de-btn-primary,
+.brand-btn-pair > :first-child > .brand-btn:not(.brand-btn-glass),
+.brand-btn-pair > :first-child > .em-agent-btn {
+  box-shadow: none;
+}
+
 /** Destructive confirm — same pill, danger fill. */
 .brand-btn-danger,
 .de-btn-danger,

@@ -173,7 +173,7 @@ interface ImportMetaEnv {
   PUSH_QUIET_TIMEZONE?: string;
   /** Set to 0 to block urgent client-reply pushes during quiet hours too */
   PUSH_QUIET_ALLOW_URGENT?: string;
-  /** Clerk user id — inbound alert emails post to admin "System alerts" chat */
+  /** Clerk user id(s) — inbound alert emails post to admin "System alerts" chat. Comma-separated for multiple admins. */
   AGENT_ALERT_USER_ID?: string;
   /** Set to 0 to skip auto agent reply on alert emails (default: run agent) */
   AGENT_ALERT_AUTO_RUN?: string;
