@@ -197,7 +197,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260824a';
+} from './clients-panel.js?v=20260826a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -11682,6 +11682,7 @@ initClientsPanel({
   navIcon,
   FORM_FIELD_INVALID,
   FORM_FIELD_SAVED,
+  composeEmailToContact,
 });
 
 initChatPanel({

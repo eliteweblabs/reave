@@ -39,7 +39,7 @@ import {
 } from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260826c';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260824a';
+import { clientState, clientMapController } from './clients-panel.js?v=20260826a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import {
   createDetailChrome,

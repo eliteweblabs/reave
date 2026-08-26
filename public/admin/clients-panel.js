@@ -1049,6 +1049,75 @@ function isOpenableWebsiteUrl(raw) {
   }
 }
 
+function normalizeMailtoAddress(raw) {
+  const v = (raw || '').trim();
+  if (!v || !isValidClientEmail(v)) return '';
+  return v;
+}
+
+function mountClientEmailField(parent, value, opts = {}) {
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label';
+  wrap.textContent = 'Email';
+
+  const field = document.createElement('div');
+  field.className = 'control-field cl-email-field';
+
+  const input = document.createElement('input');
+  input.className = 'de-input';
+  input.type = 'email';
+  input.placeholder = 'email@example.com';
+  input.autocomplete = 'email';
+  input.value = value || '';
+
+  const getContact = typeof opts.getContact === 'function' ? opts.getContact : () => ({});
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 'ios-icon-btn cl-email-open-btn';
+  openBtn.setAttribute('aria-label', 'Compose email');
+  openBtn.title = 'Compose email';
+  openBtn.innerHTML = shell.navIcon('mail', 18);
+  openBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const addr = normalizeMailtoAddress(input.value);
+    if (!addr) return;
+    const extra = getContact() || {};
+    if (typeof shell.composeEmailToContact === 'function') {
+      shell.composeEmailToContact({
+        email: addr,
+        name: extra.name || '',
+        uid: extra.uid || null,
+      });
+      return;
+    }
+    window.location.href = `mailto:${addr}`;
+  });
+
+  function syncOpenBtn() {
+    const addr = normalizeMailtoAddress(input.value);
+    const ok = !!addr;
+    openBtn.disabled = !ok;
+    openBtn.hidden = !ok;
+    if (ok) {
+      openBtn.title = `Email ${addr}`;
+      openBtn.setAttribute('aria-label', `Compose email to ${addr}`);
+    } else {
+      openBtn.title = 'Compose email';
+      openBtn.setAttribute('aria-label', 'Compose email');
+    }
+  }
+
+  input.addEventListener('input', syncOpenBtn);
+  syncOpenBtn();
+
+  field.appendChild(input);
+  field.appendChild(openBtn);
+  wrap.appendChild(field);
+  parent.appendChild(wrap);
+  return input;
+}
+
 function mountClientWebsiteField(parent, value) {
   const wrap = document.createElement('label');
   wrap.className = 'de-label';
@@ -1595,12 +1664,11 @@ function renderNewClientForm(pane) {
   attachPhoneFormatter(phoneInput);
   registerClientField(phoneInput, () => isValidClientPhone(phoneInput.value));
 
-  const emailInput = document.createElement('input');
-  emailInput.className = 'de-input';
-  emailInput.type = 'email';
-  emailInput.placeholder = 'email@example.com';
-  emailInput.value = clientState.draft?.email || '';
-  appendClientField(fields, 'Email', emailInput);
+  const emailInput = mountClientEmailField(fields, clientState.draft?.email || '', {
+    getContact: () => ({
+      name: joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value),
+    }),
+  });
   registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
 
   const websiteInput = mountClientWebsiteField(fields, clientState.draft?.website || '');
@@ -1809,11 +1877,12 @@ function renderEditClientForm(pane) {
       attachPhoneFormatter(phoneInput);
       registerClientField(phoneInput, () => isValidClientPhone(phoneInput.value));
 
-      const emailInput = document.createElement('input');
-      emailInput.className = 'de-input';
-      emailInput.type = 'email';
-      emailInput.value = clientState.draft.email || '';
-      appendClientField(profileFields, 'Email', emailInput);
+      const emailInput = mountClientEmailField(profileFields, clientState.draft.email || '', {
+        getContact: () => ({
+          name: joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value),
+          uid,
+        }),
+      });
       registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
 
       const websiteInput = mountClientWebsiteField(profileFields, clientState.draft.website || '');

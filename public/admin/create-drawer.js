@@ -42,7 +42,7 @@ import {
 } from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260824a';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260826a';
 
 /** Injected by os-map-loader via initCreateDrawer(). */
 let shell = {};

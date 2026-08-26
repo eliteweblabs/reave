@@ -3553,23 +3553,28 @@ button.de-placeholder-action:active {
   word-break: break-all;
 }
 .cl-readonly a { color: #79c0ff; }
-.cl-website-field {
+.cl-website-field,
+.cl-email-field {
   width: 100%;
   max-width: 340px;
 }
-.cl-website-field:has(.de-input.de-field-valid) {
+.cl-website-field:has(.de-input.de-field-valid),
+.cl-email-field:has(.de-input.de-field-valid) {
   border-color: #22c55e;
 }
-.cl-website-field:has(.de-input.de-field-invalid) {
+.cl-website-field:has(.de-input.de-field-invalid),
+.cl-email-field:has(.de-input.de-field-invalid) {
   border-color: #ef4444;
 }
-.cl-website-open-btn {
+.cl-website-open-btn,
+.cl-email-open-btn {
   width: calc(var(--control-h) - var(--control-inset) * 2);
   height: calc(var(--control-h) - var(--control-inset) * 2);
   min-width: calc(var(--control-h) - var(--control-inset) * 2);
   padding: 0;
 }
-.cl-website-open-btn[disabled] {
+.cl-website-open-btn[disabled],
+.cl-email-open-btn[disabled] {
   opacity: 0.35;
   cursor: default;
 }
@@ -3897,6 +3902,7 @@ button.de-placeholder-action:active {
 }
 #clients-editor .de-fields .de-input,
 #clients-editor .de-fields .cl-website-field,
+#clients-editor .de-fields .cl-email-field,
 #clients-editor .de-fields .cl-address-field {
   max-width: none;
   width: 100%;

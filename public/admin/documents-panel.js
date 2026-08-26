@@ -39,7 +39,7 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260824a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260824a';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260826a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initDocumentsPanel(). */
