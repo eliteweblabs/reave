@@ -6,10 +6,17 @@
  * automatically; inline styles provide the light-mode fallback for
  * clients that strip <style> blocks (Gmail, older Outlook).
  *
- * Visual language mirrors the public site: dark logo header, black
- * CTAs, and Space Grotesk typography.
+ * Visual language mirrors the public site: white rounded card, wordmark
+ * left in the header, square icon in the footer, brand primary→secondary CTA.
  */
-import { getCompanyConfig, deckQuantumHeroLogo } from './companyConfig';
+import { resolveCompanyBrandColors } from './companyBrandColors';
+import {
+  brandIconUrl,
+  companyBrandingVersion,
+  deckQuantumHeroLogo,
+  getCompanyConfig,
+  type CompanyConfig,
+} from './companyConfig';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
 import { signatureHtmlForEmail } from './userEmailSignature';
@@ -22,13 +29,21 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Absolute logo URL for <img> — /branding/logo.png, or empty when hidden. */
-function emailLogoAbsoluteUrl(company: Awaited<ReturnType<typeof getCompanyConfig>>, base: string): string {
-  const path = deckQuantumHeroLogo(company);
+function emailAbsoluteUrl(path: string, base: string): string {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
   const normalized = path.startsWith('/') ? path : `/${path}`;
   return `${base}${normalized}`;
+}
+
+/** Absolute wordmark URL for <img> — /branding/logo.png, or empty when hidden. */
+function emailLogoAbsoluteUrl(company: Awaited<ReturnType<typeof getCompanyConfig>>, base: string): string {
+  return emailAbsoluteUrl(deckQuantumHeroLogo(company) || '', base);
+}
+
+/** Absolute square mark for the email footer. */
+function emailIconAbsoluteUrl(company: Awaited<ReturnType<typeof getCompanyConfig>>, base: string): string {
+  return emailAbsoluteUrl(brandIconUrl(64, companyBrandingVersion(company), { transparent: true }), base);
 }
 
 export type EmailCta = { label: string; url: string };
@@ -63,16 +78,25 @@ export async function brandedEmailHtml(opts: {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
   const brandName = company.name || 'Business OS';
-  const brandLink = '#111111';
+  const cta = emailBrandCta(company);
+  const brandLink = cta.primary;
   const logoUrl = emailLogoAbsoluteUrl(company, base);
+  const iconUrl = emailIconAbsoluteUrl(company, base);
   const homeUrl = base;
   const fontStack =
     "Space Grotesk,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
   const logoHeaderHtml = logoUrl
     ? `<img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="140" height="36"
-           style="display:block;max-width:220px;width:auto;height:36px;border:0;outline:none;text-decoration:none" />`
-    : `<span style="display:inline-block;color:#ffffff;font-family:${fontStack};font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">${esc(brandName)}</span>`;
+           style="display:block;max-width:180px;width:auto;height:32px;border:0;outline:none;text-decoration:none" />`
+    : `<span style="display:inline-block;color:#111111;font-family:${fontStack};font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">${esc(brandName)}</span>`;
+
+  const footerIconHtml = iconUrl
+    ? `<a href="${esc(homeUrl)}" style="text-decoration:none;display:inline-block">
+         <img src="${esc(iconUrl)}" alt="" width="28" height="28"
+              style="display:block;width:28px;height:28px;border:0;outline:none;margin:0 auto 10px" />
+       </a>`
+    : '';
 
   const bodyRows = opts.paragraphs
     .map(
@@ -85,10 +109,17 @@ export async function brandedEmailHtml(opts: {
     ? `
       <tr>
         <td style="padding:8px 0 20px" align="center">
-          <a href="${esc(opts.cta.url)}" class="email-cta"
-             style="display:inline-block;background-color:#111111;color:#ffffff;font-family:${fontStack};font-size:15px;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:8px;letter-spacing:0.01em;mso-padding-alt:0;text-align:center">
-            ${esc(opts.cta.label)}
-          </a>
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td class="email-cta" align="center" bgcolor="${esc(cta.primary)}"
+                  style="border-radius:999px;background-color:${esc(cta.primary)};background-image:${esc(cta.gradient)};box-shadow:${esc(cta.shadow)}">
+                <a href="${esc(opts.cta.url)}"
+                   style="display:inline-block;padding:13px 30px;border-radius:999px;color:#ffffff;font-family:${fontStack};font-size:15px;font-weight:600;letter-spacing:0.01em;line-height:1;text-decoration:none;text-align:center">
+                  ${esc(opts.cta.label)}
+                </a>
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>`
     : '';
@@ -160,16 +191,8 @@ export async function brandedEmailHtml(opts: {
   <style>
     /* ── Dark mode overrides (Apple Mail, Samsung Mail, Outlook iOS/Android) ── */
     @media (prefers-color-scheme: dark) {
-      body, .email-outer          { background-color: #000000 !important; }
-      .email-card-body            { background-color: #1c1c1e !important; }
-      .email-greeting,
-      .email-text,
-      .email-meta-value           { color: #f2f2f7 !important; }
-      .email-meta-label           { color: #8e8e93 !important; }
-      .email-meta-table           { border-top-color: #38383a !important; }
-      .email-note                 { color: #636366 !important; }
-      .email-footer-text          { color: #636366 !important; }
-      /* CTA keeps brand gradient / solid — readable in both modes */
+      body, .email-outer          { background-color: #111111 !important; }
+      /* Card stays white so the dark wordmark / icon stay visible. */
     }
   </style>
 </head>
@@ -178,62 +201,46 @@ export async function brandedEmailHtml(opts: {
     <tr>
       <td align="center" style="padding:40px 16px 48px">
 
-        <!-- Card wrapper -->
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
+        <!-- White card — wordmark left, icon in the footer -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-card" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e5e5;border-radius:12px">
 
-          <!-- ── Logo header (always dark) ──────────────────────────── -->
           <tr>
-            <td style="background-color:#09090b;padding:22px 32px;border-radius:12px 12px 0 0" align="center">
+            <td style="padding:22px 28px 8px" align="left">
               <a href="${esc(homeUrl)}" style="text-decoration:none;display:inline-block">
                 ${logoHeaderHtml}
               </a>
             </td>
           </tr>
 
-          <!-- ── Body ────────────────────────────────────────────────── -->
           <tr>
-            <td class="email-card-body" style="background-color:#ffffff;padding:32px 32px 28px;border-radius:0 0 12px 12px">
+            <td class="email-card-body" style="padding:12px 28px 8px">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 
-                <!-- Greeting -->
                 <tr>
                   <td style="padding:0 0 20px">
                     <p class="email-greeting" style="margin:0;color:#1a1a1a;font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName)},</p>
                   </td>
                 </tr>
 
-                <!-- Body paragraphs -->
                 ${bodyRows}
-
-                <!-- Sender signature -->
                 ${signatureHtml}
-
-                <!-- CTA button -->
                 ${ctaHtml}
-
-                <!-- QR code -->
                 ${qrHtml}
-
-                <!-- Metadata table -->
                 ${metaHtml}
-
-                <!-- Note -->
                 ${noteHtml}
-
-                <!-- Marketing compliance footer (unsubscribe + address) -->
                 ${complianceHtml}
 
               </table>
             </td>
           </tr>
 
-          <!-- ── Footer ────────────────────────────────────────────── -->
           <tr>
-            <td style="padding:20px 32px;text-align:center">
-              <p class="email-footer-text" style="margin:0 0 8px;color:#aaa;font-size:12px;line-height:1.5;letter-spacing:0.02em">
+            <td style="padding:20px 28px 24px;text-align:center;border-top:1px solid #f0f0f0">
+              ${footerIconHtml}
+              <p class="email-footer-text" style="margin:0 0 6px;color:#999;font-size:12px;line-height:1.5;letter-spacing:0.02em">
                 Baked in Boston
               </p>
-              <p class="email-footer-text" style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
+              <p class="email-footer-text" style="margin:0;color:#999;font-size:12px;line-height:1.5">
                 Sent by <a href="${esc(homeUrl)}" class="email-link" style="color:${esc(brandLink)};text-decoration:none">${esc(brandName)}</a>
               </p>
             </td>
@@ -245,6 +252,22 @@ export async function brandedEmailHtml(opts: {
   </table>
 </body>
 </html>`;
+}
+
+/** CTA fill from admin Company brand_primary / brand_secondary. */
+function emailBrandCta(company: Pick<CompanyConfig, 'brandPrimary' | 'brandSecondary'>): {
+  primary: string;
+  secondary: string;
+  gradient: string;
+  shadow: string;
+} {
+  const colors = resolveCompanyBrandColors(company.brandPrimary, company.brandSecondary);
+  return {
+    primary: colors.primary,
+    secondary: colors.secondary,
+    gradient: `linear-gradient(145deg, ${colors.primary} 0%, ${colors.secondary} 100%)`,
+    shadow: `0 2px 16px rgba(${colors.secondaryRgb}, 0.35)`,
+  };
 }
 
 /** @deprecated Use brandedEmailHtml */
