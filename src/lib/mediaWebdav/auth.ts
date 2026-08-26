@@ -1,7 +1,7 @@
 import { cachedCompanyBrandName } from '../companyConfig';
+import { verifyDavAuth } from '../davAuthShared';
 import { siteBaseUrl } from '../requestOrigin';
 import { serverEnv } from '../serverEnv';
-import { secretMatches } from '../secretCompare';
 
 export const MEDIA_WEBDAV_PREFIX = '/webdav';
 
@@ -19,19 +19,6 @@ export type MediaDropFolderInfo = {
   username: string | null;
   authSource: 'media' | 'carddav' | null;
 };
-
-function parseBasicAuth(header: string): { username: string; password: string } | null {
-  const m = /^Basic\s+(.+)$/i.exec(header.trim());
-  if (!m) return null;
-  try {
-    const decoded = atob(m[1].trim());
-    const sep = decoded.indexOf(':');
-    if (sep < 0) return null;
-    return { username: decoded.slice(0, sep), password: decoded.slice(sep + 1) };
-  } catch {
-    return null;
-  }
-}
 
 function mediaCredentials(): { username: string; password: string; token: string | null } | null {
   const username = serverEnv('MEDIA_WEBDAV_USERNAME')?.trim();
@@ -101,30 +88,13 @@ export function requireMediaWebdavAuth(request: Request): MediaWebdavAuth | Resp
     });
   }
 
-  const authHeader = request.headers.get('Authorization') ?? '';
-  const tokenHeader =
-    request.headers.get('X-Media-WebDAV-Token')?.trim() ||
-    request.headers.get('X-API-Key')?.trim() ||
-    '';
-
-  if (authHeader) {
-    const basic = parseBasicAuth(authHeader);
-    if (basic) {
-      const userOk = secretMatches(basic.username, creds.username);
-      const passOk = secretMatches(basic.password, creds.password);
-      if (userOk && passOk) {
-        return { username: creds.username, method: 'basic', source: creds.source };
-      }
-    }
-
-    const bearer = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
-    if (bearer && creds.token && secretMatches(bearer[1].trim(), creds.token)) {
-      return { username: creds.username, method: 'token', source: creds.source };
-    }
-  }
-
-  if (tokenHeader && creds.token && secretMatches(tokenHeader, creds.token)) {
-    return { username: creds.username, method: 'token', source: creds.source };
+  const verified = verifyDavAuth({
+    request,
+    creds,
+    tokenHeaderNames: ['X-Media-WebDAV-Token', 'X-API-Key'],
+  });
+  if (verified.ok) {
+    return { username: verified.username, method: verified.method, source: creds.source };
   }
 
   const realmName = serverEnv('COMPANY_NAME')?.trim() || cachedCompanyBrandName();

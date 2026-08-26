@@ -6,8 +6,6 @@
 import type { APIRoute } from 'astro';
 import { loadPortalJob } from '../../../../../../../lib/portalWorkAuth';
 import {
-  PROJECT_FILE_MAX_BYTES,
-  PROJECT_UPLOAD_MEDIA_TYPES,
   portalProjectFileUrl,
   storeAddProjectFile,
   storeListProjectFiles,
@@ -15,15 +13,10 @@ import {
 } from '../../../../../../../lib/projectFiles';
 import { checkInMemoryRateLimit } from '../../../../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../../../../lib/clientIp';
+import { jsonResponse } from '../../../../../../../lib/apiResponse';
+import { parseProjectFileUpload } from '../../../../../../../lib/parseProjectFileUpload';
 
 export const prerender = false;
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function toPortalFiles(contactUid: string, jobSlug: string, files: ProjectFileSummary[]) {
   return files.map((file) => ({
@@ -40,64 +33,47 @@ function toPortalFiles(contactUid: string, jobSlug: string, files: ProjectFileSu
 export const GET: APIRoute = async ({ params }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
-  if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
+  if (!contactUid || !jobSlug) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const ctx = await loadPortalJob(contactUid, jobSlug);
-  if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
+  if (!ctx.ok) return jsonResponse({ ok: false, error: ctx.error }, ctx.status);
 
   const files = await storeListProjectFiles(jobSlug);
   const portalFiles = toPortalFiles(contactUid, jobSlug, files);
-  return json({ ok: true, files: portalFiles, count: portalFiles.length });
+  return jsonResponse({ ok: true, files: portalFiles, count: portalFiles.length });
 };
 
 export const POST: APIRoute = async ({ params, request }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
-  if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
+  if (!contactUid || !jobSlug) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const rate = checkInMemoryRateLimit(`portal-file:${contactUid}:${clientIp(request)}`, {
     windowMs: 10 * 60 * 1000,
     maxPerWindow: 20,
   });
   if (!rate.ok) {
-    return json({ ok: false, error: 'Too many uploads. Please try again later.' }, 429);
-  }
-
-  const ctx = await loadPortalJob(contactUid, jobSlug);
-  if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
-
-  let form: FormData;
-  try {
-    form = await request.formData();
-  } catch {
-    return json({ ok: false, error: 'Expected multipart form data' }, 400);
-  }
-
-  const file = form.get('file');
-  if (!(file instanceof File) || !file.size) {
-    return json({ ok: false, error: 'Missing file' }, 400);
-  }
-
-  const mediaType = file.type.trim().toLowerCase();
-  if (!PROJECT_UPLOAD_MEDIA_TYPES.has(mediaType)) {
-    return json({ ok: false, error: 'File must be an image (JPEG, PNG, GIF, WebP) or PDF' }, 400);
-  }
-  if (file.size > PROJECT_FILE_MAX_BYTES) {
-    return json(
-      { ok: false, error: `File too large (max ${PROJECT_FILE_MAX_BYTES / (1024 * 1024)} MB)` },
-      400,
+    return jsonResponse(
+      { ok: false, error: 'Too many uploads. Please try again later.' },
+      429,
+      { headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
     );
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const ctx = await loadPortalJob(contactUid, jobSlug);
+  if (!ctx.ok) return jsonResponse({ ok: false, error: ctx.error }, ctx.status);
+
+  const parsed = await parseProjectFileUpload(request);
+  if (!parsed.ok) return parsed.response;
+
   const result = await storeAddProjectFile(jobSlug, {
-    filename: file.name.trim() || undefined,
-    mediaType,
-    dataBase64: buffer.toString('base64'),
+    filename: parsed.filename,
+    mediaType: parsed.mediaType,
+    dataBase64: parsed.buffer.toString('base64'),
     uploadedBy: contactUid,
     source: 'client',
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
 
   const portalFile = {
     id: result.file.id,
@@ -108,5 +84,5 @@ export const POST: APIRoute = async ({ params, request }) => {
     createdAt: result.file.createdAt,
     url: portalProjectFileUrl(contactUid, jobSlug, result.file.id),
   };
-  return json({ ok: true, file: portalFile });
+  return jsonResponse({ ok: true, file: portalFile });
 };

@@ -5,14 +5,13 @@
 
 import type { APIContext } from 'astro';
 import {
-  PROJECT_FILE_MAX_BYTES,
-  PROJECT_UPLOAD_MEDIA_TYPES,
   storeAddProjectFile,
   storeListProjectFiles,
 } from '../../../../../lib/projectFiles';
 import { isSafeWorkSlug, storeReadWork } from '../../../../../lib/workStore';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../../lib/apiResponse';
+import { parseProjectFileUpload } from '../../../../../lib/parseProjectFileUpload';
 
 export const prerender = false;
 
@@ -39,31 +38,13 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
   if (!(await storeReadWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
-  let form: FormData;
-  try {
-    form = await context.request.formData();
-  } catch {
-    return jsonResponse({ ok: false, error: 'Expected multipart form data' }, 400);
-  }
+  const parsed = await parseProjectFileUpload(context.request);
+  if (!parsed.ok) return parsed.response;
 
-  const file = form.get('file');
-  if (!(file instanceof File) || !file.size) {
-    return jsonResponse({ ok: false, error: 'Missing file' }, 400);
-  }
-
-  const mediaType = file.type.trim().toLowerCase();
-  if (!PROJECT_UPLOAD_MEDIA_TYPES.has(mediaType)) {
-    return jsonResponse({ ok: false, error: 'File must be an image (JPEG, PNG, GIF, WebP) or PDF' }, 400);
-  }
-  if (file.size > PROJECT_FILE_MAX_BYTES) {
-    return jsonResponse({ ok: false, error: `File too large (max ${PROJECT_FILE_MAX_BYTES / (1024 * 1024)} MB)` }, 400);
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
   const result = await storeAddProjectFile(slug, {
-    filename: file.name.trim() || undefined,
-    mediaType,
-    dataBase64: buffer.toString('base64'),
+    filename: parsed.filename,
+    mediaType: parsed.mediaType,
+    dataBase64: parsed.buffer.toString('base64'),
     uploadedBy: userId,
     source: 'admin',
   });

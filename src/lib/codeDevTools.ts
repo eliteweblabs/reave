@@ -17,6 +17,7 @@ import {
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { maybeDeferExecCommand } from './deferredDeploy';
 import { projectRoot } from './projectRoot';
+import { serverEnv } from './serverEnv';
 
 const MAX_READ_BYTES = 512 * 1024;
 const MAX_WRITE_BYTES = 512 * 1024;
@@ -52,6 +53,33 @@ function validateExecCommand(cmd: string): string | null {
     }
   }
   return null;
+}
+
+/** Minimal env for child processes — never forward secrets from process.env. */
+function safeExecEnv(): NodeJS.ProcessEnv {
+  const allow = [
+    'PATH',
+    'HOME',
+    'USER',
+    'LOGNAME',
+    'SHELL',
+    'LANG',
+    'LC_ALL',
+    'LC_CTYPE',
+    'TMPDIR',
+    'TMP',
+    'TEMP',
+    'NODE_ENV',
+    'NODE_OPTIONS',
+    'npm_config_user_agent',
+    'npm_config_prefix',
+  ] as const;
+  const env: NodeJS.ProcessEnv = { FORCE_COLOR: '0' };
+  for (const key of allow) {
+    const value = process.env[key] ?? serverEnv(key);
+    if (value) env[key] = value;
+  }
+  return env;
 }
 
 
@@ -358,7 +386,7 @@ export async function codeDevExecCommand(command: string): Promise<CodeDevResult
         cwd: root,
         timeout: EXEC_TIMEOUT_MS,
         maxBuffer: 512 * 1024,
-        env: { ...process.env, FORCE_COLOR: '0' },
+        env: safeExecEnv(),
         windowsHide: true,
       },
       (err, stdout, stderr) => {
