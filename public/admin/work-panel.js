@@ -1014,6 +1014,43 @@ function projectTitleFromTimer(timer) {
   return (timer?.job?.title || timer?.job?.label || timer?.job_slug || 'Project').trim();
 }
 
+const LAST_HEADER_TIMER_KEY = 'reave-header-timer-job';
+
+function readLastHeaderTimerJob() {
+  try {
+    const raw = localStorage.getItem(LAST_HEADER_TIMER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const slug = typeof parsed?.slug === 'string' ? parsed.slug.trim() : '';
+    if (!slug) return null;
+    const title = typeof parsed?.title === 'string' ? parsed.title.trim() : '';
+    return { slug, title: title || slug };
+  } catch {
+    return null;
+  }
+}
+
+function writeLastHeaderTimerJob(job) {
+  try {
+    if (!job?.slug) {
+      localStorage.removeItem(LAST_HEADER_TIMER_KEY);
+      return;
+    }
+    localStorage.setItem(
+      LAST_HEADER_TIMER_KEY,
+      JSON.stringify({ slug: job.slug, title: job.title || job.slug }),
+    );
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function lastJobFromTimer(timer, fallbackSlug = '') {
+  const slug = String(timer?.job_slug || fallbackSlug || '').trim();
+  if (!slug) return null;
+  return { slug, title: timer ? projectTitleFromTimer(timer) : slug };
+}
+
 function syncAnimatedClockHands(root, startedAt) {
   if (!root || !startedAt) return;
   const start = new Date(startedAt).getTime();
@@ -1035,14 +1072,17 @@ function mountHeaderTimerHook() {
   const region = document.querySelector('[data-hook-region="header-end"]');
   if (!region || region.querySelector('[data-hook-id="time-tracking"]')) return;
 
+  let lastJob = readLastHeaderTimerJob();
+
   const wrap = document.createElement('div');
   wrap.className = 'topbar-timer-hook';
-  wrap.hidden = true;
+  wrap.hidden = !lastJob;
+  wrap.classList.toggle('is-idle', Boolean(lastJob));
 
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'topbar-timer-btn';
-  btn.setAttribute('aria-label', 'Timer running');
+  btn.setAttribute('aria-label', lastJob ? `Resume timer on ${lastJob.title}` : 'Timer');
   btn.setAttribute('aria-expanded', 'false');
   btn.setAttribute('aria-haspopup', 'true');
   btn.setAttribute('aria-controls', 'topbar-timer-tip');
@@ -1072,30 +1112,54 @@ function mountHeaderTimerHook() {
     }
   };
 
+  const rememberLastJob = (timer, fallbackSlug = '') => {
+    const next = lastJobFromTimer(timer, fallbackSlug);
+    if (!next) return;
+    if (lastJob?.slug === next.slug && next.title === next.slug && lastJob.title) {
+      next.title = lastJob.title;
+    }
+    lastJob = next;
+    writeLastHeaderTimerJob(next);
+  };
+
+  const currentJob = () =>
+    view.running && view.timer
+      ? { slug: view.timer.job_slug, title: projectTitleFromTimer(view.timer) }
+      : lastJob;
+
   const renderHeaderIcon = () => {
-    const showStop = open && Boolean(view.running);
-    btn.classList.toggle('is-stop', showStop);
+    const running = Boolean(view.running && view.timer);
+    const showPause = open && running;
+    const showPlay = open && !running && Boolean(lastJob);
+    const job = currentJob();
+    const title = job?.title || 'timer';
+    btn.classList.toggle('is-pause', showPause);
+    btn.classList.toggle('is-play', showPlay);
     btn.disabled = busy;
-    if (showStop) {
-      btn.innerHTML = iosIcon('square', 14);
-      const title = view.timer ? projectTitleFromTimer(view.timer) : 'timer';
-      btn.setAttribute('aria-label', busy ? 'Stopping timer' : `Stop timer on ${title}`);
+    if (showPause) {
+      btn.innerHTML = iosIcon('pause', 14);
+      btn.setAttribute('aria-label', busy ? 'Pausing timer' : `Pause timer on ${title}`);
+      return;
+    }
+    if (showPlay) {
+      btn.innerHTML = iosIcon('play', 14);
+      btn.setAttribute('aria-label', busy ? 'Starting timer' : `Resume timer on ${title}`);
       return;
     }
     btn.innerHTML = animatedClockIcon(16);
-    if (view.running && view.timer) {
+    if (running) {
       syncAnimatedClockHands(btn, view.timer.started_at);
       btn.setAttribute(
         'aria-label',
-        `Timer running on ${projectTitleFromTimer(view.timer)}, ${formatElapsedClock(view.timer.started_at)}`,
+        `Timer running on ${title}, ${formatElapsedClock(view.timer.started_at)}`,
       );
     } else {
-      btn.setAttribute('aria-label', 'Timer running');
+      btn.setAttribute('aria-label', lastJob ? `Resume timer on ${title}` : 'Timer');
     }
   };
 
   const setOpen = (next) => {
-    open = Boolean(next) && Boolean(view.running && view.timer);
+    open = Boolean(next) && Boolean((view.running && view.timer) || lastJob);
     wrap.classList.toggle('is-open', open);
     tip.hidden = !open;
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1104,24 +1168,33 @@ function mountHeaderTimerHook() {
 
   const renderTip = () => {
     tip.innerHTML = '';
-    if (!view.running || !view.timer) return;
+    const job = currentJob();
+    if (!job) {
+      renderHeaderIcon();
+      return;
+    }
 
     const elapsed = document.createElement('div');
     elapsed.className = 'topbar-timer-tip-elapsed';
-    elapsed.textContent = formatElapsedClock(view.timer.started_at);
+    if (view.running && view.timer) {
+      elapsed.textContent = formatElapsedClock(view.timer.started_at);
+    } else {
+      elapsed.classList.add('is-paused');
+      elapsed.textContent = 'Paused';
+    }
 
     const project = document.createElement('a');
     project.className = 'topbar-timer-tip-project';
-    project.href = `/admin/?tab=work&slug=${encodeURIComponent(view.timer.job_slug)}`;
+    project.href = `/admin/?tab=work&slug=${encodeURIComponent(job.slug)}`;
     const name = document.createElement('span');
     name.className = 'topbar-timer-tip-project-name';
-    name.textContent = projectTitleFromTimer(view.timer);
+    name.textContent = job.title;
     project.appendChild(name);
     project.insertAdjacentHTML('beforeend', iosIcon('chevron-right', 11));
     project.addEventListener('click', (ev) => {
       ev.preventDefault();
       setOpen(false);
-      navigateToWork(view.timer.job_slug);
+      navigateToWork(job.slug);
     });
 
     tip.append(elapsed, project);
@@ -1153,14 +1226,21 @@ function mountHeaderTimerHook() {
       running: Boolean(next.running && next.timer),
       timer: next.timer || null,
     };
+    if (incoming.running && incoming.timer) rememberLastJob(incoming.timer);
+    else if (next.job_slug) rememberLastJob(next.timer, next.job_slug);
     const same = workTimerViewKey(incoming) === workTimerViewKey(view);
     view = incoming;
-    wrap.hidden = !view.running;
+    wrap.hidden = !view.running && !lastJob;
+    wrap.classList.toggle('is-idle', !view.running);
     syncHeaderHookRegionVisibility(region);
-    if (!view.running) setOpen(false);
+    const stillHover = wrap.matches(':hover') || wrap.contains(document.activeElement);
+    if (!view.running) setOpen(stillHover && Boolean(lastJob));
+    else if (stillHover) setOpen(true);
     if (!same) {
       renderTip();
       if (!silent) publishWorkTimerView(view);
+    } else {
+      renderHeaderIcon();
     }
     startTick();
   };
@@ -1199,6 +1279,38 @@ function mountHeaderTimerHook() {
     }
   }
 
+  async function startHeaderTimer() {
+    if (busy || view.running || !lastJob?.slug) return;
+    busy = true;
+    renderHeaderIcon();
+    try {
+      const res = await adminFetch('/api/work/timer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start', slug: lastJob.slug }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        if (res.status === 404 || /not found/i.test(String(data.error || ''))) {
+          lastJob = null;
+          writeLastHeaderTimerJob(null);
+          wrap.hidden = true;
+          wrap.classList.add('is-idle');
+          syncHeaderHookRegionVisibility(region);
+        }
+        throw new Error(data.error || data.text || `HTTP ${res.status}`);
+      }
+      applyView(data);
+      const text = typeof data.text === 'string' ? data.text.trim() : '';
+      if (text && shell.showChatToast) shell.showChatToast(text);
+    } catch (e) {
+      shell.osAlert({ title: 'Timer', bodyHtml: escHtml(e.message) });
+    } finally {
+      busy = false;
+      renderTip();
+    }
+  }
+
   const scheduleOpen = () => {
     if (hoverTimer) clearTimeout(hoverTimer);
     hoverTimer = setTimeout(() => setOpen(true), 80);
@@ -1217,8 +1329,12 @@ function mountHeaderTimerHook() {
   tip.addEventListener('mouseleave', scheduleClose);
   btn.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    if (open) {
+    if (view.running) {
       void stopHeaderTimer();
+      return;
+    }
+    if (lastJob) {
+      void startHeaderTimer();
       return;
     }
     setOpen(true);
@@ -1241,6 +1357,7 @@ function mountHeaderTimerHook() {
     if (!document.hidden) void loadTimer();
   });
 
+  if (lastJob) renderTip();
   void loadTimer();
   pollId = setInterval(() => void loadTimer(), 15000);
 }
