@@ -126,7 +126,7 @@ import {
   mountListFilterTabsWrap,
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
-} from './filter-tabs.js?v=20260813a';
+} from './filter-tabs.js?v=20260826a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260825a';
 import {
   initWorkPanel,
@@ -6382,7 +6382,7 @@ function destroyCompanyMap() {
   companyPendingGeo = null;
 }
 
-function bindCompanyForm(root, company, fontCatalog) {
+function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   destroyCompanyMap();
   if (companyFontPickers) {
     companyFontPickers.destroy();
@@ -6521,6 +6521,7 @@ function bindCompanyForm(root, company, fontCatalog) {
   resyncCompanyForm = () => companyAutosave.resync?.();
   companyFontPickers = mountCompanyBrandFontPickers(root, fontCatalog);
   bindCompanyFontPreview(root, fontCatalog);
+  bindCompanyEmailFontPreview(root, emailFontCatalog);
   bindCompanyBrandColors(root);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
 }
@@ -7435,7 +7436,50 @@ function bindCompanyFontScrape(root, fontCatalog, alertEl, company) {
   });
 }
 
-function renderCompanyPanel(company, fontCatalog) {
+function renderEmailFontOptions(catalog, selectedId) {
+  const list = Array.isArray(catalog) ? catalog : [];
+  const groups = [
+    { id: 'sans', label: 'Sans-serif' },
+    { id: 'serif', label: 'Serif' },
+    { id: 'mono', label: 'Monospace' },
+  ];
+  const grouped = groups
+    .map((group) => {
+      const opts = list.filter((entry) => entry.category === group.id);
+      if (!opts.length) return '';
+      return (
+        `<optgroup label="${escHtml(group.label)}">` +
+        opts
+          .map((entry) => {
+            const sel = entry.id === selectedId ? ' selected' : '';
+            return `<option value="${escHtml(entry.id)}"${sel}>${escHtml(entry.label)}</option>`;
+          })
+          .join('') +
+        `</optgroup>`
+      );
+    })
+    .join('');
+  if (grouped) return grouped;
+  const sel = !selectedId || selectedId === 'system' ? ' selected' : '';
+  return `<option value="system"${sel}>System UI</option>`;
+}
+
+function bindCompanyEmailFontPreview(root, catalog) {
+  const select = root.querySelector('#company-emailFont');
+  const preview = root.querySelector('.prof-email-font-preview-text');
+  const note = root.querySelector('#company-email-font-note');
+  if (!(select instanceof HTMLSelectElement) || !preview) return;
+  const update = () => {
+    const entry = (catalog || []).find((item) => item.id === select.value);
+    preview.style.fontFamily =
+      entry?.preview || '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    if (note) note.textContent = entry?.note || '';
+  };
+  select.addEventListener('change', update);
+  update();
+}
+
+function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
   const c = company || {};
   const fonts = c.fonts || {};
   const logoUrl = companyLogoPreviewUrl(c);
@@ -7571,6 +7615,19 @@ function renderCompanyPanel(company, fontCatalog) {
               `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
             `</div>` +
             `<span id="company-font-hint" class="prof-hint prof-hint--block">Uses the homepage address below — same idea as fetching logos from the source site.</span>`,
+          ) +
+          profSection(
+            'Email templates',
+            'Default typeface for outbound HTML mail. Website webfonts are stripped by Gmail — this list is only faces that are installed on the recipient’s device.',
+            `<div class="prof-field"><label for="company-emailFont">Email font</label>` +
+            `<select id="company-emailFont" name="emailFont" aria-describedby="company-email-font-hint">` +
+              renderEmailFontOptions(emailFontCatalog, c.emailFont) +
+            `</select></div>` +
+            `<div class="prof-font-preview prof-email-font-preview" aria-hidden="true">` +
+              `<p class="prof-email-font-preview-text">Hi there — this is how body copy looks in Gmail, Outlook, and Apple Mail.</p>` +
+            `</div>` +
+            `<span id="company-email-font-note" class="prof-hint"></span>` +
+            `<span id="company-email-font-hint" class="prof-hint prof-hint--block">Sans, serif, and mono are all here so each install can match its brand. Unknown ids fall back to System UI.</span>`,
           ) +
           profSection(
             'Colors',
@@ -8133,9 +8190,18 @@ async function loadCompanyTab() {
     const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
     const companyData = await companyRes.json();
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
-    root.innerHTML = renderCompanyPanel(companyData.company, companyData.fontCatalog);
+    root.innerHTML = renderCompanyPanel(
+      companyData.company,
+      companyData.fontCatalog,
+      companyData.emailFontCatalog,
+    );
     prependSettingsBackHeader(root);
-    bindCompanyForm(root, companyData.company, companyData.fontCatalog);
+    bindCompanyForm(
+      root,
+      companyData.company,
+      companyData.fontCatalog,
+      companyData.emailFontCatalog,
+    );
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +
@@ -9989,9 +10055,19 @@ function parseScheduleDeepLinkFromUrl() {
   }
 }
 
+function isAutoDeletedEmail(ev) {
+  return String(ev?.category || '').toLowerCase() === 'auto_deleted';
+}
+
+function isHiddenInboxEmail(ev) {
+  const c = String(ev?.category || '').toLowerCase();
+  return c === 'junk' || c === 'auto_deleted';
+}
+
 function applyEmailInboxFilterForEvent(ev) {
   if (!ev) return;
-  if (ev.category === 'junk') emailState.inboxFilter = 'junk';
+  if (isAutoDeletedEmail(ev)) emailState.inboxFilter = 'auto_deleted';
+  else if (ev.category === 'junk') emailState.inboxFilter = 'junk';
   else if (ev.category === 'receipt') emailState.inboxFilter = 'receipt';
   else if (ev.category === 'alert') emailState.inboxFilter = 'alert';
   else if (isEmailBookable(ev)) emailState.inboxFilter = 'book';
@@ -10278,7 +10354,7 @@ function isEmailBooked(ev) {
 function inboxTabCounts() {
   const all = emailState.allEvents;
   const active = (e) =>
-    e.category !== 'junk' && e.category !== 'receipt' && !isEmailProject(e) && !isEmailRouted(e);
+    !isHiddenInboxEmail(e) && e.category !== 'receipt' && !isEmailProject(e) && !isEmailRouted(e);
   return {
     all: all.filter(active).length,
     alert: all.filter((e) => e.category === 'alert' && !isEmailRouted(e)).length,
@@ -10292,6 +10368,7 @@ function inboxTabCounts() {
     routed: all.filter(isEmailRouted).length,
     receipt: all.filter((e) => e.category === 'receipt' && !isEmailRouted(e)).length,
     junk: all.filter((e) => e.category === 'junk').length,
+    auto_deleted: all.filter(isAutoDeletedEmail).length,
     draft: (emailState.draftEvents || []).length,
     sent: (emailState.sentEvents || []).length,
   };
@@ -10301,6 +10378,7 @@ function inboxEventsForFilter() {
   const all = emailState.allEvents;
   const f = emailState.inboxFilter;
   if (f === 'junk') return all.filter((e) => e.category === 'junk');
+  if (f === 'auto_deleted') return all.filter(isAutoDeletedEmail);
   if (f === 'receipt') return all.filter((e) => e.category === 'receipt' && !isEmailRouted(e));
   if (f === 'alert') return all.filter((e) => e.category === 'alert' && !isEmailRouted(e));
   if (f === 'review') {
@@ -10314,7 +10392,8 @@ function inboxEventsForFilter() {
   if (f === 'project') return all.filter(isEmailProject);
   if (f === 'routed') return all.filter(isEmailRouted);
   return all.filter(
-    (e) => e.category !== 'junk' && e.category !== 'receipt' && !isEmailProject(e) && !isEmailRouted(e),
+    (e) =>
+      !isHiddenInboxEmail(e) && e.category !== 'receipt' && !isEmailProject(e) && !isEmailRouted(e),
   );
 }
 
@@ -10515,7 +10594,7 @@ function isPendingReviewNotification(ev) {
   ) {
     return true;
   }
-  if (!ev.bookingUid && !ev.automationKind && ev.category !== 'junk') {
+  if (!ev.bookingUid && !ev.automationKind && !isHiddenInboxEmail(ev)) {
     const blob = [ev.summary, ev.subject, ev.schedulingNote, ev.bodySnippet].join(' ').toLowerCase();
     const mentionsMeeting = /\b(meet(ing)?|schedule|appointment|call|get together)\b/.test(blob);
     const mentionsTime =
@@ -10547,7 +10626,7 @@ function reviewNotificationTypeFromEmail(ev) {
   ) {
     return ev.automationKind === 'meeting_conflict' ? 'meeting_conflict' : 'meeting_request';
   }
-  if (!ev.bookingUid && !ev.automationKind && ev.category !== 'junk') {
+  if (!ev.bookingUid && !ev.automationKind && !isHiddenInboxEmail(ev)) {
     const blob = [ev.summary, ev.subject, ev.schedulingNote, ev.bodySnippet].join(' ').toLowerCase();
     const mentionsMeeting = /\b(meet(ing)?|schedule|appointment|call|get together)\b/.test(blob);
     const mentionsTime =
@@ -10724,6 +10803,7 @@ function emailCategoryClass(cat) {
   const key = String(cat || 'review').toLowerCase();
   const known = new Set([
     'junk',
+    'auto_deleted',
     'client',
     'alert',
     'internal',
@@ -10733,6 +10813,7 @@ function emailCategoryClass(cat) {
     'otp',
     'auth_link',
   ]);
+  if (key === 'auto_deleted') return 'em-cat-auto-deleted';
   return known.has(key) ? `em-cat-${key === 'auth_link' ? 'otp' : key}` : 'em-cat-review';
 }
 
@@ -10745,6 +10826,7 @@ function formatEmailCategoryLabel(ev) {
   if (isEmailProject(ev)) return postTitle(2);
   const cat = String(ev.category || 'review').toLowerCase();
   if (cat === 'project') return postTitle(2);
+  if (cat === 'auto_deleted') return 'Auto deleted';
   return ev.category || 'review';
 }
 
@@ -10935,7 +11017,7 @@ function buildEmailDetailHeaderIcons(ev) {
     }),
   );
   // Archive sits between share and delete on ≥640px; swipe covers it on small screens.
-  if (ev.category !== 'junk') {
+  if (!isHiddenInboxEmail(ev)) {
     const routed = isEmailRouted(ev);
     icons.push(
       createIosIconBtn({
@@ -10943,6 +11025,16 @@ function buildEmailDetailHeaderIcons(ev) {
         label: routed ? 'Unarchive message' : 'Archive message',
         className: 'ios-icon-btn em-archive-btn',
         onClick: () => void (routed ? unarchiveEmail(ev) : archiveEmail(ev)),
+      }),
+    );
+  }
+  if (isAutoDeletedEmail(ev)) {
+    icons.push(
+      createIosIconBtn({
+        iconKey: 'undo',
+        label: 'Keep this message',
+        className: 'ios-icon-btn em-keep-btn',
+        onClick: () => void restoreAutoDeletedEmail(ev),
       }),
     );
   }
@@ -12710,6 +12802,21 @@ async function unarchiveEmail(ev) {
   }
 }
 
+async function restoreAutoDeletedEmail(ev) {
+  closeOpenSwipeRow();
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED' }),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not keep message', bodyHtml: escHtml(e.message) });
+  }
+}
+
 function applyEmailPatchResult(id, event) {
   if (!event) return;
   const idx = emailState.allEvents.findIndex((e) => e.id === id);
@@ -12718,7 +12825,13 @@ function applyEmailPatchResult(id, event) {
     emailState.activeId = null;
   }
   const action = String(event.action || '').toLowerCase();
-  if (event.category === 'junk' || action === 'filed' || action === 'junk') {
+  if (
+    event.category === 'junk' ||
+    event.category === 'auto_deleted' ||
+    action === 'filed' ||
+    action === 'junk' ||
+    action === 'deleted'
+  ) {
     removeEmailRelatedAlertBanners(id);
   }
   renderEmailPanel();
@@ -12965,7 +13078,7 @@ async function bulkDeleteInboxCategory(tab) {
 }
 
 function isEmailUnseen(ev) {
-  return ev.category !== 'junk' && !ev.seenAt;
+  return !isHiddenInboxEmail(ev) && !ev.seenAt;
 }
 
 /** Dot ids for the current inbox visit — cleared when leaving the email tab. */
@@ -13139,6 +13252,20 @@ function buildEmailSwipeActions(ev) {
       }),
     );
     return actions;
+  }
+
+  if (isAutoDeletedEmail(ev)) {
+    return [
+      swipeAgentAction(() => askAgentAboutEmail(ev)),
+      swipeClearAction({
+        label: 'Keep',
+        onClick: () => restoreAutoDeletedEmail(ev),
+      }),
+      swipeDeleteAction({
+        label: 'Delete',
+        onClick: () => deleteEmail(ev),
+      }),
+    ];
   }
 
   if (isEmailRouted(ev)) {
@@ -13385,6 +13512,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
       { id: 'routed', label: 'Archive', count: counts.routed },
       { id: 'receipt', label: 'Receipts', count: counts.receipt },
       { id: 'junk', label: 'Junk', count: counts.junk },
+      { id: 'auto_deleted', label: 'Auto deleted', count: counts.auto_deleted },
     ],
     fixedTabs: [
       { id: 'draft', label: 'Draft', count: counts.draft, variant: 'draft' },
@@ -13425,16 +13553,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
 
 function emailCountForActiveTab() {
   const counts = inboxTabCounts();
-  if (emailState.inboxFilter === 'sent') return counts.sent;
-  if (emailState.inboxFilter === 'draft') return counts.draft;
-  if (emailState.inboxFilter === 'junk') return counts.junk;
-  if (emailState.inboxFilter === 'receipt') return counts.receipt;
-  if (emailState.inboxFilter === 'alert') return counts.alert;
-  if (emailState.inboxFilter === 'review') return counts.review;
-  if (emailState.inboxFilter === 'book') return counts.book;
-  if (emailState.inboxFilter === 'project') return counts.project;
-  if (emailState.inboxFilter === 'routed') return counts.routed;
-  return counts.all;
+  return counts[emailState.inboxFilter] ?? counts.all;
 }
 
 function emailSidebarEmptyInnerHtml() {
@@ -13448,6 +13567,9 @@ function emailSidebarEmptyInnerHtml() {
     return 'No drafts yet.<br><span class="em-hint">Unsent compose messages will appear here.</span>';
   }
   if (emailState.inboxFilter === 'junk') return 'No junk messages.';
+  if (emailState.inboxFilter === 'auto_deleted') {
+    return 'No automatically deleted messages.<br><span class="em-hint">Mail removed by DELETE rules is kept here so you can confirm nothing was filtered by mistake.</span>';
+  }
   if (emailState.inboxFilter === 'alert') return 'No alerts.';
   if (emailState.inboxFilter === 'review') return 'No messages need review.';
   if (emailState.inboxFilter === 'book') return 'No emails with a proposed meeting time.';
@@ -13495,26 +13617,7 @@ function updateEmailFilterTabCounts(root) {
     if (id === 'all' && emailState.inboxFilter === 'all') return;
     const countEl = btn.querySelector('.em-filter-count');
     if (!countEl) return;
-    const count =
-      id === 'sent'
-        ? counts.sent
-        : id === 'draft'
-          ? counts.draft
-          : id === 'junk'
-            ? counts.junk
-            : id === 'receipt'
-              ? counts.receipt
-              : id === 'alert'
-                ? counts.alert
-                : id === 'review'
-                  ? counts.review
-                  : id === 'book'
-                    ? counts.book
-                    : id === 'project'
-                      ? counts.project
-                      : id === 'routed'
-                        ? counts.routed
-                        : counts.all;
+    const count = counts[id] ?? counts.all;
     countEl.textContent = String(count);
   });
 }

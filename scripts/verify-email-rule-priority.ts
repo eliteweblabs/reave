@@ -322,6 +322,10 @@ assert.equal(
   true,
 );
 assert.equal(
+  isJunkClassification({ category: 'auto_deleted', action: 'deleted', status: 'DELETE' }),
+  true,
+);
+assert.equal(
   isJunkClassification({ category: 'alert', action: 'alert', status: 'NEEDS_CHECK' }),
   false,
 );

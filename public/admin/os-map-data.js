@@ -362,7 +362,7 @@ const EMAIL_TRIAGE_NODES = [
   { id: 'et_meeting', title: 'Meeting automation', sub: 'Intent + clock in email · never invent', icon: '📅', hue: 120, status: true, group: 'et_automate', x: 1160, y: 180 },
   { id: 'et_project', title: 'Project automation', sub: 'Match existing · skip if forwarded', icon: '💼', hue: 195, status: true, group: 'et_automate', x: 1160, y: 300 },
   { id: 'et_file', title: 'File to job', sub: 'Append note · attachments', icon: '📎', hue: 210, status: true, group: 'et_automate', x: 1160, y: 420 },
-  { id: 'et_sort', title: 'Junk · archive · delete', sub: 'Junk stays · DELETE removes row · receipt', icon: '🗂️', hue: 25, status: true, group: 'et_automate', x: 1160, y: 540 },
+  { id: 'et_sort', title: 'Junk · archive · delete', sub: 'Junk stays · DELETE → Auto deleted review · receipt', icon: '🗂️', hue: 25, status: true, group: 'et_automate', x: 1160, y: 540 },
 
   // Surfaces
   { id: 'et_inbox', title: 'Inbox log', sub: 'App Postgres · wipe sample seed on first API', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'et_surfaces', x: 1440, y: 160 },

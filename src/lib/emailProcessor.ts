@@ -25,7 +25,6 @@ import { resolveContact, getContact, getClientKind, siteBaseUrl, type ClientKind
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import {
-  storeDeleteEmailInbox,
   storeRecordEmailInbox,
   storeUpdateEmailInbox,
   type EmailInboxRecord,
@@ -110,7 +109,17 @@ export async function verificationCodeDeleteAfterAt(): Promise<string | null> {
   return new Date(Date.now() + clamped * 60_000).toISOString();
 }
 
-export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project' | 'otp' | 'auth_link';
+export type EmailCategory =
+  | 'junk'
+  | 'auto_deleted'
+  | 'client'
+  | 'alert'
+  | 'internal'
+  | 'review'
+  | 'receipt'
+  | 'project'
+  | 'otp'
+  | 'auth_link';
 
 export interface ProcessedEmailResult {
   ok: boolean;
@@ -137,7 +146,7 @@ export interface ProcessedEmailResult {
   wouldNotify?: boolean;
   wouldAgentAlert?: boolean;
   wouldForwardTo?: string | null;
-  /** Matched DELETE rule — message is removed, not filed as junk. */
+  /** Matched DELETE rule — filed as auto_deleted for review, not junk. */
   wouldDelete?: boolean;
   aiClassify?: AiClassifyResult | null;
   proposedMeetingStart?: string | null;
@@ -186,7 +195,7 @@ function shouldSkipAutoReceipt(opts: {
   isProjectReply: boolean;
 }): boolean {
   if (opts.isProjectReply) return true;
-  if (opts.category === 'junk') return true;
+  if (opts.category === 'junk' || opts.category === 'auto_deleted') return true;
   if (opts.category === 'alert') return true;
   if (opts.ruleStatus.toUpperCase() === 'AUTO_ARCHIVED') return true;
   if (isOperationalAlertStatus(opts.ruleStatus)) return true;
@@ -1533,7 +1542,10 @@ export async function processInboundEmail(
     isVerificationCode,
     isAuthLink,
   });
-  if (hardDelete) action = 'deleted';
+  if (hardDelete) {
+    category = 'auto_deleted';
+    action = 'deleted';
+  }
 
   if (dryRun) {
     if (suppressDuplicateMeetingAlert) {
@@ -1543,27 +1555,22 @@ export async function processInboundEmail(
     if (hardDelete) {
       pushAudit(
         'persist',
-        'Would delete inbox row',
-        'DELETE rule — remove the message; do not file as junk',
+        'Would file as auto-deleted',
+        'DELETE rule — hidden Auto deleted review queue (not junk, not removed)',
         matchedRuleLink,
       );
     } else {
       pushAudit('persist', 'Would write inbox row', `${inboxStatus} · ${category} · ${action}`);
     }
-  } else if (hardDelete) {
-    pushAudit(
-      'persist',
-      'Deleted inbox row',
-      'DELETE rule — removed after classify; not filed as junk',
-      matchedRuleLink,
-    );
-    if (options?.existingInboxId) {
-      await storeDeleteEmailInbox(options.existingInboxId).catch((e) =>
-        console.warn('[email] DELETE-rule cleanup failed', e),
+  } else {
+    if (hardDelete) {
+      pushAudit(
+        'persist',
+        'Filed as auto-deleted',
+        'DELETE rule — kept for review in Auto deleted',
+        matchedRuleLink,
       );
     }
-    inboxRecord = null;
-  } else {
     const persistFields = {
       from,
       subject: email.subject ?? '',
@@ -1712,11 +1719,13 @@ export async function processInboundEmail(
     needsExplain ||
     action === 'project_reply' ||
     action === 'junk' ||
+    action === 'deleted' ||
     action === 'receipt' ||
     action === 'failed_payment' ||
     action === 'google_alert' ||
     action === 'needs_explain' ||
     category === 'junk' ||
+    category === 'auto_deleted' ||
     category === 'receipt' ||
     category === 'alert' ||
     category === 'otp' ||

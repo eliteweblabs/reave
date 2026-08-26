@@ -186,7 +186,12 @@ export function isMeetingRequestPendingReview(
   if (record.bookingUid || record.automationAckAt) return false;
   // Uncertain classification owns the dashboard slot (Explain) — never also Confirm.
   if (isNeedsExplainAction(record)) return false;
-  if (record.category === 'alert' || record.category === 'junk' || record.category === 'receipt') {
+  if (
+    record.category === 'alert' ||
+    record.category === 'junk' ||
+    record.category === 'auto_deleted' ||
+    record.category === 'receipt'
+  ) {
     return false;
   }
   const evidence = inboundMeetingEvidence({
@@ -220,7 +225,9 @@ export function isLegacyMeetingRequestPendingReview(
 ): boolean {
   if (record.automationKind || record.bookingUid || record.automationAckAt) return false;
   if (isNeedsExplainAction(record)) return false;
-  if (record.category === 'junk' || record.category === 'alert') return false;
+  if (record.category === 'junk' || record.category === 'auto_deleted' || record.category === 'alert') {
+    return false;
+  }
   const evidence = inboundMeetingEvidence({
     subject: record.subject,
     bodyText: record.bodyText,

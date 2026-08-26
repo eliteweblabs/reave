@@ -295,6 +295,7 @@ function normalizeCategory(raw: string | undefined): EmailCategory {
   const c = String(raw ?? 'review').toLowerCase();
   if (
     c === 'junk' ||
+    c === 'auto_deleted' ||
     c === 'client' ||
     c === 'alert' ||
     c === 'internal' ||
@@ -457,13 +458,19 @@ export function isEmailInboxRouted(
   return action === 'filed' || action === 'matched';
 }
 
+/** Junk + DELETE-rule review queue — hidden from All / dashboard / badges. */
+export function isHiddenInboxCategory(category: string | null | undefined): boolean {
+  const c = String(category || '').toLowerCase();
+  return c === 'junk' || c === 'auto_deleted';
+}
+
 /** Matches admin inbox default "All" tab — active mail still in the working queue. */
 export function isEmailInboxActive(
   record: Pick<EmailInboxRecord, 'category' | 'jobSlug' | 'action'>,
 ): boolean {
   const category = String(record.category || '').toLowerCase();
   return (
-    category !== 'junk' &&
+    !isHiddenInboxCategory(category) &&
     category !== 'receipt' &&
     !isEmailInboxProject(record) &&
     !isEmailInboxRouted(record)
@@ -480,7 +487,7 @@ export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean
   let alert = 0;
   for (const e of events) {
     total++;
-    if (e.category === 'junk') {
+    if (isHiddenInboxCategory(e.category)) {
       junkHidden++;
       if (hideJunk) continue;
     }
@@ -508,8 +515,8 @@ async function digestFromPg(hideJunk: boolean): Promise<EmailInboxDigest | null>
     }>(
       `SELECT
          COUNT(*)::text AS total,
-         COUNT(*) FILTER (WHERE category <> 'junk')::text AS visible,
-         COUNT(*) FILTER (WHERE category = 'junk')::text AS junk_hidden,
+         COUNT(*) FILTER (WHERE category NOT IN ('junk', 'auto_deleted'))::text AS visible,
+         COUNT(*) FILTER (WHERE category IN ('junk', 'auto_deleted'))::text AS junk_hidden,
          COUNT(*) FILTER (WHERE category = 'client')::text AS client,
          COUNT(*) FILTER (WHERE action = 'filed')::text AS filed,
          COUNT(*) FILTER (WHERE category IN ('review', 'otp', 'auth_link'))::text AS review,
@@ -549,10 +556,11 @@ async function listFromFile(limit: number, hideJunk: boolean): Promise<EmailInbo
   const events = parseFileEvents(readFileSync(path, 'utf8')).sort(
     (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
   );
-  if (hideJunk) return events.filter((e) => e.category !== 'junk').slice(0, limit);
-  const visible = events.filter((e) => e.category !== 'junk').slice(0, limit);
+  if (hideJunk) return events.filter((e) => !isHiddenInboxCategory(e.category)).slice(0, limit);
+  const visible = events.filter((e) => !isHiddenInboxCategory(e.category)).slice(0, limit);
   const junk = events.filter((e) => e.category === 'junk').slice(0, limit);
-  return mergeInboxByReceivedAt([visible, junk]);
+  const autoDeleted = events.filter((e) => e.category === 'auto_deleted').slice(0, limit);
+  return mergeInboxByReceivedAt([visible, junk, autoDeleted]);
 }
 
 async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | null> {
@@ -621,18 +629,18 @@ async function listFromPg(limit: number, hideJunk: boolean): Promise<EmailInboxR
     if (hideJunk) {
       const { rows } = await pool.query(
         `SELECT ${INBOX_LIST_SELECT}
-         FROM email_inbox WHERE category <> 'junk'
+         FROM email_inbox WHERE category NOT IN ('junk', 'auto_deleted')
          ORDER BY received_at DESC LIMIT $1`,
         [limit],
       );
       return rows.map(rowToRecord);
     }
-    // Including junk must not crowd All/Alert/Review off the page when a
-    // burst of DELETE mail is the newest slice.
-    const [visible, junk] = await Promise.all([
+    // Including junk / auto-deleted must not crowd All/Alert/Review off the
+    // page when a burst of DELETE mail is the newest slice.
+    const [visible, junk, autoDeleted] = await Promise.all([
       pool.query(
         `SELECT ${INBOX_LIST_SELECT}
-         FROM email_inbox WHERE category <> 'junk'
+         FROM email_inbox WHERE category NOT IN ('junk', 'auto_deleted')
          ORDER BY received_at DESC LIMIT $1`,
         [limit],
       ),
@@ -642,8 +650,18 @@ async function listFromPg(limit: number, hideJunk: boolean): Promise<EmailInboxR
          ORDER BY received_at DESC LIMIT $1`,
         [limit],
       ),
+      pool.query(
+        `SELECT ${INBOX_LIST_SELECT}
+         FROM email_inbox WHERE category = 'auto_deleted'
+         ORDER BY received_at DESC LIMIT $1`,
+        [limit],
+      ),
     ]);
-    return mergeInboxByReceivedAt([visible.rows.map(rowToRecord), junk.rows.map(rowToRecord)]);
+    return mergeInboxByReceivedAt([
+      visible.rows.map(rowToRecord),
+      junk.rows.map(rowToRecord),
+      autoDeleted.rows.map(rowToRecord),
+    ]);
   } catch (e) {
     console.error('[email-inbox] pg list failed', e);
     return [];
@@ -798,7 +816,7 @@ async function listReceiptScanFromPg(limit: number, since?: Date): Promise<Email
     const { rows } = await pool.query(
       `SELECT ${RECEIPT_SCAN_SELECT}
        FROM email_inbox
-       WHERE category NOT IN ('receipt', 'junk') ${sinceFilter}
+       WHERE category NOT IN ('receipt', 'junk', 'auto_deleted') ${sinceFilter}
        ORDER BY received_at DESC
        LIMIT $1`,
       params,
@@ -816,7 +834,7 @@ function listReceiptScanFromFile(limit: number, since?: Date): EmailInboxRecord[
   const sinceMs = since ? since.getTime() : null;
   return parseFileEvents(readFileSync(path, 'utf8'))
     .filter((e) => {
-      if (e.category === 'receipt' || e.category === 'junk') return false;
+      if (e.category === 'receipt' || isHiddenInboxCategory(e.category)) return false;
       if (sinceMs != null && new Date(e.receivedAt).getTime() < sinceMs) return false;
       return true;
     })

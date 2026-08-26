@@ -349,12 +349,12 @@ function stepsFromAuditAndResult(
     kind: 'outcome',
     status: 'matched',
     decision: result.wouldDelete
-      ? `${result.status} · deleted (not filed as junk)`
+      ? `${result.status} · auto-deleted (review queue)`
       : `${result.status} · ${result.category} · ${result.action}`,
     detail: [
       result.summary,
       result.routeNote,
-      result.wouldDelete ? 'Would delete inbox row' : null,
+      result.wouldDelete ? 'Would file in Auto deleted' : null,
       result.wouldNotify ? 'Would notify' : 'Silent',
       result.wouldAgentAlert ? 'Would agent-alert' : null,
       result.wouldForwardTo ? `Would forward → ${result.wouldForwardTo}` : null,

@@ -33,6 +33,7 @@ export function isJunkClassification(opts: {
   const status = String(opts.status || '').toUpperCase();
   return (
     category === 'junk' ||
+    category === 'auto_deleted' ||
     action === 'junk' ||
     action === 'deleted' ||
     status === 'JUNK' ||
@@ -42,8 +43,9 @@ export function isJunkClassification(opts: {
 }
 
 /**
- * A matched DELETE rule must remove the message. Junk is only for manual /
- * AI quarantine (status JUNK) and AUTO_ARCHIVED filing — not auto-delete.
+ * A matched DELETE rule files the message as `auto_deleted` (hidden review
+ * queue) instead of junk. OTP / auth-link mail is excluded. Junk is only for
+ * manual / AI quarantine (status JUNK) and AUTO_ARCHIVED filing.
  */
 export function shouldHardDeleteOnDeleteRule(opts: {
   category?: string | null;
@@ -90,7 +92,7 @@ export function enforceNotificationNotJunk(opts: {
   }
   const statusUpper = opts.status.toUpperCase();
   return {
-    category: opts.category === 'junk' ? 'review' : opts.category,
+    category: opts.category === 'junk' || opts.category === 'auto_deleted' ? 'review' : opts.category,
     action: opts.action.toLowerCase() === 'junk' ? 'review' : opts.action,
     status:
       statusUpper === 'DELETE' || statusUpper === 'JUNK' || statusUpper === 'AUTO_ARCHIVED'

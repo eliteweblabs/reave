@@ -140,6 +140,7 @@
 .em-filter-tab--tone-project { --em-chip-accent: var(--em-notice-project); }
 .em-filter-tab--tone-receipt { --em-chip-accent: var(--em-notice-receipt); }
 .em-filter-tab--tone-junk { --em-chip-accent: var(--em-notice-junk); }
+.em-filter-tab--tone-auto_deleted { --em-chip-accent: var(--em-notice-auto-deleted); }
 .em-filter-tab--tone-routed { --em-chip-accent: var(--em-notice-internal); }
 .em-filter-tab--tone-sent { --em-chip-accent: var(--em-notice-sent); }
 .em-filter-tab--tone-draft { --em-chip-accent: var(--em-notice-draft); }
@@ -1833,6 +1834,11 @@ html.reave-agent-asleep
   --em-item-accent: var(--em-notice-junk);
   color: var(--em-notice-junk);
   background: color-mix(in srgb, var(--em-notice-junk) 12%, transparent);
+}
+.em-cat-auto-deleted {
+  --em-item-accent: var(--em-notice-auto-deleted);
+  color: var(--em-notice-auto-deleted);
+  background: color-mix(in srgb, var(--em-notice-auto-deleted) 12%, transparent);
 }
 .em-cat-client {
   --em-item-accent: var(--em-notice-client);

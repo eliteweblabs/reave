@@ -259,7 +259,7 @@ export function suggestReceiptCandidate(ev: {
   routeNote?: string;
 }): ReceiptCandidate | null {
   const category = String(ev.category || '').toLowerCase();
-  if (category === 'receipt' || category === 'junk') return null;
+  if (category === 'receipt' || category === 'junk' || category === 'auto_deleted') return null;
 
   const auto = shouldAutoFileAsReceipt(ev);
   if (auto) {

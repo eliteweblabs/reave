@@ -46,12 +46,15 @@ function json(body: unknown, status = 200): Response {
 
 const CATEGORIES = new Set<EmailCategory>([
   'junk',
+  'auto_deleted',
   'client',
   'alert',
   'internal',
   'review',
   'receipt',
   'project',
+  'otp',
+  'auth_link',
 ]);
 
 function parsePatch(body: unknown): EmailInboxPatch | null {
@@ -87,7 +90,14 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
 function isEmailArchivedOrRemoved(patch: EmailInboxPatch): boolean {
   const action = String(patch.action || '').toLowerCase();
   const status = String(patch.status || '').toLowerCase();
-  return patch.category === 'junk' || action === 'filed' || action === 'junk' || status === 'filed';
+  return (
+    patch.category === 'junk' ||
+    patch.category === 'auto_deleted' ||
+    action === 'filed' ||
+    action === 'junk' ||
+    action === 'deleted' ||
+    status === 'filed'
+  );
 }
 
 export async function GET(context: APIContext): Promise<Response> {

@@ -37,6 +37,7 @@ const CLOCK_NEAR_DATE_CHARS = 100;
 export const MEETING_SKIP_CATEGORIES = new Set([
   'alert',
   'junk',
+  'auto_deleted',
   'receipt',
   'otp',
   'auth_link',

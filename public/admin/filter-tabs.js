@@ -113,6 +113,7 @@ const FILTER_TAB_TONES = {
   project: 'project',
   receipt: 'receipt',
   junk: 'junk',
+  auto_deleted: 'auto_deleted',
   routed: 'routed',
   draft: 'draft',
   sent: 'sent',
@@ -374,6 +375,7 @@ const EMAIL_FILTER_SCROLL_TAB_IDS = [
   'routed',
   'receipt',
   'junk',
+  'auto_deleted',
 ];
 const EMAIL_FILTER_CENTER_FROM_ID = 'receipt';
 
