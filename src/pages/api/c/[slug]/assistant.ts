@@ -15,7 +15,6 @@ import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { hasFeature } from '../../../../lib/features';
 import { isCraterConfigured, craterGetClientBilling } from '../../../../lib/craterClient';
 import { isWorkArchived, storeListWorkForContact } from '../../../../lib/workStore';
-import { isTodoDbConfigured, storeListTodos } from '../../../../lib/todoStore';
 import {
   isPortalAssistantConfigured,
   runPortalAssistantReply,
@@ -136,12 +135,6 @@ export const POST: APIRoute = async ({ params, request }) => {
       },
       billing,
       jobs,
-      punchlist: isTodoDbConfigured()
-        ? (await storeListTodos({ contact_uid: uid }).catch(() => [])).map((t) => ({
-            title: t.title,
-            status: t.status,
-          }))
-        : [],
     },
     message,
     history,

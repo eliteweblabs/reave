@@ -757,12 +757,12 @@ Example actions to add:
 
 - `record_payment` / `add_payment` / `create_payment`: Record an offline customer payment
 
-**Personal to-dos & shared punch lists** (requires `DATABASE_URL`):
+**Personal to-dos** (requires `DATABASE_URL`):
 
-- `add_todo` / `create_todo`: Create a quick to-do item (spoken dates/times in the title are applied automatically). Optional `client` / `contact_uid` shares it on that client's portal punch list.
-- `list_todos`: List open (or filtered) to-dos, including client punch-list items
-- `update_todo`: Change title, due date, priority, status, or client share
-- `complete_todo` / `done_todo` / `mark_todo_done`: Mark a to-do done (updates the client portal too when shared)
+- `add_todo` / `create_todo`: Create a quick to-do item (spoken dates/times in the title are applied automatically).
+- `list_todos`: List open (or filtered) to-dos. On the official reΛVe install, install-owner feature requests appear as regular to-dos tagged with the company name.
+- `update_todo`: Change title, due date, priority, or status
+- `complete_todo` / `done_todo` / `mark_todo_done`: Mark a to-do done
 - `delete_todo` / `clear_todo`: Permanently remove a to-do
 
 **Time tracking** (requires `time_tracking` feature):

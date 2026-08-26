@@ -218,7 +218,7 @@ export async function dbListTodos(opts: ListTodosOpts = {}): Promise<TodoItem[] 
       clauses.push(`contact_uid = $${params.length}`);
     }
     if (opts.shared) {
-      clauses.push("contact_uid IS NOT NULL AND contact_uid <> ''");
+      clauses.push("contact_uid LIKE 'install:%'");
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

@@ -63,6 +63,9 @@ const TODO_STATUS_LABELS = {
 
 let todoState = {
   todos: [],
+  hubTodos: [],
+  hubConfigured: false,
+  hubError: '',
   jobs: [],
   priorities: ['low', 'normal', 'high', 'urgent'],
   statuses: ['open', 'done'],
@@ -74,6 +77,61 @@ let todoState = {
   linkedJob: null,
   returnToWorkSlug: null,
 };
+
+function isCanonicalReave() {
+  return window.__installConfig?.isCanonicalReave === true;
+}
+
+function punchlistFilterId() {
+  return isCanonicalReave() ? 'installs' : 'reave';
+}
+
+function isInstallPunchlistTodo(todo) {
+  return String(todo?.contact_uid || '').toLowerCase().startsWith('install:');
+}
+
+function isHubTodo(todo) {
+  return todo?.source === 'hub' || String(todo?.id || '').startsWith('hub:');
+}
+
+function hubItemId(id) {
+  const n = Number(id);
+  return Number.isInteger(n) && n > 0 ? `hub:${n}` : String(id);
+}
+
+function parseHubItemId(id) {
+  const s = String(id ?? '');
+  if (s.startsWith('hub:')) {
+    const n = Number(s.slice(4));
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }
+  return null;
+}
+
+function normalizeHubItem(item) {
+  const hubId = Number(item.id);
+  return {
+    id: hubItemId(hubId),
+    hubId,
+    source: 'hub',
+    title: item.title,
+    status: item.status || 'open',
+    priority: item.priority || 'normal',
+    due_date: item.due_date || null,
+    job_slug: '',
+    assignee: '',
+    section: '',
+    contact_uid: item.contact_uid || (item.install_slug ? `install:${item.install_slug}` : ''),
+    contact_name: item.company || item.contact_name || '',
+    created_by: item.created_by || 'install',
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  };
+}
+
+function visibleTodoPool() {
+  return todoState.filter === 'reave' ? todoState.hubTodos : todoState.todos;
+}
 
 let todoSaveTimer = null;
 
@@ -164,8 +222,11 @@ function todoContactName(todo) {
 function todoSubline(todo) {
   const bits = [];
   const clientName = todoContactName(todo);
-  if (clientName) bits.push(clientName);
-  else if (todo.contact_uid) bits.push('Punch list');
+  if (isHubTodo(todo) || isInstallPunchlistTodo(todo)) {
+    bits.push(clientName || 'Install request');
+  } else if (clientName) {
+    bits.push(clientName);
+  }
   if (todo.section) bits.push(todo.section);
   if (todo.job_slug) bits.push(todoJobTitle(todo.job_slug));
   if (todo.assignee) bits.push(todo.assignee);
@@ -184,17 +245,19 @@ function todoPriorityDotClass(priority) {
 }
 
 function todoMatchesFilter(todo, filter) {
-  if (filter === 'clients') return todo.status === 'open' && Boolean(todo.contact_uid?.trim());
+  if (filter === 'installs') return todo.status === 'open' && isInstallPunchlistTodo(todo);
+  if (filter === 'reave') return todo.status === 'open';
   return todo.status === filter;
 }
 
 function todoSearchPlaceholder() {
-  const count = todoState.todos.filter((t) => todoMatchesFilter(t, todoState.filter)).length;
+  const pool = visibleTodoPool();
+  const count = pool.filter((t) => todoMatchesFilter(t, todoState.filter)).length;
   const label =
-    todoState.filter === 'clients'
+    todoState.filter === 'installs' || todoState.filter === 'reave'
       ? count === 1
-        ? 'Client Item'
-        : 'Client Items'
+        ? 'Request'
+        : 'Requests'
       : count === 1
         ? 'To Do Item'
         : 'To Do Items';
@@ -203,7 +266,8 @@ function todoSearchPlaceholder() {
 
 function filterTodoItems(todos) {
   const q = todoState.search.trim().toLowerCase();
-  return todos.filter((todo) => {
+  const pool = todos || visibleTodoPool();
+  return pool.filter((todo) => {
     if (!todoMatchesFilter(todo, todoState.filter)) return false;
     if (!q) return true;
     return matchesListSearch(
@@ -236,6 +300,22 @@ async function loadTodoTab(opts = {}) {
     todoState.todos = (todoData.todos || []).map(normalizeTodoItemDates);
     todoState.priorities = todoData.priorities || todoState.priorities;
     todoState.statuses = todoData.statuses || todoState.statuses;
+    todoState.hubTodos = [];
+    todoState.hubConfigured = false;
+    todoState.hubError = '';
+    if (!isCanonicalReave()) {
+      try {
+        const hubRes = await adminFetch('/api/admin/punchlist');
+        const hubData = await readAdminJson(hubRes, 'Punch list');
+        todoState.hubConfigured = hubData.configured !== false && hubRes.ok;
+        todoState.hubError = hubRes.ok ? '' : hubData.error || '';
+        todoState.hubTodos = (hubData.items || []).map(normalizeHubItem);
+      } catch (hubErr) {
+        if (hubErr.message === 'Session expired') throw hubErr;
+        todoState.hubConfigured = false;
+        todoState.hubError = hubErr.message || 'Punch list unavailable';
+      }
+    }
     todoState.jobs = [];
     try {
       const workRes = await adminFetch('/api/work');
@@ -266,7 +346,7 @@ async function loadTodoTab(opts = {}) {
   }
 
   if (deepId) {
-    await openTodo(Number(deepId), { keepReturnSlug: true });
+    await openTodo(parseHubItemId(deepId) ? deepId : Number(deepId), { keepReturnSlug: true });
     return;
   }
 
@@ -339,8 +419,9 @@ function startNewTodo(opts = {}) {
       job_slug: opts.jobSlug || '',
       assignee: '',
       section: '',
-      contact_uid: opts.contactUid || '',
-      contact_name: opts.contactName || '',
+      contact_uid: '',
+      contact_name: '',
+      source: todoState.filter === 'reave' ? 'hub' : '',
     };
   }
   if (todoState.draft.job_slug) {
@@ -353,7 +434,7 @@ function startNewTodo(opts = {}) {
 
 function fillTodoSidebarList(list) {
   exitListMultiSelect(list);
-  const visible = filterTodoItems(todoState.todos);
+  const visible = filterTodoItems();
   list.innerHTML = '';
   for (const todo of visible) {
     list.appendChild(createTodoSwipeRow(todo));
@@ -365,7 +446,11 @@ function fillTodoSidebarList(list) {
       ? 'No matches.'
       : todoState.filter === 'done'
         ? 'No completed to‑dos yet.'
-        : 'No open to‑dos yet.';
+        : todoState.filter === 'reave' && !todoState.hubConfigured
+          ? todoState.hubError || 'Punch list isn’t connected. Set REAVE_HUB_KEY to send requests to reΛVe.'
+          : todoState.filter === 'reave' || todoState.filter === 'installs'
+            ? 'No install requests yet.'
+            : 'No open to‑dos yet.';
     list.appendChild(empty);
   }
   // Drag-to-reorder disabled — re-enable via attachSidebarListReorder below.
@@ -449,14 +534,21 @@ function updateTodoFilterTabActiveState() {
 }
 
 function renderTodoFilterTabs() {
-  const { todos, filter } = todoState;
+  const { todos, hubTodos, filter } = todoState;
   const openCount = todos.filter((t) => t.status === 'open').length;
-  const clientCount = todos.filter((t) => t.status === 'open' && t.contact_uid?.trim()).length;
+  const punchlistId = punchlistFilterId();
+  const punchlistCount = isCanonicalReave()
+    ? todos.filter((t) => t.status === 'open' && isInstallPunchlistTodo(t)).length
+    : hubTodos.filter((t) => t.status === 'open').length;
   const doneCount = todos.filter((t) => t.status === 'done').length;
   return mountListFilterTabs({
     tabs: [
       { id: 'open', label: 'Open', count: openCount },
-      { id: 'clients', label: 'Clients', count: clientCount },
+      {
+        id: punchlistId,
+        label: isCanonicalReave() ? 'Installs' : 'reΛVe',
+        count: punchlistCount,
+      },
       { id: 'done', label: 'Done', count: doneCount },
     ],
     activeId: filter,
@@ -465,7 +557,7 @@ function renderTodoFilterTabs() {
     onSelect(tabId) {
       if (todoState.filter === tabId) return;
       todoState.filter = tabId;
-      const visible = filterTodoItems(todoState.todos);
+      const visible = filterTodoItems();
       let cleared = false;
       if (
         todoState.activeId &&
@@ -527,6 +619,7 @@ function renderTodoEditor() {
 }
 
 function todoAuthorContactUid(todo) {
+  if (isHubTodo(todo) || isInstallPunchlistTodo(todo)) return '';
   const fromTodo = todo.contact_uid?.trim();
   if (fromTodo) return fromTodo;
   const slug = todo.job_slug?.trim();
@@ -589,8 +682,10 @@ async function openTodo(id, opts = {}) {
   }
   if (opts.fromWorkSlug) todoState.returnToWorkSlug = opts.fromWorkSlug;
 
-  let todo = todoState.todos.find((t) => t.id === id || String(t.id) === String(id));
-  if (!todo) {
+  let todo =
+    todoState.hubTodos.find((t) => t.id === id || String(t.id) === String(id)) ||
+    todoState.todos.find((t) => t.id === id || String(t.id) === String(id));
+  if (!todo && !parseHubItemId(id)) {
     try {
       const res = await fetch(`/api/todos/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await readApiJson(res);
@@ -602,6 +697,10 @@ async function openTodo(id, opts = {}) {
       shell.osAlert({ title: 'To‑do not found', bodyHtml: escHtml(e.message) });
       return;
     }
+  }
+  if (!todo) {
+    shell.osAlert({ title: 'To‑do not found', bodyHtml: 'That request is no longer on the punch list.' });
+    return;
   }
 
   todoState.activeId = todo.id;
@@ -616,6 +715,7 @@ async function openTodo(id, opts = {}) {
     section: todo.section || '',
     contact_uid: todo.contact_uid || '',
     contact_name: todo.contact_name || '',
+    source: isHubTodo(todo) ? 'hub' : '',
   };
   todoState.linkedJob = null;
   if (todo.job_slug) {
@@ -668,9 +768,19 @@ async function flushTodoAutosave() {
   }
 }
 
+function applyHubItemToState(item) {
+  const normalized = normalizeHubItem(item);
+  const idx = todoState.hubTodos.findIndex((t) => t.id === normalized.id);
+  if (idx === -1) todoState.hubTodos.unshift(normalized);
+  else todoState.hubTodos[idx] = normalized;
+  return normalized;
+}
+
 async function saveActiveTodoDraft(silent = false) {
   if (!todoState.draft) return true;
   const isNew = todoState.activeId === '__new__';
+  const hubId = parseHubItemId(todoState.activeId);
+  const isHub = todoState.draft.source === 'hub' || hubId != null || todoState.filter === 'reave';
   const payload = {
     title: todoState.draft.title.trim(),
     priority: todoState.draft.priority || 'normal',
@@ -679,12 +789,35 @@ async function saveActiveTodoDraft(silent = false) {
     job_slug: todoState.draft.job_slug?.trim() || null,
     assignee: todoState.draft.assignee?.trim() || null,
     section: todoState.draft.section?.trim() || null,
-    contact_uid: todoState.draft.contact_uid?.trim() || null,
-    contact_name: todoState.draft.contact_name?.trim() || null,
   };
   if (!payload.title) return false;
 
   try {
+    if (isHub) {
+      const res = await fetch(isNew ? '/api/admin/punchlist' : `/api/admin/punchlist/${hubId}`, {
+        method: isNew ? 'POST' : 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isNew ? { title: payload.title } : { title: payload.title, status: payload.status }),
+      });
+      const data = await readApiJson(res);
+      const saved = applyHubItemToState(data.item || data);
+      todoState.activeId = saved.id;
+      todoState.dirty = false;
+      todoState.draft = {
+        title: saved.title,
+        priority: saved.priority,
+        status: saved.status,
+        due_date: normalizeTodoDueDateRaw(saved.due_date),
+        job_slug: '',
+        assignee: '',
+        section: '',
+        contact_uid: saved.contact_uid || '',
+        contact_name: saved.contact_name || '',
+        source: 'hub',
+      };
+      refreshTodoSidebarList();
+      return true;
+    }
     if (isNew) {
       const res = await fetch('/api/todos', {
         method: 'POST',
@@ -703,8 +836,9 @@ async function saveActiveTodoDraft(silent = false) {
         job_slug: data.job_slug || '',
         assignee: data.assignee || '',
         section: data.section || '',
-        contact_uid: data.contact_uid || '',
-        contact_name: data.contact_name || '',
+        contact_uid: '',
+        contact_name: '',
+        source: '',
       };
       if (data.job_slug) await refreshTodoLinkedJob(data.job_slug);
     } else {
@@ -890,8 +1024,9 @@ function renderTodoEditPane(pane, isNew) {
   sectionLabel.appendChild(sectionInput);
   fields.appendChild(sectionLabel);
 
-  mountTodoClientPicker(fields, draft, markDirty);
-  mountTodoProjectPicker(fields, draft, markDirty);
+  if (!isHubTodo(draft) && draft.source !== 'hub') {
+    mountTodoProjectPicker(fields, draft, markDirty);
+  }
 
   scroll.appendChild(fields);
   pane.appendChild(scroll);
@@ -1037,10 +1172,6 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
 
   function pickJob(job) {
     draft.job_slug = job?.slug || '';
-    if (job?.contact_uid && !draft.contact_uid?.trim()) {
-      draft.contact_uid = job.contact_uid;
-      draft.contact_name = job.contact_name || job.client || '';
-    }
     changing = !draft.job_slug;
     searchInput.value = '';
     dropdown.style.display = 'none';
@@ -1065,141 +1196,6 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   searchInput.addEventListener('blur', () => {
     setTimeout(() => {
       if (!wrap.contains(document.activeElement) && draft.job_slug?.trim()) {
-        changing = false;
-        searchInput.value = '';
-        dropdown.style.display = 'none';
-        syncView();
-      }
-    }, 150);
-  });
-  shell.attachAutosuggestKeyboardNav(searchInput, dropdown, {
-    optionSelector: '.wk-client-option',
-    onClose: () => {
-      dropdown.style.display = 'none';
-    },
-  });
-
-  syncView();
-  parent.appendChild(wrap);
-}
-
-function mountTodoClientPicker(parent, draft, markDirty) {
-  let changing = !draft.contact_uid?.trim();
-
-  const wrap = document.createElement('div');
-  wrap.className = 'wk-client-picker td-client-picker';
-
-  const fieldLabel = document.createElement('span');
-  fieldLabel.className = 'de-label';
-  fieldLabel.textContent = 'Client punch list';
-  wrap.appendChild(fieldLabel);
-
-  const selectedEl = document.createElement('div');
-  selectedEl.className = 'wk-client-selected';
-  const selectedName = document.createElement('span');
-  selectedName.className = 'wk-client-name';
-  const changeBtn = document.createElement('button');
-  changeBtn.type = 'button';
-  changeBtn.className = 'de-btn de-btn-ghost';
-  changeBtn.textContent = 'Change';
-  selectedEl.appendChild(selectedName);
-  selectedEl.appendChild(changeBtn);
-  wrap.appendChild(selectedEl);
-
-  const searchWrap = document.createElement('div');
-  searchWrap.className = 'wk-client-search-wrap';
-  const searchInput = document.createElement('input');
-  searchInput.className = 'de-input';
-  searchInput.type = 'search';
-  searchInput.placeholder = 'Search clients…';
-  searchInput.autocomplete = 'off';
-  const dropdown = document.createElement('div');
-  dropdown.className = 'wk-client-dropdown';
-  dropdown.style.display = 'none';
-  searchWrap.appendChild(searchInput);
-  searchWrap.appendChild(dropdown);
-  wrap.appendChild(searchWrap);
-
-  function syncView() {
-    const uid = draft.contact_uid?.trim();
-    const has = !!uid;
-    selectedEl.style.display = has && !changing ? 'flex' : 'none';
-    searchWrap.style.display = changing || !has ? 'block' : 'none';
-    if (has) selectedName.textContent = draft.contact_name || todoContactName(draft) || 'Client';
-  }
-
-  function renderDropdown(matches, query) {
-    dropdown.innerHTML = '';
-    for (const client of matches) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'wk-client-option';
-      btn.innerHTML =
-        `${escHtml(client.name || client.company || client.uid)}` +
-        `<span class="sub">${escHtml(client.company || client.email || '')}</span>`;
-      btn.addEventListener('mousedown', (e) => e.preventDefault());
-      btn.addEventListener('click', () => pickClient(client));
-      dropdown.appendChild(btn);
-    }
-    const q = query.trim();
-    if (draft.contact_uid?.trim()) {
-      const clearBtn = document.createElement('button');
-      clearBtn.type = 'button';
-      clearBtn.className = 'wk-client-option wk-client-add';
-      clearBtn.textContent = 'Remove from client punch list';
-      clearBtn.addEventListener('mousedown', (e) => e.preventDefault());
-      clearBtn.addEventListener('click', () => pickClient(null));
-      dropdown.appendChild(clearBtn);
-    } else if (!matches.length && q) {
-      const empty = document.createElement('div');
-      empty.className = 'wk-client-option';
-      empty.textContent = 'No matching clients';
-      dropdown.appendChild(empty);
-    }
-    dropdown.style.display = 'block';
-  }
-
-  async function scheduleSearch() {
-    const q = searchInput.value.trim();
-    if (q.length < 1) {
-      renderDropdown([], q);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/clients?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
-      const data = await res.json();
-      const matches = res.ok ? (data.clients || data.contacts || []).slice(0, 8) : [];
-      renderDropdown(matches, q);
-    } catch {
-      renderDropdown([], q);
-    }
-  }
-
-  function pickClient(client) {
-    draft.contact_uid = client?.uid || '';
-    draft.contact_name = client?.name || client?.company || '';
-    changing = !draft.contact_uid;
-    searchInput.value = '';
-    dropdown.style.display = 'none';
-    syncView();
-    markDirty();
-  }
-
-  changeBtn.addEventListener('click', () => {
-    changing = true;
-    syncView();
-    searchInput.focus();
-    void scheduleSearch();
-  });
-  searchInput.addEventListener('input', () => {
-    void scheduleSearch();
-  });
-  searchInput.addEventListener('focus', () => {
-    void scheduleSearch();
-  });
-  searchInput.addEventListener('blur', () => {
-    setTimeout(() => {
-      if (!wrap.contains(document.activeElement) && draft.contact_uid?.trim()) {
         changing = false;
         searchInput.value = '';
         dropdown.style.display = 'none';
@@ -1372,6 +1368,21 @@ async function persistKnowledgeOrder(slugs) {
 
 async function markTodoDone(id) {
   try {
+    const hubId = parseHubItemId(id);
+    if (hubId) {
+      const res = await fetch(`/api/admin/punchlist/${hubId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'done' }),
+      });
+      const data = await readApiJson(res);
+      applyHubItemToState(data.item || data);
+      if (String(todoState.activeId) === String(id)) {
+        todoState.draft = { ...todoState.draft, status: 'done' };
+      }
+      refreshTodoSidebarList();
+      return;
+    }
     const res = await fetch(`/api/todos/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1391,6 +1402,19 @@ async function markTodoDone(id) {
 
 async function reopenTodo(id) {
   try {
+    const hubId = parseHubItemId(id);
+    if (hubId) {
+      const res = await fetch(`/api/admin/punchlist/${hubId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'open' }),
+      });
+      const data = await readApiJson(res);
+      applyHubItemToState(data.item || data);
+      todoState.filter = 'reave';
+      refreshTodoSidebarList();
+      return;
+    }
     const res = await fetch(`/api/todos/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1406,9 +1430,14 @@ async function reopenTodo(id) {
   }
 }
 
+function todoListForId(id) {
+  return parseHubItemId(id) ? todoState.hubTodos : todoState.todos;
+}
+
 function removeTodosLocally(ids) {
   const idSet = new Set(ids.map(String));
   todoState.todos = todoState.todos.filter((t) => !idSet.has(String(t.id)));
+  todoState.hubTodos = todoState.hubTodos.filter((t) => !idSet.has(String(t.id)));
   if (todoState.activeId != null && idSet.has(String(todoState.activeId))) {
     todoState.activeId = null;
     todoState.draft = null;
@@ -1420,17 +1449,20 @@ function removeTodosLocally(ids) {
 }
 
 function restoreTodosLocally(snapshots, { restoreActiveId = null } = {}) {
-  const have = new Set(todoState.todos.map((t) => String(t.id)));
-  const next = todoState.todos.slice();
   for (const snap of snapshots) {
+    const list = isHubTodo(snap.todo) ? todoState.hubTodos : todoState.todos;
+    const have = new Set(list.map((t) => String(t.id)));
     if (have.has(String(snap.todo.id))) continue;
-    next.splice(Math.min(snap.idx, next.length), 0, snap.todo);
-    have.add(String(snap.todo.id));
+    list.splice(Math.min(snap.idx, list.length), 0, snap.todo);
   }
-  todoState.todos = next;
   renderTodoEditor();
   shell.syncFooterNav();
   if (restoreActiveId != null) void openTodo(restoreActiveId);
+}
+
+function deleteUrlForTodoId(id) {
+  const hubId = parseHubItemId(id);
+  return hubId ? `/api/admin/punchlist/${hubId}` : `/api/todos/${id}`;
 }
 
 async function bulkDeleteTodos(ids) {
@@ -1439,8 +1471,9 @@ async function bulkDeleteTodos(ids) {
   const unique = [...new Set(ids.filter((id) => id != null))];
   const snapshots = unique
     .map((id) => {
-      const idx = todoState.todos.findIndex((t) => String(t.id) === String(id));
-      return idx === -1 ? null : { idx, todo: todoState.todos[idx] };
+      const list = todoListForId(id);
+      const idx = list.findIndex((t) => String(t.id) === String(id));
+      return idx === -1 ? null : { idx, todo: list[idx] };
     })
     .filter(Boolean);
   if (!snapshots.length) return;
@@ -1452,7 +1485,7 @@ async function bulkDeleteTodos(ids) {
     commit: async () => {
       for (const id of unique) {
         try {
-          const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+          const res = await fetch(deleteUrlForTodoId(id), { method: 'DELETE' });
           await readApiJson(res);
         } catch {
           /* continue */
@@ -1464,8 +1497,9 @@ async function bulkDeleteTodos(ids) {
 
 async function deleteTodo(id) {
   if (id == null) return;
-  const idx = todoState.todos.findIndex((t) => t.id === id || String(t.id) === String(id));
-  const todo = idx === -1 ? null : todoState.todos[idx];
+  const list = todoListForId(id);
+  const idx = list.findIndex((t) => t.id === id || String(t.id) === String(id));
+  const todo = idx === -1 ? null : list[idx];
   if (!todo) return;
   const wasActive = todoState.activeId === id || String(todoState.activeId) === String(id);
   await queueUndoableDelete({
@@ -1474,7 +1508,7 @@ async function deleteTodo(id) {
     hide: () => removeTodosLocally([id]),
     restore: () => restoreTodosLocally([{ idx, todo }], { restoreActiveId: wasActive ? id : null }),
     commit: async () => {
-      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      const res = await fetch(deleteUrlForTodoId(id), { method: 'DELETE' });
       await readApiJson(res);
     },
     onCommitError: (e) => {
@@ -1509,12 +1543,8 @@ function navigateToNewTodoForProject(jobSlug) {
     section: '',
     contact_uid: '',
     contact_name: '',
+    source: '',
   };
-  const job = todoState.jobs.find((j) => j.slug === jobSlug);
-  if (job?.contact_uid) {
-    todoState.draft.contact_uid = job.contact_uid;
-    todoState.draft.contact_name = job.contact_name || job.client || '';
-  }
   pendingTodoDeepLinkId = '__new__';
   shell.setActiveMap('todo', { force: true, todoId: '__new__' });
 }

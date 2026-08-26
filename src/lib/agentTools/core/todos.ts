@@ -173,17 +173,29 @@ async function handle_list_todos(args: Record<string, unknown>, _ctx: ToolContex
   const priority = normalizeTodoPriority(priorityRaw);
   if (statusRaw && !status) return JSON.stringify({ error: 'invalid status' });
   if (priorityRaw && !priority) return JSON.stringify({ error: 'invalid priority' });
-  const contactUid =
-    typeof args.contact_uid === 'string' ? args.contact_uid.trim() || undefined : undefined;
   const sharedRaw = String(args.shared ?? '').trim().toLowerCase();
   const shared = sharedRaw === '1' || sharedRaw === 'true' || args.shared === true;
+  const forReave =
+    args.for_reave === true ||
+    String(args.for_reave ?? '').trim().toLowerCase() === 'true' ||
+    String(args.for_reave ?? '').trim() === '1';
+  if (forReave) {
+    const { isPunchlistHubHost, isPunchlistHubClientConfigured, fetchPunchlistHub } = await import(
+      '../../punchlistHub'
+    );
+    if (!isPunchlistHubHost() && isPunchlistHubClientConfigured()) {
+      const result = await fetchPunchlistHub<{ items?: unknown[] }>('/api/hub/punchlist');
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      const items = result.data.items ?? [];
+      return JSON.stringify({ todos: items, count: items.length, source: 'reave_hub' });
+    }
+  }
   const todos = await storeListTodos({
     status,
     priority,
     due_before: typeof args.due_before === 'string' ? args.due_before.trim() : undefined,
     due_after: typeof args.due_after === 'string' ? args.due_after.trim() : undefined,
-    contact_uid: contactUid,
-    shared: shared || undefined,
+    shared: shared || forReave || undefined,
   });
   return JSON.stringify({ todos, count: todos.length });
 }
@@ -204,31 +216,33 @@ async function handle_create_todo(args: Record<string, unknown>, _ctx: ToolConte
   const dueRaw = args.due_date;
   const due_date =
     dueRaw == null || dueRaw === '' ? null : String(dueRaw).trim();
-  let contactUid =
-    typeof args.contact_uid === 'string' ? args.contact_uid.trim() || null : null;
-  let contactName =
-    typeof args.contact_name === 'string' ? args.contact_name.trim() || null : null;
-  if (!contactUid && typeof args.client === 'string' && args.client.trim()) {
-    const found = await findContactByQuery(args.client.trim());
-    if (!found) {
+  const forReave =
+    args.for_reave === true ||
+    String(args.for_reave ?? '').trim().toLowerCase() === 'true' ||
+    String(args.for_reave ?? '').trim() === '1';
+  if (forReave) {
+    const { isPunchlistHubHost, isPunchlistHubClientConfigured, fetchPunchlistHub } = await import(
+      '../../punchlistHub'
+    );
+    if (isPunchlistHubHost()) {
       return JSON.stringify({
-        error: 'client not found',
-        hint: 'Pass contact_uid from resolve_contact, or a clearer client name.',
+        error: 'This is the official reΛVe install — add a local to-do instead.',
       });
     }
-    contactUid = found.uid;
-    contactName = found.name || contactName;
-  }
-  if (contactUid && !contactName) {
-    const { labelForTodoContact } = await import('../../punchlist');
-    contactName = await labelForTodoContact(contactUid);
+    if (!isPunchlistHubClientConfigured()) {
+      return JSON.stringify({ error: 'Punch list is not connected. Set REAVE_HUB_KEY.' });
+    }
+    const result = await fetchPunchlistHub<{ item?: unknown }>('/api/hub/punchlist', {
+      method: 'POST',
+      body: JSON.stringify({ title }),
+    });
+    if (!result.ok) return JSON.stringify({ error: result.error });
+    return JSON.stringify({ ok: true, source: 'reave_hub', ...(result.data.item || {}) });
   }
   const result = await storeCreateTodo({
     title,
     due_date,
     priority,
-    contact_uid: contactUid,
-    contact_name: contactName,
     created_by: 'staff',
   });
   if (!result.ok) return JSON.stringify({ error: result.error });
@@ -248,8 +262,6 @@ async function handle_update_todo(args: Record<string, unknown>, _ctx: ToolConte
     due_date?: string | null;
     priority?: TodoPriority;
     status?: TodoStatus;
-    contact_uid?: string | null;
-    contact_name?: string | null;
   } = {};
   if (args.title != null) patch.title = String(args.title).trim();
   if (args.due_date !== undefined) {
@@ -265,18 +277,6 @@ async function handle_update_todo(args: Record<string, unknown>, _ctx: ToolConte
     const status = normalizeTodoStatus(args.status);
     if (!status) return JSON.stringify({ error: 'invalid status' });
     patch.status = status;
-  }
-  if (args.contact_uid !== undefined) {
-    const uid = args.contact_uid == null || args.contact_uid === ''
-      ? null
-      : String(args.contact_uid).trim();
-    patch.contact_uid = uid;
-    if (uid) {
-      const { labelForTodoContact } = await import('../../punchlist');
-      patch.contact_name = await labelForTodoContact(uid);
-    } else {
-      patch.contact_name = null;
-    }
   }
   const result = await storeUpdateTodo(id, patch);
   if (!result.ok) {
@@ -340,7 +340,7 @@ export const todosModule: AgentToolModule = {
               function: {
                 name: 'list_todos',
                 description:
-                  'List to-do items, including shared client punch-list items (contact_uid set). Not client jobs — do not use list_work for these. Use shared:true or contact_uid to filter punch-list items.',
+                  'List personal to-do items. On the official reΛVe install, shared:true lists incoming install-owner feature requests. On a client install, for_reave:true lists this install\'s punch list on reΛVe. Not client jobs — do not use list_work.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -362,13 +362,15 @@ export const todosModule: AgentToolModule = {
                       type: 'string',
                       description: 'Optional — only items due on or after this date (YYYY-MM-DD)',
                     },
-                    contact_uid: {
-                      type: 'string',
-                      description: 'Optional — only punch-list items for this client uid',
-                    },
                     shared: {
                       type: 'boolean',
-                      description: 'Optional — only items shared with a client punch list',
+                      description:
+                        'Optional — on the official install, only incoming install-owner punch-list items',
+                    },
+                    for_reave: {
+                      type: 'boolean',
+                      description:
+                        'Optional — on a client install, list this owner\'s punch list on reΛVe',
                     },
                   },
                   additionalProperties: false,
@@ -380,7 +382,7 @@ export const todosModule: AgentToolModule = {
               function: {
                 name: 'create_todo',
                 description:
-                  'Add a to-do item (not a client job). Pass client or contact_uid to share it on that client\'s portal punch list — it then appears on both lists. Never use create_work for personal or punch-list tasks.',
+                  'Add a personal to-do (not a client job). On a client install, set for_reave:true to send a feature request to the official reΛVe owner\'s to-do list. Never use create_work for personal or punch-list tasks.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -394,13 +396,10 @@ export const todosModule: AgentToolModule = {
                       enum: [...TODO_PRIORITIES],
                       description: 'Defaults to normal',
                     },
-                    client: {
-                      type: 'string',
-                      description: 'Optional client name — shares the item on their portal punch list',
-                    },
-                    contact_uid: {
-                      type: 'string',
-                      description: 'Optional contact uid — shares the item on their portal punch list',
+                    for_reave: {
+                      type: 'boolean',
+                      description:
+                        'On a client install, send this item to the official reΛVe owner punch list',
                     },
                   },
                   required: ['title'],
@@ -413,7 +412,7 @@ export const todosModule: AgentToolModule = {
               function: {
                 name: 'update_todo',
                 description:
-                  'Update a to-do by id (title, due date, priority, status, or client share). Use list_todos first if you need the id. Pass contact_uid to share on a client punch list, or empty string to unshare.',
+                  'Update a personal to-do by id (title, due date, priority, or status). Use list_todos first if you need the id.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -432,10 +431,6 @@ export const todosModule: AgentToolModule = {
                       type: 'string',
                       enum: [...TODO_STATUSES],
                       description: 'open or done',
-                    },
-                    contact_uid: {
-                      type: 'string',
-                      description: 'Share on this client punch list, or empty to unshare',
                     },
                   },
                   required: ['id'],

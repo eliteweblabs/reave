@@ -98,15 +98,6 @@ export async function POST(context: APIContext): Promise<Response> {
       ? null
       : String(dueRaw).trim();
 
-  const contactUid =
-    body.contact_uid != null ? String(body.contact_uid).trim() || null : undefined;
-  let contactName =
-    body.contact_name != null ? String(body.contact_name).trim() || null : undefined;
-  if (contactUid && !contactName) {
-    const { labelForTodoContact } = await import('../../../lib/punchlist');
-    contactName = await labelForTodoContact(contactUid);
-  }
-
   const result = await storeCreateTodo({
     title,
     due_date,
@@ -114,8 +105,6 @@ export async function POST(context: APIContext): Promise<Response> {
     job_slug: body.job_slug != null ? String(body.job_slug).trim() || null : undefined,
     assignee: body.assignee != null ? String(body.assignee).trim() || null : undefined,
     section: body.section != null ? String(body.section).trim() || null : undefined,
-    contact_uid: contactUid,
-    contact_name: contactName,
     created_by: 'staff',
   });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);

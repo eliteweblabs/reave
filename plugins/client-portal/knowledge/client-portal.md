@@ -44,10 +44,6 @@ The page is tabbed (tabs appear only when populated):
 
 - **Overview** — headline, body, and labeled fields (from `set_client_portal`).
 - **Billing** — automatic from Crater (see below).
-- **Punch list** — shared leftover-work list. Clients add items here; each
-  item is the same row as a staff to-do, so it appears on Admin → To-do
-  immediately. Checking an item off on either side updates both. Staff can
-  also share a to-do onto a client by setting the client on that to-do.
 - **Data** — web-design handoff items (passwords, DNS, hosting, etc.).
 
 ## Billing (Crater)

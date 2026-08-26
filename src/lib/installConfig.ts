@@ -183,6 +183,8 @@ export type InstallConfigClient = Pick<
   showIndustries?: boolean;
   /** Module catalog editor — official reΛVe.app Railway install only. */
   showModuleCatalog?: boolean;
+  /** Official reΛVe.app Railway install — receives install-owner punch lists. */
+  isCanonicalReave?: boolean;
   /** Home-grid cards: enabled modules with dashboard:true, plus core OS tiles. */
   dashboardCards?: DashboardCard[];
   deployStatus?: {
@@ -503,6 +505,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     showDeployWizard: config.features.includes('deploy_wizard'),
     showIndustries: isCanonicalReaveInstall(),
     showModuleCatalog: isCanonicalReaveInstall(),
+    isCanonicalReave: isCanonicalReaveInstall(),
     dashboardCards: dashboardCardsForFeatures(config.features, {
       showDeployWizard: config.features.includes('deploy_wizard'),
     }),

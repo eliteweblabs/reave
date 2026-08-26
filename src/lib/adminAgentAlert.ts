@@ -409,7 +409,7 @@ export async function notifyAdminAgentOfVaultSubmit(opts: {
   });
 }
 
-/** Fire-and-forget — client added a shared punch-list item. */
+/** Fire-and-forget — an install owner added a feature-request punch-list item. */
 export async function notifyAdminAgentOfPunchlistItem(opts: {
   contactName: string;
   contactUid: string;
@@ -421,18 +421,18 @@ export async function notifyAdminAgentOfPunchlistItem(opts: {
 
   const item = opts.title.trim() || 'New item';
   const message = [
-    '✅ Client added a punch-list item',
+    '✅ Install requested a punch-list item',
     '',
-    `Client: ${opts.contactName}`,
+    `Install: ${opts.contactName}`,
     `Item: ${item}`,
     '',
-    'It is now on your to-do list. Checking it off updates their portal too.',
+    'It is now on your to-do list.',
   ].join('\n');
 
   await postToSystemAlertsThread({
     message,
     push: {
-      title: `✅ Punch list: ${opts.contactName}`,
+      title: `✅ Request: ${opts.contactName}`,
       body: item.slice(0, 120),
       tag: `punchlist-${opts.engagementId}`,
       url: `/admin?tab=todo&todo=${encodeURIComponent(String(opts.todoId))}`,

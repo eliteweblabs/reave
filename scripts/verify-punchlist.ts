@@ -1,47 +1,57 @@
 /**
- * Guard: shared punch-list helpers keep client-facing payloads lean and
- * only let clients edit items they added.
+ * Guard: install punch-list helpers tag hub items as install:<slug>
+ * and keep titles bounded.
  * Run: npm run check:punchlist
  */
 import assert from 'node:assert/strict';
 import {
-  canClientEditPunchlistItem,
+  installPunchlistUid,
+  isInstallPunchlistTodo,
   isSharedPunchlistTodo,
+  normalizeInstallSlug,
   normalizeTodoCreatedBy,
+  parseInstallPunchlistUid,
   punchlistTitleFromInput,
-  toPublicPunchlistItem,
+  toHubPunchlistItem,
 } from '../src/lib/punchlist.ts';
 
-assert.equal(normalizeTodoCreatedBy('client'), 'client');
+assert.equal(normalizeTodoCreatedBy('install'), 'install');
 assert.equal(normalizeTodoCreatedBy('STAFF'), 'staff');
+assert.equal(normalizeTodoCreatedBy('client'), 'install');
 assert.equal(normalizeTodoCreatedBy('nope'), undefined);
 
-assert.equal(isSharedPunchlistTodo({ contact_uid: 'abc' }), true);
-assert.equal(isSharedPunchlistTodo({ contact_uid: '  ' }), false);
-assert.equal(isSharedPunchlistTodo({}), false);
+assert.equal(normalizeInstallSlug('Tony'), 'tony');
+assert.equal(normalizeInstallSlug('Barber\'s Edge'), 'barber-s-edge');
+assert.equal(installPunchlistUid('tony'), 'install:tony');
+assert.equal(parseInstallPunchlistUid('install:tony'), 'tony');
+assert.equal(parseInstallPunchlistUid('abc'), null);
 
-assert.equal(canClientEditPunchlistItem({ created_by: 'client' }), true);
-assert.equal(canClientEditPunchlistItem({ created_by: 'staff' }), false);
+assert.equal(isInstallPunchlistTodo({ contact_uid: 'install:tony' }), true);
+assert.equal(isInstallPunchlistTodo({ contact_uid: 'abc' }), false);
+assert.equal(isSharedPunchlistTodo({ contact_uid: 'install:tony' }), true);
 
-const publicItem = toPublicPunchlistItem({
+const hubItem = toHubPunchlistItem({
   id: 9,
-  title: 'Fix the leak under the sink',
+  title: 'Need a fleet map on the dashboard',
   status: 'open',
-  created_by: 'client',
+  contact_uid: 'install:tony',
+  contact_name: 'Tony',
+  created_by: 'install',
   created_at: '2026-08-26T00:00:00.000Z',
   updated_at: '2026-08-26T00:00:00.000Z',
 });
-assert.deepEqual(publicItem, {
+assert.deepEqual(hubItem, {
   id: 9,
-  title: 'Fix the leak under the sink',
+  title: 'Need a fleet map on the dashboard',
   status: 'open',
-  created_by: 'client',
+  company: 'Tony',
+  install_slug: 'tony',
+  created_by: 'install',
   created_at: '2026-08-26T00:00:00.000Z',
   updated_at: '2026-08-26T00:00:00.000Z',
 });
-assert.equal('due_date' in publicItem, false);
-assert.equal('contact_uid' in publicItem, false);
-assert.equal('assignee' in publicItem, false);
+assert.equal('due_date' in hubItem, false);
+assert.equal('assignee' in hubItem, false);
 
 assert.equal(punchlistTitleFromInput('  Touch up paint  '), 'Touch up paint');
 assert.equal(punchlistTitleFromInput('').length, 0);

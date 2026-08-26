@@ -155,7 +155,7 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260824a';
+} from './todo-panel.js?v=20260826e';
 import {
   initDocumentsPanel,
   docState,
@@ -2696,7 +2696,7 @@ function formatDashTodoWhen(raw) {
 }
 
 function dashTodoSubline(todo) {
-  const bits = [todo.contact_uid ? 'Punch list' : 'To-do'];
+  const bits = [String(todo.contact_uid || '').startsWith('install:') ? 'Install request' : 'To-do'];
   if (todo.contact_name) bits.push(todo.contact_name);
   if (todo.section) bits.push(todo.section);
   if (todo.assignee) bits.push(todo.assignee);

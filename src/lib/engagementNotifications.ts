@@ -135,8 +135,8 @@ export async function recordPunchlistItemEngagement(opts: {
   return createAndNotify(
     {
       type: 'punchlist_item',
-      title: `${who} added punch-list item: ${title}`,
-      detail: 'Added to your to-do list',
+      title: `${who} requested: ${title}`,
+      detail: 'Added to your to-do list from their install',
       contactUid: opts.contactUid,
       contactName: who,
       jobSlug: String(opts.todoId),
