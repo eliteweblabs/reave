@@ -1,0 +1,45 @@
+{
+  "features": [
+    "client_portal",
+    "web_handoff",
+    "portal_assistant",
+    "billing",
+    "documents",
+    "digital_signature",
+    "scheduling",
+    "carddav"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "work",
+    "schedule",
+    "clients",
+    "finance"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "addons"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "homepageTemplate": "login",
+  "siteContentKey": "jk",
+  "moduleStatus": {
+    "client_portal": "deployed",
+    "web_handoff": "deployed",
+    "portal_assistant": "deployed",
+    "billing": "deployed",
+    "documents": "deployed",
+    "digital_signature": "deployed",
+    "scheduling": "deployed",
+    "carddav": "deployed"
+  }
+}
