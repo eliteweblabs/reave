@@ -475,6 +475,16 @@
       ],
       "image": "portfolio-barbers-edge-featured",
       "imageAlt": "A barber at The Barber's Edge working a beard under the ring light",
+      "alternateImages": [
+        {
+          "image": "https://thebarbersedge.com/images/barbers/horell-cruz.jpg",
+          "imageAlt": "Horell Cruz in the shop at The Barber's Edge, B mark on his shirt"
+        },
+        {
+          "image": "https://thebarbersedge.com/images/barbers/henry.jpg",
+          "imageAlt": "Henry Whalley on the shop floor at The Barber's Edge"
+        }
+      ],
       "size": "2x2",
       "featured": true,
       "imageOrientation": "vertical"

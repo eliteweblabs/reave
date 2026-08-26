@@ -49,7 +49,7 @@ import {
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260826a';
 import { navigateToWork, workClientSubline } from './work-panel.js?v=20260826d';
-import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260824a';
+import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260826a';
 import { createClientMap } from './client-map.js?v=20260821c';
 import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
 
