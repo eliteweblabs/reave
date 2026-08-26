@@ -158,6 +158,7 @@ let workState = {
   auditingSlugs: new Set(),
   auditingProgress: new Map(),
   activeTimerSlug: null,
+  timeEntryCount: 0,
 };
 
 let workAutosaveTimer = null;
@@ -1463,6 +1464,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
         note: e.note || '',
         createdAt: e.createdAt,
       }));
+      rememberWorkTimeEntryCount(entries);
     } catch (e) {
       shell.osAlert({ title: 'Could not save time', bodyHtml: escHtml(e.message) });
     } finally {
@@ -1482,6 +1484,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
           note: e.note || '',
           createdAt: e.createdAt,
         }));
+        rememberWorkTimeEntryCount(entries);
         render();
       });
 
@@ -1603,7 +1606,7 @@ function createWorkDetailChrome(pane) {
 }
 
 function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
-  return mountDetailTabs(pane, {
+  const nav = mountDetailTabs(pane, {
     tabs: workDetailTabs(opts.isNew),
     activeTab,
     onSelect,
@@ -1611,7 +1614,59 @@ function mountWorkDetailTabs(pane, activeTab, onSelect, opts = {}) {
     tabClass: 'wk-detail-tab',
     tabsClass: 'wk-detail-tabs',
     dataAttr: 'workTab',
+    renderTab(btn, tab) {
+      if (tab.id === 'time') {
+        btn.innerHTML =
+          `${escHtml(tab.label)}` +
+          `<span class="footer-nav-badge wk-detail-tab-badge" hidden aria-hidden="true"></span>`;
+      } else {
+        btn.textContent = tab.label;
+      }
+    },
   });
+  syncWorkTimeTabBadge();
+  return nav;
+}
+
+function loggedTimeEntryCount(entries) {
+  return (Array.isArray(entries) ? entries : []).filter((e) => Number(e.hours) > 0).length;
+}
+
+function rememberWorkTimeEntryCount(entries) {
+  workState.timeEntryCount = loggedTimeEntryCount(entries);
+  syncWorkTimeTabBadge();
+}
+
+function syncWorkTimeTabBadge() {
+  const btn = getWorkEditor()?.querySelector('.detail-tab[data-work-tab="time"]');
+  if (!btn) return;
+  const badge = btn.querySelector('.wk-detail-tab-badge');
+  if (!badge) return;
+  const tracking = Boolean(
+    workState.activeTimerSlug &&
+      workState.activeSlug &&
+      workState.activeTimerSlug === workState.activeSlug,
+  );
+  const count = Math.max(0, Number(workState.timeEntryCount) || 0);
+  if (tracking) {
+    badge.hidden = false;
+    badge.removeAttribute('aria-hidden');
+    badge.textContent = '';
+    badge.classList.add('is-dot');
+    btn.setAttribute('aria-label', 'Time, timer running');
+  } else if (count > 0) {
+    badge.hidden = false;
+    badge.removeAttribute('aria-hidden');
+    badge.textContent = count > 99 ? '99+' : String(count);
+    badge.classList.remove('is-dot');
+    btn.setAttribute('aria-label', `Time, ${count} ${count === 1 ? 'entry' : 'entries'}`);
+  } else {
+    badge.hidden = true;
+    badge.setAttribute('aria-hidden', 'true');
+    badge.textContent = '';
+    badge.classList.remove('is-dot');
+    btn.removeAttribute('aria-label');
+  }
 }
 
 function clearWorkDetailScrollBody(scroll) {
@@ -4013,6 +4068,7 @@ async function openWork(slug, opts = {}) {
   if (!opts.keepReturn) clearWorkReturnTargets();
   workState.detailTab = 'project';
   workState.activeSlug = slug;
+  workState.timeEntryCount = 0;
   workState.dirty = false;
   // Stamp for Recently Viewed, but do not rebuild the sidebar here — that
   // used to reshuffle the list under the cursor on every click.
@@ -4438,6 +4494,7 @@ function closeWorkDetailPane() {
   workState.activeSlug = null;
   workState.draft = null;
   workState.dirty = false;
+  workState.timeEntryCount = 0;
   syncWorkDeepLinkUrl(null);
   getWorkEditor()?.classList.remove('de-pane-active');
 }
@@ -5098,17 +5155,19 @@ function applyWorkAuditingIndicators() {
 function applyWorkTimerIndicators() {
   const root = getWorkEditor();
   const list = root?.querySelector('.ch-sidebar .ch-list');
-  if (!list) return;
-  list.querySelectorAll('.ch-list-item[data-slug]').forEach((el) => {
-    const isTracking = el.dataset.slug === workState.activeTimerSlug;
-    const isAuditing = workState.auditingSlugs.has(el.dataset.slug);
-    const trackingEl = el.querySelector('.wk-status-tracking');
-    const defaultStatusEl = el.querySelector(
-      '.wk-meta-row .wk-status:not(.wk-status-auditing):not(.wk-status-tracking)',
-    );
-    if (trackingEl) trackingEl.hidden = !isTracking || isAuditing;
-    if (defaultStatusEl && !isAuditing) defaultStatusEl.hidden = isTracking;
-  });
+  if (list) {
+    list.querySelectorAll('.ch-list-item[data-slug]').forEach((el) => {
+      const isTracking = el.dataset.slug === workState.activeTimerSlug;
+      const isAuditing = workState.auditingSlugs.has(el.dataset.slug);
+      const trackingEl = el.querySelector('.wk-status-tracking');
+      const defaultStatusEl = el.querySelector(
+        '.wk-meta-row .wk-status:not(.wk-status-auditing):not(.wk-status-tracking)',
+      );
+      if (trackingEl) trackingEl.hidden = !isTracking || isAuditing;
+      if (defaultStatusEl && !isAuditing) defaultStatusEl.hidden = isTracking;
+    });
+  }
+  syncWorkTimeTabBadge();
 }
 
 async function refreshWorkAuditingIndicatorsQuiet() {
