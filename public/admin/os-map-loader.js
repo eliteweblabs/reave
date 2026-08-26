@@ -142,7 +142,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260826c';
+} from './work-panel.js?v=20260826d';
 import {
   initTodoPanel,
   todoState,
@@ -9984,6 +9984,8 @@ let emailState = {
   labDetail: /** @type {HTMLElement | null} */ (null),
 };
 let pendingEmailDeepLinkId = null;
+/** Compose opened from another tab (project email button) — applied after inbox load. */
+let pendingComposeRecipients = null;
 let emailPollTimer = null;
 let inboxBadgeTimer = null;
 
@@ -9994,6 +9996,26 @@ function navigateToEmail(id) {
   if (!id) return;
   pendingEmailDeepLinkId = id;
   setActiveMap('email', { force: true, emailId: id });
+}
+
+/** Open in-app compose addressed to a contact (name + email chip). */
+function composeEmailToContact(contact) {
+  const recipient = normalizeEmailRecipient({
+    email: contact?.email,
+    name: contact?.name,
+    uid: contact?.uid,
+  });
+  if (!recipient) return;
+  pendingEmailDeepLinkId = null;
+  rememberOpenEmailDraft(null);
+  pendingComposeRecipients = [recipient];
+  if (MAP?.type !== 'email') {
+    setActiveMap('email', { force: true });
+    return;
+  }
+  const to = pendingComposeRecipients;
+  pendingComposeRecipients = null;
+  void startNewEmail({ to });
 }
 
 function createProjectLinkChip(label, onClick) {
@@ -11692,6 +11714,7 @@ initChatPanel({
 initWorkPanel({
   setActiveMap,
   navigateToEmail,
+  composeEmailToContact,
   navigateToChat,
   navigateToTodo,
   navigateToClient,
@@ -13481,6 +13504,15 @@ async function loadEmailTab(quiet) {
   }
   if (!quiet) inboxSessionDotIds.clear();
   seedInboxSessionDots();
+  if (pendingComposeRecipients) {
+    const to = pendingComposeRecipients;
+    pendingComposeRecipients = null;
+    pendingEmailDeepLinkId = null;
+    await startNewEmail({ to });
+    ensureEmailMobilePaneOpen();
+    syncInboxAppBadge(emailState.allEvents);
+    return;
+  }
   const explicitDeepLink = pendingEmailDeepLinkId;
   pendingEmailDeepLinkId = null;
   const deepLinkId =
@@ -14613,13 +14645,16 @@ async function closeEmailCompose(opts = { saveDraft: true }) {
   if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
 }
 
-async function startNewEmail() {
+async function startNewEmail(opts = {}) {
   if (emailState.composing) await saveActiveEmailDraft(true);
+  const to = (Array.isArray(opts.to) ? opts.to : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean);
   emailState.activeId = null;
   emailState.composing = true;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
-  emailState.compose = { to: [], cc: [], subject: '', body: '' };
+  emailState.compose = { to, cc: [], subject: '', body: '' };
   emailState.sending = false;
   rememberOpenEmailDraft(null);
   getEmailPanel()?.classList.add('em-pane-active');
@@ -14627,7 +14662,8 @@ async function startNewEmail() {
   renderEmailPanel();
   syncFooterNav();
   requestAnimationFrame(() => {
-    getEmailPanel()?.querySelector('.em-compose-to-input')?.focus();
+    const focusSel = to.length ? '.em-compose-textarea' : '.em-compose-to-input';
+    getEmailPanel()?.querySelector(focusSel)?.focus();
   });
 }
 

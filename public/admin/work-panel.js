@@ -2843,7 +2843,12 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       label: 'Email contact',
       className: 'ios-icon-btn wk-client-action-btn',
       onClick: () => {
-        if (selected?.email) window.location.href = `mailto:${selected.email}`;
+        if (!selected?.email) return;
+        shell.composeEmailToContact({
+          email: selected.email,
+          name: selected.name || '',
+          uid: selected.uid || null,
+        });
       },
     });
     actions.appendChild(emailActionBtn);
