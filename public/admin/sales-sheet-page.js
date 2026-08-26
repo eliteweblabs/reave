@@ -81,17 +81,62 @@ function startRenderClock() {
   }, 250);
 }
 
-function setBusy(on) {
-  document.body.classList.toggle('ss-busy', on);
-  const mask = document.getElementById('ss-busy-mask');
+function renderTitle() {
+  return document.querySelector('#ss-busy-mask .ss-render-title');
+}
+
+function renderDismiss() {
+  return document.getElementById('ss-render-dismiss');
+}
+
+function setUpdateEnabled(on) {
   const updateBtn = document.getElementById('ss-update');
-  if (mask) mask.hidden = !on;
-  if (updateBtn) {
-    updateBtn.disabled = on;
-    updateBtn.textContent = on ? 'Rendering…' : 'Update sheet';
+  if (!updateBtn) return;
+  updateBtn.disabled = !on;
+  updateBtn.textContent = on ? 'Update sheet' : 'Rendering…';
+}
+
+function hideMask() {
+  document.body.classList.remove('ss-busy', 'ss-render-failed');
+  const mask = document.getElementById('ss-busy-mask');
+  if (mask) mask.hidden = true;
+  const title = renderTitle();
+  if (title) title.textContent = 'Rendering';
+  const dismiss = renderDismiss();
+  if (dismiss) dismiss.hidden = true;
+  setUpdateEnabled(true);
+  stopRenderClock();
+}
+
+function setBusy(on) {
+  if (!on) {
+    hideMask();
+    return;
   }
-  if (on) startRenderClock();
-  else stopRenderClock();
+  document.body.classList.remove('ss-render-failed');
+  document.body.classList.add('ss-busy');
+  const mask = document.getElementById('ss-busy-mask');
+  const title = renderTitle();
+  const dismiss = renderDismiss();
+  if (mask) mask.hidden = false;
+  if (title) title.textContent = 'Rendering';
+  if (dismiss) dismiss.hidden = true;
+  setUpdateEnabled(false);
+  startRenderClock();
+}
+
+function failRender(message) {
+  stopRenderClock();
+  appendLive(message, true);
+  document.body.classList.remove('ss-busy');
+  document.body.classList.add('ss-render-failed');
+  const mask = document.getElementById('ss-busy-mask');
+  const title = renderTitle();
+  const dismiss = renderDismiss();
+  if (mask) mask.hidden = false;
+  if (title) title.textContent = 'Render failed';
+  if (dismiss) dismiss.hidden = false;
+  setUpdateEnabled(true);
 }
 
 function formQuery(form) {
@@ -113,15 +158,14 @@ async function renderSheet(url) {
     const res = await fetch(url, { headers: { Accept: 'text/html' } });
     const html = await res.text();
     if (!res.ok) {
-      appendLive(`FAIL HTTP ${res.status}`, true);
+      failRender(`FAIL HTTP ${res.status}`);
       return;
     }
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const next = doc.querySelector('#sales-sheet-editor');
     const cur = document.querySelector('#sales-sheet-editor');
     if (!next || !cur) {
-      appendLive('FAIL could not parse the rendered sheet', true);
-      stopRenderClock();
+      failRender('FAIL could not parse the rendered sheet');
       return;
     }
     cur.replaceWith(next);
@@ -130,10 +174,15 @@ async function renderSheet(url) {
     sync();
     setBusy(false);
   } catch (err) {
-    appendLive(`FAIL ${err instanceof Error ? err.message : String(err)}`, true);
-    stopRenderClock();
+    failRender(`FAIL ${err instanceof Error ? err.message : String(err)}`);
   }
 }
+
+document.addEventListener('click', (event) => {
+  const btn = event.target instanceof Element ? event.target.closest('#ss-render-dismiss') : null;
+  if (!btn) return;
+  hideMask();
+});
 
 document.addEventListener('change', (event) => {
   const run = event.target;
