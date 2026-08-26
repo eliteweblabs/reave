@@ -1,6 +1,10 @@
 /**
  * "Apps this platform replaces" logo wall — homepage integrations + /features.
  * Bytes live in the media library; this catalog is name + slug only.
+ *
+ * A few Simple Icons marks bake with fill="#FFFFFF" (see fetch-replaced-app-logos.mjs).
+ * Those vanish on the light marketing canvas, so they get `invertOnLight` and the
+ * marquee applies `.blm-tile--invert` — black on light, white again on dark.
  */
 import { siteMediaSrc } from './siteMedia';
 
@@ -9,12 +13,29 @@ export interface BrandLogo {
   name: string;
   /** Public media URL, e.g. /api/media/replaced-gmail */
   src: string;
+  /** Paper-white baked fill — invert on light, leave white on dark. */
+  invertOnLight?: boolean;
 }
 
 type BrandLogoRef = {
   name: string;
   image: string;
+  invertOnLight?: boolean;
 };
+
+/**
+ * Baked `#FFFFFF` fills in scripts/fetch-replaced-app-logos.mjs.
+ * Keep this list in lockstep with those color: "#FFFFFF" rows.
+ */
+export const PAPER_WHITE_REPLACED_APP_IMAGES = [
+  'replaced-notion',
+  'replaced-typeform',
+  'replaced-zendesk',
+  'replaced-square',
+  'replaced-buffer',
+] as const;
+
+const PAPER_WHITE_REPLACED_APP_IMAGE_SET = new Set<string>(PAPER_WHITE_REPLACED_APP_IMAGES);
 
 /** Order matches the old numbered filenames (01-gmail … 36-make). */
 export const REPLACED_APP_LOGOS: BrandLogoRef[] = [
@@ -59,6 +80,7 @@ function resolveLogos(refs: BrandLogoRef[]): BrandLogo[] {
     .map((logo) => ({
       name: logo.name,
       src: siteMediaSrc(logo.image),
+      invertOnLight: PAPER_WHITE_REPLACED_APP_IMAGE_SET.has(logo.image) || Boolean(logo.invertOnLight),
     }))
     .filter((logo) => logo.name && logo.src);
 }

@@ -105,6 +105,15 @@
   --radius-input: 8px;
   --radius-button: var(--radius-pill);
   --control-h: 2.75rem;
+  /* Icon-only buttons — locked boxes. createIosIconBtn({ size: 'sm'|'md'|'lg' }).
+     md matches the circular agent control. Padding is (box − glyph) / 2. */
+  --icon-btn-sm: 24px;
+  --icon-btn-sm-glyph: 12px;
+  --icon-btn-md: 36px;
+  --icon-btn-md-glyph: 16px;
+  --icon-btn-lg: 44px;
+  --icon-btn-lg-glyph: 20px;
+  --icon-btn-pad: calc((var(--icon-btn-box, var(--icon-btn-md)) - var(--icon-btn-glyph, var(--icon-btn-md-glyph))) / 2);
   /* Destructive / delete affordances — one red everywhere */
   --danger: #dc2626;
   --danger-hover: #b91c1c;
@@ -236,42 +245,43 @@
     --pane-header-clearance: 0.1rem;
   }
 }
+/* Ink, not slate — navy channels in these tokens made dark mode read blue. */
 html[data-theme="dark"] {
-    --bg: #0a0d14;
-    --grid: #1a2230;
-    --fg: #e9eef6;
-    --muted: #8b97a8;
-    --card: #11151d;
-    --card-border: #232c3a;
-    --panel: #121722;
-    --panel-border: #283142;
+    --bg: #111111;
+    --grid: #2a2a2a;
+    --fg: #e5e5e5;
+    --muted: #a3a3a3;
+    --card: #1a1a1a;
+    --card-border: #2e2e2e;
+    --panel: #161616;
+    --panel-border: #2a2a2a;
     --fg-secondary: rgba(255, 255, 255, 0.88);
-    --surface-hover: rgba(255, 255, 255, 0.04);
-    --surface-hover-strong: rgba(255, 255, 255, 0.06);
-    --surface-subtle: rgba(255, 255, 255, 0.02);
-    --surface-muted: rgba(255, 255, 255, 0.03);
-    --surface-raised: rgba(255, 255, 255, 0.02);
+    --surface-hover: rgba(255, 255, 255, 0.06);
+    --surface-hover-strong: rgba(255, 255, 255, 0.09);
+    --surface-subtle: rgba(255, 255, 255, 0.03);
+    --surface-muted: rgba(255, 255, 255, 0.04);
+    --surface-raised: rgba(255, 255, 255, 0.03);
     --border-hover: rgba(255, 255, 255, 0.18);
-    --border-strong-hover: rgba(255, 255, 255, 0.2);
-    --tab-active-bg: #1b2230;
-    --mode-tab-active-bg: #1e2b3c;
-    --list-item-active-bg: #11253d;
-    --list-item-active-border: #2d5a94;
-    --dropdown-bg: rgba(14, 17, 24, 0.98);
+    --border-strong-hover: rgba(255, 255, 255, 0.22);
+    --tab-active-bg: #242424;
+    --mode-tab-active-bg: #2a2a2a;
+    --list-item-active-bg: #242424;
+    --list-item-active-border: #4a4a4a;
+    --dropdown-bg: rgba(17, 17, 17, 0.98);
     --dropdown-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-    --tooltip-bg: #1a2030;
-    --tooltip-border: #2d3a4f;
-    --tooltip-fg: #c8d4e3;
-    --popover-bg: #111827;
-    --popover-border: #283142;
+    --tooltip-bg: #1f1f1f;
+    --tooltip-border: #333333;
+    --tooltip-fg: #d4d4d4;
+    --popover-bg: #1a1a1a;
+    --popover-border: #2a2a2a;
     --popover-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
-    --code-bg: #0f1825;
-    --code-border: #1e3a5f;
-    --code-fg: #93c5fd;
-    --code-label-fg: #c7d0dc;
-    --textarea-fg: #c9d1d9;
-    --elabel-bg: rgba(10, 13, 20, 0.82);
-    --overlay-bg: rgba(10, 13, 20, 0.96);
+    --code-bg: #141414;
+    --code-border: #333333;
+    --code-fg: #d4d4d4;
+    --code-label-fg: #c4c4c4;
+    --textarea-fg: #e5e5e5;
+    --elabel-bg: rgba(17, 17, 17, 0.82);
+    --overlay-bg: rgba(17, 17, 17, 0.96);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35);
     --shadow-node-inset: 0 1px 0 rgba(255, 255, 255, 0.02) inset;
     --shadow-node: 0 6px 20px rgba(0, 0, 0, 0.35);
@@ -281,16 +291,16 @@ html[data-theme="dark"] {
     --nav-icon-active: #ffffff;
     --nav-chevron: rgba(255, 255, 255, 0.8);
     --nav-chevron-hover: #fff;
-    --nav-indicator-bg: rgba(255, 255, 255, 0.05);
+    --nav-indicator-bg: rgba(255, 255, 255, 0.06);
     --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.12);
-    --footer-nav-glass-bg: rgba(10, 13, 20, 0.88);
-    --badge-ring: rgba(10, 13, 20, 0.55);
-    --accent-select-bg: rgba(255, 255, 255, 0.04);
-    --sc-pop-row-hover: #1e3a5f;
-    --sc-pop-row-border: #2d5a94;
+    --footer-nav-glass-bg: rgba(17, 17, 17, 0.88);
+    --badge-ring: rgba(17, 17, 17, 0.55);
+    --accent-select-bg: rgba(255, 255, 255, 0.06);
+    --sc-pop-row-hover: #2a2a2a;
+    --sc-pop-row-border: #4a4a4a;
     --sc-copied-bg: #0f2c1e;
-    --msg-user-bg: #1e3a5f;
-    --msg-user-border: #2d5a94;
+    --msg-user-bg: #2a2a2a;
+    --msg-user-border: #444444;
     --msg-action-hover: rgba(255, 255, 255, 0.08);
     --msg-action-hover-user: rgba(255, 255, 255, 0.12);
     --img-border: rgba(255, 255, 255, 0.08);
@@ -298,6 +308,6 @@ html[data-theme="dark"] {
     --search-close: rgba(255, 255, 255, 0.7);
     --search-icon: rgba(255, 255, 255, 0.75);
     --icon-muted: rgba(255, 255, 255, 0.72);
-    --list-row-odd: #121722;
-    --list-row-even: #171d2a;
+    --list-row-odd: #161616;
+    --list-row-even: #1a1a1a;
 }

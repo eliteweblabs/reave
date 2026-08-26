@@ -422,7 +422,7 @@ async function inlineMediaSrc(src: string, slugHint = ''): Promise<string> {
 const backStackLogos = await Promise.all(
   salesSheetStackLogos().map(async (logo) => ({
     ...logo,
-    src: await inlineMediaSrc(logo.src, logo.slug?.startsWith('stack-') ? logo.slug : ''),
+    src: await inlineMediaSrc(logo.src, logo.slug || ''),
   })),
 );
 const storedBrand = await getStoredCompanyConfig();

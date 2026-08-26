@@ -49,7 +49,7 @@ const bottomLoop = loopRow(bottomRow);
           <div class="blm-scroller" style="--blm-direction: normal;">
             <ul class="blm-track">
               {topLoop.map((logo) => (
-                <li class="blm-tile">
+                <li class:list={["blm-tile", logo.invertOnLight && "blm-tile--invert"]}>
                   <img
                     src={logo.src}
                     alt=""
@@ -69,7 +69,7 @@ const bottomLoop = loopRow(bottomRow);
           <div class="blm-scroller" style="--blm-direction: reverse;">
             <ul class="blm-track">
               {bottomLoop.map((logo) => (
-                <li class="blm-tile">
+                <li class:list={["blm-tile", logo.invertOnLight && "blm-tile--invert"]}>
                   <img
                     src={logo.src}
                     alt=""
@@ -165,5 +165,14 @@ const bottomLoop = loopRow(bottomRow);
     height: 40px;
     object-fit: contain;
     opacity: 0.92;
+  }
+
+  /* Paper-white Simple Icons (Notion, Typeform, Zendesk, Square, Buffer). */
+  .blm-tile--invert img {
+    filter: invert(1);
+  }
+
+  :global(html[data-theme="dark"]) .blm-tile--invert img {
+    filter: none;
   }
 </style>

@@ -39,7 +39,7 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260811a';
+} from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260825a';
 
@@ -182,7 +182,7 @@ function renderNewsletterEditor() {
                 ? '#f87171'
                 : s.status === 'skipped'
                   ? '#a1a1aa'
-                  : '#c084fc';
+                  : 'var(--muted, #a1a1aa)';
           return `
         <div class="nl-log-row">
           <span class="nl-log-status" style="color:${color}">${escHtml(s.status)}</span>

@@ -119,7 +119,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     <a
       id="admin-special-back"
       href={backHref}
-      class="app-header-back ios-icon-btn nav-chevron-btn"
+      class="app-header-back ios-icon-btn ios-icon-btn--lg nav-chevron-btn"
       aria-label={backLabel}
       title={backLabel}
     >
@@ -154,6 +154,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   <div class="app-header-end topbar-end">
     {!showMarketingNav && <ThemeToggle />}
+    {adminShell && (
+      <div
+        id="topbar-module-hooks"
+        class="topbar-module-hooks"
+        data-hook-region="header-end"
+        hidden
+      ></div>
+    )}
     {showHeaderSignIn && (
       <div class="topbar-auth-cluster">
         <button
@@ -913,7 +921,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .topbar-sleep-toggle-switch[aria-checked='true'] {
-    background: #6366f1;
+    background: var(--site-accent, #171717);
   }
 
   .topbar-sleep-toggle-switch[aria-checked='true']::after {
@@ -1089,6 +1097,162 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     flex-shrink: 0;
     margin-left: auto;
     overflow: visible;
+  }
+
+  /* Paid-module slot (time tracking clock, later add-ons). Empty until a module mounts. */
+  .topbar-module-hooks {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    overflow: visible;
+  }
+
+  .topbar-module-hooks[hidden] {
+    display: none !important;
+  }
+
+  .topbar-timer-hook {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    overflow: visible;
+  }
+
+  .topbar-timer-hook[hidden] {
+    display: none !important;
+  }
+
+  .topbar-timer-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0.35rem 0.45rem;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: #22c55e;
+    cursor: pointer;
+    line-height: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .topbar-timer-btn:hover,
+  .topbar-timer-hook.is-open .topbar-timer-btn {
+    color: #16a34a;
+  }
+
+  html[data-theme="dark"] .topbar-timer-btn {
+    color: #4ade80;
+  }
+
+  html[data-theme="dark"] .topbar-timer-btn:hover,
+  html[data-theme="dark"] .topbar-timer-hook.is-open .topbar-timer-btn {
+    color: #86efac;
+  }
+
+  .topbar-timer-btn .animated-clock {
+    display: block;
+    width: 16px;
+    height: 16px;
+    filter: drop-shadow(0 0 3px rgba(34, 197, 94, 0.45));
+  }
+
+  .topbar-timer-btn .animated-clock-second {
+    stroke: currentColor;
+    opacity: 0.72;
+    stroke-width: 1.25;
+  }
+
+  .topbar-timer-tip {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 10050;
+    min-width: 11.5rem;
+    max-width: min(18rem, calc(100vw - 1.25rem));
+    padding: 0.55rem 0.65rem 0.6rem;
+    border-radius: 8px;
+    border: 1px solid var(--tooltip-border, rgba(255, 255, 255, 0.12));
+    background: var(--tooltip-bg, rgba(15, 23, 42, 0.96));
+    color: var(--tooltip-fg, #e9eef6);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+    pointer-events: auto;
+    text-align: left;
+  }
+
+  .topbar-timer-tip[hidden] {
+    display: none !important;
+  }
+
+  .topbar-timer-tip-elapsed {
+    font-size: 0.92rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: #4ade80;
+    line-height: 1.2;
+  }
+
+  .topbar-timer-tip-project {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    margin-top: 0.28rem;
+    max-width: 100%;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--tooltip-fg, #e9eef6);
+    text-decoration: none;
+    line-height: 1.3;
+  }
+
+  .topbar-timer-tip-project:hover {
+    text-decoration: underline;
+  }
+
+  .topbar-timer-tip-project-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-timer-tip-project svg {
+    flex-shrink: 0;
+    width: 11px;
+    height: 11px;
+    opacity: 0.7;
+  }
+
+  .topbar-timer-tip-stop {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.5rem;
+    height: 1.7rem;
+    padding: 0 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e9eef6;
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 650;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .topbar-timer-tip-stop:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .topbar-timer-tip-stop:disabled {
+    opacity: 0.6;
+    cursor: wait;
   }
 
   .app-header-row:has(.marketing-nav) .topbar-end {
@@ -1430,14 +1594,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     height: var(--app-header-profile-h);
     padding: 0 0.65rem 0 0.55rem;
     gap: 0.35rem;
-    background: rgba(168, 85, 247, 0.14);
-    color: #e9d5ff;
+    background: color-mix(in srgb, var(--site-fg, #171717) 10%, transparent);
+    color: var(--site-fg, #171717);
   }
 
   .topbar-profile-btn--admin:hover,
   html.account-menu-open .topbar-profile-btn--admin {
-    background: rgba(168, 85, 247, 0.22);
-    color: #f3e8ff;
+    background: color-mix(in srgb, var(--site-fg, #171717) 16%, transparent);
+    color: var(--site-fg, #171717);
   }
 
   .topbar-admin-label {

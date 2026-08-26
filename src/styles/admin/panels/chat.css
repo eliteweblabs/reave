@@ -966,7 +966,7 @@ body.admin-split-view #chat-panel .ch-compose {
   transform: translateX(-50%) translateY(-1px);
 }
 .ch-undo-toast:focus-visible {
-  outline: 2px solid var(--brand-indigo, #6366f1);
+  outline: 2px solid var(--fg);
   outline-offset: 2px;
 }
 .ch-context-menu {

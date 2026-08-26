@@ -16,6 +16,7 @@ import {
   createTimingRing,
   restartTimingRing,
   createCopyIconBtn,
+  IOS_ICON_BTN_SIZES,
   createSlidingPillSelect,
   createListEmptyState,
   createCenteredListEmpty,
@@ -28,7 +29,7 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
-} from './admin-ui.js?v=20260825a';
+} from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260825a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260825c';
@@ -137,6 +138,29 @@ function mount() {
         }),
       );
       el.insertBefore(toolbar, el.querySelector('.cg-status'));
+    },
+  );
+
+  section(
+    root,
+    'Icon button sizes',
+    'Every icon control takes <code>size: \'sm\' | \'md\' | \'lg\'</code> — that class locks the box and glyph (<code>24/12</code>, <code>36/16</code>, <code>44/20</code>). Default is <code>md</code>, the same box as <code>createAgentBtn</code>.',
+    (el) => {
+      const setStatus = statusLine(el);
+      for (const size of /** @type {const} */ (['sm', 'md', 'lg'])) {
+        const r = row(el, `${size} · ${IOS_ICON_BTN_SIZES[size].box}×${IOS_ICON_BTN_SIZES[size].box}`);
+        r.classList.add('cg-row--toolbar', 'de-header-actions');
+        r.appendChild(
+          createIosIconBtn({
+            iconKey: 'archive',
+            label: `Archive ${size}`,
+            size,
+            onClick: () => setStatus(`Archive ${size}`),
+          }),
+        );
+        r.appendChild(paneDeleteIcon({ label: `Delete ${size}`, size, onClick: () => setStatus(`Delete ${size}`, 'warn') }));
+        r.appendChild(createAgentBtn({ label: `Agent ${size}`, size, onClick: () => setStatus(`Agent ${size}`) }));
+      }
     },
   );
 

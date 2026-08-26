@@ -46,9 +46,10 @@ import {
 import {
   renderSalesSheetBackHtml,
   salesSheetBackModules,
+  salesSheetClientLogos,
   SALES_SHEET_BACK_COVER_QA,
   SALES_SHEET_BACK_QA,
-  SALES_SHEET_STACK,
+  SALES_SHEET_CLIENT_LOGO_NAMES,
 } from '../src/lib/salesSheetBack.ts';
 import { defaultModuleCatalog } from '../src/lib/moduleCatalog.ts';
 import {
@@ -716,14 +717,22 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.doesNotMatch(back, /mask-image:/);
   assert.doesNotMatch(back, /\.ss-back-col::after/);
   assert.match(back, /place-items: center/);
-  for (const tech of SALES_SHEET_STACK) {
-    assert.match(back, new RegExp(`data-stack="${tech.slug}"`));
+  const clientLogos = salesSheetClientLogos();
+  assert.equal(clientLogos.length, SALES_SHEET_CLIENT_LOGO_NAMES.length);
+  assert.deepEqual(
+    clientLogos.map((logo) => logo.name),
+    [...SALES_SHEET_CLIENT_LOGO_NAMES],
+  );
+  for (const logo of clientLogos) {
+    assert.match(back, new RegExp(`data-stack="${logo.slug}"`));
+    assert.match(logo.src, /\/api\/media\//);
   }
   assert.match(back, /justify-content: center/);
-  assert.match(back, /\.ss-stack \{[\s\S]*?flex-wrap: nowrap/);
-  assert.match(back, /\.ss-stack \{[\s\S]*?justify-content: space-between/);
+  assert.match(back, /\.ss-stack \{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(back, /\.ss-stack \{[\s\S]*?width: 100%/);
-  assert.doesNotMatch(back, /\.ss-stack \{[\s\S]*?flex-wrap: wrap/);
+  assert.match(back, /\.ss-stack-logo \{[\s\S]*?grayscale\(1\) brightness\(0\)/);
+  assert.match(back, /\.ss-stack-logo \{[\s\S]*?opacity: 0\.75/);
+  assert.doesNotMatch(back, /\.ss-stack \{[\s\S]*?flex-wrap: nowrap/);
   assert.doesNotMatch(back, /\.ss-stack \{[\s\S]*?max-width: 20cqi/);
   assert.match(back, /--ss-print-inset: 0\.2in/);
   assert.match(back, /\.ss-sheet-back \.doc-onepager \{[\s\S]*?padding: 0;/);
@@ -732,9 +741,9 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /\.ss-back-col \{[\s\S]*padding: var\(--ss-print-inset-top\) var\(--ss-print-inset\) var\(--ss-print-inset\)/);
   assert.doesNotMatch(back, /gap: 0 2\.2%/);
   assert.doesNotMatch(back, /padding-left: 2\.2%/);
-  assert.equal((back.match(/class="ss-stack-item" data-stack="/g) || []).length, SALES_SHEET_STACK.length);
-  assert.match(back, /simple-icons@v16\/icons\/anthropic\.svg/);
-  assert.match(back, /simple-icons@v16\/icons\/astro\.svg/);
+  assert.equal((back.match(/class="ss-stack-item" data-stack="/g) || []).length, clientLogos.length);
+  assert.doesNotMatch(back, /simple-icons@v16\/icons\/anthropic\.svg/);
+  assert.doesNotMatch(back, /simple-icons@v16\/icons\/astro\.svg/);
   assert.doesNotMatch(back, /data-stack="react"/);
   assert.doesNotMatch(back, /data-stack="typescript"/);
   assert.doesNotMatch(back, /data-stack="nodedotjs"/);
@@ -747,12 +756,8 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.doesNotMatch(back, /\/stack\/playwright\.svg/);
   assert.doesNotMatch(back, /\/stack\/cal-com\.png/);
   assert.deepEqual(
-    SALES_SHEET_STACK.map((tech) => tech.name),
-    [...SALES_SHEET_STACK].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })).map((tech) => tech.name),
-  );
-  assert.deepEqual(
     [...back.matchAll(/class="ss-stack-item" data-stack="([^"]+)"/g)].map((match) => match[1]),
-    SALES_SHEET_STACK.map((tech) => tech.slug),
+    clientLogos.map((logo) => logo.slug),
   );
   assert.doesNotMatch(back, /Printed two sides/);
   assert.doesNotMatch(back, /Page 2 of 2/);

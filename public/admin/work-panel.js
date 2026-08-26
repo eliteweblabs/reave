@@ -5,6 +5,9 @@
 import {
   IOS_ICONS,
   iosIcon,
+  animatedClockIcon,
+  mountHeaderHook,
+  syncHeaderHookRegionVisibility,
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
@@ -33,7 +36,7 @@ import {
   looksLikeHttpUrl,
   contactAvatarHtml,
   mountContactAvatars,
-} from './admin-ui.js?v=20260821c';
+} from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260824a';
@@ -48,7 +51,6 @@ import {
 } from './detail-tabs.js?v=20260807b';
 import {
   openMediaPicker,
-  imageMediaFilter,
   projectFileMediaFilter,
   fetchMediaAsFile,
 } from './media-picker.js?v=20260813b';
@@ -70,6 +72,7 @@ export function initWorkPanel(deps) {
       }
     });
   }
+  mountHeaderTimerHook();
 }
 
 // ---- extracted from os-map-loader.js:10942-13417 ----
@@ -821,6 +824,25 @@ function rememberWorkTimerSlug(slug) {
   applyWorkTimerIndicators();
 }
 
+let lastPublishedTimerKey = '';
+
+function workTimerViewKey(view) {
+  if (!view?.running || !view.timer) return '';
+  return `${view.timer.job_slug}|${view.timer.started_at}`;
+}
+
+function publishWorkTimerView(view) {
+  const next = {
+    running: Boolean(view?.running && view.timer),
+    timer: view?.timer || null,
+  };
+  rememberWorkTimerSlug(next.timer?.job_slug || null);
+  const key = workTimerViewKey(next);
+  if (key === lastPublishedTimerKey) return;
+  lastPublishedTimerKey = key;
+  document.dispatchEvent(new CustomEvent('reave-work-timer-changed', { detail: next }));
+}
+
 function mountWorkTimerBar(host, slug, opts = {}) {
   const bar = document.createElement('div');
   bar.className = 'wk-timer-bar';
@@ -838,12 +860,23 @@ function mountWorkTimerBar(host, slug, opts = {}) {
     }
   };
 
+  const onTimerChanged = (ev) => {
+    if (!bar.isConnected) {
+      cleanup();
+      return;
+    }
+    const next = ev.detail;
+    if (!next || workTimerViewKey(next) === workTimerViewKey(view)) return;
+    applyView(next, { silent: true });
+  };
+
   const cleanup = () => {
     stopTick();
     if (pollId) {
       clearInterval(pollId);
       pollId = null;
     }
+    document.removeEventListener('reave-work-timer-changed', onTimerChanged);
   };
 
   const thisProjectRunning = () => Boolean(view.running && view.timer && view.timer.job_slug === slug);
@@ -919,15 +952,18 @@ function mountWorkTimerBar(host, slug, opts = {}) {
     }, 1000);
   };
 
-  const applyView = (next) => {
+  const applyView = (next, { silent = false } = {}) => {
     view = {
       running: Boolean(next.running && next.timer),
       timer: next.timer || null,
     };
     rememberWorkTimerSlug(view.timer?.job_slug);
+    if (!silent) publishWorkTimerView(view);
     renderBar();
     startTick();
   };
+
+  document.addEventListener('reave-work-timer-changed', onTimerChanged);
 
   async function loadTimer() {
     if (!bar.isConnected) {
@@ -968,6 +1004,223 @@ function mountWorkTimerBar(host, slug, opts = {}) {
       renderBar();
     }
   }
+
+  void loadTimer();
+  pollId = setInterval(() => void loadTimer(), 15000);
+}
+
+function projectTitleFromTimer(timer) {
+  return (timer?.job?.title || timer?.job?.label || timer?.job_slug || 'Project').trim();
+}
+
+function syncAnimatedClockHands(root, startedAt) {
+  if (!root || !startedAt) return;
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start)) return;
+  const total = Math.max(0, (Date.now() - start) / 1000);
+  const second = total % 60;
+  const minute = (total / 60) % 60;
+  const hour = (total / 3600) % 12;
+  const hourEl = root.querySelector('.animated-clock-hour');
+  const minuteEl = root.querySelector('.animated-clock-minute');
+  const secondEl = root.querySelector('.animated-clock-second');
+  if (hourEl) hourEl.setAttribute('transform', `rotate(${hour * 30 + minute * 0.5} 12 12)`);
+  if (minuteEl) minuteEl.setAttribute('transform', `rotate(${minute * 6} 12 12)`);
+  if (secondEl) secondEl.setAttribute('transform', `rotate(${second * 6} 12 12)`);
+}
+
+function mountHeaderTimerHook() {
+  if (!hasInstallFeature('time_tracking')) return;
+  const region = document.querySelector('[data-hook-region="header-end"]');
+  if (!region || region.querySelector('[data-hook-id="time-tracking"]')) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'topbar-timer-hook';
+  wrap.hidden = true;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'topbar-timer-btn';
+  btn.setAttribute('aria-label', 'Timer running');
+  btn.setAttribute('aria-expanded', 'false');
+  btn.setAttribute('aria-haspopup', 'true');
+  btn.setAttribute('aria-controls', 'topbar-timer-tip');
+  btn.innerHTML = animatedClockIcon(16);
+
+  const tip = document.createElement('div');
+  tip.id = 'topbar-timer-tip';
+  tip.className = 'topbar-timer-tip';
+  tip.setAttribute('role', 'tooltip');
+  tip.hidden = true;
+
+  wrap.append(btn, tip);
+  mountHeaderHook('header-end', 'time-tracking', wrap);
+
+  let view = { running: false, timer: null };
+  let tickId = null;
+  let pollId = null;
+  let busy = false;
+  let open = false;
+  let hoverTimer = null;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+  const stopTick = () => {
+    if (tickId) {
+      clearInterval(tickId);
+      tickId = null;
+    }
+  };
+
+  const setOpen = (next) => {
+    open = Boolean(next) && Boolean(view.running && view.timer);
+    wrap.classList.toggle('is-open', open);
+    tip.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+
+  const renderTip = () => {
+    tip.innerHTML = '';
+    if (!view.running || !view.timer) return;
+
+    const elapsed = document.createElement('div');
+    elapsed.className = 'topbar-timer-tip-elapsed';
+    elapsed.textContent = formatElapsedClock(view.timer.started_at);
+
+    const project = document.createElement('a');
+    project.className = 'topbar-timer-tip-project';
+    project.href = `/admin/?tab=work&slug=${encodeURIComponent(view.timer.job_slug)}`;
+    const name = document.createElement('span');
+    name.className = 'topbar-timer-tip-project-name';
+    name.textContent = projectTitleFromTimer(view.timer);
+    project.appendChild(name);
+    project.insertAdjacentHTML('beforeend', iosIcon('chevron-right', 11));
+    project.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      setOpen(false);
+      navigateToWork(view.timer.job_slug);
+    });
+
+    const stopBtn = document.createElement('button');
+    stopBtn.type = 'button';
+    stopBtn.className = 'topbar-timer-tip-stop';
+    stopBtn.disabled = busy;
+    stopBtn.textContent = busy ? 'Stopping…' : 'Stop';
+    stopBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      void stopHeaderTimer();
+    });
+
+    tip.append(elapsed, project, stopBtn);
+  };
+
+  const syncLiveBits = () => {
+    if (!view.running || !view.timer) return;
+    const elapsed = tip.querySelector('.topbar-timer-tip-elapsed');
+    if (elapsed) elapsed.textContent = formatElapsedClock(view.timer.started_at);
+    syncAnimatedClockHands(btn, view.timer.started_at);
+    btn.setAttribute(
+      'aria-label',
+      `Timer running on ${projectTitleFromTimer(view.timer)}, ${formatElapsedClock(view.timer.started_at)}`,
+    );
+  };
+
+  const startTick = () => {
+    stopTick();
+    if (!view.running || !view.timer) return;
+    syncLiveBits();
+    if (reduceMotion) return;
+    tickId = setInterval(syncLiveBits, 100);
+  };
+
+  const applyView = (next, { silent = false } = {}) => {
+    const incoming = {
+      running: Boolean(next.running && next.timer),
+      timer: next.timer || null,
+    };
+    const same = workTimerViewKey(incoming) === workTimerViewKey(view);
+    view = incoming;
+    wrap.hidden = !view.running;
+    syncHeaderHookRegionVisibility(region);
+    if (!view.running) setOpen(false);
+    if (!same) {
+      renderTip();
+      if (!silent) publishWorkTimerView(view);
+    }
+    startTick();
+  };
+
+  async function loadTimer() {
+    try {
+      const res = await adminFetch('/api/work/timer');
+      const data = await res.json();
+      if (!res.ok || !data.ok) return;
+      applyView(data);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function stopHeaderTimer() {
+    if (busy || !view.running) return;
+    busy = true;
+    renderTip();
+    try {
+      const res = await adminFetch('/api/work/timer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || data.text || `HTTP ${res.status}`);
+      applyView(data);
+      const text = typeof data.text === 'string' ? data.text.trim() : '';
+      if (text && shell.showChatToast) shell.showChatToast(text);
+    } catch (e) {
+      shell.osAlert({ title: 'Timer', bodyHtml: escHtml(e.message) });
+    } finally {
+      busy = false;
+      renderTip();
+    }
+  }
+
+  const scheduleOpen = () => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => setOpen(true), 80);
+  };
+  const scheduleClose = () => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => setOpen(false), 120);
+  };
+
+  btn.addEventListener('mouseenter', scheduleOpen);
+  btn.addEventListener('mouseleave', scheduleClose);
+  tip.addEventListener('mouseenter', () => {
+    if (hoverTimer) clearTimeout(hoverTimer);
+    setOpen(true);
+  });
+  tip.addEventListener('mouseleave', scheduleClose);
+  btn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    setOpen(!open);
+  });
+  btn.addEventListener('focus', () => setOpen(true));
+  document.addEventListener('click', (ev) => {
+    if (!open) return;
+    if (wrap.contains(ev.target)) return;
+    setOpen(false);
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && open) setOpen(false);
+  });
+  document.addEventListener('reave-work-timer-changed', (ev) => {
+    const next = ev.detail;
+    if (!next || workTimerViewKey(next) === workTimerViewKey(view)) return;
+    applyView(next, { silent: true });
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void loadTimer();
+  });
 
   void loadTimer();
   pollId = setInterval(() => void loadTimer(), 15000);
@@ -1934,7 +2187,7 @@ async function loadWorkTab(opts = {}) {
     if (timerRes?.ok) {
       try {
         const timerData = await timerRes.json();
-        workState.activeTimerSlug = timerData?.ok ? timerData.timer?.job_slug || null : null;
+        if (timerData?.ok) publishWorkTimerView(timerData);
       } catch {
         /* keep previous */
       }
@@ -2969,35 +3222,10 @@ function createWorkBodyEditor(opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'wk-md-editor';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'wk-md-toolbar';
-
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/jpeg,image/png,image/gif,image/webp';
-  fileInput.multiple = true;
-  fileInput.className = 'wk-md-file-input';
-  fileInput.hidden = true;
-
-  const uploadBtn = document.createElement('button');
-  uploadBtn.type = 'button';
-  uploadBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
-  setDeBtnLabel(uploadBtn, 'Upload', 'share');
-  uploadBtn.addEventListener('click', () => fileInput.click());
-
-  const libraryBtn = document.createElement('button');
-  libraryBtn.type = 'button';
-  libraryBtn.className = 'de-btn de-btn-secondary';
-  libraryBtn.textContent = 'Library';
-
-  toolbar.appendChild(fileInput);
-  toolbar.appendChild(uploadBtn);
-  toolbar.appendChild(libraryBtn);
-
   const surface = document.createElement('div');
-  surface.className = 'wk-md-surface de-textarea';
+  surface.className = 'wk-md-surface';
   surface.contentEditable = 'true';
-  surface.spellcheck = false;
+  surface.spellcheck = true;
   surface.setAttribute('role', 'textbox');
   surface.setAttribute('aria-multiline', 'true');
   if (opts.placeholder) surface.dataset.placeholder = opts.placeholder;
@@ -3094,33 +3322,6 @@ function createWorkBodyEditor(opts = {}) {
     if (changed) syncMarkdown();
   }
 
-  fileInput.addEventListener('change', () => {
-    const files = [...(fileInput.files || [])];
-    fileInput.value = '';
-    if (!files.length) return;
-    void (async () => {
-      for (const file of files) {
-        try {
-          await ingestImageFile(file);
-        } catch {
-          /* toast already shown */
-        }
-      }
-    })();
-  });
-
-  libraryBtn.addEventListener('click', () => {
-    void openMediaPicker({
-      title: 'Insert from library',
-      hint: 'Choose an image to copy into this project and insert in the notes. JPEG, PNG, GIF, or WebP — max 10 MB.',
-      filter: imageMediaFilter,
-      onPick: async (item) => {
-        const file = await fetchMediaAsFile(item);
-        await ingestImageFile(file);
-      },
-    });
-  });
-
   surface.addEventListener('input', syncMarkdown);
 
   surface.addEventListener('paste', (e) => {
@@ -3169,7 +3370,6 @@ function createWorkBodyEditor(opts = {}) {
     })();
   });
 
-  wrap.appendChild(toolbar);
   wrap.appendChild(surface);
   wrap.appendChild(ta);
 
@@ -3215,6 +3415,8 @@ function renderNewWorkForm(pane) {
       value: workState.draft?.title || '',
       placeholder: postNew(),
       ariaLabel: postTitleLabel(),
+      leading: iosIcon('briefcase', 20),
+      editIcon: false,
     },
   });
   header.classList.add('pane-header');
@@ -3495,6 +3697,8 @@ function renderEditWorkForm(pane) {
       value: workState.draft?.title || listJob?.title || '',
       placeholder: postTitleLabel(),
       ariaLabel: postTitleLabel(),
+      leading: iosIcon('briefcase', 20),
+      editIcon: false,
     },
   });
   header.classList.add('pane-header');
@@ -4330,41 +4534,121 @@ function workRelatedChats(related, sourceChatId) {
   return chats;
 }
 
+const WORK_FILE_ACCEPT = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+]);
+
+function acceptedWorkFiles(list) {
+  return [...(list || [])].filter(
+    (file) =>
+      WORK_FILE_ACCEPT.has(file.type) || /\.(jpe?g|png|gif|webp|pdf)$/i.test(file.name || ''),
+  );
+}
+
 function mountWorkFilesSection(container, slug, initialFiles) {
   const section = document.createElement('div');
   section.className = 'wk-files-section';
 
+  const head = document.createElement('div');
+  head.className = 'wk-files-head';
   const title = document.createElement('div');
   title.className = 'wk-files-title';
   title.textContent = 'File repository';
-  section.appendChild(title);
+  head.appendChild(title);
 
-  const hint = document.createElement('div');
-  hint.className = 'wk-files-hint';
-  hint.textContent = 'Images from matching emails and linked chats are saved here automatically.';
-  section.appendChild(hint);
+  const tools = document.createElement('div');
+  tools.className = 'wk-files-tools';
+  const downloadAllBtn = createIosIconBtn({
+    iconKey: 'download',
+    label: 'Download all',
+    size: 'sm',
+    onClick: () => {
+      void downloadAllProjectFiles();
+    },
+  });
+  downloadAllBtn.disabled = !(initialFiles?.length);
+  const libraryBtn = document.createElement('button');
+  libraryBtn.type = 'button';
+  libraryBtn.className = 'de-btn de-btn-ghost';
+  libraryBtn.textContent = 'Library';
+  tools.appendChild(downloadAllBtn);
+  tools.appendChild(libraryBtn);
+  head.appendChild(tools);
+  section.appendChild(head);
 
-  const grid = document.createElement('div');
-  grid.className = 'wk-files-grid';
-  section.appendChild(grid);
+  const drop = document.createElement('div');
+  drop.className = 'wk-files-drop';
+  drop.tabIndex = 0;
+  drop.setAttribute('role', 'button');
+  drop.setAttribute('aria-label', 'Upload files');
 
-  const uploadRow = document.createElement('div');
-  uploadRow.className = 'wk-files-upload';
   const uploadInput = document.createElement('input');
   uploadInput.type = 'file';
   uploadInput.accept = 'image/jpeg,image/png,image/gif,image/webp,application/pdf';
   uploadInput.multiple = true;
   uploadInput.className = 'wk-files-input';
-  const downloadAllBtn = document.createElement('button');
-  downloadAllBtn.type = 'button';
-  downloadAllBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
-  setDeBtnLabel(downloadAllBtn, 'Download all', 'download');
-  downloadAllBtn.disabled = !(initialFiles?.length);
-  downloadAllBtn.addEventListener('click', async () => {
+
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'de-btn de-btn-primary de-btn-with-icon';
+  setDeBtnLabel(uploadBtn, 'Upload files', 'upload');
+  uploadBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    uploadInput.click();
+  });
+
+  drop.appendChild(uploadInput);
+  drop.appendChild(uploadBtn);
+  section.appendChild(drop);
+
+  const grid = document.createElement('div');
+  grid.className = 'wk-files-grid';
+  section.appendChild(grid);
+
+  drop.addEventListener('click', (e) => {
+    if (e.target.closest('button, input')) return;
+    uploadInput.click();
+  });
+  drop.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    uploadInput.click();
+  });
+
+  let dragDepth = 0;
+  drop.addEventListener('dragenter', (e) => {
+    if (![...e.dataTransfer?.types || []].includes('Files')) return;
+    e.preventDefault();
+    dragDepth += 1;
+    drop.classList.add('wk-files-drop--active');
+  });
+  drop.addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer?.types || []].includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  drop.addEventListener('dragleave', () => {
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) drop.classList.remove('wk-files-drop--active');
+  });
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragDepth = 0;
+    drop.classList.remove('wk-files-drop--active');
+    const files = acceptedWorkFiles(e.dataTransfer?.files);
+    if (!files.length) return;
+    void uploadFilesToProject(files).catch(() => {});
+  });
+
+  async function downloadAllProjectFiles() {
     if (!currentFiles.length) return;
     downloadAllBtn.disabled = true;
-    const label = getDeBtnLabel(downloadAllBtn);
-    updateDeBtnLabel(downloadAllBtn, 'Preparing…');
+    const prevTitle = downloadAllBtn.title;
+    downloadAllBtn.title = 'Preparing…';
     try {
       const res = await fetch(`/api/work/${encodeURIComponent(slug)}/files/download-all`, {
         credentials: 'same-origin',
@@ -4392,24 +4676,10 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     } catch (e) {
       alert(`Download failed: ${e.message}`);
     } finally {
-      updateDeBtnLabel(downloadAllBtn, label);
+      downloadAllBtn.title = prevTitle;
       downloadAllBtn.disabled = !currentFiles.length;
     }
-  });
-  const uploadBtn = document.createElement('button');
-  uploadBtn.type = 'button';
-  uploadBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
-  setDeBtnLabel(uploadBtn, 'Upload files', 'share');
-  uploadBtn.addEventListener('click', () => uploadInput.click());
-  const libraryBtn = document.createElement('button');
-  libraryBtn.type = 'button';
-  libraryBtn.className = 'de-btn de-btn-secondary';
-  libraryBtn.textContent = 'Library';
-  uploadRow.appendChild(downloadAllBtn);
-  uploadRow.appendChild(uploadInput);
-  uploadRow.appendChild(uploadBtn);
-  uploadRow.appendChild(libraryBtn);
-  section.appendChild(uploadRow);
+  }
 
   let currentFiles = initialFiles || [];
 
@@ -4433,14 +4703,10 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     currentFiles = files || [];
     downloadAllBtn.disabled = !currentFiles.length;
     grid.innerHTML = '';
-    if (!files?.length) {
-      const empty = document.createElement('div');
-      empty.className = 'de-empty';
-      empty.style.padding = '0.5rem 0';
-      empty.textContent = 'No files yet.';
-      grid.appendChild(empty);
-      return;
-    }
+    const empty = !currentFiles.length;
+    grid.hidden = empty;
+    drop.classList.toggle('wk-files-drop--empty', empty);
+    if (empty) return;
     for (const file of files) {
       const card = document.createElement('div');
       card.className = 'wk-file-card';
@@ -4473,12 +4739,14 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       actions.appendChild(
         paneShareIcon({
           label: `Share ${file.filename || 'file'}`,
+          size: 'sm',
           onClick: () => shareProjectFile(file),
         }),
       );
       actions.appendChild(
         paneDeleteIcon({
           label: `Delete ${file.filename || 'file'}`,
+          size: 'sm',
           onClick: () => {
             const snapshot = file;
             const prev = currentFiles.slice();
@@ -4534,7 +4802,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
   }
 
   uploadInput.addEventListener('change', () => {
-    const files = [...uploadInput.files];
+    const files = acceptedWorkFiles(uploadInput.files);
     uploadInput.value = '';
     void uploadFilesToProject(files).catch(() => {});
   });

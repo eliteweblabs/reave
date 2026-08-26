@@ -2,7 +2,7 @@ import {
   initSidebarLayout,
   syncAdminSplitView,
   ADMIN_SPLIT_VIEW_MQ,
-} from './admin-ui.js?v=20260820a';
+} from './admin-ui.js?v=20260825h';
 
 initSidebarLayout();
 const sync = () => syncAdminSplitView('sales-sheet');

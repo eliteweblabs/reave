@@ -15,6 +15,8 @@ type SeedItem = {
   slug: string;
   file: string;
   alt: string;
+  /** Replace the existing library row when the file changed. */
+  replace?: boolean;
 };
 
 const SEED: SeedItem[] = [
@@ -34,7 +36,7 @@ const SEED: SeedItem[] = [
   { slug: 'client-johnnie-walker', file: 'public/logos/clients/johnnie-walker.svg', alt: 'Johnnie Walker' },
   { slug: 'client-wpi', file: 'public/logos/clients/wpi.svg', alt: 'Worcester Polytechnic Institute' },
   { slug: 'client-kingdom-trails', file: 'public/logos/clients/kingdom-trails.png', alt: 'Kingdom Trails' },
-  { slug: 'client-uc-law-sf', file: 'public/logos/clients/uc-law-sf.svg', alt: 'UC Law San Francisco' },
+  { slug: 'client-uc-law-sf', file: 'public/logos/clients/uc-law-sf.svg', alt: 'UC Law San Francisco', replace: true },
   { slug: 'client-mohegan-sun', file: 'public/logos/clients/mohegan-sun.svg', alt: 'Mohegan Sun' },
   { slug: 'client-sharpie', file: 'public/logos/clients/sharpie.svg', alt: 'Sharpie' },
   { slug: 'client-overlook', file: 'public/logos/clients/overlook.png', alt: 'The Overlook' },
@@ -196,7 +198,7 @@ async function main(): Promise<void> {
   let failed = 0;
 
   for (const item of SEED) {
-    if (bySlug.has(item.slug)) {
+    if (bySlug.has(item.slug) && !item.replace) {
       skipped += 1;
       continue;
     }
@@ -230,6 +232,23 @@ async function main(): Promise<void> {
 
     const buf = readFileSync(abs);
     const dataBase64 = buf.toString('base64');
+    const existing = bySlug.get(item.slug);
+    if (existing && item.replace) {
+      try {
+        await pool.query(
+          `UPDATE media_library
+           SET filename = $2, media_type = $3, size_bytes = $4, data_base64 = $5, alt_text = $6
+           WHERE id = $1`,
+          [existing.id, filename, mediaType, buf.length, dataBase64, item.alt],
+        );
+        updated += 1;
+        console.log(`replaced ${item.slug}`);
+      } catch (e) {
+        console.error(`failed ${item.slug}:`, e instanceof Error ? e.message : e);
+        failed += 1;
+      }
+      continue;
+    }
     try {
       await pool.query(
         `INSERT INTO media_library (filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, slug)

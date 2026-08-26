@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Standard icon pack (`IOS_ICONS`)
 
-The project's shared icon set lives in **`public/admin/admin-ui.js`** as `IOS_ICONS` (Lucide-style stroke SVGs, `currentColor`). Helpers: `iosIcon(key, size)`, `createIosIconBtn`, `createAgentBtn`, `agentIconSvg`.
+The project's shared icon set lives in **`public/admin/admin-ui.js`** as `IOS_ICONS` (Lucide-style stroke SVGs, `currentColor`). Helpers: `iosIcon(key, size)`, `createIosIconBtn({ size })`, `createAgentBtn`, `agentIconSvg`.
+
+Icon-only buttons take `size: 'sm' | 'md' | 'lg'`. That class locks the hit box and glyph (`24/12`, `36/16`, `44/20`). Default is `md` — the same box as the circular agent control. Do not override width/height in a one-off stylesheet; pick a size.
 
 ## Always reuse — never invent
 

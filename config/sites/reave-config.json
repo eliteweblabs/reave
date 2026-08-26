@@ -207,9 +207,9 @@
     },
     {
       "name": "UC Law San Francisco",
-      "image": "client-uc-law-sf",
-      "width": 279,
-      "height": 60
+      "image": "/logos/clients/uc-law-sf.svg",
+      "width": 186,
+      "height": 52
     },
     {
       "name": "Mohegan Sun",

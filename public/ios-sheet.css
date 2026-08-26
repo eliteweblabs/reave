@@ -214,8 +214,8 @@ html.ios-sheet-locked body {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ios-sheet-bg: #121722;
-    --ios-sheet-fg: #e9eef6;
+    --ios-sheet-bg: #161616;
+    --ios-sheet-fg: #e5e5e5;
     --ios-sheet-muted: rgba(255, 255, 255, 0.55);
     --ios-sheet-border: rgba(255, 255, 255, 0.1);
     --ios-sheet-grabber: rgba(255, 255, 255, 0.28);

@@ -11,18 +11,10 @@
 .app-header-back.ios-icon-btn {
   display: none;
   flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
   margin-left: -0.45rem;
   margin-right: -0.15rem;
   text-decoration: none;
   color: var(--nav-chevron);
-}
-
-.app-header-back.ios-icon-btn svg {
-  display: block;
-  width: 1.35rem;
-  height: 1.35rem;
 }
 
 html.admin-special-page .app-header-back.ios-icon-btn,

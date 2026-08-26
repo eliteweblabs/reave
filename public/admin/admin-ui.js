@@ -135,7 +135,48 @@ export const IOS_ICONS = {
   sun: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
   /* IOS_ICONS.moon — theme toggle (switch to dark) */
   moon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+  /* IOS_ICONS.clock — Lucide clock; running timer (header hook) */
+  clock:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
 };
+
+/**
+ * Clock face with separate hands so a running timer can tick.
+ * Face matches IOS_ICONS.clock; hands are driven by the caller.
+ */
+export function animatedClockIcon(size = 16) {
+  return (
+    `<svg class="animated-clock" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    '<circle cx="12" cy="12" r="10"/>' +
+    '<line class="animated-clock-hour" x1="12" y1="12" x2="12" y2="8"/>' +
+    '<line class="animated-clock-minute" x1="12" y1="12" x2="16.2" y2="12"/>' +
+    '<line class="animated-clock-second" x1="12" y1="13" x2="12" y2="6.4"/>' +
+    '</svg>'
+  );
+}
+
+/** Header slot paid modules mount into (`data-hook-region` on Header.astro). */
+export function getHeaderHookRegion(name = 'header-end') {
+  return document.querySelector(`[data-hook-region="${name}"]`);
+}
+
+export function syncHeaderHookRegionVisibility(region) {
+  if (!region) return;
+  const hasVisible = Array.from(region.children).some((child) => !child.hidden);
+  region.hidden = !hasVisible;
+}
+
+/** Append a module widget to a header hook region. Returns the mounted node. */
+export function mountHeaderHook(name, id, el) {
+  const region = getHeaderHookRegion(name);
+  if (!region) return null;
+  const existing = region.querySelector(`[data-hook-id="${id}"]`);
+  if (existing) return existing;
+  el.dataset.hookId = id;
+  region.appendChild(el);
+  syncHeaderHookRegionVisibility(region);
+  return el;
+}
 
 /** Resize an IOS_ICONS glyph (keeps paths; swaps width/height attrs). */
 export function iosIcon(key, size = 20) {
@@ -197,9 +238,36 @@ Object.defineProperty(IOS_ICONS, 'agent', {
 });
 
 /**
+ * Locked icon-button boxes. `md` is the pane-header / agent size.
+ * CSS tokens: --icon-btn-{sm|md|lg} and --icon-btn-{sm|md|lg}-glyph.
+ */
+export const IOS_ICON_BTN_SIZES = Object.freeze({
+  sm: Object.freeze({ box: 24, glyph: 12 }),
+  md: Object.freeze({ box: 36, glyph: 16 }),
+  lg: Object.freeze({ box: 44, glyph: 20 }),
+});
+
+export function resolveIosIconBtnSize(size) {
+  return IOS_ICON_BTN_SIZES[size] ? size : 'md';
+}
+
+function iosIconBtnMarkup(iconKey, glyph) {
+  if (iconKey === 'agent') return agentIconSvg(glyph);
+  return iosIcon(iconKey, glyph);
+}
+
+function applyIosIconBtnSizeClass(el, size) {
+  const key = resolveIosIconBtnSize(size);
+  el.classList.remove('ios-icon-btn--sm', 'ios-icon-btn--md', 'ios-icon-btn--lg');
+  el.classList.add(`ios-icon-btn--${key}`);
+  return key;
+}
+
+/**
  * Circular branded agent control (same shell as pane headers everywhere).
  * Default classes: agent-btn em-header-action-btn — never de-new-btn (that
  * shell carries list-FAB margins that shove the control into the title).
+ * Default size is `md` (36×36 / 16px glyph) — same box as other header icons.
  */
 export function createAgentBtn(opts = {}) {
   const {
@@ -207,39 +275,46 @@ export function createAgentBtn(opts = {}) {
     className = 'agent-btn em-header-action-btn',
     label = 'Agent',
     title = 'Send to Agent',
+    size = 'md',
   } = opts;
   const btn = createIosIconBtn({
     iconKey: 'agent',
     label,
     className,
     onClick,
+    size,
   });
   if (title != null) {
     btn.title = title;
     btn.setAttribute('aria-label', title);
   }
-  // Header agent glyph is 16px (matches panels that previously hand-rolled this).
-  const svg = btn.querySelector('svg');
-  if (svg) {
-    svg.setAttribute('width', '16');
-    svg.setAttribute('height', '16');
-  }
   return btn;
 }
 
 /**
- * Icon-only toolbar button (44pt touch target, iOS-style).
+ * Icon-only toolbar button. Size `sm` | `md` | `lg` locks the hit box and
+ * glyph (24/12, 36/16, 44/20). Default `md` matches createAgentBtn.
  * Prefer this (or paneDeleteIcon / paneShareIcon / createAgentBtn / createPanelBackBtn)
  * over hand-rolled <button> + SVG so chrome stays consistent.
  */
 export function createIosIconBtn(opts = {}) {
-  const { iconKey, label, className = 'ios-icon-btn', onClick, confirmDelete = false, confirmTimeout } = opts;
+  const {
+    iconKey,
+    label,
+    className = 'ios-icon-btn',
+    onClick,
+    confirmDelete = false,
+    confirmTimeout,
+    size = 'md',
+  } = opts;
+  const sizeKey = resolveIosIconBtnSize(size);
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = normalizeIosIconBtnClass(className, iconKey);
+  applyIosIconBtnSizeClass(btn, sizeKey);
   btn.setAttribute('aria-label', label);
   btn.title = label;
-  btn.innerHTML = IOS_ICONS[iconKey] || '';
+  btn.innerHTML = iosIconBtnMarkup(iconKey, IOS_ICON_BTN_SIZES[sizeKey].glyph);
   if (confirmDelete) {
     bindConfirmDeleteButton(btn, () => onClick?.(btn), { timeout: confirmTimeout });
   } else {
@@ -376,6 +451,7 @@ export function setToggleSwitch(el, checked) {
  *   text?: string,
  *   label?: string,
  *   className?: string,
+ *   size?: 'sm' | 'md' | 'lg',
  *   onSuccess?: (btn: HTMLElement, text: string) => void,
  *   onError?: (err: unknown, btn: HTMLElement) => void,
  * }} [opts]
@@ -386,6 +462,7 @@ export function createCopyIconBtn(opts = {}) {
     text = '',
     label = 'Copy',
     className = 'ios-icon-btn',
+    size = 'md',
     onSuccess,
     onError,
   } = opts;
@@ -393,6 +470,7 @@ export function createCopyIconBtn(opts = {}) {
     iconKey: 'copy',
     label,
     className,
+    size,
     onClick: async (btn) => {
       let value = '';
       try {
@@ -812,12 +890,13 @@ function resetDeleteConfirmsIn(el) {
  *  instead — that hoists the control to `#admin-special-back` (left of the
  *  wordmark). Keep this helper for gallery demos and one-off in-pane chevrons. */
 export function createPanelBackBtn(opts = {}) {
-  const { label = 'Back', onClick } = opts;
+  const { label = 'Back', onClick, size = 'md' } = opts;
   return createIosIconBtn({
     iconKey: 'chevron-left',
     label,
     className: 'ios-icon-btn nav-chevron-btn de-back-btn',
     onClick,
+    size,
   });
 }
 
@@ -1724,13 +1803,15 @@ export function wrapEditableHeaderTitle(titleEl, opts = {}) {
     mountContactAvatars(leading);
   }
 
-  const icon = document.createElement('span');
-  icon.className = 'de-header-title-edit-icon';
-  icon.setAttribute('aria-hidden', 'true');
-  icon.innerHTML = IOS_ICONS.edit;
-
-  wrap.appendChild(icon);
   wrap.appendChild(titleEl);
+
+  if (opts.editIcon !== false) {
+    const icon = document.createElement('span');
+    icon.className = 'de-header-title-edit-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = IOS_ICONS.edit;
+    wrap.appendChild(icon);
+  }
 
   if (opts.clickable && typeof opts.onActivate === 'function') {
     const activate = (e) => {
@@ -1855,6 +1936,12 @@ export function cancelTitleFocus() {
  * over one-off title inputs so work, todo, clients, chat rename, etc. match.
  * @returns {{ el: HTMLElement, input: HTMLInputElement }}
  */
+function syncEditableHeaderTitleSize(input) {
+  if (!(input instanceof HTMLInputElement)) return;
+  const sample = input.value || input.placeholder || 'W';
+  input.size = Math.max(1, sample.length);
+}
+
 export function createEditableHeaderTitleInput(opts = {}) {
   const input = document.createElement('input');
   input.type = 'text';
@@ -1863,9 +1950,12 @@ export function createEditableHeaderTitleInput(opts = {}) {
   if (opts.placeholder) input.placeholder = opts.placeholder;
   if (opts.value != null) input.value = opts.value;
   input.setAttribute('aria-label', opts.ariaLabel || opts.placeholder || 'Title');
+  syncEditableHeaderTitleSize(input);
+  input.addEventListener('input', () => syncEditableHeaderTitleSize(input));
   return {
     el: wrapEditableHeaderTitle(input, {
       leading: opts.leading,
+      editIcon: opts.editIcon,
     }),
     input,
   };
@@ -3303,7 +3393,7 @@ export async function downloadBrandingImage(url, baseName) {
 
 /** Canonical pane-header trash (two-step confirm). Use everywhere — not one-off SVGs. */
 /** Canonical trash + timing-ring delete control. Use everywhere entity deletes appear. */
-export function paneDeleteIcon({ label, onClick, confirmDelete = true, className = '' } = {}) {
+export function paneDeleteIcon({ label, onClick, confirmDelete = true, className = '', size = 'md' } = {}) {
   const classes = ['ios-icon-btn', 'ch-delete-btn', className].filter(Boolean).join(' ');
   return createIosIconBtn({
     iconKey: 'trash',
@@ -3311,16 +3401,18 @@ export function paneDeleteIcon({ label, onClick, confirmDelete = true, className
     className: classes,
     confirmDelete,
     onClick,
+    size,
   });
 }
 
 /** Canonical pane-header share control. */
-export function paneShareIcon({ label, onClick }) {
+export function paneShareIcon({ label, onClick, size = 'md' } = {}) {
   return createIosIconBtn({
     iconKey: 'share',
     label,
     className: 'ios-icon-btn de-share-btn',
     onClick,
+    size,
   });
 }
 

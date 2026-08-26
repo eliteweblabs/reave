@@ -71,15 +71,15 @@
 }
 
 .addons-dl-wrap .dl-badge--included {
-  background: color-mix(in srgb, #a855f7 16%, var(--panel));
-  color: color-mix(in srgb, #6d28d9 55%, var(--fg));
+  background: color-mix(in srgb, var(--fg) 10%, var(--panel));
+  color: var(--fg);
 }
 
 .addons-dl-wrap .dl-tile-edit {
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--accent, #7c3aed);
+  color: var(--fg);
   text-decoration: none;
 }
 
@@ -104,6 +104,6 @@
 }
 
 #settings-panel .addons-dl-wrap .dl-tile--included {
-  border-color: color-mix(in srgb, #a855f7 32%, var(--card-border));
-  background: color-mix(in srgb, #a855f7 8%, var(--card));
+  border-color: color-mix(in srgb, var(--fg) 22%, var(--card-border));
+  background: color-mix(in srgb, var(--fg) 6%, var(--card));
 }

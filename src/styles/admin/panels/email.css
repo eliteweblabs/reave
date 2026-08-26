@@ -403,13 +403,13 @@
   color: var(--danger-hover, #b91c1c);
   background: var(--danger-soft-bg, rgba(239, 68, 68, 0.12));
 }
-/* Ring sits just outside the glyph — not stretched to the 44pt hit target. */
+/* Ring sits just outside the glyph — not stretched to the hit box. */
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring-holder {
   inset: auto;
   top: 50%;
   left: 50%;
-  width: 1.65rem;
-  height: 1.65rem;
+  width: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
+  height: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
   transform: translate(-50%, -50%);
 }
 .ios-icon-btn.delete-confirm-btn .delete-confirm-ring {
@@ -418,8 +418,8 @@
 }
 .ios-icon-btn.delete-confirm-btn .timing-ring-host,
 .ios-icon-btn.delete-confirm-btn .timing-ring {
-  width: 1.65rem;
-  height: 1.65rem;
+  width: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
+  height: calc(var(--icon-btn-glyph, var(--icon-btn-md-glyph)) + 10px);
 }
 .ios-icon-btn.delete-confirm-btn[data-state="confirm"] .delete-confirm-icon {
   position: relative;
@@ -645,14 +645,14 @@
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: var(--accent, #7c3aed);
+  color: var(--fg);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
 }
 .em-compose-agent:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent, #7c3aed) 10%, transparent);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
 }
 .em-compose-agent:disabled {
   opacity: 0.45;
@@ -1078,11 +1078,13 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: 2.25rem;
-  height: 2.25rem;
-  min-width: 2.25rem;
+  box-sizing: border-box;
+  width: var(--icon-btn-box, var(--icon-btn-md));
+  height: var(--icon-btn-box, var(--icon-btn-md));
+  min-width: var(--icon-btn-box, var(--icon-btn-md));
+  min-height: var(--icon-btn-box, var(--icon-btn-md));
   margin: 0;
-  padding: 0;
+  padding: var(--icon-btn-pad);
   border: none;
   border-radius: 50%;
   cursor: pointer;
@@ -1092,6 +1094,8 @@
 .agent-btn svg,
 .de-new-btn.em-agent-btn svg {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 /* Header row: keep the glow from eating into the truncated title. */
 .de-header-actions > .agent-btn,
@@ -1581,24 +1585,64 @@ html.reave-agent-asleep
   padding-top: 0.85rem;
   border-top: 1px solid var(--card-border);
 }
+.wk-files-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
 .wk-files-title {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
-  margin-bottom: 0.35rem;
 }
-.wk-files-hint {
-  font-size: 0.78rem;
-  color: var(--muted);
-  margin-bottom: 0.65rem;
+.wk-files-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.wk-files-tools .ios-icon-btn {
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
+}
+.wk-files-tools .de-btn-ghost {
+  padding: 0.28rem 0.7rem;
+}
+.wk-files-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 7.5rem;
+  margin-bottom: 0.75rem;
+  padding: 1.1rem 1rem;
+  border: 1.5px dashed color-mix(in srgb, var(--card-border) 80%, var(--fg) 20%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 88%, var(--fg) 6%);
+  cursor: pointer;
+}
+.wk-files-drop--empty {
+  min-height: 10.5rem;
+}
+.wk-files-drop--active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+  background: color-mix(in srgb, #3b82f6 8%, var(--panel));
+}
+.wk-files-drop .de-btn-primary {
+  pointer-events: auto;
 }
 .wk-files-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 0.55rem;
   margin-bottom: 0.65rem;
+}
+.wk-files-grid[hidden] {
+  display: none;
 }
 .wk-file-card {
   display: flex;
@@ -1652,13 +1696,12 @@ html.reave-agent-asleep
   margin-top: 0.15rem;
 }
 .wk-file-actions .ios-icon-btn {
-  width: 2.25rem;
-  height: 2.25rem;
+  --icon-btn-box: var(--icon-btn-sm);
+  --icon-btn-glyph: var(--icon-btn-sm-glyph);
   flex-shrink: 0;
 }
-.wk-file-actions .ios-icon-btn svg {
-  width: 1.125rem;
-  height: 1.125rem;
+.wk-file-actions .de-share-btn {
+  color: var(--fg);
 }
 /* Email detail archive: between share and delete on ≥640px only (swipe on small).
    Both classes so display:none outranks .ios-icon-btn { display: inline-flex }. */
@@ -1668,12 +1711,6 @@ html.reave-agent-asleep
   }
 }
 /* Confirm uses shared .ch-delete-btn.delete-confirm-btn[data-state="confirm"] red */
-.wk-files-upload {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
-}
 .wk-files-input {
   display: none;
 }

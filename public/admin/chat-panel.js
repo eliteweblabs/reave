@@ -39,7 +39,7 @@ import {
   showCopyButtonFeedback,
   createCopyIconBtn,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260811a';
+} from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260815a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';

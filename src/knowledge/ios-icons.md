@@ -10,10 +10,12 @@ Shared Lucide-style stroke icons for admin chrome and matching Astro header cont
 
 Also exported from that module:
 
-- `createIosIconBtn({ iconKey, label, onClick, … })` — icon-only toolbar button
+- `createIosIconBtn({ iconKey, label, size, onClick, … })` — icon-only toolbar button
 - `createAgentBtn` / `agentIconSvg` — branded agent control (`IOS_ICONS.agent` is a getter)
 
-Admin panels import with a cache-busted query, e.g. `from './admin-ui.js?v=…'`.
+Size `sm` | `md` | `lg` locks the bounding box and glyph: **24×24 / 12px**, **36×36 / 16px**, **44×44 / 20px**. Default is `md` (same as the agent button). Prefer this over per-context width overrides.
+
+Admin panels import with a cache-busted query, e.g. `from './admin-ui.js?v=20260825h'`.
 
 ## When to use
 
