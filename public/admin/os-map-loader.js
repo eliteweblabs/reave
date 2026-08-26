@@ -298,7 +298,7 @@ import {
   brandingRasterMediaFilter,
   applyMediaToTarget,
 } from './media-picker.js?v=20260813b';
-import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260820a';
+import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260826a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -7299,7 +7299,7 @@ function renderProfileOnlyPanel(profile) {
             `<div class="prof-field prof-field--signature">` +
               `<div id="profile-signature-editor"></div>` +
               `<textarea id="profile-emailSignature" name="emailSignature" hidden>${escHtml(p.emailSignature || '')}</textarea>` +
-              `<span class="prof-hint">Drag a logo in, or use Upload / Library / Company logo. Switch to Preview to see how it looks in email.</span></div>`,
+              `<span class="prof-hint">Select text to bold or italic. Drag a logo in, or use Upload / Library / Company logo. Switch to Preview to see how it looks in email.</span></div>`,
           ) +
         `</form>` +
       `</div>` +

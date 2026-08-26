@@ -3,7 +3,7 @@
  */
 import { escHtml, adminFetch, readAdminJson } from './shared.js?v=20260811d';
 import { openMediaPicker, imageMediaFilter } from './media-picker.js?v=20260813b';
-import { setDeBtnLabel } from './admin-ui.js?v=20260825h';
+import { setDeBtnLabel, createSlidingPillSelect, iosIcon } from './admin-ui.js?v=20260826a';
 
 const SIG_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const SIG_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
@@ -116,23 +116,44 @@ export function bindProfileSignatureEditor(root, opts = {}) {
   let mode = 'edit';
   mount.innerHTML = '';
 
-  const tabs = document.createElement('div');
-  tabs.className = 'de-mode-tabs prof-sig-mode-tabs';
-  const editTab = document.createElement('button');
-  editTab.type = 'button';
-  editTab.className = 'de-mode-tab active';
-  editTab.textContent = 'Edit';
-  const previewTab = document.createElement('button');
-  previewTab.type = 'button';
-  previewTab.className = 'de-mode-tab';
-  previewTab.textContent = 'Preview';
-  tabs.append(editTab, previewTab);
+  const modePill = createSlidingPillSelect({
+    value: 'edit',
+    options: [
+      { value: 'edit', label: 'Edit' },
+      { value: 'preview', label: 'Preview' },
+    ],
+    ariaLabel: 'Signature editor mode',
+    scrollable: false,
+    onChange: (value) => setMode(value),
+  });
+  modePill.el.classList.add('prof-sig-mode-tabs');
 
   const editorWrap = document.createElement('div');
   editorWrap.className = 'prof-sig-editor';
 
   const toolbar = document.createElement('div');
   toolbar.className = 'prof-sig-toolbar';
+
+  const formatGroup = document.createElement('div');
+  formatGroup.className = 'prof-sig-fmt';
+
+  function createFormatBtn(command, iconKey, label) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'de-btn de-btn-secondary de-btn-with-icon prof-sig-fmt-btn';
+    btn.dataset.format = command;
+    btn.setAttribute('aria-label', label);
+    btn.title = `${label} (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl+'}${command === 'bold' ? 'B' : 'I'})`;
+    btn.setAttribute('aria-pressed', 'false');
+    btn.innerHTML = `<span class="de-btn-icon" aria-hidden="true">${iosIcon(iconKey, 16)}</span>`;
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => applyFormat(command));
+    return btn;
+  }
+
+  const boldBtn = createFormatBtn('bold', 'bold', 'Bold');
+  const italicBtn = createFormatBtn('italic', 'italic', 'Italic');
+  formatGroup.append(boldBtn, italicBtn);
 
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -159,7 +180,7 @@ export function bindProfileSignatureEditor(root, opts = {}) {
     companyBtn.textContent = 'Company logo';
   }
 
-  toolbar.append(fileInput, uploadBtn, libraryBtn);
+  toolbar.append(formatGroup, fileInput, uploadBtn, libraryBtn);
   if (companyBtn) toolbar.appendChild(companyBtn);
 
   const surface = document.createElement('div');
@@ -180,7 +201,7 @@ export function bindProfileSignatureEditor(root, opts = {}) {
     `</div>`;
 
   editorWrap.append(toolbar, surface, preview);
-  mount.append(tabs, editorWrap);
+  mount.append(modePill.el, editorWrap);
 
   const previewBody = preview.querySelector('.prof-sig-preview-body');
 
@@ -200,15 +221,41 @@ export function bindProfileSignatureEditor(root, opts = {}) {
     previewBody.innerHTML = sanitizeSignatureHtmlClient(html);
   }
 
+  function applyFormat(command) {
+    if (mode !== 'edit') return;
+    surface.focus();
+    try {
+      document.execCommand('styleWithCSS', false, false);
+    } catch {
+      /* older engines */
+    }
+    document.execCommand(command, false, null);
+    syncHidden();
+    syncFormatState();
+  }
+
+  function syncFormatState() {
+    const inSurface = (() => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return document.activeElement === surface;
+      return surface.contains(sel.anchorNode);
+    })();
+    for (const btn of [boldBtn, italicBtn]) {
+      const on = inSurface && document.queryCommandState(btn.dataset.format);
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+
   function setMode(next) {
     mode = next;
+    if (modePill.getValue() !== next) modePill.setValue(next);
     const editing = mode === 'edit';
-    editTab.classList.toggle('active', editing);
-    previewTab.classList.toggle('active', !editing);
     toolbar.hidden = !editing;
     surface.hidden = !editing;
     preview.hidden = editing;
     if (!editing) refreshPreview();
+    else syncFormatState();
   }
 
   async function ingestImageFile(file) {
@@ -218,9 +265,6 @@ export function bindProfileSignatureEditor(root, opts = {}) {
     insertSignatureImage(surface, absoluteSiteUrl(item.publicUrl || item.url), item.filename || 'Logo');
     syncHidden();
   }
-
-  editTab.addEventListener('click', () => setMode('edit'));
-  previewTab.addEventListener('click', () => setMode('preview'));
 
   uploadBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
@@ -258,7 +302,18 @@ export function bindProfileSignatureEditor(root, opts = {}) {
     syncHidden();
   });
 
-  surface.addEventListener('input', syncHidden);
+  surface.addEventListener('input', () => {
+    syncHidden();
+    syncFormatState();
+  });
+  surface.addEventListener('keyup', syncFormatState);
+  surface.addEventListener('mouseup', syncFormatState);
+  document.addEventListener('selectionchange', () => {
+    if (mode !== 'edit') return;
+    const sel = window.getSelection();
+    if (!sel || !sel.anchorNode || !surface.contains(sel.anchorNode)) return;
+    syncFormatState();
+  });
 
   surface.addEventListener('paste', (e) => {
     const files = [...(e.clipboardData?.files || [])]

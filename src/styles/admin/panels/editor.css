@@ -1077,14 +1077,25 @@ button.de-placeholder-action:active {
 /* ── Edit / View mode toggle ── */
 .de-mode-tabs {
   display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
   gap: 0.15rem;
   background: var(--surface-muted);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-pill);
   padding: 0.2rem;
   flex: 0 0 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.de-mode-tabs::-webkit-scrollbar { display: none; }
 .de-mode-tab {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
   font: inherit;
   font-size: 0.75rem;
   font-weight: 600;
@@ -1094,6 +1105,8 @@ button.de-placeholder-action:active {
   cursor: pointer;
   color: var(--muted);
   background: transparent;
+  text-align: center;
+  white-space: nowrap;
   transition: color 0.12s, background 0.12s;
 }
 .de-mode-tab:hover { color: var(--fg); }
@@ -2685,6 +2698,9 @@ button.de-placeholder-action:active {
   position: relative;
   z-index: 1;
   flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
   margin: 0;
   padding: 0.35rem 0.65rem;
@@ -2696,6 +2712,7 @@ button.de-placeholder-action:active {
   font-size: max(15px, 0.75rem);
   font-weight: 600;
   cursor: pointer;
+  text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

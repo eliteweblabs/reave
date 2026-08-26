@@ -1238,6 +1238,7 @@
 }
 .prof-sig-mode-tabs {
   margin: 0 0 0.65rem;
+  width: 100%;
 }
 .prof-sig-editor {
   display: flex;
@@ -1250,6 +1251,23 @@
   align-items: center;
   gap: 0.45rem;
 }
+.prof-sig-fmt {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.prof-sig-fmt-btn {
+  min-width: 2.35rem;
+  padding-left: 0.7rem;
+  padding-right: 0.7rem;
+}
+.prof-sig-fmt-btn.is-active {
+  background: var(--mode-tab-active-bg);
+  border-color: var(--card-border);
+  color: var(--fg);
+  -webkit-text-fill-color: var(--fg);
+  box-shadow: none;
+}
 .prof-sig-surface {
   min-height: 10rem;
   margin: 0;
@@ -1259,6 +1277,14 @@
   overflow-wrap: anywhere;
   word-break: break-word;
   cursor: text;
+}
+.prof-sig-surface b,
+.prof-sig-surface strong {
+  font-weight: 700;
+}
+.prof-sig-surface i,
+.prof-sig-surface em {
+  font-style: italic;
 }
 .prof-sig-surface:empty::before {
   content: attr(data-placeholder);
@@ -1295,6 +1321,15 @@
   font-size: 14px;
   line-height: 1.55;
   color: #444444;
+}
+.prof-sig-preview-body b,
+.prof-sig-preview-body strong {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.prof-sig-preview-body i,
+.prof-sig-preview-body em {
+  font-style: italic;
 }
 .prof-sig-preview-body img {
   display: block;
