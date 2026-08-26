@@ -197,7 +197,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260824a';
+} from './clients-panel.js?v=20260826a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -296,6 +296,7 @@ import {
   openMediaPicker,
   brandingMediaFilter,
   brandingRasterMediaFilter,
+  imageMediaFilter,
   applyMediaToTarget,
 } from './media-picker.js?v=20260813b';
 import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260826a';
@@ -9988,7 +9989,7 @@ let emailState = {
   replyMode: null,
   replySourceFull: null,
   activeDraftId: null,
-  compose: { to: [], cc: [], subject: '', body: '' },
+  compose: { to: [], cc: [], subject: '', body: '', images: [] },
   sending: false,
   storage: 'files',
   digest: null,
@@ -11725,6 +11726,7 @@ initClientsPanel({
   navIcon,
   FORM_FIELD_INVALID,
   FORM_FIELD_SAVED,
+  composeEmailToContact,
 });
 
 initChatPanel({
@@ -13931,7 +13933,13 @@ function createDraftListItem(ev) {
       `<span class="em-item-date">${escHtml(formatChatDate(ev.updatedAt || ev.createdAt))}</span>` +
       `<span class="em-item-from">${escHtml(draftRecipientSummary(ev))}</span>` +
     `</span>` +
-    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>` +
+    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}${
+      normalizeEmailComposeImages(ev.images).length
+        ? ` · ${normalizeEmailComposeImages(ev.images).length} image${
+            normalizeEmailComposeImages(ev.images).length === 1 ? '' : 's'
+          }`
+        : ''
+    }</span>` +
     `</span>`;
   item.addEventListener('click', () => void openDraftEvent(ev.id));
   return item;
@@ -13988,6 +13996,7 @@ function applyDraftToCompose(draft, opts = {}) {
     cc: (draft.cc || []).map(normalizeEmailRecipient).filter(Boolean),
     subject: draft.subject || '',
     body: draft.body || '',
+    images: normalizeEmailComposeImages(draft.images),
   };
 }
 
@@ -14510,13 +14519,237 @@ function buildReplyQuoteClient(ev) {
   return `\n\n---\nOn ${when}, ${from} wrote:\n${quoted}`;
 }
 
+function emptyEmailCompose(overrides = {}) {
+  return {
+    to: [],
+    cc: [],
+    subject: '',
+    body: '',
+    images: [],
+    ...overrides,
+  };
+}
+
+const EMAIL_COMPOSE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+const EMAIL_COMPOSE_MAX_IMAGES = 8;
+const EMAIL_COMPOSE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+let emailComposeUploading = 0;
+
+function normalizeEmailComposeImages(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of raw) {
+    if (out.length >= EMAIL_COMPOSE_MAX_IMAGES) break;
+    const mediaId =
+      typeof item === 'string' ? item.trim() : String(item?.mediaId || item?.id || '').trim();
+    if (!mediaId || seen.has(mediaId)) continue;
+    seen.add(mediaId);
+    const url = typeof item === 'object' ? String(item.url || item.publicUrl || '').trim() : '';
+    const filename = typeof item === 'object' ? String(item.filename || '').trim() : '';
+    const contentType =
+      typeof item === 'object'
+        ? String(item.contentType || item.mediaType || '')
+            .trim()
+            .toLowerCase()
+        : '';
+    out.push({ mediaId, url, filename, contentType });
+  }
+  return out;
+}
+
+function emailComposeImageSrc(image) {
+  const url = String(image?.url || '').trim();
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url;
+  return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
+function resolveEmailComposeImageFile(file, fallbackType) {
+  if (!file || !file.size || file.size > EMAIL_COMPOSE_IMAGE_MAX_BYTES) return null;
+  const type = String(file.type || fallbackType || '')
+    .trim()
+    .toLowerCase();
+  if (EMAIL_COMPOSE_IMAGE_TYPES.includes(type)) {
+    if (file.type === type) return file;
+    const ext = type === 'image/jpeg' ? 'jpg' : type.split('/')[1] || 'png';
+    return new File([file], file.name || `image.${ext}`, { type, lastModified: file.lastModified });
+  }
+  const m = /\.(jpe?g|png|gif|webp)$/i.exec(file.name || '');
+  if (!m) return null;
+  const byExt = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
+  return new File([file], file.name, { type: byExt[m[1].toLowerCase()], lastModified: file.lastModified });
+}
+
+function collectEmailComposeImageFiles(dt) {
+  if (!dt) return [];
+  const out = [];
+  const seen = new Set();
+  const add = (file, fallbackType) => {
+    const resolved = resolveEmailComposeImageFile(file, fallbackType);
+    if (!resolved) return;
+    const key = `${resolved.size}:${resolved.type}:${resolved.name}:${resolved.lastModified}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(resolved);
+  };
+  if (dt.items) {
+    for (let i = 0; i < dt.items.length; i++) {
+      const item = dt.items[i];
+      if (item.kind !== 'file') continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      if (
+        item.type.startsWith('image/') ||
+        file.type.startsWith('image/') ||
+        /\.(jpe?g|png|gif|webp)$/i.test(file.name || '')
+      ) {
+        add(file, item.type || file.type);
+      }
+    }
+  }
+  if (dt.files) {
+    for (let i = 0; i < dt.files.length; i++) add(dt.files[i], dt.files[i].type);
+  }
+  return out;
+}
+
+async function filesFromClipboardHtml(html) {
+  const out = [];
+  const matches = String(html || '').matchAll(
+    /<img[^>]+src=["'](data:image\/(png|jpeg|jpg|gif|webp);base64,[^"']+)["']/gi,
+  );
+  for (const match of matches) {
+    try {
+      const res = await fetch(match[1]);
+      const blob = await res.blob();
+      const type =
+        blob.type || `image/${match[2].toLowerCase() === 'jpg' ? 'jpeg' : match[2].toLowerCase()}`;
+      const file = resolveEmailComposeImageFile(new File([blob], 'pasted-image', { type }), type);
+      if (file) out.push(file);
+    } catch {
+      /* skip */
+    }
+  }
+  return out;
+}
+
+async function uploadEmailComposeImage(file) {
+  const ext =
+    file.type === 'image/jpeg'
+      ? 'jpg'
+      : file.type === 'image/png'
+        ? 'png'
+        : file.type === 'image/gif'
+          ? 'gif'
+          : file.type === 'image/webp'
+            ? 'webp'
+            : (/\.(jpe?g|png|gif|webp)$/i.exec(file.name || '')?.[1] || 'png').toLowerCase();
+  const uniqueName = `email-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const upload = file.name && file.name !== uniqueName
+    ? new File([file], uniqueName, { type: file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}` })
+    : file;
+  const form = new FormData();
+  form.append('file', upload);
+  const res = await adminFetch('/api/admin/media', { method: 'POST', body: form });
+  const json = await readAdminJson(res, 'Image upload');
+  if (!res.ok || !json.ok) throw new Error(json.error || 'Upload failed');
+  return json.item;
+}
+
+function mediaItemToComposeImage(item) {
+  const mediaId = String(item?.id || '').trim();
+  if (!mediaId) return null;
+  const url = String(item.publicUrl || item.url || '').trim();
+  return {
+    mediaId,
+    url,
+    filename: String(item.filename || '').trim(),
+    contentType: String(item.mediaType || '').trim().toLowerCase(),
+  };
+}
+
+function renderEmailComposeImageStrip(host) {
+  if (!(host instanceof HTMLElement)) return;
+  const images = normalizeEmailComposeImages(emailState.compose.images);
+  host.replaceChildren();
+  if (!images.length && emailComposeUploading <= 0) {
+    host.hidden = true;
+    return;
+  }
+  host.hidden = false;
+  for (const image of images) {
+    const card = document.createElement('div');
+    card.className = 'em-compose-image';
+    const img = document.createElement('img');
+    img.alt = image.filename || 'Attached image';
+    img.src = emailComposeImageSrc(image) || image.url;
+    card.appendChild(img);
+    const remove = createIosIconBtn({
+      iconKey: 'x',
+      label: 'Remove image',
+      size: 'sm',
+      className: 'em-compose-image-remove',
+      onClick: () => {
+        emailState.compose.images = normalizeEmailComposeImages(emailState.compose.images).filter(
+          (row) => row.mediaId !== image.mediaId,
+        );
+        renderEmailComposeImageStrip(host);
+        scheduleEmailDraftSave();
+      },
+    });
+    card.appendChild(remove);
+    host.appendChild(card);
+  }
+  for (let i = 0; i < emailComposeUploading; i++) {
+    const pending = document.createElement('div');
+    pending.className = 'em-compose-image em-compose-image--pending';
+    pending.setAttribute('aria-label', 'Uploading image');
+    host.appendChild(pending);
+  }
+}
+
+async function addEmailComposeImages(files, host) {
+  const accepted = (files || [])
+    .map((f) => resolveEmailComposeImageFile(f, f?.type))
+    .filter(Boolean);
+  if (!accepted.length) {
+    osAlert({ title: 'Could not add image', bodyHtml: '<p>Use a JPEG, PNG, GIF, or WebP under 10 MB.</p>' });
+    return;
+  }
+  const current = normalizeEmailComposeImages(emailState.compose.images);
+  for (const file of accepted) {
+    if (current.length >= EMAIL_COMPOSE_MAX_IMAGES) {
+      osAlert({ title: 'Too many images', bodyHtml: '<p>You can attach up to 8 images to one email.</p>' });
+      break;
+    }
+    emailComposeUploading += 1;
+    renderEmailComposeImageStrip(host);
+    try {
+      const item = await uploadEmailComposeImage(file);
+      const next = mediaItemToComposeImage(item);
+      if (next && !current.some((row) => row.mediaId === next.mediaId)) {
+        current.push(next);
+        emailState.compose.images = [...current];
+      }
+    } catch (e) {
+      osAlert({ title: 'Could not add image', bodyHtml: `<p>${escHtml(e.message || 'Upload failed')}</p>` });
+    } finally {
+      emailComposeUploading = Math.max(0, emailComposeUploading - 1);
+      renderEmailComposeImageStrip(host);
+    }
+  }
+  scheduleEmailDraftSave();
+}
+
 function isEmailComposeDirty() {
-  const { to, cc, subject, body } = emailState.compose;
+  const { to, cc, subject, body, images } = emailState.compose;
   return (
     (Array.isArray(to) && to.length > 0) ||
     (Array.isArray(cc) && cc.length > 0) ||
     String(subject || '').trim() ||
-    String(body || '').trim()
+    String(body || '').trim() ||
+    normalizeEmailComposeImages(images).length > 0
   );
 }
 
@@ -14555,6 +14788,7 @@ function emailDraftPayload() {
     cc: (Array.isArray(cc) ? cc : []).map(normalizeEmailRecipient).filter(Boolean),
     subject: String(subject || '').trim(),
     body: String(body || ''),
+    images: normalizeEmailComposeImages(emailState.compose.images),
     inReplyToEmailId: emailState.replyToId || null,
   };
 }
@@ -14664,7 +14898,7 @@ async function leaveEmailCompose() {
   emailState.composing = false;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
-  emailState.compose = { to: [], cc: [], subject: '', body: '' };
+  emailState.compose = emptyEmailCompose();
   emailState.sending = false;
   rememberOpenEmailDraft(null);
 }
@@ -14679,7 +14913,7 @@ async function closeEmailCompose(opts = { saveDraft: true }) {
   clearEmailReplyContext();
   emailState.activeDraftId = null;
   emailState.activeId = null;
-  emailState.compose = { to: [], cc: [], subject: '', body: '' };
+  emailState.compose = emptyEmailCompose();
   emailState.sending = false;
   rememberOpenEmailDraft(null);
   getEmailPanel()?.classList.remove('em-pane-active');
@@ -14697,7 +14931,7 @@ async function startNewEmail(opts = {}) {
   emailState.composing = true;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
-  emailState.compose = { to, cc: [], subject: '', body: '' };
+  emailState.compose = emptyEmailCompose({ to });
   emailState.sending = false;
   rememberOpenEmailDraft(null);
   getEmailPanel()?.classList.add('em-pane-active');
@@ -14727,7 +14961,7 @@ async function startReplyEmail(ev, mode = 'reply') {
   emailState.replySourceFull = null;
   emailState.activeDraftId = null;
   emailState.sending = false;
-  emailState.compose = { to: [], cc: [], subject: '', body: '' };
+  emailState.compose = emptyEmailCompose();
   getEmailPanel()?.classList.add('em-pane-active');
   if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
   renderEmailPanel();
@@ -14763,6 +14997,7 @@ function cloneEmailCompose(compose) {
     cc: (Array.isArray(compose?.cc) ? compose.cc : []).map(normalizeEmailRecipient).filter(Boolean),
     subject: String(compose?.subject || ''),
     body: String(compose?.body || ''),
+    images: normalizeEmailComposeImages(compose?.images),
   };
 }
 
@@ -14812,6 +15047,7 @@ function emailSendPayloadFromSnapshot(snap) {
     to: toEmails.length === 1 ? toEmails[0] : toEmails,
     subject: String(snap.compose.subject || '').trim(),
     text: String(snap.compose.body || '').trim(),
+    images: normalizeEmailComposeImages(snap.compose.images),
   };
   if (ccEmails.length) payload.cc = ccEmails.length === 1 ? ccEmails[0] : ccEmails;
   if (snap.replyToId) payload.inReplyToEmailId = snap.replyToId;
@@ -14882,7 +15118,8 @@ async function sendEmailCompose() {
   const toEmails = recipients.map((r) => r.email);
   const subjectTrim = String(subject || '').trim();
   const bodyTrim = String(body || '').trim();
-  if (!toEmails.length || !subjectTrim || !bodyTrim || emailState.sending) {
+  const images = normalizeEmailComposeImages(emailState.compose.images);
+  if (!toEmails.length || !subjectTrim || (!bodyTrim && !images.length) || emailState.sending) {
     renderEmailPanel();
     return;
   }
@@ -14892,6 +15129,7 @@ async function sendEmailCompose() {
     cc: ccRecipients,
     subject: subjectTrim,
     body: bodyTrim,
+    images,
   };
   await saveActiveEmailDraft(true);
   const snapshot = snapshotActiveEmailCompose();
@@ -15085,20 +15323,114 @@ function renderEmailComposePane(pane) {
   writeBtn.disabled = emailState.sending;
   writeBtn.innerHTML = emailComposeAgentLabelHtml();
   writeBtn.addEventListener('click', () => void writeEmailComposeWithAgent(writeBtn));
+  const imageBtn = createIosIconBtn({
+    iconKey: 'image',
+    label: 'Add image',
+    size: 'sm',
+    className: 'em-compose-image-btn',
+    onClick: () => {
+      if (emailState.sending) return;
+      fileInput.click();
+    },
+  });
+  imageBtn.disabled = emailState.sending;
+  const libraryBtn = createIosIconBtn({
+    iconKey: 'paperclip',
+    label: 'Choose from library',
+    size: 'sm',
+    className: 'em-compose-image-btn',
+    onClick: () => {
+      if (emailState.sending) return;
+      void openMediaPicker({
+        title: 'Attach image',
+        hint: 'Pick a JPEG, PNG, GIF, or WebP from the media library.',
+        filter: imageMediaFilter,
+        onPick: (item) => {
+          const next = mediaItemToComposeImage(item);
+          if (!next) return;
+          const current = normalizeEmailComposeImages(emailState.compose.images);
+          if (current.some((row) => row.mediaId === next.mediaId)) return;
+          if (current.length >= EMAIL_COMPOSE_MAX_IMAGES) {
+            osAlert({ title: 'Too many images', bodyHtml: '<p>You can attach up to 8 images to one email.</p>' });
+            return;
+          }
+          emailState.compose.images = [...current, next];
+          renderEmailComposeImageStrip(imageStrip);
+          scheduleEmailDraftSave();
+        },
+      });
+    },
+  });
+  libraryBtn.disabled = emailState.sending;
+  const bodyTools = document.createElement('div');
+  bodyTools.className = 'em-compose-body-tools';
+  bodyTools.appendChild(imageBtn);
+  bodyTools.appendChild(libraryBtn);
+  bodyTools.appendChild(writeBtn);
   bodyHead.appendChild(bodyLabel);
-  bodyHead.appendChild(writeBtn);
+  bodyHead.appendChild(bodyTools);
   bodyField.appendChild(bodyHead);
   const bodyInput = document.createElement('textarea');
   bodyInput.id = 'em-compose-body';
   bodyInput.className = 'em-compose-textarea';
-  bodyInput.placeholder = 'Write your message…';
+  bodyInput.placeholder = 'Write your message… Paste or drop images here.';
   bodyInput.value = emailState.compose.body;
   bodyInput.disabled = emailState.sending;
   bodyInput.addEventListener('input', () => {
     emailState.compose.body = bodyInput.value;
     scheduleEmailDraftSave();
   });
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/jpeg,image/png,image/gif,image/webp';
+  fileInput.multiple = true;
+  fileInput.hidden = true;
+  const imageStrip = document.createElement('div');
+  imageStrip.className = 'em-compose-images';
+  imageStrip.hidden = true;
+  const ingestFiles = (files) => void addEmailComposeImages(files, imageStrip);
+  fileInput.addEventListener('change', () => {
+    ingestFiles([...fileInput.files || []]);
+    fileInput.value = '';
+  });
+  bodyInput.addEventListener('paste', (e) => {
+    const files = collectEmailComposeImageFiles(e.clipboardData);
+    const html = e.clipboardData?.getData('text/html') || '';
+    const hasDataImage = /<img[^>]+src=["']data:image\//i.test(html);
+    if (!files.length && !hasDataImage) return;
+    e.preventDefault();
+    void (async () => {
+      const all = files.length ? files : await filesFromClipboardHtml(html);
+      if (all.length) ingestFiles(all);
+    })();
+  });
+  bodyInput.addEventListener('dragover', (e) => {
+    if ([...(e.dataTransfer?.types || [])].includes('Files')) {
+      e.preventDefault();
+      bodyInput.classList.add('em-compose-textarea--dragover');
+    }
+  });
+  bodyInput.addEventListener('dragleave', () => bodyInput.classList.remove('em-compose-textarea--dragover'));
+  bodyInput.addEventListener('drop', (e) => {
+    bodyInput.classList.remove('em-compose-textarea--dragover');
+    const files = collectEmailComposeImageFiles(e.dataTransfer);
+    if (!files.length) return;
+    e.preventDefault();
+    ingestFiles(files);
+  });
+  form.addEventListener('paste', (e) => {
+    if (e.target === bodyInput) return;
+    const files = collectEmailComposeImageFiles(e.clipboardData);
+    const text = e.clipboardData?.getData('text/plain') || '';
+    if (!files.length) return;
+    if (text && (e.target === subjectInput || e.target?.closest?.('.em-compose-to-input'))) return;
+    e.preventDefault();
+    ingestFiles(files);
+  });
   bodyField.appendChild(bodyInput);
+  bodyField.appendChild(fileInput);
+  bodyField.appendChild(imageStrip);
+  renderEmailComposeImageStrip(imageStrip);
 
   const hint = document.createElement('p');
   hint.className = 'em-compose-hint';

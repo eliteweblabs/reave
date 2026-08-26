@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { normalizeEmailComposeImages } from '../../../../lib/emailComposeImages';
 import {
   createEmailDraft,
   listEmailDrafts,
@@ -48,6 +49,7 @@ export async function POST(context: APIContext): Promise<Response> {
     cc: normalizeEmailDraftRecipients(body.cc),
     subject: String(body.subject ?? ''),
     body: String(body.body ?? body.text ?? ''),
+    images: normalizeEmailComposeImages(body.images),
     inReplyToEmailId:
       body.inReplyToEmailId != null
         ? String(body.inReplyToEmailId).trim() || null

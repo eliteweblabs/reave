@@ -38,6 +38,7 @@
     "check:reave-public-email": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-reave-public-email.ts",
     "check:email-safe-fonts": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-safe-fonts.ts",
     "check:email-original-recipient": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-original-recipient.ts",
+    "check:email-compose-images": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-compose-images.ts",
     "check:seeded-inbox": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-seeded-inbox-cleanup.ts",
     "check:deploy-wizard": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-deploy-wizard.ts",
     "check:social-oauth": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-social-oauth.ts",
