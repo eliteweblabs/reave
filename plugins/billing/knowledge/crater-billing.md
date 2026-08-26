@@ -44,7 +44,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | POST | `/api/custom/repair-payment-numbers` | `repair_payment_numbers` |
 | POST | `/api/custom/reset-invoices` | `reset_invoices` |
 
-Prices in create/add payloads are **whole dollars** (Crater stores cents). `record_payment` may return HTTP 300 with `needs_selection` when customer, invoice, or payment_mode is ambiguous.
+Prices in create/add payloads are **whole dollars** (Crater stores cents). `record_payment` `payment_mode` is a Crater payment mode **name** (Settings → Payment Modes), not a fixed enum — Apple Pay, Venmo, Zelle, Stripe, Cash, Bank Transfer, or any custom mode. It may return HTTP 300 with `needs_selection` when customer, invoice, or payment_mode is ambiguous or missing.
 
 Authoritative playbook for toggles, public invoices, and line-item edits: **`KNOWLEDGE.md` in `eliteweblabs/crater`** (repo root). Keep this file in sync when that doc changes.
 

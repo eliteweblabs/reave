@@ -605,7 +605,7 @@ export async function craterSearchLineItems(
 export type RecordPaymentInput = {
   customerName: string;
   amount: number;
-  paymentMode?: 'CASH' | 'CHECK' | 'CREDIT_CARD' | 'BANK_TRANSFER' | 'OTHER';
+  paymentMode?: string;
   paymentDate?: string;
   notes?: string;
   invoiceId?: number;

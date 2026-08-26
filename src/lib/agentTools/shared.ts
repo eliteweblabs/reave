@@ -6,6 +6,7 @@ import {
 import { WORK_PRIORITIES, type WorkPriority } from '../workStore';
 
 export const INVOICE_STATUS_ENUM = ['DRAFT', 'SENT', 'VIEWED', 'OVERDUE', 'COMPLETED'] as const;
+/** Common built-in labels. Crater also accepts custom modes from Settings → Payment Modes. */
 export const PAYMENT_MODE_ENUM = ['CASH', 'CHECK', 'CREDIT_CARD', 'BANK_TRANSFER', 'OTHER'] as const;
 export const RECURRING_STATUS_ENUM = ['ACTIVE', 'ON_HOLD', 'COMPLETED'] as const;
 

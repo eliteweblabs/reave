@@ -34,7 +34,7 @@
  * - record_payment / add_payment / create_payment: { action: "record_payment", customer_name, amount,
  *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater.
  *   Amount accepts numerals, $250, and spoken currency (100 bucks / 100 dollars).
- *   Omitted payment_mode defaults to OTHER (Crater will not accept a blank mode).
+ *   payment_mode is any Crater payment mode name (Apple Pay, Venmo, Zelle, …).
  * - prompt / ask / chat / ask_agent: { action: "prompt", message: string, thread_id?, async? }
  *   Freeform prompt to the knowledge agent. Waits briefly for a spoken reply;
  *   longer turns continue in the background and push when done.
@@ -103,8 +103,6 @@ import {
   formatSiriTodoDue,
   isStructuredTodoDue,
 } from '../../../lib/todoDueFromText';
-
-const PAYMENT_MODE_ENUM = ['CASH', 'CHECK', 'CREDIT_CARD', 'BANK_TRANSFER', 'OTHER'] as const;
 
 export const prerender = false;
 
@@ -1055,27 +1053,29 @@ function parsePaymentAmount(raw: unknown): number | null {
   return Number.isFinite(extracted) ? extracted : null;
 }
 
-function normalizePaymentMode(
-  raw: unknown,
-): (typeof PAYMENT_MODE_ENUM)[number] | null | undefined {
+function normalizePaymentMode(raw: unknown): string | undefined {
   if (raw == null || raw === '') return undefined;
-  const value = String(raw).trim().toUpperCase().replace(/[\s-]+/g, '_');
-  const aliases: Record<string, (typeof PAYMENT_MODE_ENUM)[number]> = {
-    CASH: 'CASH',
-    CHECK: 'CHECK',
-    CHEQUE: 'CHECK',
-    CREDIT_CARD: 'CREDIT_CARD',
-    CREDITCARD: 'CREDIT_CARD',
-    CARD: 'CREDIT_CARD',
-    CC: 'CREDIT_CARD',
-    BANK_TRANSFER: 'BANK_TRANSFER',
-    BANKTRANSFER: 'BANK_TRANSFER',
-    TRANSFER: 'BANK_TRANSFER',
-    ACH: 'BANK_TRANSFER',
-    WIRE: 'BANK_TRANSFER',
-    OTHER: 'OTHER',
+  const trimmed = String(raw).trim();
+  if (!trimmed) return undefined;
+  const key = trimmed.toLowerCase().replace(/[\s_-]+/g, '');
+  const aliases: Record<string, string> = {
+    cash: 'Cash',
+    check: 'Check',
+    cheque: 'Check',
+    creditcard: 'Credit Card',
+    card: 'Credit Card',
+    cc: 'Credit Card',
+    banktransfer: 'Bank Transfer',
+    transfer: 'Bank Transfer',
+    ach: 'Bank Transfer',
+    wire: 'Bank Transfer',
+    applepay: 'Apple Pay',
+    venmo: 'Venmo',
+    zelle: 'Zelle',
+    stripe: 'Stripe',
+    other: 'Other',
   };
-  return aliases[value] ?? null;
+  return aliases[key] ?? trimmed;
 }
 
 function formatPaymentDollars(amount: number): string {
@@ -1087,19 +1087,8 @@ function formatPaymentDollars(amount: number): string {
   }).format(amount);
 }
 
-function paymentModeLabel(mode: (typeof PAYMENT_MODE_ENUM)[number]): string {
-  switch (mode) {
-    case 'CASH':
-      return 'cash';
-    case 'CHECK':
-      return 'check';
-    case 'CREDIT_CARD':
-      return 'credit card';
-    case 'BANK_TRANSFER':
-      return 'bank transfer';
-    case 'OTHER':
-      return 'other';
-  }
+function paymentModeLabel(mode: string): string {
+  return mode;
 }
 
 async function handleRecordPayment(params: Record<string, unknown>): Promise<SiriResponse> {
@@ -1137,15 +1126,6 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
       params.mode ??
       params.method,
   );
-  if (specifiedMode === null) {
-    return {
-      ok: false,
-      error: 'invalid payment_mode',
-      text: 'Payment mode must be cash, check, credit card, bank transfer, or other.',
-    };
-  }
-  // Crater record-payment returns needs_selection when mode is omitted.
-  const paymentMode = specifiedMode ?? 'OTHER';
 
   const paymentDateRaw = params.payment_date ?? params.date;
   const paymentDate =
@@ -1174,7 +1154,7 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
   const result = await craterRecordPayment({
     customerName,
     amount,
-    paymentMode,
+    paymentMode: specifiedMode,
     paymentDate,
     notes,
     invoiceId,

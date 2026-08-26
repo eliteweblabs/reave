@@ -403,7 +403,7 @@ Dictating `"Call the plumber tomorrow at 3"` stores title `Call the plumber` due
 
 ### Record Payment
 
-**What it does**: Record an offline customer payment in Crater (cash, check, card, bank transfer, etc.). Requires the `billing` feature and Crater API env vars.
+**What it does**: Record an offline customer payment in Crater using any payment mode from Settings → Payment Modes (Cash, Apple Pay, Venmo, Zelle, Stripe, Bank Transfer, or a custom mode). Requires the `billing` feature and Crater API env vars.
 
 **JSON body**:
 
@@ -420,7 +420,7 @@ Dictating `"Call the plumber tomorrow at 3"` stores title `Call the plumber` due
 **Parameters**:
 - `customer_name` (required): Customer name as it appears in Crater. Aliases: `customer`, `client`, `name`.
 - `amount` (required): Payment amount in whole dollars. Accepts numerals, `$250`, and spoken currency (`100 bucks`, `100 dollars`). Alias: `payment_amount`. Quote the Shortcuts variable in the JSON body (`"amount": "Amount"`) so dictation like `100 bucks` stays valid JSON.
-- `payment_mode` (optional, defaults to `OTHER`): `CASH`, `CHECK`, `CREDIT_CARD`, `BANK_TRANSFER`, or `OTHER`. Crater requires a mode — omitting it used to return `needs_selection`. Voice-friendly aliases like `card`, `ach`, and `cheque` work. Aliases: `mode`, `method`.
+- `payment_mode` (optional): any Crater payment mode name — `Apple Pay`, `Venmo`, `Zelle`, `Stripe`, `Cash`, `Bank Transfer`, or another mode from Settings → Payment Modes. Voice-friendly aliases like `card`, `ach`, `apple pay`, and `cheque` work. Omitting it asks Crater for the configured list. Aliases: `mode`, `method`.
 - `payment_date` (optional): `YYYY-MM-DD` (defaults to today in Crater). Alias: `date`.
 - `notes` (optional): Free-text note. Alias: `note`.
 - `invoice_id` (optional): Specific open invoice when the customer has more than one. Alias: `invoice`.

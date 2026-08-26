@@ -176,7 +176,6 @@ import {
 import type { AgentToolDef, AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
 import {
   INVOICE_STATUS_ENUM,
-  PAYMENT_MODE_ENUM,
   RECURRING_STATUS_ENUM,
   lineItemSchema,
   parseEmailListArg,
@@ -270,7 +269,7 @@ async function handle_record_payment(args: Record<string, unknown>, _ctx: ToolCo
   const result = await craterRecordPayment({
     customerName: String(args.customer_name ?? ''),
     amount: Number(args.amount),
-    paymentMode: args.payment_mode as (typeof PAYMENT_MODE_ENUM)[number] | undefined,
+    paymentMode: typeof args.payment_mode === 'string' ? args.payment_mode : undefined,
     paymentDate: args.payment_date as string | undefined,
     notes: args.notes as string | undefined,
     invoiceId: typeof args.invoice_id === 'number' ? args.invoice_id : undefined,
@@ -519,7 +518,11 @@ export const billingModule: AgentToolModule = {
                   properties: {
                     customer_name: { type: 'string' },
                     amount: { type: 'number', description: 'Payment amount in whole dollars' },
-                    payment_mode: { type: 'string', enum: [...PAYMENT_MODE_ENUM] },
+                    payment_mode: {
+                      type: 'string',
+                      description:
+                        'Payment mode name from Crater Settings → Payment Modes (e.g. Cash, Apple Pay, Venmo, Zelle, Stripe, Bank Transfer).',
+                    },
                     payment_date: { type: 'string', description: 'YYYY-MM-DD; defaults to today' },
                     notes: { type: 'string' },
                     invoice_id: { type: 'integer', description: 'Apply payment to this invoice when multiple are open' },

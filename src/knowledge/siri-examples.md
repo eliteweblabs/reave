@@ -315,7 +315,7 @@ Example: saying "Call the plumber tomorrow at 3" stores **Call the plumber** due
    - Variable: `Amount`
 
 3. **Ask for Input** (optional)
-   - Prompt: "Payment mode? cash, check, card, bank transfer, or other"
+   - Prompt: "Payment mode?"
    - Variable: `Mode`
 
 4. **Text**
@@ -343,7 +343,7 @@ Example: saying "Call the plumber tomorrow at 3" stores **Call the plumber** due
 
 `https://reave.app/api/siri?action=record_payment&format=text&customer_name=` *(Customer pill)* `&amount=` *(Amount pill)*
 
-Headers: `X-Siri-Key` only. Omit `payment_mode` — it defaults to OTHER.
+Headers: `X-Siri-Key` only. Include `payment_mode` when you know it (Apple Pay, Venmo, Cash, …).
 
 ---
 
