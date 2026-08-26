@@ -141,8 +141,7 @@ const graphData = {
 
 <style>
   .cg-page {
-    min-height: 100vh;
-    padding: calc(64px + 40px) 20px 96px;
+    padding: 0 20px calc(96px + env(safe-area-inset-bottom, 0px));
     max-width: 1120px;
     margin: 0 auto;
   }

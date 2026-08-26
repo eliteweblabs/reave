@@ -2,10 +2,7 @@
 html, body {
   width: 100%;
   height: 100%;
-  height: 100dvh;
   min-height: 100%;
-  min-height: 100dvh;
-  min-height: -webkit-fill-available;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -36,6 +33,12 @@ html.pwa-standalone :is(
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /*
+   * inset:0 fills the layout viewport, including the iOS home-indicator
+   * band under viewport-fit=cover. Do not lock height to 100dvh — that
+   * ends the shell above the indicator and leaves a white gap under the
+   * footer knob in the installed PWA.
+   */
   position: fixed;
   inset: 0;
 }

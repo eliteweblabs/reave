@@ -413,14 +413,25 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   function syncAppHeaderSafeArea() {
     const isAdmin = Boolean(document.querySelector(".app-header--admin"));
     if (!isAdmin && document.documentElement.dataset.safeTopFrozen === "1") return;
+    if (isAdmin && document.documentElement.dataset.safeInsetsFrozen === "1") return;
     const insetTop = probeSafeAreaInset("top");
     if (!isAdmin && insetTop <= 0) return;
-    document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+    if (insetTop > 0) {
+      document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
+    }
     if (isAdmin) {
-      document.documentElement.style.setProperty(
-        "--safe-bottom",
-        `${probeSafeAreaInset("bottom")}px`,
-      );
+      const insetBottom = probeSafeAreaInset("bottom");
+      if (insetBottom > 0) {
+        document.documentElement.style.setProperty("--safe-bottom", `${insetBottom}px`);
+      }
+      /*
+       * Freeze after the first real inset. Re-probing on visualViewport
+       * resize can capture a keyboard-sized value and leave the footer
+       * knob stranded too high.
+       */
+      if (insetTop > 0 || insetBottom > 0) {
+        document.documentElement.dataset.safeInsetsFrozen = "1";
+      }
     }
     if (!isAdmin) document.documentElement.dataset.safeTopFrozen = "1";
   }
@@ -506,7 +517,12 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     window.visualViewport?.addEventListener(
       "resize",
       () => {
-        if (isAdminShell()) syncAppHeaderSafeArea();
+        if (
+          isAdminShell() &&
+          document.documentElement.dataset.safeInsetsFrozen !== "1"
+        ) {
+          syncAppHeaderSafeArea();
+        }
         scheduleAdminChromeLayout();
       },
       { passive: true },

@@ -13,6 +13,7 @@ const isSmsOptIn = slug === "sms-opt-in";
 <Layout
   title={isSmsOptIn ? `Contact — ${brandName}` : undefined}
   description={isSmsOptIn ? "Contact form with SMS opt-in consent." : undefined}
+  fullBleed
 >
   <style is:global>
     body {
@@ -22,7 +23,7 @@ const isSmsOptIn = slug === "sms-opt-in";
   </style>
   {
     isSmsOptIn ? (
-      <main class="sms-opt-in-page">
+      <div class="sms-opt-in-page">
         <header class="page-header">
           <p class="eyebrow">Contact</p>
           <h1>Get in touch</h1>
@@ -33,7 +34,7 @@ const isSmsOptIn = slug === "sms-opt-in";
         </header>
 
         <SmsOptInForm brandName={brandName} />
-      </main>
+      </div>
     ) : slug ? (
       <ConversationalForm
         slug={slug}
