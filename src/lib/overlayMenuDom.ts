@@ -1,26 +1,36 @@
 /**
  * Shared right-drawer chrome — marketing hamburger and account menu.
- * One open overlay at a time; the header toggle is the close control.
+ * One open overlay at a time. Marketing close is the hamburger (becomes X);
+ * account close is the profile control (icon becomes X in place).
  */
 
 export type OverlayMenuOpenFn = (root: HTMLElement | null, open: boolean) => void;
 
-function anyOverlayOpen(): boolean {
-  return Boolean(document.querySelector(".overlay-menu:not([hidden])"));
-}
-
 function syncOverlayMenuToggle() {
-  const open = anyOverlayOpen();
+  const account = getAccountOverlay();
+  const marketing = getMarketingOverlay();
+  const accountOpen = Boolean(account && !account.hidden);
+  const marketingOpen = Boolean(marketing && !marketing.hidden);
+  const open = accountOpen || marketingOpen;
   document.querySelectorAll<HTMLButtonElement>("[data-overlay-menu-toggle]").forEach((toggle) => {
     const mode = toggle.dataset.overlayMenuToggleMode;
-    toggle.classList.toggle("is-open", open);
-    toggle.setAttribute("aria-expanded", open ? "true" : "false");
-    toggle.setAttribute("aria-label", open || mode === "dismiss" ? "Close menu" : "Open menu");
+    const toggleOpen = mode === "nav" ? marketingOpen : open;
+    toggle.classList.toggle("is-open", toggleOpen);
+    toggle.setAttribute("aria-expanded", toggleOpen ? "true" : "false");
+    toggle.setAttribute("aria-label", toggleOpen || mode === "dismiss" ? "Close menu" : "Open menu");
     if (mode === "dismiss") toggle.hidden = !open;
   });
-  const account = document.getElementById("topbar-profile-menu");
   const profile = document.getElementById("topbar-profile-toggle");
-  profile?.setAttribute("aria-expanded", account && !account.hidden ? "true" : "false");
+  if (profile) {
+    if (!profile.dataset.accountClosedLabel) {
+      profile.dataset.accountClosedLabel = profile.getAttribute("aria-label") || "Account menu";
+    }
+    profile.setAttribute("aria-expanded", accountOpen ? "true" : "false");
+    profile.setAttribute(
+      "aria-label",
+      accountOpen ? "Close account menu" : profile.dataset.accountClosedLabel || "Account menu",
+    );
+  }
   document.documentElement.classList.toggle("overlay-menu-open", open);
   (
     window as Window & { __syncOverlayMenuScrollLock?: () => void }

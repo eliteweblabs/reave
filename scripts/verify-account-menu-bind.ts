@@ -1,7 +1,7 @@
 /**
  * Account drawer must bind on special admin pages that reuse footer nav
  * without the map SPA (e.g. /admin/sales-sheet), and share OverlayMenu
- * chrome (including the close X) with the marketing hamburger.
+ * chrome. Account close is the profile icon (becomes X in place).
  * Run: npm run check:account-menu
  */
 import assert from 'node:assert/strict';
@@ -25,7 +25,13 @@ assert.match(header, /getElementById\("wrap"\)/);
 assert.match(header, /headerCloseBound/);
 assert.match(header, /import OverlayMenu /);
 assert.match(header, /import OverlayMenuToggle/);
-assert.match(header, /mode="dismiss"/);
+assert.equal(
+  header.includes('mode="dismiss"'),
+  false,
+  'Account close must replace the profile icon — do not add a second X that shifts the header',
+);
+assert.match(header, /topbar-profile-close/);
+assert.match(header, /IOS_ICONS\.x/);
 assert.match(header, /mode="nav"/);
 assert.match(header, /brand-btn brand-btn-glass overlay-menu-action overlay-menu-action--danger/);
 assert.match(marketing, /brand-btn brand-btn-glass overlay-menu-action/);

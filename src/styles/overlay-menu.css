@@ -417,7 +417,7 @@ html[data-theme="light"] .app-header--admin .marketing-nav-toggle {
   display: block;
 }
 
-/* Account pages have no hamburger — the dismiss X is `hidden` until an overlay opens. */
+/* Unused unless a page still renders OverlayMenuToggle mode=dismiss. Account close is the profile icon. */
 .overlay-menu-toggle--dismiss[hidden],
 .marketing-nav-toggle.overlay-menu-toggle--dismiss[hidden] {
   display: none !important;
