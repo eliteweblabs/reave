@@ -565,9 +565,23 @@ export function clerkDomainRows(body: unknown): ClerkDomainRow[] {
   return data.filter((row): row is ClerkDomainRow => Boolean(row) && typeof row === 'object');
 }
 
+function clerkHostnameFromProxyUrl(proxyUrl: string): string {
+  try {
+    return new URL(proxyUrl).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function clerkDomainName(row: ClerkDomainRow): string {
+  return (row.name || '').replace(/^www\./, '').toLowerCase();
+}
+
 /**
- * Point the production Clerk domain at this install's `/__clerk` proxy.
- * Clerk validates the URL before saving; failures are non-fatal.
+ * Point this host's `/__clerk` proxy at the matching Clerk domain.
+ * Client installs (jasonkahan.com, Railway preview hosts) cannot overwrite
+ * the primary domain's proxy_url — Clerk rejects a different apex. Add or
+ * reuse a satellite domain for that hostname instead.
  */
 export async function clerkEnsureDomainProxy(proxyUrl: string): Promise<{
   ok: boolean;
@@ -592,10 +606,28 @@ export async function clerkEnsureDomainProxy(proxyUrl: string): Promise<{
   if (!primary?.id) {
     return { ok: false, error: 'no Clerk domain to attach a proxy URL' };
   }
-  if (clerkProxyUrlsEqual(primary.proxy_url, wanted)) {
+
+  const host = clerkHostnameFromProxyUrl(wanted);
+  const primaryName = clerkDomainName(primary);
+  let target = host
+    ? rows.find((row) => clerkDomainName(row) === host)
+    : primary;
+  if (!target && host && host !== primaryName) {
+    const created = await backendPost('/domains', { name: host, is_satellite: true });
+    if (!created.ok) {
+      return { ok: false, error: clerkApiErrorMessage(created.body, created.status) };
+    }
+    const createdRow = (created.body && typeof created.body === 'object' ? created.body : {}) as ClerkDomainRow;
+    if (!createdRow.id) {
+      return { ok: false, error: 'Clerk created a satellite domain but returned no id' };
+    }
+    target = createdRow;
+  }
+  if (!target?.id) target = primary;
+  if (clerkProxyUrlsEqual(target.proxy_url, wanted)) {
     return { ok: true, skipped: true };
   }
-  const patched = await backendPatch(`/domains/${primary.id}`, { proxy_url: wanted });
+  const patched = await backendPatch(`/domains/${target.id}`, { proxy_url: wanted });
   if (!patched.ok) {
     return { ok: false, error: clerkApiErrorMessage(patched.body, patched.status) };
   }
