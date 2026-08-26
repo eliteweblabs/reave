@@ -200,11 +200,15 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     --aw-fab-icon: var(--brand-btn-fg, #111);
   }
 
-  .aw-fab svg,
-  .aw-fab svg path {
+  .aw-fab svg {
     display: block;
     flex: none;
     color: var(--aw-fab-icon);
+    stroke: var(--aw-fab-icon);
+    fill: none;
+  }
+
+  .aw-fab svg path {
     stroke: var(--aw-fab-icon);
     fill: none;
   }
