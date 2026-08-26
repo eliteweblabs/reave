@@ -198,12 +198,14 @@ html {
     padding-bottom: max(80px, calc(108px + env(safe-area-inset-bottom, 0px)));
   }
 
-  .home-scroll .fx-page--intro .fx-h1 {
+  .home-scroll .fx-page--intro .fx-h1,
+  .home-scroll .home-integrations-copy h2 {
     font-size: clamp(1.85rem, 8vw, 2.35rem);
     font-weight: 700;
   }
 
-  .home-scroll .fx-page--intro .fx-lead {
+  .home-scroll .fx-page--intro .fx-lead,
+  .home-scroll .home-integrations-lead {
     font-size: 1.05rem;
   }
 }

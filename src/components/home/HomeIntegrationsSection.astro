@@ -45,9 +45,8 @@ const logos = listBrandLogos("replaced-apps");
     position: relative;
     width: 100%;
     max-width: 100%;
-    /* One follow-gap after the chips — not 2× section padding stacked on intro. */
-    padding: var(--home-section-follow-gap, var(--home-section-padding-y)) 0
-      var(--home-section-padding-y);
+    /* Full section padding after the chip marquee — follow-gap sat too tight. */
+    padding: var(--home-section-padding-y) 0;
     overflow: clip;
   }
 
@@ -69,10 +68,10 @@ const logos = listBrandLogos("replaced-apps");
 
   .home-integrations-copy h2 {
     font-family: var(--font-primary);
-    font-size: clamp(24px, 4vw, 40px);
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: -0.04em;
+    font-size: var(--home-section-title-size, clamp(1.8rem, 5vw, 2.75rem));
+    font-weight: var(--home-section-title-weight, 700);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
     color: var(--site-fg, #171717);
     margin: 0;
     max-width: 14ch;
@@ -80,10 +79,10 @@ const logos = listBrandLogos("replaced-apps");
 
   .home-integrations-lead {
     font-family: var(--font-content);
-    font-size: var(--home-copy-lead-size, 0.75rem);
-    line-height: 1.55;
+    font-size: var(--home-copy-lead-size, 1.02rem);
+    line-height: 1.65;
     color: var(--site-fg-muted, #525252);
-    margin: var(--home-copy-gap, 0.4rem) 0 0;
+    margin: var(--home-copy-gap, 0.75rem) 0 0;
     max-width: 42ch;
   }
 

@@ -948,8 +948,8 @@ const customPrompts: PromptExample[] = [
 
   .fx-h1 {
     margin: 0;
-    font-size: clamp(1.8rem, 5vw, 2.75rem);
-    font-weight: 700;
+    font-size: var(--home-section-title-size, clamp(1.8rem, 5vw, 2.75rem));
+    font-weight: var(--home-section-title-weight, 700);
     letter-spacing: -0.02em;
     line-height: 1.12;
     color: var(--site-fg, #171717);
@@ -958,7 +958,7 @@ const customPrompts: PromptExample[] = [
   .fx-lead {
     margin: 0 auto;
     max-width: 560px;
-    font-size: 1.02rem;
+    font-size: var(--home-copy-lead-size, 1.02rem);
     line-height: 1.65;
     color: var(--site-fg-muted, #525252);
   }
