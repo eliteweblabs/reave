@@ -177,6 +177,22 @@
   --dash-nav-icon-svg: 1.25rem;
   --dash-nav-label-size: 0.78rem;
 }
+
+/*
+ * Installed PWA already paints into the home-indicator band
+ * (black-translucent + inset:0). Don't add that inset again to the
+ * floating footer knob — it sits in the band, not hover above it.
+ */
+html.pwa-standalone {
+  --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--footer-nav-bottom-gap));
+}
+
+@media (max-width: 639px) {
+  html.pwa-standalone {
+    --footer-nav-bottom-gap: 8px;
+  }
+}
+
 @media (min-width: 640px) {
   :root {
     --footer-nav-bottom-gap: 1.25rem;

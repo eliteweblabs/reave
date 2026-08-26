@@ -45,7 +45,9 @@ const logos = listBrandLogos("replaced-apps");
     position: relative;
     width: 100%;
     max-width: 100%;
-    padding: calc(var(--home-section-padding-y) * 2) 0 var(--home-section-padding-y);
+    /* One follow-gap after the chips — not 2× section padding stacked on intro. */
+    padding: var(--home-section-follow-gap, var(--home-section-padding-y)) 0
+      var(--home-section-padding-y);
     overflow: clip;
   }
 
@@ -62,7 +64,7 @@ const logos = listBrandLogos("replaced-apps");
   .home-integrations-copy {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 0;
   }
 
   .home-integrations-copy h2 {
@@ -78,10 +80,10 @@ const logos = listBrandLogos("replaced-apps");
 
   .home-integrations-lead {
     font-family: var(--font-content);
-    font-size: 15px;
-    line-height: 1.65;
+    font-size: var(--home-copy-lead-size, 0.75rem);
+    line-height: 1.55;
     color: var(--site-fg-muted, #525252);
-    margin: 0;
+    margin: var(--home-copy-gap, 0.4rem) 0 0;
     max-width: 42ch;
   }
 
@@ -90,6 +92,7 @@ const logos = listBrandLogos("replaced-apps");
     align-items: center;
     gap: 8px;
     align-self: flex-start;
+    margin-top: 1rem;
     padding: 0.78rem 1.4rem;
     border-radius: 999px;
     font-family: var(--font-primary);

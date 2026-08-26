@@ -160,7 +160,15 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
 <script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <style is:global>
+  /*
+   * All FAB rules are global. The button is hoisted onto document.body, so
+   * scoped selectors (and --aw-fill on .aw-root) never reach it.
+   *
+   * iOS Safari keeps a white button face unless background-color is set —
+   * a gradient-only `background` plus a white stroke paints an empty circle.
+   */
   .aw-fab {
+    --aw-fab-icon: var(--brand-on-gradient, #fff);
     position: fixed;
     top: auto;
     left: auto;
@@ -173,28 +181,48 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    color: var(--aw-fab-icon);
+    -webkit-text-fill-color: var(--aw-fab-icon);
+    background-color: var(--brand-btn-bg, #111);
+    background-image: var(--brand-gradient, none);
+    border: 1px solid transparent;
+    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)),
+      0 2px 8px rgba(0, 0, 0, 0.18);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
-</style>
 
-<style>
-  .aw-root { position: relative; }
-
-  .aw-root--site {
-    --aw-fill: var(--brand-gradient, var(--brand-btn-bg, #111));
-    --aw-link: var(--site-fg, #171717);
+  html[data-theme="dark"] .aw-fab {
+    --aw-fab-icon: var(--brand-btn-fg, #111);
   }
-  .aw-root--portal {
-    --aw-fill: var(--brand-btn-bg, #111);
-    --aw-link: var(--site-fg, #171717);
+
+  .aw-fab svg {
+    display: block;
+    flex: none;
+    color: var(--aw-fab-icon);
+    stroke: var(--aw-fab-icon);
+    fill: none;
+  }
+
+  .aw-fab svg path {
+    stroke: var(--aw-fab-icon);
+    fill: none;
+  }
+
+  .aw-fab--portal {
+    --aw-fab-icon: var(--brand-btn-fg, #fff);
+    color: var(--aw-fab-icon);
+    -webkit-text-fill-color: var(--aw-fab-icon);
+    background-color: var(--brand-btn-bg, #111);
+    background-image: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
   }
 
   .aw-fab--site {
-    background: var(--aw-fill);
-    border: 1px solid transparent;
-    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)), 0 2px 8px rgba(0, 0, 0, 0.18);
     transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
@@ -205,10 +233,6 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
   }
 
   .aw-fab--portal {
-    background: var(--brand-btn-bg, #111);
-    color: var(--brand-btn-fg, #fff);
-    border: 1px solid transparent;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
     transition: transform 0.18s ease;
   }
 
@@ -242,7 +266,7 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     visibility: hidden;
     pointer-events: none;
   }
-  .aw-fab-icon-close { display: none; }
+  .aw-fab svg.aw-fab-icon-close { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
     .aw-fab--site {
@@ -258,6 +282,19 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
       visibility: hidden;
       pointer-events: none;
     }
+  }
+</style>
+
+<style>
+  .aw-root { position: relative; }
+
+  .aw-root--site {
+    --aw-fill: var(--brand-gradient, var(--brand-btn-bg, #111));
+    --aw-link: var(--site-fg, #171717);
+  }
+  .aw-root--portal {
+    --aw-fill: var(--brand-btn-bg, #111);
+    --aw-link: var(--site-fg, #171717);
   }
 
   .aw-chat {

@@ -43,6 +43,12 @@ export interface Props {
   noIndex?: boolean;
 	/** Initial `<meta name="theme-color">`. Canvas-matched so Safari chrome is not a black bar. */
   themeColor?: string;
+  /**
+   * Paint under the overlay header (homepage hero, forms with their own pad).
+   * Default: homepage only. Inner pages get one shared header clearance on
+   * `main` so they don't each invent `100vh` / `64px` wrappers.
+   */
+  fullBleed?: boolean;
 }
 
 const {
@@ -53,6 +59,7 @@ const {
   canonicalUrl,
   noIndex = false,
 	themeColor: themeColorProp,
+  fullBleed: fullBleedProp,
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -84,17 +91,22 @@ const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
+const fullBleed = fullBleedProp ?? isIndexPage;
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
 const showSiteAssistant =
-	!isIndexPage && hasFeature("portal_assistant") && isSiteAssistantConfigured();
+	hasFeature("portal_assistant") && isSiteAssistantConfigured();
 const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
 <!doctype html>
 <html
 		lang="en"
-		class:list={[marketingNav && "site-marketing"]}
+		class:list={[
+			marketingNav && "site-marketing",
+			isIndexPage && "site-home",
+			!fullBleed && "site-page",
+		]}
 		style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
 	>
 	<head>
@@ -159,6 +171,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 					supportPhone={company.supportPhone}
 					supportEmail={company.supportEmail}
 					pagePath={Astro.url.pathname}
+					hideFabForHero={isIndexPage}
 				/>
 			)
 		}
@@ -320,12 +333,25 @@ const userId = Astro.locals.auth()?.userId ?? null;
 
 	/*
 	 * Page content above the fixed atmosphere (z-index 0). The public
-	 * header is out of flow, so the hero already starts at the viewport
-	 * top — do not pull main up.
+	 * header is out of flow, so the homepage hero already starts at the
+	 * viewport top — do not pull main up there.
 	 */
 	main#main-content {
 		position: relative;
 		z-index: 2;
+	}
+
+	/*
+	 * One header clearance for every inner public page. Do not min-height
+	 * 100vh on page shells — that sizes to Safari’s layout viewport and
+	 * keeps scrolling content out of the overlay status bar. Homepage
+	 * (site-home / fullBleed) stays edge-to-edge under the header.
+	 */
+	html.site-page main#main-content {
+		padding-top: calc(
+			var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) +
+				var(--site-page-pad-top, 40px)
+		);
 	}
 
 	@media (min-width: 769px) {

@@ -134,8 +134,7 @@ if (!demo.adminUrl) {
 
 <style>
   .demo-page {
-    min-height: 100vh;
-    padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 48px) 20px 96px;
+    padding: 0 20px calc(96px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     align-items: center;

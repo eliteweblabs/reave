@@ -181,21 +181,20 @@ html {
   }
 
   /*
-   * Homepage panes: keep content centered in the column with room above
-   * the sticky CTAs. Taller blocks just grow with their content.
+   * Room above the sticky CTAs. Do not pad .fx-page--intro or stack
+   * another 100vh-era gap after the chips — the next section follows
+   * with --home-section-follow-gap.
    */
   .home-scroll .home-integrations,
   .home-scroll .home-featured,
   .home-scroll .home-dialogue,
   .home-scroll .home-section[data-home-section="contact"],
-  .home-scroll .fx-page--intro,
   .home-scroll .fx-page--tour .fx-examples,
   .home-scroll .fx-page--tour .fx-custom,
   .home-scroll .fx-page--tour .fx-closing {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     padding-bottom: max(80px, calc(108px + env(safe-area-inset-bottom, 0px)));
   }
 
