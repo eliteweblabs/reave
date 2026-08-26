@@ -861,8 +861,8 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-page {
-    /* ~60px at laptop/desktop; scales with viewport, floors on phones. */
-    --fx-hero-copy-gap: clamp(2.5rem, 5vw, 3.75rem);
+    /* Same fluid gap as --home-section-follow-gap (title ↔ chips ↔ next title). */
+    --fx-hero-copy-gap: var(--home-section-follow-gap, clamp(2.5rem, 5vw, 3.75rem));
     /* Header clearance lives on main (html.site-page). */
     padding: 0 20px 6rem;
     display: flex;
@@ -885,7 +885,16 @@ const customPrompts: PromptExample[] = [
       var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) +
         16px
     );
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--home-section-follow-gap, clamp(2.5rem, 5vw, 3.75rem));
+  }
+
+  .fx-page--embedded.fx-page--intro {
+    padding-bottom: 0;
+  }
+
+  .fx-page--embedded.fx-page--intro .fx-chips {
+    /* Next section owns the follow-gap so chips → title is one step, not two. */
+    margin-bottom: 0;
   }
 
   .fx-page--intro .fx-hero {
@@ -1001,7 +1010,7 @@ const customPrompts: PromptExample[] = [
     width: auto;
     max-width: none;
     margin-inline: -20px;
-    margin-bottom: 48px;
+    margin-bottom: var(--home-section-follow-gap, var(--fx-hero-copy-gap, 48px));
     overflow: clip;
     isolation: isolate;
     contain: layout paint;

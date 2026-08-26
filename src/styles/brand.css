@@ -77,6 +77,13 @@
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
   --home-section-padding-y: 80px;
+  /*
+   * Homepage stack — one gap between blocks (title ↔ chips ↔ next title).
+   * Title → lead inside a section is a tighter step; lead is ~4pt under 15px.
+   */
+  --home-section-follow-gap: clamp(2.5rem, 5vw, 3.75rem);
+  --home-copy-gap: 0.4rem;
+  --home-copy-lead-size: 0.75rem;
 }
 
 /*
