@@ -109,7 +109,14 @@ assert.match(block ?? '', /2 more on file/);
   assert.equal(created.title, '🧠 Memory saved');
   assert.equal(created.body, 'Owner has two kids.');
   assert.equal(created.tag, 'memory-7');
-  assert.equal(created.url, '/admin?tab=dashboard');
+  assert.equal(created.url, '/admin?tab=chats');
+
+  const fromChat = formatMemoryUpdateNotification({
+    memories: [{ id: 7, content: 'Owner has two kids.' }],
+    created: true,
+    threadId: 'chat_abc',
+  });
+  assert.equal(fromChat.url, '/admin?tab=chats&chat=chat_abc');
 
   const updated = formatMemoryUpdateNotification({
     memories: [{ id: 7, content: 'Owner has two kids and a dog.' }],

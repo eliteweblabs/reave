@@ -211,10 +211,11 @@ export type MemoryUpdateNotifyInput = {
   content: string;
 };
 
-/** Phone + dashboard copy when durable recall is created or rewritten. */
+/** Phone push copy when durable recall is created or rewritten (no dashboard card). */
 export function formatMemoryUpdateNotification(opts: {
   memories: MemoryUpdateNotifyInput[];
   created?: boolean;
+  threadId?: string | null;
 }): { title: string; body: string; tag: string; url: string } {
   const items = opts.memories
     .map((m) => ({
@@ -239,11 +240,14 @@ export function formatMemoryUpdateNotification(opts: {
     n === 1 && ids[0] != null
       ? `memory-${ids[0]}`
       : `memory-batch-${ids.join('-') || 'new'}`;
+  const threadId = opts.threadId?.trim();
   return {
     title,
     body,
     tag,
-    url: '/admin?tab=dashboard',
+    url: threadId
+      ? `/admin?tab=chats&chat=${encodeURIComponent(threadId)}`
+      : '/admin?tab=chats',
   };
 }
 

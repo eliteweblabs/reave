@@ -4265,6 +4265,26 @@ async function handleMissingWorkNotification(item) {
   if (MAP.type === 'dashboard') await loadAdminDashboard();
 }
 
+/** True when View/eye can navigate somewhere other than the current dashboard. */
+function reviewNotificationHasOpenTarget(item) {
+  if (item?.emailId || item?.jobSlug || item?.contactUid) return true;
+  const raw = String(item?.url || '').trim();
+  if (!raw) return false;
+  try {
+    const u = new URL(raw, window.location.origin);
+    const path = u.pathname.replace(/\/$/, '') || '/';
+    if (path !== '/admin') return true;
+    const tab = u.searchParams.get('tab');
+    if (tab && tab !== 'dashboard') return true;
+    for (const key of ['email', 'slug', 'chat', 'client', 'booking', 'module']) {
+      if (u.searchParams.get(key)?.trim()) return true;
+    }
+    return false;
+  } catch {
+    return Boolean(raw);
+  }
+}
+
 async function openReviewNotificationTarget(item) {
   if (isReceiptExpenseNotification(item) && item.emailId) {
     setActiveMap('email', { force: true, emailId: item.emailId });
@@ -4412,6 +4432,7 @@ function buildReviewAlertBanner(item) {
       return;
     }
     if (key === 'view' || key === 'open') {
+      if (!reviewNotificationHasOpenTarget(item)) return;
       pushNotifyAction(key, {
         onClick: () => openReviewNotificationTarget(item),
       });
@@ -4465,10 +4486,12 @@ function buildReviewAlertBanner(item) {
       onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
     });
   } else if (isPushAlert) {
-    pushNotifyAction('view', {
-      primary: true,
-      onClick: () => openReviewNotificationTarget(item),
-    });
+    if (reviewNotificationHasOpenTarget(item)) {
+      pushNotifyAction('view', {
+        primary: true,
+        onClick: () => openReviewNotificationTarget(item),
+      });
+    }
     if (!isAuditPushAlert(item)) {
       pushNotifyAction('archive', {
         primary: false,

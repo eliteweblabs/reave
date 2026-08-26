@@ -1,5 +1,6 @@
 /**
- * Phone + dashboard notify when the agent writes durable recall.
+ * Phone / PWA push when the agent writes durable recall.
+ * Dashboard cards stay off — tap the push to open chats.
  * Owner edits and identical re-saves stay quiet.
  */
 
@@ -16,9 +17,11 @@ export async function notifyAgentMemoryUpdated(opts: {
   const memories = opts.memories.filter((m) => m.content?.trim());
   if (!memories.length) return;
 
+  const threadId = memories.find((m) => m.source_thread_id)?.source_thread_id ?? null;
   const payload = formatMemoryUpdateNotification({
     memories,
     created: opts.created,
+    threadId,
   });
 
   await sendPushNotification({
@@ -27,5 +30,6 @@ export async function notifyAgentMemoryUpdated(opts: {
     tag: payload.tag,
     url: payload.url,
     kind: 'system',
+    skipDashboardAlert: true,
   }).catch((e) => log.warn('memory push failed', e));
 }

@@ -136,6 +136,11 @@ function cutoffIso(maxAgeDays: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString();
 }
 
+/** Durable-recall phone pushes — never mirrored as dashboard review cards. */
+export function isMemoryPushAlertTag(tag: string): boolean {
+  return String(tag || '').toLowerCase().startsWith('memory-');
+}
+
 export function inferPushAlertKind(tag: string, url: string): PushAlertKind {
   const t = tag.toLowerCase();
   const u = url.toLowerCase();

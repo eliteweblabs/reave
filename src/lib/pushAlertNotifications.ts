@@ -13,6 +13,8 @@ import { deletedOrJunkedEmailBlocksNotification } from './emailJunkNotifyInvaria
 import { storeGetEmailInbox } from './emailInboxStore';
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
 import {
+  isMemoryPushAlertTag,
+  storeAckPushAlert,
   storeCountPendingPushAlerts,
   storeListPendingPushAlerts,
   type PushAlert,
@@ -106,7 +108,12 @@ export async function listPushAlertNotifications(opts?: {
   const pending = await storeListPendingPushAlerts(opts);
   const kept: PushAlert[] = [];
   const staleEmailIds: string[] = [];
+  const memoryAlertIds: string[] = [];
   for (const alert of pending) {
+    if (isMemoryPushAlertTag(alert.tag)) {
+      memoryAlertIds.push(alert.id);
+      continue;
+    }
     const emailId = emailIdFromPushAlert(alert);
     if (!emailId) {
       kept.push(alert);
@@ -118,6 +125,9 @@ export async function listPushAlertNotifications(opts?: {
       continue;
     }
     kept.push(alert);
+  }
+  if (memoryAlertIds.length) {
+    void Promise.all(memoryAlertIds.map((id) => storeAckPushAlert(id).catch(() => undefined)));
   }
   if (staleEmailIds.length) {
     void Promise.all(

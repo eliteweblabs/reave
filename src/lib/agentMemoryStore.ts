@@ -60,7 +60,7 @@ export async function storeUpsertMemory(input: {
   content: string;
   source: MemorySource;
   sourceThreadId?: string | null;
-  /** Skip phone/dashboard notify (extract batches its own push; owner edits stay quiet). */
+  /** Skip phone push (extract batches its own notify; owner edits stay quiet). */
   silent?: boolean;
 }): Promise<MemoryUpsertResult> {
   const result =
