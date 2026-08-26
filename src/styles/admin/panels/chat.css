@@ -454,7 +454,7 @@ body.sidebar-resize-active * {
   height: 1.75rem;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;

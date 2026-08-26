@@ -1130,7 +1130,7 @@ select,
   color: var(--fg);
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 9px;
+  border-radius: 50%;
   cursor: pointer;
 }
 #tools button:hover { border-color: #58a6ff; color: #58a6ff; }

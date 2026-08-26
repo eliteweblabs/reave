@@ -257,7 +257,7 @@
   height: var(--icon-btn-box, var(--icon-btn-md));
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -1228,7 +1228,7 @@ button.de-placeholder-action:active {
   border: 1px solid var(--panel-border, #2a2a2e);
   background: rgba(255,255,255,0.05);
   color: var(--fg);
-  border-radius: 9px;
+  border-radius: 999px;
   padding: 0.5rem 0.9rem;
   font: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer;
 }
@@ -2027,7 +2027,7 @@ button.de-placeholder-action:active {
 .re-lab-body-mode {
   display: inline-flex;
   padding: 2px;
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--btn-group-track-bg, rgba(255, 255, 255, 0.06));
   border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
 }
@@ -2035,7 +2035,7 @@ button.de-placeholder-action:active {
   margin: 0;
   padding: 0.2rem 0.55rem;
   border: 0;
-  border-radius: 6px;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted, rgba(255, 255, 255, 0.55));
   font: inherit;
@@ -2674,7 +2674,7 @@ button.de-placeholder-action:active {
   margin: 0;
   padding: 0.35rem 0.65rem;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 999px;
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -3201,7 +3201,7 @@ button.de-placeholder-action:active {
   justify-content: center;
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--panel-border);
-  border-radius: 7px;
+  border-radius: 999px;
   background: var(--card);
   font: inherit;
   color: var(--fg);
@@ -3578,7 +3578,7 @@ button.de-placeholder-action:active {
   height: 29px;
   padding: 0;
   border: none;
-  border-radius: 4px;
+  border-radius: 50%;
   background: #fff;
   color: #333;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
@@ -3738,7 +3738,7 @@ button.de-placeholder-action:active {
   margin-top: 0.05rem;
 }
 .cl-list-avatar-wrap.list-select-icon {
-  border-radius: 8px;
+  border-radius: 50%;
 }
 .cl-list-avatar {
   display: inline-flex;
@@ -3746,7 +3746,7 @@ button.de-placeholder-action:active {
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 8px;
+  border-radius: 50%;
   overflow: hidden;
   background: var(--card);
   border: 1px solid var(--panel-border);
@@ -3881,7 +3881,8 @@ button.de-placeholder-action:active {
   border-top: 1px solid var(--panel-border);
   margin-top: 0.5rem;
 }
-#clients-editor .detail-tab .cl-detail-tab-badge {
+#clients-editor .detail-tab .cl-detail-tab-badge,
+#work-editor .detail-tab .wk-detail-tab-badge {
   position: absolute;
   top: -0.1rem;
   right: -0.08rem;
@@ -3898,7 +3899,17 @@ button.de-placeholder-action:active {
   pointer-events: none;
   z-index: 2;
 }
-#clients-editor .detail-tab .cl-detail-tab-badge[hidden] {
+#work-editor .detail-tab .wk-detail-tab-badge.is-dot {
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  top: 0.12rem;
+  right: 0.08rem;
+  font-size: 0;
+}
+#clients-editor .detail-tab .cl-detail-tab-badge[hidden],
+#work-editor .detail-tab .wk-detail-tab-badge[hidden] {
   display: none !important;
 }
 #clients-editor .detail-panel .cl-jobs-grid {
@@ -4157,7 +4168,7 @@ button.de-placeholder-action:active {
   align-self: flex-start;
   width: 1.65rem;
   height: 1.65rem;
-  border-radius: 6px;
+  border-radius: 50%;
   overflow: hidden;
   background: var(--card);
   border: 1px solid var(--panel-border);

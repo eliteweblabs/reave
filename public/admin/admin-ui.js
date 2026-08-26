@@ -1750,7 +1750,7 @@ function escAttr(value) {
 }
 
 /**
- * Rounded-square contact avatar (list rows, work client bar, pane titles).
+ * Circular contact avatar (list rows, work client bar, pane titles).
  * Pass a branding URL when known; otherwise shows IOS_ICONS.user placeholder.
  */
 export function contactAvatarHtml(opts = {}) {

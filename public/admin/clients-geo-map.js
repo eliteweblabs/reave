@@ -164,7 +164,7 @@ export function mountClientsGeoMap(container, opts = {}) {
       .cgm-count { margin:0; margin-right:auto; color:#8b949e; font-size:.78rem; white-space:nowrap; min-width:0;
         overflow:hidden; text-overflow:ellipsis; }
       .cgm-settings-btn { flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
-        width:2rem; height:2rem; padding:0; border:none; border-radius:8px; background:transparent;
+        width:2rem; height:2rem; padding:0; border:none; border-radius:50%; background:transparent;
         color:inherit; cursor:pointer; }
       .cgm-settings-btn:hover, .cgm-settings-btn[aria-expanded="true"] { background:rgba(177,186,196,.14); }
       .cgm-settings-btn svg { display:block; }

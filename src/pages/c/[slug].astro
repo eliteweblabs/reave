@@ -1157,7 +1157,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         height: auto;
         gap: 6px;
         padding: 14px 10px;
-        border-radius: 16px;
+        border-radius: 999px;
         font-size: 12px;
         font-weight: 500;
         white-space: normal;
@@ -1190,7 +1190,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         flex: 1;
         height: auto;
         padding: 10px 8px;
-        border-radius: 10px;
+        border-radius: 999px;
         box-shadow: none;
         font-size: 14px;
         font-weight: 600;
@@ -1433,7 +1433,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .cred-val.secret { -webkit-text-security: disc; text-security: disc; }
       .cred-val.secret.revealed { -webkit-text-security: none; text-security: none; }
       .mini {
-        flex: none; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--site-border);
+        flex: none; padding: 7px 10px; border-radius: 999px; border: 1px solid var(--site-border);
         background: var(--site-border); color: var(--site-fg); font: inherit; font-size: 12px; cursor: pointer;
       }
       .mini-icon {
@@ -1488,13 +1488,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         width: 100%;
         padding: 13px;
         margin-bottom: 14px;
-        border-radius: 12px;
         font-size: 14px;
       }
       .submit-btn.brand-btn {
         width: 100%;
         padding: 16px;
-        border-radius: 14px;
         font-size: 16px;
       }
       .submit-btn:active { transform: scale(0.98); }

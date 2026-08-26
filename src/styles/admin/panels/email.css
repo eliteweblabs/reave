@@ -2013,7 +2013,7 @@ html.reave-agent-asleep
 .em-book-card-btn {
   margin-top: 0.75rem;
   padding: 0.45rem 0.85rem;
-  border-radius: 8px;
+  border-radius: 999px;
   border: none;
   background: #14b8a6;
   color: #042f2e;
@@ -2057,7 +2057,7 @@ html.reave-agent-asleep
   width: 100%;
   margin: 0;
   padding: 0.65rem 0.85rem;
-  border-radius: 10px;
+  border-radius: 999px;
   border: 1px solid rgba(251, 191, 36, 0.35);
   background: rgba(0, 0, 0, 0.25);
   color: #fef3c7;

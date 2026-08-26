@@ -144,7 +144,7 @@
   font-size: max(16px, 0.92rem);
   padding: 0.45rem 0.55rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
   background: transparent;
   color: #0a84ff;
   cursor: pointer;

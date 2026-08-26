@@ -266,7 +266,7 @@
   width: 100%;
   text-align: left;
   padding: 0.45rem 0.55rem;
-  border-radius: 8px;
+  border-radius: 999px;
   border: 1px solid var(--panel-border);
   background: var(--surface-muted);
   color: var(--fg);
