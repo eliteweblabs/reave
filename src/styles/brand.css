@@ -41,6 +41,8 @@
   --demo-fill: color-mix(in srgb, var(--site-fg) 8%, transparent);
   --demo-fill-strong: color-mix(in srgb, var(--site-fg) 14%, transparent);
   --demo-fill-press: color-mix(in srgb, var(--site-fg) 22%, transparent);
+  /* Chat bubbles only — half the previous ~10% ink so they sit at 5%. */
+  --demo-bubble-fill: color-mix(in srgb, var(--site-fg) 5%, transparent);
   --demo-line: var(--site-border);
   --demo-bone: color-mix(in srgb, var(--site-fg) 16%, transparent);
   --demo-avatar-bg: color-mix(in srgb, var(--site-fg) 10%, var(--site-canvas));
