@@ -1,6 +1,7 @@
 /**
- * Homepage hero idle demo — scenes loop indefinitely; chat scrolls up from the
- * bottom and fades gradually under the icon. Stops when the visitor leaves the hero.
+ * Homepage hero idle demo — scenes play in random order indefinitely; chat
+ * scrolls up from the bottom and fades gradually under the icon. Stops when
+ * the visitor leaves the hero.
  */
 
 import {
@@ -2454,10 +2455,11 @@ export function initHeroDemoLoop(root: HTMLElement) {
   timingScale = isIOSDevice() ? TIMING_SCALE * IOS_TIMING_SCALE : TIMING_SCALE;
 
   const once = root.dataset.once === "1";
-  const startSceneId = root.dataset.startScene?.trim() || "";
-  const startIdx = startSceneId
-    ? scenes.findIndex((scene) => scene.id === startSceneId)
-    : -1;
+  const pickRandomSceneIndex = (exclude: number) => {
+    if (scenes.length <= 1) return 0;
+    const pool = scenes.map((_, i) => i).filter((i) => i !== exclude);
+    return pool[Math.floor(Math.random() * pool.length)]!;
+  };
 
   const relayout: Relayout = (flush = false) => {
     syncHeroCopyHeight(hero, copyEl);
@@ -2476,7 +2478,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
   window.setTimeout(() => relayout(true), 150);
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let sceneIndex = startIdx >= 0 ? startIdx : Math.floor(Math.random() * scenes.length);
+  let lastSceneIndex = -1;
   let running = false;
   let offscreen = true;
   let loopGeneration = 0;
@@ -2612,8 +2614,9 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
   const loop = async (gen: number) => {
     while (running && gen === loopGeneration && !offscreen) {
+      const sceneIndex = pickRandomSceneIndex(lastSceneIndex);
+      lastSceneIndex = sceneIndex;
       const scene = scenes[sceneIndex]!;
-      sceneIndex = (sceneIndex + 1) % scenes.length;
       demoClock.skipScene = false;
       await playScene(scene);
 
@@ -2648,8 +2651,6 @@ export function initHeroDemoLoop(root: HTMLElement) {
     root.classList.remove("home-hero-demo--stopped");
     if (!running) {
       resetStack(stack);
-      // Replay the pinned test scene from the top.
-      if (startIdx >= 0) sceneIndex = startIdx;
       running = true;
       const gen = ++loopGeneration;
       void loop(gen);
@@ -2669,7 +2670,6 @@ export function initHeroDemoLoop(root: HTMLElement) {
     root.hidden = false;
     root.classList.remove("home-hero-demo--stopped");
     if (!running) {
-      // sceneIndex already points at the next scene after the last play.
       running = true;
       const gen = ++loopGeneration;
       void loop(gen);
