@@ -6,7 +6,8 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { projectRoot } from './projectRoot';
 
-export const PUBLIC_BRANDING_DIR = 'public/branding';
+/** Not under /public — a folder there would shadow the /branding/*.png routes. */
+export const PUBLIC_BRANDING_DIR = 'src/knowledge/branding';
 
 export type PublicBrandFile = 'logo.png' | 'icon.png' | 'logo.svg' | 'icon.svg';
 
