@@ -1,8 +1,9 @@
 /**
  * Homepage chrome — marketing, client landing, or Clerk login.
  *
- * New / standalone installs have no public site yet — `/` sends visitors to
- * `/admin/login`. Official reΛVe.app never becomes a login wall.
+ * New / standalone installs have no public site yet — `/` stays a quiet
+ * public page. Sign-in is `/admin/login` only. Official reΛVe.app never
+ * becomes a login wall.
  */
 
 export type HomepageTemplate = 'default' | 'landing' | 'login';
@@ -19,9 +20,9 @@ export function parseSiteHomepageTemplate(raw: unknown): HomepageTemplate {
  * Effective homepage chrome.
  *
  * The visitor host wins: `reave.app` stays marketing. Any other public host
- * is a client install — `/` redirects to `/admin` unless that install has
- * its own landing page. `INSTALL_CONFIG=reave` on a client domain must not
- * leak marketing.
+ * is a client install — landing page when they have one, otherwise a quiet
+ * public `/` (not a login wall). `INSTALL_CONFIG=reave` on a client domain
+ * must not leak marketing.
  */
 export function homepageTemplateFromConfig(opts: {
   siteTemplate?: HomepageTemplate;

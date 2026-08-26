@@ -1,6 +1,6 @@
 /**
- * Guard: Clerk login homepage is config-driven (`/` → `/admin/login`) and
- * never applies to official reΛVe.app.
+ * Guard: Clerk login chrome is config-driven (public `/`, auth at `/admin`)
+ * and never applies to official reΛVe.app.
  * Run: npm run check:homepage-login
  */
 import assert from 'node:assert/strict';

@@ -3,13 +3,11 @@ import Header from "../Header.astro";
 import Favicon from "../Favicon.astro";
 import ViewportMeta from "../ViewportMeta.astro";
 import ThemeInit from "../ThemeInit.astro";
-import { isClerkFrontendConfigured } from "../../lib/clerkClient";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import "../../styles/mobile-touch.css";
 import "../../styles/brand.css";
 
 const company = await getCompanyConfig(Astro.request);
-const clerkReady = isClerkFrontendConfigured();
 ---
 
 <!doctype html>
@@ -22,20 +20,13 @@ const clerkReady = isClerkFrontendConfigured();
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
-    <title>Sign In — {company.name}</title>
+    <title>{company.name}</title>
     <Favicon />
   </head>
   <body data-user-id="">
-    <Header signInAutoOpen={clerkReady} />
+    <Header />
     <main class="login-stage">
       <h1>{company.name}</h1>
-      {
-        clerkReady ? (
-          <p>Sign in to continue.</p>
-        ) : (
-          <p>Sign-in is not connected on this install yet.</p>
-        )
-      }
     </main>
   </body>
 </html>
