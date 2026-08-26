@@ -451,7 +451,8 @@ html.site-marketing[data-theme="dark"] {
 html.site-marketing[data-theme="dark"] :is(
   .brand-btn,
   .marketing-nav-cta,
-  [class*="btn--primary"]
+  [class*="btn--primary"],
+  .aw-fab
 ) {
   color: var(--brand-on-gradient);
   -webkit-text-fill-color: var(--brand-on-gradient);

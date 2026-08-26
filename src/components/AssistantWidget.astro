@@ -160,6 +160,11 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
 <script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 
 <style is:global>
+  /*
+   * Paint lives on the button (not .aw-root). The FAB is hoisted onto
+   * document.body, so parent tokens like --aw-fill never reach it — iOS
+   * then draws a white circle and the #fff stroke disappears.
+   */
   .aw-fab {
     position: fixed;
     top: auto;
@@ -173,9 +178,29 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    padding: 0;
+    color: var(--brand-on-gradient, #fff);
+    background: var(--brand-gradient, var(--brand-btn-bg, #111));
+    border: 1px solid transparent;
+    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)),
+      0 2px 8px rgba(0, 0, 0, 0.18);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .aw-fab svg {
+    display: block;
+    flex: none;
+    stroke: currentColor;
+  }
+
+  .aw-fab--portal {
+    color: var(--brand-btn-fg, #fff);
+    background: var(--brand-btn-bg, #111);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
   }
 </style>
 
@@ -192,9 +217,6 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
   }
 
   .aw-fab--site {
-    background: var(--aw-fill);
-    border: 1px solid transparent;
-    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(0, 0, 0, 0.28)), 0 2px 8px rgba(0, 0, 0, 0.18);
     transform: translateX(calc(100% + 28px));
     opacity: 0;
     visibility: hidden;
@@ -205,10 +227,6 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
   }
 
   .aw-fab--portal {
-    background: var(--brand-btn-bg, #111);
-    color: var(--brand-btn-fg, #fff);
-    border: 1px solid transparent;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
     transition: transform 0.18s ease;
   }
 
