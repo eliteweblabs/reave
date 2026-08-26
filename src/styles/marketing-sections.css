@@ -181,8 +181,8 @@ html {
   }
 
   /*
-   * Homepage panes: one phone screen each, with room above the sticky CTAs.
-   * Taller blocks (dialogue, custom prompts, contact form) just grow.
+   * Homepage panes: keep content centered in the column with room above
+   * the sticky CTAs. Taller blocks just grow with their content.
    */
   .home-scroll .home-integrations,
   .home-scroll .home-featured,
@@ -192,8 +192,6 @@ html {
   .home-scroll .fx-page--tour .fx-examples,
   .home-scroll .fx-page--tour .fx-custom,
   .home-scroll .fx-page--tour .fx-closing {
-    min-height: 100svh;
-    min-height: 100dvh;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
