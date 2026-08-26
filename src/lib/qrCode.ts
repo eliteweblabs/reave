@@ -16,6 +16,7 @@ import {
   getStoredCompanyConfig,
   type StoredCompanyConfig,
 } from './companyConfigStore';
+import { adaptLogoContrast } from './logoContrastAdapt';
 
 const QR_DARK = '#111111';
 const QR_LIGHT = '#ffffff';
@@ -26,7 +27,7 @@ const QR_LIGHT = '#ffffff';
  * stay the same size as the previous PNG overlay (high-ECC recoverable).
  */
 export const QR_ICON_FRACTION = 0.28;
-/** White pad around the icon so a dark tile doesn't melt into modules. */
+/** White pad around the icon so a dark mark doesn't melt into modules. */
 export const QR_QUIET_PAD_FRACTION = 0.06;
 
 export type QrCenterBox = {
@@ -95,14 +96,15 @@ async function iconTilePng(stored: StoredCompanyConfig | null, iconSize: number)
     transparent: true,
   });
 
-  // Flatten onto the same dark tile the previous PNG used so light SVGs
-  // (white/gray marks) stay visible inside the white quiet zone.
-  const tile = await sharp(mark)
+  // Sit the glyph on the white quiet zone. Dark marks (the AV triangles)
+  // stay dark; white/gray marks flip so they don't vanish on white.
+  // Flattening onto a black tile hid those dark icons as a solid square.
+  const adapted = await adaptLogoContrast(mark, 'light');
+  const tile = await sharp(adapted.buffer)
     .resize(iconSize, iconSize, {
       fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 1 },
+      background: { r: 255, g: 255, b: 255, alpha: 0 },
     })
-    .flatten({ background: { r: 0, g: 0, b: 0 } })
     .png()
     .toBuffer();
 

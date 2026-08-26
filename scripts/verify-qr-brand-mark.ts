@@ -141,9 +141,51 @@ async function assertQrSize(dataUrl: string, size: number): Promise<Buffer> {
   for (const buf of [svgBuf, imgBuf, initialsBuf]) {
     const [pr, pg, pb] = await samplePixel(buf, box.left + 1, box.top + 1);
     assert.ok(pr > 240 && pg > 240 && pb > 240, `pad mismatch rgb(${pr},${pg},${pb})`);
+  }
+  // Full-bleed lime / red tiles must fill the mark box (not just the white pad).
+  for (const buf of [svgBuf, imgBuf]) {
     const [tr, tg, tb] = await samplePixel(buf, box.left + box.pad + 2, box.top + box.pad + 2);
     assert.ok(!(tr > 240 && tg > 240 && tb > 240), 'icon tile should not be the white pad');
   }
+}
+
+{
+  const size = 160;
+  const box = qrCenterBox(size);
+  // Two black bars with a gap — the Reave AV case. Flattening onto a black
+  // tile used to fill that gap and ruin the QR with a solid square.
+  const darkBarsSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">' +
+    '<rect x="6" y="8" width="20" height="48" fill="#111111"/>' +
+    '<rect x="38" y="8" width="20" height="48" fill="#111111"/>' +
+    '</svg>';
+  const darkQr = await qrCodeDataUrl('https://example.com/dark', size, {
+    name: 'Acme Corp',
+    iconSvg: darkBarsSvg,
+  });
+  const darkBuf = await assertQrSize(darkQr, size);
+  const [gapR, gapG, gapB] = await samplePixel(darkBuf, Math.floor(size / 2), Math.floor(size / 2));
+  assert.ok(
+    gapR > 240 && gapG > 240 && gapB > 240,
+    `dark-glyph gap must stay the white quiet zone, got rgb(${gapR},${gapG},${gapB})`,
+  );
+  const markX = box.left + box.pad + Math.round(box.iconSize * 0.2);
+  const markY = Math.floor(size / 2);
+  const [mr, mg, mb] = await samplePixel(darkBuf, markX, markY);
+  assert.ok(mr < 40 && mg < 40 && mb < 40, `dark glyph should stay dark, got rgb(${mr},${mg},${mb})`);
+
+  const whiteBarsSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">' +
+    '<rect x="6" y="8" width="20" height="48" fill="#ffffff"/>' +
+    '<rect x="38" y="8" width="20" height="48" fill="#ffffff"/>' +
+    '</svg>';
+  const whiteQr = await qrCodeDataUrl('https://example.com/white', size, {
+    name: 'Acme Corp',
+    iconSvg: whiteBarsSvg,
+  });
+  const whiteBuf = await assertQrSize(whiteQr, size);
+  const [wr, wg, wb] = await samplePixel(whiteBuf, markX, markY);
+  assert.ok(wr < 40 && wg < 40 && wb < 40, `light glyph should flip to dark on white, got rgb(${wr},${wg},${wb})`);
 }
 
 console.log('verify-qr-brand-mark: ok');
