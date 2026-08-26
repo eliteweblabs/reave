@@ -171,6 +171,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 					supportPhone={company.supportPhone}
 					supportEmail={company.supportEmail}
 					pagePath={Astro.url.pathname}
+					hideFabForHero={isIndexPage}
 				/>
 			)
 		}
