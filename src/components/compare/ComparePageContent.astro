@@ -222,8 +222,8 @@ const graphData = {
   .cg-card {
     padding: 20px 18px;
     border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--site-card-border, var(--site-border));
+    background: transparent;
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -255,8 +255,7 @@ const graphData = {
   .cg-canvas {
     width: 100%;
     border-radius: 12px;
-    background: rgba(0, 0, 0, 0.22);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: transparent;
     overflow: hidden;
     /* Fixed heights below — never flex-grow. Growing with the SVG child
        + ResizeObserver re-measure is what made these canvases run away. */

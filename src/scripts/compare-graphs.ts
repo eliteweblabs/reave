@@ -42,6 +42,17 @@ const TONE: Record<string, string> = {
 
 const PATH_COLORS = { saas: "#f87171", reave: "#a855f7", custom: "#fb923c" } as const;
 
+function themeInk(host: HTMLElement) {
+  const cs = getComputedStyle(host);
+  return {
+    fg: cs.getPropertyValue("--site-fg").trim() || "#171717",
+    muted: cs.getPropertyValue("--site-fg-muted").trim() || "#525252",
+    faint: cs.getPropertyValue("--site-fg-faint").trim() || "#a3a3a3",
+    border: cs.getPropertyValue("--site-border").trim() || "rgba(23, 23, 23, 0.1)",
+    fill: cs.getPropertyValue("--demo-fill").trim() || "rgba(23, 23, 23, 0.08)",
+  };
+}
+
 function hostSize(host: HTMLElement): { w: number; h: number } {
   const w = Math.max(1, Math.round(host.clientWidth || 640));
   const h = Math.max(1, Math.round(host.clientHeight || 320));
@@ -73,6 +84,7 @@ function drawTcoChart(
 ): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
+  const ink = themeInk(host);
   const pad = { t: 24, r: 20, b: 44, l: 48 };
   const draw = createDraw(host, w, h);
   const innerW = w - pad.l - pad.r;
@@ -87,9 +99,9 @@ function drawTcoChart(
   // grid
   for (let g = 0; g <= 4; g++) {
     const y = pad.t + (g / 4) * innerH;
-    draw.line(pad.l, y, w - pad.r, y).stroke({ color: "rgba(255,255,255,0.06)", width: 1 });
+    draw.line(pad.l, y, w - pad.r, y).stroke({ color: ink.border, width: 1 });
     const val = Math.round(maxY * (1 - g / 4));
-    draw.text(`$${val}K`).font({ size: 9, family: "inherit" }).fill("rgba(255,255,255,0.35)").move(4, y - 5);
+    draw.text(`$${val}K`).font({ size: 9, family: "inherit" }).fill(ink.faint).move(4, y - 5);
   }
 
   labels.forEach((lbl, i) => {
@@ -97,7 +109,7 @@ function drawTcoChart(
     draw
       .text(lbl)
       .font({ size: 8, family: "inherit" })
-      .fill("rgba(255,255,255,0.4)")
+      .fill(ink.faint)
       .center(xAt(i), h - 16);
   });
 
@@ -152,7 +164,7 @@ function drawTcoChart(
   data.series.forEach((s) => {
     const hit = draw.rect(80, 18).move(lx, 4).fill("transparent").css({ cursor: "pointer" });
     draw.rect(10, 10).move(lx, 7).radius(2).fill(s.color);
-    draw.text(s.label).font({ size: 10, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.75)").move(lx + 14, 5);
+    draw.text(s.label).font({ size: 10, weight: 600, family: "inherit" }).fill(ink.muted).move(lx + 14, 5);
     hit.on("click", () => {
       if (visible.has(s.id)) visible.delete(s.id);
       else visible.add(s.id);
@@ -174,6 +186,7 @@ function drawUtilizationDonut(
   animate: boolean,
 ): () => void {
   host.innerHTML = "";
+  const ink = themeInk(host);
   const size = Math.min(host.clientWidth || 280, host.clientHeight || 280, 300);
   const draw = createDraw(host, size, size);
   const cx = size / 2;
@@ -201,7 +214,7 @@ function drawUtilizationDonut(
       .path(d)
       .fill(color)
       .opacity(animate ? 0 : 0.9)
-      .stroke({ color: "rgba(0,0,0,0.3)", width: 1 })
+      .stroke({ color: ink.border, width: 1 })
       .css({ cursor: "pointer" });
     if (animate) slice.animate(500, (start + 90) * 1.2, "now").opacity(0.9);
     slice
@@ -221,13 +234,13 @@ function drawUtilizationDonut(
   const pctText = draw
     .text("65%")
     .font({ size: size * 0.13, weight: 800, family: "inherit" })
-    .fill("#fff")
+    .fill(ink.fg)
     .center(cx, cy - 4)
     .opacity(animate ? 0 : 1);
   const wastedText = draw
     .text("wasted")
     .font({ size: size * 0.05, weight: 600, family: "inherit" })
-    .fill("rgba(255,255,255,0.5)")
+    .fill(ink.muted)
     .center(cx, cy + size * 0.06)
     .opacity(animate ? 0 : 1);
   if (animate) {
@@ -246,6 +259,7 @@ function drawRadialSpectrum(
   animate: boolean,
 ): () => void {
   host.innerHTML = "";
+  const ink = themeInk(host);
   const size = Math.min(host.clientWidth || 320, host.clientHeight || 320, 340);
   const draw = createDraw(host, size, size);
   const cx = size / 2;
@@ -270,7 +284,7 @@ function drawRadialSpectrum(
     draw
       .text(item.label)
       .font({ size: 8, weight: 600, family: "inherit" })
-      .fill("rgba(255,255,255,0.65)")
+      .fill(ink.muted)
       .center(lx, ly);
 
     bar.css({ cursor: "pointer" }).on("mouseenter", () => {
@@ -287,6 +301,7 @@ function drawRadialSpectrum(
 function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
+  const ink = themeInk(host);
   const draw = createDraw(host, w, h);
   const colW = w / 3;
 
@@ -331,8 +346,8 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement,
         .fill(panel.color)
         .opacity(0.2)
         .stroke({ color: panel.color, width: 2 });
-      draw.text("Single app").font({ size: 9, family: "inherit" }).fill("#fff").center(ox, oy - 4);
-      draw.text("3–6 mo build").font({ size: 8, family: "inherit" }).fill("rgba(255,255,255,0.5)").center(ox, oy + 10);
+      draw.text("Single app").font({ size: 9, family: "inherit" }).fill(ink.fg).center(ox, oy - 4);
+      draw.text("3–6 mo build").font({ size: 8, family: "inherit" }).fill(ink.muted).center(ox, oy + 10);
       return;
     }
 
@@ -342,7 +357,7 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement,
     draw
       .text(panel.hub ? "OS" : "Team")
       .font({ size: 8, weight: 700, family: "inherit" })
-      .fill("#fff")
+      .fill(ink.fg)
       .center(ox, oy);
 
     const satellites = panel.nodes;
@@ -361,8 +376,8 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement,
         });
       if (animate) edge.animate(400, i * 30, "now").plot(ox, oy, nx, ny);
 
-      const node = draw.circle(16).center(nx, ny).fill("rgba(255,255,255,0.06)").stroke({ color: panel.color, width: 1 });
-      draw.text(label).font({ size: 6, weight: 600, family: "inherit" }).fill("rgba(255,255,255,0.7)").center(nx, ny);
+      const node = draw.circle(16).center(nx, ny).fill(ink.fill).stroke({ color: panel.color, width: 1 });
+      draw.text(label).font({ size: 6, weight: 600, family: "inherit" }).fill(ink.muted).center(nx, ny);
 
       node.css({ cursor: "pointer" }).on("mouseenter", () => {
         node.fill(panel.color).opacity(0.35);
@@ -374,16 +389,16 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement,
             : `<strong>${label}</strong> — another silo. Data doesn't sync without Zapier duct tape.`,
         );
       });
-      node.on("mouseleave", () => node.fill("rgba(255,255,255,0.06)").opacity(1));
+      node.on("mouseleave", () => node.fill(ink.fill).opacity(1));
     });
   });
 
   draw
     .line(colW, 36, colW, h - 12)
-    .stroke({ color: "rgba(255,255,255,0.08)", width: 1 });
+    .stroke({ color: ink.border, width: 1 });
   draw
     .line(colW * 2, 36, colW * 2, h - 12)
-    .stroke({ color: "rgba(255,255,255,0.08)", width: 1 });
+    .stroke({ color: ink.border, width: 1 });
 
   return () => draw.remove();
 }
@@ -392,6 +407,7 @@ function drawTopology(host: HTMLElement, companyName: string, root: HTMLElement,
 function drawRadar(host: HTMLElement, data: CompareGraphData, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
+  const ink = themeInk(host);
   const draw = createDraw(host, w, h);
   const cx = w / 2;
   const cy = h / 2 + 8;
@@ -414,18 +430,18 @@ function drawRadar(host: HTMLElement, data: CompareGraphData, root: HTMLElement,
   [1, 2, 3].forEach((level) => {
     const ringPts = Array.from({ length: n }, (_, i) => ptAt(i, level));
     const d = ringPts.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ") + " Z";
-    draw.path(d).fill("none").stroke({ color: "rgba(255,255,255,0.08)", width: 1 });
+    draw.path(d).fill("none").stroke({ color: ink.border, width: 1 });
   });
 
   // axes + labels
   rows.forEach((row, i) => {
     const [x2, y2] = ptAt(i, 3);
-    draw.line(cx, cy, x2, y2).stroke({ color: "rgba(255,255,255,0.1)", width: 1 });
+    draw.line(cx, cy, x2, y2).stroke({ color: ink.border, width: 1 });
     const [lx, ly] = ptAt(i, 3.55);
     draw
       .text(row.dimension)
       .font({ size: 7, weight: 600, family: "inherit" })
-      .fill("rgba(255,255,255,0.55)")
+      .fill(ink.muted)
       .center(lx, ly);
   });
 
@@ -462,6 +478,7 @@ function drawRadar(host: HTMLElement, data: CompareGraphData, root: HTMLElement,
 function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w } = hostSize(host);
+  const ink = themeInk(host);
   const rowH = 22;
   const padL = 130;
   const barW = 36;
@@ -488,7 +505,7 @@ function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTM
     draw
       .text(row.dimension)
       .font({ size: 8, weight: 600, family: "inherit" })
-      .fill("rgba(255,255,255,0.72)")
+      .fill(ink.muted)
       .move(0, y + 4);
 
     paths.forEach((p, pi) => {
@@ -519,6 +536,7 @@ function drawFeatureHeatmap(host: HTMLElement, data: CompareGraphData, root: HTM
 function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLElement, animate: boolean): () => void {
   host.innerHTML = "";
   const { w, h } = hostSize(host);
+  const ink = themeInk(host);
   const draw = createDraw(host, w, h);
   const size = Math.min(w, h / 0.72);
   const cx = w / 2;
@@ -555,13 +573,13 @@ function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLEleme
     const pctEl = draw
       .text(pct)
       .font({ size: pctSize, weight: 800, family: "inherit" })
-      .fill("#fff")
+      .fill(ink.fg)
       .center(lx, ly - 4)
       .opacity(animate ? 0 : 1);
     const labelEl = draw
       .text(label)
       .font({ size: labelSize, weight: 600, family: "inherit" })
-      .fill("rgba(255,255,255,0.55)")
+      .fill(ink.muted)
       .center(lx, ly + 8)
       .opacity(animate ? 0 : 1);
     if (animate) {
@@ -576,7 +594,7 @@ function drawNinetyGauge(host: HTMLElement, companyName: string, root: HTMLEleme
   const nameEl = draw
     .text(companyName)
     .font({ size: nameSize, weight: 700, family: "inherit" })
-    .fill("rgba(255,255,255,0.7)")
+    .fill(ink.fg)
     .center(cx, cy + Math.max(8, r * 0.08))
     .opacity(animate ? 0 : 1);
   if (animate) nameEl.animate(450, 700, "now").opacity(1);
