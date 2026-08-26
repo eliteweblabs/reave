@@ -26,7 +26,7 @@ import { isSilentTriageStatus } from './emailRules';
 
 const log = createLogger('admin-agent');
 
-export { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
+export { agentAlertUserId, agentAlertUserIds, postToSystemAlertsThread } from './systemAlertsThread';
 
 export function isRailwayAlertStatus(status: string): boolean {
   return status.toUpperCase().startsWith('RAILWAY');

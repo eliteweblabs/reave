@@ -54,8 +54,17 @@ async function withReuseLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
+/** Clerk user ids allowed as deployment owners (`AGENT_ALERT_USER_ID`, comma-separated). */
+export function agentAlertUserIds(): string[] {
+  return (serverEnv('AGENT_ALERT_USER_ID') ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** Primary owner id — first entry, used for System alerts threads. */
 export function agentAlertUserId(): string | null {
-  return serverEnv('AGENT_ALERT_USER_ID')?.trim() || null;
+  return agentAlertUserIds()[0] ?? null;
 }
 
 function alertThreadTitle(opts: { message: string; push?: { title: string }; reuseTitle?: string }): string {

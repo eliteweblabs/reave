@@ -740,7 +740,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'AGENT_ALERT_USER_ID',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Clerk user id of the deployment owner (set after first sign-in).',
+    description: 'Clerk user id of the deployment owner (set after first sign-in). Comma-separated for multiple admins.',
     required: false,
   }),
   v({
