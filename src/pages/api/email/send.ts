@@ -4,7 +4,7 @@
 
 import type { APIContext } from 'astro';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../lib/emailInboxStore';
-import { buildReplyEmailHeaders } from '../../../lib/emailReply';
+import { buildReplyEmailHeaders, formatQuotedReplyHtml, splitQuotedReplyBody } from '../../../lib/emailReply';
 import { brandedPlainTextEmail } from '../../../lib/inboundEmailReply';
 import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
@@ -88,7 +88,22 @@ export async function POST(context: APIContext): Promise<Response> {
       inbound?.contactName?.trim().split(/\s+/)[0] ||
       primaryTo.split('@')[0] ||
       'there';
-    const wrapped = await brandedPlainTextEmail({ firstName, body: sendText, signature });
+    const { quote } = splitQuotedReplyBody(sendText);
+    const quotedHtml =
+      quote && inbound
+        ? formatQuotedReplyHtml({
+            from: inbound.from,
+            receivedAt: inbound.receivedAt,
+            bodyHtml: inbound.bodyHtml,
+            bodyText: inbound.bodyText,
+          })
+        : undefined;
+    const wrapped = await brandedPlainTextEmail({
+      firstName,
+      body: sendText,
+      signature,
+      quotedHtml,
+    });
     sendText = wrapped.text;
     sendHtml = wrapped.html;
   } else {

@@ -12,6 +12,11 @@ import {
   isPlaceholderProjectTitle,
   subjectRelatesToOutbound,
 } from '../src/lib/emailProjectReply.ts';
+import {
+  formatQuotedReplyHtml,
+  quotedReplyHtmlFromText,
+  splitQuotedReplyBody,
+} from '../src/lib/emailReply.ts';
 
 assert.equal(isForwardSubject('Fwd: Are you available?'), true);
 assert.equal(isForwardSubject('FW: Hello'), true);
@@ -60,5 +65,35 @@ assert.equal(
   ),
   true,
 );
+
+const quotedCompose = [
+  'Thanks for the update.',
+  '',
+  'T',
+  '',
+  '---',
+  'On 8/18/2026, 1:50:03 PM, support@stripe.com wrote:',
+  '> Hi T,',
+  '> Thanks for reaching out.',
+].join('\n');
+const split = splitQuotedReplyBody(quotedCompose);
+assert.equal(split.draft, 'Thanks for the update.\n\nT');
+assert.match(split.quote, /On 8\/18\/2026/);
+assert.equal(splitQuotedReplyBody('Just a new email.').quote, '');
+
+const quoteHtml = quotedReplyHtmlFromText(split.quote);
+assert.match(quoteHtml, /<blockquote/);
+assert.match(quoteHtml, /<br>/);
+assert.match(quoteHtml, /Hi T,/);
+assert.doesNotMatch(quoteHtml, /&gt; Hi T/);
+
+const originalHtml = formatQuotedReplyHtml({
+  from: 'support@stripe.com',
+  receivedAt: '2026-08-18T17:50:03.000Z',
+  bodyHtml: '<html><body><p><strong>Hi T,</strong></p><p>Thanks for reaching out.</p></body></html>',
+});
+assert.match(originalHtml, /<strong>Hi T,<\/strong>/);
+assert.match(originalHtml, /support@stripe\.com wrote:/);
+assert.doesNotMatch(originalHtml, /<html/);
 
 console.log('email-reply checks passed');

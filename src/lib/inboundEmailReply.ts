@@ -3,7 +3,13 @@
  */
 
 import type { EmailInboxRecord } from './emailInboxStore';
-import { buildReplyEmailHeaders, buildReplySubject, resolveReplyRecipient } from './emailReply';
+import {
+  buildReplyEmailHeaders,
+  buildReplySubject,
+  quotedReplyHtmlFromText,
+  resolveReplyRecipient,
+  splitQuotedReplyBody,
+} from './emailReply';
 import { brandedEmailHtml, type EmailCta } from './emailTemplates';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from './outbound';
@@ -45,19 +51,25 @@ export async function brandedPlainTextEmail(opts: {
   cta?: EmailCta;
   note?: string;
   signature?: string;
+  /** Pre-built HTML for the quoted original (reply threads). */
+  quotedHtml?: string;
 }): Promise<{ text: string; html: string }> {
   const firstName = firstNameFrom(opts.firstName);
-  const paragraphs = bodyParagraphs(opts.body);
+  const { draft, quote } = splitQuotedReplyBody(opts.body);
+  const paragraphs = bodyParagraphs(draft);
   const signature = opts.signature?.trim() || '';
   const textParts = [`Hi ${firstName},`, '', ...paragraphs];
   if (signature) textParts.push('', signature);
-  const text = textParts.join('\n\n');
+  let text = textParts.join('\n\n');
+  if (quote) text += quote.startsWith('\n') ? quote : `\n\n${quote}`;
+  const quotedHtml = opts.quotedHtml?.trim() || (quote ? quotedReplyHtmlFromText(quote) : '');
   const html = await brandedEmailHtml({
     firstName,
     paragraphs,
     cta: opts.cta,
     note: opts.note,
     signature: signature || undefined,
+    quotedHtml: quotedHtml || undefined,
   });
   return { text, html };
 }

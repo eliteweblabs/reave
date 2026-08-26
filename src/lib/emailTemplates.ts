@@ -74,6 +74,8 @@ export async function brandedEmailHtml(opts: {
   unsubscribeUrl?: string;
   /** Marketing footer: physical mailing address (CAN-SPAM requirement). */
   footerAddress?: string;
+  /** Quoted original message HTML (reply threads). Rendered after the new copy. */
+  quotedHtml?: string;
 }): Promise<string> {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
@@ -101,7 +103,7 @@ export async function brandedEmailHtml(opts: {
   const bodyRows = opts.paragraphs
     .map(
       (p) =>
-        `<tr><td style="padding:0 0 16px"><p class="email-text" style="margin:0;color:#1a1a1a;font-size:15px;line-height:1.65">${esc(p)}</p></td></tr>`,
+        `<tr><td style="padding:0 0 16px"><p class="email-text" style="margin:0;color:#1a1a1a;font-size:15px;line-height:1.65">${esc(p).replace(/\n/g, '<br>')}</p></td></tr>`,
     )
     .join('\n');
 
@@ -180,6 +182,10 @@ export async function brandedEmailHtml(opts: {
         }</p></td></tr>`
       : '';
 
+  const quotedHtml = opts.quotedHtml?.trim()
+    ? `<tr><td style="padding:24px 0 8px;border-top:1px solid #e5e5e5">${opts.quotedHtml.trim()}</td></tr>`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -229,6 +235,7 @@ export async function brandedEmailHtml(opts: {
                 ${metaHtml}
                 ${noteHtml}
                 ${complianceHtml}
+                ${quotedHtml}
 
               </table>
             </td>

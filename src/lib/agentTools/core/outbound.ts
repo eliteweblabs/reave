@@ -107,7 +107,7 @@ import {
   type EmailInboxPatch,
 } from '../../emailInboxStore';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../emailMoney';
-import { buildReplyEmailHeaders } from '../../emailReply';
+import { buildReplyEmailHeaders, formatQuotedReplyHtml, splitQuotedReplyBody } from '../../emailReply';
 import { brandedPlainTextEmail } from '../../inboundEmailReply';
 import {
   appendSignatureToHtmlFragment,
@@ -212,13 +212,23 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
     html = appendSignatureToHtmlFragment(body, signature);
   } else {
     let firstName = to.split('@')[0] || 'there';
+    let quotedHtml: string | undefined;
     if (inReplyToEmailId) {
       const inbound = await storeGetEmailInbox(inReplyToEmailId);
       if (inbound?.contactName) {
         firstName = inbound.contactName.trim().split(/\s+/)[0] || firstName;
       }
+      const { quote } = splitQuotedReplyBody(body);
+      if (quote && inbound) {
+        quotedHtml = formatQuotedReplyHtml({
+          from: inbound.from,
+          receivedAt: inbound.receivedAt,
+          bodyHtml: inbound.bodyHtml,
+          bodyText: inbound.bodyText,
+        });
+      }
     }
-    const wrapped = await brandedPlainTextEmail({ firstName, body, signature });
+    const wrapped = await brandedPlainTextEmail({ firstName, body, signature, quotedHtml });
     text = wrapped.text;
     html = wrapped.html;
   }
