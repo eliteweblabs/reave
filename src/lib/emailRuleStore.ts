@@ -11,6 +11,7 @@ import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { isCanonicalReaveInstall } from './installConfig';
 import { serverEnv } from './serverEnv';
+import { tightenSingleWordAnyMatchRules } from './emailTriagePhrases';
 import {
   DEFAULT_RULES,
   NOTIFY_ON_UNMATCHED,
@@ -947,9 +948,10 @@ export function applyRepoCatalog(rules: EmailRuleRecord[]): { rules: EmailRuleRe
 /** Keep DEFAULT_RULES in sync on every load; persist only when the catalog drifted. */
 async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
   const synced = applyRepoCatalog(config.rules);
-  const numbered = normalizeEmailRuleSortOrder(synced.rules);
+  const tightened = tightenSingleWordAnyMatchRules(synced.rules);
+  const numbered = normalizeEmailRuleSortOrder(tightened.rules);
   const scopeSeeded = true;
-  if (!synced.changed && !numbered.changed && config.scopeSeeded) {
+  if (!synced.changed && !tightened.changed && !numbered.changed && config.scopeSeeded) {
     return { ...config, rules: numbered.rules, scopeSeeded };
   }
   const merged: EmailRulesConfig = {

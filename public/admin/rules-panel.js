@@ -53,7 +53,7 @@ import {
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260824b';
+} from './email-triage-lab.js?v=20260826c';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
@@ -420,10 +420,10 @@ async function loadRulesTab() {
     return;
   }
   if (gen !== rulesLoadGen) return;
-  if (ruleState.activeId && !ruleState.rules.some((r) => r.id === ruleState.activeId)) {
-    ruleState.activeId = null;
+  if (ruleState.activeId && !ruleState.rules.some((r) => String(r.id) === String(ruleState.activeId))) {
+    // Keep the requested id so Edit rule can show a missing-rule stub instead of
+    // wiping the selection and leaving an empty filtered pipeline.
     ruleState.dirty = false;
-    getRuleEditor()?.classList.remove('de-pane-active');
   }
   renderRulesEditor();
 }
@@ -1650,13 +1650,7 @@ async function openRulesLabWithEmail(emailRecord, opts = {}) {
 function resolveLabRuleId(ruleId) {
   const id = String(ruleId || '').trim();
   if (id && ruleState.rules.some((r) => String(r.id) === id)) return id;
-  const fallback = ruleState.rules.find(
-    (r) =>
-      String(r.title || '').toLowerCase() === 'shipment tracked' ||
-      (Array.isArray(r.phrases) &&
-        r.phrases.some((p) => /shipment\s*[-]?track/i.test(String(p)))),
-  );
-  return fallback ? String(fallback.id) : '';
+  return '';
 }
 
 /** Open Email Lab and expand the rule the inbox classification landed on. */
@@ -1666,12 +1660,17 @@ async function openRulesLabWithRule(ruleId, opts = {}) {
   shell.setActiveMap?.('rules', { force: true });
   await loadRulesTab();
   const id = resolveLabRuleId(requested);
-  ruleState.activeId = id || null;
+  ruleState.activeId = id || requested || null;
+  const lab = getTriageLab();
   if (opts.email && typeof opts.email === 'object') {
-    await getTriageLab().loadInboxEmail(opts.email, { run: opts.run !== false });
+    await lab.loadInboxEmail(opts.email, {
+      run: opts.run !== false,
+      filterToMatches: false,
+      focusRuleId: requested,
+    });
   }
   if (!id) {
-    getTriageLab().syncExpandedRule();
+    lab.showMissingRule?.(requested, opts.ruleTitle || opts.email?.matchedRuleTitle);
     return;
   }
   await openRuleEditor(id);

@@ -7,6 +7,15 @@ import type { EmailInboxRecord } from './emailInboxStore';
 import { storeCreateEmailRule } from './emailRuleStore';
 import type { RuleField } from './emailRules';
 import { storeWriteKnowledge } from './knowledgeStore';
+import { extractPhrases, triageRuleMatchMode } from './emailTriagePhrases';
+
+export {
+  extractPhrases,
+  isLooseSingleWordPhrase,
+  ruleNeedsAllModeForSingleWords,
+  tightenSingleWordAnyMatchRules,
+  triageRuleMatchMode,
+} from './emailTriagePhrases';
 
 export type EmailTriageFeedbackAction = 'expected' | 'important' | 'ignore' | 'teach' | 'accepted';
 
@@ -29,45 +38,6 @@ export function isEmailAwaitingTriage(
 ): boolean {
   return pendingReview && !record.automationTriageAt && !record.automationAckAt;
 }
-
-export function extractPhrases(record: Pick<EmailInboxRecord, 'subject' | 'summary' | 'status'>): string[] {
-  const blob = [record.subject, record.summary].filter(Boolean).join(' ');
-  const words = blob
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((w) => w.length >= 4 && !STOP_WORDS.has(w));
-  const unique = [...new Set(words)].slice(0, 4);
-  if (unique.length) return unique;
-  const status = record.status?.trim();
-  if (status && status !== 'UNMATCHED') return [status.toLowerCase()];
-  const subject = record.subject?.trim();
-  if (subject && subject.length >= 4) return [subject.slice(0, 60).toLowerCase()];
-  return ['inbound mail'];
-}
-
-const STOP_WORDS = new Set([
-  'about',
-  'after',
-  'before',
-  'could',
-  'email',
-  'from',
-  'have',
-  'https',
-  'please',
-  'reply',
-  'subject',
-  'thank',
-  'that',
-  'their',
-  'there',
-  'these',
-  'this',
-  'with',
-  'would',
-  'your',
-]);
 
 function slugify(input: string): string {
   return input
@@ -157,7 +127,7 @@ export async function createTriageFeedback(opts: {
     status,
     description,
     phrases,
-    matchMode: 'any',
+    matchMode: triageRuleMatchMode(phrases),
     fields,
     notify,
     enabled: true,

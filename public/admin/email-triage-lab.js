@@ -258,6 +258,10 @@ export function createEmailTriageLab(deps) {
     liveMatchIndex: 0,
     liveMatchWhen: '',
     liveMatchMeta: '',
+    /** When false, loaded inbox mail highlights matches but does not hide other rules. */
+    filterToMatches: true,
+    missingRuleId: '',
+    missingRuleTitle: '',
   };
 
   const LIVE_DEBOUNCE_MS = 500;
@@ -388,6 +392,9 @@ export function createEmailTriageLab(deps) {
   function ruleMatchesComposeFilter(rule) {
     const terms = filterTerms();
     if (!terms.length) return true;
+    // Edit-rule from an inbox audit: keep the full pipeline visible so a cited
+    // rule is not hidden just because the tester chips omit the matching word.
+    if (state.filterToMatches === false) return true;
     // Loaded inbox email (from + subject chips): only rules that would actually fire.
     // Short typed terms still search titles/phrases so you can find a rule by name.
     if (composedEmailLooksComplete()) return ruleMatchesComposedEmail(rule);
@@ -430,7 +437,7 @@ export function createEmailTriageLab(deps) {
     }
     const empty = root.querySelector('[data-lab-rules-empty]');
     if (empty) {
-      empty.hidden = visible > 0;
+      empty.hidden = visible > 0 || Boolean(state.missingRuleId);
       empty.textContent = filterTerms().length
         ? 'No matching rules.'
         : 'No rules yet.';
@@ -632,10 +639,7 @@ export function createEmailTriageLab(deps) {
     );
     const html = resolveLabHtml(record.bodyHtml || record.html || '', text);
     const plain = plainTextForLab(text, html);
-    const snippet = plain
-      .split('\n')
-      .map((s) => s.trim())
-      .find((s) => s.length >= 2 && s.length <= 80);
+    const excerpt = plain.replace(/\s+/g, ' ').trim().slice(0, 500);
 
     state.chips = [];
     if (fromEmail) {
@@ -649,8 +653,8 @@ export function createEmailTriageLab(deps) {
     if (subject) {
       state.chips.push({ id: newChipId(), field: 'subject', text: subject, contact: null });
     }
-    if (snippet && snippet.toLowerCase() !== subject.toLowerCase()) {
-      state.chips.push({ id: newChipId(), field: 'body', text: snippet, contact: null });
+    if (excerpt && excerpt.toLowerCase() !== subject.toLowerCase()) {
+      state.chips.push({ id: newChipId(), field: 'body', text: excerpt, contact: null });
     }
     state.chipDraft = '';
     state.attachments = [];
@@ -1066,6 +1070,20 @@ export function createEmailTriageLab(deps) {
     scopeBar.appendChild(scopeFilter.el);
     pipeList.appendChild(scopeBar);
 
+    if (state.missingRuleId) {
+      const missing = document.createElement('div');
+      missing.className = 're-lab-pipe-card re-lab-pipe-card--missing';
+      missing.dataset.kind = 'missing';
+      const title = state.missingRuleTitle || 'Cited rule';
+      missing.innerHTML = `<div class="re-lab-pipe-card-head">
+        <span class="re-lab-pipe-main">
+          <span class="re-lab-pipe-title">${escHtml(title)}</span>
+          <span class="re-lab-pipe-sub">This classification still cites this rule, but it is not in the current list. It may have been deleted.</span>
+        </span>
+      </div>`;
+      pipeList.appendChild(missing);
+    }
+
     orderedRules().forEach((rule, i) => {
       const card = document.createElement('div');
       card.className = 're-lab-pipe-card re-lab-pipe-card--rule';
@@ -1125,7 +1143,7 @@ export function createEmailTriageLab(deps) {
     rulesEmpty.className = 'de-empty';
     rulesEmpty.dataset.labRulesEmpty = '1';
     rulesEmpty.textContent = 'No rules yet.';
-    rulesEmpty.hidden = orderedRules().length > 0;
+    rulesEmpty.hidden = orderedRules().length > 0 || Boolean(state.missingRuleId);
     pipeList.appendChild(rulesEmpty);
 
     pipe.appendChild(pipeList);
@@ -1145,10 +1163,23 @@ export function createEmailTriageLab(deps) {
     },
     /** Prefill chips from an inbox record, then live-test. */
     async loadInboxEmail(record, opts = {}) {
+      state.filterToMatches = opts.filterToMatches !== false;
+      if (opts.focusRuleId) {
+        state.missingRuleId = '';
+        state.missingRuleTitle = '';
+      }
       loadFromInboxEmail(record);
       const root = deps.getRuleEditor();
       if (root) renderLabShell(root);
       if (opts.run !== false) await runLiveTest();
+    },
+    showMissingRule(ruleId, title) {
+      const id = String(ruleId || '').trim();
+      state.missingRuleId = id;
+      state.missingRuleTitle = String(title || '').trim();
+      state.filterToMatches = false;
+      const root = deps.getRuleEditor();
+      if (root) renderLabShell(root);
     },
     syncExpandedRule,
     destroy() {

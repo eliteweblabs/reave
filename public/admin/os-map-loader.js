@@ -266,7 +266,7 @@ import {
   openRulesLabWithRule,
   startNewRule,
   showKeywordCollisionAlert,
-} from './rules-panel.js?v=20260826a';
+} from './rules-panel.js?v=20260826c';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -11293,7 +11293,13 @@ async function openClassificationRule(ruleId, ev, opts = {}) {
   const id = String(ruleId || '').trim();
   const full = ev?._fullLoaded ? ev : ev?.id ? await fetchFullEmailRecord(ev) : ev;
   if (id) {
-    await openRulesLabWithRule(id, { email: full, run: true });
+    const ruleTitle =
+      ev?.matchedRuleTitle ||
+      (Array.isArray(ev?.classificationAudit)
+        ? ev.classificationAudit.find((s) => String(s.ruleId || '') === id)?.ruleTitle
+        : '') ||
+      '';
+    await openRulesLabWithRule(id, { email: full, run: true, ruleTitle });
     return;
   }
   if (opts.lab && full) await openRulesLabWithEmail(full, { run: true });

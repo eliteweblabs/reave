@@ -2192,6 +2192,10 @@ button.de-placeholder-action:active {
   opacity: 0.9;
 }
 .re-lab-pipe-card--off { opacity: 0.5; }
+.re-lab-pipe-card--missing {
+  border-style: dashed;
+  opacity: 0.9;
+}
 .re-lab-pipe-card--matched {
   border-color: var(--list-item-active-border);
   box-shadow: inset 3px 0 0 var(--list-item-active-border);

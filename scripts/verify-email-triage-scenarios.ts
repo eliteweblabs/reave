@@ -20,6 +20,12 @@ import {
   type EmailRule,
   type InboundEmail,
 } from '../src/lib/emailRules';
+import {
+  extractPhrases,
+  ruleNeedsAllModeForSingleWords,
+  tightenSingleWordAnyMatchRules,
+  triageRuleMatchMode,
+} from '../src/lib/emailTriagePhrases';
 
 type Scenario = {
   id: string;
@@ -523,6 +529,66 @@ function main() {
     assert.equal(looksLikeFailedOrDuePayment(stripeCapital), true, 'stripe capital is due/debit');
     assert.equal(shouldAutoFileAsReceipt(stripeCapital), null, 'stripe capital is not a receipt');
     assert.ok(shouldAutoFileAsReceipt(amazonOrder), 'amazon order confirm is a receipt');
+
+    const buildPhrases = extractPhrases({
+      subject: 'Build failed for REAVE App Demo',
+      summary: '',
+      status: 'RAILWAY_ALERT',
+    });
+    assert.ok(
+      buildPhrases.includes('build failed'),
+      `Ignore/Learned phrases should keep "build failed", got ${JSON.stringify(buildPhrases)}`,
+    );
+    assert.ok(
+      !buildPhrases.includes('build'),
+      'single word "build" must not become a DELETE/alert phrase',
+    );
+    assert.equal(triageRuleMatchMode(buildPhrases), 'any');
+
+    const petPhrases = extractPhrases({
+      subject: 'Four Leggers Pet Supplies & Services Grooming request',
+      summary: '',
+      status: 'NEEDS_CHECK',
+    });
+    assert.ok(
+      petPhrases.some((p) => p.includes('leggers')),
+      `Four Leggers phrases should stay specific, got ${JSON.stringify(petPhrases)}`,
+    );
+    assert.ok(
+      !petPhrases.includes('services'),
+      'single word "services" must not become a rule phrase',
+    );
+
+    const loose = {
+      matchMode: 'any' as const,
+      phrases: ['build', 'failed', 'demo', 'railway'],
+      fields: ['subject', 'body'],
+      scope: 'personal',
+    };
+    assert.equal(ruleNeedsAllModeForSingleWords(loose), true);
+    const tightened = tightenSingleWordAnyMatchRules([loose]);
+    assert.equal(tightened.changed, true);
+    assert.equal(tightened.rules[0]?.matchMode, 'all');
+
+    const wixEmail = {
+      from: 'renewals@name.com',
+      subject: 'Jkahan@boxcapitalinc.com, renew now to keep your domain active',
+      text: 'Shop Google\nBuild your online presence with Wix\nWix’s design tools and built-in marketing',
+    };
+    const ignoreBuild: EmailRule = {
+      status: 'DELETE',
+      phrases: ['build', 'failed', 'demo', 'railway'],
+      matchMode: 'all',
+      fields: ['subject', 'body'],
+      notify: false,
+      enabled: true,
+    };
+    const walk = evaluateEmailRules(wixEmail, [ignoreBuild]);
+    assert.equal(
+      walk.classification.status,
+      'UNMATCHED',
+      'tightened Ignore: build-failed must not match a name.com Wix footer',
+    );
   } catch (e) {
     failed += 1;
     console.error(`  !! ${(e as Error).message}`);
