@@ -205,6 +205,7 @@ const appHandler = async (
       normalizedPath !== "/apple-touch-icon-precomposed.png" &&
       !normalizedPath.startsWith("/admin/") &&
       !normalizedPath.startsWith("/api/") &&
+      !normalizedPath.startsWith("/branding/") &&
       !normalizedPath.startsWith("/c/") &&
       !normalizedPath.startsWith("/doc/") &&
       !normalizedPath.startsWith("/focus") &&
