@@ -1071,11 +1071,34 @@ function mountHeaderTimerHook() {
     }
   };
 
+  const renderHeaderIcon = () => {
+    const showStop = open && Boolean(view.running);
+    btn.classList.toggle('is-stop', showStop);
+    btn.disabled = busy;
+    if (showStop) {
+      btn.innerHTML = iosIcon('square', 14);
+      const title = view.timer ? projectTitleFromTimer(view.timer) : 'timer';
+      btn.setAttribute('aria-label', busy ? 'Stopping timer' : `Stop timer on ${title}`);
+      return;
+    }
+    btn.innerHTML = animatedClockIcon(16);
+    if (view.running && view.timer) {
+      syncAnimatedClockHands(btn, view.timer.started_at);
+      btn.setAttribute(
+        'aria-label',
+        `Timer running on ${projectTitleFromTimer(view.timer)}, ${formatElapsedClock(view.timer.started_at)}`,
+      );
+    } else {
+      btn.setAttribute('aria-label', 'Timer running');
+    }
+  };
+
   const setOpen = (next) => {
     open = Boolean(next) && Boolean(view.running && view.timer);
     wrap.classList.toggle('is-open', open);
     tip.hidden = !open;
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    renderHeaderIcon();
   };
 
   const renderTip = () => {
@@ -1100,24 +1123,15 @@ function mountHeaderTimerHook() {
       navigateToWork(view.timer.job_slug);
     });
 
-    const stopBtn = document.createElement('button');
-    stopBtn.type = 'button';
-    stopBtn.className = 'topbar-timer-tip-stop';
-    stopBtn.disabled = busy;
-    stopBtn.textContent = busy ? 'Stopping…' : 'Stop';
-    stopBtn.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      void stopHeaderTimer();
-    });
-
-    tip.append(elapsed, project, stopBtn);
+    tip.append(elapsed, project);
+    renderHeaderIcon();
   };
 
   const syncLiveBits = () => {
     if (!view.running || !view.timer) return;
     const elapsed = tip.querySelector('.topbar-timer-tip-elapsed');
     if (elapsed) elapsed.textContent = formatElapsedClock(view.timer.started_at);
+    if (open) return;
     syncAnimatedClockHands(btn, view.timer.started_at);
     btn.setAttribute(
       'aria-label',
@@ -1202,7 +1216,11 @@ function mountHeaderTimerHook() {
   tip.addEventListener('mouseleave', scheduleClose);
   btn.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    setOpen(!open);
+    if (open) {
+      void stopHeaderTimer();
+      return;
+    }
+    setOpen(true);
   });
   btn.addEventListener('focus', () => setOpen(true));
   document.addEventListener('click', (ev) => {

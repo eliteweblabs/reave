@@ -1154,11 +1154,22 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     color: #86efac;
   }
 
-  .topbar-timer-btn .animated-clock {
+  .topbar-timer-btn .animated-clock,
+  .topbar-timer-btn.is-stop svg {
     display: block;
     width: 16px;
     height: 16px;
     filter: drop-shadow(0 0 3px rgba(34, 197, 94, 0.45));
+  }
+
+  .topbar-timer-btn.is-stop svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .topbar-timer-btn:disabled {
+    cursor: wait;
+    opacity: 0.7;
   }
 
   .topbar-timer-btn .animated-clock-second {
@@ -1226,33 +1237,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     width: 11px;
     height: 11px;
     opacity: 0.7;
-  }
-
-  .topbar-timer-tip-stop {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 0.5rem;
-    height: 1.7rem;
-    padding: 0 0.65rem;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #e9eef6;
-    font: inherit;
-    font-size: 0.68rem;
-    font-weight: 650;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .topbar-timer-tip-stop:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.14);
-  }
-
-  .topbar-timer-tip-stop:disabled {
-    opacity: 0.6;
-    cursor: wait;
   }
 
   .app-header-row:has(.marketing-nav) .topbar-end {
