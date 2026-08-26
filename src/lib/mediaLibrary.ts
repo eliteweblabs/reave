@@ -124,6 +124,24 @@ export function slugFromFilename(filename: string): string {
   return normalizeMediaSlug(base);
 }
 
+/** Suffix `-2`, `-3`, … when an auto-derived slug is already taken. */
+export function uniqueMediaSlug(
+  base: string,
+  taken: (slug: string) => boolean,
+  maxAttempts = 200,
+): string {
+  const root = normalizeMediaSlug(base);
+  if (!root) return '';
+  if (!taken(root)) return root;
+  for (let n = 2; n <= maxAttempts; n++) {
+    const suffix = `-${n}`;
+    const next = `${root.slice(0, Math.max(1, SLUG_MAX - suffix.length))}${suffix}`;
+    if (!taken(next)) return next;
+  }
+  const id = randomUUID().slice(0, 8);
+  return `${root.slice(0, Math.max(1, SLUG_MAX - id.length - 1))}-${id}`;
+}
+
 function recordUrls(id: string, slug: string | null): Pick<MediaLibrarySummary, 'url' | 'thumbnailUrl' | 'publicUrl'> {
   return {
     url: mediaLibraryUrl(id),
@@ -285,9 +303,18 @@ function fileAddMedia(input: {
 
   const id = randomUUID();
   const filename = input.filename?.trim() || filenameForMediaType(mediaType);
-  const slug = normalizeSlugField(input.slug) || slugFromFilename(filename);
-  if (slug && fileGetMediaBySlug(slug)) {
-    return { ok: false, error: `Slug already in use: ${slug}` };
+  const explicitSlug = normalizeSlugField(input.slug);
+  let slug: string | null;
+  if (explicitSlug) {
+    if (fileGetMediaBySlug(explicitSlug)) {
+      return { ok: false, error: 'Slug already in use' };
+    }
+    slug = explicitSlug;
+  } else {
+    const derived = slugFromFilename(filename);
+    slug = derived
+      ? uniqueMediaSlug(derived, (candidate) => Boolean(fileGetMediaBySlug(candidate))) || null
+      : null;
   }
   const record: MediaLibraryRecord = {
     id,
@@ -503,7 +530,25 @@ async function dbAddMedia(input: {
     const pool = await ensureSchema();
     if (!pool) return null;
     const filename = input.filename?.trim() || filenameForMediaType(mediaType);
-    const slug = normalizeSlugField(input.slug) || slugFromFilename(filename);
+    const explicitSlug = normalizeSlugField(input.slug);
+    let slug: string | null;
+    if (explicitSlug) {
+      const existing = await dbGetMediaBySlug(explicitSlug);
+      if (existing) return { ok: false, error: 'Slug already in use' };
+      slug = explicitSlug;
+    } else {
+      const derived = slugFromFilename(filename);
+      if (derived) {
+        const { rows: takenRows } = await pool.query<{ slug: string }>(
+          `SELECT slug FROM media_library WHERE slug = $1 OR slug LIKE $2 LIMIT 500`,
+          [derived, `${derived}-%`],
+        );
+        const taken = new Set(takenRows.map((row) => String(row.slug || '')));
+        slug = uniqueMediaSlug(derived, (candidate) => taken.has(candidate)) || null;
+      } else {
+        slug = null;
+      }
+    }
     const { rows } = await pool.query<{ id: string; created_at: string }>(
       `INSERT INTO media_library (filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, slug)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -537,6 +582,14 @@ async function dbAddMedia(input: {
   } catch (e) {
     const message = e instanceof Error ? e.message : '';
     if (message.includes('media_library_slug_uidx') || message.includes('duplicate key')) {
+      if (!normalizeSlugField(input.slug)) {
+        const filename = input.filename?.trim() || filenameForMediaType(input.mediaType);
+        const fallback = uniqueMediaSlug(
+          `${slugFromFilename(filename) || 'image'}-${randomUUID().slice(0, 8)}`,
+          () => false,
+        );
+        return dbAddMedia({ ...input, slug: fallback });
+      }
       return { ok: false, error: 'Slug already in use' };
     }
     console.error('[media-library] add failed', e);

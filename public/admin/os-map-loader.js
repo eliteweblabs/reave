@@ -14592,8 +14592,22 @@ async function filesFromClipboardHtml(html) {
 }
 
 async function uploadEmailComposeImage(file) {
+  const ext =
+    file.type === 'image/jpeg'
+      ? 'jpg'
+      : file.type === 'image/png'
+        ? 'png'
+        : file.type === 'image/gif'
+          ? 'gif'
+          : file.type === 'image/webp'
+            ? 'webp'
+            : (/\.(jpe?g|png|gif|webp)$/i.exec(file.name || '')?.[1] || 'png').toLowerCase();
+  const uniqueName = `email-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const upload = file.name && file.name !== uniqueName
+    ? new File([file], uniqueName, { type: file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}` })
+    : file;
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', upload);
   const res = await adminFetch('/api/admin/media', { method: 'POST', body: form });
   const json = await readAdminJson(res, 'Image upload');
   if (!res.ok || !json.ok) throw new Error(json.error || 'Upload failed');
