@@ -106,7 +106,13 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     --home-hero-brand-bottom: 42%;
     --home-hero-icon-size: clamp(190px, 42vw, 312px);
     --home-hero-icon-pad: 1.25rem; /* ~20px at 16px root */
-    /* Pasted mark SVGs are 512² — letterforms sit ~28.5% above the canvas floor. */
+    /*
+     * Pasted mark SVGs are 512². Letterforms sit inside ~26.9% empty box
+     * above and ~28.5% below. Collapse both so the brand row hugs the ink —
+     * otherwise flex-centering the square canvas leaves the visible lockup
+     * ~85px below the midline.
+     */
+    --home-hero-icon-ink-above: 0.269;
     --home-hero-icon-ink-below: 0.285;
     /*
      * With the brand block centred there is no room for the chat below it, so
@@ -121,16 +127,20 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: 100%;
     max-width: 100%;
     isolation: isolate;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 100vh;
     min-height: 100dvh;
+    /* Center the lockup between the fixed header and the CTA dock. */
+    padding-top: var(--app-header-offset, 3.25rem);
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
     overflow: hidden;
     scroll-margin-top: 0;
   }
 
-  /* Icon + headline — bounding-box center = viewport center */
+  /* Icon + headline — visual lockup center = canvas center below the header */
   .home-hero-brand {
     position: relative;
     z-index: 10;
@@ -151,6 +161,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     width: var(--home-hero-icon-size);
     height: var(--home-hero-icon-size);
     padding: var(--home-hero-icon-pad);
+    /* Hug the letterforms — 512² canvases have ~27% empty box above the ink. */
+    margin-top: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-above) * -1);
     pointer-events: none;
     overflow: visible;
   }
