@@ -270,6 +270,9 @@ function resolveLogo(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'l
   if (storedLogo === '') {
     return { logoPath: '', logoSource: 'hidden', logoVersion: version };
   }
+  if (trim(stored?.logoSvg)) {
+    return { logoPath: BRANDING_LOGO_PATH, logoSource: 'admin', logoVersion: version };
+  }
   // Stale row: API path without binary data (e.g. PNG cleared but path left behind).
   if (storedLogo && storedLogo !== BRANDING_LOGO_PATH) {
     return {
@@ -415,7 +418,7 @@ export function deckQuantumHeroMask(company: CompanyConfig): string | null {
   return '/reave-logo-mask.png';
 }
 
-/** Static logo image for the deck preloader intro resolve (default /reave-logo.png). */
+/** Static logo image for the deck preloader intro resolve (default /branding/logo.png). */
 export function deckQuantumHeroLogo(company: CompanyConfig): string | null {
   if (company.logoSource === 'hidden') return null;
   return companyLogoUrl(company.logoPath, company.logoVersion) || SITE.logoPath;

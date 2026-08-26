@@ -517,6 +517,13 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     description: 'Public brand icon. Siblings reference ${{ reave.COMPANY_ICON_URL }}.',
   }),
   v({
+    name: 'COMPANY_LOGO_URL',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'reference',
+    value: `${railwayLocalRef('PUBLIC_SITE_URL')}/branding/logo.png`,
+    description: 'Public wordmark PNG. Crater mail uses ${{ reave.COMPANY_LOGO_URL }}.',
+  }),
+  v({
     name: 'CONTACT_API_BASE_URL',
     service: DEPLOY_APP_SERVICE,
     kind: 'reference',
@@ -855,6 +862,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'reference',
     value: railwayPublicUrl('crater'),
     description: 'Crater public origin.',
+    features: ['billing'],
+  }),
+  v({
+    name: 'COMPANY_LOGO_URL',
+    service: 'crater',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'COMPANY_LOGO_URL'),
+    description: 'Invoice email header — PNG wordmark, not SVG.',
     features: ['billing'],
   }),
   v({

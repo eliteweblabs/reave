@@ -14,8 +14,8 @@ export const SITE = {
   /** Fallback meta description when company details are not configured yet. */
   description: "Automated client communication platform",
 
-  /** Fallback logo path (root-relative, under /public). Override in admin → Company details. */
-  logoPath: "/reave-logo.png",
+  /** Fallback wordmark — same path on every install (/branding/logo.png). */
+  logoPath: "/branding/logo.png",
 
   /** Default OG / Twitter card — admin share image, else generated from logo/icon. */
   ogImage: BRANDING_OG_PATH,

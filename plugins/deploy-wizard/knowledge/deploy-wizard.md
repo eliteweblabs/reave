@@ -71,6 +71,7 @@ Put third-party secrets on the Astro service once. Siblings **reference** them �
 | `EMAIL_FROM_NAME` | Cal.com `EMAIL_FROM_NAME` / `NEXT_PUBLIC_APP_NAME` / `NEXT_PUBLIC_COMPANY_NAME`; Crater `MAIL_FROM_NAME` |
 | `CALCOM_USERNAME` | Filled from the install slug. Booking links and the Cal.com user use this — do not re-type on calcom-web-app. |
 | `COMPANY_ICON_URL` | `${{PUBLIC_SITE_URL}}/api/branding/icon?size=192` — Cal.com avatar pickup and any sibling that needs the mark |
+| `COMPANY_LOGO_URL` | `${{PUBLIC_SITE_URL}}/branding/logo.png` — Crater invoice email header (PNG wordmark) |
 | `RESEND_API_KEY` | Cal.com `RESEND_API_KEY` + `EMAIL_SERVER_PASSWORD`; Crater `MAIL_PASSWORD` |
 | `PUBLIC_SITE_URL` | `contact-api` / fleet / inventory / materials `ALLOWED_ORIGINS` |
 

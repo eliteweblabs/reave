@@ -31,3 +31,9 @@ src/knowledge/company-config.json
 src/knowledge/social-tokens.json
 src/knowledge/integration-tokens.json
 src/knowledge/.media/
+
+# Per-install brand marks. URLs stay /branding/logo.png — production serves
+# company config; drop PNG/SVG here locally only.
+public/branding/*
+!public/branding/.gitkeep
+!public/branding/README.md

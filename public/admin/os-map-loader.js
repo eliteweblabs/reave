@@ -5862,7 +5862,7 @@ function companyLogoPreviewUrl(company) {
   if (svgUrl) return svgUrl;
   if (hasUploadedCompanyLogoPng(company)) {
     const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
-    return `/api/branding/logo${v}`;
+    return `/branding/logo.png${v}`;
   }
   if (company?.logoSource === 'admin' && company.logoPath && company.logoSource !== 'hidden') {
     const path = String(company.logoPath);
@@ -5892,7 +5892,11 @@ function companyIconPreviewUrl(company) {
 function hasUploadedCompanyLogoPng(company) {
   if (company?.logoHasRaster === true) return true;
   if (company?.logoHasRaster === false) return false;
-  return company?.logoSource === 'admin' && String(company?.logoPath || '').includes('/api/branding/logo');
+  const path = String(company?.logoPath || '');
+  return (
+    company?.logoSource === 'admin' &&
+    (path.includes('/branding/logo.png') || path.includes('/api/branding/logo'))
+  );
 }
 
 function hasUploadedCompanyIconPng(company) {

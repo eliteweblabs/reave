@@ -14,6 +14,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 |----------|---------|
 | `CRATER_API_BASE_URL` | Crater host, no trailing slash. Prefer `https://${{ crater.RAILWAY_PUBLIC_DOMAIN }}`. |
 | `CRATER_API_TOKEN` | Mirror of Crater's `CRATER_API_TOKEN`; sent as `X-Crater-Api-Token`. |
+| `COMPANY_LOGO_URL` | Invoice email header image. Must be a PNG (`${PUBLIC_SITE_URL}/branding/logo.png`). Email clients will not render SVG. |
 
 ## Admin & API Usage
 

@@ -22,7 +22,7 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** Absolute logo URL for <img> — admin upload, default /reave-logo.png, or empty when hidden. */
+/** Absolute logo URL for <img> — /branding/logo.png, or empty when hidden. */
 function emailLogoAbsoluteUrl(company: Awaited<ReturnType<typeof getCompanyConfig>>, base: string): string {
   const path = deckQuantumHeroLogo(company);
   if (!path) return '';

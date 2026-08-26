@@ -1,10 +1,9 @@
 import type { APIRoute } from 'astro';
-import { brandingEtag, renderCompanyLogoWordmarkPng } from '../../../lib/brandImageRender';
-import { getStoredCompanyConfig } from '../../../lib/companyConfigStore';
+import { brandingEtag, renderCompanyLogoWordmarkPng } from '../../lib/brandImageRender';
+import { getStoredCompanyConfig } from '../../lib/companyConfigStore';
 
 export const prerender = false;
 
-/** Legacy alias of /branding/logo.png */
 export const GET: APIRoute = async ({ request }) => {
   const stored = await getStoredCompanyConfig();
   const body = await renderCompanyLogoWordmarkPng(stored);

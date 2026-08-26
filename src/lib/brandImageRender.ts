@@ -11,6 +11,7 @@ import { rasterizeBrandIcon } from './brandIconRaster';
 import type { StoredCompanyConfig } from './companyConfigStore';
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from './ogImageSize';
 import { punchSolidNeutralBackground } from './logoContrastAdapt';
+import { readPublicBrandingFile } from './publicBranding';
 
 export type BrandMarkSource =
   | { kind: 'raster'; buffer: Buffer }
@@ -91,6 +92,67 @@ export function collectCompanyIconSources(stored: StoredCompanyConfig | null): B
   pushSvg(sources, stored.iconSvg);
   pushRaster(sources, stored.iconData, stored.iconMediaType);
   return sources;
+}
+
+/** Uploaded wordmark PNG → pasted wordmark SVG. No icon fallback. */
+export function collectLogoWordmarkSources(stored: StoredCompanyConfig | null): BrandMarkSource[] {
+  const sources: BrandMarkSource[] = [];
+  if (!stored) return sources;
+  pushRaster(sources, stored.logoData, stored.logoMediaType);
+  pushSvg(sources, stored.logoSvg);
+  return sources;
+}
+
+const LOGO_WORDMARK_MAX_HEIGHT = 256;
+
+async function rasterizeWordmark(source: BrandMarkSource, maxHeight: number): Promise<Buffer | null> {
+  try {
+    if (source.kind === 'raster') {
+      return sharp(source.buffer)
+        .rotate()
+        .resize({ height: maxHeight, fit: 'inside', withoutEnlargement: true })
+        .png()
+        .toBuffer();
+    }
+    const input = Buffer.from(source.svg, 'utf8');
+    const meta = await sharp(input).metadata();
+    const height = meta.height || maxHeight;
+    const density = Math.round(72 * Math.max(1, maxHeight / height));
+    return sharp(input, { density })
+      .resize({ height: maxHeight, fit: 'inside' })
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Wide wordmark PNG for email headers and generic /branding/logo.png.
+ * Company config first, then public/branding/logo.png. No letter-tile fallback.
+ */
+export async function renderCompanyLogoWordmarkPng(
+  stored: StoredCompanyConfig | null,
+): Promise<Buffer | null> {
+  for (const source of collectLogoWordmarkSources(stored)) {
+    const png = await rasterizeWordmark(source, LOGO_WORDMARK_MAX_HEIGHT);
+    if (png) return png;
+  }
+  return readPublicBrandingFile('logo.png')?.data ?? null;
+}
+
+export function companyLogoSvgMarkup(stored: StoredCompanyConfig | null): string | null {
+  const svg = stored?.logoSvg?.trim();
+  if (svg) return svg;
+  const disk = readPublicBrandingFile('logo.svg');
+  return disk ? disk.data.toString('utf8') : null;
+}
+
+export function companyIconSvgMarkup(stored: StoredCompanyConfig | null): string | null {
+  const svg = stored?.iconSvg?.trim();
+  if (svg) return svg;
+  const disk = readPublicBrandingFile('icon.svg');
+  return disk ? disk.data.toString('utf8') : null;
 }
 
 async function rasterizeSvgSource(
@@ -291,7 +353,7 @@ function brandingNameTag(name: string): string {
 export function brandingEtag(
   stored: StoredCompanyConfig | null,
   size: number,
-  kind: 'icon' | 'og' = 'icon',
+  kind: 'icon' | 'og' | 'logo' = 'icon',
   opts?: { transparent?: boolean },
 ): string {
   const updated = stored?.updatedAt ?? '0';

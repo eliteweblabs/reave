@@ -1,7 +1,19 @@
 import { BRAND_SVG_MAX_CHARS, sanitizeInlineSvg } from './brandSvg';
 
-/** Public URL for uploaded company logos (served from Postgres / local config). */
-export const BRANDING_LOGO_PATH = '/api/branding/logo';
+/** Public wordmark — same path on every install. Bytes come from company config. */
+export const BRANDING_LOGO_PATH = '/branding/logo.png';
+
+/** Public square mark — same path on every install. */
+export const BRANDING_ICON_FILE_PATH = '/branding/icon.png';
+
+/** Public wordmark SVG. Email clients should use the PNG. */
+export const BRANDING_LOGO_SVG_PATH = '/branding/logo.svg';
+
+/** Public square SVG. */
+export const BRANDING_ICON_SVG_PATH = '/branding/icon.svg';
+
+/** Legacy API path — same PNG as BRANDING_LOGO_PATH. */
+export const BRANDING_LOGO_API_PATH = '/api/branding/logo';
 
 /** Static OG fallback when a GIF URL is unsuitable for link previews. */
 export const LOGO_ICON_OG_PATH = '/logo-icon-og.png';
@@ -103,8 +115,10 @@ export async function parseCompanyOgUpload(
 
 /** Static logo paths removed from /public but still stored in company config. */
 const LEGACY_PUBLIC_LOGO_PATHS: Record<string, string> = {
-  '/logo.png': '/reave-logo.png',
-  '/reave-logo-1.png': '/reave-logo.png',
+  '/logo.png': BRANDING_LOGO_PATH,
+  '/reave-logo.png': BRANDING_LOGO_PATH,
+  '/reave-logo-1.png': BRANDING_LOGO_PATH,
+  '/api/branding/logo': BRANDING_LOGO_PATH,
 };
 
 /** Map stale admin logo paths to current public assets (path only, no query). */
