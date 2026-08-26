@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { resolveComposeImagesForSend } from '../../../lib/emailComposeImages';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../lib/emailInboxStore';
 import { buildReplyEmailHeaders, formatQuotedReplyHtml, splitQuotedReplyBody } from '../../../lib/emailReply';
 import { brandedPlainTextEmail } from '../../../lib/inboundEmailReply';
@@ -59,9 +60,21 @@ export async function POST(context: APIContext): Promise<Response> {
   const bcc = body.bcc;
   const inReplyToEmailId = String(body.inReplyToEmailId ?? body.in_reply_to_email_id ?? '').trim() || null;
 
+  let composeImages: Awaited<ReturnType<typeof resolveComposeImagesForSend>>;
+  try {
+    composeImages = await resolveComposeImagesForSend(body.images);
+  } catch (e) {
+    return json(
+      { ok: false, success: false, error: e instanceof Error ? e.message : 'Could not load images' },
+      400,
+    );
+  }
+
   if (!to.length) return json({ ok: false, success: false, error: 'Recipient (to) is required' }, 400);
   if (!subject) return json({ ok: false, success: false, error: 'Subject is required' }, 400);
-  if (!text && !html) return json({ ok: false, success: false, error: 'Message body is required' }, 400);
+  if (!text && !html && !composeImages.inline.length) {
+    return json({ ok: false, success: false, error: 'Message body is required' }, 400);
+  }
 
   let jobSlug = String(body.jobSlug ?? body.job_slug ?? '').trim() || null;
   let contactUid = String(body.contactUid ?? body.contact_uid ?? '').trim() || null;
@@ -82,7 +95,7 @@ export async function POST(context: APIContext): Promise<Response> {
   let sendHtml = html;
   const signature = await getUserEmailSignature(userId, context);
 
-  if (!sendHtml && sendText && !/<[a-z][\s\S]*>/i.test(sendText)) {
+  if ((!sendHtml && sendText && !/<[a-z][\s\S]*>/i.test(sendText)) || composeImages.inline.length) {
     const primaryTo = to[0] || '';
     let firstName =
       inbound?.contactName?.trim().split(/\s+/)[0] ||
@@ -103,6 +116,7 @@ export async function POST(context: APIContext): Promise<Response> {
       body: sendText,
       signature,
       quotedHtml,
+      inlineImages: composeImages.inline,
     });
     sendText = wrapped.text;
     sendHtml = wrapped.html;
@@ -120,6 +134,7 @@ export async function POST(context: APIContext): Promise<Response> {
     bcc: typeof bcc === 'string' || Array.isArray(bcc) ? bcc : undefined,
     from,
     headers: replyHeaders,
+    attachments: composeImages.attachments,
   });
   if (!result.ok) return json({ ok: false, success: false, error: result.error }, 502);
 

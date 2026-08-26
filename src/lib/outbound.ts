@@ -3,6 +3,7 @@
  * Used to deliver client portal links to contacts on their own device.
  */
 import { resolveEmailFrom } from './companyConfig';
+import type { EmailSendAttachment } from './emailComposeImages';
 import { serverEnv } from './serverEnv';
 import { sendTelnyxSms } from './telnyxClient';
 
@@ -25,6 +26,7 @@ export async function sendEmail(opts: {
   bcc?: string | string[];
   from?: string;
   headers?: Record<string, string>;
+  attachments?: EmailSendAttachment[];
 }): Promise<SendResult> {
   const key = serverEnv('RESEND_API_KEY')?.trim();
   if (!key) return { ok: false, error: 'RESEND_API_KEY is not set' };
@@ -47,6 +49,19 @@ export async function sendEmail(opts: {
 
   const cc = normalizeList(opts.cc);
   const bcc = normalizeList(opts.bcc);
+  const attachments = (opts.attachments || [])
+    .map((a) => {
+      const filename = String(a.filename || '').trim();
+      const content = String(a.content || '').replace(/^data:[^;]+;base64,/, '').trim();
+      if (!filename || !content) return null;
+      return {
+        filename,
+        content,
+        ...(a.contentId ? { content_id: a.contentId } : {}),
+        ...(a.contentType ? { content_type: a.contentType } : {}),
+      };
+    })
+    .filter((a): a is NonNullable<typeof a> => Boolean(a));
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -61,6 +76,7 @@ export async function sendEmail(opts: {
         ...(cc ? { cc } : {}),
         ...(bcc ? { bcc } : {}),
         ...(opts.headers && Object.keys(opts.headers).length ? { headers: opts.headers } : {}),
+        ...(attachments.length ? { attachments } : {}),
       }),
     });
     const text = await res.text();

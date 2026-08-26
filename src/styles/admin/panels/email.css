@@ -663,6 +663,62 @@
   height: 14px;
   flex: 0 0 auto;
 }
+.em-compose-body-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+.em-compose-image-btn {
+  color: var(--muted);
+}
+.em-compose-textarea--dragover {
+  border-color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 5%, var(--card));
+}
+.em-compose-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  gap: 0.5rem;
+}
+.em-compose-image {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-input);
+  background: var(--card);
+}
+.em-compose-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.em-compose-image-remove {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+}
+.em-compose-image--pending {
+  background: color-mix(in srgb, var(--fg) 6%, var(--card));
+}
+.em-compose-image--pending::after {
+  content: '';
+  position: absolute;
+  inset: 35%;
+  border: 2px solid color-mix(in srgb, var(--fg) 25%, transparent);
+  border-top-color: var(--fg);
+  border-radius: 999px;
+  animation: em-compose-image-spin 0.7s linear infinite;
+}
+@keyframes em-compose-image-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .em-compose-actions {
   display: flex;
   justify-content: flex-end;

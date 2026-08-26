@@ -10,6 +10,7 @@ import {
   resolveReplyRecipient,
   splitQuotedReplyBody,
 } from './emailReply';
+import type { EmailInlineImage } from './emailComposeImages';
 import { brandedEmailHtml, type EmailCta } from './emailTemplates';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from './outbound';
@@ -53,6 +54,8 @@ export async function brandedPlainTextEmail(opts: {
   signature?: string;
   /** Pre-built HTML for the quoted original (reply threads). */
   quotedHtml?: string;
+  /** CID inline images from compose paste/attach. */
+  inlineImages?: EmailInlineImage[];
 }): Promise<{ text: string; html: string }> {
   const firstName = firstNameFrom(opts.firstName);
   const { draft, quote } = splitQuotedReplyBody(opts.body);
@@ -70,6 +73,7 @@ export async function brandedPlainTextEmail(opts: {
     note: opts.note,
     signature: signature || undefined,
     quotedHtml: quotedHtml || undefined,
+    inlineImages: opts.inlineImages?.length ? opts.inlineImages : undefined,
   });
   return { text, html };
 }

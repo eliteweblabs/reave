@@ -6,6 +6,7 @@
 
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { normalizeEmailComposeImages } from '../../../../lib/emailComposeImages';
 import {
   deleteEmailDraft,
   getEmailDraft,
@@ -58,6 +59,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     cc?: ReturnType<typeof normalizeEmailDraftRecipients>;
     subject?: string;
     body?: string;
+    images?: ReturnType<typeof normalizeEmailComposeImages>;
     inReplyToEmailId?: string | null;
   } = {};
 
@@ -66,6 +68,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
   if (body.subject !== undefined) patch.subject = String(body.subject);
   if (body.body !== undefined) patch.body = String(body.body);
   else if (body.text !== undefined) patch.body = String(body.text);
+  if (body.images !== undefined) patch.images = normalizeEmailComposeImages(body.images);
   if (body.inReplyToEmailId !== undefined) {
     patch.inReplyToEmailId = String(body.inReplyToEmailId).trim() || null;
   } else if (body.in_reply_to_email_id !== undefined) {

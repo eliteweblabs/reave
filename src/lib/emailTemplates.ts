@@ -21,6 +21,7 @@ import { emailSafeFontById } from './emailSafeFonts';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
 import { signatureHtmlForEmail } from './userEmailSignature';
+import type { EmailInlineImage } from './emailComposeImages';
 
 function esc(s: string): string {
   return s
@@ -77,6 +78,8 @@ export async function brandedEmailHtml(opts: {
   footerAddress?: string;
   /** Quoted original message HTML (reply threads). Rendered after the new copy. */
   quotedHtml?: string;
+  /** CID inline images from compose paste/attach. Rendered after body paragraphs. */
+  inlineImages?: EmailInlineImage[];
 }): Promise<string> {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
@@ -169,6 +172,14 @@ export async function brandedEmailHtml(opts: {
     ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
     : '';
 
+  const inlineImagesHtml = (opts.inlineImages || [])
+    .filter((img) => img.cid.trim())
+    .map(
+      (img) =>
+        `<tr><td style="padding:0 0 16px"><img src="cid:${esc(img.cid)}" alt="${esc(img.alt || 'Image')}" width="480" style="display:block;max-width:100%;height:auto;border:0;outline:none;border-radius:8px" /></td></tr>`,
+    )
+    .join('\n');
+
   const signatureHtml = opts.signature?.trim()
     ? `<tr><td style="padding:16px 0 0"><div class="email-signature" style="margin:0;color:#444444;font-family:${fontStack};font-size:14px;line-height:1.55">${signatureHtmlForEmail(opts.signature)}</div></td></tr>`
     : '';
@@ -238,6 +249,7 @@ export async function brandedEmailHtml(opts: {
                 </tr>
 
                 ${bodyRows}
+                ${inlineImagesHtml}
                 ${signatureHtml}
                 ${ctaHtml}
                 ${qrHtml}
