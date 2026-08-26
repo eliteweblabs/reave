@@ -137,6 +137,8 @@
 .or-platform--yelp { color: #d32323; }
 .or-platform--facebook { color: #1877f2; }
 .or-platform--tripadvisor { color: #00af87; }
+.or-platform--trustpilot { color: #00b67a; }
+.or-platform--glassdoor { color: #0caa41; }
 
 .or-status {
   font-size: 0.65rem;

@@ -135,6 +135,8 @@ export const FEATURE_MARKETING: Partial<
     { id: 'yelp_reviews_triage', label: 'Yelp Reviews Triage', href: '/modules' },
     { id: 'facebook_reviews_triage', label: 'Facebook Reviews Triage', href: '/modules' },
     { id: 'tripadvisor_reviews_triage', label: 'Tripadvisor Reviews Triage', href: '/modules' },
+    { id: 'trustpilot_reviews_triage', label: 'Trustpilot Reviews Triage', href: '/modules' },
+    { id: 'glassdoor_reviews_triage', label: 'Glassdoor Reviews Triage', href: '/modules' },
   ],
   google_workspace: [
     {
@@ -261,7 +263,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   real_estate_data: 'Property facts, compliance, & daily geofence scan',
   inventory_sync: 'Shopify, WooCommerce, & Square via inventory-api',
   online_reviews:
-    'Google™, Apple Maps, Yelp, Facebook, & Tripadvisor — queue replies in one place',
+    'Google™, Apple Maps, Yelp, Facebook, Tripadvisor, Trustpilot, & Glassdoor — queue replies in one place',
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
   content_management: 'Edit the install’s own front-end repo through the agent — not the reΛVe.app',
   stock_photos: 'Royalty-free search for pages, decks, & newsletters',

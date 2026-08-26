@@ -11,6 +11,8 @@ export const REVIEW_PLATFORMS = [
   'yelp',
   'facebook',
   'tripadvisor',
+  'trustpilot',
+  'glassdoor',
   'other',
 ] as const;
 export type ReviewPlatform = (typeof REVIEW_PLATFORMS)[number];
@@ -68,7 +70,7 @@ CREATE TABLE IF NOT EXISTS online_reviews_config (
 CREATE TABLE IF NOT EXISTS online_reviews (
   id               UUID PRIMARY KEY,
   platform         TEXT NOT NULL
-    CHECK (platform IN ('google', 'apple', 'yelp', 'facebook', 'tripadvisor', 'other')),
+    CHECK (platform IN ('google', 'apple', 'yelp', 'facebook', 'tripadvisor', 'trustpilot', 'glassdoor', 'other')),
   external_id      TEXT,
   author_name      TEXT,
   rating           NUMERIC(2, 1),
@@ -91,7 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_online_reviews_platform ON online_reviews (platfo
 
 ALTER TABLE online_reviews DROP CONSTRAINT IF EXISTS online_reviews_platform_check;
 ALTER TABLE online_reviews ADD CONSTRAINT online_reviews_platform_check
-  CHECK (platform IN ('google', 'apple', 'yelp', 'facebook', 'tripadvisor', 'other'));
+  CHECK (platform IN ('google', 'apple', 'yelp', 'facebook', 'tripadvisor', 'trustpilot', 'glassdoor', 'other'));
 `;
 
 let _schemaReady: Promise<void> | null = null;

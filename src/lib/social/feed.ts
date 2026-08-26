@@ -24,7 +24,13 @@ import {
 } from './platforms.ts';
 import type { SocialAccount, SocialPlatformId } from './types.ts';
 
-export type SocialFeedNetworkId = SocialPlatformId | 'apple' | 'tripadvisor' | 'other';
+export type SocialFeedNetworkId =
+  | SocialPlatformId
+  | 'apple'
+  | 'tripadvisor'
+  | 'trustpilot'
+  | 'glassdoor'
+  | 'other';
 
 export type SocialFeedItemKind = 'post' | 'comment' | 'mention' | 'review';
 
@@ -75,6 +81,8 @@ const REVIEW_ONLY_META: Record<
 > = {
   apple: { label: 'Apple Maps', iconSlug: 'apple', color: '#555555' },
   tripadvisor: { label: 'Tripadvisor', iconSlug: 'tripadvisor', color: '#34e0a1' },
+  trustpilot: { label: 'Trustpilot', iconSlug: 'trustpilot', color: '#00b67a' },
+  glassdoor: { label: 'Glassdoor', iconSlug: 'glassdoor', color: '#0caa41' },
   other: { label: 'Other', iconSlug: 'star', color: '#64748b' },
 };
 
@@ -87,6 +95,8 @@ const REVIEW_TO_FEED: Record<ReviewPlatform, SocialFeedNetworkId> = {
   yelp: 'yelp',
   facebook: 'facebook',
   tripadvisor: 'tripadvisor',
+  trustpilot: 'trustpilot',
+  glassdoor: 'glassdoor',
   other: 'other',
 };
 
@@ -301,7 +311,7 @@ function chosenNetworks(
     }
   }
 
-  for (const extra of ['apple', 'tripadvisor', 'other'] as const) {
+  for (const extra of ['apple', 'tripadvisor', 'trustpilot', 'glassdoor', 'other'] as const) {
     if (itemPlatforms.has(extra)) push(extra);
   }
 
@@ -336,6 +346,12 @@ export function composeIntentUrl(
       return 'https://business.google.com/reviews';
     case 'yelp':
       return profile || 'https://biz.yelp.com/';
+    case 'tripadvisor':
+      return profile || 'https://www.tripadvisor.com/owners';
+    case 'trustpilot':
+      return profile || 'https://business.trustpilot.com/';
+    case 'glassdoor':
+      return profile || 'https://www.glassdoor.com/employers/';
     default:
       return profile || 'https://';
   }

@@ -29,6 +29,8 @@ const PLATFORM_LABELS = {
   yelp: 'Yelp',
   facebook: 'Facebook',
   tripadvisor: 'Tripadvisor',
+  trustpilot: 'Trustpilot',
+  glassdoor: 'Glassdoor',
   other: 'Other',
 };
 
@@ -147,7 +149,11 @@ function renderDetail(review) {
         ? links.yelp
         : review.platform === 'facebook'
           ? links.facebook
-          : null);
+          : review.platform === 'trustpilot'
+            ? links.trustpilot
+            : review.platform === 'glassdoor'
+              ? links.glassdoor
+              : null);
 
   return (
     `<div class="or-detail">` +

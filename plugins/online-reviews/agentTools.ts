@@ -74,7 +74,7 @@ export const onlineReviewsAgentTools: AgentToolModule = {
         function: {
           name: 'list_online_reviews',
           description:
-            'List company reviews (Google, Apple Maps, Yelp, Facebook, Tripadvisor) with response status. Use status=inbox for reviews needing attention.',
+            'List company reviews (Google, Apple Maps, Yelp, Facebook, Tripadvisor, Trustpilot, Glassdoor) with response status. Use status=inbox for reviews needing attention.',
           parameters: {
             type: 'object',
             properties: {

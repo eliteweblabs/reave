@@ -417,7 +417,12 @@ async function saveReply(item, extras = {}) {
 
 function renderSocialComposePane(pane) {
   const postable = socialState.networks.filter(
-    (n) => n.id !== 'apple' && n.id !== 'tripadvisor' && n.id !== 'other',
+    (n) =>
+      n.id !== 'apple' &&
+      n.id !== 'tripadvisor' &&
+      n.id !== 'trustpilot' &&
+      n.id !== 'glassdoor' &&
+      n.id !== 'other',
   );
   pane.appendChild(
     createPaneHeader({
