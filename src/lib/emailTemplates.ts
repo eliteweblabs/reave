@@ -22,6 +22,7 @@ import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
 import { signatureHtmlForEmail } from './userEmailSignature';
 import type { EmailInlineImage } from './emailComposeImages';
+import type { EmailBodyBlock } from './emailShortcodes';
 
 function esc(s: string): string {
   return s
@@ -66,6 +67,8 @@ export type EmailMetaRow = [string, string, string?];
 export async function brandedEmailHtml(opts: {
   firstName: string;
   paragraphs: string[];
+  /** Parsed compose shortcodes. When set, wins over `paragraphs`. */
+  blocks?: EmailBodyBlock[];
   cta?: EmailCta;
   qr?: EmailQr;
   metaRows?: EmailMetaRow[];
@@ -107,31 +110,37 @@ export async function brandedEmailHtml(opts: {
        </a>`
     : '';
 
-  const bodyRows = opts.paragraphs
-    .map(
-      (p) =>
-        `<tr><td style="padding:0 0 16px"><p class="email-text" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:15px;line-height:1.65">${esc(p).replace(/\n/g, '<br>')}</p></td></tr>`,
-    )
-    .join('\n');
-
-  const ctaHtml = opts.cta
-    ? `
+  const ctaButtonHtml = (url: string, label: string, align: 'left' | 'center' = 'center') => `
       <tr>
-        <td style="padding:8px 0 20px" align="center">
-          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <td style="padding:8px 0 20px" align="${align}">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0"${align === 'center' ? ' align="center" style="margin:0 auto"' : ''}>
             <tr>
               <td class="email-cta" align="center" bgcolor="${esc(cta.primary)}"
                   style="border-radius:999px;background-color:${esc(cta.primary)};background-image:${esc(cta.gradient)};box-shadow:${esc(cta.shadow)}">
-                <a href="${esc(opts.cta.url)}"
+                <a href="${esc(url)}"
                    style="display:inline-block;padding:13px 30px;border-radius:999px;color:#ffffff;font-family:${fontStack};font-size:15px;font-weight:600;letter-spacing:0.01em;line-height:1;text-decoration:none;text-align:center">
-                  ${esc(opts.cta.label)}
+                  ${esc(label)}
                 </a>
               </td>
             </tr>
           </table>
         </td>
-      </tr>`
-    : '';
+      </tr>`;
+
+  const blocks: EmailBodyBlock[] = opts.blocks?.length
+    ? opts.blocks
+    : (opts.paragraphs || []).map((text) => ({ type: 'p' as const, text }));
+  const bodyRows = blocks
+    .map((block) => {
+      if (block.type === 'button') {
+        return ctaButtonHtml(block.href, block.title, block.align === 'left' ? 'left' : 'center');
+      }
+      const align = block.align === 'center' ? 'center' : 'left';
+      return `<tr><td style="padding:0 0 16px;text-align:${align}" align="${align}"><p class="email-text" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:15px;line-height:1.65;text-align:${align}">${esc(block.text).replace(/\n/g, '<br>')}</p></td></tr>`;
+    })
+    .join('\n');
+
+  const ctaHtml = opts.cta ? ctaButtonHtml(opts.cta.url, opts.cta.label, 'center') : '';
   let qrHtml = '';
   if (opts.qr?.url?.trim()) {
     const qrSrc = await qrCodeDataUrl(opts.qr.url.trim(), 168);

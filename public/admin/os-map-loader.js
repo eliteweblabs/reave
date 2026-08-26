@@ -14614,6 +14614,24 @@ async function uploadEmailComposeImage(file) {
   return json.item;
 }
 
+function insertEmailComposeShortcode(ta) {
+  if (!(ta instanceof HTMLTextAreaElement) || ta.disabled) return;
+  const snippet = '[center]\n[button title="" href=""/]\n[/center]';
+  const start = ta.selectionStart ?? ta.value.length;
+  const end = ta.selectionEnd ?? start;
+  const before = ta.value.slice(0, start);
+  const after = ta.value.slice(end);
+  const lead = before && !/\n\s*$/.test(before) ? '\n\n' : before && !before.endsWith('\n') ? '\n' : '';
+  const trail = after && !/^\n/.test(after) ? '\n\n' : '';
+  const inserted = `${lead}${snippet}${trail}`;
+  ta.value = `${before}${inserted}${after}`;
+  const titlePos = (before + lead).length + snippet.indexOf('title=""') + 7;
+  ta.focus();
+  ta.setSelectionRange(titlePos, titlePos);
+  emailState.compose.body = ta.value;
+  scheduleEmailDraftSave();
+}
+
 function mediaItemToComposeImage(item) {
   const mediaId = String(item?.id || '').trim();
   if (!mediaId) return null;
@@ -15319,10 +15337,22 @@ function renderEmailComposePane(pane) {
     },
   });
   libraryBtn.disabled = emailState.sending;
+  const shortcodeBtn = createIosIconBtn({
+    iconKey: 'link',
+    label: 'Insert button shortcode',
+    size: 'sm',
+    className: 'em-compose-image-btn',
+    onClick: () => {
+      if (emailState.sending) return;
+      insertEmailComposeShortcode(bodyInput);
+    },
+  });
+  shortcodeBtn.disabled = emailState.sending;
   const bodyTools = document.createElement('div');
   bodyTools.className = 'em-compose-body-tools';
   bodyTools.appendChild(imageBtn);
   bodyTools.appendChild(libraryBtn);
+  bodyTools.appendChild(shortcodeBtn);
   bodyTools.appendChild(writeBtn);
   bodyHead.appendChild(bodyLabel);
   bodyHead.appendChild(bodyTools);
@@ -15391,11 +15421,16 @@ function renderEmailComposePane(pane) {
 
   const hint = document.createElement('p');
   hint.className = 'em-compose-hint';
-  hint.textContent = emailState.replyToId
+  hint.innerHTML = emailState.replyToId
     ? emailState.replyMode === 'reply-all'
       ? 'Reply all includes everyone on the original message except your own addresses. The message is marked handled after send.'
       : 'Reply is sent in the same thread when the original message ID is available. The message is marked handled after send.'
     : 'Sent via Resend using your configured outbound address.';
+  hint.appendChild(document.createElement('br'));
+  const shortHint = document.createElement('span');
+  shortHint.textContent =
+    '[center][button title="Open" href="https://example.com"/][/center]';
+  hint.appendChild(shortHint);
 
   const actions = document.createElement('div');
   actions.className = 'em-compose-actions';

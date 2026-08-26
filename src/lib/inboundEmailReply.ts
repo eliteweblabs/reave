@@ -10,7 +10,9 @@ import {
   resolveReplyRecipient,
   splitQuotedReplyBody,
 } from './emailReply';
+import { siteBaseUrl } from './contactApi';
 import type { EmailInlineImage } from './emailComposeImages';
+import { parseEmailShortcodes } from './emailShortcodes';
 import { brandedEmailHtml, type EmailCta } from './emailTemplates';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from './outbound';
@@ -59,7 +61,8 @@ export async function brandedPlainTextEmail(opts: {
 }): Promise<{ text: string; html: string }> {
   const firstName = firstNameFrom(opts.firstName);
   const { draft, quote } = splitQuotedReplyBody(opts.body);
-  const paragraphs = bodyParagraphs(draft);
+  const parsed = parseEmailShortcodes(draft, { baseUrl: siteBaseUrl() });
+  const paragraphs = parsed.plainText ? parsed.plainText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) : bodyParagraphs(draft);
   const signature = opts.signature?.trim() || '';
   const textParts = [`Hi ${firstName},`, '', ...paragraphs];
   if (signature) textParts.push('', signature);
@@ -69,6 +72,7 @@ export async function brandedPlainTextEmail(opts: {
   const html = await brandedEmailHtml({
     firstName,
     paragraphs,
+    blocks: parsed.blocks,
     cta: opts.cta,
     note: opts.note,
     signature: signature || undefined,
