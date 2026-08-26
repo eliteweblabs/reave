@@ -855,6 +855,7 @@ async function handleAddTodo(
     due_date,
     priority,
     section: params.section != null ? String(params.section).trim() || null : undefined,
+    created_by: 'staff',
   });
   if (!result.ok) return { ok: false, error: result.error, text: result.error };
 

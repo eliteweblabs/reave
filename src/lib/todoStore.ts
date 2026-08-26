@@ -13,6 +13,7 @@ export {
   type TodoStatus,
   type ListTodosOpts,
 } from './pgTodos';
+export { TODO_CREATED_BY, normalizeTodoCreatedBy, type TodoCreatedBy } from './punchlist';
 
 import { isCanonicalReaveInstall } from './installConfig';
 import {
@@ -23,6 +24,7 @@ import {
   dbMarkTodoDone,
   dbDeleteTodo,
   dbReorderTodos,
+  dbUnlinkTodosByContactUid,
   dbPurgeBundledMarkdownTodosOnce,
   dbSeedTodosFromMarkdownIfEmpty,
   type ListTodosOpts,
@@ -30,6 +32,7 @@ import {
   type TodoPriority,
   type TodoStatus,
 } from './pgTodos';
+import type { TodoCreatedBy } from './punchlist';
 
 export async function storeListTodos(opts?: ListTodosOpts): Promise<TodoItem[]> {
   if (isCanonicalReaveInstall()) {
@@ -58,6 +61,9 @@ export async function storeCreateTodo(input: {
   job_slug?: string | null;
   assignee?: string | null;
   section?: string | null;
+  contact_uid?: string | null;
+  contact_name?: string | null;
+  created_by?: TodoCreatedBy;
   sort_order?: number;
 }): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   return dbCreateTodo(input);
@@ -73,10 +79,17 @@ export async function storeUpdateTodo(
     job_slug?: string | null;
     assignee?: string | null;
     section?: string | null;
+    contact_uid?: string | null;
+    contact_name?: string | null;
+    created_by?: TodoCreatedBy;
     sort_order?: number;
   },
 ): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   return dbUpdateTodo(id, patch);
+}
+
+export async function storeUnlinkTodosForContact(contactUid: string): Promise<number> {
+  return dbUnlinkTodosByContactUid(contactUid);
 }
 
 export async function storeMarkTodoDone(

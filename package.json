@@ -28,6 +28,7 @@
     "check:notif-dedupe": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-dashboard-notification-dedupe.ts",
     "check:calendar-reminders": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-calendar-reminders.ts",
     "check:todo-due-text": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-todo-due-from-text.ts",
+    "check:punchlist": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-punchlist.ts",
     "check:vault-merge": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-portal-vault.ts",
     "check:email-reply": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-reply.ts",
     "check:email-project-title": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-project-title.ts",

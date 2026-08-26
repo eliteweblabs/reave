@@ -546,6 +546,22 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     description: 'Install slug — loads config/config-{slug}.json.',
   }),
   v({
+    name: 'REAVE_HUB_URL',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: 'https://reave.app',
+    required: false,
+    description: 'Official reΛVe hub for install-owner punch lists / feature requests.',
+  }),
+  v({
+    name: 'REAVE_HUB_KEY',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    required: false,
+    description:
+      'Shared key the install owner uses to send punch-list items to official reΛVe. Copied from this host when set.',
+  }),
+  v({
     name: 'FEATURES',
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',

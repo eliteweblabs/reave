@@ -6,6 +6,10 @@ import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import { readMarkdownTodoSections } from './markdownTodoFiles';
+import {
+  normalizeTodoCreatedBy,
+  type TodoCreatedBy,
+} from './punchlist';
 
 export const TODO_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
 export type TodoPriority = (typeof TODO_PRIORITIES)[number];
@@ -23,12 +27,15 @@ export interface TodoItem {
   job_slug: string | null;
   assignee: string | null;
   section: string | null;
+  contact_uid: string | null;
+  contact_name: string | null;
+  created_by: TodoCreatedBy;
   created_at: string;
   updated_at: string;
 }
 
 const TODO_COLUMNS =
-  'id, title, due_date, priority, status, sort_order, job_slug, assignee, section, created_at, updated_at';
+  'id, title, due_date, priority, status, sort_order, job_slug, assignee, section, contact_uid, contact_name, created_by, created_at, updated_at';
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS todos (
@@ -54,10 +61,14 @@ ALTER TABLE todos ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS job_slug VARCHAR(255);
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS assignee VARCHAR(255);
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS section VARCHAR(255);
+ALTER TABLE todos ADD COLUMN IF NOT EXISTS contact_uid VARCHAR(255);
+ALTER TABLE todos ADD COLUMN IF NOT EXISTS contact_name VARCHAR(255);
+ALTER TABLE todos ADD COLUMN IF NOT EXISTS created_by VARCHAR(20) NOT NULL DEFAULT 'staff';
 ALTER TABLE todos ALTER COLUMN due_date TYPE TIMESTAMPTZ USING (
   CASE WHEN due_date IS NULL THEN NULL ELSE due_date::timestamptz END
 );
 CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos (status, sort_order ASC, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_todos_contact_uid ON todos (contact_uid);
 CREATE TABLE IF NOT EXISTS todos_meta (
   id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   markdown_seed_done BOOLEAN NOT NULL DEFAULT false
@@ -152,6 +163,9 @@ function rowToTodo(row: TodoItem): TodoItem {
     job_slug: row.job_slug ?? null,
     assignee: row.assignee ?? null,
     section: row.section ?? null,
+    contact_uid: row.contact_uid ?? null,
+    contact_name: row.contact_name ?? null,
+    created_by: normalizeTodoCreatedBy(row.created_by) ?? 'staff',
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -164,6 +178,8 @@ export interface ListTodosOpts {
   due_after?: string;
   job_slug?: string;
   unlinked?: boolean;
+  contact_uid?: string;
+  shared?: boolean;
 }
 
 export async function dbListTodos(opts: ListTodosOpts = {}): Promise<TodoItem[] | null> {
@@ -196,6 +212,13 @@ export async function dbListTodos(opts: ListTodosOpts = {}): Promise<TodoItem[] 
     }
     if (opts.unlinked) {
       clauses.push('job_slug IS NULL');
+    }
+    if (opts.contact_uid) {
+      params.push(opts.contact_uid);
+      clauses.push(`contact_uid = $${params.length}`);
+    }
+    if (opts.shared) {
+      clauses.push("contact_uid LIKE 'install:%'");
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -242,6 +265,9 @@ export async function dbCreateTodo(input: {
   job_slug?: string | null;
   assignee?: string | null;
   section?: string | null;
+  contact_uid?: string | null;
+  contact_name?: string | null;
+  created_by?: TodoCreatedBy;
   sort_order?: number;
 }): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   try {
@@ -261,6 +287,9 @@ export async function dbCreateTodo(input: {
     const jobSlug = input.job_slug?.trim() || null;
     const assignee = input.assignee?.trim() || null;
     const section = input.section?.trim() || null;
+    const contactUid = input.contact_uid?.trim() || null;
+    const contactName = contactUid ? input.contact_name?.trim() || null : null;
+    const createdBy = input.created_by ?? 'staff';
     let sortOrder = input.sort_order;
     if (sortOrder == null || !Number.isFinite(sortOrder)) {
       const { rows: maxRows } = await pool.query<{ max: number | null }>(
@@ -269,10 +298,10 @@ export async function dbCreateTodo(input: {
       sortOrder = (maxRows[0]?.max ?? -1) + 1;
     }
     const { rows } = await pool.query<TodoItem>(
-      `INSERT INTO todos (title, due_date, priority, job_slug, assignee, section, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO todos (title, due_date, priority, job_slug, assignee, section, contact_uid, contact_name, created_by, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING ${TODO_COLUMNS}`,
-      [title, dueForDb, priority, jobSlug, assignee, section, sortOrder],
+      [title, dueForDb, priority, jobSlug, assignee, section, contactUid, contactName, createdBy, sortOrder],
     );
     const todo = rows[0];
     if (!todo) return { ok: false, error: 'insert failed' };
@@ -293,6 +322,9 @@ export async function dbUpdateTodo(
     job_slug?: string | null;
     assignee?: string | null;
     section?: string | null;
+    contact_uid?: string | null;
+    contact_name?: string | null;
+    created_by?: TodoCreatedBy;
     sort_order?: number;
   },
 ): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
@@ -323,15 +355,37 @@ export async function dbUpdateTodo(
     const assignee =
       patch.assignee !== undefined ? patch.assignee?.trim() || null : existing.assignee;
     const section = patch.section !== undefined ? patch.section?.trim() || null : existing.section;
+    let contactUid =
+      patch.contact_uid !== undefined ? patch.contact_uid?.trim() || null : existing.contact_uid;
+    let contactName =
+      patch.contact_name !== undefined
+        ? patch.contact_name?.trim() || null
+        : existing.contact_name;
+    if (!contactUid) contactName = null;
+    const createdBy = patch.created_by ?? existing.created_by;
     const sortOrder = patch.sort_order ?? existing.sort_order;
 
     const { rows } = await pool.query<TodoItem>(
       `UPDATE todos
        SET title = $2, due_date = $3, priority = $4, status = $5,
-           job_slug = $6, assignee = $7, section = $8, sort_order = $9, updated_at = NOW()
+           job_slug = $6, assignee = $7, section = $8, contact_uid = $9,
+           contact_name = $10, created_by = $11, sort_order = $12, updated_at = NOW()
        WHERE id = $1
        RETURNING ${TODO_COLUMNS}`,
-      [id, title, dueDate, priority, status, jobSlug, assignee, section, sortOrder],
+      [
+        id,
+        title,
+        dueDate,
+        priority,
+        status,
+        jobSlug,
+        assignee,
+        section,
+        contactUid,
+        contactName,
+        createdBy,
+        sortOrder,
+      ],
     );
     const todo = rows[0];
     if (!todo) return { ok: false, error: 'Not found' };
@@ -454,6 +508,26 @@ export async function dbReorderTodos(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
+  }
+}
+
+/** Client deleted: keep the to-dos, but drop the portal share. */
+export async function dbUnlinkTodosByContactUid(contactUid: string): Promise<number> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return 0;
+    const uid = contactUid.trim();
+    if (!uid) return 0;
+    const { rowCount } = await pool.query(
+      `UPDATE todos
+       SET contact_uid = NULL, contact_name = NULL, updated_at = NOW()
+       WHERE contact_uid = $1`,
+      [uid],
+    );
+    return rowCount ?? 0;
+  } catch (e) {
+    console.error('[todos:pg] unlink contact error:', e);
+    return 0;
   }
 }
 

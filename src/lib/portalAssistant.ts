@@ -102,6 +102,7 @@ function buildSystemPrompt(ctx: PortalAssistantContext): string {
     lines.push('For more detail than a status label, point them to the Projects tab on this page.');
   }
 
+
   if (ctx.billing) {
     lines.push(
       ctx.billing.totalDue > 0

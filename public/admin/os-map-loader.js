@@ -155,7 +155,7 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260824a';
+} from './todo-panel.js?v=20260826e';
 import {
   initDocumentsPanel,
   docState,
@@ -947,7 +947,8 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'newsletter') {
     loadNewsletterTab();
   } else if (MAP.type === 'todo') {
-    loadTodoTab({ todoId: opts.todoId });
+    const todoId = opts.todoId || parseTodoDeepLinkFromUrl();
+    loadTodoTab({ todoId });
   } else {
     buildMap();
     finishMapLayout();
@@ -2695,7 +2696,8 @@ function formatDashTodoWhen(raw) {
 }
 
 function dashTodoSubline(todo) {
-  const bits = ['To-do'];
+  const bits = [String(todo.contact_uid || '').startsWith('install:') ? 'Install request' : 'To-do'];
+  if (todo.contact_name) bits.push(todo.contact_name);
   if (todo.section) bits.push(todo.section);
   if (todo.assignee) bits.push(todo.assignee);
   if (todo.priority && todo.priority !== 'normal') {
@@ -4142,7 +4144,7 @@ function reviewAlertTone(item) {
   ) {
     return 'project';
   }
-  if (type === 'vault_entry' || type === 'deck_view' || type === 'demo_launch') return 'client';
+  if (type === 'vault_entry' || type === 'punchlist_item' || type === 'deck_view' || type === 'demo_launch') return 'client';
   if (type === 'demo_request') return 'critical';
   if (type === 'push_alert' && item.alertKind === 'critical') return 'critical';
   if (type === 'push_alert' && item.alertKind === 'engagement') return 'client';
@@ -4277,7 +4279,7 @@ function reviewNotificationHasOpenTarget(item) {
     if (path !== '/admin') return true;
     const tab = u.searchParams.get('tab');
     if (tab && tab !== 'dashboard') return true;
-    for (const key of ['email', 'slug', 'chat', 'client', 'booking', 'module']) {
+    for (const key of ['email', 'slug', 'chat', 'client', 'booking', 'module', 'todo']) {
       if (u.searchParams.get(key)?.trim()) return true;
     }
     return false;
@@ -4326,6 +4328,15 @@ async function openReviewNotificationTarget(item) {
     }
     return;
   }
+  if (item.type === 'punchlist_item') {
+    const todoId = Number(item.jobSlug);
+    if (Number.isInteger(todoId) && todoId > 0) {
+      navigateToTodo(todoId);
+      return;
+    }
+    setActiveMap('todo', { force: true });
+    return;
+  }
   if ((item.type === 'vault_entry' || item.type === 'deck_view' || item.type === 'demo_launch') && item.contactUid) {
     navigateToClient(item.contactUid);
     return;
@@ -4349,6 +4360,7 @@ function buildReviewAlertBanner(item) {
   const isProjectMatch = item.type === 'project_match';
   const isProjectComment = item.type === 'project_comment';
   const isVaultEntry = item.type === 'vault_entry';
+  const isPunchlistItem = item.type === 'punchlist_item';
   const isShareOpen = item.type === 'share_open';
   const isDeckView = item.type === 'deck_view';
   const isDemoLaunch = item.type === 'demo_launch';
@@ -4508,6 +4520,12 @@ function buildReviewAlertBanner(item) {
   } else if (isVaultEntry) {
     pushNotifyAction('view', {
       label: 'View vault',
+      primary: true,
+      onClick: () => openReviewNotificationTarget(item),
+    });
+  } else if (isPunchlistItem) {
+    pushNotifyAction('view', {
+      label: 'View to-do',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
@@ -10094,6 +10112,18 @@ function parseWorkDeepLinkFromUrl() {
   }
 }
 
+function parseTodoDeepLinkFromUrl() {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('todo')?.trim();
+    if (!raw) return null;
+    if (raw === '__new__') return raw;
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseScheduleDeepLinkFromUrl() {
   try {
     return new URLSearchParams(window.location.search).get('booking')?.trim() || null;
@@ -10243,6 +10273,19 @@ function syncAdminTabUrl(key, opts = {}) {
       else url.searchParams.delete('module');
     } else {
       url.searchParams.delete('module');
+    }
+
+    if (key === 'todo') {
+      const todoId =
+        opts.todoId !== undefined
+          ? opts.todoId
+          : todoState.activeId && todoState.activeId !== '__new__'
+            ? todoState.activeId
+            : parseTodoDeepLinkFromUrl();
+      if (todoId && todoId !== '__new__') url.searchParams.set('todo', String(todoId));
+      else url.searchParams.delete('todo');
+    } else {
+      url.searchParams.delete('todo');
     }
 
     url.searchParams.delete('copy');
@@ -16652,6 +16695,7 @@ function loadActiveKey() {
     if (params.get('slug')?.trim()) return 'work';
     if (params.get('booking')?.trim()) return 'schedule';
     if (params.get('module')?.trim()) return 'modules';
+    if (params.get('todo')?.trim()) return 'todo';
     const tab = resolveMapKey(params.get('tab'));
     if (tab && MAPS[tab] && canOpenMapKey(tab)) return tab;
   } catch {}

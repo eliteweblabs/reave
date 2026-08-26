@@ -36,8 +36,11 @@ export async function GET(context: APIContext): Promise<Response> {
     const dueBefore = context.url.searchParams.get('due_before')?.trim();
     const dueAfter = context.url.searchParams.get('due_after')?.trim();
     const jobSlug = context.url.searchParams.get('job_slug')?.trim() || undefined;
+    const contactUid = context.url.searchParams.get('contact_uid')?.trim() || undefined;
     const unlinkedRaw = context.url.searchParams.get('unlinked')?.trim().toLowerCase();
     const unlinked = unlinkedRaw === '1' || unlinkedRaw === 'true';
+    const sharedRaw = context.url.searchParams.get('shared')?.trim().toLowerCase();
+    const shared = sharedRaw === '1' || sharedRaw === 'true';
 
     const status = normalizeTodoStatus(statusRaw);
     const priority = normalizeTodoPriority(priorityRaw);
@@ -52,6 +55,8 @@ export async function GET(context: APIContext): Promise<Response> {
       due_after: dueAfter || undefined,
       job_slug: jobSlug,
       unlinked: unlinked || undefined,
+      contact_uid: contactUid,
+      shared: shared || undefined,
     });
 
     return json({
@@ -100,6 +105,7 @@ export async function POST(context: APIContext): Promise<Response> {
     job_slug: body.job_slug != null ? String(body.job_slug).trim() || null : undefined,
     assignee: body.assignee != null ? String(body.assignee).trim() || null : undefined,
     section: body.section != null ? String(body.section).trim() || null : undefined,
+    created_by: 'staff',
   });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.todo }, 201);

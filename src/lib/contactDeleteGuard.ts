@@ -5,6 +5,7 @@
 import { deleteContact, getContact } from './contactApi';
 import { isCraterConfigured, craterListEstimates, craterListInvoices, craterSearchCustomers, matchCraterCustomer } from './craterClient';
 import { storeDeleteWorkByClientUid, storeListWork } from './workStore';
+import { storeUnlinkTodosForContact } from './todoStore';
 
 export type LinkedProject = { slug: string; title: string };
 
@@ -118,6 +119,8 @@ export async function executeContactDelete(
   if (projects.length > 0) {
     deleted_projects = await storeDeleteWorkByClientUid(trimmed);
   }
+
+  await storeUnlinkTodosForContact(trimmed).catch(() => 0);
 
   const permanent = opts.permanent ?? !!opts.force;
   const result = await deleteContact(trimmed, { permanent });
