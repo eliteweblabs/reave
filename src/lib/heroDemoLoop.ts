@@ -73,6 +73,8 @@ const ASSISTANT_RESPONSE_DELAY_MS = 420;
 const TYPING_DOTS_MS = 480;
 /** How long in-progress status lines show animated ellipsis. */
 const STATUS_HOLD_MS = 950;
+/** Gap between chained invoice-link bubbles after the first. */
+const RAPID_LINK_MS = 170;
 
 /**
  * Soft clock for admin play/pause/next. `wait()` freezes while paused and
@@ -352,12 +354,23 @@ function createMentionChip(name: string): HTMLElement {
   return chip;
 }
 
+function isLinkTurn(turn: HeroDemoTurn): boolean {
+  return turn.kind === "link";
+}
+
 /**
  * Fill a bubble text node, turning known `@Name` tokens into mention chips.
- * Unknown `@…` stays plain text.
+ * Unknown `@…` stays plain text. `asLink` wraps the whole line as a chat link.
  */
-function fillBubbleText(el: HTMLElement, text: string): void {
+function fillBubbleText(el: HTMLElement, text: string, opts?: { asLink?: boolean }): void {
   el.replaceChildren();
+  if (opts?.asLink) {
+    const link = document.createElement("span");
+    link.className = "home-hero-demo-link";
+    link.textContent = text;
+    el.appendChild(link);
+    return;
+  }
   if (!text.includes("@")) {
     el.textContent = text;
     return;
@@ -399,6 +412,7 @@ function appendBubbleChars(el: HTMLElement, chunk: string): void {
 function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: boolean): void {
   row.classList.remove("home-hero-demo-msg--typing");
   row.removeAttribute("aria-label");
+  if (isLinkTurn(turn)) row.dataset.heroLink = "1";
 
   const bubble = row.querySelector<HTMLElement>(".home-hero-demo-bubble");
   if (!bubble) return;
@@ -418,7 +432,7 @@ function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: bo
     text.appendChild(ellipsis);
     row.classList.add("home-hero-demo-msg--status");
   } else {
-    fillBubbleText(text, turn.text);
+    fillBubbleText(text, turn.text, { asLink: isLinkTurn(turn) });
   }
 
   bubble.appendChild(text);
@@ -433,6 +447,7 @@ function morphTypingToMessage(row: HTMLElement, turn: HeroDemoTurn, isStatus: bo
 function morphStatusToReply(row: HTMLElement, turn: HeroDemoTurn): void {
   row.classList.remove("home-hero-demo-msg--status");
   delete row.dataset.heroAwaitingReply;
+  if (isLinkTurn(turn)) row.dataset.heroLink = "1";
 
   const bubble = row.querySelector<HTMLElement>(".home-hero-demo-bubble");
   if (!bubble) return;
@@ -441,7 +456,7 @@ function morphStatusToReply(row: HTMLElement, turn: HeroDemoTurn): void {
 
   const text = document.createElement("p");
   text.className = "home-hero-demo-bubble-text";
-  fillBubbleText(text, turn.text);
+  fillBubbleText(text, turn.text, { asLink: isLinkTurn(turn) });
   bubble.appendChild(text);
 
   if (turn.actions?.length) {
@@ -467,6 +482,32 @@ function renderActions(actions: HeroDemoAction[]): HTMLElement {
   }
 
   return wrap;
+}
+
+/** Instant assistant bubble — used for rapid-fire invoice links after the first. */
+function createAssistantTextRow(root: HTMLElement, turn: HeroDemoTurn): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "home-hero-demo-msg home-hero-demo-msg--assistant";
+  row.setAttribute("role", "listitem");
+  if (isLinkTurn(turn)) row.dataset.heroLink = "1";
+
+  const avatar = cloneAvatar("assistant", root);
+  const bubble = document.createElement("div");
+  bubble.className = "home-hero-demo-bubble";
+
+  const text = document.createElement("p");
+  text.className = "home-hero-demo-bubble-text";
+  fillBubbleText(text, turn.text, { asLink: isLinkTurn(turn) });
+  bubble.appendChild(text);
+
+  if (turn.actions?.length) {
+    bubble.appendChild(renderActions(turn.actions));
+  }
+
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  fitBubbleToRenderedText(bubble);
+  return row;
 }
 
 /** Full-width illegible invoice card — static bones, no shimmer. */
@@ -1584,9 +1625,16 @@ async function playGpsLocateSkeleton(
   }
 }
 
+type UserTurnKind = "voice" | "slash" | "mention" | "soft-mention";
+
+function userTurnKind(kind: HeroDemoTurn["kind"]): UserTurnKind {
+  if (kind === "slash" || kind === "mention" || kind === "soft-mention") return kind;
+  return "voice";
+}
+
 function createUserComposingShell(
   root: HTMLElement,
-  kind: "voice" | "slash" | "mention" | "soft-mention",
+  kind: UserTurnKind,
   userAvatarUrl?: string,
 ): HTMLElement {
   const row = document.createElement("div");
@@ -2029,7 +2077,7 @@ async function playUserTurn(
 ): Promise<void> {
   const charMs = reducedMotion ? USER_CHAR_MS_FAST : USER_CHAR_MS;
 
-  const kind = turn.kind ?? "voice";
+  const kind = userTurnKind(turn.kind);
   const row = createUserComposingShell(root, kind, userAvatarUrl);
   row.classList.add("home-hero-demo-msg--enter");
   sceneEl.appendChild(row);
@@ -2117,6 +2165,18 @@ async function playAssistantTurn(
   const isStatus = isStatusMessage(turn.text);
   const thinkMs = turn.pauseMs ?? DEFAULT_THINK_MS;
   const isGpsOnly = turn.effect === "gps-locate" && !turn.text.trim();
+  const chainLink = isLinkTurn(turn) && priorAssistantRow?.dataset.heroLink === "1";
+
+  // Slash `/invoice` → remaining invoice links pop in without typing dots.
+  if (chainLink) {
+    await wait(turn.pauseMs ?? RAPID_LINK_MS);
+    if (!isAlive()) return priorAssistantRow;
+    const row = createAssistantTextRow(root, turn);
+    row.classList.add("home-hero-demo-msg--enter");
+    sceneEl.appendChild(row);
+    relayout(true);
+    return row;
+  }
 
   // Status line → reply in the same bubble (no second bubble).
   if (!isStatus && !isGpsOnly && priorAssistantRow?.dataset.heroAwaitingReply === "1") {
@@ -2430,7 +2490,9 @@ export function initHeroDemoLoop(root: HTMLElement) {
   if (root.dataset.heroDemoBound === "1") return;
   root.dataset.heroDemoBound = "1";
 
-  const scenes = parseScenes(root.dataset.scenes);
+  const parsed = parseScenes(root.dataset.scenes);
+  const pin = new URLSearchParams(location.search).get("hero");
+  const scenes = pin ? parsed.filter((scene) => scene.id === pin) : parsed;
   if (!scenes.length) return;
 
   const mapboxToken = (root.dataset.mapboxToken || "").trim();

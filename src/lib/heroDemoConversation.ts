@@ -20,8 +20,9 @@ export type HeroDemoTurn = {
   /**
    * `mention` — types `@` then the picker.
    * `soft-mention` — picker from to/from/for after send/bill/… (no `@` typed).
+   * `link` — assistant turn rendered as a chat link (invoice, doc, etc.).
    */
-  kind?: "voice" | "slash" | "mention" | "soft-mention";
+  kind?: "voice" | "slash" | "mention" | "soft-mention" | "link";
   /** Shown below assistant copy — e.g. Review draft, View status. */
   actions?: HeroDemoAction[];
   /** Pause before this turn appears (ms). */
@@ -303,18 +304,38 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
   {
     id: "slash-invoice",
     userAvatar: "hero-henderson-billing",
-    holdMs: 900,
+    /** Sit on the four invoice links before the scene fades. */
+    holdMs: 1600,
     turns: [
       {
         role: "user",
-        text: "/invoice List recent invoices.",
+        /** Bare slash — Enter sends `/invoice`, no follow-up prompt. */
+        text: "/invoice",
         kind: "slash",
       },
       {
         role: "assistant",
-        text: "3 open invoices · $8,420 outstanding.",
-        pauseMs: 1400,
-        actions: [{ label: "View invoices", variant: "primary" }],
+        text: "INV-0042 · Henderson · $4,280",
+        kind: "link",
+        pauseMs: 620,
+      },
+      {
+        role: "assistant",
+        text: "INV-0087 · Website redesign · $2,650",
+        kind: "link",
+        pauseMs: 170,
+      },
+      {
+        role: "assistant",
+        text: "INV-0031 · Parker Marketing · $1,200",
+        kind: "link",
+        pauseMs: 170,
+      },
+      {
+        role: "assistant",
+        text: "INV-0019 · The Bottle Shop · $890",
+        kind: "link",
+        pauseMs: 170,
       },
     ],
   },

@@ -587,6 +587,15 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     margin: 0;
   }
 
+  /* Invoice (and similar) results — same affordance as a chat markdown link. */
+  .home-hero-demo-link {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.16em;
+    text-decoration-thickness: from-font;
+  }
+
   /* Inline @mention chips — mirrors .aui-mention-chip on the dark demo surface. */
   .home-hero-demo-mention-chip {
     display: inline;
