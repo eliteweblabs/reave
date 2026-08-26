@@ -105,6 +105,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero {
     --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
     --home-hero-brand-bottom: 42%;
+    --home-hero-icon-size: clamp(190px, 42vw, 312px);
+    --home-hero-icon-pad: 1.25rem; /* ~20px at 16px root */
+    /* Pasted mark SVGs are 512² — letterforms sit ~28.5% above the canvas floor. */
+    --home-hero-icon-ink-below: 0.285;
     /*
      * With the brand block centred there is no room for the chat below it, so
      * the lane runs up behind it: --rise is how far past the headline a turn
@@ -144,8 +148,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     position: relative;
     z-index: 1;
     flex: none;
-    width: clamp(190px, 42vw, 312px);
-    height: clamp(190px, 42vw, 312px);
+    box-sizing: content-box;
+    width: var(--home-hero-icon-size);
+    height: var(--home-hero-icon-size);
+    padding: var(--home-hero-icon-pad);
     pointer-events: none;
     overflow: visible;
   }
@@ -314,7 +320,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   .home-hero-title {
     position: relative;
     z-index: 1;
-    margin: -3.75rem 0 0;
+    /* Tuck into empty SVG canvas; leave the 20px pad under the ink. */
+    margin: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-below) * -1) 0 0;
     font-family: var(--font-primary);
     font-size: clamp(1.39rem, 3.9vw, 2.625rem);
     font-weight: 700;
