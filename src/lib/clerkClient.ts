@@ -578,10 +578,12 @@ function clerkDomainName(row: ClerkDomainRow): string {
 }
 
 /**
- * Point this host's `/__clerk` proxy at the matching Clerk domain.
- * Client installs (jasonkahan.com, Railway preview hosts) cannot overwrite
- * the primary domain's proxy_url — Clerk rejects a different apex. Add or
- * reuse a satellite domain for that hostname instead.
+ * Keep `/__clerk` registered on the primary Clerk domain only.
+ *
+ * Client installs sign in on their own host at `/admin`. Creating a Clerk
+ * satellite for that hostname blocks sign-in/sign-up
+ * (`operation_not_allowed_on_satellite_domain`). Do not overwrite the
+ * primary `proxy_url` either — Clerk rejects a different apex.
  */
 export async function clerkEnsureDomainProxy(proxyUrl: string): Promise<{
   ok: boolean;
@@ -609,25 +611,14 @@ export async function clerkEnsureDomainProxy(proxyUrl: string): Promise<{
 
   const host = clerkHostnameFromProxyUrl(wanted);
   const primaryName = clerkDomainName(primary);
-  let target = host
-    ? rows.find((row) => clerkDomainName(row) === host)
-    : primary;
-  if (!target && host && host !== primaryName) {
-    const created = await backendPost('/domains', { name: host, is_satellite: true });
-    if (!created.ok) {
-      return { ok: false, error: clerkApiErrorMessage(created.body, created.status) };
-    }
-    const createdRow = (created.body && typeof created.body === 'object' ? created.body : {}) as ClerkDomainRow;
-    if (!createdRow.id) {
-      return { ok: false, error: 'Clerk created a satellite domain but returned no id' };
-    }
-    target = createdRow;
-  }
-  if (!target?.id) target = primary;
-  if (clerkProxyUrlsEqual(target.proxy_url, wanted)) {
+  if (host && host !== primaryName) {
     return { ok: true, skipped: true };
   }
-  const patched = await backendPatch(`/domains/${target.id}`, { proxy_url: wanted });
+
+  if (clerkProxyUrlsEqual(primary.proxy_url, wanted)) {
+    return { ok: true, skipped: true };
+  }
+  const patched = await backendPatch(`/domains/${primary.id}`, { proxy_url: wanted });
   if (!patched.ok) {
     return { ok: false, error: clerkApiErrorMessage(patched.body, patched.status) };
   }

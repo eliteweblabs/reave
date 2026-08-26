@@ -5,7 +5,7 @@
  * Slug: INSTALL_CONFIG env → COMPANY_DOMAIN / PUBLIC_SITE_DOMAIN → "default"
  * Override path: INSTALL_CONFIG_FILE
  *
- * `default` is the unbranded new-install fallback (Clerk login on `/`).
+ * `default` is the unbranded new-install fallback (Clerk login at `/admin`).
  * Company name/logo still come from admin Company settings (Postgres).
  * Official reΛVe.app uses config-reave.json and is never a login wall.
  */
