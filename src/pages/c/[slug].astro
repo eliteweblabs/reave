@@ -9,10 +9,10 @@
  * comes from the `portal` link metadata on the contact (see src/lib/contactApi).
  * Internal `notes` are intentionally NOT shown.
  *
- * Tabs: Overview, Audit (online presence diagnostic), Projects (Work),
- * Billing (Crater invoices), Vault (web-design handoff). Vault shows when
- * web_handoff is enabled even if empty so clients can add the first entry.
- * Other tabs appear when populated.
+ * Tabs: Overview, Punch list (shared to-dos), Audit (online presence
+ * diagnostic), Projects (Work), Billing (Crater invoices), Vault
+ * (web-design handoff). Punch list and Vault show even if empty so
+ * clients can add the first entry. Other tabs appear when populated.
  */
 import {
   getContact,
@@ -43,7 +43,10 @@ import { requestOrigin } from '../../lib/requestOrigin';
 import { projectPortalUrl, auditPortalUrl } from '../../lib/contactApi';
 import { LOGO_ICON_OG_PATH } from '../../lib/companyLogo';
 import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
+import PortalPunchlist from '../../components/PortalPunchlist.astro';
 import PortalAuditPanel from '../../components/PortalAuditPanel.astro';
+import { isTodoDbConfigured, storeListTodos } from '../../lib/todoStore';
+import { toPublicPunchlistItem, type PublicPunchlistItem } from '../../lib/punchlist';
 import { buildAuditReportCard, isAuditJob } from '../../lib/auditReportCard';
 import { googlePlacesListedFlag } from '../../lib/auditPlacesListing';
 import SiteFooter from '../../components/SiteFooter.astro';
@@ -350,6 +353,16 @@ if (contact && uid && hasFeature('uptime_monitoring')) {
 }
 const hasUptime = clientUptimeMonitors.length > 0 || clientUptimeIncidents.length > 0;
 
+let punchlistItems: PublicPunchlistItem[] = [];
+const hasPunchlist = Boolean(contact && uid && hasFeature('client_portal') && isTodoDbConfigured());
+if (hasPunchlist && uid) {
+  try {
+    punchlistItems = (await storeListTodos({ contact_uid: uid })).map(toPublicPunchlistItem);
+  } catch {
+    // Punch list is optional — never take down the page for to-do drift.
+  }
+}
+
 // Which tabs to show
 const hasOverview = Boolean(
   clientTagline || clientWebsite || showClientContact || headline || bodyHtml || fields.length > 0
@@ -362,6 +375,7 @@ const hasAudit = Boolean(portalAuditJob);
 const postAlias = getPostAlias();
 const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
+if (hasPunchlist) tabs.push({ id: 'punchlist', label: 'Punch list' });
 if (hasAudit) tabs.push({ id: 'audit', label: 'Audit' });
 if (hasWork) tabs.push({ id: 'work', label: postAlias.pluralTitle });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
@@ -591,8 +605,9 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                 ))}
               </div>
             )}
-            {!hasOverview && !hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
+            {!hasOverview && !hasWork && !hasUptime && !hasPunchlist && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
             {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the {postAlias.pluralTitle} tab for your {postAlias.plural}.</p>}
+            {!hasOverview && hasPunchlist && !hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the Punch list tab to send us leftover work.</p>}
             {hasUptime && (
               <div class="uptime-block">
                 <h3 class="group-title">Website uptime</h3>
@@ -641,6 +656,10 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               clientAvatarUrl={avatarUrl}
               staffAvatarUrl={staffAvatarUrl}
             />
+          )}
+
+          {hasPunchlist && uid && (
+            <PortalPunchlist items={punchlistItems} contactUid={uid} active={initialTab === 'punchlist'} />
           )}
 
           {/* Work (client-visible jobs + comments) */}

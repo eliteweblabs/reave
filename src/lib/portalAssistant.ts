@@ -49,6 +49,7 @@ export type PortalAssistantContext = {
   };
   billing?: PortalAssistantBilling | null;
   jobs?: PortalAssistantJobSummary[];
+  punchlist?: Array<{ title: string; status: 'open' | 'done' }>;
 };
 
 const MAX_CONTEXT_LIST_ITEMS = 40;
@@ -100,6 +101,21 @@ function buildSystemPrompt(ctx: PortalAssistantContext): string {
       lines.push(`• ${j.title}: ${j.statusLabel}${j.updated ? ` (updated ${j.updated})` : ''}`);
     }
     lines.push('For more detail than a status label, point them to the Projects tab on this page.');
+  }
+
+  const punchlist = (ctx.punchlist ?? []).slice(0, MAX_CONTEXT_LIST_ITEMS);
+  if (punchlist.length) {
+    lines.push('Shared punch list on this page (same items staff see on their to-do list):');
+    for (const item of punchlist) {
+      lines.push(`• ${item.status === 'done' ? 'Done' : 'Open'}: ${item.title}`);
+    }
+    lines.push(
+      'They can add items or check them off on the Punch list tab. Completing an item updates staff immediately. You cannot add items for them — point them to that tab.',
+    );
+  } else {
+    lines.push(
+      'Their Punch list tab is empty. If they mention leftover work, tell them to add it there — it goes straight onto the staff to-do list.',
+    );
   }
 
   if (ctx.billing) {

@@ -850,11 +850,37 @@ async function handleAddTodo(
     }
   }
 
+  const clientQuery = String(params.client ?? params.contact ?? params.contact_uid ?? '').trim();
+  let contactUid: string | null = null;
+  let contactName: string | null = null;
+  if (clientQuery) {
+    if (/^[0-9a-f-]{16,}$/i.test(clientQuery) && !clientQuery.includes(' ')) {
+      contactUid = clientQuery;
+    } else {
+      const lookup = await findClientStrictForSiri(clientQuery);
+      if (!lookup.ok) {
+        return { ok: false, error: lookup.error, text: lookup.error };
+      }
+      if (lookup.found) {
+        contactUid = lookup.contact.uid;
+        contactName = lookup.contact.name || clientQuery;
+      } else {
+        const msg = lookup.ambiguous?.length
+          ? `Multiple contacts match "${clientQuery}". Please be more specific.`
+          : `Contact not found: ${clientQuery}.`;
+        return { ok: false, error: msg, text: msg };
+      }
+    }
+  }
+
   const result = await storeCreateTodo({
     title,
     due_date,
     priority,
     section: params.section != null ? String(params.section).trim() || null : undefined,
+    contact_uid: contactUid,
+    contact_name: contactName,
+    created_by: 'staff',
   });
   if (!result.ok) return { ok: false, error: result.error, text: result.error };
 
@@ -866,7 +892,9 @@ async function handleAddTodo(
 
   return {
     ok: true,
-    text: `Added to-do: ${result.todo.title}${priorityBit}${dueBit}`,
+    text: contactUid
+      ? `Added punch-list to-do for ${contactName || 'client'}: ${result.todo.title}${priorityBit}${dueBit}`
+      : `Added to-do: ${result.todo.title}${priorityBit}${dueBit}`,
     data: { todo: result.todo },
   };
 }

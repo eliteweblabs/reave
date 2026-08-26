@@ -152,8 +152,20 @@ function formatTodoDueDate(raw) {
   return time ? `Due ${datePart} @ ${time}` : `Due ${datePart}`;
 }
 
+function todoContactName(todo) {
+  const name = String(todo?.contact_name || '').trim();
+  if (name) return name;
+  const uid = String(todo?.contact_uid || '').trim();
+  if (!uid) return '';
+  const job = todoState.jobs.find((j) => j.contact_uid === uid);
+  return job?.contact_name || job?.client || '';
+}
+
 function todoSubline(todo) {
   const bits = [];
+  const clientName = todoContactName(todo);
+  if (clientName) bits.push(clientName);
+  else if (todo.contact_uid) bits.push('Punch list');
   if (todo.section) bits.push(todo.section);
   if (todo.job_slug) bits.push(todoJobTitle(todo.job_slug));
   if (todo.assignee) bits.push(todo.assignee);
@@ -171,22 +183,35 @@ function todoPriorityDotClass(priority) {
   return 'td-priority-dot';
 }
 
+function todoMatchesFilter(todo, filter) {
+  if (filter === 'clients') return todo.status === 'open' && Boolean(todo.contact_uid?.trim());
+  return todo.status === filter;
+}
+
 function todoSearchPlaceholder() {
-  const count = todoState.todos.filter((t) => t.status === todoState.filter).length;
-  const label = count === 1 ? 'To Do Item' : 'To Do Items';
+  const count = todoState.todos.filter((t) => todoMatchesFilter(t, todoState.filter)).length;
+  const label =
+    todoState.filter === 'clients'
+      ? count === 1
+        ? 'Client Item'
+        : 'Client Items'
+      : count === 1
+        ? 'To Do Item'
+        : 'To Do Items';
   return `Search ${count} ${label}`;
 }
 
 function filterTodoItems(todos) {
   const q = todoState.search.trim().toLowerCase();
   return todos.filter((todo) => {
-    if (todo.status !== todoState.filter) return false;
+    if (!todoMatchesFilter(todo, todoState.filter)) return false;
     if (!q) return true;
     return matchesListSearch(
       q,
       todo.title,
       todo.section,
       todo.assignee,
+      todoContactName(todo),
       todo.job_slug ? todoJobTitle(todo.job_slug) : '',
       todoSubline(todo),
     );
@@ -314,6 +339,8 @@ function startNewTodo(opts = {}) {
       job_slug: opts.jobSlug || '',
       assignee: '',
       section: '',
+      contact_uid: opts.contactUid || '',
+      contact_name: opts.contactName || '',
     };
   }
   if (todoState.draft.job_slug) {
@@ -424,10 +451,12 @@ function updateTodoFilterTabActiveState() {
 function renderTodoFilterTabs() {
   const { todos, filter } = todoState;
   const openCount = todos.filter((t) => t.status === 'open').length;
+  const clientCount = todos.filter((t) => t.status === 'open' && t.contact_uid?.trim()).length;
   const doneCount = todos.filter((t) => t.status === 'done').length;
   return mountListFilterTabs({
     tabs: [
       { id: 'open', label: 'Open', count: openCount },
+      { id: 'clients', label: 'Clients', count: clientCount },
       { id: 'done', label: 'Done', count: doneCount },
     ],
     activeId: filter,
@@ -498,6 +527,8 @@ function renderTodoEditor() {
 }
 
 function todoAuthorContactUid(todo) {
+  const fromTodo = todo.contact_uid?.trim();
+  if (fromTodo) return fromTodo;
   const slug = todo.job_slug?.trim();
   if (!slug) return '';
   return todoState.jobs.find((j) => j.slug === slug)?.contact_uid || '';
@@ -583,6 +614,8 @@ async function openTodo(id, opts = {}) {
     job_slug: todo.job_slug || '',
     assignee: todo.assignee || '',
     section: todo.section || '',
+    contact_uid: todo.contact_uid || '',
+    contact_name: todo.contact_name || '',
   };
   todoState.linkedJob = null;
   if (todo.job_slug) {
@@ -646,6 +679,8 @@ async function saveActiveTodoDraft(silent = false) {
     job_slug: todoState.draft.job_slug?.trim() || null,
     assignee: todoState.draft.assignee?.trim() || null,
     section: todoState.draft.section?.trim() || null,
+    contact_uid: todoState.draft.contact_uid?.trim() || null,
+    contact_name: todoState.draft.contact_name?.trim() || null,
   };
   if (!payload.title) return false;
 
@@ -668,6 +703,8 @@ async function saveActiveTodoDraft(silent = false) {
         job_slug: data.job_slug || '',
         assignee: data.assignee || '',
         section: data.section || '',
+        contact_uid: data.contact_uid || '',
+        contact_name: data.contact_name || '',
       };
       if (data.job_slug) await refreshTodoLinkedJob(data.job_slug);
     } else {
@@ -853,6 +890,7 @@ function renderTodoEditPane(pane, isNew) {
   sectionLabel.appendChild(sectionInput);
   fields.appendChild(sectionLabel);
 
+  mountTodoClientPicker(fields, draft, markDirty);
   mountTodoProjectPicker(fields, draft, markDirty);
 
   scroll.appendChild(fields);
@@ -999,6 +1037,10 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
 
   function pickJob(job) {
     draft.job_slug = job?.slug || '';
+    if (job?.contact_uid && !draft.contact_uid?.trim()) {
+      draft.contact_uid = job.contact_uid;
+      draft.contact_name = job.contact_name || job.client || '';
+    }
     changing = !draft.job_slug;
     searchInput.value = '';
     dropdown.style.display = 'none';
@@ -1023,6 +1065,141 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   searchInput.addEventListener('blur', () => {
     setTimeout(() => {
       if (!wrap.contains(document.activeElement) && draft.job_slug?.trim()) {
+        changing = false;
+        searchInput.value = '';
+        dropdown.style.display = 'none';
+        syncView();
+      }
+    }, 150);
+  });
+  shell.attachAutosuggestKeyboardNav(searchInput, dropdown, {
+    optionSelector: '.wk-client-option',
+    onClose: () => {
+      dropdown.style.display = 'none';
+    },
+  });
+
+  syncView();
+  parent.appendChild(wrap);
+}
+
+function mountTodoClientPicker(parent, draft, markDirty) {
+  let changing = !draft.contact_uid?.trim();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'wk-client-picker td-client-picker';
+
+  const fieldLabel = document.createElement('span');
+  fieldLabel.className = 'de-label';
+  fieldLabel.textContent = 'Client punch list';
+  wrap.appendChild(fieldLabel);
+
+  const selectedEl = document.createElement('div');
+  selectedEl.className = 'wk-client-selected';
+  const selectedName = document.createElement('span');
+  selectedName.className = 'wk-client-name';
+  const changeBtn = document.createElement('button');
+  changeBtn.type = 'button';
+  changeBtn.className = 'de-btn de-btn-ghost';
+  changeBtn.textContent = 'Change';
+  selectedEl.appendChild(selectedName);
+  selectedEl.appendChild(changeBtn);
+  wrap.appendChild(selectedEl);
+
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'wk-client-search-wrap';
+  const searchInput = document.createElement('input');
+  searchInput.className = 'de-input';
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search clients…';
+  searchInput.autocomplete = 'off';
+  const dropdown = document.createElement('div');
+  dropdown.className = 'wk-client-dropdown';
+  dropdown.style.display = 'none';
+  searchWrap.appendChild(searchInput);
+  searchWrap.appendChild(dropdown);
+  wrap.appendChild(searchWrap);
+
+  function syncView() {
+    const uid = draft.contact_uid?.trim();
+    const has = !!uid;
+    selectedEl.style.display = has && !changing ? 'flex' : 'none';
+    searchWrap.style.display = changing || !has ? 'block' : 'none';
+    if (has) selectedName.textContent = draft.contact_name || todoContactName(draft) || 'Client';
+  }
+
+  function renderDropdown(matches, query) {
+    dropdown.innerHTML = '';
+    for (const client of matches) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-client-option';
+      btn.innerHTML =
+        `${escHtml(client.name || client.company || client.uid)}` +
+        `<span class="sub">${escHtml(client.company || client.email || '')}</span>`;
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => pickClient(client));
+      dropdown.appendChild(btn);
+    }
+    const q = query.trim();
+    if (draft.contact_uid?.trim()) {
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'wk-client-option wk-client-add';
+      clearBtn.textContent = 'Remove from client punch list';
+      clearBtn.addEventListener('mousedown', (e) => e.preventDefault());
+      clearBtn.addEventListener('click', () => pickClient(null));
+      dropdown.appendChild(clearBtn);
+    } else if (!matches.length && q) {
+      const empty = document.createElement('div');
+      empty.className = 'wk-client-option';
+      empty.textContent = 'No matching clients';
+      dropdown.appendChild(empty);
+    }
+    dropdown.style.display = 'block';
+  }
+
+  async function scheduleSearch() {
+    const q = searchInput.value.trim();
+    if (q.length < 1) {
+      renderDropdown([], q);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/clients?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+      const data = await res.json();
+      const matches = res.ok ? (data.clients || data.contacts || []).slice(0, 8) : [];
+      renderDropdown(matches, q);
+    } catch {
+      renderDropdown([], q);
+    }
+  }
+
+  function pickClient(client) {
+    draft.contact_uid = client?.uid || '';
+    draft.contact_name = client?.name || client?.company || '';
+    changing = !draft.contact_uid;
+    searchInput.value = '';
+    dropdown.style.display = 'none';
+    syncView();
+    markDirty();
+  }
+
+  changeBtn.addEventListener('click', () => {
+    changing = true;
+    syncView();
+    searchInput.focus();
+    void scheduleSearch();
+  });
+  searchInput.addEventListener('input', () => {
+    void scheduleSearch();
+  });
+  searchInput.addEventListener('focus', () => {
+    void scheduleSearch();
+  });
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!wrap.contains(document.activeElement) && draft.contact_uid?.trim()) {
         changing = false;
         searchInput.value = '';
         dropdown.style.display = 'none';
@@ -1330,7 +1507,14 @@ function navigateToNewTodoForProject(jobSlug) {
     job_slug: jobSlug,
     assignee: '',
     section: '',
+    contact_uid: '',
+    contact_name: '',
   };
+  const job = todoState.jobs.find((j) => j.slug === jobSlug);
+  if (job?.contact_uid) {
+    todoState.draft.contact_uid = job.contact_uid;
+    todoState.draft.contact_name = job.contact_name || job.client || '';
+  }
   pendingTodoDeepLinkId = '__new__';
   shell.setActiveMap('todo', { force: true, todoId: '__new__' });
 }

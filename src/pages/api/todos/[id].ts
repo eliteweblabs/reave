@@ -68,6 +68,8 @@ export async function PATCH(context: APIContext): Promise<Response> {
     job_slug?: string | null;
     assignee?: string | null;
     section?: string | null;
+    contact_uid?: string | null;
+    contact_name?: string | null;
     sort_order?: number;
   } = {};
 
@@ -100,6 +102,22 @@ export async function PATCH(context: APIContext): Promise<Response> {
   if (body.section !== undefined) {
     patch.section =
       body.section == null || body.section === '' ? null : String(body.section).trim();
+  }
+  if (body.contact_uid !== undefined) {
+    patch.contact_uid =
+      body.contact_uid == null || body.contact_uid === ''
+        ? null
+        : String(body.contact_uid).trim();
+  }
+  if (body.contact_name !== undefined) {
+    patch.contact_name =
+      body.contact_name == null || body.contact_name === ''
+        ? null
+        : String(body.contact_name).trim();
+  }
+  if (patch.contact_uid && !patch.contact_name) {
+    const { labelForTodoContact } = await import('../../../lib/punchlist');
+    patch.contact_name = await labelForTodoContact(patch.contact_uid);
   }
   if (body.sort_order != null) {
     const sortOrder = Number(body.sort_order);

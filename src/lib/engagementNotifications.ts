@@ -8,6 +8,7 @@ import {
   notifyAdminAgentOfDeckView,
   notifyAdminAgentOfDemoLaunch,
   notifyAdminAgentOfDemoRequest,
+  notifyAdminAgentOfPunchlistItem,
   notifyAdminAgentOfShareOpen,
   notifyAdminAgentOfVaultSubmit,
 } from './adminAgentAlert';
@@ -117,6 +118,36 @@ export async function recordVaultSubmitEngagement(opts: {
         contactName: who,
         contactUid: opts.contactUid,
         labels,
+        engagementId: event.id,
+      }),
+  );
+}
+
+export async function recordPunchlistItemEngagement(opts: {
+  contactUid: string;
+  contactName: string;
+  title: string;
+  todoId: number;
+}): Promise<EngagementEvent | null> {
+  const who = opts.contactName.trim() || 'Contact';
+  const title = opts.title.trim() || 'New punch-list item';
+
+  return createAndNotify(
+    {
+      type: 'punchlist_item',
+      title: `${who} added punch-list item: ${title}`,
+      detail: 'Added to your to-do list',
+      contactUid: opts.contactUid,
+      contactName: who,
+      jobSlug: String(opts.todoId),
+      jobTitle: title,
+    },
+    (event) =>
+      notifyAdminAgentOfPunchlistItem({
+        contactName: who,
+        contactUid: opts.contactUid,
+        title,
+        todoId: opts.todoId,
         engagementId: event.id,
       }),
   );

@@ -384,7 +384,7 @@ export const DEMO_TODOS: DemoTodoDef[] = [
 ];
 
 export type DemoEngagementDef = {
-  type: 'vault_entry' | 'share_open' | 'deck_view' | 'contact_form' | 'demo_launch' | 'demo_request';
+  type: 'vault_entry' | 'punchlist_item' | 'share_open' | 'deck_view' | 'contact_form' | 'demo_launch' | 'demo_request';
   title: string;
   detail: string;
   contactKey?: string;

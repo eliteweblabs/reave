@@ -409,6 +409,37 @@ export async function notifyAdminAgentOfVaultSubmit(opts: {
   });
 }
 
+/** Fire-and-forget — client added a shared punch-list item. */
+export async function notifyAdminAgentOfPunchlistItem(opts: {
+  contactName: string;
+  contactUid: string;
+  title: string;
+  todoId: number;
+  engagementId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const item = opts.title.trim() || 'New item';
+  const message = [
+    '✅ Client added a punch-list item',
+    '',
+    `Client: ${opts.contactName}`,
+    `Item: ${item}`,
+    '',
+    'It is now on your to-do list. Checking it off updates their portal too.',
+  ].join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: `✅ Punch list: ${opts.contactName}`,
+      body: item.slice(0, 120),
+      tag: `punchlist-${opts.engagementId}`,
+      url: `/admin?tab=todo&todo=${encodeURIComponent(String(opts.todoId))}`,
+    },
+  });
+}
+
 /** Fire-and-forget — client opened a tracked share / proposal / deck link. */
 export async function notifyAdminAgentOfShareOpen(opts: {
   contactName: string;

@@ -14,6 +14,7 @@ import { serverEnv } from './serverEnv';
 
 export type EngagementEventType =
   | 'vault_entry'
+  | 'punchlist_item'
   | 'share_open'
   | 'deck_view'
   | 'contact_form'
