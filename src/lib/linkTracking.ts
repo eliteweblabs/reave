@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { getPgPool } from './pgPool';
 import { clientPortalUrl } from './contactApi';
+import { isSafeRedirectDestination } from './safeRedirectUrl';
 import { siteBaseUrl } from './requestOrigin';
 import { serverEnv } from './serverEnv';
 
@@ -163,6 +164,9 @@ export async function createTrackedProjectLink(input: {
       tab: input.tab?.trim() || 'work',
       project: jobSlug,
     });
+  if (!isSafeRedirectDestination(destination)) {
+    return { ok: false, error: 'Invalid redirect destination' };
+  }
   const channel = input.channel ?? 'share';
   const sentBy = input.sentBy?.trim() || null;
 

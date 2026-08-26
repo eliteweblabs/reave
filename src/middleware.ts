@@ -55,6 +55,21 @@ function isAdminHotReloadAsset(pathname: string): boolean {
   return pathname.startsWith("/admin/") && pathname.endsWith(".js");
 }
 
+function isProtectedAdminPath(pathname: string): boolean {
+  const normalized = pathname.replace(/\/$/, "") || "/";
+  return (
+    normalized === "/admin" ||
+    normalized.startsWith("/admin/") ||
+    normalized.startsWith("/api/admin/")
+  );
+}
+
+function clerkUnavailableResponse(): Response {
+  return applySecurityHeaders(
+    new Response("Service unavailable — authentication is not configured", { status: 503 }),
+  );
+}
+
 function featureBlockedResponse(): Response {
   return applySecurityHeaders(new Response("Not found", { status: 404 }));
 }
@@ -246,7 +261,15 @@ async function runAppMiddleware(
   context: Parameters<MiddlewareHandler>[0],
   next: Parameters<MiddlewareHandler>[1],
 ): Promise<Response> {
+  const pathname = new URL(context.request.url).pathname;
+  const prod = typeof import.meta.env !== "undefined" && import.meta.env.PROD;
+  const adminProtected = prod && isProtectedAdminPath(pathname);
+
   if (!isClerkRuntimeConfigured()) {
+    if (adminProtected) {
+      console.error("[middleware] Clerk keys missing — blocking admin in production");
+      return clerkUnavailableResponse();
+    }
     console.warn("[middleware] Clerk keys missing — serving without auth hydration");
     return appHandler(context, next);
   }
@@ -255,6 +278,7 @@ async function runAppMiddleware(
     return clerkResponse ?? appHandler(context, next);
   } catch (err) {
     console.error("[middleware] clerkMiddleware failed", err);
+    if (adminProtected) return clerkUnavailableResponse();
     return appHandler(context, next);
   }
 }

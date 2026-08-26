@@ -1,26 +1,13 @@
 import { cachedCompanyBrandName } from '../companyConfig';
 import { serverEnv } from '../serverEnv';
-import { secretMatches } from '../secretCompare';
+import { verifyDavAuth, type DavCredentials } from '../davAuthShared';
 
 export type CardDavAuth = {
   username: string;
   method: 'basic' | 'token';
 };
 
-function parseBasicAuth(header: string): { username: string; password: string } | null {
-  const m = /^Basic\s+(.+)$/i.exec(header.trim());
-  if (!m) return null;
-  try {
-    const decoded = atob(m[1].trim());
-    const sep = decoded.indexOf(':');
-    if (sep < 0) return null;
-    return { username: decoded.slice(0, sep), password: decoded.slice(sep + 1) };
-  } catch {
-    return null;
-  }
-}
-
-function configuredCredentials(): { username: string; password: string; token: string | null } | null {
+function configuredCredentials(): DavCredentials | null {
   const username = serverEnv('CARDDAV_USERNAME')?.trim();
   const password = serverEnv('CARDDAV_PASSWORD')?.trim();
   const token = serverEnv('CARDDAV_TOKEN')?.trim() ?? serverEnv('CONTACT_API_KEY')?.trim() ?? null;
@@ -44,29 +31,12 @@ export function requireCardDavAuth(request: Request): CardDavAuth | Response {
     });
   }
 
-  const authHeader = request.headers.get('Authorization') ?? '';
-  const tokenHeader =
-    request.headers.get('X-CardDAV-Token')?.trim() ||
-    request.headers.get('X-API-Key')?.trim() ||
-    '';
-
-  if (authHeader) {
-    const basic = parseBasicAuth(authHeader);
-    if (basic) {
-      const userOk = secretMatches(basic.username, creds.username);
-      const passOk = secretMatches(basic.password, creds.password);
-      if (userOk && passOk) return { username: creds.username, method: 'basic' };
-    }
-
-    const bearer = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
-    if (bearer && creds.token && secretMatches(bearer[1].trim(), creds.token)) {
-      return { username: creds.username, method: 'token' };
-    }
-  }
-
-  if (tokenHeader && creds.token && secretMatches(tokenHeader, creds.token)) {
-    return { username: creds.username, method: 'token' };
-  }
+  const verified = verifyDavAuth({
+    request,
+    creds,
+    tokenHeaderNames: ['X-CardDAV-Token', 'X-API-Key'],
+  });
+  if (verified.ok) return { username: verified.username, method: verified.method };
 
   const realmName = serverEnv('COMPANY_NAME')?.trim() || cachedCompanyBrandName();
 
