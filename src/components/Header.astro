@@ -168,11 +168,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
           type="button"
           class="app-header-signin"
           data-ios-sheet-open="sign-in-sheet"
-          aria-label="Sign in"
-          title="Sign in"
         >
-          <!-- IOS_ICONS.user — keep in sync with public/admin/admin-ui.js -->
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Sign in
         </button>
       </div>
     )}
@@ -545,7 +542,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-icon-h: calc(16px * var(--app-header-chrome-scale));
     --app-header-signin-h: calc(32px * var(--app-header-chrome-scale));
-    --app-header-signin-icon-h: calc(18px * var(--app-header-chrome-scale));
     --app-header-icon-btn-h: calc(36px * var(--app-header-chrome-scale));
     --app-header-icon-btn-icon-h: calc(18px * var(--app-header-chrome-scale));
     --radius-input: 8px;
@@ -1288,31 +1284,27 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .app-header-signin {
-    width: var(--app-header-signin-h);
     height: var(--app-header-signin-h);
-    border-radius: 50%;
+    border-radius: 999px;
     border: none;
     background: transparent;
     color: var(--site-fg-muted, #525252);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
     cursor: pointer;
-    padding: 0;
+    padding: 0 0.55rem;
     font: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
     -webkit-tap-highlight-color: transparent;
     transition: color 0.15s;
   }
 
   .app-header-signin:hover {
     color: var(--site-fg, #171717);
-  }
-
-  .app-header-signin svg {
-    width: var(--app-header-signin-icon-h);
-    height: var(--app-header-signin-icon-h);
-    pointer-events: none;
   }
 
   .app-header-admin-cta,
