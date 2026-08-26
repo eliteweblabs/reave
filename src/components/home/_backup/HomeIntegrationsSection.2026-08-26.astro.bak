@@ -1,0 +1,161 @@
+<!--
+  PARKED 2026-08-26 — homepage integrations section snapshot. Not compiled.
+  Live section still renders on / via HomeIntegrationsSection.astro
+  ("One platform instead of a dozen..." + replaced-apps logo marquee).
+  Restore by copying this file back over src/components/home/HomeIntegrationsSection.astro
+  and dropping this header comment.
+-->
+---
+/**
+ * Vapi-style dual marquee: two horizontal logo rows scrolling in opposite
+ * directions. Icons come from the media library (same `replaced-*` slugs as
+ * the /features logo wall).
+ */
+import { ArrowRight } from "lucide-astro";
+import BrandLogoMarquee from "../BrandLogoMarquee.astro";
+import { listBrandLogos } from "../../lib/brandLogos";
+
+const logos = listBrandLogos("replaced-apps");
+---
+
+{
+  logos.length > 0 && (
+    <section
+      id="integrations"
+      class="home-integrations"
+      data-home-section="integrations"
+      aria-labelledby="integrations-title"
+    >
+      <div class="home-integrations-inner">
+        <div class="home-integrations-copy">
+          <h2 id="integrations-title">One platform instead of a dozen...</h2>
+          <p class="home-integrations-lead">
+            Siri enabled, email triage, CRM, scheduling, billing, social media,
+            analytics, documents, file manager &amp; more — in one bespoke app.
+          </p>
+          <a href="/pricing" class="home-integrations-cta brand-btn-glass">
+            Replace your stack
+            <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
+          </a>
+        </div>
+
+        <div class="home-integrations-marquees">
+          <BrandLogoMarquee folder="replaced-apps" />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .home-integrations {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    /* Full section padding after the chip marquee — follow-gap sat too tight. */
+    padding: var(--home-section-padding-y) 0;
+    overflow: clip;
+  }
+
+  .home-integrations-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    width: 100%;
+    max-width: 1296px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  .home-integrations-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .home-integrations-copy h2 {
+    font-family: var(--font-primary);
+    font-size: var(--home-section-title-size, clamp(1.8rem, 5vw, 2.75rem));
+    font-weight: var(--home-section-title-weight, 700);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    color: var(--site-fg, #171717);
+    margin: 0;
+    max-width: 14ch;
+  }
+
+  .home-integrations-lead {
+    font-family: var(--font-content);
+    font-size: var(--home-copy-lead-size, 1.02rem);
+    line-height: 1.65;
+    color: var(--site-fg-muted, #525252);
+    margin: var(--home-copy-gap, 0.75rem) 0 0;
+    max-width: 42ch;
+  }
+
+  .home-integrations-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    margin-top: 1rem;
+    padding: 0.78rem 1.4rem;
+    border-radius: 999px;
+    font-family: var(--font-primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: transform 0.15s ease;
+  }
+
+  .home-integrations-cta:hover {
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  .home-integrations-marquees {
+    position: relative;
+    min-width: 0;
+    flex: 1;
+    /* Cancel inner padding — 100vw + (50% - 50vw) overflows on iOS. */
+    width: calc(100% + 48px);
+    max-width: none;
+    margin-left: -24px;
+    margin-right: -24px;
+  }
+
+  @media (min-width: 768px) {
+    .home-integrations-inner {
+      padding: 0 32px;
+    }
+
+    .home-integrations-marquees {
+      width: calc(100% + 64px);
+      margin-left: -32px;
+      margin-right: -32px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .home-integrations-inner {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 48px;
+      padding: 0 72px;
+    }
+
+    .home-integrations-copy {
+      flex-shrink: 0;
+      width: 240px;
+    }
+
+    .home-integrations-marquees {
+      width: auto;
+      max-width: none;
+      margin-left: 0;
+      margin-right: -24px;
+      flex: 1;
+    }
+  }
+</style>
