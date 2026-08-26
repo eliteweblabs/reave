@@ -150,7 +150,7 @@
 }
 
 .or-status--new { color: #f59e0b; background: rgba(245, 158, 11, 0.12); }
-.or-status--todo { color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
+.or-status--todo { color: var(--fg); background: var(--surface-muted); }
 .or-status--responded { color: #22c55e; background: rgba(34, 197, 94, 0.12); }
 .or-status--dismissed { color: var(--muted); background: var(--surface-muted); }
 

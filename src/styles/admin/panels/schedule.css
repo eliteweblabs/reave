@@ -432,7 +432,7 @@
   cursor: pointer;
 }
 .cal-toolbar-today:hover {
-  background: rgba(121, 192, 255, 0.22);
+  background: var(--surface-hover);
 }
 .cal-view-picker {
   padding: 0 0.75rem 0.35rem;

@@ -132,7 +132,6 @@
 .em-filter-tab.active {
   color: var(--fg);
   background: var(--mode-tab-active-bg);
-  border-color: var(--card-border);
 }
 /* Colored chips — accents match email list notices (.em-cat-*) and sibling tags. */
 .em-filter-tab--tone-alert { --em-chip-accent: var(--em-notice-alert); }
@@ -485,8 +484,8 @@
   height: 7px;
   margin-top: 0.35rem;
   border-radius: 50%;
-  background: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  background: var(--fg);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--fg) 22%, transparent);
 }
 .em-item-subject {
   flex: 1;
@@ -634,7 +633,7 @@
 .em-compose-input:focus,
 .em-compose-textarea:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: var(--fg);
 }
 .em-compose-agent {
   display: inline-flex;
@@ -732,7 +731,7 @@
   background: var(--card);
 }
 .em-compose-to-chips:focus-within {
-  border-color: #3b82f6;
+  border-color: var(--fg);
 }
 .em-compose-to-chip {
   display: inline-flex;
@@ -830,7 +829,7 @@
 }
 .em-compose-to-option-add {
   border-top: 1px solid var(--panel-border);
-  color: #3b82f6;
+  color: var(--fg);
   font-weight: 500;
 }
 .em-compose-to-empty {
@@ -1622,9 +1621,9 @@ html.reave-agent-asleep
   min-height: 10.5rem;
 }
 .wk-files-drop--active {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
-  background: color-mix(in srgb, #3b82f6 8%, var(--panel));
+  border-color: var(--fg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent);
+  background: var(--surface-muted);
 }
 .wk-files-drop .de-btn-primary {
   pointer-events: auto;

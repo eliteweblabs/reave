@@ -904,7 +904,7 @@
 .ml-editor-scale input[type='range'] {
   flex: 1 1 auto;
   min-width: 80px;
-  accent-color: var(--accent, #2271b1);
+  accent-color: var(--fg);
 }
 
 .ml-editor-scale-val,

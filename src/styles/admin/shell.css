@@ -222,7 +222,7 @@ select,
   align-items: flex-end;
 }
 .control-field:focus-within {
-  border-color: #3b82f6;
+  border-color: var(--fg);
 }
 .control-field > :is(input, textarea) {
   flex: 1;

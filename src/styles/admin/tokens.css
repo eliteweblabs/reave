@@ -18,10 +18,11 @@
   --surface-raised: rgba(0, 0, 0, 0.02);
   --border-hover: rgba(0, 0, 0, 0.12);
   --border-strong-hover: rgba(0, 0, 0, 0.18);
-  --tab-active-bg: #f1f5f9;
-  --mode-tab-active-bg: #e2e8f0;
-  --list-item-active-bg: #eff6ff;
-  --list-item-active-border: #93c5fd;
+  --tab-active-bg: #f4f4f5;
+  --mode-tab-active-bg: #e5e5e5;
+  --list-item-active-bg: #f4f4f5;
+  --list-item-active-border: #d4d4d8;
+  --accent: #111111;
   --dropdown-bg: #ffffff;
   --dropdown-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
   --tooltip-bg: #ffffff;
@@ -55,11 +56,11 @@
   --footer-nav-glass-blur: blur(18px) saturate(1.15);
   --badge-ring: rgba(255, 255, 255, 0.85);
   --accent-select-bg: rgba(0, 0, 0, 0.04);
-  --sc-pop-row-hover: #eff6ff;
-  --sc-pop-row-border: #93c5fd;
+  --sc-pop-row-hover: #f4f4f5;
+  --sc-pop-row-border: #d4d4d8;
   --sc-copied-bg: #ecfdf5;
-  --msg-user-bg: #dbeafe;
-  --msg-user-border: #93c5fd;
+  --msg-user-bg: #f4f4f5;
+  --msg-user-border: #d4d4d8;
   --msg-action-hover: rgba(0, 0, 0, 0.06);
   --msg-action-hover-user: rgba(0, 0, 0, 0.08);
   --img-border: rgba(0, 0, 0, 0.08);
@@ -283,6 +284,7 @@ html[data-theme="dark"] {
     --mode-tab-active-bg: #2a2a2a;
     --list-item-active-bg: #242424;
     --list-item-active-border: #4a4a4a;
+    --accent: #e5e5e5;
     --dropdown-bg: rgba(17, 17, 17, 0.98);
     --dropdown-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
     --tooltip-bg: #1f1f1f;
@@ -326,4 +328,10 @@ html[data-theme="dark"] {
     --icon-muted: rgba(255, 255, 255, 0.72);
     --list-row-odd: #161616;
     --list-row-even: #1a1a1a;
+}
+
+/* Native checks follow ink, not the browser's default blue. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--fg);
 }

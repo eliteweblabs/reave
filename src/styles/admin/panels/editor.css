@@ -837,7 +837,7 @@ button.de-placeholder-action:active {
   -webkit-appearance: none;
   appearance: none;
 }
-.de-input:focus { border-color: #3b82f6; }
+.de-input:focus { border-color: var(--fg); }
 .de-input.de-field-valid,
 .de-textarea.de-field-valid,
 .de-input.form-field--saved,
@@ -889,7 +889,7 @@ button.de-placeholder-action:active {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
-.de-textarea:focus { border-color: #3b82f6; }
+.de-textarea:focus { border-color: var(--fg); }
 
 /* Documents HTML editor — pinch to resize type (8px–18px). */
 #doc-editor textarea.de-textarea.de-textarea--zoomable {
@@ -914,7 +914,7 @@ button.de-placeholder-action:active {
 }
 .de-btn:focus { outline: none; }
 .de-btn:focus-visible:not(:disabled) {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--fg);
   outline-offset: 1px;
 }
 .de-btn-with-icon {
@@ -1078,10 +1078,10 @@ button.de-placeholder-action:active {
 .de-mode-tabs {
   display: flex;
   gap: 0.15rem;
-  background: var(--btn-group-track-bg);
+  background: var(--surface-muted);
   border: 1px solid var(--card-border);
-  border-radius: 8px;
-  padding: 0.15rem;
+  border-radius: var(--radius-pill);
+  padding: 0.2rem;
   flex: 0 0 auto;
 }
 .de-mode-tab {
@@ -1090,10 +1090,11 @@ button.de-placeholder-action:active {
   font-weight: 600;
   padding: 0.25rem 0.65rem;
   border: none;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   color: var(--muted);
   background: transparent;
-  transition: color 0.12s;
+  transition: color 0.12s, background 0.12s;
 }
 .de-mode-tab:hover { color: var(--fg); }
 .de-mode-tab.active {
@@ -1322,6 +1323,9 @@ button.de-placeholder-action:active {
   color: var(--fg);
   cursor: pointer;
   line-height: 1.4;
+}
+.re-check input[type="checkbox"] {
+  accent-color: var(--fg);
 }
 .re-check--action {
   align-items: center;
@@ -1590,14 +1594,14 @@ button.de-placeholder-action:active {
 }
 .re-flow-row--dragging {
   opacity: 0.85;
-  outline: 1px dashed rgba(59, 130, 246, 0.55);
+  outline: 1px dashed var(--fg);
   border-radius: 12px;
 }
 .re-flow-row--dragging .re-flow-grip {
   cursor: grabbing;
 }
 .re-flow-row-main:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--fg);
   outline-offset: 3px;
   border-radius: 10px;
 }
@@ -1605,8 +1609,8 @@ button.de-placeholder-action:active {
   opacity: 0.5;
 }
 .re-flow-row--active .re-flow-node {
-  border-color: rgba(59, 130, 246, 0.65);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+  border-color: var(--fg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent);
 }
 .re-flow-pri {
   align-self: center;
@@ -1978,6 +1982,10 @@ button.de-placeholder-action:active {
   flex: 1 1 auto;
   min-width: 0;
 }
+.re-lab-chip-draft-wrap .de-input {
+  max-width: none;
+  width: 100%;
+}
 .re-lab-create-wrap {
   display: flex;
   flex-direction: column;
@@ -2029,18 +2037,19 @@ button.de-placeholder-action:active {
 }
 .re-lab-body-mode {
   display: inline-flex;
-  padding: 2px;
-  border-radius: 999px;
-  background: var(--btn-group-track-bg, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.1));
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  border: 1px solid var(--card-border);
 }
 .re-lab-body-mode-btn {
   margin: 0;
   padding: 0.2rem 0.55rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--muted, rgba(255, 255, 255, 0.55));
+  color: var(--muted);
   font: inherit;
   font-size: 0.72rem;
   font-weight: 600;
@@ -2048,8 +2057,8 @@ button.de-placeholder-action:active {
   cursor: pointer;
 }
 .re-lab-body-mode-btn.is-active {
-  background: rgba(255, 255, 255, 0.1);
-  color: inherit;
+  background: var(--mode-tab-active-bg);
+  color: var(--fg);
 }
 .re-lab-body-html {
   margin: 0;
@@ -2101,7 +2110,7 @@ button.de-placeholder-action:active {
 }
 .re-lab-suggest:hover,
 .re-lab-suggest:focus-visible {
-  background: rgba(59, 130, 246, 0.15);
+  background: var(--surface-hover);
 }
 .re-lab-attachments {
   display: flex;
@@ -2287,8 +2296,8 @@ button.de-placeholder-action:active {
   margin-bottom: 0.85rem;
   padding: 0.85rem 1rem;
   border-radius: 12px;
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  background: rgba(59, 130, 246, 0.07);
+  border: 1px solid var(--card-border);
+  background: var(--surface-muted);
 }
 .re-lab-explain-empty {
   margin: 0;
@@ -2345,8 +2354,8 @@ button.de-placeholder-action:active {
   background: rgba(255, 255, 255, 0.05);
 }
 .re-lab-step--active {
-  border-color: rgba(59, 130, 246, 0.65);
-  background: rgba(59, 130, 246, 0.12);
+  border-color: var(--fg);
+  background: var(--list-item-active-bg);
 }
 .re-lab-step--done {
   opacity: 0.72;
@@ -2493,7 +2502,7 @@ button.de-placeholder-action:active {
   justify-content: center;
   padding: 0.35rem 0.65rem;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -2507,7 +2516,6 @@ button.de-placeholder-action:active {
 .detail-tab.active {
   color: var(--fg);
   background: var(--mode-tab-active-bg);
-  border-color: var(--card-border);
 }
 .detail-panel {
   display: flex;
@@ -2640,12 +2648,12 @@ button.de-placeholder-action:active {
   position: relative;
   display: flex;
   align-items: stretch;
-  gap: 0.25rem;
+  gap: 0.15rem;
   width: 100%;
-  padding: 0.15rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--btn-group-track-bg);
+  padding: 0.2rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
   overflow: visible;
 }
 .sliding-pill--scroll {
@@ -2676,8 +2684,8 @@ button.de-placeholder-action:active {
   min-width: 0;
   margin: 0;
   padding: 0.35rem 0.65rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
+  border: none;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   font: inherit;
@@ -2687,13 +2695,12 @@ button.de-placeholder-action:active {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.12s, background 0.12s, border-color 0.12s;
+  transition: color 0.12s, background 0.12s;
   -webkit-tap-highlight-color: transparent;
 }
 .sliding-pill-btn.is-active {
   color: var(--fg);
   background: var(--mode-tab-active-bg);
-  border-color: var(--card-border);
 }
 .sliding-pill-btn:hover:not(.is-active) {
   color: var(--fg);
@@ -2843,7 +2850,7 @@ button.de-placeholder-action:active {
   opacity: 0.85;
 }
 #work-editor .wk-md-surface.wk-md-dragover {
-  background: color-mix(in srgb, #3b82f6 6%, transparent);
+  background: var(--surface-muted);
 }
 #work-editor .wk-md-line {
   min-height: 1.45em;
@@ -2919,7 +2926,7 @@ button.de-placeholder-action:active {
   cursor: pointer;
 }
 .wk-checklist-btn:hover:not(:disabled) {
-  background: rgba(59, 130, 246, 0.08);
+  background: var(--surface-hover);
 }
 .wk-checklist-btn:disabled {
   opacity: 0.55;
@@ -3086,7 +3093,7 @@ button.de-placeholder-action:active {
   resize: vertical;
   outline: none;
 }
-.re-textarea:focus { border-color: #3b82f6; }
+.re-textarea:focus { border-color: var(--fg); }
 .wk-status {
   font-size: 0.62rem;
   font-weight: 600;
@@ -4434,7 +4441,7 @@ button.de-placeholder-action:active {
   font-size: 0.64rem;
 }
 .kn-courts-map-miles { color: var(--fg); font-style: normal; font-weight: 600; }
-.kn-courts-map-field input[type='range'] { width: 100%; accent-color: #2563eb; }
+.kn-courts-map-field input[type='range'] { width: 100%; accent-color: var(--fg); }
 .kn-courts-map-field select {
   width: 100%;
   border: 1px solid var(--panel-border);
@@ -4460,8 +4467,8 @@ button.de-placeholder-action:active {
 }
 .kn-courts-map-mode.is-on {
   color: var(--fg);
-  background: var(--mode-tab-active-bg, rgba(37, 99, 235, 0.12));
-  border-color: transparent;
+  background: var(--mode-tab-active-bg);
+  border-color: var(--card-border);
 }
 .kn-courts-map-counties {
   display: flex;
@@ -4495,7 +4502,7 @@ button.de-placeholder-action:active {
 .kn-courts-map-pin--office { background: #2563eb; width: 12px; height: 12px; }
 .kn-courts-map-pin--court { background: #0f172a; }
 
-.wk-comment-staff .wk-comment-head { background: rgba(121, 192, 255, 0.06); }
+.wk-comment-staff .wk-comment-head { background: var(--surface-muted); }
 .wk-comment-author { font-size: 0.78rem; font-weight: 600; }
 .wk-comment-time { font-size: 0.68rem; color: var(--muted); flex: none; }
 .wk-comment-text { font-size: 0.82rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }

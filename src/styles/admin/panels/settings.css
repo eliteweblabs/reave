@@ -270,8 +270,8 @@
 .ind-card textarea.form-field--saving,
 .ind-row input.form-field--saving,
 .de-header-title-input.form-field--saving {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+  border-color: var(--fg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent);
 }
 .prof-field input.form-field--saved,
 .prof-field select.form-field--saved,
@@ -812,7 +812,7 @@
   background: transparent;
   font-size: inherit;
   flex-shrink: 0;
-  accent-color: var(--accent, #3b82f6);
+  accent-color: var(--fg);
 }
 .prof-field .prof-check-row input[type="checkbox"]:focus {
   border-color: transparent;
@@ -1262,8 +1262,8 @@
   pointer-events: none;
 }
 .prof-sig-surface.prof-sig-dragover {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+  border-color: var(--fg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent);
 }
 .prof-sig-figure {
   margin: 0.5rem 0;

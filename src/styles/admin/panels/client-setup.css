@@ -56,7 +56,7 @@
   background: var(--panel-border);
 }
 .cs-wizard-dot.is-done { background: #16a34a; }
-.cs-wizard-dot.is-on { background: #2563eb; }
+.cs-wizard-dot.is-on { background: var(--fg); }
 .cs-wizard-body {
   flex: 1 1 auto;
   overflow: auto;
@@ -144,8 +144,8 @@
 }
 .cs-wizard-btn--primary {
   border-color: transparent;
-  background: #2563eb;
-  color: #fff;
+  background: var(--fg);
+  color: var(--bg);
 }
 .cs-wizard-btn:disabled {
   opacity: 0.55;

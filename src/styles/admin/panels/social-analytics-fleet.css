@@ -183,27 +183,26 @@
 }
 .soc-range {
   display: inline-flex;
-  gap: 0.25rem;
-  padding: 0.15rem;
-  border: none;
-  border-radius: 999px;
-  background: var(--btn-group-track-bg);
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
 }
 .soc-range-btn {
-  border: 1px solid transparent;
+  border: none;
   background: transparent;
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.35rem 0.65rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 .soc-range-btn:hover:not(.active) { color: var(--fg); }
 .soc-range-btn.active {
   color: var(--fg);
   background: var(--mode-tab-active-bg);
-  border-color: var(--card-border);
 }
 .soc-totals {
   margin: 0;
@@ -851,8 +850,8 @@
   border-color: var(--border-strong-hover);
 }
 .soc-affix:has(input.form-field--saving) {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+  border-color: var(--fg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent);
 }
 .soc-affix:has(input.form-field--saved) {
   border-color: #22c55e;
