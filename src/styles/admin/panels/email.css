@@ -2245,6 +2245,17 @@ html.reave-agent-asleep
 }
 #os-dialog-backdrop .os-dialog-body p { margin: 0 0 0.65rem; }
 #os-dialog-backdrop .os-dialog-body p:last-child { margin-bottom: 0; }
+#os-dialog-backdrop .os-dialog-body a,
+#os-dialog-backdrop .os-dialog-link {
+  color: var(--fg, inherit);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+#os-dialog-backdrop .os-dialog-body a:hover,
+#os-dialog-backdrop .os-dialog-link:hover {
+  color: var(--accent, #7c5cfc);
+}
 .os-dialog-warn { color: #fbbf24; }
 .os-dialog-note { color: #93c5fd; font-size: 0.8rem; }
 #os-dialog-backdrop .os-dialog-actions {

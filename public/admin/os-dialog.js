@@ -162,6 +162,13 @@ export function osDialog(opts) {
     bindOsDialogDismiss(backdrop, finish, !!opts.showCancel);
     document.addEventListener('keydown', onKey);
     bindOsDialogKeyboardLayout();
+    if (typeof opts.onOpen === 'function') {
+      try {
+        opts.onOpen({ bodyEl, finish, backdrop });
+      } catch {
+        /* ignore */
+      }
+    }
     primary.focus();
   });
 }

@@ -2,7 +2,7 @@
  * Admin media library — WordPress-style grid + attachment details.
  */
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
-import { osAlert, osConfirm } from './os-dialog.js?v=20260825a';
+import { osAlert, osConfirm } from './os-dialog.js?v=20260826a';
 import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260826a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 import {

@@ -41,7 +41,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260825a';
+import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
 import { createFleetMap } from '/admin/fleet-map.js';
 import { initSocialPanel, loadSocialTab } from './social-panel.js?v=20260820a';
 

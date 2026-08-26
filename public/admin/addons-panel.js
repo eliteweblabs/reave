@@ -2,7 +2,7 @@
  * Account → Add-ons — demo-loader tile grid with owner toggles or client requests.
  */
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton, showModuleCatalog } from './shared.js?v=20260810a';
-import { osAlert } from './os-dialog.js?v=20260825a';
+import { osAlert } from './os-dialog.js?v=20260826a';
 
 const API = '/api/admin/addons';
 

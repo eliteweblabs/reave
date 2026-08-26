@@ -16,7 +16,7 @@ import {
 import { mountListFilterTabs, captureFilterTabsScroll } from './filter-tabs.js?v=20260823a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton, showModuleCatalog } from './shared.js?v=20260810a';
-import { osAlert } from './os-dialog.js?v=20260825a';
+import { osAlert } from './os-dialog.js?v=20260826a';
 
 const STATUS_API = '/api/admin/deploy-status';
 const CATALOG_API = '/api/admin/module-catalog';

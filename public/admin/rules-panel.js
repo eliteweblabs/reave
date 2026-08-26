@@ -46,7 +46,7 @@ import {
 } from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260825a';
+import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
 import {
   createEmailTriageLab,
   formatRuleWhenClause,
@@ -1571,7 +1571,11 @@ async function startNewRule(draft = null) {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(data.error || `HTTP ${res.status}`);
+      if (data.colliding && typeof data.colliding === 'object') err.colliding = data.colliding;
+      throw err;
+    }
     ruleState.activeId = data.rule.id;
     ruleState.dirty = false;
     await loadRulesTab();
@@ -1579,9 +1583,55 @@ async function startNewRule(draft = null) {
   } catch (e) {
     if (!fromLab) cancelTitleFocus();
     if (fromLab) throw e;
-    alert(`Could not create rule: ${e.message}`);
+    await showKeywordCollisionAlert(e);
     return null;
   }
+}
+
+function collidingRuleFromError(err) {
+  const hit = err?.colliding;
+  if (!hit || typeof hit !== 'object') return null;
+  const id = String(hit.id || '').trim();
+  if (!id) return null;
+  return {
+    id,
+    title: String(hit.title || '').trim(),
+    phrases: Array.isArray(hit.phrases) ? hit.phrases.map((p) => String(p || '')).filter(Boolean) : [],
+  };
+}
+
+function keywordCollisionBodyHtml(err) {
+  const hit = collidingRuleFromError(err);
+  const fallback = escHtml(err?.message || String(err || 'Could not create rule'));
+  if (!hit) return `<p>${fallback}</p>`;
+  const label = hit.title || 'another rule';
+  const shown = hit.phrases.slice(0, 6).join(', ');
+  const extra = hit.phrases.length > 6 ? ` (+${hit.phrases.length - 6} more)` : '';
+  const detail = shown ? ` (${escHtml(shown)}${escHtml(extra)})` : '';
+  return (
+    `<p>Keywords already used by “<a class="os-dialog-link" href="/admin/?tab=rules" data-em-open-rule="${escHtml(hit.id)}">${escHtml(label)}</a>”${detail}. Edit that rule instead of creating another.</p>`
+  );
+}
+
+async function showKeywordCollisionAlert(err, opts = {}) {
+  const hit = collidingRuleFromError(err);
+  await osAlert({
+    title: opts.title || 'Could not create rule',
+    bodyHtml: keywordCollisionBodyHtml(err),
+    onOpen: hit
+      ? ({ bodyEl, finish }) => {
+          const link = bodyEl.querySelector('[data-em-open-rule]');
+          if (!link) return;
+          link.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            finish(true);
+            const open = opts.onOpenRule || ((id) => openRulesLabWithRule(id));
+            void open(hit.id);
+          });
+        }
+      : undefined,
+  });
 }
 
 /**
@@ -1637,6 +1687,7 @@ export {
   ruleSubline,
   formatRuleHitLabel,
   startNewRule,
+  showKeywordCollisionAlert,
   openRulesLabWithEmail,
   openRulesLabWithRule,
 };
