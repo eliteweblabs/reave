@@ -1322,7 +1322,8 @@ async function deleteSilentDeleteJunkFromPg(): Promise<{ deleted: number; ids: s
     const pool = await ensureSchema();
     if (!pool) return { deleted: 0, ids: [] };
     const { rows } = await pool.query<{ id: string }>(
-      `DELETE FROM email_inbox
+      `UPDATE email_inbox
+       SET category = 'auto_deleted', action = 'deleted'
        WHERE category = 'junk' AND upper(status) = 'DELETE'
        RETURNING id`,
     );
@@ -1343,6 +1344,7 @@ function deleteSilentDeleteJunkFromFile(): { deleted: number; ids: string[] } {
   for (const event of events) {
     if (event.category === 'junk' && String(event.status || '').toUpperCase() === 'DELETE') {
       ids.push(event.id);
+      keep.push({ ...event, category: 'auto_deleted', action: 'deleted' });
     } else {
       keep.push(event);
     }
@@ -1352,8 +1354,8 @@ function deleteSilentDeleteJunkFromFile(): { deleted: number; ids: string[] } {
 }
 
 /**
- * Remove junk rows that were filed by a DELETE rule (legacy: auto-delete
- * used to quarantine instead of deleting). Manual / AI junk uses status JUNK.
+ * Refile junk rows that were filed by a DELETE rule into Auto deleted.
+ * Manual Report junk stays category junk / status JUNK.
  */
 export async function storeDeleteSilentDeleteJunkInbox(): Promise<{ deleted: number; ids: string[] }> {
   const result = databaseUrl() ? await deleteSilentDeleteJunkFromPg() : deleteSilentDeleteJunkFromFile();

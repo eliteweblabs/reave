@@ -363,7 +363,16 @@ assert.equal(
   }),
   false,
 );
-assert.equal(mapAiLabelToOutcome('junk').status, 'JUNK');
+assert.equal(mapAiLabelToOutcome('junk').category, 'internal');
+assert.equal(mapAiLabelToOutcome('junk').status, 'UNMATCHED');
+assert.equal(
+  shouldHardDeleteOnDeleteRule({
+    category: 'auto_deleted',
+    inboxStatus: 'DELETE',
+    ruleStatus: 'DELETE',
+  }),
+  true,
+);
 
 {
   const shipmentDef = DEFAULT_RULES.find((r) =>

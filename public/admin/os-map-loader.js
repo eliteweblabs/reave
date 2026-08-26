@@ -11234,7 +11234,8 @@ function formatEmailAction(ev) {
   const bits = [];
   if (ev.action === 'project_reply' || ev.status === 'PROJECT_REPLY') {
     bits.push('🚨 contact reply');
-  } else if (ev.bookingUid) bits.push('booked');
+  }   else if (ev.bookingUid) bits.push('booked');
+  else if (ev.category === 'auto_deleted' || ev.action === 'deleted') bits.push('auto-deleted');
   else if (ev.action) bits.push(ev.action);
   if (ev.jobTitle) bits.push(ev.jobTitle);
   return bits.join(' · ');

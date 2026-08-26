@@ -99,6 +99,7 @@ import {
   shouldHardDeleteOnDeleteRule,
 } from './emailJunkNotifyInvariant';
 import { dismissEmailRelatedNotifications } from './emailNotificationSync';
+import { looksLikeSpamFilterHit } from './emailSpamFilter';
 
 /** ISO timestamp for OTP / auth-link auto-delete, or null when disabled. TTL from admin Settings (fallback: `EMAIL_OTP_TTL_MINUTES` / 5). */
 export async function verificationCodeDeleteAfterAt(): Promise<string | null> {
@@ -176,7 +177,7 @@ function aiEnabled(): boolean {
 
 function ruleCategory(status: string): EmailCategory {
   const s = status.toUpperCase();
-  if (s === 'DELETE') return 'junk';
+  if (s === 'DELETE') return 'auto_deleted';
   if (s === 'AUTO_ARCHIVED') return 'internal';
   if (s === 'RECEIPT') return 'receipt';
   if (isOperationalAlertStatus(s)) return 'alert';
@@ -244,7 +245,7 @@ Respond with ONLY valid JSON (no markdown fences):
   "proposed_meeting_duration_minutes": "integer minutes when the email states a meeting length (60 for an hour, 30 for half hour); null when unspecified"
 }
 Categories:
-- junk: marketing, newsletters, spam, bulk list mail (not tax receipts — those may be filed separately). NEVER use junk when Known contact is set — those senders stay visible (internal or review) unless a keyword rule files them.
+- junk: only phishing / malware / spam-filter abuse. Newsletters, marketing, and personal shopping are internal — not junk. NEVER use junk when Known contact is set.
 - client: client project updates, requests, files, approvals
 - alert: uptime, security, monitoring, auth warnings
 - internal: personal/admin not tied to a client job
@@ -623,7 +624,7 @@ export async function processInboundEmail(
         : 'Unknown sender',
       knownContact
         ? 'Green light — catalog junk does not apply; personal DELETE rules still run'
-        : 'Not in Contacts — catalog junk and AI may file as junk',
+        : 'Not in Contacts — catalog marketing DELETE still applies; Junk is spam-filter only',
     ),
     auditForMatchedRule(ruleResult.matched, ruleResult.status, {
       from,
@@ -680,8 +681,19 @@ export async function processInboundEmail(
         )
       : [];
 
+  const spamFilter = looksLikeSpamFilterHit(email.headers, { knownContact });
+  const ruleStatusUpper = ruleResult.status.toUpperCase();
+  const spamFilterApplies =
+    spamFilter.hit &&
+    !ruleSilencesNotifications &&
+    !isOperationalAlertStatus(ruleStatusUpper) &&
+    ruleStatusUpper !== 'RECEIPT' &&
+    ruleStatusUpper !== 'VERIFICATION_CODE' &&
+    ruleStatusUpper !== 'AUTH_LINK';
+
   const agentFirst =
     !ruleSilencesNotifications &&
+    !spamFilterApplies &&
     shouldAgentFirstClassify({
       hasContact: Boolean(contactUid),
       clientKind,
@@ -702,16 +714,16 @@ export async function processInboundEmail(
 
   if (agentFirst && aiEnabled()) {
     aiClassify = await runAiClassify(email, jobs, contactName, clientKind, receivedAt);
-    if (aiClassify && aiClassify.label === 'junk' && knownContact) {
+    if (aiClassify && aiClassify.label === 'junk') {
       pushAudit(
-        'contact',
-        'Known contact blocked AI junk',
-        aiClassify.reason || 'AI labeled junk; remapped to internal',
+        'ai',
+        'AI marketing/non-work is not Junk',
+        `${aiClassify.reason || 'Labeled junk'} — filed as internal. Junk is spam-filter only.`,
       );
       aiClassify = {
         ...aiClassify,
         label: 'internal',
-        reason: `Known contact — not junk. ${aiClassify.reason}`.trim(),
+        reason: `Not spam. ${aiClassify.reason}`.trim(),
       };
     }
     if (aiClassify && aiClassify.confidence >= confidenceMin) {
@@ -730,6 +742,10 @@ export async function processInboundEmail(
   let authLinkPurpose: string | null = null;
 
   let category: EmailCategory = ruleCategory(ruleResult.status);
+  if (spamFilterApplies) {
+    category = 'junk';
+    pushAudit('spam', 'Spam filter', spamFilter.detail || 'Vendor spam header');
+  }
   let summary =
     ruleResult.matched?.summaryOverride ||
     snippet(bodyText) ||
@@ -739,14 +755,18 @@ export async function processInboundEmail(
   let jobSlug: string | null = null;
   let jobTitle: string | null = null;
   let routeNote = '';
-  let action = ruleResult.status.toUpperCase() === 'AUTO_ARCHIVED' ? 'filed' : 'classified';
+  let action = spamFilterApplies
+    ? 'junk'
+    : ruleResult.status.toUpperCase() === 'AUTO_ARCHIVED'
+      ? 'filed'
+      : 'classified';
   let proposedMeetingStart: string | null = null;
   let schedulingNote = '';
   let proposedMeetingDurationMinutes: number | null = null;
   let bookingUid: string | null = null;
   let bookingStart: string | null = null;
   let automationKind: string | null = null;
-  let inboxStatusOverride: string | null = null;
+  let inboxStatusOverride: string | null = spamFilterApplies ? 'JUNK' : null;
 
   const forwardTo = ruleResult.matched?.forwardTo?.trim() || null;
   if (forwardTo) {
@@ -1002,7 +1022,15 @@ export async function processInboundEmail(
         (authActionUrl
           ? 'Activation link — tap Activate; email deletes after use'
           : 'Activation link — open Email tab; auto-deletes soon');
-    } else if (category !== 'junk' && category !== 'receipt' && aiEnabled() && !agentFirst) {
+    } else if (
+      !ruleSilencesNotifications &&
+      !spamFilterApplies &&
+      category !== 'junk' &&
+      category !== 'auto_deleted' &&
+      category !== 'receipt' &&
+      aiEnabled() &&
+      !agentFirst
+    ) {
       // Known professional/personal contacts: legacy AI triage (no confidence gate).
       const ai = await runAiTriage(email, jobs, contactName, receivedAt);
       if (ai) {
@@ -1066,17 +1094,15 @@ export async function processInboundEmail(
           category = 'review';
           routeNote = 'Contact-like mail but sender not in contacts';
           action = 'review';
-        } else if (category === 'junk' && knownContact) {
+        } else if (category === 'junk') {
           category = 'internal';
           action = 'classified';
-          routeNote = [routeNote, 'Known contact — not junk'].filter(Boolean).join(' · ');
+          routeNote = [routeNote, 'AI marketing/non-work is not Junk'].filter(Boolean).join(' · ');
           pushAudit(
-            'contact',
-            'Known contact blocked AI junk',
-            'AI triage labeled junk; remapped to internal',
+            'ai',
+            'AI marketing/non-work is not Junk',
+            'Filed as internal. Junk is spam-filter only.',
           );
-        } else if (category === 'junk') {
-          action = 'junk';
         } else if (category === 'alert') {
           action = 'alert';
         } else if (category === 'review') {
@@ -1084,8 +1110,9 @@ export async function processInboundEmail(
         }
       }
     } else if (category === 'junk') {
-      action = 'junk';
-      summary = email.subject || 'Filtered as junk';
+      action = spamFilterApplies ? 'junk' : 'classified';
+      if (!spamFilterApplies) category = 'internal';
+      summary = email.subject || (spamFilterApplies ? 'Filtered as junk' : summary);
     } else if (category === 'receipt') {
       action = 'receipt';
     } else if (
@@ -1111,6 +1138,17 @@ export async function processInboundEmail(
     } else if (needsExplain && !aiClassify) {
       routeNote = [routeNote, 'AI classify unavailable — rules applied'].filter(Boolean).join(' · ');
     }
+  }
+
+  if (ruleStatusUpper === 'AUTO_ARCHIVED' && category !== 'receipt') {
+    category = 'internal';
+    action = 'filed';
+    inboxStatusOverride = 'AUTO_ARCHIVED';
+  }
+  if (ruleStatusUpper === 'DELETE' && category !== 'receipt' && !isVerificationCode && !isAuthLink) {
+    category = 'auto_deleted';
+    action = 'deleted';
+    inboxStatusOverride = 'DELETE';
   }
 
   const suppressedAsJunk =

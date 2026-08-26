@@ -26,6 +26,8 @@ import {
   tightenSingleWordAnyMatchRules,
   triageRuleMatchMode,
 } from '../src/lib/emailTriagePhrases';
+import { looksLikeSpamFilterHit } from '../src/lib/emailSpamFilter';
+import { mapAiLabelToOutcome } from '../src/lib/emailAiClassify';
 
 type Scenario = {
   id: string;
@@ -589,6 +591,13 @@ function main() {
       'UNMATCHED',
       'tightened Ignore: build-failed must not match a name.com Wix footer',
     );
+
+    assert.equal(mapAiLabelToOutcome('junk').category, 'internal');
+    assert.equal(looksLikeSpamFilterHit({ 'X-Spam-Flag': 'YES' }).hit, true);
+    assert.equal(looksLikeSpamFilterHit({ 'X-Spam-Flag': 'YES' }, { knownContact: true }).hit, false);
+    assert.equal(looksLikeSpamFilterHit({ 'X-Spam-Score': '2.1' }).hit, false);
+    assert.equal(looksLikeSpamFilterHit({ 'X-Spam-Score': '6.4' }).hit, true);
+    assert.equal(looksLikeSpamFilterHit({ Subject: 'Buy now' }).hit, false);
   } catch (e) {
     failed += 1;
     console.error(`  !! ${(e as Error).message}`);

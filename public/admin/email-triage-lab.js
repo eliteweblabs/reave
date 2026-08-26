@@ -142,7 +142,8 @@ export function formatRuleWhenClause(rule) {
 /** What the rule actually does to matched mail (not notification button chrome). */
 export function formatRuleProcessLabel(rule) {
   const status = String(rule?.status || '').toUpperCase();
-  if (status === 'DELETE' || status === 'JUNK') return 'Delete';
+  if (status === 'DELETE') return 'Auto delete';
+  if (status === 'JUNK') return 'Junk';
   if (status === 'AUTO_ARCHIVED') return 'Archive';
   if (status === 'RECEIPT') return 'Receipt';
   const push = rule?.notifyPush != null ? !!rule.notifyPush : !!rule.notify;

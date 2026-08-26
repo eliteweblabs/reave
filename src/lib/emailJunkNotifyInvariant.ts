@@ -58,7 +58,11 @@ export function shouldHardDeleteOnDeleteRule(opts: {
   const inboxStatus = String(opts.inboxStatus || '').toUpperCase();
   const ruleStatus = String(opts.ruleStatus || '').toUpperCase();
   if (inboxStatus !== 'DELETE' || ruleStatus !== 'DELETE') return false;
-  return String(opts.category || '').toLowerCase() === 'junk';
+  const cat = String(opts.category || '').toLowerCase();
+  if (cat === 'receipt' || cat === 'alert' || cat === 'client' || cat === 'otp' || cat === 'auth_link') {
+    return false;
+  }
+  return true;
 }
 
 export function looksLikeClientReplyUrgency(opts: {

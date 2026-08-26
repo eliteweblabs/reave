@@ -99,7 +99,9 @@ export function mapAiLabelToOutcome(label: AiEmailLabel): {
     case 'failed_payment':
       return { category: 'alert', action: 'failed_payment', status: 'FAILED_PAYMENT' };
     case 'junk':
-      return { category: 'junk', action: 'junk', status: 'JUNK' };
+      // AI "newsletter / marketing / personal shopping" is not spam.
+      // Automatic Junk is reserved for spam-filter hits and manual Report junk.
+      return { category: 'internal', action: 'classified', status: 'UNMATCHED' };
     case 'google_alert':
       return { category: 'alert', action: 'google_alert', status: 'GOOGLE_ALERT' };
     case 'alert':
@@ -186,8 +188,9 @@ Labels (pick exactly one):
 - receipt: expense you paid — "you paid", "amount paid", "your receipt from", payment confirmation for a charge you made (tax/expense receipt). NOT money someone paid you. NOT shipping / shipment tracking / "your order has shipped" / "Shipped:" notices.
 - failed_payment: payment FAILED, past due, outstanding balance, upcoming minimum payment, Stripe Capital loan debit / "debit initiated", loan capital reminder — NOT a receipt
 - Prefer internal or review (not receipt) for income notices like "Payment of $… from …", "you received a payment", "payment from" — those are money in, not expenses
-- Prefer junk (not receipt) for shipment tracking, package shipped, and Amazon shipping-confirmation mail — those auto-archive; they are not tax receipts
-- junk: newsletters, marketing, social notifications (TikTok/Facebook/Instagram followers, likes), bulk lists. NEVER use junk when Known contact is a name — known senders are not junk (use internal or review).
+- Prefer internal (not receipt) for shipment tracking, package shipped, and Amazon shipping-confirmation mail — those auto-archive; they are not tax receipts
+- junk: only phishing / malware / obvious spam-filter abuse. Newsletters, marketing, social notifications, and personal shopping are internal — never junk.
+- NEVER use junk when Known contact is a name — known senders are not junk (use internal or review).
 - google_alert: Google Alerts / news digests / keyword monitors — never a new client project
 - alert: uptime, security, monitoring, deploy failures, unusual sign-in warnings (not OTP/activation)
 - client: client project updates, requests, files, approvals from a known client
@@ -197,8 +200,8 @@ Labels (pick exactly one):
 
 Confidence rules:
 - Use high confidence (≥0.85) only when the label is obvious from subject/body.
-- Social notifications, marketing CTAs ("Open TikTok", "View post"), and generic buttons are junk — never activation_link.
-- Dollar amounts alone do not make a receipt. "Outstanding", "due", "minimum payment", "Capital", "failed", "debit initiated" → failed_payment or alert. Shipment tracking / "has shipped" → junk, never receipt.
+- Social notifications, marketing CTAs ("Open TikTok", "View post"), and generic buttons are internal — never activation_link, never junk.
+- Dollar amounts alone do not make a receipt. "Outstanding", "due", "minimum payment", "Capital", "failed", "debit initiated" → failed_payment or alert. Shipment tracking / "has shipped" → internal, never receipt.
 - Google Alerts mentioning websites/companies → google_alert, never project/client.
 
 Pick job_slug only when confident; prefer active/inquiry jobs.

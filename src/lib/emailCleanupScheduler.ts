@@ -52,7 +52,7 @@ async function purgeSilentDeleteJunkOnce(): Promise<void> {
   _silentDeleteJunkPurged = true;
   const { deleted } = await storeDeleteSilentDeleteJunkInbox();
   if (!deleted) return;
-  console.info('[email-cleanup] purged DELETE-rule junk that was filed instead of deleted', {
+  console.info('[email-cleanup] refiled DELETE-rule junk into Auto deleted', {
     deleted,
   });
 }

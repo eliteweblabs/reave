@@ -265,7 +265,7 @@ function ruleNotifyActions(rule) {
 }
 
 const RULE_PROCESS_OPTIONS = [
-  { value: 'delete', label: 'Delete' },
+  { value: 'delete', label: 'Auto delete' },
   { value: 'archive', label: 'Archive' },
   { value: 'receipt', label: 'Receipt' },
   { value: 'classify', label: 'Keep' },
@@ -298,7 +298,7 @@ function processIsSilentFile(process) {
 
 function processHintText(process) {
   if (process === 'delete') {
-    return 'Matched mail is deleted. It does not stay in Junk. No notification.';
+    return 'Matched mail goes to Auto deleted (filtered review). Junk is only for spam. No notification.';
   }
   if (process === 'archive') {
     return 'Matched mail is filed to Archive. No notification.';
