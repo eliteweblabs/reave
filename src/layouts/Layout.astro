@@ -95,7 +95,7 @@ const fullBleed = fullBleedProp ?? isIndexPage;
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
 const showSiteAssistant =
-	!isIndexPage && hasFeature("portal_assistant") && isSiteAssistantConfigured();
+	hasFeature("portal_assistant") && isSiteAssistantConfigured();
 const userId = Astro.locals.auth()?.userId ?? null;
 ---
 

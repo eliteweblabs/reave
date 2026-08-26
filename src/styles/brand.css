@@ -458,6 +458,11 @@ html.site-marketing[data-theme="dark"] :is(
   -webkit-text-fill-color: var(--brand-on-gradient);
 }
 
+html.site-marketing[data-theme="dark"] .aw-fab svg,
+html.site-marketing[data-theme="dark"] .aw-fab svg path {
+  stroke: var(--brand-on-gradient);
+}
+
 html.site-marketing .blm-tile img,
 html.site-marketing .fx-built-logo,
 html.site-marketing .fx-built-logo-probe {
