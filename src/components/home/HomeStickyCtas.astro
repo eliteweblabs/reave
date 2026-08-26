@@ -1,6 +1,8 @@
 ---
 /**
- * Homepage hero CTAs — pinned to the viewport floor; hide at #contact.
+ * Homepage hero CTAs — full-bleed dock outside .home-scroll.
+ * Sibling of .home-scroll — .home-hero is isolation:isolate and would trap
+ * position:fixed. Hide at #contact.
  */
 import { ArrowRight } from "lucide-astro";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -97,6 +99,7 @@ const trailingCtas = ctas.slice(1);
 
 <style is:global>
   .home-sticky-ctas {
+    --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
     position: fixed;
     left: 0;
     right: 0;
