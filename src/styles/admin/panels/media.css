@@ -759,3 +759,188 @@
   padding: 0.35rem 0.65rem;
   font-size: 0.82rem;
 }
+
+.ml-detail-edit {
+  margin-top: 0.25rem;
+  width: fit-content;
+}
+
+/* Raster editor overlay (rotate / crop / scale) */
+.ml-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.72);
+  box-sizing: border-box;
+}
+
+.ml-editor-frame {
+  width: min(920px, 100%);
+  max-height: min(94dvh, 880px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel, #fff);
+  color: var(--fg);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.ml-editor-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--panel-border, var(--border));
+  background: color-mix(in srgb, var(--panel) 92%, var(--fg) 8%);
+}
+
+.ml-editor-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.ml-editor-stage {
+  flex: 1 1 auto;
+  min-height: min(48vh, 420px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: #fff;
+  background-image: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%);
+  background-size: 16px 16px;
+  overflow: hidden;
+}
+
+.ml-editor-loading {
+  margin: 0;
+  padding: 1rem;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.ml-editor-board {
+  position: relative;
+  flex: 0 0 auto;
+  line-height: 0;
+  touch-action: none;
+}
+
+.ml-editor-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.ml-editor-crop {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #fff;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  cursor: move;
+  touch-action: none;
+}
+
+.ml-editor-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 1px;
+  box-sizing: border-box;
+}
+
+.ml-editor-handle[data-handle='nw'] { top: -6px; left: -6px; cursor: nwse-resize; }
+.ml-editor-handle[data-handle='ne'] { top: -6px; right: -6px; cursor: nesw-resize; }
+.ml-editor-handle[data-handle='sw'] { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.ml-editor-handle[data-handle='se'] { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.ml-editor-handle[data-handle='n'] { top: -6px; left: 50%; margin-left: -6px; cursor: ns-resize; }
+.ml-editor-handle[data-handle='s'] { bottom: -6px; left: 50%; margin-left: -6px; cursor: ns-resize; }
+.ml-editor-handle[data-handle='w'] { left: -6px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+.ml-editor-handle[data-handle='e'] { right: -6px; top: 50%; margin-top: -6px; cursor: ew-resize; }
+
+.ml-editor-tools {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 0.7rem 0.9rem;
+  border-top: 1px solid var(--panel-border, var(--border));
+}
+
+.ml-editor-rotates {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ml-editor-rotates .ios-icon-btn {
+  color: var(--fg);
+}
+
+.ml-editor-scale {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 180px;
+  min-width: 160px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ml-editor-scale input[type='range'] {
+  flex: 1 1 auto;
+  min-width: 80px;
+  accent-color: var(--accent, #2271b1);
+}
+
+.ml-editor-scale-val,
+.ml-editor-dims {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.ml-editor-dims {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ml-editor-actions {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0.65rem 0.9rem 0.8rem;
+  border-top: 1px solid var(--panel-border, var(--border));
+}
+
+@media (max-width: 640px) {
+  .ml-editor-stage {
+    min-height: 38vh;
+  }
+
+  .ml-editor-tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ml-editor-scale {
+    flex: 1 1 auto;
+  }
+}

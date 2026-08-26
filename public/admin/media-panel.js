@@ -3,8 +3,13 @@
  */
 import { escHtml, adminFetch, readAdminJson, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260825a';
-import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260825h';
+import { iosIcon, deBtnIconSvg, createSlidingPillSelect } from './admin-ui.js?v=20260826a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
+import {
+  editRasterUploads,
+  isEditableRasterType,
+  openImageEditor,
+} from './media-image-editor.js?v=20260826a';
 
 const MEDIA_API = '/api/admin/media';
 const ACCEPT =
@@ -69,8 +74,14 @@ function absoluteUrl(url) {
   return url.startsWith('http') ? url : `${location.origin}${url}`;
 }
 
+function withCacheKey(url, item) {
+  if (!url) return '';
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}v=${encodeURIComponent(String(item?.sizeBytes || 0))}`;
+}
+
 function thumbSrc(item) {
-  return item?.thumbnailUrl || item?.url || '';
+  return withCacheKey(item?.thumbnailUrl || item?.url || '', item);
 }
 
 function filteredItems() {
@@ -153,7 +164,7 @@ function renderDetailPreview(item) {
   if (isImageItem(item)) {
     return (
       `<div class="ml-detail-media ml-detail-media--image">` +
-      `<img class="ml-detail-image" src="${escHtml(item.url)}" alt="${escHtml(item.altText || item.filename || '')}" />` +
+      `<img class="ml-detail-image" src="${escHtml(withCacheKey(item.url, item))}" alt="${escHtml(item.altText || item.filename || '')}" />` +
       `</div>`
     );
   }
@@ -215,6 +226,12 @@ function renderAttachmentDetails(item) {
     `</label>` +
     (item.altText
       ? `<label class="ml-detail-field"><span>Alt text</span><div class="ml-detail-alt">${escHtml(item.altText)}</div></label>`
+      : '') +
+    (isEditableRasterType(item.mediaType)
+      ? `<button type="button" class="de-btn de-btn-secondary de-btn-with-icon ml-detail-edit" id="ml-detail-edit">` +
+        `<span class="de-btn-icon" aria-hidden="true">${deBtnIconSvg('crop', 16)}</span>` +
+        `<span class="de-btn-label">Edit image</span>` +
+        `</button>`
       : '') +
     `<div class="ml-detail-actions">` +
     `<a class="ml-detail-link" href="${escHtml(item.url)}" download="${escHtml(item.filename || 'download')}" target="_blank" rel="noopener">Download file</a>` +
@@ -367,8 +384,45 @@ async function uploadFile(file) {
   return json.item;
 }
 
+async function replaceItemFile(id, file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await adminFetch(`${MEDIA_API}/${encodeURIComponent(id)}`, { method: 'PUT', body: fd });
+  const json = await readAdminJson(res);
+  if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  if (json.item) {
+    state.items = state.items.map((i) => (i.id === json.item.id ? json.item : i));
+  }
+  return json.item;
+}
+
+async function editSelectedImage() {
+  const item = selectedItem();
+  if (!item || !isEditableRasterType(item.mediaType)) return;
+  const edited = await openImageEditor({
+    src: withCacheKey(item.url, item),
+    filename: item.filename || 'image',
+    mediaType: item.mediaType,
+    title: 'Edit image',
+    confirmLabel: 'Save',
+  });
+  if (!edited) return;
+  try {
+    const next = await replaceItemFile(item.id, edited);
+    if (next) {
+      state.selectedId = next.id;
+      state.detailOpen = true;
+    }
+    renderAndBind();
+  } catch (e) {
+    await osAlert({ title: 'Save failed', bodyHtml: `<p>${escHtml(e.message || 'Please try again.')}</p>` });
+  }
+}
+
 async function uploadFiles(fileList) {
-  const files = Array.from(fileList || []).filter((f) => f && f.size);
+  const picked = Array.from(fileList || []).filter((f) => f && f.size);
+  if (!picked.length) return;
+  const files = await editRasterUploads(picked);
   if (!files.length) return;
 
   state.uploading = true;
@@ -700,8 +754,13 @@ function bindPanelEvents(root) {
 
     bindDetailDims(root);
 
+    root.querySelector('#ml-detail-edit')?.addEventListener('click', () => {
+      void editSelectedImage();
+    });
+
     const onKey = (ev) => {
       if (!state.detailOpen) return;
+      if (document.querySelector('.ml-editor-backdrop')) return;
       if (ev.key === 'Escape') {
         ev.preventDefault();
         closeDetails();
