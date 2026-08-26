@@ -37,7 +37,7 @@ import {
   contactAvatarHtml,
   mountContactAvatars,
 } from './admin-ui.js?v=20260825h';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260811d';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260826c';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260824a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
@@ -497,6 +497,7 @@ function filterWorkJobs(jobs, query) {
       job.title,
       job.contact_name,
       job.client,
+      workListClientLine(job),
       job.status,
       WORK_STATUS_LABELS[job.status],
       job.slug,
@@ -5325,6 +5326,16 @@ function syncWorkAuditingPoll() {
   }
 }
 
+/** Sidebar from-line: company first, then person — "Acme - Jane Doe" when both exist. */
+function workListClientLine(job) {
+  const company = resolveContactAuthorName(job?.contact_uid).trim();
+  const person = String(job?.contact_name || job?.client || '').trim();
+  if (company && person && company.toLowerCase() !== person.toLowerCase()) {
+    return `${company} - ${person}`;
+  }
+  return company || person || '—';
+}
+
 function createWorkListItem(job) {
   const isAuditing = workState.auditingSlugs.has(job.slug);
   const progress = workState.auditingProgress.get(job.slug);
@@ -5358,7 +5369,7 @@ function createWorkListItem(job) {
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span>` +
     `<span class="ch-item-date">${escHtml(shell.formatChatDate(workJobLastEdited(job)))}</span></span>` +
     `<span class="wk-meta-row">` +
-    `<span class="wk-contact wk-list-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
+    `<span class="wk-contact wk-list-client-name">${escHtml(workListClientLine(job))}</span>` +
     auditingStatus +
     trackingStatus +
     defaultStatus +
