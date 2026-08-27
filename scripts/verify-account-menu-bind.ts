@@ -67,6 +67,9 @@ assert.match(
   /html\.account-menu-docked \[data-account-menu\] \.overlay-menu-panel \{[\s\S]*position: relative/,
   'Docked account panel must sit in the column, not position:absolute over the page',
 );
+assert.match(overlayCss, /--account-col-duration/);
+assert.match(overlayDom, /account-menu-opening/);
+assert.match(overlayDom, /account-menu-closing/);
 assert.match(toggle, /IOS_ICONS\.x/);
 assert.match(toggle, /data-overlay-menu-toggle/);
 assert.match(toggle, /hidden=\{mode === "dismiss"/);

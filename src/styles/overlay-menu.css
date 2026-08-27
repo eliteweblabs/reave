@@ -454,6 +454,14 @@ html[data-theme="light"] .app-header--admin .marketing-nav-toggle {
  */
 html.account-menu-docked {
   --account-col-w: 288px;
+  --account-col-shift: var(--account-col-w);
+  --account-col-duration: 0.32s;
+  --account-col-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html.account-menu-docked.account-menu-opening,
+html.account-menu-docked.account-menu-closing {
+  --account-col-shift: 0px;
 }
 
 html.account-menu-docked [data-account-menu].overlay-menu:not([hidden]) {
@@ -465,6 +473,13 @@ html.account-menu-docked [data-account-menu].overlay-menu:not([hidden]) {
   z-index: 12;
   width: var(--account-col-w);
   pointer-events: none;
+  transform: translateX(0);
+  transition: transform var(--account-col-duration) var(--account-col-ease);
+}
+
+html.account-menu-docked.account-menu-opening [data-account-menu].overlay-menu:not([hidden]),
+html.account-menu-docked.account-menu-closing [data-account-menu].overlay-menu:not([hidden]) {
+  transform: translateX(100%);
 }
 
 html.account-menu-docked [data-account-menu] .overlay-menu-backdrop {
@@ -505,13 +520,47 @@ html.account-menu-docked :is(
   #media-panel,
   #sales-sheet-editor
 ) {
-  right: var(--account-col-w);
+  right: var(--account-col-shift);
+  transition: right var(--account-col-duration) var(--account-col-ease);
 }
 
 html.account-menu-docked .admin-footer-nav {
-  right: var(--account-col-w);
+  right: var(--account-col-shift);
+  transition: right var(--account-col-duration) var(--account-col-ease);
 }
 
 html.account-menu-docked #legend {
-  right: calc(var(--account-col-w) + 0.7rem);
+  right: calc(var(--account-col-shift) + 0.7rem);
+  transition: right var(--account-col-duration) var(--account-col-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.account-menu-docked [data-account-menu].overlay-menu:not([hidden]),
+  html.account-menu-docked :is(
+    #wrap,
+    #dashboard-panel,
+    #settings-panel,
+    #doc-editor,
+    #chat-panel,
+    #email-panel,
+    #knowledge-editor,
+    #work-editor,
+    #todo-editor,
+    #punchlist-editor,
+    #schedule-panel,
+    #clients-editor,
+    #social-panel,
+    #online-reviews-panel,
+    #analytics-panel,
+    #fleet-panel,
+    #modules-panel,
+    #rule-editor,
+    #newsletter-editor,
+    #media-panel,
+    #sales-sheet-editor
+  ),
+  html.account-menu-docked .admin-footer-nav,
+  html.account-menu-docked #legend {
+    transition: none;
+  }
 }

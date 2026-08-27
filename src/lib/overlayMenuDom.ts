@@ -10,16 +10,70 @@ export type OverlayMenuOpenFn = (root: HTMLElement | null, open: boolean) => voi
 export const ACCOUNT_MENU_DOCK_MQ =
   typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)") : null;
 
+const ACCOUNT_DOCK_MS = 320;
+
+function prefersReducedMotion() {
+  return Boolean(
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+}
+
 function isAdminAccountDock() {
   return Boolean(ACCOUNT_MENU_DOCK_MQ?.matches && document.querySelector(".app-header--admin"));
 }
 
+function isDockedAccount(root: HTMLElement) {
+  return root.hasAttribute("data-account-menu") && isAdminAccountDock();
+}
+
 function syncAccountMenuDock() {
   const account = getAccountOverlay();
-  const docked = Boolean(account && !account.hidden && isAdminAccountDock());
+  const docked = Boolean(
+    account && (!account.hidden || account.dataset.dockClosing === "1") && isAdminAccountDock(),
+  );
   document.documentElement.classList.toggle("account-menu-docked", docked);
   const panel = account?.querySelector<HTMLElement>(".overlay-menu-panel");
   if (panel) panel.setAttribute("aria-modal", docked ? "false" : "true");
+}
+
+let dockCloseTimer = 0;
+
+function playDockOpen(root: HTMLElement) {
+  if (!document.documentElement.classList.contains("account-menu-opening")) return;
+  void root.offsetWidth;
+  requestAnimationFrame(() => {
+    document.documentElement.classList.remove("account-menu-opening");
+  });
+}
+
+function cancelDockClose(root: HTMLElement) {
+  if (root.dataset.dockClosing !== "1") return;
+  delete root.dataset.dockClosing;
+  document.documentElement.classList.remove("account-menu-closing");
+  if (dockCloseTimer) {
+    window.clearTimeout(dockCloseTimer);
+    dockCloseTimer = 0;
+  }
+}
+
+function finishCloseOverlay(root: HTMLElement) {
+  if (dockCloseTimer) {
+    window.clearTimeout(dockCloseTimer);
+    dockCloseTimer = 0;
+  }
+  delete root.dataset.dockClosing;
+  document.documentElement.classList.remove("account-menu-closing");
+  if (root.hidden) {
+    syncAccountMenuDock();
+    syncOverlayMenuToggle();
+    return;
+  }
+  root.hidden = true;
+  const htmlClass = root.dataset.overlayHtmlClass;
+  if (htmlClass) document.documentElement.classList.remove(htmlClass);
+  syncAccountMenuDock();
+  root.dispatchEvent(new CustomEvent("overlay-menu:close", { bubbles: true }));
+  syncOverlayMenuToggle();
 }
 
 function syncOverlayMenuToggle() {
@@ -55,12 +109,23 @@ function syncOverlayMenuToggle() {
 }
 
 function closeOverlay(root: HTMLElement) {
-  if (root.hidden) return;
-  root.hidden = true;
-  const htmlClass = root.dataset.overlayHtmlClass;
-  if (htmlClass) document.documentElement.classList.remove(htmlClass);
-  syncAccountMenuDock();
-  root.dispatchEvent(new CustomEvent("overlay-menu:close", { bubbles: true }));
+  if (root.hidden && root.dataset.dockClosing !== "1") return;
+  if (root.dataset.dockClosing === "1") return;
+
+  if (isDockedAccount(root) && !prefersReducedMotion()) {
+    root.dataset.dockClosing = "1";
+    document.documentElement.classList.add("account-menu-closing");
+    const onEnd = (ev: TransitionEvent) => {
+      if (ev.target !== root || ev.propertyName !== "transform") return;
+      root.removeEventListener("transitionend", onEnd);
+      finishCloseOverlay(root);
+    };
+    root.addEventListener("transitionend", onEnd);
+    dockCloseTimer = window.setTimeout(() => finishCloseOverlay(root), ACCOUNT_DOCK_MS + 80);
+    return;
+  }
+
+  finishCloseOverlay(root);
 }
 
 export function setOverlayMenuOpen(root: HTMLElement | null, open: boolean) {
@@ -70,10 +135,16 @@ export function setOverlayMenuOpen(root: HTMLElement | null, open: boolean) {
     document.querySelectorAll<HTMLElement>("[data-overlay-menu]").forEach((el) => {
       if (el !== root) closeOverlay(el);
     });
+    const wasClosing = root.dataset.dockClosing === "1";
+    cancelDockClose(root);
     root.hidden = false;
     const htmlClass = root.dataset.overlayHtmlClass;
     if (htmlClass) document.documentElement.classList.add(htmlClass);
+    if (!wasClosing && isDockedAccount(root) && !prefersReducedMotion()) {
+      document.documentElement.classList.add("account-menu-opening");
+    }
     syncAccountMenuDock();
+    playDockOpen(root);
     root.dispatchEvent(new CustomEvent("overlay-menu:open", { bubbles: true }));
   } else {
     closeOverlay(root);
