@@ -898,11 +898,13 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-page--embedded.fx-page--intro {
-    padding-bottom: 0;
+    /* Same inset as every other post-hero homepage section. */
+    padding-top: var(--home-section-padding-y);
+    padding-bottom: var(--home-section-padding-y);
   }
 
   .fx-page--embedded.fx-page--intro .fx-chips {
-    /* Next section owns the follow-gap so chips → title is one step, not two. */
+    /* Section padding is the gap under the last row — do not add another. */
     margin-bottom: 0;
   }
 
@@ -911,11 +913,12 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-page--tour {
-    padding-top: 8px;
+    padding-top: var(--home-section-padding-y);
   }
 
-  /* Let the sticky CTAs land on the closing dock, not in this page pad. */
+  /* Sticky CTAs land on the closing dock — no extra page pad under it. */
   .fx-page--embedded.fx-page--tour {
+    padding-top: var(--home-section-padding-y);
     padding-bottom: 0;
   }
 
@@ -1232,6 +1235,10 @@ const customPrompts: PromptExample[] = [
   .fx-custom {
     margin-top: 56px;
     text-align: center;
+  }
+
+  .fx-page--embedded.fx-page--tour > .fx-examples:first-child {
+    margin-top: 0;
   }
 
   .fx-examples-kicker {

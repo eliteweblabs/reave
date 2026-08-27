@@ -80,9 +80,9 @@
   --brand-glass-shadow-hover: none;
   --home-section-padding-y: 80px;
   /*
-   * Homepage stack — one gap between blocks (title ↔ chips ↔ next title).
-   * Title → lead inside a section is a tighter step; lead matches the
-   * features intro (.fx-lead).
+   * Homepage stack after the hero — every section uses this on top and
+   * bottom so the white space between blocks stays even. Title → lead
+   * inside a section is a tighter step (`--home-copy-gap` / `.fx-lead`).
    */
   --home-section-follow-gap: clamp(2.5rem, 5vw, 3.75rem);
   --home-copy-gap: 0.75rem;
