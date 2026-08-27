@@ -1495,6 +1495,38 @@ button.de-placeholder-action:active {
   font-size: 0.72rem;
   color: var(--muted);
 }
+.re-rule-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  width: 100%;
+}
+.panel-list-subheader--stacked .re-rule-filters,
+.panel-list-subheader--stacked .re-filter-chips {
+  margin: 0;
+  width: 100%;
+}
+.re-filter-chips {
+  flex-wrap: wrap;
+}
+.re-filter-chip {
+  flex: 1 1 auto;
+}
+.re-filter-chip.is-on {
+  color: var(--fg);
+  background: var(--mode-tab-active-bg);
+}
+.re-filter-chip.is-off {
+  color: var(--muted);
+  background: transparent;
+  opacity: 0.55;
+}
+.re-filter-chip.is-off:hover {
+  opacity: 0.9;
+  color: var(--fg);
+  background: var(--surface-hover);
+}
 
 /* ── Rules Flow (n8n-style priority map) ── */
 #rule-editor.re-view-flow {
