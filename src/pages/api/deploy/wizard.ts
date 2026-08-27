@@ -183,6 +183,8 @@ export async function GET(context: APIContext): Promise<Response> {
         inProduction,
         toggleable: inProduction && status === 'deployed',
         features: fromList?.features ?? [],
+        requires: fromList?.requires ?? [],
+        requiresLabels: fromList?.requiresLabels ?? [],
       };
     });
 

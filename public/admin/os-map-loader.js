@@ -290,11 +290,11 @@ import {
   loadModulesTab,
   teardownModulesPanel,
   parseModuleDeepLinkFromUrl,
-} from './modules-panel.js?v=20260824g';
+} from './modules-panel.js?v=20260827a';
 import {
   initAddonsPanel,
   loadAddonsTab,
-} from './addons-panel.js?v=20260824f';
+} from './addons-panel.js?v=20260827a';
 import {
   initCatalogPanel,
 } from './catalog-panel.js?v=20260823b';
@@ -6894,12 +6894,16 @@ function setIndustryChip(btn, on) {
   btn.classList.toggle('is-on', on);
 }
 
-function industryChip(kind, id, label, on) {
+function industryChip(kind, id, label, on, extra = {}) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'ind-chip';
   btn.setAttribute('role', 'switch');
   btn.setAttribute(kind === 'module' ? 'data-ind-module' : kind === 'extra' ? 'data-ind-extra' : 'data-ind-seed', id);
+  if (extra.feature) btn.dataset.indFeature = extra.feature;
+  if (Array.isArray(extra.requires) && extra.requires.length) {
+    btn.dataset.indRequires = extra.requires.join(',');
+  }
   btn.textContent = label;
   setIndustryChip(btn, on);
   return btn;
@@ -6994,7 +6998,12 @@ function createIndustryRow(item, { onDelete, onToggle, onPlaybookChange, modules
   const moduleSet = new Set(playbook.moduleIds);
   if (modules.length) {
     for (const mod of modules) {
-      moduleWrap.appendChild(industryChip('module', mod.id, mod.label, moduleSet.has(mod.id)));
+      moduleWrap.appendChild(
+        industryChip('module', mod.id, mod.label, moduleSet.has(mod.id), {
+          feature: mod.feature,
+          requires: mod.requires,
+        }),
+      );
     }
   } else {
     moduleWrap.innerHTML = `<p class="ind-empty">Module catalog unavailable.</p>`;
@@ -7035,7 +7044,27 @@ function createIndustryRow(item, { onDelete, onToggle, onPlaybookChange, modules
     if (!chip) return;
     e.preventDefault();
     const next = chip.getAttribute('aria-checked') !== 'true';
+    const kind = chip.hasAttribute('data-ind-module')
+      ? 'module'
+      : chip.hasAttribute('data-ind-extra')
+        ? 'extra'
+        : 'seed';
     setIndustryChip(chip, next);
+    if (kind === 'module' && next) {
+      for (const req of (chip.dataset.indRequires || '').split(',').filter(Boolean)) {
+        const reqChip = body.querySelector(`[data-ind-feature="${CSS.escape(req)}"]`);
+        if (reqChip) setIndustryChip(reqChip, true);
+      }
+    }
+    if (kind === 'module' && !next) {
+      const feature = chip.dataset.indFeature;
+      if (feature) {
+        body.querySelectorAll('[data-ind-module]').forEach((other) => {
+          const reqs = (other.dataset.indRequires || '').split(',');
+          if (reqs.includes(feature)) setIndustryChip(other, false);
+        });
+      }
+    }
     onPlaybookChange?.(chip);
   });
 

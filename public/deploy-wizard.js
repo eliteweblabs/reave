@@ -314,6 +314,41 @@
     return out;
   }
 
+  function moduleById(id) {
+    return modules.find((m) => m.moduleId === id) || null;
+  }
+
+  function moduleByFeature(feature) {
+    return modules.find((m) => m.feature === feature) || null;
+  }
+
+  function addModuleWithRequires(id) {
+    if (!id) return;
+    selectedIds.add(id);
+    const mod = moduleById(id);
+    for (const req of mod?.requires || []) {
+      const required = moduleByFeature(req);
+      if (required?.moduleId && !selectedIds.has(required.moduleId)) {
+        addModuleWithRequires(required.moduleId);
+      }
+    }
+  }
+
+  function applyModuleToggle(id, on) {
+    if (!id) return;
+    if (on) {
+      addModuleWithRequires(id);
+      return;
+    }
+    if (!selectedIds.has(id)) return;
+    selectedIds.delete(id);
+    const feature = moduleById(id)?.feature;
+    if (!feature) return;
+    for (const m of modules) {
+      if ((m.requires || []).includes(feature) && m.moduleId) applyModuleToggle(m.moduleId, false);
+    }
+  }
+
   function visibleExtras() {
     const features = new Set(selectedFeatures());
     return extrasCatalog.filter((e) => {
@@ -367,6 +402,9 @@
       renderStatusDot(m) +
       `</div>` +
       (m.blurb ? `<p class="dl-tile-blurb">${esc(m.blurb)}</p>` : '') +
+      (Array.isArray(m.requiresLabels) && m.requiresLabels.length
+        ? `<p class="dl-tile-requires">Requires ${esc(m.requiresLabels.join(', '))}</p>`
+        : '') +
       `</div>` +
       (canToggle ? `<div class="dl-tile-foot">${renderSwitch(checked, m.moduleId, 'data-module-id')}</div>` : '') +
       `</article>`
@@ -603,6 +641,7 @@
       ...baseline,
       ...moduleIds.map((id) => String(id).padStart(3, '0')).filter((id) => allowed.has(id)),
     ]);
+    for (const id of [...selectedIds]) addModuleWithRequires(id);
     for (const extra of extras) {
       if (typeof extra === 'string') selectedExtras.add(extra);
     }
@@ -1198,8 +1237,7 @@
         readIdentity();
         const id = btn.getAttribute('data-module-id');
         if (!id) return;
-        if (selectedIds.has(id)) selectedIds.delete(id);
-        else selectedIds.add(id);
+        applyModuleToggle(id, !selectedIds.has(id));
         render();
         bind();
       });
@@ -1209,8 +1247,7 @@
         const id = tile.querySelector('[data-module-id]')?.getAttribute('data-module-id');
         if (!id) return;
         readIdentity();
-        if (selectedIds.has(id)) selectedIds.delete(id);
-        else selectedIds.add(id);
+        applyModuleToggle(id, !selectedIds.has(id));
         render();
         bind();
       });

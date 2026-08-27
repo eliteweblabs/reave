@@ -4,10 +4,13 @@
  */
 import {
   catalogForChecklist,
+  demoModuleById,
   demoModuleIdForFeature,
   isDemoBaselineModuleId,
 } from './demoModuleCatalog';
+import { expandFeatureRequirements } from './featureCatalog';
 import { migrateLegacyModuleId } from './moduleCatalog';
+import { catalogRequires } from './moduleCatalogOverlay';
 
 export const INDUSTRY_PLAYBOOK_EXTRAS = [
   'changedetection_railway',
@@ -104,6 +107,15 @@ export function normalizePlaybookModuleIds(raw: unknown): string[] {
     const padded = item.trim().padStart(3, '0');
     const id = /^\d{3}$/.test(padded) ? migrateLegacyModuleId(padded) : '';
     if (!/^\d{3}$/.test(id) || seen.has(id) || isDemoBaselineModuleId(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  const features = out
+    .map((id) => demoModuleById(id)?.feature)
+    .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature));
+  for (const feature of expandFeatureRequirements(features)) {
+    const id = demoModuleIdForFeature(feature);
+    if (!id || seen.has(id) || isDemoBaselineModuleId(id)) continue;
     seen.add(id);
     out.push(id);
   }
@@ -246,10 +258,20 @@ export function backfillCanonicalDeployIndustries(
   return { list: next, changed: true };
 }
 
-export function listIndustryPlaybookModules(): Array<{ id: string; label: string }> {
+export function listIndustryPlaybookModules(): Array<{
+  id: string;
+  label: string;
+  feature: string;
+  requires: string[];
+}> {
   return catalogForChecklist()
     .filter((e) => !isDemoBaselineModuleId(e.id))
-    .map((e) => ({ id: e.id, label: e.label }))
+    .map((e) => ({
+      id: e.id,
+      label: e.label,
+      feature: e.feature,
+      requires: catalogRequires(e.feature),
+    }))
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
 }
 

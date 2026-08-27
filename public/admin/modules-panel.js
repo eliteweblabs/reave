@@ -139,6 +139,7 @@ function newCustomRow(group) {
         : group === 'google_workspace' || group === 'hosting'
           ? 'service'
           : 'public',
+    requires: [],
   };
 }
 
@@ -162,6 +163,7 @@ function mergeItems(catalog, deploy) {
         priceLabel: row.priceLabel || '',
         saleSheet: row.saleSheet === true,
         visibility: row.visibility || 'public',
+        requires: Array.isArray(row.requires) ? row.requires : [],
         deploy: deployByFeature.get(row.feature) || null,
       });
     }
@@ -181,6 +183,7 @@ function mergeItems(catalog, deploy) {
       priceLabel: m.price?.label || '',
       saleSheet: m.saleSheet === true,
       visibility: m.visibility || 'public',
+      requires: Array.isArray(m.requires) ? m.requires : [],
       deploy: m,
     });
   }
@@ -462,6 +465,10 @@ function readDetailIntoCatalog() {
   if (groupEl?.value && GROUP_META[groupEl.value]) row.group = groupEl.value;
   const sheet = pane.querySelector('[data-field="sheet"]');
   if (sheet) row.saleSheet = sheet.getAttribute('aria-checked') === 'true';
+  row.requires = [...pane.querySelectorAll('[data-requires]:checked')]
+    .map((el) => el.getAttribute('data-requires'))
+    .filter(Boolean);
+  item.requires = row.requires;
 }
 
 function renderEmptyPane(pane) {
@@ -484,6 +491,35 @@ function renderEmptyPane(pane) {
     body.appendChild(reset);
   }
   pane.appendChild(body);
+}
+
+function requiresOptionsHtml(item) {
+  const selected = new Set(item.requires || []);
+  const options = items
+    .filter((m) => m.feature && m.feature !== item.feature && m.kind !== 'core')
+    .sort((a, b) => (a.label || a.feature).localeCompare(b.label || b.feature, undefined, { sensitivity: 'base' }));
+  if (!options.length) return '<p class="mod-sheet-hint">No other modules to require.</p>';
+  return (
+    `<div class="mod-requires-list">` +
+    options
+      .map(
+        (m) =>
+          `<label class="mod-requires-opt">` +
+          `<input type="checkbox" data-requires="${escHtml(m.feature)}"${selected.has(m.feature) ? ' checked' : ''}>` +
+          `<span>${escHtml(m.label || m.feature)}</span>` +
+          `</label>`,
+      )
+      .join('') +
+    `</div>`
+  );
+}
+
+function requiresSummaryHtml(item) {
+  const labels = (item.requires || [])
+    .map((feature) => items.find((m) => m.feature === feature)?.label || feature)
+    .filter(Boolean);
+  if (!labels.length) return '';
+  return `<p class="mod-requires-summary">Requires ${escHtml(labels.join(', '))}</p>`;
 }
 
 function groupSelectHtml(selected) {
@@ -558,6 +594,10 @@ function renderDetailPane() {
       `<label class="de-label">Group${groupSelectHtml(item.group)}</label>` +
       `<label class="de-label">Price<input type="text" data-field="price" class="de-input" value="${escHtml(item.priceLabel || '')}" spellcheck="false"></label>` +
       `<label class="de-label">Description<textarea data-field="blurb" class="de-input" rows="6">${escHtml(item.blurb || '')}</textarea></label>` +
+      (item.kind === 'core'
+        ? ''
+        : `<div class="de-label mod-requires-field"><span>Requires</span>${requiresOptionsHtml(item)}` +
+          `<span class="mod-sheet-hint">Turned on automatically with this module.</span></div>`) +
       `<div class="re-toggle-row mod-sheet-row">` +
       `<span class="de-label">Sale sheet</span>` +
       `<button type="button" class="prof-plugin-toggle" role="switch" data-field="sheet" ` +
@@ -570,6 +610,9 @@ function renderDetailPane() {
     blurb.className = 'mod-detail-blurb';
     blurb.textContent = item.blurb || deploy?.label || meta.title;
     scroll.appendChild(blurb);
+    const req = document.createElement('div');
+    req.innerHTML = requiresSummaryHtml(item);
+    if (req.firstChild) scroll.appendChild(req.firstChild);
   }
 
   const status = document.createElement('section');
@@ -611,7 +654,7 @@ function bindDetailEvents(pane) {
     scheduleSave();
   });
   pane.addEventListener('change', (e) => {
-    if (!e.target?.closest?.('[data-field]')) return;
+    if (!e.target?.closest?.('[data-field], [data-requires], [data-catalog-row]')) return;
     dirty = true;
     scheduleSave();
   });

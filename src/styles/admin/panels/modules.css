@@ -162,6 +162,42 @@
   color: var(--muted);
 }
 
+.mod-requires-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mod-requires-list {
+  display: grid;
+  gap: 0.35rem;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.mod-requires-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.mod-requires-opt input {
+  margin: 0;
+}
+
+.mod-requires-summary {
+  margin: 0.45rem 1rem 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
 .mod-auth-gate {
   max-width: 28rem;
   margin: 2rem auto;

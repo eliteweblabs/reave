@@ -6,7 +6,13 @@
  *
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
-import { FEATURE_BLURBS, FEATURE_LABELS, isPublicFeature, type FeatureId } from './featureCatalog';
+import {
+  FEATURE_BLURBS,
+  FEATURE_LABELS,
+  expandFeatureRequirements,
+  isPublicFeature,
+  type FeatureId,
+} from './featureCatalog';
 import {
   defaultFixturePlaybook,
   isLawIndustrySlug,
@@ -1970,9 +1976,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   if ((input.extras ?? []).includes('materials') && !features.includes('materials_pricing')) {
     features.push('materials_pricing');
   }
-  if (features.includes('digital_signature') && !features.includes('documents')) {
-    features.push('documents');
-  }
+  features.splice(0, features.length, ...expandFeatureRequirements(features));
   const featureSet = new Set<string>(features);
   const extras = [...new Set(input.extras ?? [])].filter((id): id is DeployWizardExtraId => {
     if (!isDeployWizardExtraId(id)) return false;

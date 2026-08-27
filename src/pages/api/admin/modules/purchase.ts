@@ -11,7 +11,12 @@ import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { isDemoMode } from '../../../../lib/demoMode';
 import { hasFeature } from '../../../../lib/features';
-import { FEATURE_LABELS, FEATURE_REQUIRES, isPrivateFeature, isServiceFeature } from '../../../../lib/featureCatalog';
+import {
+  FEATURE_LABELS,
+  featureRequirements,
+  isPrivateFeature,
+  isServiceFeature,
+} from '../../../../lib/featureCatalog';
 import { isCraterConfigured, craterCreateInvoice } from '../../../../lib/craterClient';
 import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import {
@@ -64,11 +69,12 @@ export async function POST(context: APIContext): Promise<Response> {
   if (hasFeature(featureRaw)) {
     return json({ ok: false, error: 'This module is already on for this install.' }, 400);
   }
-  const requires = FEATURE_REQUIRES[featureRaw];
-  if (requires && !hasFeature(requires)) {
+  const missingRequires = featureRequirements(featureRaw).filter((id) => !hasFeature(id));
+  if (missingRequires.length) {
+    const needed = missingRequires.map((id) => FEATURE_LABELS[id]).join(', ');
     return json({
       ok: false,
-      error: `${FEATURE_LABELS[featureRaw]} requires ${FEATURE_LABELS[requires]}.`,
+      error: `${FEATURE_LABELS[featureRaw]} requires ${needed}. Turn that module on first — buying this one will not enable it.`,
     }, 400);
   }
 

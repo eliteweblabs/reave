@@ -4,7 +4,13 @@
  */
 import { CATALOG_GROUPS, CATALOG_GROUP_TITLES, type CatalogGroupId } from './moduleCatalog';
 import { getModuleCatalogSync, peekCatalogRow } from './moduleCatalogStore';
-import type { FeatureId } from './featureCatalog';
+import {
+  FEATURE_ID_SET,
+  FEATURE_LABELS,
+  expandFeatureRequirements,
+  featureRequirements,
+  type FeatureId,
+} from './featureCatalog';
 import {
   formatModulePrice,
   isPaidModule,
@@ -28,6 +34,41 @@ export function catalogSaleSheet(feature: string, fallback: boolean): boolean {
 
 export function catalogGroupFor(feature: string): CatalogGroupId | null {
   return peekCatalogRow(feature)?.group ?? null;
+}
+
+export function catalogRequires(feature: string): FeatureId[] {
+  const row = peekCatalogRow(feature);
+  const raw = row?.requires ?? featureRequirements(feature);
+  return raw.filter((id): id is FeatureId => FEATURE_ID_SET.has(id) && id !== feature);
+}
+
+export function catalogRequiresLabels(feature: string): string[] {
+  return catalogRequires(feature).map((id) => catalogLabel(id, FEATURE_LABELS[id] ?? id));
+}
+
+/** Selected modules plus catalog/code requirements, requirements first. */
+export function expandCatalogRequirements(ids: Iterable<string>): FeatureId[] {
+  const out: FeatureId[] = [];
+  const seen = new Set<string>();
+  const visit = (id: string) => {
+    if (!FEATURE_ID_SET.has(id) || seen.has(id)) return;
+    seen.add(id);
+    for (const req of catalogRequires(id)) visit(req);
+    out.push(id as FeatureId);
+  };
+  for (const id of ids) visit(id);
+  return out.length ? out : expandFeatureRequirements(ids);
+}
+
+/** Modules that require `id` (catalog overlay). */
+export function catalogDependents(id: string): FeatureId[] {
+  return [
+    ...new Set(
+      getModuleCatalogSync()
+        .filter((row) => row.requires.includes(id) && FEATURE_ID_SET.has(row.feature) && row.feature !== id)
+        .map((row) => row.feature as FeatureId),
+    ),
+  ];
 }
 
 export function resolvedModulePrice(feature: FeatureId): ModulePrice | null {
@@ -59,12 +100,14 @@ export function overlayPricedModule<T extends { feature: FeatureId; label: strin
 
 export function overlayDemoModule<T extends { feature: string; label: string; blurb?: string; saleSheet?: boolean }>(
   item: T,
-): T {
+): T & { requires: FeatureId[]; requiresLabels: string[] } {
   return {
     ...item,
     label: catalogLabel(item.feature, item.label),
     blurb: catalogBlurb(item.feature, item.blurb ?? ''),
     saleSheet: catalogSaleSheet(item.feature, item.saleSheet ?? false),
+    requires: catalogRequires(item.feature),
+    requiresLabels: catalogRequiresLabels(item.feature),
   };
 }
 

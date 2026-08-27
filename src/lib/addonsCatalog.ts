@@ -9,6 +9,8 @@ import { hasFeature } from './features';
 import {
   catalogBlurb,
   catalogLabel,
+  catalogRequires,
+  catalogRequiresLabels,
   catalogSaleSheet,
   resolvedIsPaidModule,
   resolvedModulePrice,
@@ -32,6 +34,8 @@ export type AddonsModule = {
   entitlement: ModuleEntitlement | null;
   visibility: 'public' | 'private' | 'service';
   saleSheet: boolean;
+  requires: FeatureId[];
+  requiresLabels: string[];
 };
 
 export type AddonsSection = {
@@ -94,6 +98,8 @@ export function buildAddonsCatalog(opts: {
       entitlement,
       visibility: m.visibility,
       saleSheet: catalogSaleSheet(m.feature, isSaleSheetFeature(m.feature)),
+      requires: catalogRequires(m.feature),
+      requiresLabels: catalogRequiresLabels(m.feature),
     });
   }
   modules.sort(byTitle);

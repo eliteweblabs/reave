@@ -446,6 +446,14 @@
   color: rgba(255, 255, 255, 0.55);
 }
 
+.dl-tile-requires {
+  margin: 0.35rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .dl-tile-features {
   list-style: none;
   margin: 0.45rem 0 0;
@@ -989,6 +997,7 @@ html:not([data-theme="dark"]) .dl-field-label,
 html:not([data-theme="dark"]) .dl-meta,
 html:not([data-theme="dark"]) .dl-legend,
 html:not([data-theme="dark"]) .dl-tile-blurb,
+html:not([data-theme="dark"]) .dl-tile-requires,
 html:not([data-theme="dark"]) .dl-footnote,
 html:not([data-theme="dark"]) .dl-footer,
 html:not([data-theme="dark"]) .dw-repo,

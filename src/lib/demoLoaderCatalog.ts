@@ -4,7 +4,7 @@
  */
 import { demoModuleIdForFeature, isDemoBaselineModuleId } from './demoModuleCatalog';
 import { listAllDeployModules, type ModuleDeployStatus } from './deployModuleStatus';
-import { FEATURE_BLURBS, featureVisibility, isPublicFeature, isSaleSheetFeature } from './featureCatalog';
+import { FEATURE_BLURBS, featureRequirements, featureVisibility, isPublicFeature, isSaleSheetFeature } from './featureCatalog';
 import { getProductionInstallFeatures, type InstallFeatureId } from './installConfig';
 import { CORE_OS_CARDS } from './moduleCatalog';
 import { MODULE_DISPLAY_GROUPS } from './moduleDisplayGroups';
@@ -33,6 +33,8 @@ export type DemoLoaderModule = {
   visibility: 'public' | 'private' | 'service';
   /** Leave-behind on the audit sales sheet. */
   saleSheet: boolean;
+  /** Feature slugs that turn on with this module. */
+  requires: string[];
 };
 
 export type DemoLoaderIncludedCardDef = {
@@ -99,6 +101,7 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
           })),
         visibility: featureVisibility(m.feature),
         saleSheet: isSaleSheetFeature(m.feature),
+        requires: featureRequirements(m.feature),
       };
     })
     .filter((m) => isPublicFeature(m.feature))

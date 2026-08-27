@@ -422,6 +422,15 @@ assert.deepEqual(lawKept.extras, ['plausible_railway']);
 assert.equal(lawKept.postAlias, 'matter');
 const vapiPlan = buildDeployWizardPlan({ features: ['vapi'], installSlug: 'levineslaw' });
 assert.equal(vapiPlan.variables.find((v) => v.name === 'FEATURES')?.filled, '["vapi"]');
+const signaturePlan = buildDeployWizardPlan({ features: ['digital_signature'] });
+assert.ok(signaturePlan.features.includes('digital_signature'));
+assert.ok(signaturePlan.features.includes('documents'));
+assert.match(signaturePlan.variables.find((v) => v.name === 'FEATURES')?.filled || '', /documents/);
+const signaturePlaybook = normalizeIndustryPlaybook({
+  moduleIds: [demoModuleIdForFeature('digital_signature')],
+});
+assert.ok(signaturePlaybook.moduleIds.includes(demoModuleIdForFeature('digital_signature')));
+assert.ok(signaturePlaybook.moduleIds.includes(demoModuleIdForFeature('documents')));
 const socialPlan = buildDeployWizardPlan({ features: ['social_inbox'] });
 assert.ok(socialPlan.variables.some((v) => v.name === 'INSTAGRAM_APP_ID' && v.inheritFromHost));
 assert.ok(socialPlan.variables.some((v) => v.name === 'INSTAGRAM_APP_SECRET' && v.inheritFromHost));

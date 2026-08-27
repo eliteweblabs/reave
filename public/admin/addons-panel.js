@@ -130,6 +130,9 @@ function renderTile(m, mode) {
     priceLabel +
     `</div>` +
     (m.blurb ? `<p class="dl-tile-blurb">${escHtml(m.blurb)}</p>` : '') +
+    (Array.isArray(m.requiresLabels) && m.requiresLabels.length
+      ? `<p class="dl-tile-requires">Requires ${escHtml(m.requiresLabels.join(', '))}</p>`
+      : '') +
     `</div>` +
     foot +
     `</article>`

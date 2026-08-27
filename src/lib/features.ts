@@ -12,6 +12,7 @@ import {
   FEATURE_ID_SET,
   FEATURE_IDS,
   FEATURE_LABELS,
+  expandFeatureRequirements,
   featureVisibility,
   isDeployableFeature,
   isPrivateFeature,
@@ -31,6 +32,7 @@ export {
   FEATURE_BLURBS,
   FEATURE_IDS,
   FEATURE_LABELS,
+  expandFeatureRequirements,
   featureVisibility,
   isDeployableFeature,
   isPrivateFeature,
@@ -93,9 +95,9 @@ export async function ensureFeatureOverridesLoaded(): Promise<void> {
 
 /** Enabled optional modules for this deployment. */
 export function enabledFeatures(): ReadonlySet<FeatureId> {
-  if (isDemoMode()) return demoEnabledFeatures();
+  if (isDemoMode()) return new Set(expandFeatureRequirements(demoEnabledFeatures()));
   if (!_baseCached) _baseCached = bootstrapEnabled();
-  return applyFeatureOverrides(_baseCached);
+  return new Set(expandFeatureRequirements(applyFeatureOverrides(_baseCached)));
 }
 
 export function hasFeature(id: FeatureId): boolean {

@@ -11,7 +11,7 @@
  */
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { isPrivateFeature } from './featureCatalog.ts';
+import { expandFeatureRequirements, isPrivateFeature } from './featureCatalog.ts';
 import { dashboardCardsForFeatures, type DashboardCard } from './featureDashboard.ts';
 import { projectRoot } from './projectRoot.ts';
 import { parseHomepageTemplate, type HomepageTemplate } from './homepageTemplate.ts';
@@ -314,7 +314,7 @@ function normalizeFeatures(raw: unknown): InstallFeatureId[] {
     const id = item.trim();
     if (FEATURE_SET.has(id)) out.push(id as InstallFeatureId);
   }
-  return out;
+  return expandFeatureRequirements(out) as InstallFeatureId[];
 }
 
 function normalizeProfileMenu(raw: unknown): ProfileMenuKey[] {

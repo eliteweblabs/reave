@@ -326,10 +326,38 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'google_workspace',
 ]);
 
-/** Optional module that must already be on before this one can be sold or enabled. */
-export const FEATURE_REQUIRES: Partial<Record<FeatureId, FeatureId>> = {
-  digital_signature: 'documents',
+/**
+ * Other optional modules that turn on automatically with this one.
+ * Digital Signature needs Dynamic Documents (templates) to exist.
+ */
+export const FEATURE_REQUIRES: Partial<Record<FeatureId, readonly FeatureId[]>> = {
+  digital_signature: ['documents'],
 };
+
+export function featureRequirements(id: string): FeatureId[] {
+  if (!FEATURE_ID_SET.has(id)) return [];
+  return [...(FEATURE_REQUIRES[id as FeatureId] ?? [])];
+}
+
+/** Selected modules plus every required module, requirements first. */
+export function expandFeatureRequirements(ids: Iterable<string>): FeatureId[] {
+  const out: FeatureId[] = [];
+  const seen = new Set<string>();
+  const visit = (id: string) => {
+    if (!FEATURE_ID_SET.has(id) || seen.has(id)) return;
+    seen.add(id);
+    for (const req of FEATURE_REQUIRES[id as FeatureId] ?? []) visit(req);
+    out.push(id as FeatureId);
+  };
+  for (const id of ids) visit(id);
+  return out;
+}
+
+/** Modules that list `id` as a requirement (direct only). */
+export function featuresRequiring(id: string): FeatureId[] {
+  if (!FEATURE_ID_SET.has(id)) return [];
+  return FEATURE_IDS.filter((fid) => (FEATURE_REQUIRES[fid] ?? []).includes(id as FeatureId));
+}
 
 export const FEATURE_ID_SET = new Set<string>(FEATURE_IDS);
 

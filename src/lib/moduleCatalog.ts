@@ -15,6 +15,7 @@ import {
   FEATURE_IDS,
   FEATURE_LABELS,
   FEATURE_SALE_SHEET,
+  featureRequirements,
   featureVisibility,
   isHostingFeature,
   isPrivateFeature,
@@ -216,6 +217,8 @@ export type CatalogRow = {
   priceLabel: string;
   saleSheet: boolean;
   visibility: 'public' | 'private' | 'service';
+  /** Feature slugs that turn on automatically with this module. */
+  requires: string[];
 };
 
 export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
@@ -357,6 +360,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
     priceLabel: 'Included',
     saleSheet: true,
     visibility: 'public',
+    requires: [],
   }));
 
   const modules: CatalogRow[] = FEATURE_IDS.filter((feature) => {
@@ -377,6 +381,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
       priceLabel,
       saleSheet: FEATURE_SALE_SHEET.has(feature),
       visibility: featureVisibility(feature),
+      requires: featureRequirements(feature),
     };
   });
 

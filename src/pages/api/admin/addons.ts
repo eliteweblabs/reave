@@ -27,7 +27,9 @@ import { FEATURE_LABELS, isPrivateFeature, isServiceFeature, type FeatureId } fr
 import { postToSystemAlertsThread } from '../../../lib/adminAgentAlert';
 import { sendPushNotification } from '../../../lib/webPush';
 import {
+  catalogDependents,
   catalogLabel,
+  expandCatalogRequirements,
   resolvedIsPaidModule,
   resolvedModulePrice,
 } from '../../../lib/moduleCatalogOverlay';
@@ -97,7 +99,20 @@ export async function POST(context: APIContext): Promise<Response> {
     if (owner instanceof Response) return owner;
 
     const enabled = body.enabled === true || body.enabled === 'true';
-    await setFeatureOverride(feature, enabled);
+    const alsoOn = enabled
+      ? expandCatalogRequirements([feature]).filter((id) => id !== feature)
+      : catalogDependents(feature);
+    if (enabled) {
+      for (const id of expandCatalogRequirements([feature])) {
+        await setFeatureOverride(id, true);
+      }
+    } else {
+      for (const dep of alsoOn) {
+        await setFeatureOverride(dep, false);
+        await purgePluginKnowledgeForFeature(dep);
+      }
+      await setFeatureOverride(feature, false);
+    }
     refreshFeatureCache();
     if (!enabled) await purgePluginKnowledgeForFeature(feature);
 
@@ -114,7 +129,13 @@ export async function POST(context: APIContext): Promise<Response> {
       bypassQuietHours: true,
     }).catch(() => undefined);
 
-    return json({ ok: true, feature, enabled, active: hasFeature(feature) });
+    return json({
+      ok: true,
+      feature,
+      enabled,
+      active: hasFeature(feature),
+      alsoEnabled: alsoOn,
+    });
   }
 
   if (action === 'request') {

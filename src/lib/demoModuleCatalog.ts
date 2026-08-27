@@ -8,7 +8,13 @@ import {
   catalogIdForFeature,
   migrateLegacyModuleId,
 } from './moduleCatalog';
-import { FEATURE_IDS, FEATURE_LABELS, isPublicFeature, type FeatureId } from './featureCatalog';
+import {
+  FEATURE_IDS,
+  FEATURE_LABELS,
+  expandFeatureRequirements,
+  isPublicFeature,
+  type FeatureId,
+} from './featureCatalog';
 
 export type DemoModuleCatalogEntry = {
   /** Zero-padded id, e.g. "010" */
@@ -51,6 +57,10 @@ export function mergeDemoModuleIds(selected: readonly string[]): string[] {
     const norm = padModuleId(id);
     if (norm) merged.add(norm);
   }
+  for (const feature of resolveDemoModuleFeatures([...merged])) {
+    const id = demoModuleIdForFeature(feature);
+    if (id) merged.add(id);
+  }
   return [...merged].sort();
 }
 
@@ -79,7 +89,7 @@ export function resolveDemoModuleFeatures(ids: string[]): FeatureId[] {
     const entry = demoModuleById(id);
     if (entry && !out.includes(entry.feature)) out.push(entry.feature);
   }
-  return out;
+  return expandFeatureRequirements(out);
 }
 
 export function catalogForChecklist(): DemoModuleCatalogEntry[] {

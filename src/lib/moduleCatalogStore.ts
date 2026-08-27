@@ -11,11 +11,14 @@ import { dirname, join } from 'path';
 import pg from 'pg';
 import {
   aggregatedGoogleWorkspaceBlurb,
+  FEATURE_ID_SET,
   FEATURE_MARKETING,
+  featureRequirements,
   formatCatalogBlurb,
   formatCatalogTitle,
   isGoogleWorkspaceCapability,
   isHostingFeature,
+  type FeatureId,
 } from './featureCatalog';
 import {
   CATALOG_GROUPS,
@@ -93,6 +96,23 @@ function normalizeKind(raw: unknown): CatalogRowKind {
   return 'custom';
 }
 
+function parseRequires(raw: unknown, feature: string): string[] {
+  if (raw === undefined) {
+    return FEATURE_ID_SET.has(feature) ? featureRequirements(feature as FeatureId) : [];
+  }
+  const list = Array.isArray(raw) ? raw : typeof raw === 'string' && raw.trim() ? [raw] : [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of list) {
+    if (typeof item !== 'string') continue;
+    const slug = slugifyCatalogFeature(item);
+    if (!slug || slug === feature || seen.has(slug)) continue;
+    seen.add(slug);
+    out.push(slug);
+  }
+  return out;
+}
+
 export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
   if (!Array.isArray(raw)) return defaultModuleCatalog();
   const seen = new Set<string>();
@@ -156,6 +176,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
           : o.visibility === 'private'
             ? 'private'
             : 'public',
+      requires: parseRequires(o.requires, feature),
     });
   });
   const seenFeatures = new Set(out.map((row) => row.feature));

@@ -70,6 +70,10 @@
   color: var(--muted);
 }
 
+.addons-dl-wrap .dl-tile-requires {
+  color: var(--muted);
+}
+
 .addons-dl-wrap .dl-badge--included {
   background: color-mix(in srgb, var(--fg) 10%, var(--panel));
   color: var(--fg);

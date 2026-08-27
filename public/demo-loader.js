@@ -142,6 +142,9 @@
       renderStatusDot(m) +
       `</div>` +
       (m.blurb ? `<p class="dl-tile-blurb">${esc(m.blurb)}</p>` : '') +
+      (Array.isArray(m.requiresLabels) && m.requiresLabels.length
+        ? `<p class="dl-tile-requires">Requires ${esc(m.requiresLabels.join(', '))}</p>`
+        : '') +
       (Array.isArray(m.features) && m.features.length
         ? `<ul class="dl-tile-features">${m.features.map((f) => `<li>${esc(f.label)}</li>`).join('')}</ul>`
         : '') +
@@ -290,12 +293,40 @@
     if (emailEl) visitorEmail = emailEl.value || '';
   }
 
+  function moduleById(id) {
+    return modules.find((m) => m.moduleId === id) || null;
+  }
+
+  function moduleByFeature(feature) {
+    return modules.find((m) => m.feature === feature) || null;
+  }
+
+  function applyModuleToggle(id, on) {
+    if (!id) return;
+    if (on) {
+      if (selectedIds.has(id)) return;
+      selectedIds.add(id);
+      const mod = moduleById(id);
+      for (const req of mod?.requires || []) {
+        const required = moduleByFeature(req);
+        if (required?.moduleId) applyModuleToggle(required.moduleId, true);
+      }
+      return;
+    }
+    if (!selectedIds.has(id)) return;
+    selectedIds.delete(id);
+    const feature = moduleById(id)?.feature;
+    if (!feature) return;
+    for (const m of modules) {
+      if ((m.requires || []).includes(feature) && m.moduleId) applyModuleToggle(m.moduleId, false);
+    }
+  }
+
   function toggleModule(id) {
     if (!togglesEnabled) return;
     readVisitorFields();
     if (!toggleableModules().some((m) => m.moduleId === id)) return;
-    if (selectedIds.has(id)) selectedIds.delete(id);
-    else selectedIds.add(id);
+    applyModuleToggle(id, !selectedIds.has(id));
     render();
     bind();
   }

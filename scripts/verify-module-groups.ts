@@ -10,6 +10,7 @@ import {
   FEATURE_MARKETING,
   formatCatalogTitle,
   FEATURE_REQUIRES,
+  expandFeatureRequirements,
   FEATURE_SALE_SHEET,
   isDeployableFeature,
   isHostingFeature,
@@ -69,7 +70,8 @@ assert.equal(FEATURE_LABELS.documents, 'Dynamic Documents');
 assert.equal(FEATURE_LABELS.digital_signature, 'Digital Signature');
 assert.ok(FEATURE_SALE_SHEET.has('digital_signature'));
 assert.equal(moduleDisplayGroupId('digital_signature'), 'work');
-assert.equal(FEATURE_REQUIRES.digital_signature, 'documents');
+assert.deepEqual(FEATURE_REQUIRES.digital_signature, ['documents']);
+assert.deepEqual(expandFeatureRequirements(['digital_signature']), ['documents', 'digital_signature']);
 assert.doesNotMatch(
   FEATURE_BLURBS.documents,
   /\bsign/i,
@@ -126,6 +128,7 @@ for (const id of FEATURE_SALE_SHEET) {
 }
 
 const catalog = defaultModuleCatalog();
+assert.deepEqual(catalog.find((row) => row.feature === 'digital_signature')?.requires, ['documents']);
 assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet && /^\d{3}$/.test(row.id)));
 assert.ok(catalog.every((row) => row.id !== '—'));
 assert.ok(catalog.every((row) => !row.feature.includes('-')), 'feature slugs must use underscores');
