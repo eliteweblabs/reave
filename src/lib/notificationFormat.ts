@@ -232,10 +232,33 @@ export function normalizePushAlertCopy(
   };
 }
 
+/**
+ * Phone-banner title: "{PWA name} - {notification title}".
+ * iOS also prepends "from {document.title}" — keep that page title as the PWA
+ * name (not the marketing tagline) so the banner is not triple-branded.
+ */
+export function formatPwaPushTitle(pwaTitle: string, notificationTitle: string): string {
+  const pwa = pwaTitle.trim();
+  const title = notificationTitle.trim();
+  if (!title) return truncateNotificationText(pwa, NOTIFICATION_TITLE_MAX);
+  if (!pwa) return truncateNotificationText(title, NOTIFICATION_TITLE_MAX);
+  const prefix = `${pwa} - `;
+  const alreadyPrefixed =
+    title === pwa ||
+    title.startsWith(prefix) ||
+    title.toLowerCase().startsWith(`${pwa.toLowerCase()} - `);
+  return truncateNotificationText(alreadyPrefixed ? title : `${prefix}${title}`, NOTIFICATION_TITLE_MAX);
+}
+
 /** Canonical push/dashboard payload after truncation. */
-export function formatNotificationPayload(title: string, body: string): { title: string; detail: string } {
+export function formatNotificationPayload(
+  title: string,
+  body: string,
+  opts?: { pwaTitle?: string },
+): { title: string; detail: string } {
+  const headed = opts?.pwaTitle ? formatPwaPushTitle(opts.pwaTitle, title) : title;
   return {
-    title: truncateNotificationText(title, NOTIFICATION_TITLE_MAX),
+    title: truncateNotificationText(headed, NOTIFICATION_TITLE_MAX),
     detail: truncateNotificationText(body, NOTIFICATION_DETAIL_MAX),
   };
 }

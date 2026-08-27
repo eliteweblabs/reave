@@ -6,7 +6,7 @@ import webpush from 'web-push';
 import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfig';
 import { canonicalizeReaveBrandEmail } from './reavePublicEmail';
 import { getReviewsPendingCount } from './reviewsPendingCount';
-import { formatNotificationPayload } from './notificationFormat';
+import { formatNotificationPayload, formatPwaPushTitle } from './notificationFormat';
 import { inferPushAlertKind, storeCreatePushAlert, type PushAlertKind } from './pushAlertStore';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
@@ -72,7 +72,11 @@ export async function sendPushNotification(payload: {
   const tag = payload.tag ?? (badgeOnly ? 'reave-badge-sync' : 'inbox');
   const url = payload.url ?? (badgeOnly ? '/admin?tab=dashboard' : '/admin?tab=email');
   const formatted = formatNotificationPayload(payload.title, payload.body);
-  const pushTitle = formatted.title;
+  const company = badgeOnly ? null : await getCompanyConfig().catch(() => null);
+  // Phone banner only — dashboard cards already live inside the PWA chrome.
+  const pushTitle = badgeOnly
+    ? formatted.title
+    : formatPwaPushTitle(company?.name || '', formatted.title);
   const pushBody = formatted.detail;
   const emailId = payload.emailId?.trim() || '';
   const verificationCode = payload.verificationCode?.trim() || '';
@@ -91,7 +95,7 @@ export async function sendPushNotification(payload: {
     const alert = await storeCreatePushAlert({
       tag,
       kind: kind === 'badge-sync' ? 'system' : kind,
-      title: pushTitle,
+      title: formatted.title,
       detail: pushBody,
       url,
       actions,

@@ -405,7 +405,7 @@ export function formatOtpPushNotification(opts: {
 }): { title: string; body: string } {
   const purpose = opts.purpose.trim() || 'Verification code';
   const code = opts.code?.trim();
-  const title = `${purpose} — code ready`;
+  const title = purpose;
   const body = code
     ? `Code ${code} — tap to copy`
     : 'Open the Email tab to copy your code — auto-deletes in 5 min';
