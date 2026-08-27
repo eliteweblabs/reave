@@ -22,6 +22,7 @@ import {
   salesSheetAuditUrl,
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
+  salesSheetPreparedStat,
   selectTopFindings,
   setFrontmatterTitle,
 } from '../src/lib/auditSalesSheet.ts';
@@ -1240,6 +1241,35 @@ await test('header hero is the audit lede with the overall-grade ring on the lef
   );
   assert.ok(injected.indexOf('ss-hero') < injected.indexOf('doc-onepager-mast'));
   assert.ok(injected.indexOf('doc-onepager-logo') < injected.indexOf('ss-hero'));
+});
+
+await test('header hero third line is prepared-for attribution', () => {
+  const at = new Date('2026-08-27T21:04:00.000Z');
+  const stat = salesSheetPreparedStat({
+    preparedFor: 'CALA RENEE Salon',
+    preparedBy: 'reΛVe',
+    at,
+  });
+  assert.equal(
+    stat.label,
+    'Prepared for CALA RENEE Salon, by reΛVe, on August 27, 2026 at 5:04 PM. Confidential.',
+  );
+  assert.equal(stat.tone, 'meta');
+  const hero = renderSalesSheetHeaderHeroHtml({
+    overall: DUMMY_SALES_SHEET.overall,
+    overallScore: DUMMY_SALES_SHEET.overallScore,
+    headline: DUMMY_SALES_SHEET.headline,
+    heroStats: DUMMY_SALES_SHEET.heroStats,
+    preparedFor: 'CALA RENEE Salon',
+    preparedBy: 'reΛVe',
+    preparedAt: at,
+  });
+  assert.match(hero, /ss-hero-stat--meta/);
+  assert.match(
+    hero,
+    /Prepared for CALA RENEE Salon, by reΛVe, on August 27, 2026 at 5:04 PM\. Confidential\./,
+  );
+  assert.match(hero, /Every finding sourced from independent platforms/i);
 });
 
 await test('front header uses the client logo or the crawler missing-logo finding', () => {

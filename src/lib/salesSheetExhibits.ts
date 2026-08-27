@@ -17,7 +17,7 @@ import {
 import { IPHONE_FRAME_SRC, isPlacesMissFinding } from './salesSheetPlacesView';
 import { dummyPsiMobile, renderPsiMobileHtml, type PsiMobileCard } from './salesSheetPsi';
 import type { LetterGrade } from './auditReportCard';
-import type { SalesSheetFinding, SalesSheetHeroStat } from './auditSalesSheet';
+import { salesSheetPreparedStat, type SalesSheetFinding, type SalesSheetHeroStat } from './auditSalesSheet';
 
 export type SalesSheetExhibitKind =
   | 'ssl'
@@ -1341,11 +1341,16 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   performance?: LetterGrade | null;
   security?: LetterGrade | null;
   visibility?: LetterGrade | null;
+  preparedFor?: string;
+  preparedBy?: string;
+  preparedAt?: Date;
 }): string {
   const headline = (opts.headline || '').trim();
   const grade = opts.overall ?? null;
   const score = opts.overallScore ?? null;
-  const stats = (opts.heroStats?.length
+  const preparedFor = (opts.preparedFor || '').trim();
+  const preparedBy = (opts.preparedBy || '').trim();
+  const diagnostic = (opts.heroStats?.length
     ? opts.heroStats
     : defaultHeroStats({
         findings: opts.findings || [],
@@ -1353,7 +1358,11 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
         security: opts.security ?? null,
         visibility: opts.visibility ?? null,
       })
-  ).slice(0, 3);
+  ).slice(0, preparedFor || preparedBy ? 2 : 3);
+  const stats =
+    preparedFor || preparedBy
+      ? [...diagnostic, salesSheetPreparedStat({ preparedFor, preparedBy, at: opts.preparedAt })]
+      : diagnostic;
   if (!headline && !grade && score == null && !stats.length) return '';
   const pct = score != null && Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
   const r = 25;
@@ -1506,6 +1515,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 .ss-hero-stat--crit span { background: #b42318; }
 .ss-hero-stat--risk span { background: #c05621; }
 .ss-hero-stat--info span { background: #1a3d6e; }
+.ss-hero-stat--meta span { background: #636366; }
 </style>
 <div class="ss-hero">
   <div class="ss-hero-ring" aria-hidden="true">

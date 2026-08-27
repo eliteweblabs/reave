@@ -52,7 +52,38 @@ export type SalesSheetFinding = {
   citations?: string[];
 };
 
-export type SalesSheetHeroStat = { label: string; tone: 'crit' | 'risk' | 'info' };
+export type SalesSheetHeroStat = { label: string; tone: 'crit' | 'risk' | 'info' | 'meta' };
+
+const SALES_SHEET_TZ = 'America/New_York';
+
+export function formatSalesSheetPreparedAt(at = new Date()): string {
+  const date = at.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: SALES_SHEET_TZ,
+  });
+  const time = at.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: SALES_SHEET_TZ,
+  });
+  return `${date} at ${time}`;
+}
+
+/** Third hero line: who the sheet is for, who prepared it, when, plus confidential. */
+export function salesSheetPreparedStat(opts: {
+  preparedFor: string;
+  preparedBy: string;
+  at?: Date;
+}): SalesSheetHeroStat {
+  const preparedFor = opts.preparedFor.trim() || 'the client';
+  const preparedBy = opts.preparedBy.trim() || 'this firm';
+  return {
+    label: `Prepared for ${preparedFor}, by ${preparedBy}, on ${formatSalesSheetPreparedAt(opts.at)}. Confidential.`,
+    tone: 'meta',
+  };
+}
 
 export type AuditSalesSheetInput = {
   contact: ContactRecord;

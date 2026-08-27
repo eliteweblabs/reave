@@ -460,6 +460,8 @@ if (!tmpl) {
       performance: input.performance,
       security: input.security,
       visibility: input.visibility,
+      preparedFor: businessName || input.contact.name,
+      preparedBy: company.name,
     });
     const clientLogoSrc = await inlineClientHeroLogoDataUrl(input.contact.uid || '');
     sheetHtml = replaceOnePagerLogo(
