@@ -1610,7 +1610,8 @@ const customPrompts: PromptExample[] = [
 
   /* Homepage: sticky How's it Work / Demo land here. Reserve the row. */
   .fx-cta-row--sticky-dock {
-    min-height: 2.75rem;
+    min-height: var(--home-sticky-cta-h, 2.75rem);
+    margin-bottom: 0;
   }
 
   /* ---------- Tight preview (/features-tight) ---------- */
