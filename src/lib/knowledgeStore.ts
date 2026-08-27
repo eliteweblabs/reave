@@ -17,12 +17,15 @@ import {
 import {
   isDefaultKnowledgeSlug,
   isKnowledgeSlugAvailable,
+  isOpsOnlyKnowledgeSlug,
   isPluginKnowledgeActive,
+  OPS_ONLY_KNOWLEDGE_SLUGS,
   pluginKnowledgeSlugs,
   pluginsForFeature,
   REAVE_PLUGINS,
   DEFAULT_KNOWLEDGE_SLUGS,
 } from './pluginRegistry';
+import { isCanonicalReaveInstall } from './installConfig';
 import {
   isKnowledgeDbConfigured,
   dbListKnowledge,
@@ -38,6 +41,7 @@ import {
 export { isKnowledgeDbConfigured, type KnowledgeEntry, DEFAULT_KNOWLEDGE_SLUGS, isDefaultKnowledgeSlug };
 
 function knowledgeSlugVisible(slug: string): boolean {
+  if (isOpsOnlyKnowledgeSlug(slug) && !isCanonicalReaveInstall()) return false;
   const pluginId = pluginIdForKnowledgeSlug(slug);
   if (pluginId) return isPluginKnowledgeActive(pluginId);
   return isKnowledgeSlugAvailable(slug);
@@ -56,7 +60,9 @@ function inactiveAddonKnowledgeSlugs(): string[] {
 /** Drop add-on playbooks from the live DB while the module is off. */
 export async function purgeInactivePluginKnowledge(): Promise<string[]> {
   if (!isKnowledgeDbConfigured()) return [];
-  return dbPurgeKnowledgeSlugs(inactiveAddonKnowledgeSlugs());
+  const slugs = inactiveAddonKnowledgeSlugs();
+  if (!isCanonicalReaveInstall()) slugs.push(...OPS_ONLY_KNOWLEDGE_SLUGS);
+  return dbPurgeKnowledgeSlugs(slugs);
 }
 
 /** Drop one add-on's playbooks immediately when the owner turns it off. */

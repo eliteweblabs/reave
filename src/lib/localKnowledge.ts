@@ -67,8 +67,11 @@ export function pluginIdForKnowledgeSlug(slug: string): string | null {
   for (const path of Object.keys(pluginRawByPath)) {
     if (pathToSlug(path) === slug) return pluginIdFromPath(path);
   }
+  const install = installConfigSlug();
   for (const path of Object.keys(pluginInstallRawByPath)) {
-    if (pathToSlug(path) === slug) return pluginIdFromPath(path);
+    if (pathToSlug(path) !== slug) continue;
+    if (installSlugFromPluginPath(path) !== install) continue;
+    return pluginIdFromPath(path);
   }
   return null;
 }

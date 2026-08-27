@@ -1,4 +1,6 @@
-# Clerk authentication (core)
+# Clerk authentication (reΛVe.app only)
+
+This playbook is **install-scoped** to official reΛVe.app. Completed client installs do not load it — Clerk is already wired; there is nothing for the owner to set up.
 
 Sign-in for this app is **Clerk** (`@clerk/astro`, `@clerk/backend`). That is always-on product, not an optional extra.
 

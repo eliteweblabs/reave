@@ -277,4 +277,15 @@ assert.match(knowledgeStore, /purgePluginKnowledgeForFeature/, 'toggle-off must 
 const addonsApi = readFileSync('src/pages/api/admin/addons.ts', 'utf8');
 assert.match(addonsApi, /purgePluginKnowledgeForFeature/, 'Add-ons toggle-off must purge knowledge');
 
+assert.equal(existsSync('src/knowledge/clerk-auth.md'), false, 'clerk-auth must not ship in core knowledge');
+assert.ok(
+  existsSync('plugins/clerk-auth/knowledge/installs/reave/clerk-auth.md'),
+  'clerk-auth setup playbook is reΛVe.app-only',
+);
+assert.match(
+  registrySrc,
+  /OPS_ONLY_KNOWLEDGE_SLUGS[\s\S]*'clerk-auth'/,
+  'clerk-auth must be purged from completed client installs',
+);
+
 console.log('verify-module-groups: ok');

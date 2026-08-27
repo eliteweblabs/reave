@@ -7,6 +7,7 @@
 import type { ReavePlugin } from '../../plugins/_shared/types';
 import type { AgentToolModule } from './agentTools/types';
 import { hasFeature, hasStockPhotoSearch, hasWebsiteEditor } from './features';
+import { isCanonicalReaveInstall } from './installConfig';
 
 import { billingPlugin } from '../../plugins/billing/manifest';
 import { carddavPlugin } from '../../plugins/carddav/manifest';
@@ -119,8 +120,19 @@ export function isPluginOwnedKnowledgeSlug(slug: string): boolean {
   return false;
 }
 
+/**
+ * Setup playbooks for the official reΛVe.app install only.
+ * A completed client install already has these wired — do not list or keep DB rows.
+ */
+export const OPS_ONLY_KNOWLEDGE_SLUGS: ReadonlySet<string> = new Set(['clerk-auth']);
+
+export function isOpsOnlyKnowledgeSlug(slug: string): boolean {
+  return OPS_ONLY_KNOWLEDGE_SLUGS.has(slug);
+}
+
 /** Whether bundled/DB slug is visible for this install (plugin-gated docs). */
 export function isKnowledgeSlugAvailable(slug: string): boolean {
+  if (isOpsOnlyKnowledgeSlug(slug) && !isCanonicalReaveInstall()) return false;
   for (const plugin of REAVE_PLUGINS) {
     if (pluginKnowledgeSlugs(plugin.id).includes(slug)) {
       return isPluginKnowledgeActive(plugin.id);

@@ -50,7 +50,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
 
-Clerk (`plugins/clerk-auth/`) is **core** — every package includes sign-in. It has no `features[]` flag; admin tools load when `CLERK_SECRET_KEY` is set. Clerk does not allow system-level access.
+Clerk (`plugins/clerk-auth/`) is **core** — every package includes sign-in. It has no `features[]` flag; admin tools load when `CLERK_SECRET_KEY` is set. Clerk setup knowledge is install-scoped to official reΛVe.app (`knowledge/installs/reave/`) — completed client installs do not get it. Clerk does not allow system-level access.
 
 ## How Reave loads plugins
 
