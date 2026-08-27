@@ -39,17 +39,12 @@ function bodyParagraphs(body: string): string[] {
     .filter(Boolean);
 }
 
-function firstNameFrom(fullName: string): string {
-  const trimmed = fullName.trim();
-  if (!trimmed) return 'there';
-  return trimmed.split(/\s+/)[0] || 'there';
-}
-
 /**
  * Wrap plain-text copy in the branded HTML template. Returns both text and html.
+ * No auto "Hi {name}," — compose and replies use the author's own opening.
  */
 export async function brandedPlainTextEmail(opts: {
-  firstName: string;
+  firstName?: string;
   body: string;
   cta?: EmailCta;
   note?: string;
@@ -59,18 +54,17 @@ export async function brandedPlainTextEmail(opts: {
   /** CID inline images from compose paste/attach. */
   inlineImages?: EmailInlineImage[];
 }): Promise<{ text: string; html: string }> {
-  const firstName = firstNameFrom(opts.firstName);
   const { draft, quote } = splitQuotedReplyBody(opts.body);
   const parsed = parseEmailShortcodes(draft, { baseUrl: siteBaseUrl() });
   const paragraphs = parsed.plainText ? parsed.plainText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) : bodyParagraphs(draft);
   const signature = opts.signature?.trim() || '';
-  const textParts = [`Hi ${firstName},`, '', ...paragraphs];
+  const textParts = [...paragraphs];
   if (signature) textParts.push('', signature);
   let text = textParts.join('\n\n');
   if (quote) text += quote.startsWith('\n') ? quote : `\n\n${quote}`;
   const quotedHtml = opts.quotedHtml?.trim() || (quote ? quotedReplyHtmlFromText(quote) : '');
   const html = await brandedEmailHtml({
-    firstName,
+    greeting: false,
     paragraphs,
     blocks: parsed.blocks,
     cta: opts.cta,

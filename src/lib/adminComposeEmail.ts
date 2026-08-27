@@ -113,9 +113,6 @@ export async function buildAdminComposeEmail(
   const signature = await getUserEmailSignature(opts.userId, opts.context);
 
   if ((!sendHtml && sendText && !/<[a-z][\s\S]*>/i.test(sendText)) || composeImages.inline.length) {
-    const primaryTo = to[0] || '';
-    const firstName =
-      inbound?.contactName?.trim().split(/\s+/)[0] || primaryTo.split('@')[0] || 'there';
     const { quote } = splitQuotedReplyBody(sendText);
     const quotedHtml =
       quote && inbound
@@ -127,7 +124,6 @@ export async function buildAdminComposeEmail(
           })
         : undefined;
     const wrapped = await brandedPlainTextEmail({
-      firstName,
       body: sendText,
       signature,
       quotedHtml,

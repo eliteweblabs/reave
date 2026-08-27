@@ -211,13 +211,9 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
     text = appendSignatureToPlainText(plainTextFromHtml(body) || body, signature);
     html = appendSignatureToHtmlFragment(body, signature);
   } else {
-    let firstName = to.split('@')[0] || 'there';
     let quotedHtml: string | undefined;
     if (inReplyToEmailId) {
       const inbound = await storeGetEmailInbox(inReplyToEmailId);
-      if (inbound?.contactName) {
-        firstName = inbound.contactName.trim().split(/\s+/)[0] || firstName;
-      }
       const { quote } = splitQuotedReplyBody(body);
       if (quote && inbound) {
         quotedHtml = formatQuotedReplyHtml({
@@ -228,7 +224,7 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
         });
       }
     }
-    const wrapped = await brandedPlainTextEmail({ firstName, body, signature, quotedHtml });
+    const wrapped = await brandedPlainTextEmail({ body, signature, quotedHtml });
     text = wrapped.text;
     html = wrapped.html;
   }

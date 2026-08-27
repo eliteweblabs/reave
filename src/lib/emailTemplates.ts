@@ -58,14 +58,16 @@ export type EmailMetaRow = [string, string, string?];
 /**
  * Wraps email content in the organization branded wrapper.
  *
- * @param firstName  - Recipient's first name for the greeting
+ * @param firstName  - Recipient's first name for the newsletter-style greeting
  * @param paragraphs - Body paragraphs (plain text, auto-escaped)
  * @param cta        - Optional primary call-to-action button
  * @param metaRows   - Optional metadata table rows (e.g. "Signed by", "Date")
  * @param note       - Optional small gray footnote (plain text, auto-escaped)
  */
 export async function brandedEmailHtml(opts: {
-  firstName: string;
+  firstName?: string;
+  /** Auto "Hi {firstName}," row. Keep on for newsletters; off for compose/replies. Default true. */
+  greeting?: boolean;
   paragraphs: string[];
   /** Parsed compose shortcodes. When set, wins over `paragraphs`. */
   blocks?: EmailBodyBlock[];
@@ -251,11 +253,15 @@ export async function brandedEmailHtml(opts: {
             <td class="email-card-body" style="padding:12px 28px 8px;font-family:${fontStack}">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family:${fontStack}">
 
-                <tr>
+                ${
+                  opts.greeting !== false && opts.firstName?.trim()
+                    ? `<tr>
                   <td style="padding:0 0 20px;font-family:${fontStack}">
-                    <p class="email-greeting" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName)},</p>
+                    <p class="email-greeting" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName.trim())},</p>
                   </td>
-                </tr>
+                </tr>`
+                    : ''
+                }
 
                 ${bodyRows}
                 ${inlineImagesHtml}
