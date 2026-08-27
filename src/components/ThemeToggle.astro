@@ -130,10 +130,44 @@
       background: SelectedItem;
     }
   }
+
+  /*
+   * Expanding invert circle. A white disc with mix-blend-mode:difference
+   * turns the canvas black and the type white as it passes (and the reverse
+   * going back to light). Centered on the toggle that was clicked.
+   */
+  .theme-reveal-circle {
+    position: fixed;
+    z-index: 2147483000;
+    width: var(--theme-reveal-d, 0px);
+    height: var(--theme-reveal-d, 0px);
+    left: var(--theme-reveal-x, 0px);
+    top: var(--theme-reveal-y, 0px);
+    margin: calc(var(--theme-reveal-d, 0px) / -2) 0 0 calc(var(--theme-reveal-d, 0px) / -2);
+    border-radius: 50%;
+    background: #fff;
+    mix-blend-mode: difference;
+    pointer-events: none;
+    transform: scale(0);
+    transform-origin: center;
+  }
+
+  .theme-reveal-circle.is-expanding {
+    transform: scale(1);
+    transition: transform 0.62s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .theme-reveal-circle,
+    .theme-reveal-circle.is-expanding {
+      transition: none;
+    }
+  }
 </style>
 
 <script>
   const KEY = "reave-theme";
+  let revealing = false;
 
   function currentTheme(): "light" | "dark" {
     const attr = document.documentElement.getAttribute("data-theme");
@@ -156,13 +190,69 @@
     });
   }
 
+  function revealFromToggle(btn: HTMLButtonElement, next: "light" | "dark") {
+    if (revealing) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      applyTheme(next);
+      return;
+    }
+
+    const rect = btn.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const diameter =
+      2 *
+      Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y),
+      );
+
+    const root = document.documentElement;
+    root.style.setProperty("--theme-reveal-x", `${x}px`);
+    root.style.setProperty("--theme-reveal-y", `${y}px`);
+    root.style.setProperty("--theme-reveal-d", `${diameter}px`);
+
+    const circle = document.createElement("span");
+    circle.className = "theme-reveal-circle";
+    circle.setAttribute("aria-hidden", "true");
+    root.appendChild(circle);
+    revealing = true;
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      applyTheme(next);
+      circle.remove();
+      root.style.removeProperty("--theme-reveal-x");
+      root.style.removeProperty("--theme-reveal-y");
+      root.style.removeProperty("--theme-reveal-d");
+      revealing = false;
+    };
+
+    const done = (ev: TransitionEvent) => {
+      if (ev.propertyName !== "transform") return;
+      circle.removeEventListener("transitionend", done);
+      finish();
+    };
+    circle.addEventListener("transitionend", done);
+    window.setTimeout(finish, 800);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        circle.classList.add("is-expanding");
+      });
+    });
+  }
+
   function bind() {
     document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]").forEach((btn) => {
       if (btn.dataset.bound === "1") return;
       btn.dataset.bound = "1";
       btn.addEventListener("click", (ev) => {
         ev.stopPropagation();
-        applyTheme(currentTheme() === "dark" ? "light" : "dark");
+        revealFromToggle(btn, currentTheme() === "dark" ? "light" : "dark");
       });
     });
     applyTheme(currentTheme());
