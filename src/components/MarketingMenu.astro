@@ -59,59 +59,55 @@ const showOverlayFooter =
         </a>
       ))
     }
-    <ThemeToggle />
   </nav>
 
-  {
-    (showDemoCta && demoCta) || (!signedIn && showSignIn) || showAccountNav || showAdminEntry ? (
-      <div class="marketing-nav-actions">
-        {
-          showAdminEntry && (
-            <a
-              href="/admin/"
-              class="brand-btn marketing-nav-admin app-header-admin-entry"
-              aria-label="Admin"
-            >
-              admin
-              <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
-            </a>
-          )
-        }
-        {
-          showDemoCta && demoCta && (
-            <a class="marketing-nav-cta" href={demoCta.href}>
-              Demo now
-              <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
-            </a>
-          )
-        }
-        {
-          !signedIn && showSignIn ? (
-            <button
-              type="button"
-              class="marketing-nav-signin"
-              data-ios-sheet-open="sign-in-sheet"
-            >
-              Sign in
-            </button>
-          ) : showAccountNav ? (
-            <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
-              <a href="/admin/?tab=dashboard" class="marketing-nav-link">
-                Administration
-              </a>
-              <button
-                type="button"
-                class="marketing-nav-link marketing-nav-link--button"
-                data-marketing-sign-out-inline
-              >
-                Sign out
-              </button>
-            </nav>
-          ) : null
-        }
-      </div>
-    ) : null
-  }
+  <div class="marketing-nav-actions">
+    {
+      showAdminEntry && (
+        <a
+          href="/admin/"
+          class="brand-btn marketing-nav-admin app-header-admin-entry"
+          aria-label="Admin"
+        >
+          admin
+          <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
+        </a>
+      )
+    }
+    {
+      showDemoCta && demoCta && (
+        <a class="marketing-nav-cta" href={demoCta.href}>
+          Demo now
+          <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+        </a>
+      )
+    }
+    <ThemeToggle />
+    {
+      !signedIn && showSignIn ? (
+        <button
+          type="button"
+          class="marketing-nav-signin"
+          data-ios-sheet-open="sign-in-sheet"
+        >
+          Sign in
+        </button>
+      ) : showAccountNav ? (
+        <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
+          <a href="/admin/?tab=dashboard" class="marketing-nav-link">
+            Administration
+          </a>
+          <button
+            type="button"
+            class="marketing-nav-link marketing-nav-link--button"
+            data-marketing-sign-out-inline
+          >
+            Sign out
+          </button>
+        </nav>
+      ) : null
+    }
+  </div>
 </div>
 
 <OverlayMenu
@@ -283,10 +279,6 @@ const showOverlayFooter =
     gap: 0.05rem;
     min-width: 0;
     overflow: hidden;
-  }
-
-  .marketing-nav-desktop .theme-toggle {
-    flex-shrink: 0;
   }
 
   .overlay-menu-theme {

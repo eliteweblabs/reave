@@ -25,6 +25,7 @@ import {
   parseSalesSheetOrientation,
   renderAuditDisclaimerHtml,
   salesSheetAuditUrl,
+  salesSheetWantsBadLogo,
   salesSheetWantsGoogleShot,
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
@@ -166,6 +167,7 @@ const tmpl = getTemplate(slug);
 const skipPlaces = params.get('places') === '0';
 const googleParam = params.get('google');
 const wantGoogleShot = salesSheetWantsGoogleShot(googleParam);
+const wantBadLogo = salesSheetWantsBadLogo(params.get('badLogo'));
 const listedParam = (params.get('listed') || '').trim();
 const iconGroup = parseDirectoryIconGroup(params.get('iconGroup'));
 const iconGroupMeta = directoryIconGroupById(iconGroup);
@@ -180,6 +182,7 @@ const placesQuery = (input.contact.company || input.contact.name || '').trim();
 const businessName = (input.contact.company || input.contact.name || '').trim();
 
 if (!selectedAudit) logRender('Dummy fixture');
+if (wantBadLogo) logRender('Bad logo callout on');
 logRender(`Site ${input.website || '(none)'} · ${input.findings.length} cascade rows`);
 logRender(`Pool: ${input.findings.map((f) => f.id).join(', ') || '(empty)'}`);
 
@@ -457,6 +460,8 @@ if (!tmpl) {
       performance: input.performance,
       security: input.security,
       visibility: input.visibility,
+      preparedFor: businessName || input.contact.name,
+      preparedBy: company.name,
     });
     const clientLogoSrc = await inlineClientHeroLogoDataUrl(input.contact.uid || '');
     sheetHtml = replaceOnePagerLogo(
@@ -473,6 +478,7 @@ if (!tmpl) {
       salesSheetClientLogoHtml({
         src: clientLogoSrc,
         name: businessName,
+        badLogo: wantBadLogo,
       }),
     );
   } catch (e) {
@@ -597,6 +603,10 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
           <div class="ss-check prof-field">
             <input id="google" name="google" type="checkbox" value="1" checked={wantGoogleShot} />
             <label for="google">Live Google screenshot</label>
+          </div>
+          <div class="ss-check prof-field">
+            <input id="badLogo" name="badLogo" type="checkbox" value="1" checked={wantBadLogo} />
+            <label for="badLogo">Bad logo</label>
           </div>
           <div class="prof-field">
             <label for="headline">Headline</label>

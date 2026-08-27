@@ -1,0 +1,1013 @@
+---
+/**
+ * Scroll-controlled software showcase — Meter-style pin.
+ * Left list highlights one feature at a time; the admin window swaps with it.
+ * Copy is a working stand-in; swap FEATURES / heading after the motion is locked.
+ */
+import {
+  Settings,
+  Shield,
+  Eye,
+  Layers,
+  LayoutDashboard,
+  Home,
+  Wifi,
+  Users,
+  Server,
+  Radio,
+  Inbox,
+  Lock,
+} from "lucide-astro";
+
+const FEATURES = [
+  {
+    id: "configurability",
+    title: "Configurability",
+    body: "Enable complex configuration changes fast with just a click or with natural language.",
+    icon: Settings,
+  },
+  {
+    id: "security",
+    title: "Security",
+    body: "Protect your enterprise-ready network with WPA2/WPA3/802.1X, secure tunnels, and zero trust principles.",
+    icon: Shield,
+  },
+  {
+    id: "visibility",
+    title: "Visibility",
+    body: "Gain comprehensive observability from the ISP, to the hardware, all the way to individual clients.",
+    icon: Eye,
+  },
+  {
+    id: "resiliency",
+    title: "Resiliency",
+    body: "Leverage MultiWAN, fast failover, and LTE enabled by default—all connected to multiple Meter hubs for high reliability.",
+    icon: Layers,
+  },
+] as const;
+
+const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shield, Lock, Settings];
+---
+
+<section
+  id="software"
+  class="home-software"
+  data-home-section="software"
+  data-no-scroll-fade
+  aria-labelledby="home-software-title"
+>
+  <div class="sw-intro scroll-fade-in">
+    <h2 id="home-software-title" class="sw-title">
+      Intuitive software packed with enterprise controls
+    </h2>
+    <p class="sw-lead">
+      Get deep visibility and control with our dashboard or use Command to generate
+      one for your unique workflow.
+    </p>
+  </div>
+
+  <div class="sw-track" data-sw-track>
+    <div class="sw-pin" data-sw-pin>
+      <ul class="sw-list" role="tablist" aria-label="Software features">
+        {
+          FEATURES.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <li>
+                <button
+                  type="button"
+                  class:list={["sw-item", index === 0 && "is-active"]}
+                  role="tab"
+                  id={`sw-tab-${feature.id}`}
+                  aria-selected={index === 0 ? "true" : "false"}
+                  aria-controls={`sw-panel-${feature.id}`}
+                  data-sw-item
+                  data-sw-index={String(index)}
+                >
+                  <span class="sw-item-icon" aria-hidden="true">
+                    <Icon size={16} strokeWidth={1.75} />
+                  </span>
+                  <span class="sw-item-copy">
+                    <span class="sw-item-title">{feature.title}</span>
+                    <span class="sw-item-body">{feature.body}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })
+        }
+      </ul>
+
+      <div class="sw-window" data-sw-window>
+        <aside class="sw-rail" aria-hidden="true">
+          {
+            SIDEBAR.map((Icon) => (
+              <span class="sw-rail-btn">
+                <Icon size={15} strokeWidth={1.75} />
+              </span>
+            ))
+          }
+        </aside>
+        <div class="sw-stage">
+          <header class="sw-chrome">
+            <span class="sw-crumb">Custom dashboard</span>
+            <span class="sw-pills">
+              <span class="sw-pill">@ Primary</span>
+              <span class="sw-pill">VLAN:private</span>
+            </span>
+          </header>
+          <div class="sw-panels">
+            <div
+              class="sw-panel is-active"
+              id="sw-panel-configurability"
+              role="tabpanel"
+              aria-labelledby="sw-tab-configurability"
+              data-sw-panel
+              aria-hidden="false"
+            >
+              <div class="sw-split">
+                <div class="sw-col">
+                  <div class="sw-prompt">
+                    <p>
+                      Create an SSID named Globex. Assign it to @VLAN: private, enable
+                      WPA2 auth, and limit bandwidth to 100 Mbps on the @Primary network.
+                    </p>
+                  </div>
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>{`{ }`} Generated UI</strong>
+                      <span class="sw-badge">Auto-filled</span>
+                    </div>
+                    <label class="sw-field">
+                      <span>SSID</span>
+                      <span class="sw-input">Globex</span>
+                    </label>
+                    <label class="sw-field">
+                      <span>Authentication</span>
+                      <span class="sw-input">WPA2</span>
+                    </label>
+                    <label class="sw-field sw-field--split">
+                      <span>Download limit</span>
+                      <span class="sw-input">100 Mbps</span>
+                    </label>
+                    <span class="sw-confirm">Confirm</span>
+                  </div>
+                </div>
+                <div class="sw-col sw-col--stats">
+                  <div class="sw-stats">
+                    <div class="sw-stat">
+                      <span class="sw-stat-k">Firewalls</span>
+                      <span class="sw-stat-v">2/2 online</span>
+                    </div>
+                    <div class="sw-stat">
+                      <span class="sw-stat-k">Switches</span>
+                      <span class="sw-stat-v">71/72 online</span>
+                    </div>
+                    <div class="sw-stat">
+                      <span class="sw-stat-k">Access points</span>
+                      <span class="sw-stat-v">121/121 online</span>
+                    </div>
+                  </div>
+                  <div class="sw-card sw-card--chart">
+                    <span class="sw-chart-label">ISP throughput</span>
+                    <svg class="sw-spark" viewBox="0 0 240 72" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M0 48 C 20 46, 36 40, 50 42 S 80 28, 100 32 130 18, 150 22 180 12, 200 16 220 8, 240 10" fill="none" stroke="#6366f1" stroke-width="2" />
+                      <path d="M0 58 C 24 56, 40 52, 60 54 S 90 44, 110 46 150 38, 170 40 200 34, 240 36" fill="none" stroke="#22c55e" stroke-width="2" />
+                    </svg>
+                  </div>
+                  <div class="sw-wan">
+                    {
+                      [
+                        ["1.0.0.1 WAN0 (AT&T)", "2.50ms"],
+                        ["1.1.1.1 WAN0 (AT&T)", "2.31ms"],
+                        ["8.8.8.8 WAN1 (Zayo)", "3.02ms"],
+                        ["9.9.9.9 WAN1 (Zayo)", "2.88ms"],
+                      ].map(([name, ms]) => (
+                        <div class="sw-wan-row">
+                          <span>{name}</span>
+                          <span class="sw-wan-ms">{ms}</span>
+                          <span class="sw-wan-bars" aria-hidden="true" />
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sw-panel"
+              id="sw-panel-security"
+              role="tabpanel"
+              aria-labelledby="sw-tab-security"
+              data-sw-panel
+              aria-hidden="true"
+            >
+              <div class="sw-split">
+                <div class="sw-col">
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>Access policy</strong>
+                      <span class="sw-badge sw-badge--ok">Enforced</span>
+                    </div>
+                    {
+                      [
+                        ["WPA3-Enterprise", "802.1X", true],
+                        ["Client VPN", "WireGuard", true],
+                        ["IPsec tunnel", "HQ ↔ Site B", true],
+                        ["Guest isolation", "VLAN 40", true],
+                      ].map(([name, detail, on]) => (
+                        <div class="sw-rule">
+                          <span class="sw-dot" data-on={String(on)} />
+                          <span>
+                            <b>{name}</b>
+                            <em>{detail}</em>
+                          </span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+                <div class="sw-col">
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>Zero trust</strong>
+                    </div>
+                    <div class="sw-zt">
+                      <div>
+                        <span>Denied</span>
+                        <strong>12</strong>
+                      </div>
+                      <div>
+                        <span>Quarantined</span>
+                        <strong>3</strong>
+                      </div>
+                      <div>
+                        <span>Allowed</span>
+                        <strong>1,408</strong>
+                      </div>
+                    </div>
+                    <p class="sw-note">New devices stay in quarantine until a rule or Command approves them.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sw-panel"
+              id="sw-panel-visibility"
+              role="tabpanel"
+              aria-labelledby="sw-tab-visibility"
+              data-sw-panel
+              aria-hidden="true"
+            >
+              <div class="sw-split">
+                <div class="sw-col">
+                  <div class="sw-card sw-card--chart">
+                    <span class="sw-chart-label">Client throughput</span>
+                    <svg class="sw-spark" viewBox="0 0 240 72" preserveAspectRatio="none" aria-hidden="true">
+                      <path d="M0 40 C 30 38, 50 20, 80 28 S 120 8, 150 18 190 6, 240 12" fill="none" stroke="#6366f1" stroke-width="2" />
+                      <path d="M0 60 C 40 58, 70 50, 110 52 S 160 44, 200 46 220 40, 240 42" fill="none" stroke="#a3a3a3" stroke-width="2" />
+                    </svg>
+                  </div>
+                  <div class="sw-stats">
+                    <div class="sw-stat">
+                      <span class="sw-stat-k">Clients</span>
+                      <span class="sw-stat-v">842 seen</span>
+                    </div>
+                    <div class="sw-stat">
+                      <span class="sw-stat-k">APs</span>
+                      <span class="sw-stat-v">121 / 121</span>
+                    </div>
+                    <div class="sw-stat">
+                      <span class="sw-stat-k">Loss</span>
+                      <span class="sw-stat-v">0.02%</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="sw-col">
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>Top talkers</strong>
+                    </div>
+                    {
+                      [
+                        ["conf-room-ap-12", "4.2 Gbps"],
+                        ["lab-sw-core", "1.8 Gbps"],
+                        ["lobby-kiosk-3", "420 Mbps"],
+                        ["cam-dock-07", "88 Mbps"],
+                      ].map(([name, rate]) => (
+                        <div class="sw-talker">
+                          <span>{name}</span>
+                          <span>{rate}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="sw-panel"
+              id="sw-panel-resiliency"
+              role="tabpanel"
+              aria-labelledby="sw-tab-resiliency"
+              data-sw-panel
+              aria-hidden="true"
+            >
+              <div class="sw-split">
+                <div class="sw-col">
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>MultiWAN</strong>
+                      <span class="sw-badge sw-badge--ok">Failover ready</span>
+                    </div>
+                    {
+                      [
+                        ["WAN0 · AT&T", "Primary", "2.4 ms"],
+                        ["WAN1 · Zayo", "Standby", "3.1 ms"],
+                        ["LTE · Meter", "Backup", "28 ms"],
+                      ].map(([name, role, ms]) => (
+                        <div class="sw-wan-row">
+                          <span>
+                            {name}
+                            <em class="sw-role">{role}</em>
+                          </span>
+                          <span class="sw-wan-ms">{ms}</span>
+                          <span class="sw-wan-bars" aria-hidden="true" />
+                        </div>
+                      ))
+                    }
+                  </div>
+                </div>
+                <div class="sw-col">
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>Hubs</strong>
+                    </div>
+                    <div class="sw-zt">
+                      <div>
+                        <span>West</span>
+                        <strong>Online</strong>
+                      </div>
+                      <div>
+                        <span>East</span>
+                        <strong>Online</strong>
+                      </div>
+                      <div>
+                        <span>Last fail</span>
+                        <strong>0</strong>
+                      </div>
+                    </div>
+                    <p class="sw-note">LTE is on by default. Traffic steers to the next hub before users notice.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  function prefersReducedMotion() {
+    return (
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
+
+  function bindSoftwareShowcase(root: HTMLElement) {
+    if (root.dataset.swBound === "1") return;
+    root.dataset.swBound = "1";
+
+    const track = root.querySelector<HTMLElement>("[data-sw-track]");
+    const pin = root.querySelector<HTMLElement>("[data-sw-pin]");
+    const items = [...root.querySelectorAll<HTMLButtonElement>("[data-sw-item]")];
+    const panels = [...root.querySelectorAll<HTMLElement>("[data-sw-panel]")];
+    if (!track || !pin || items.length === 0) return;
+
+    const count = items.length;
+    let active = 0;
+    let ticking = false;
+    let programmatic = false;
+
+    const headerOffset = () => {
+      const styles = getComputedStyle(document.documentElement);
+      return Number.parseFloat(styles.scrollPaddingTop) || 0;
+    };
+
+    function setActive(next: number) {
+      if (next === active) return;
+      active = next;
+      items.forEach((item, i) => {
+        const on = i === next;
+        item.classList.toggle("is-active", on);
+        item.setAttribute("aria-selected", on ? "true" : "false");
+        item.tabIndex = on ? 0 : -1;
+      });
+      panels.forEach((panel, i) => {
+        const on = i === next;
+        panel.classList.toggle("is-active", on);
+        panel.setAttribute("aria-hidden", on ? "false" : "true");
+      });
+    }
+
+    function progressToIndex() {
+      const rect = track!.getBoundingClientRect();
+      const pinH = pin!.offsetHeight;
+      const travel = Math.max(1, track!.offsetHeight - pinH);
+      const start = headerOffset();
+      const raw = (start - rect.top) / travel;
+      const p = Math.min(1, Math.max(0, raw));
+      return Math.min(count - 1, Math.floor(p * count + 1e-6));
+    }
+
+    function onScroll() {
+      if (programmatic || ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        setActive(progressToIndex());
+      });
+    }
+
+    function scrollToIndex(index: number) {
+      const pinH = pin!.offsetHeight;
+      const travel = Math.max(1, track!.offsetHeight - pinH);
+      const start = headerOffset();
+      const top = track!.getBoundingClientRect().top + window.scrollY;
+      const y = top - start + ((index + 0.35) / count) * travel;
+      programmatic = true;
+      setActive(index);
+      window.scrollTo({
+        top: Math.max(0, y),
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
+      window.setTimeout(() => {
+        programmatic = false;
+      }, prefersReducedMotion() ? 50 : 700);
+    }
+
+    items.forEach((item, i) => {
+      item.tabIndex = i === 0 ? 0 : -1;
+      item.addEventListener("click", () => scrollToIndex(i));
+    });
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    setActive(progressToIndex());
+  }
+
+  function boot() {
+    document.querySelectorAll<HTMLElement>(".home-software").forEach(bindSoftwareShowcase);
+  }
+
+  boot();
+  document.addEventListener("astro:page-load", boot);
+</script>
+
+<style>
+  .home-software {
+    --sw-accent: #6d5cff;
+    --sw-accent-soft: #ece9ff;
+    --sw-ink: #1c1c22;
+    --sw-muted: #6b6b78;
+    --sw-line: rgba(28, 28, 34, 0.1);
+    --sw-paper: #fff;
+    --sw-wash: #f3f3f6;
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    padding: var(--home-section-padding-y, 80px) 24px;
+    background: var(--sw-wash);
+  }
+
+  .sw-intro {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto 48px;
+    text-align: center;
+  }
+
+  .sw-title {
+    margin: 0 0 14px;
+    font-family: var(--font-primary);
+    font-size: var(--home-section-title-size, clamp(1.5rem, 3.5vw, 2rem));
+    font-weight: var(--home-section-title-weight, 700);
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+    color: var(--site-fg, #171717);
+  }
+
+  .sw-lead {
+    margin: 0 auto;
+    max-width: 46ch;
+    font-family: var(--font-content);
+    font-size: var(--home-copy-lead-size, 1.02rem);
+    line-height: 1.55;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .sw-track {
+    --sw-pin-h: calc(
+      100svh - var(--app-header-offset, 4rem) - var(--home-sticky-cta-h, 2.75rem) - 28px
+    );
+    height: calc(var(--sw-pin-h) * 4);
+    position: relative;
+  }
+
+  .sw-pin {
+    position: sticky;
+    top: calc(var(--app-header-offset, 4rem) + 8px);
+    height: var(--sw-pin-h);
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    gap: 28px;
+    align-items: center;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding-bottom: 24px;
+  }
+
+  .sw-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sw-item {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 8px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    color: var(--sw-muted);
+    border-radius: 12px;
+  }
+
+  .sw-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: #e4e4ea;
+    color: #7a7a86;
+    transition:
+      background 0.25s ease,
+      color 0.25s ease;
+  }
+
+  .sw-item-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding-top: 5px;
+  }
+
+  .sw-item-title {
+    font-family: var(--font-primary);
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    color: inherit;
+  }
+
+  .sw-item-body {
+    display: block;
+    max-height: 0;
+    overflow: hidden;
+    font-family: var(--font-content);
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--sw-muted);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      max-height 0.35s ease,
+      opacity 0.28s ease,
+      transform 0.28s ease;
+  }
+
+  .sw-item.is-active {
+    color: var(--sw-ink);
+  }
+
+  .sw-item.is-active .sw-item-icon {
+    background: var(--sw-accent-soft);
+    color: var(--sw-accent);
+  }
+
+  .sw-item.is-active .sw-item-body {
+    max-height: 7.5rem;
+    opacity: 1;
+    transform: none;
+  }
+
+  .sw-window {
+    height: min(720px, calc(var(--sw-pin-h) - 8px));
+    display: flex;
+    min-width: 0;
+    background: var(--sw-paper);
+    border: 1px solid var(--sw-line);
+    border-radius: 16px;
+    box-shadow:
+      0 24px 60px rgba(28, 28, 34, 0.1),
+      0 2px 8px rgba(28, 28, 34, 0.04);
+    overflow: hidden;
+  }
+
+  .sw-rail {
+    width: 48px;
+    flex: 0 0 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 0;
+    background: #f6f6f8;
+    border-right: 1px solid var(--sw-line);
+    color: #8b8b96;
+  }
+
+  .sw-rail-btn {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+  }
+
+  .sw-rail-btn:first-child {
+    color: var(--sw-accent);
+    background: var(--sw-accent-soft);
+  }
+
+  .sw-stage {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fafafb;
+  }
+
+  .sw-chrome {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--sw-line);
+    background: var(--sw-paper);
+  }
+
+  .sw-crumb {
+    font-family: var(--font-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--sw-ink);
+  }
+
+  .sw-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .sw-pill {
+    font-size: 0.68rem;
+    font-weight: 650;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--sw-accent-soft);
+    color: var(--sw-accent);
+  }
+
+  .sw-panels {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .sw-panel {
+    position: absolute;
+    inset: 0;
+    padding: 16px;
+    overflow: auto;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition:
+      opacity 0.35s ease,
+      transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .sw-panel.is-active {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .sw-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    min-height: 100%;
+  }
+
+  .sw-col {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .sw-prompt,
+  .sw-card {
+    background: var(--sw-paper);
+    border: 1px solid var(--sw-line);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .sw-prompt p {
+    margin: 0;
+    font-family: var(--font-content);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--sw-ink);
+  }
+
+  .sw-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .sw-card-head strong {
+    font-family: var(--font-primary);
+    font-size: 0.82rem;
+    font-weight: 650;
+  }
+
+  .sw-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4f46e5;
+  }
+
+  .sw-badge--ok {
+    background: #ecfdf3;
+    color: #15803d;
+  }
+
+  .sw-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+    font-size: 0.7rem;
+    color: var(--sw-muted);
+  }
+
+  .sw-input {
+    display: block;
+    padding: 7px 9px;
+    border-radius: 8px;
+    border: 1px solid var(--sw-line);
+    background: #f7f7f9;
+    color: var(--sw-ink);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .sw-confirm {
+    display: inline-flex;
+    margin-top: 4px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: #4f46e5;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 650;
+  }
+
+  .sw-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .sw-stat {
+    background: var(--sw-paper);
+    border: 1px solid var(--sw-line);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sw-stat-k {
+    font-size: 0.68rem;
+    color: var(--sw-muted);
+  }
+
+  .sw-stat-v {
+    font-size: 0.78rem;
+    font-weight: 650;
+    color: var(--sw-ink);
+  }
+
+  .sw-chart-label {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--sw-muted);
+    margin-bottom: 8px;
+  }
+
+  .sw-spark {
+    display: block;
+    width: 100%;
+    height: 72px;
+  }
+
+  .sw-wan,
+  .sw-rule,
+  .sw-talker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sw-wan {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    background: var(--sw-paper);
+    border: 1px solid var(--sw-line);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+
+  .sw-wan-row {
+    display: grid;
+    grid-template-columns: 1fr auto 72px;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.68rem;
+    color: var(--sw-muted);
+  }
+
+  .sw-wan-ms {
+    font-variant-numeric: tabular-nums;
+    color: var(--sw-ink);
+    font-weight: 650;
+  }
+
+  .sw-wan-bars {
+    height: 14px;
+    border-radius: 2px;
+    background: repeating-linear-gradient(
+      90deg,
+      #22c55e 0 4px,
+      transparent 4px 6px
+    );
+  }
+
+  .sw-rule {
+    padding: 8px 0;
+    border-top: 1px solid var(--sw-line);
+    font-size: 0.8rem;
+  }
+
+  .sw-rule b,
+  .sw-talker {
+    font-family: var(--font-primary);
+  }
+
+  .sw-rule em,
+  .sw-role {
+    display: block;
+    font-style: normal;
+    color: var(--sw-muted);
+    font-size: 0.72rem;
+    font-weight: 400;
+  }
+
+  .sw-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex: 0 0 8px;
+  }
+
+  .sw-zt {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .sw-zt div {
+    background: #f7f7f9;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sw-zt span {
+    font-size: 0.68rem;
+    color: var(--sw-muted);
+  }
+
+  .sw-zt strong {
+    font-size: 0.95rem;
+  }
+
+  .sw-note {
+    margin: 12px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--sw-muted);
+  }
+
+  .sw-talker {
+    justify-content: space-between;
+    padding: 8px 0;
+    border-top: 1px solid var(--sw-line);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 900px) {
+    .home-software {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+
+    .sw-track {
+      height: auto;
+    }
+
+    .sw-pin {
+      position: relative;
+      top: auto;
+      height: auto;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .sw-window {
+      height: min(620px, 78svh);
+    }
+
+    .sw-split {
+      grid-template-columns: 1fr;
+    }
+
+    .sw-item-body {
+      max-height: none;
+      opacity: 0.85;
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sw-track {
+      height: auto;
+    }
+
+    .sw-pin {
+      position: relative;
+      top: auto;
+      height: auto;
+    }
+
+    .sw-item-body,
+    .sw-panel {
+      transition: none;
+    }
+  }
+</style>

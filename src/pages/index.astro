@@ -5,6 +5,7 @@ import HomeHeroSection from "../components/home/HomeHeroSection.astro";
 import HomeStickyCtas from "../components/home/HomeStickyCtas.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
 import HomeFeaturedProjectSection from "../components/home/HomeFeaturedProjectSection.astro";
+import HomeSoftwareShowcaseSection from "../components/home/HomeSoftwareShowcaseSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
 import SiteLandingPage from "../components/home/SiteLandingPage.astro";
 import HomeLoginPage from "../components/home/HomeLoginPage.astro";
@@ -51,6 +52,7 @@ const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteConten
             <div class="home-sticky-cta-track__body">
               <HomeHeroSection siteContent={siteContent} />
               <FeaturesPageContent embedded introOnly />
+              <HomeSoftwareShowcaseSection />
               <FeaturesPageContent embedded hideIntro showLogoStack={false} showAccordion={false} />
             </div>
             <HomeStickyCtas siteContent={siteContent} />
@@ -90,7 +92,8 @@ const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteConten
       .home-scroll :global(.fx-custom-h2),
       .home-scroll :global(.fx-closing-h2),
       .home-scroll :global(.home-featured-copy h2),
-      .home-scroll :global(.home-section-hero h2) {
+      .home-scroll :global(.home-section-hero h2),
+      .home-scroll :global(.sw-title) {
         font-size: var(--home-section-title-size);
         font-weight: var(--home-section-title-weight);
         letter-spacing: -0.03em;

@@ -539,7 +539,6 @@ function ruleCountForFilters() {
 function ruleScopeCounts() {
   const counts = { personal: 0, universal: 0 };
   for (const rule of ruleState.rules) {
-    if (!ruleMatchesProcessFilter(rule)) continue;
     counts[ruleScope(rule)] += 1;
   }
   return counts;
@@ -548,7 +547,6 @@ function ruleScopeCounts() {
 function ruleProcessCounts() {
   const counts = { delete: 0, archive: 0, receipt: 0, classify: 0 };
   for (const rule of ruleState.rules) {
-    if (!ruleMatchesScopeFilter(rule)) continue;
     counts[ruleProcessValue(rule)] += 1;
   }
   return counts;
@@ -597,7 +595,8 @@ function renderFilterChipRow({ chips, stateKey, counts, ariaLabel }) {
       (count != null ? `<span class="em-filter-count">${count}</span>` : '');
     btn.addEventListener('click', () => {
       if (!ruleState[stateKey]) ruleState[stateKey] = {};
-      ruleState[stateKey][chip.id] = !on;
+      const currentlyOn = ruleState[stateKey][chip.id] !== false;
+      ruleState[stateKey][chip.id] = !currentlyOn;
       applyRuleFilters();
     });
     nav.appendChild(btn);
@@ -623,6 +622,28 @@ function renderRuleFilters() {
     }),
   );
   return wrap;
+}
+
+function syncRuleFilterChips(root = getRuleEditor()) {
+  const filters = root?.querySelector('.re-rule-filters');
+  if (!filters) return;
+  const scopeCounts = ruleScopeCounts();
+  const processCounts = ruleProcessCounts();
+  filters.querySelectorAll('.re-filter-chip').forEach((btn) => {
+    const id = btn.dataset.filter;
+    const isScope = RULE_SCOPE_CHIPS.some((c) => c.id === id);
+    const on = ruleState[isScope ? 'scopeOn' : 'processOn']?.[id] !== false;
+    btn.classList.toggle('is-on', on);
+    btn.classList.toggle('is-off', !on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const check = btn.querySelector('.re-filter-check');
+    if (check) check.innerHTML = on ? iosIcon('check', 9) : '';
+    const countEl = btn.querySelector('.em-filter-count');
+    if (countEl) {
+      const next = String((isScope ? scopeCounts : processCounts)[id] ?? 0);
+      if (countEl.textContent !== next) countEl.textContent = next;
+    }
+  });
 }
 
 function fillRulesSidebarList(list) {
@@ -652,8 +673,7 @@ function refreshRulesSidebarList() {
   if (searchInput instanceof HTMLInputElement) {
     searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
   }
-  const filters = root.querySelector('.re-rule-filters');
-  if (filters) filters.replaceWith(renderRuleFilters());
+  syncRuleFilterChips(root);
   fillRulesSidebarList(list);
   syncRulesSidebarActiveState();
 }

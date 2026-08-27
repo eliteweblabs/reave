@@ -16,11 +16,13 @@ import {
   parseFilledOnePagerColumns,
   renderAuditDisclaimerHtml,
   parseSalesSheetOrientation,
+  salesSheetWantsBadLogo,
   salesSheetWantsGoogleShot,
   listAuditCompanies,
   salesSheetAuditUrl,
   salesSheetInputFromReportCard,
   salesSheetInputFromSearchParams,
+  salesSheetPreparedStat,
   selectTopFindings,
   setFrontmatterTitle,
 } from '../src/lib/auditSalesSheet.ts';
@@ -63,6 +65,7 @@ import {
   renderSalesSheetHeaderHeroHtml,
   replaceOnePagerLogo,
   salesSheetClientLogoHtml,
+  BAD_LOGO_CALLOUT,
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
 import { NO_LOGO_FOUND_HTML } from '../src/lib/clientLogoCopy.ts';
@@ -135,6 +138,10 @@ await test('live Google shot is on unless google=0', () => {
   assert.equal(salesSheetWantsGoogleShot(''), true);
   assert.equal(salesSheetWantsGoogleShot('1'), true);
   assert.equal(salesSheetWantsGoogleShot('0'), false);
+  assert.equal(salesSheetWantsBadLogo(null), false);
+  assert.equal(salesSheetWantsBadLogo(''), false);
+  assert.equal(salesSheetWantsBadLogo('0'), false);
+  assert.equal(salesSheetWantsBadLogo('1'), true);
 });
 
 await test('competitor search retries a shorter local category', () => {
@@ -1236,6 +1243,35 @@ await test('header hero is the audit lede with the overall-grade ring on the lef
   assert.ok(injected.indexOf('doc-onepager-logo') < injected.indexOf('ss-hero'));
 });
 
+await test('header hero third line is prepared-for attribution', () => {
+  const at = new Date('2026-08-27T21:04:00.000Z');
+  const stat = salesSheetPreparedStat({
+    preparedFor: 'CALA RENEE Salon',
+    preparedBy: 'reΛVe',
+    at,
+  });
+  assert.equal(
+    stat.label,
+    'Prepared for CALA RENEE Salon, by reΛVe, on August 27, 2026 at 5:04 PM. Confidential.',
+  );
+  assert.equal(stat.tone, 'meta');
+  const hero = renderSalesSheetHeaderHeroHtml({
+    overall: DUMMY_SALES_SHEET.overall,
+    overallScore: DUMMY_SALES_SHEET.overallScore,
+    headline: DUMMY_SALES_SHEET.headline,
+    heroStats: DUMMY_SALES_SHEET.heroStats,
+    preparedFor: 'CALA RENEE Salon',
+    preparedBy: 'reΛVe',
+    preparedAt: at,
+  });
+  assert.match(hero, /ss-hero-stat--meta/);
+  assert.match(
+    hero,
+    /Prepared for CALA RENEE Salon, by reΛVe, on August 27, 2026 at 5:04 PM\. Confidential\./,
+  );
+  assert.match(hero, /Every finding sourced from independent platforms/i);
+});
+
 await test('front header uses the client logo or the crawler missing-logo finding', () => {
   const missing = salesSheetClientLogoHtml({ name: 'Hale & Co.' });
   assert.match(missing, /ss-missing-logo/);
@@ -1247,6 +1283,23 @@ await test('front header uses the client logo or the crawler missing-logo findin
   });
   assert.match(have, /doc-onepager-logo-img/);
   assert.doesNotMatch(have, /ss-missing-logo/);
+  assert.match(have, /ss-logo-note/);
+  assert.match(have, /<figure class="ss-logo">/);
+  assert.doesNotMatch(have, /<figure class="ss-logo" data-ss-bad-logo="1">/);
+  const calledOut = salesSheetClientLogoHtml({
+    src: 'data:image/png;base64,AAA',
+    name: 'Hale & Co.',
+    badLogo: true,
+  });
+  assert.match(calledOut, /<figure class="ss-logo" data-ss-bad-logo="1">/);
+  assert.match(calledOut, /ss-logo-note/);
+  assert.match(calledOut, /Caveat/);
+  assert.match(calledOut, /color: #b42318/);
+  assert.match(calledOut, /scaleX\(-1\)/);
+  assert.match(calledOut, /M3 16c10-7 22-6 34-2/);
+  assert.match(calledOut, /The 'logo' the website/);
+  assert.match(calledOut, /Easy fix!/);
+  assert.equal(BAD_LOGO_CALLOUT, "The 'logo' the website is showing the world! Easy fix!");
   const swapped = replaceOnePagerLogo(
     '<header class="doc-onepager-header"><div class="doc-onepager-logo">REAVE</div></header>',
     missing,

@@ -181,9 +181,8 @@ html {
   }
 
   /*
-   * Room above the sticky CTAs. Do not pad .fx-page--intro or stack
-   * another 100vh-era gap after the chips — the next section follows
-   * with --home-section-follow-gap.
+   * Room above the sticky CTAs. Post-hero sections already share
+   * --home-section-padding-y; this only lifts the last blocks.
    */
   .home-scroll .home-integrations,
   .home-scroll .home-featured,
