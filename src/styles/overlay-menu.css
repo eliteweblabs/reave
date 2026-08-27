@@ -316,7 +316,7 @@ html[data-theme="dark"] [data-account-menu] .overlay-menu-footer {
 
 html.overlay-menu-open,
 html.marketing-menu-open,
-html.account-menu-open {
+html.account-menu-open:not(.account-menu-docked) {
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -334,7 +334,7 @@ html.account-menu-open .app-header {
  */
 html.overlay-menu-open .admin-setup-alerts,
 html.marketing-menu-open .admin-setup-alerts,
-html.account-menu-open .admin-setup-alerts {
+html.account-menu-open:not(.account-menu-docked) .admin-setup-alerts {
   visibility: hidden;
   pointer-events: none;
 }
@@ -445,4 +445,73 @@ html[data-theme="light"] .app-header--admin .marketing-nav-toggle {
   .overlay-menu-panel {
     animation: none;
   }
+}
+
+/*
+ * Admin account menu at lg+ (1024px): dock as a third column instead of a
+ * full-screen overlay. Split views keep list + detail; the detail pane
+ * shrinks to make room. Single-column panels just lose width on the right.
+ */
+html.account-menu-docked {
+  --account-col-w: 288px;
+}
+
+html.account-menu-docked [data-account-menu].overlay-menu:not([hidden]) {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  z-index: 12;
+  width: var(--account-col-w);
+  pointer-events: none;
+}
+
+html.account-menu-docked [data-account-menu] .overlay-menu-backdrop {
+  display: none;
+}
+
+html.account-menu-docked [data-account-menu] .overlay-menu-panel {
+  position: relative;
+  top: auto;
+  right: auto;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  box-shadow: none;
+  animation: none;
+}
+
+html.account-menu-docked :is(
+  #wrap,
+  #dashboard-panel,
+  #settings-panel,
+  #doc-editor,
+  #chat-panel,
+  #email-panel,
+  #knowledge-editor,
+  #work-editor,
+  #todo-editor,
+  #punchlist-editor,
+  #schedule-panel,
+  #clients-editor,
+  #social-panel,
+  #online-reviews-panel,
+  #analytics-panel,
+  #fleet-panel,
+  #modules-panel,
+  #rule-editor,
+  #newsletter-editor,
+  #media-panel,
+  #sales-sheet-editor
+) {
+  right: var(--account-col-w);
+}
+
+html.account-menu-docked .admin-footer-nav {
+  right: var(--account-col-w);
+}
+
+html.account-menu-docked #legend {
+  right: calc(var(--account-col-w) + 0.7rem);
 }

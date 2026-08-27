@@ -11,6 +11,7 @@ const header = readFileSync('src/components/Header.astro', 'utf8');
 const marketing = readFileSync('src/components/MarketingMenu.astro', 'utf8');
 const overlay = readFileSync('src/components/OverlayMenu.astro', 'utf8');
 const overlayCss = readFileSync('src/styles/overlay-menu.css', 'utf8');
+const overlayDom = readFileSync('src/lib/overlayMenuDom.ts', 'utf8');
 const toggle = readFileSync('src/components/OverlayMenuToggle.astro', 'utf8');
 const index = readFileSync('src/pages/admin/index.astro', 'utf8');
 const sales = readFileSync('src/pages/admin/sales-sheet.astro', 'utf8');
@@ -57,6 +58,15 @@ assert.match(overlay, /data-overlay-menu/);
 assert.match(overlay, /overlay-menu-backdrop/);
 assert.match(overlay, /overlay-menu-panel/);
 assert.match(overlay, /slot name="footer"/);
+assert.match(overlayDom, /ACCOUNT_MENU_DOCK_MQ/);
+assert.match(overlayDom, /account-menu-docked/);
+assert.match(overlayCss, /html\.account-menu-docked/);
+assert.match(overlayCss, /--account-col-w/);
+assert.match(
+  overlayCss,
+  /html\.account-menu-docked \[data-account-menu\] \.overlay-menu-panel \{[\s\S]*position: relative/,
+  'Docked account panel must sit in the column, not position:absolute over the page',
+);
 assert.match(toggle, /IOS_ICONS\.x/);
 assert.match(toggle, /data-overlay-menu-toggle/);
 assert.match(toggle, /hidden=\{mode === "dismiss"/);

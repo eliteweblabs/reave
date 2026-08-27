@@ -2117,11 +2117,18 @@ function readSidebarWidthVar() {
   return Number.isFinite(n) ? n : SIDEBAR_DEFAULT_W;
 }
 
+function accountMenuDockWidth() {
+  if (!document.documentElement.classList.contains('account-menu-docked')) return 0;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--account-col-w').trim();
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : 288;
+}
+
 function maxSidebarWidthForViewport() {
   if (!SIDEBAR_MQ.matches) return SIDEBAR_MAX_W;
   return Math.min(
     SIDEBAR_MAX_W,
-    Math.max(SIDEBAR_MIN_W, window.innerWidth - DETAIL_PANE_MIN_W),
+    Math.max(SIDEBAR_MIN_W, window.innerWidth - DETAIL_PANE_MIN_W - accountMenuDockWidth()),
   );
 }
 
@@ -2229,6 +2236,8 @@ export function initSidebarLayout() {
     scanPanelSidebars();
   });
   window.addEventListener('resize', clampSidebarWidthToViewport);
+  document.addEventListener('overlay-menu:open', clampSidebarWidthToViewport);
+  document.addEventListener('overlay-menu:close', clampSidebarWidthToViewport);
 }
 
 // ---- List multi-select (icon click + long-press on touch) ----

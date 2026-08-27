@@ -421,7 +421,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   function syncOverlayMenuScrollLock() {
     const anyOpen = Boolean(document.querySelector(".overlay-menu:not([hidden])"));
-    if (anyOpen) {
+    const dockedOnly =
+      document.documentElement.classList.contains("account-menu-docked") &&
+      !document.querySelector("[data-marketing-menu]:not([hidden])");
+    if (anyOpen && !dockedOnly) {
       if (document.documentElement.dataset.overlayScrollLock === "1") return;
       document.documentElement.dataset.overlayScrollLock = "1";
       document.addEventListener("touchmove", overlayMenuTouchGuard, { passive: false });

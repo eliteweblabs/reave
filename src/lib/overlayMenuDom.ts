@@ -6,6 +6,22 @@
 
 export type OverlayMenuOpenFn = (root: HTMLElement | null, open: boolean) => void;
 
+/** Admin account menu docks as a column at lg+ (tokens.css). Overlay below that. */
+export const ACCOUNT_MENU_DOCK_MQ =
+  typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)") : null;
+
+function isAdminAccountDock() {
+  return Boolean(ACCOUNT_MENU_DOCK_MQ?.matches && document.querySelector(".app-header--admin"));
+}
+
+function syncAccountMenuDock() {
+  const account = getAccountOverlay();
+  const docked = Boolean(account && !account.hidden && isAdminAccountDock());
+  document.documentElement.classList.toggle("account-menu-docked", docked);
+  const panel = account?.querySelector<HTMLElement>(".overlay-menu-panel");
+  if (panel) panel.setAttribute("aria-modal", docked ? "false" : "true");
+}
+
 function syncOverlayMenuToggle() {
   const account = getAccountOverlay();
   const marketing = getMarketingOverlay();
@@ -32,6 +48,7 @@ function syncOverlayMenuToggle() {
     );
   }
   document.documentElement.classList.toggle("overlay-menu-open", open);
+  syncAccountMenuDock();
   (
     window as Window & { __syncOverlayMenuScrollLock?: () => void }
   ).__syncOverlayMenuScrollLock?.();
@@ -42,6 +59,7 @@ function closeOverlay(root: HTMLElement) {
   root.hidden = true;
   const htmlClass = root.dataset.overlayHtmlClass;
   if (htmlClass) document.documentElement.classList.remove(htmlClass);
+  syncAccountMenuDock();
   root.dispatchEvent(new CustomEvent("overlay-menu:close", { bubbles: true }));
 }
 
@@ -55,6 +73,7 @@ export function setOverlayMenuOpen(root: HTMLElement | null, open: boolean) {
     root.hidden = false;
     const htmlClass = root.dataset.overlayHtmlClass;
     if (htmlClass) document.documentElement.classList.add(htmlClass);
+    syncAccountMenuDock();
     root.dispatchEvent(new CustomEvent("overlay-menu:open", { bubbles: true }));
   } else {
     closeOverlay(root);
@@ -114,6 +133,13 @@ export function bindOverlayMenuChrome() {
     document.querySelectorAll<HTMLElement>("[data-overlay-menu]").forEach((el) => {
       if (!el.hidden) setOverlayMenuOpen(el, false);
     });
+  });
+
+  ACCOUNT_MENU_DOCK_MQ?.addEventListener("change", () => {
+    syncAccountMenuDock();
+    (
+      window as Window & { __syncOverlayMenuScrollLock?: () => void }
+    ).__syncOverlayMenuScrollLock?.();
   });
 }
 

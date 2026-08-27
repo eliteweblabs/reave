@@ -2535,6 +2535,10 @@ function setAccountMenuOpen(open) {
     'overlay-menu-open',
     open || Boolean(document.querySelector('.overlay-menu:not([hidden])')),
   );
+  document.documentElement.classList.toggle(
+    'account-menu-docked',
+    open && window.matchMedia('(min-width: 1024px)').matches,
+  );
   window.__syncOverlayMenuScrollLock?.();
 }
 
