@@ -1401,6 +1401,7 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
   justify-self: start;
   align-self: flex-start;
   margin-top: -2px;
+  overflow: visible;
   z-index: 2;
 }
 .doc-onepager-header:has(.ss-hero) .doc-onepager-mast {
@@ -1528,13 +1529,79 @@ export function renderSalesSheetHeaderHeroHtml(opts: {
 const MISSING_IMAGE_ICON =
   '<!-- IOS_ICONS.image — keep in sync with public/admin/admin-ui.js --><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
 
-export function salesSheetClientLogoHtml(opts: { src?: string; name?: string } = {}): string {
+/** Same scribbled arrow as the QR “the full audit” note. */
+const SALES_SHEET_HAND_ARROW_SVG = `<svg viewBox="0 0 48 28" fill="none" aria-hidden="true">
+      <g stroke="#fff" stroke-width="4.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 16c10-7 22-6 34-2"/>
+        <path d="M29 7c5 3 8 6 10 8"/>
+        <path d="M27 22c6-2 9-5 12-7"/>
+      </g>
+      <g stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 16c10-7 22-6 34-2"/>
+        <path d="M29 7c5 3 8 6 10 8"/>
+        <path d="M27 22c6-2 9-5 12-7"/>
+      </g>
+    </svg>`;
+
+export const BAD_LOGO_CALLOUT = "The 'logo' the website is showing the world! Easy fix!";
+
+function salesSheetBadLogoNoteHtml(): string {
+  return `
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap');
+.doc-onepager-logo,
+.doc-onepager-header:has(.ss-logo) {
+  overflow: visible;
+}
+.ss-logo {
+  position: relative;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0;
+  z-index: 4;
+}
+.ss-logo .doc-onepager-logo-img { display: block; }
+.ss-logo:not([data-ss-bad-logo="1"]) .ss-logo-note { display: none; }
+.ss-logo-note {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: 50%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  color: #b42318;
+  pointer-events: none;
+  transform: translateY(-50%) rotate(6deg);
+  transform-origin: 0 50%;
+  line-height: 1;
+}
+.ss-logo-note svg {
+  display: block;
+  width: 48px;
+  height: 28px;
+  overflow: visible;
+  transform: scaleX(-1);
+}
+.ss-logo-note span {
+  font-family: Caveat, 'Segoe Script', 'Bradley Hand', cursive;
+  font-size: clamp(13px, 1.85cqi, 16px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+  white-space: nowrap;
+  text-shadow: 0 0 3px #fff, 0 0 6px #fff;
+}
+</style>`;
+}
+
+export function salesSheetClientLogoHtml(opts: { src?: string; name?: string; badLogo?: boolean } = {}): string {
   const src = (opts.src || '').trim();
   const name = (opts.name || 'Client').trim() || 'Client';
-  if (src) {
-    return `<img class="doc-onepager-logo-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}" />`;
-  }
-  return `<style>
+  const mark = src
+    ? `<img class="doc-onepager-logo-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}" />`
+    : `<style>
 .ss-missing-logo {
   display: flex;
   align-items: flex-start;
@@ -1569,6 +1636,10 @@ export function salesSheetClientLogoHtml(opts: { src?: string; name?: string } =
   color: #3a3a3c;
 }
 </style><div class="ss-missing-logo"><span class="ss-missing-logo-icon">${MISSING_IMAGE_ICON}</span><p class="ss-missing-logo-copy">${NO_LOGO_FOUND_HTML}</p></div>`;
+  return `${salesSheetBadLogoNoteHtml()}<figure class="ss-logo"${opts.badLogo ? ' data-ss-bad-logo="1"' : ''}>${mark}<div class="ss-logo-note" aria-hidden="true">
+  ${SALES_SHEET_HAND_ARROW_SVG}
+  <span>The 'logo' the website<br>is showing the world!<br>Easy fix!</span>
+</div></figure>`;
 }
 
 export function replaceOnePagerLogo(sheetHtml: string, logoHtml: string): string {

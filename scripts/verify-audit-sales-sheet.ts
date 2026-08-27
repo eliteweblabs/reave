@@ -16,6 +16,7 @@ import {
   parseFilledOnePagerColumns,
   renderAuditDisclaimerHtml,
   parseSalesSheetOrientation,
+  salesSheetWantsBadLogo,
   salesSheetWantsGoogleShot,
   listAuditCompanies,
   salesSheetAuditUrl,
@@ -63,6 +64,7 @@ import {
   renderSalesSheetHeaderHeroHtml,
   replaceOnePagerLogo,
   salesSheetClientLogoHtml,
+  BAD_LOGO_CALLOUT,
   salesSheetExhibitKind,
 } from '../src/lib/salesSheetExhibits.ts';
 import { NO_LOGO_FOUND_HTML } from '../src/lib/clientLogoCopy.ts';
@@ -135,6 +137,10 @@ await test('live Google shot is on unless google=0', () => {
   assert.equal(salesSheetWantsGoogleShot(''), true);
   assert.equal(salesSheetWantsGoogleShot('1'), true);
   assert.equal(salesSheetWantsGoogleShot('0'), false);
+  assert.equal(salesSheetWantsBadLogo(null), false);
+  assert.equal(salesSheetWantsBadLogo(''), false);
+  assert.equal(salesSheetWantsBadLogo('0'), false);
+  assert.equal(salesSheetWantsBadLogo('1'), true);
 });
 
 await test('competitor search retries a shorter local category', () => {
@@ -1247,6 +1253,23 @@ await test('front header uses the client logo or the crawler missing-logo findin
   });
   assert.match(have, /doc-onepager-logo-img/);
   assert.doesNotMatch(have, /ss-missing-logo/);
+  assert.match(have, /ss-logo-note/);
+  assert.match(have, /<figure class="ss-logo">/);
+  assert.doesNotMatch(have, /<figure class="ss-logo" data-ss-bad-logo="1">/);
+  const calledOut = salesSheetClientLogoHtml({
+    src: 'data:image/png;base64,AAA',
+    name: 'Hale & Co.',
+    badLogo: true,
+  });
+  assert.match(calledOut, /<figure class="ss-logo" data-ss-bad-logo="1">/);
+  assert.match(calledOut, /ss-logo-note/);
+  assert.match(calledOut, /Caveat/);
+  assert.match(calledOut, /color: #b42318/);
+  assert.match(calledOut, /scaleX\(-1\)/);
+  assert.match(calledOut, /M3 16c10-7 22-6 34-2/);
+  assert.match(calledOut, /The 'logo' the website/);
+  assert.match(calledOut, /Easy fix!/);
+  assert.equal(BAD_LOGO_CALLOUT, "The 'logo' the website is showing the world! Easy fix!");
   const swapped = replaceOnePagerLogo(
     '<header class="doc-onepager-header"><div class="doc-onepager-logo">REAVE</div></header>',
     missing,

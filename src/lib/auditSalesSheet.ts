@@ -137,6 +137,11 @@ export function salesSheetWantsGoogleShot(googleParam: string | null | undefined
   return (googleParam || '').trim() !== '0';
 }
 
+/** Handwritten “bad logo” callout on the client mark when `?badLogo=1`. */
+export function salesSheetWantsBadLogo(badLogoParam: string | null | undefined): boolean {
+  return (badLogoParam || '').trim() === '1';
+}
+
 export type AuditCompanyOption = {
   slug: string;
   company: string;

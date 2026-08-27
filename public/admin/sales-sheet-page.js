@@ -184,7 +184,23 @@ document.addEventListener('click', (event) => {
   hideMask();
 });
 
+function applyBadLogoCallout(on) {
+  const logo = document.querySelector('#sales-sheet-editor .ss-logo');
+  if (!logo) return;
+  if (on) logo.setAttribute('data-ss-bad-logo', '1');
+  else logo.removeAttribute('data-ss-bad-logo');
+}
+
 document.addEventListener('change', (event) => {
+  const box = event.target;
+  if (box instanceof HTMLInputElement && box.id === 'badLogo') {
+    applyBadLogoCallout(box.checked);
+    const url = new URL(location.href);
+    if (box.checked) url.searchParams.set('badLogo', '1');
+    else url.searchParams.delete('badLogo');
+    history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    return;
+  }
   const run = event.target;
   if (!(run instanceof HTMLSelectElement) || run.id !== 'run') return;
   const form = document.getElementById('ss-form');
@@ -198,6 +214,8 @@ document.addEventListener('change', (event) => {
   const google = document.getElementById('google');
   if (google instanceof HTMLInputElement && !google.checked) q.set('google', '0');
   else if (google instanceof HTMLInputElement && google.checked && !run.value) q.set('google', '1');
+  const badLogo = document.getElementById('badLogo');
+  if (badLogo instanceof HTMLInputElement && badLogo.checked) q.set('badLogo', '1');
   void renderSheet('/admin/sales-sheet' + (q.toString() ? `?${q}` : ''));
 });
 
