@@ -790,13 +790,22 @@ const customPrompts: PromptExample[] = [
       <p class="fx-closing-lead">
         Every one of these is live in the product — not a mockup, not a roadmap slide.
       </p>
-      <div class="fx-cta-row">
-        <a class="fx-btn fx-btn--primary" href="/demo-loader">
-          Demo now
-          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-        </a>
-        <a class="fx-btn fx-btn--ghost brand-btn-glass" href="/platform">See the stack</a>
-      </div>
+      {
+        embedded ? (
+          <div
+            class="fx-cta-row fx-cta-row--sticky-dock"
+            data-home-sticky-ctas-dock
+          />
+        ) : (
+          <div class="fx-cta-row">
+            <a class="fx-btn fx-btn--primary" href="/demo-loader">
+              Demo now
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+            </a>
+            <a class="fx-btn fx-btn--ghost brand-btn-glass" href="/platform">See the stack</a>
+          </div>
+        )
+      }
     </section>
       )
     }
@@ -1597,6 +1606,11 @@ const customPrompts: PromptExample[] = [
     margin: 0 0 24px;
     font-size: 0.96rem;
     color: var(--site-fg-muted, #525252);
+  }
+
+  /* Homepage: sticky How's it Work / Demo land here. Reserve the row. */
+  .fx-cta-row--sticky-dock {
+    min-height: 2.75rem;
   }
 
   /* ---------- Tight preview (/features-tight) ---------- */
