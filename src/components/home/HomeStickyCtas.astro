@@ -147,6 +147,9 @@ const trailingCtas = ctas.slice(1);
     display: grid;
     width: 100%;
     overflow: clip;
+    /* Glow sits in the padding so overflow:clip cannot shave the Demo pill. */
+    padding-bottom: 20px;
+    box-sizing: border-box;
   }
 
   .home-sticky-cta-track__body,

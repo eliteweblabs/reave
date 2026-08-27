@@ -11,10 +11,13 @@ import {
   extractAuditProposalSummary,
   formatAuditFailedNotification,
   formatAuditReadyNotification,
+  formatNotificationPayload,
+  formatPwaPushTitle,
   isSiriAuditPushAlert,
   normalizePushAlertCopy,
   stripNotificationDecorations,
 } from '../src/lib/notificationFormat.ts';
+import { formatOtpPushNotification } from '../src/lib/emailOtpParser.ts';
 import { isAuditWorkInProgress } from '../src/lib/auditReportCard.ts';
 import {
   adjustCachedAnthropicBalance,
@@ -180,6 +183,27 @@ const wayneReply = [
   assert.equal(after.balanceUsd, 1.3);
   delete process.env.ANTHROPIC_CREDIT_BALANCE_USD;
   console.log('ok — cached prepaid balance is debited as the audit spends');
+}
+
+{
+  assert.equal(
+    formatPwaPushTitle('reΛVe.app', 'Verification code'),
+    'reΛVe.app - Verification code',
+  );
+  assert.equal(
+    formatPwaPushTitle('reΛVe.app', 'reΛVe.app - Verification code'),
+    'reΛVe.app - Verification code',
+  );
+  assert.equal(formatPwaPushTitle('', 'Verification code'), 'Verification code');
+  const phone = formatNotificationPayload('Verification code', 'Code 95014 — tap to copy', {
+    pwaTitle: 'reΛVe.app',
+  });
+  assert.equal(phone.title, 'reΛVe.app - Verification code');
+  assert.equal(phone.detail, 'Code 95014 — tap to copy');
+  const otp = formatOtpPushNotification({ purpose: 'Verification code', code: '95014' });
+  assert.equal(otp.title, 'Verification code');
+  assert.equal(otp.body, 'Code 95014 — tap to copy');
+  console.log('ok — phone push is "{PWA title} - {notification title}" plus the description only');
 }
 
 console.log('all audit notification checks passed');

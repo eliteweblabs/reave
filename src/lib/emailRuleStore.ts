@@ -25,6 +25,7 @@ import {
   matchingCatalogDefinition,
   normalizeEmailRuleScope,
   normalizeNotifyActions,
+  titleFromRulePhrases,
   type EmailRule,
   type EmailRuleScope,
   type MatchMode,
@@ -1008,24 +1009,52 @@ export type RuleInput = {
   scope?: EmailRuleScope;
 };
 
-function normalizeForwardTo(raw: unknown): string | null {
-  if (raw == null || raw === '') return null;
+function parsePhraseList(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map(String).map((s) => s.trim()).filter(Boolean);
+  return String(raw ?? '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Empty / JSON null / the string "null" means no forward address. */
+function isOmittedForwardTo(raw: unknown): boolean {
+  if (raw == null || raw === '') return true;
   const v = String(raw).trim();
-  if (!v || v.toLowerCase() === 'null') return null;
+  return !v || v.toLowerCase() === 'null';
+}
+
+function normalizeForwardTo(raw: unknown): string | null {
+  if (isOmittedForwardTo(raw)) return null;
+  const v = String(raw).trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return null;
   return v;
 }
 
-function sanitizeInput(input: RuleInput): RuleInput | null {
-  const title = input.title.trim();
-  const status = input.status.trim().toUpperCase().replace(/\s+/g, '_');
-  if (!title || !status) return null;
-  const phrases = input.phrases.map((p) => p.trim()).filter(Boolean);
-  const exceptPhrases = (input.exceptPhrases ?? []).map((p) => p.trim()).filter(Boolean);
+export type SanitizeEmailRuleResult =
+  | { ok: true; value: RuleInput }
+  | { ok: false; error: string };
+
+/**
+ * Normalize a dashboard / API write. JSON `forwardTo: null` is valid (clears
+ * the address). A non-empty invalid address is not.
+ */
+export function sanitizeEmailRuleInput(input: RuleInput): SanitizeEmailRuleResult {
+  const title = String(input.title ?? '').trim();
+  const status = String(input.status ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+  if (!title) return { ok: false, error: 'Title is required' };
+  if (!status) return { ok: false, error: 'Status is required' };
+  const phrases = (input.phrases ?? []).map((p) => String(p).trim()).filter(Boolean);
+  const exceptPhrases = (input.exceptPhrases ?? []).map((p) => String(p).trim()).filter(Boolean);
   const expiresAt = parseExpiresAt(input.expiresAt ?? null);
-  if (expiresAt === undefined) return null;
+  if (expiresAt === undefined) return { ok: false, error: 'Invalid expiration date' };
   const forwardTo = normalizeForwardTo(input.forwardTo);
-  if (input.forwardTo != null && String(input.forwardTo).trim() && !forwardTo) return null;
+  if (!isOmittedForwardTo(input.forwardTo) && !forwardTo) {
+    return { ok: false, error: 'Invalid forward-to address' };
+  }
   const notifyFields = coalesceRuleNotifyFields({
     notify: input.notify,
     notifyPush: input.notifyPush,
@@ -1033,24 +1062,94 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
     notifyActions: input.notifyActions,
   });
   return {
+    ok: true,
+    value: {
+      title,
+      status,
+      description: input.description?.trim() || undefined,
+      phrases,
+      exceptPhrases,
+      matchMode: normalizeMatchMode(input.matchMode),
+      fields: normalizeFields(input.fields),
+      notify: notifyFields.notify,
+      notifyPush: notifyFields.notifyPush,
+      notifyDashboard: notifyFields.notifyDashboard,
+      notifyActions: notifyFields.notifyActions,
+      enabled: input.enabled !== false,
+      expiresAt,
+      forwardTo,
+      createProject: input.createProject === true,
+      ...(input.scope !== undefined
+        ? { scope: normalizeEmailRuleScope(input.scope, 'personal') }
+        : {}),
+    },
+  };
+}
+
+/**
+ * Shared PUT/POST body parser. Treats JSON null `forwardTo` / `expiresAt` as
+ * cleared, not the string "null".
+ */
+export function parseEmailRuleInput(body: Record<string, unknown>): RuleInput | null {
+  const status = String(body.status ?? '').trim();
+  if (!status) return null;
+  const phrases = parsePhraseList(body.phrases);
+  const title = String(body.title ?? '').trim() || titleFromRulePhrases(phrases);
+  const exceptRaw = body.exceptPhrases !== undefined ? body.exceptPhrases : body.except_phrases;
+  const exceptPhrases = parsePhraseList(exceptRaw);
+  const fieldsRaw = body.fields;
+  const fields = Array.isArray(fieldsRaw)
+    ? (fieldsRaw as RuleField[])
+    : (['subject', 'body'] as RuleField[]);
+  const expiresRaw = body.expiresAt !== undefined ? body.expiresAt : body.expires_at;
+  const expiresAt = parseExpiresAt(expiresRaw ?? null);
+  if (expiresAt === undefined) return null;
+  const actionsRaw = body.notifyActions !== undefined ? body.notifyActions : body.notify_actions;
+  const notifyFields = coalesceRuleNotifyFields({
+    notify: body.notify === true || body.notify === 'true',
+    notifyPush:
+      body.notifyPush !== undefined
+        ? body.notifyPush === true || body.notifyPush === 'true'
+        : body.notify_push !== undefined
+          ? body.notify_push === true || body.notify_push === 'true'
+          : null,
+    notifyDashboard:
+      body.notifyDashboard !== undefined
+        ? body.notifyDashboard === true || body.notifyDashboard === 'true'
+        : body.notify_dashboard !== undefined
+          ? body.notify_dashboard === true || body.notify_dashboard === 'true'
+          : null,
+    notifyActions: actionsRaw,
+  });
+  const hasChannelKey =
+    body.notifyPush !== undefined ||
+    body.notify_push !== undefined ||
+    body.notifyDashboard !== undefined ||
+    body.notify_dashboard !== undefined;
+  const legacyNotify = body.notify === true || body.notify === 'true';
+  const hasScope = body.scope !== undefined && body.scope !== null && body.scope !== '';
+  const forwardRaw = body.forwardTo !== undefined ? body.forwardTo : body.forward_to;
+  return {
     title,
     status,
-    description: input.description?.trim() || undefined,
+    description: body.description != null ? String(body.description) : undefined,
     phrases,
     exceptPhrases,
-    matchMode: normalizeMatchMode(input.matchMode),
-    fields: normalizeFields(input.fields),
-    notify: notifyFields.notify,
-    notifyPush: notifyFields.notifyPush,
-    notifyDashboard: notifyFields.notifyDashboard,
-    notifyActions: notifyFields.notifyActions,
-    enabled: input.enabled !== false,
+    matchMode: (body.matchMode === 'all' ? 'all' : 'any') as MatchMode,
+    fields,
+    notify: hasChannelKey ? notifyFields.notify : legacyNotify,
+    notifyPush: hasChannelKey ? notifyFields.notifyPush : legacyNotify,
+    notifyDashboard: hasChannelKey ? notifyFields.notifyDashboard : legacyNotify,
+    notifyActions: normalizeNotifyActions(actionsRaw),
+    enabled: body.enabled !== false && body.enabled !== 'false',
     expiresAt,
-    forwardTo,
-    createProject: input.createProject === true,
-    ...(input.scope !== undefined
-      ? { scope: normalizeEmailRuleScope(input.scope, 'personal') }
-      : {}),
+    forwardTo: isOmittedForwardTo(forwardRaw) ? null : String(forwardRaw).trim(),
+    createProject:
+      body.createProject === true ||
+      body.createProject === 'true' ||
+      body.create_project === true ||
+      body.create_project === 'true',
+    ...(hasScope ? { scope: normalizeEmailRuleScope(body.scope, 'personal') } : {}),
   };
 }
 
@@ -1117,20 +1216,21 @@ export function sortOrderForNewRule(
 }
 
 export async function storeCreateEmailRule(input: RuleInput): Promise<StoreEmailRuleWriteResult> {
-  const clean = sanitizeInput(input);
-  if (!clean) return { ok: false, error: 'Invalid rule', code: 'invalid' };
+  const clean = sanitizeEmailRuleInput(input);
+  if (!clean.ok) return { ok: false, error: clean.error, code: 'invalid' };
+  const value = clean.value;
   const config = await loadEmailRulesConfig();
-  const colliding = findKeywordCollidingRule(config.rules, clean.phrases);
+  const colliding = findKeywordCollidingRule(config.rules, value.phrases);
   if (colliding) return collisionResult(colliding);
   const now = new Date().toISOString();
   const scope = isCanonicalReaveInstall()
-    ? normalizeEmailRuleScope(clean.scope, 'personal')
+    ? normalizeEmailRuleScope(value.scope, 'personal')
     : 'personal';
-  const sortOrder = sortOrderForNewRule(config, scope, shouldElevateNewRule(clean));
+  const sortOrder = sortOrderForNewRule(config, scope, shouldElevateNewRule(value));
   const record: EmailRuleRecord = {
     id: randomUUID(),
     sortOrder,
-    ...clean,
+    ...value,
     scope,
     hitCount: 0,
     lastMatchedAt: null,
@@ -1149,8 +1249,9 @@ export async function storeUpdateEmailRule(
   id: string,
   input: RuleInput,
 ): Promise<StoreEmailRuleWriteResult> {
-  const clean = sanitizeInput(input);
-  if (!clean) return { ok: false, error: 'Invalid rule', code: 'invalid' };
+  const clean = sanitizeEmailRuleInput(input);
+  if (!clean.ok) return { ok: false, error: clean.error, code: 'invalid' };
+  const value = clean.value;
   const config = await loadEmailRulesConfig();
   const idx = config.rules.findIndex((r) => r.id === id);
   if (idx < 0) return { ok: false, error: 'Not found', code: 'not_found' };
@@ -1164,12 +1265,12 @@ export async function storeUpdateEmailRule(
       code: 'forbidden',
     };
   }
-  const colliding = findKeywordCollidingRule(config.rules, clean.phrases, { excludeId: id });
+  const colliding = findKeywordCollidingRule(config.rules, value.phrases, { excludeId: id });
   if (colliding) return collisionResult(colliding);
   config.rules[idx] = {
     ...prev,
-    ...clean,
-    scope: home ? normalizeEmailRuleScope(clean.scope ?? prev.scope, 'personal') : 'personal',
+    ...value,
+    scope: home ? normalizeEmailRuleScope(value.scope ?? prev.scope, 'personal') : 'personal',
     updatedAt: new Date().toISOString(),
   };
   config.rules = normalizeEmailRuleSortOrder(config.rules).rules;

@@ -7,20 +7,12 @@
 import type { APIContext } from 'astro';
 import {
   emailRulesStorageBackend,
-  parseExpiresAt,
+  parseEmailRuleInput,
   storeCreateEmailRule,
   storeEmailRuleWriteHttpStatus,
   storeListEmailRules,
   storeSetNotifyOnUnmatched,
-  type RuleInput,
 } from '../../../lib/emailRuleStore';
-import type { MatchMode, RuleField, RuleNotifyAction } from '../../../lib/emailRules';
-import {
-  coalesceRuleNotifyFields,
-  normalizeEmailRuleScope,
-  normalizeNotifyActions,
-  titleFromRulePhrases,
-} from '../../../lib/emailRules';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -30,80 +22,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-}
-
-function parsePhraseList(raw: unknown): string[] {
-  if (Array.isArray(raw)) return raw.map(String).map((s) => s.trim()).filter(Boolean);
-  return String(raw ?? '')
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
-  const status = String(body.status ?? '').trim();
-  if (!status) return null;
-  const phrases = parsePhraseList(body.phrases);
-  const title = String(body.title ?? '').trim() || titleFromRulePhrases(phrases);
-  const exceptRaw = body.exceptPhrases !== undefined ? body.exceptPhrases : body.except_phrases;
-  const exceptPhrases = parsePhraseList(exceptRaw);
-  const fieldsRaw = body.fields;
-  const fields = Array.isArray(fieldsRaw) ? (fieldsRaw as RuleField[]) : (['subject', 'body'] as RuleField[]);
-  const expiresRaw = body.expiresAt !== undefined ? body.expiresAt : body.expires_at;
-  const expiresAt = parseExpiresAt(expiresRaw ?? null);
-  if (expiresAt === undefined) return null;
-  const actionsRaw = body.notifyActions !== undefined ? body.notifyActions : body.notify_actions;
-  const notifyFields = coalesceRuleNotifyFields({
-    notify: body.notify === true || body.notify === 'true',
-    notifyPush:
-      body.notifyPush !== undefined
-        ? body.notifyPush === true || body.notifyPush === 'true'
-        : body.notify_push !== undefined
-          ? body.notify_push === true || body.notify_push === 'true'
-          : null,
-    notifyDashboard:
-      body.notifyDashboard !== undefined
-        ? body.notifyDashboard === true || body.notifyDashboard === 'true'
-        : body.notify_dashboard !== undefined
-          ? body.notify_dashboard === true || body.notify_dashboard === 'true'
-          : null,
-    notifyActions: actionsRaw,
-  });
-  // If client only sent legacy `notify` (no channel keys), inherit both from it.
-  const hasChannelKey =
-    body.notifyPush !== undefined ||
-    body.notify_push !== undefined ||
-    body.notifyDashboard !== undefined ||
-    body.notify_dashboard !== undefined;
-  const legacyNotify = body.notify === true || body.notify === 'true';
-  const hasScope = body.scope !== undefined && body.scope !== null && body.scope !== '';
-  return {
-    title,
-    status,
-    description: body.description != null ? String(body.description) : undefined,
-    phrases,
-    exceptPhrases,
-    matchMode: (body.matchMode === 'all' ? 'all' : 'any') as MatchMode,
-    fields,
-    notify: hasChannelKey ? notifyFields.notify : legacyNotify,
-    notifyPush: hasChannelKey ? notifyFields.notifyPush : legacyNotify,
-    notifyDashboard: hasChannelKey ? notifyFields.notifyDashboard : legacyNotify,
-    notifyActions: normalizeNotifyActions(actionsRaw) as RuleNotifyAction[],
-    enabled: body.enabled !== false && body.enabled !== 'false',
-    expiresAt,
-    forwardTo:
-      body.forwardTo !== undefined
-        ? String(body.forwardTo)
-        : body.forward_to !== undefined
-          ? String(body.forward_to)
-          : null,
-    createProject:
-      body.createProject === true ||
-      body.createProject === 'true' ||
-      body.create_project === true ||
-      body.create_project === 'true',
-    ...(hasScope ? { scope: normalizeEmailRuleScope(body.scope, 'personal') } : {}),
-  };
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -135,7 +53,7 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const input = parseRuleInput(body);
+  const input = parseEmailRuleInput(body);
   if (!input) return json({ ok: false, error: 'status is required' }, 400);
 
   const result = await storeCreateEmailRule(input);

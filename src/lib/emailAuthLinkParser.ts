@@ -310,7 +310,7 @@ export function formatAuthLinkPushNotification(opts: {
   hasUrl: boolean;
 }): { title: string; body: string } {
   const purpose = opts.purpose.trim() || 'Activation link';
-  const title = `${purpose} — ready to activate`;
+  const title = purpose;
   const body = opts.hasUrl
     ? 'Tap Activate to open the sign-in link — email deletes after use'
     : 'Open the Email tab for the sign-in link — auto-deletes soon';

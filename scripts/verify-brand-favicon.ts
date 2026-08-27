@@ -33,4 +33,16 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
   assert.ok(analysis.whiteRatio > 0.04, `expected a light mark, whiteRatio=${analysis.whiteRatio}`);
 }
 
+{
+  const png = await renderCompanyBrandIconPng(
+    { name: 'reΛVe.app', iconSvg: UNFILLED_AV },
+    32,
+    { transparent: true },
+  );
+  const analysis = await analyzeLogoContrast(png);
+  assert.equal(isSolidNeutralField(analysis, 32 * 32), false, 'avatar must not be a solid tile');
+  assert.ok(analysis.blackRatio > 0.5, `transparent avatar must keep black ink, blackRatio=${analysis.blackRatio}`);
+  assert.ok(analysis.whiteRatio < 0.15, `transparent avatar must not flip to white, whiteRatio=${analysis.whiteRatio}`);
+}
+
 console.log('verify-brand-favicon: ok');

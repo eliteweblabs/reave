@@ -334,7 +334,7 @@ export function companyBrandingVersion(company: CompanyConfig): string | null {
 }
 
 /** Bump when favicon rasterization changes so browsers drop a stale tile. */
-const BRAND_ICON_RENDER = 'av1';
+const BRAND_ICON_RENDER = 'av2';
 
 /** Build a sized branding icon URL (admin PNG/SVG rasterized at request time). */
 export function brandIconUrl(size: number, version?: string | null, opts?: { transparent?: boolean }): string {

@@ -49,13 +49,12 @@ import {
   insertDragWithinScope,
 } from './email-triage-lab.js?v=20260827a';
 import {
-  createChipComposer,
+  createChipPair,
   chipsFromRulePhrases,
   phrasesFromChips,
   fieldsFromChips,
   titleFromRulePhrases,
-} from './rule-chip-editor.js?v=20260827c';
-import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
+} from './rule-chip-editor.js?v=20260827e';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
@@ -72,8 +71,9 @@ let ruleState = {
   notifyOnUnmatched: false,
   storage: 'files',
   search: '',
-  /** @type {'all' | 'universal' | 'personal'} */
-  scopeFilter: 'all',
+  /** Inclusive on/off chips — default all on. */
+  scopeOn: { personal: true, universal: true },
+  processOn: { delete: true, archive: true, receipt: true, classify: true },
   activeId: null,
   dirty: false,
   missingTitle: '',
@@ -481,9 +481,13 @@ function createRuleSwipeRow(rule, activeId) {
 }
 
 function ruleMatchesScopeFilter(rule) {
-  if (ruleState.scopeFilter === 'universal') return ruleScope(rule) === 'universal';
-  if (ruleState.scopeFilter === 'personal') return ruleScope(rule) === 'personal';
-  return true;
+  const scope = ruleScope(rule);
+  return ruleState.scopeOn?.[scope] !== false;
+}
+
+function ruleMatchesProcessFilter(rule) {
+  const process = ruleProcessValue(rule);
+  return ruleState.processOn?.[process] !== false;
 }
 
 function ruleMatchesSidebarSearch(rule) {
@@ -508,54 +512,116 @@ function ruleMatchesSidebarSearch(rule) {
 function filteredRules() {
   return [...ruleState.rules]
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .filter((rule) => ruleMatchesScopeFilter(rule) && ruleMatchesSidebarSearch(rule));
+    .filter((rule) =>
+      ruleMatchesScopeFilter(rule) &&
+      ruleMatchesProcessFilter(rule) &&
+      ruleMatchesSidebarSearch(rule),
+    );
 }
 
-function ruleCountForActiveTab() {
-  return ruleState.rules.filter(ruleMatchesScopeFilter).length;
+const RULE_SCOPE_CHIPS = [
+  { id: 'personal', label: 'Personal' },
+  { id: 'universal', label: 'Universal' },
+];
+const RULE_PROCESS_CHIPS = [
+  { id: 'delete', label: 'Auto delete' },
+  { id: 'archive', label: 'Archive' },
+  { id: 'receipt', label: 'Receipt' },
+  { id: 'classify', label: 'Keep' },
+];
+
+function ruleCountForFilters() {
+  return ruleState.rules.filter(
+    (rule) => ruleMatchesScopeFilter(rule) && ruleMatchesProcessFilter(rule),
+  ).length;
 }
 
 function ruleScopeCounts() {
-  let all = 0;
-  let personal = 0;
-  let universal = 0;
+  const counts = { personal: 0, universal: 0 };
   for (const rule of ruleState.rules) {
-    all += 1;
-    if (ruleScope(rule) === 'universal') universal += 1;
-    else personal += 1;
+    if (!ruleMatchesProcessFilter(rule)) continue;
+    counts[ruleScope(rule)] += 1;
   }
-  return { all, personal, universal };
+  return counts;
 }
 
-function renderRuleFilterTabs() {
-  const counts = ruleScopeCounts();
-  return mountListFilterTabs({
-    tabs: [
-      { id: 'all', label: 'All', count: counts.all },
-      { id: 'personal', label: 'Personal', count: counts.personal },
-      { id: 'universal', label: 'Universal', count: counts.universal },
-    ],
-    activeId: ruleState.scopeFilter || 'all',
-    ariaLabel: 'Rule filters',
-    scroll: false,
-    onSelect(tabId) {
-      if (ruleState.scopeFilter === tabId) return;
-      ruleState.scopeFilter = tabId;
-      const visible = filteredRules();
-      let cleared = false;
-      if (
-        ruleState.activeId &&
-        !visible.some((r) => String(r.id) === String(ruleState.activeId))
-      ) {
-        ruleState.activeId = null;
-        ruleState.dirty = false;
-        getRuleEditor()?.classList.remove('de-pane-active');
-        cleared = true;
-      }
-      refreshRulesSidebarList();
-      if (cleared) renderRulesPane();
-    },
-  });
+function ruleProcessCounts() {
+  const counts = { delete: 0, archive: 0, receipt: 0, classify: 0 };
+  for (const rule of ruleState.rules) {
+    if (!ruleMatchesScopeFilter(rule)) continue;
+    counts[ruleProcessValue(rule)] += 1;
+  }
+  return counts;
+}
+
+function ruleFiltersNarrowed() {
+  return (
+    Boolean(ruleState.search.trim()) ||
+    RULE_SCOPE_CHIPS.some((c) => ruleState.scopeOn?.[c.id] === false) ||
+    RULE_PROCESS_CHIPS.some((c) => ruleState.processOn?.[c.id] === false)
+  );
+}
+
+function applyRuleFilters() {
+  const visible = filteredRules();
+  let cleared = false;
+  if (
+    ruleState.activeId &&
+    !visible.some((r) => String(r.id) === String(ruleState.activeId))
+  ) {
+    ruleState.activeId = null;
+    ruleState.dirty = false;
+    getRuleEditor()?.classList.remove('de-pane-active');
+    cleared = true;
+  }
+  refreshRulesSidebarList();
+  if (cleared) renderRulesPane();
+}
+
+function renderFilterChipRow({ chips, stateKey, counts, ariaLabel }) {
+  const nav = document.createElement('div');
+  nav.className = 'em-filter-tabs re-filter-chips';
+  nav.setAttribute('role', 'group');
+  nav.setAttribute('aria-label', ariaLabel);
+  for (const chip of chips) {
+    const on = ruleState[stateKey]?.[chip.id] !== false;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `em-filter-tab re-filter-chip${on ? ' is-on' : ' is-off'}`;
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.dataset.filter = chip.id;
+    const count = counts[chip.id];
+    btn.innerHTML =
+      `<span class="em-filter-tab-label">${escHtml(chip.label)}</span>` +
+      (count != null ? `<span class="em-filter-count">${count}</span>` : '');
+    btn.addEventListener('click', () => {
+      if (!ruleState[stateKey]) ruleState[stateKey] = {};
+      ruleState[stateKey][chip.id] = !on;
+      applyRuleFilters();
+    });
+    nav.appendChild(btn);
+  }
+  return nav;
+}
+
+function renderRuleFilters() {
+  const wrap = document.createElement('div');
+  wrap.className = 're-rule-filters';
+  wrap.append(
+    renderFilterChipRow({
+      chips: RULE_SCOPE_CHIPS,
+      stateKey: 'scopeOn',
+      counts: ruleScopeCounts(),
+      ariaLabel: 'Rule scope',
+    }),
+    renderFilterChipRow({
+      chips: RULE_PROCESS_CHIPS,
+      stateKey: 'processOn',
+      counts: ruleProcessCounts(),
+      ariaLabel: 'Rule type',
+    }),
+  );
+  return wrap;
 }
 
 function fillRulesSidebarList(list) {
@@ -568,9 +634,7 @@ function fillRulesSidebarList(list) {
   if (ordered.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = ruleState.search.trim() || ruleState.scopeFilter !== 'all'
-      ? 'No matches.'
-      : 'No rules yet.';
+    empty.textContent = ruleFiltersNarrowed() ? 'No matches.' : 'No rules yet.';
     list.appendChild(empty);
   }
 }
@@ -582,13 +646,13 @@ function refreshRulesSidebarList() {
     renderRulesEditor();
     return;
   }
-  const n = ruleCountForActiveTab();
+  const n = ruleCountForFilters();
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput instanceof HTMLInputElement) {
     searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
   }
-  const tabs = root.querySelector('.em-filter-tabs');
-  if (tabs) tabs.replaceWith(renderRuleFilterTabs());
+  const filters = root.querySelector('.re-rule-filters');
+  if (filters) filters.replaceWith(renderRuleFilters());
   fillRulesSidebarList(list);
   syncRulesSidebarActiveState();
 }
@@ -831,7 +895,7 @@ function renderRulesEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const countForTab = ruleCountForActiveTab();
+  const countForTab = ruleCountForFilters();
   const subheader = listSearchSubheader({
     itemCount: countForTab,
     search: {
@@ -842,7 +906,7 @@ function renderRulesEditor() {
         refreshRulesSidebarList();
       },
     },
-    below: renderRuleFilterTabs(),
+    below: renderRuleFilters(),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -930,7 +994,10 @@ async function openRuleEditor(id) {
   ruleState.dirty = false;
   const selected = ruleState.rules.find((r) => String(r.id) === String(resolved));
   if (selected) {
-    if (!ruleMatchesScopeFilter(selected)) ruleState.scopeFilter = 'all';
+    const scope = ruleScope(selected);
+    if (ruleState.scopeOn?.[scope] === false) ruleState.scopeOn[scope] = true;
+    const process = ruleProcessValue(selected);
+    if (ruleState.processOn?.[process] === false) ruleState.processOn[process] = true;
     if (!ruleMatchesSidebarSearch(selected)) ruleState.search = '';
   }
   shell.clearEditorFooterSave();
@@ -1012,20 +1079,16 @@ function renderRuleEditPane(pane, opts = {}) {
   form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
 
   const matchChipSeed = chipsFromRulePhrases(rule.phrases, rule.fields);
-  const matchChips = createChipComposer({
-    chips: matchChipSeed,
-    field: (rule.fields || []).length === 1 ? rule.fields[0] : matchChipSeed.at(-1)?.field || 'subject',
-    disabled: isCatalogReadOnly(rule),
-    ariaLabel: 'Match field',
-  });
-
   const exceptChipSeed = chipsFromRulePhrases(rule.exceptPhrases, rule.fields);
-  const exceptChips = createChipComposer({
-    chips: exceptChipSeed,
-    field: (rule.fields || []).length === 1 ? rule.fields[0] : exceptChipSeed.at(-1)?.field || 'subject',
+  const chipPair = createChipPair({
+    targets: matchChipSeed,
+    exemptions: exceptChipSeed,
+    targetField: (rule.fields || []).length === 1 ? rule.fields[0] : matchChipSeed.at(-1)?.field || 'subject',
+    exemptField: (rule.fields || []).length === 1 ? rule.fields[0] : exceptChipSeed.at(-1)?.field || 'subject',
     disabled: isCatalogReadOnly(rule),
-    ariaLabel: 'Except field',
   });
+  const matchChips = chipPair.targets;
+  const exceptChips = chipPair.exemptions;
 
   const scopeIn = document.createElement('input');
   scopeIn.type = 'hidden';
@@ -1034,6 +1097,7 @@ function renderRuleEditPane(pane, opts = {}) {
   scopeWrap.className = 're-scope-field';
   if (canManageUniversalRules()) {
     const scopePill = createSlidingPillSelect({
+      label: 'Applies to',
       value: scopeIn.value,
       options: [
         { value: 'personal', label: 'Personal' },
@@ -1234,27 +1298,22 @@ function renderRuleEditPane(pane, opts = {}) {
     expireInReveal,
   );
 
-  appendRuleField(form, 'When', matchChips.el, null, { as: 'div' });
+  const top = document.createElement('div');
+  top.className = 're-rule-top';
   if (scopeWrap.childNodes.length) {
-    appendRuleField(form, 'Applies to', scopeWrap, null, { as: 'div' });
+    top.appendChild(scopeWrap);
   }
-  appendRuleField(form, 'Description', descIn);
-  appendRuleField(
-    form,
-    'Except (NOT)',
-    exceptChips.el,
-    'Skip this rule if any of these appear.',
-    { as: 'div' },
-  );
   const processFieldWrap = document.createElement('div');
   processFieldWrap.className = 're-process-field';
   const processHint = document.createElement('span');
   processHint.className = 're-field-hint';
   processHint.textContent = processHintText(processSel.value);
   processFieldWrap.append(processPill.el, processHint, processSel);
-  form.appendChild(processFieldWrap);
+  top.append(processFieldWrap, statusIn);
+  form.appendChild(top);
   processField = { wrap: processFieldWrap, hintEl: processHint };
-  form.appendChild(statusIn);
+  form.appendChild(chipPair.el);
+  appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Forward to', forwardWrap);
   notifyField = appendRuleField(
     form,

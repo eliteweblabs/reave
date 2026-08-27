@@ -1101,7 +1101,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   html[data-theme="dark"] .app-header-logo-svg,
   html[data-theme="dark"] .app-header-logo-img,
-  html[data-theme="dark"] svg.home-hero-icon {
+  html[data-theme="dark"] svg.home-hero-icon,
+  html[data-theme="dark"] .topbar-profile-btn .topbar-profile-icon-img:not(.topbar-profile-icon-img--round),
+  .app-header:not(.app-header--admin) .topbar-profile-btn .topbar-profile-icon-img:not(.topbar-profile-icon-img--round) {
     filter: invert(1);
   }
 

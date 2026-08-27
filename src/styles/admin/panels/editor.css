@@ -1316,6 +1316,11 @@ button.de-placeholder-action:active {
   color: var(--muted);
   line-height: 1.35;
 }
+.re-rule-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
 .re-process-field {
   display: flex;
   flex-direction: column;
@@ -1494,6 +1499,38 @@ button.de-placeholder-action:active {
   font-weight: 400;
   font-size: 0.72rem;
   color: var(--muted);
+}
+.re-rule-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  width: 100%;
+}
+.panel-list-subheader--stacked .re-rule-filters,
+.panel-list-subheader--stacked .re-filter-chips {
+  margin: 0;
+  width: 100%;
+}
+.re-filter-chips {
+  flex-wrap: wrap;
+}
+.re-filter-chip {
+  flex: 1 1 auto;
+}
+.re-filter-chip.is-on {
+  color: var(--fg);
+  background: var(--mode-tab-active-bg);
+}
+.re-filter-chip.is-off {
+  color: var(--muted);
+  background: transparent;
+  opacity: 0.55;
+}
+.re-filter-chip.is-off:hover {
+  opacity: 0.9;
+  color: var(--fg);
+  background: var(--surface-hover);
 }
 
 /* ── Rules Flow (n8n-style priority map) ── */
@@ -2000,7 +2037,7 @@ button.de-placeholder-action:active {
   width: 12px;
   height: 12px;
 }
-.re-lab-target-chip span {
+.re-lab-target-chip:not(.re-lab-target-chip--add) > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2036,6 +2073,155 @@ button.de-placeholder-action:active {
 }
 .re-form-scroll .re-rule-chip-editor .de-input {
   max-width: none;
+}
+.re-chip-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  align-items: start;
+}
+.re-chip-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.55rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
+}
+.re-chip-col--target {
+  background: color-mix(in srgb, var(--em-notice-active, #3fb950) 8%, transparent);
+  border-color: color-mix(in srgb, var(--em-notice-active, #3fb950) 28%, var(--panel-border, transparent));
+}
+.re-chip-col--exempt {
+  background-color: color-mix(in srgb, var(--danger, #dc2626) 6%, transparent);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    color-mix(in srgb, var(--danger, #dc2626) 14%, transparent) 4px,
+    color-mix(in srgb, var(--danger, #dc2626) 14%, transparent) 5.5px
+  );
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 28%, var(--panel-border, transparent));
+}
+.re-chip-col.is-drop {
+  outline: 2px solid color-mix(in srgb, var(--fg, #111) 35%, transparent);
+  outline-offset: 1px;
+}
+.re-chip-col-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.re-chip-col--target .re-chip-col-title {
+  color: var(--em-notice-active, #3fb950);
+}
+.re-chip-col--exempt .re-chip-col-title {
+  color: var(--danger, #dc2626);
+}
+.re-lab-target-chip--target {
+  color: var(--em-notice-active, #3fb950);
+  border-color: color-mix(in srgb, var(--em-notice-active, #3fb950) 40%, transparent);
+  background: color-mix(in srgb, var(--em-notice-active, #3fb950) 12%, var(--card, transparent));
+}
+.re-lab-target-chip--exempt {
+  color: var(--danger, #dc2626);
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 40%, transparent);
+  background-color: color-mix(in srgb, var(--danger, #dc2626) 10%, var(--card, transparent));
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    color-mix(in srgb, var(--danger, #dc2626) 16%, transparent) 3px,
+    color-mix(in srgb, var(--danger, #dc2626) 16%, transparent) 4.5px
+  );
+}
+.re-lab-target-chip--add {
+  width: 100%;
+  max-width: none;
+  gap: 0.35rem;
+  padding: 0.15rem 0.35rem 0.15rem 0.4rem;
+  border-style: dashed;
+  cursor: text;
+}
+.re-chip-add-plus {
+  display: inline-flex;
+  flex: none;
+  opacity: 0.75;
+}
+.re-chip-add-type {
+  flex: none;
+  max-width: 7.2rem;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  padding: 0.15rem 0.15rem 0.15rem 0.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg, #111) 6%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: max(16px, 0.72rem);
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.re-chip-add-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0.2rem 0.15rem;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: max(16px, 0.78rem);
+  font-weight: 400;
+  outline: none;
+}
+.re-chip-add-input::placeholder {
+  color: var(--muted);
+  opacity: 0.85;
+}
+.re-lab-target-chip--add .re-lab-chip-draft-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.re-lab-target-chip.is-dup,
+.re-lab-target-chip--add.is-dup {
+  animation: re-chip-shake 0.35s ease;
+}
+@keyframes re-chip-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+.re-lab-target-chip[data-chip-id] {
+  touch-action: none;
+  cursor: grab;
+}
+.re-lab-target-chip--dragging {
+  opacity: 0.35;
+}
+.re-lab-target-chip--ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 80;
+  pointer-events: none;
+  margin: 0;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  cursor: grabbing;
+}
+.re-chip-pair--dragging {
+  user-select: none;
+}
+@media (max-width: 639px) {
+  .re-chip-pair {
+    grid-template-columns: 1fr;
+  }
 }
 .re-lab-chip-add {
   display: flex;

@@ -347,7 +347,7 @@ const EMAIL_TRIAGE_NODES = [
 
   // Ingest
   { id: 'et_resend', title: 'Resend MX', sub: 'inbox@inbound… · email.received', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'et_ingest', x: 320, y: 180 },
-  { id: 'et_webhook', title: '/api/email/inbound', sub: 'Verify webhook · parse message', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'et_ingest', x: 320, y: 320 },
+  { id: 'et_webhook', title: '/api/email/inbound', sub: 'Verify · one row per Message-ID', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'et_ingest', x: 320, y: 320 },
   { id: 'et_gates', title: 'Cutoff · Sleep mode', sub: 'Drop pre-golive · defer 11pm–7am', icon: '😴', hue: 220, status: true, group: 'et_ingest', x: 320, y: 460 },
 
   // Classify
@@ -361,7 +361,7 @@ const EMAIL_TRIAGE_NODES = [
   { id: 'et_confidence', title: 'Confidence gate', sub: 'EMAIL_AI_CONFIDENCE_MIN · 0.72', icon: '🎚️', hue: 200, status: true, group: 'et_decide', x: 880, y: 260 },
   { id: 'et_trusted', title: 'Trusted label', sub: 'Apply AI category · meeting fields', icon: '✅', hue: 140, status: true, group: 'et_decide', x: 880, y: 120 },
   { id: 'et_explain', title: 'Uncertain → Explain', sub: 'Only if a keyword rule matched', icon: '❓', hue: 10, status: true, group: 'et_decide', x: 880, y: 400 },
-  { id: 'et_dedupe', title: 'One banner / email', sub: 'Triage wins over meeting Confirm', icon: '🎯', hue: 350, status: true, group: 'et_decide', x: 880, y: 540 },
+  { id: 'et_dedupe', title: 'One banner / email', sub: 'Ingest + tag + OTP code collapse', icon: '🎯', hue: 350, status: true, group: 'et_decide', x: 880, y: 540 },
 
   // Automate outcomes
   { id: 'et_otp', title: 'OTP / auth link', sub: 'Copy · Activate · 5 min TTL', icon: '🔑', hue: 55, status: true, group: 'et_automate', x: 1160, y: 60 },
@@ -373,7 +373,7 @@ const EMAIL_TRIAGE_NODES = [
   // Surfaces
   { id: 'et_inbox', title: 'Inbox log', sub: 'App Postgres · wipe sample seed on first API', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'et_surfaces', x: 1440, y: 160 },
   { id: 'et_dash', title: 'Dashboard banner', sub: 'No banner if email deleted or junk', icon: '📊', hue: 185, status: true, group: 'et_surfaces', x: 1440, y: 300 },
-  { id: 'et_push', title: 'Web Push', sub: 'Phone PWA · tag per email', icon: '🔔', hue: 45, status: true, group: 'et_surfaces', x: 1440, y: 440 },
+  { id: 'et_push', title: 'Web Push', sub: 'Phone PWA · one tray item per email/code', icon: '🔔', hue: 45, status: true, group: 'et_surfaces', x: 1440, y: 440 },
   { id: 'et_chat', title: 'System alerts chat', sub: 'Ops automations · deploy repair reuses one Session per service', icon: '💬', hue: 300, status: true, group: 'et_surfaces', x: 1440, y: 580 },
 ];
 
@@ -382,6 +382,7 @@ const EMAIL_TRIAGE_EDGES = [
   { from: 'et_copy', to: 'et_resend', label: 'MX' },
   { from: 'et_resend', to: 'et_webhook', label: 'webhook' },
   { from: 'et_webhook', to: 'et_gates' },
+  { from: 'et_webhook', to: 'et_dedupe', label: 'same Message-ID', dashed: true },
   { from: 'et_gates', to: 'et_contact', label: 'awake' },
   { from: 'et_gates', to: 'et_inbox', label: 'sleep deferred', dashed: true },
 
