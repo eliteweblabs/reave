@@ -6064,24 +6064,14 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
   const refreshPreview = (company) => {
     lastCompany = company;
     const hasLogo = hasCustomCompanyLogo(company);
-    const hasPng = hasUploadedCompanyLogoPng(company);
     const url = hasLogo ? companyLogoPreviewUrl(company) : '';
 
     if (preview instanceof HTMLImageElement) {
-      preview.src = url;
+      if (url) preview.src = url;
+      else preview.removeAttribute('src');
     }
-    if (previewWrap instanceof HTMLElement) {
-      previewWrap.hidden = !hasLogo;
-    }
-    if (fileWrap instanceof HTMLElement) {
-      fileWrap.hidden = hasPng;
-    }
-    if (removeBtn instanceof HTMLButtonElement) {
-      removeBtn.hidden = !hasLogo;
-    }
-    if (preview instanceof HTMLImageElement && !url) {
-      preview.removeAttribute('src');
-    }
+    setBrandingPreviewState(previewWrap, removeBtn, url);
+    if (fileWrap instanceof HTMLElement) fileWrap.hidden = false;
     syncCompanySvgFields(root, company);
   };
 
@@ -6103,7 +6093,7 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
     if (preview instanceof HTMLImageElement) {
       preview.src = URL.createObjectURL(file);
     }
-    if (previewWrap instanceof HTMLElement) previewWrap.hidden = false;
+    setBrandingPreviewState(previewWrap, removeBtn, preview instanceof HTMLImageElement ? preview.src : '1');
     try {
       const res = await adminFetch('/api/admin/company/logo', { method: 'POST', body: fd });
       const json = await readAdminJson(res, 'logo upload');
@@ -6186,26 +6176,15 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
 
   const refreshPreview = (company) => {
     const hasIcon = hasCustomCompanyIcon(company);
-    const hasPng = hasUploadedCompanyIconPng(company);
-    const hasRemovableIcon = hasRemovableCompanyIcon(company);
     const url = hasIcon ? companyIconPreviewUrl(company) : '';
     const avatarUrl = companyStaffAvatarPreviewUrl(company);
 
     if (preview instanceof HTMLImageElement) {
-      preview.src = url;
+      if (url) preview.src = url;
+      else preview.removeAttribute('src');
     }
-    if (previewWrap instanceof HTMLElement) {
-      previewWrap.hidden = !hasIcon;
-    }
-    if (fileWrap instanceof HTMLElement) {
-      fileWrap.hidden = hasPng;
-    }
-    if (removeBtn instanceof HTMLButtonElement) {
-      removeBtn.hidden = !hasRemovableIcon;
-    }
-    if (preview instanceof HTMLImageElement && !url) {
-      preview.removeAttribute('src');
-    }
+    setBrandingPreviewState(previewWrap, removeBtn, url);
+    if (fileWrap instanceof HTMLElement) fileWrap.hidden = false;
     if (fallbackHint instanceof HTMLElement) {
       fallbackHint.hidden = !usesLogoAsIconFallback(company);
     }
@@ -6310,9 +6289,7 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
     if (previewWrap instanceof HTMLElement) {
       previewWrap.hidden = false;
     }
-    if (fileWrap instanceof HTMLElement) {
-      fileWrap.hidden = hasCustom;
-    }
+    if (fileWrap instanceof HTMLElement) fileWrap.hidden = false;
     if (removeBtn instanceof HTMLButtonElement) {
       removeBtn.hidden = !hasCustom;
     }
@@ -7330,6 +7307,27 @@ function profSection(title, subtitle, fieldsHtml) {
   );
 }
 
+/** Library (glass) on the left, Upload (filled) on the right — never stacked. */
+function profBrandingFileActions({ fileId, accept, uploadId, libraryId }) {
+  return (
+    `<div id="${fileId}-wrap" class="prof-logo-actions">` +
+      `<input id="${fileId}" class="prof-logo-file-input" type="file" accept="${accept}" hidden />` +
+      `<button type="button" id="${libraryId}" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
+      `<button type="button" id="${uploadId}" class="de-btn de-btn-primary">Upload</button>` +
+    `</div>`
+  );
+}
+
+function setBrandingPreviewState(previewWrap, removeBtn, url) {
+  if (previewWrap instanceof HTMLElement) {
+    previewWrap.hidden = false;
+    previewWrap.classList.toggle('is-empty', !url);
+  }
+  if (removeBtn instanceof HTMLButtonElement) {
+    removeBtn.hidden = !url;
+  }
+}
+
 function renderProfileOnlyPanel(profile) {
   const p = profile || {};
   return (
@@ -7359,7 +7357,7 @@ function renderProfileOnlyPanel(profile) {
             `</div>`,
           ) +
           profSection(
-            'Email signature',
+            'Email Signature',
             'Appended to outbound emails you send from the inbox. Stored on your account, not company settings.',
             `<div class="prof-field prof-field--signature">` +
               `<div id="profile-signature-editor"></div>` +
@@ -7572,12 +7570,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
   const c = company || {};
   const fonts = c.fonts || {};
   const logoUrl = companyLogoPreviewUrl(c);
-  const hasLogo = hasCustomCompanyLogo(c);
-  const hasLogoPng = hasUploadedCompanyLogoPng(c);
   const iconUrl = companyIconPreviewUrl(c);
-  const hasIcon = hasCustomCompanyIcon(c);
-  const hasIconPng = hasUploadedCompanyIconPng(c);
-  const hasRemovableIcon = hasRemovableCompanyIcon(c);
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
@@ -7604,35 +7597,37 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `<div id="company-map-host" class="cl-map-section"></div>`,
           ) +
           profSection(
-            'Logo &amp; icon',
+            'Logo &amp; Icon',
             'PNG, JPEG, or WebP. Used when no SVG is pasted in the group below. Header and homepage: SVG → image → company name.',
             `<div class="prof-branding-uploads">` +
               `<div class="prof-branding-upload-item">` +
                 `<label for="company-logo-file">Logo</label>` +
                 `<div class="prof-logo-upload">` +
-                  `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
-                    `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
-                    `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogo ? '' : ' hidden'}>×</button>` +
+                  `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap${logoUrl ? '' : ' is-empty'}">` +
+                    `<img id="company-logo-preview" class="prof-logo-preview"${logoUrl ? ` src="${escHtml(logoUrl)}"` : ''} alt="" />` +
+                    `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${logoUrl ? '' : ' hidden'}>×</button>` +
                   `</div>` +
-                  `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogoPng ? ' hidden' : ''}>` +
-                    `<input id="company-logo-file" class="prof-logo-file-input" type="file" accept="image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp" hidden />` +
-                    `<button type="button" id="company-logo-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
-                  `</div>` +
-                  `<button type="button" id="company-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
+                  profBrandingFileActions({
+                    fileId: 'company-logo-file',
+                    accept: 'image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp',
+                    uploadId: 'company-logo-upload-btn',
+                    libraryId: 'company-logo-library',
+                  }) +
                 `</div>` +
               `</div>` +
               `<div class="prof-branding-upload-item">` +
                 `<label for="company-icon-file">Icon</label>` +
                 `<div class="prof-logo-upload">` +
-                  `<div id="company-icon-preview-wrap" class="prof-logo-preview-wrap"${hasIcon ? '' : ' hidden'}>` +
-                    `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
-                    `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasRemovableIcon ? '' : ' hidden'}>×</button>` +
+                  `<div id="company-icon-preview-wrap" class="prof-logo-preview-wrap prof-logo-preview-wrap--icon${iconUrl ? '' : ' is-empty'}">` +
+                    `<img id="company-icon-preview" class="prof-icon-preview"${iconUrl ? ` src="${escHtml(iconUrl)}"` : ''} alt="" />` +
+                    `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${iconUrl ? '' : ' hidden'}>×</button>` +
                   `</div>` +
-                  `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIconPng ? ' hidden' : ''}>` +
-                    `<input id="company-icon-file" class="prof-logo-file-input" type="file" accept="image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp" hidden />` +
-                    `<button type="button" id="company-icon-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
-                  `</div>` +
-                  `<button type="button" id="company-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
+                  profBrandingFileActions({
+                    fileId: 'company-icon-file',
+                    accept: 'image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp',
+                    uploadId: 'company-icon-upload-btn',
+                    libraryId: 'company-icon-library',
+                  }) +
                 `</div>` +
                 `<span id="company-icon-fallback-hint" class="prof-hint"${usesLogoAsIconFallback(c) ? '' : ' hidden'}>Favicons and avatars use the logo until you add an icon.</span>` +
               `</div>` +
@@ -7640,24 +7635,25 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `<span class="prof-hint prof-hint--block">Pick a PNG, JPEG, WebP, or SVG from the Media library, or upload a file here. An SVG file fills the paste fields below.</span>`,
           ) +
           profSection(
-            'Social sharing',
+            'Social Sharing',
             'Default image for Facebook, iMessage, Slack, and X. Individual pages can override this.',
-            `<div class="prof-field"><label for="company-og-file">Share image</label>` +
+            `<div class="prof-field"><label for="company-og-file">Share Image</label>` +
             `<div class="prof-logo-upload">` +
               `<div id="company-og-preview-wrap" class="prof-logo-preview-wrap prof-og-preview-wrap">` +
                 `<img id="company-og-preview" class="prof-og-preview" src="${escHtml(companyOgPreviewUrl(c))}" alt="" />` +
                 `<button type="button" id="company-og-remove" class="prof-logo-remove" aria-label="Remove share image"${hasUploadedCompanyOg(c) ? '' : ' hidden'}>×</button>` +
               `</div>` +
-              `<div id="company-og-file-wrap" class="prof-logo-file-wrap"${hasUploadedCompanyOg(c) ? ' hidden' : ''}>` +
-                `<input id="company-og-file" class="prof-logo-file-input" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" hidden />` +
-                `<button type="button" id="company-og-upload-btn" class="de-btn de-btn-secondary">Upload</button>` +
-              `</div>` +
-              `<button type="button" id="company-og-library" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
+              profBrandingFileActions({
+                fileId: 'company-og-file',
+                accept: 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp',
+                uploadId: 'company-og-upload-btn',
+                libraryId: 'company-og-library',
+              }) +
             `</div>` +
             `<span class="prof-hint">1200×630 PNG, JPEG, or WebP. Leave empty to generate a card from the logo or icon. A page that sets its own share image wins.</span></div>`,
           ) +
           profSection(
-            'SVG Logo and Icon',
+            'SVG Logo And Icon',
             'Paste raw <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup. These render first — header uses logo SVG, homepage hero uses icon SVG.',
             `<div class="prof-branding-uploads">` +
               `<div class="prof-branding-upload-item">` +
@@ -7706,7 +7702,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `<span id="company-font-hint" class="prof-hint prof-hint--block">Uses the homepage address below — same idea as fetching logos from the source site.</span>`,
           ) +
           profSection(
-            'Email templates',
+            'Email Templates',
             'Default typeface for outbound HTML mail. Website webfonts are stripped by Gmail — this list is only faces that are installed on the recipient’s device.',
             `<div class="prof-field"><label for="company-emailFont">Email font</label>` +
             `<select id="company-emailFont" name="emailFont" aria-describedby="company-email-font-hint">` +
@@ -7735,7 +7731,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `</div>`,
           ) +
           profSection(
-            'Website &amp; contact',
+            'Website &amp; Contact',
             'Hostname for link previews and legal pages, plus support contacts shown on client portals.',
             `<div class="prof-field"><label for="company-domain">Homepage address</label>` +
             `<input id="company-domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" readonly disabled autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
@@ -8084,7 +8080,7 @@ function renderSocialConnectionsCard(connections) {
   const list = Array.isArray(connections) ? connections : [];
   const rows = list.map(socialConnectionRow).join('');
   return profSection(
-    'API access',
+    'API Access',
     'Connect an account so Agentic Social Media can pull live posts and comments. Until then, saved profile links show sample activity, and Google reviews sync into the same feed. Each platform needs a one-time app setup first (expand “How to set this up”); tokens stay on the server.',
     `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>`,
   );
@@ -8133,7 +8129,7 @@ function renderSocialsPanel(company, connections) {
         `<form id="socials-form" class="prof-form">` +
           `<input type="hidden" id="social-hidden-platforms" name="socialHiddenPlatforms" value="${hiddenJson}" />` +
           profSection(
-            'Profile links',
+            'Profile Links',
             'Remove platforms you will never use — they stay out of the way until you restore them.',
             `<div id="social-fields-list" class="soc-fields-list">` +
               visible.map((p) => socialLinkFieldRow(p, c)).join('') +
@@ -8331,7 +8327,7 @@ function renderAppSettingsPanel(settings, sleepData) {
         `<div id="app-settings-alert" class="prof-alert" hidden></div>` +
         `<form id="app-settings-form" class="prof-form">` +
           profSection(
-            'Verification codes',
+            'Verification Codes',
             'One-time passwords and activation codes are triaged as high-priority notices, then auto-deleted after this window.',
             `<div class="prof-field">` +
               `<label for="settings-otp-ttl">Auto-delete after (minutes)</label>` +
@@ -8340,7 +8336,7 @@ function renderAppSettingsPanel(settings, sleepData) {
             `</div>`,
           ) +
           profSection(
-            'Recently viewed',
+            'Recently Viewed',
             `Projects a client viewed on their portal (after a short dwell) appear under Recently Viewed in ${escHtml(postTitle(2))}. Admin edits and saves do not count.`,
             `<div class="prof-field">` +
               `<label for="settings-recently-viewed-days">Show projects viewed within (days)</label>` +
@@ -8349,7 +8345,7 @@ function renderAppSettingsPanel(settings, sleepData) {
             `</div>`,
           ) +
           profSection(
-            'Portal opens',
+            'Portal Opens',
             'When a client first opens a tracked portal or share link, optionally open a chat alert so you can follow up while interest is warm.',
             `<div class="prof-field">` +
               `<label class="prof-check-row">` +
@@ -8362,7 +8358,7 @@ function renderAppSettingsPanel(settings, sleepData) {
         `</form>` +
         `<form id="sleep-settings-form" class="prof-form">` +
           profSection(
-            'Sleep mode',
+            'Sleep Mode',
             'During quiet hours, inbound mail still lands in Email with its real arrival time. Notifications and AI triage pause until the window ends, then run on that queue without rewriting the received time. Owner-initiated <strong>Siri Shortcuts</strong> still run (including audits and their completion push).',
             sleepStatus +
             `<div class="prof-field">` +
