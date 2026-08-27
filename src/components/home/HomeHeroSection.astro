@@ -518,6 +518,22 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       transform 0.53s ease;
   }
 
+  .home-hero-demo-scene--fade {
+    animation: heroDemoExit var(--hero-scene-exit-ms, 350ms) ease forwards;
+  }
+
+  /* After the base `.home-hero-demo-msg` transition so this override wins. */
+  .home-hero-demo-msg.home-hero-demo-msg--exit {
+    transition: none;
+    animation: heroDemoExit var(--hero-msg-exit-ms, 350ms) ease var(--hero-msg-exit-delay, 0ms) forwards;
+  }
+
+  @keyframes heroDemoExit {
+    to {
+      opacity: 0;
+    }
+  }
+
   .home-hero-demo-msg--user {
     position: relative;
     flex-direction: row;
@@ -1750,7 +1766,9 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   @media (prefers-reduced-motion: reduce) {
     .home-hero-demo-msg--enter,
-    .home-hero-demo-scene--exit {
+    .home-hero-demo-msg.home-hero-demo-msg--exit,
+    .home-hero-demo-scene--exit,
+    .home-hero-demo-scene--fade {
       animation: none;
       transition: none;
     }

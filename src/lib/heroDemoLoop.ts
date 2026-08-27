@@ -2423,58 +2423,51 @@ async function playActionPlaceholder(
   await wait(reducedMotion ? 400 : 650);
 }
 
-function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
+async function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduced) {
     sceneEl.remove();
-    return Promise.resolve();
+    return;
   }
 
   /*
-   * Fade the bubbles themselves, bottom → top with a stagger. A scene-level
-   * opacity toggle would dissolve everything at once — the depth pass already
-   * writes inline opacity on each message, so pin those values, reflow, then
-   * ease each row to 0 with an increasing delay.
+   * CSS animation, not an inline transition. WebKit skips interpolation when
+   * `transition` and the end opacity are set in the same frame — on iOS the
+   * bubbles just vanished instead of cascading out.
    */
-  const ms = SCENE_EXIT_MS;
   const messages = Array.from(sceneEl.querySelectorAll<HTMLElement>(".home-hero-demo-msg"));
+  const fadeMs = scaleMs(SCENE_EXIT_MS);
+  const staggerMs = scaleMs(SCENE_EXIT_STAGGER_MS);
 
-  sceneEl.style.setProperty("--hero-scene-exit-ms", `${ms}ms`);
   sceneEl.classList.add("home-hero-demo-scene--exit");
-
-  for (const msg of messages) {
-    const current = msg.style.opacity || getComputedStyle(msg).opacity || "1";
-    msg.style.transition = "none";
-    msg.style.opacity = current;
-  }
-  void sceneEl.offsetWidth;
 
   const bottomUp = [...messages].reverse();
   for (let i = 0; i < bottomUp.length; i++) {
     const msg = bottomUp[i]!;
-    const delay = i * SCENE_EXIT_STAGGER_MS;
-    msg.style.transition = `opacity ${ms}ms ease ${delay}ms`;
-    msg.style.opacity = "0";
+    msg.classList.remove("home-hero-demo-msg--enter");
+    msg.style.setProperty("--hero-msg-exit-ms", `${fadeMs}ms`);
+    msg.style.setProperty("--hero-msg-exit-delay", `${i * staggerMs}ms`);
   }
 
-  // No message rows (shouldn't happen) — fall back to fading the scene wrapper.
+  flushPaint(sceneEl);
+  await nextFrame();
+  flushPaint(sceneEl);
+
+  for (const msg of bottomUp) {
+    msg.classList.add("home-hero-demo-msg--exit");
+  }
+
   if (!messages.length) {
-    sceneEl.style.transition = "none";
-    sceneEl.style.opacity = "1";
-    void sceneEl.offsetWidth;
-    sceneEl.style.transition = `opacity ${ms}ms ease`;
-    sceneEl.style.opacity = "0";
+    sceneEl.style.setProperty("--hero-scene-exit-ms", `${fadeMs}ms`);
+    flushPaint(sceneEl);
+    await nextFrame();
+    sceneEl.classList.add("home-hero-demo-scene--fade");
   }
 
-  const totalMs =
-    messages.length > 0 ? ms + (messages.length - 1) * SCENE_EXIT_STAGGER_MS : ms;
-
-  return new Promise((resolve) => {
-    window.setTimeout(() => {
-      sceneEl.remove();
-      resolve();
-    }, totalMs);
-  });
+  const holdMs =
+    messages.length > 0 ? SCENE_EXIT_MS + (messages.length - 1) * SCENE_EXIT_STAGGER_MS : SCENE_EXIT_MS;
+  await wait(holdMs);
+  sceneEl.remove();
 }
 
 function syncHeroCopyHeight(hero: HTMLElement, copy: HTMLElement | null) {
