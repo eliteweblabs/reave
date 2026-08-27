@@ -11,7 +11,7 @@ import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import type { EmailCategory } from './emailProcessor';
-import { normalizeMessageId } from './emailReply';
+import { messageIdLookupKeys, normalizeMessageId } from './emailMessageId';
 import {
   normalizeEmailAttachments,
   type EmailAttachmentMeta,
@@ -211,8 +211,30 @@ const INDEX_SQL = [
   `CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category)`,
   `CREATE INDEX IF NOT EXISTS email_inbox_job_slug_idx ON email_inbox (job_slug) WHERE job_slug IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS email_inbox_message_id_idx ON email_inbox (message_id) WHERE message_id <> ''`,
+  `CREATE INDEX IF NOT EXISTS email_inbox_resend_email_id_idx ON email_inbox (resend_email_id) WHERE resend_email_id <> ''`,
   `CREATE INDEX IF NOT EXISTS email_inbox_delete_after_idx ON email_inbox (delete_after_at) WHERE delete_after_at IS NOT NULL`,
 ];
+
+const UNIQUE_IDENTITY_SQL = [
+  `DELETE FROM email_inbox a
+    USING email_inbox b
+    WHERE a.resend_email_id <> ''
+      AND a.resend_email_id = b.resend_email_id
+      AND (a.received_at > b.received_at OR (a.received_at = b.received_at AND a.id > b.id))`,
+  `DELETE FROM email_inbox a
+    USING email_inbox b
+    WHERE a.message_id <> ''
+      AND a.message_id = b.message_id
+      AND (a.received_at > b.received_at OR (a.received_at = b.received_at AND a.id > b.id))`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS email_inbox_resend_email_id_uidx
+    ON email_inbox (resend_email_id) WHERE resend_email_id <> ''`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS email_inbox_message_id_uidx
+    ON email_inbox (message_id) WHERE message_id <> ''`,
+];
+
+function isUniqueViolation(e: unknown): boolean {
+  return Boolean(e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === '23505');
+}
 
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
@@ -233,6 +255,11 @@ async function ensureSchema(): Promise<pg.Pool | null> {
       await pool.query(TABLE_SQL);
       for (const sql of MIGRATE_COLUMNS) await pool.query(sql);
       for (const sql of INDEX_SQL) await pool.query(sql);
+      for (const sql of UNIQUE_IDENTITY_SQL) {
+        await pool.query(sql).catch((e) => {
+          console.warn('[email-inbox] identity unique index skipped', e);
+        });
+      }
     })().catch((e) => {
       _schemaReady = null;
       throw e;
@@ -579,8 +606,8 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     bcc: input.bcc ?? [],
     replyTo: input.replyTo ?? [],
     headers: input.headers ?? {},
-    messageId: input.messageId ?? '',
-    resendEmailId: input.resendEmailId ?? '',
+    messageId: normalizeMessageId(input.messageId ?? '') || input.messageId?.trim() || '',
+    resendEmailId: input.resendEmailId?.trim() || '',
     attachments: normalizeEmailAttachments(input.attachments),
     status: input.status,
     action: input.action,
@@ -712,8 +739,8 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         JSON.stringify(input.bcc ?? []),
         JSON.stringify(input.replyTo ?? []),
         JSON.stringify(input.headers ?? {}),
-        input.messageId ?? '',
-        input.resendEmailId ?? '',
+        normalizeMessageId(input.messageId ?? '') || input.messageId?.trim() || '',
+        input.resendEmailId?.trim() || '',
         JSON.stringify(normalizeEmailAttachments(input.attachments)),
         input.status,
         input.action,
@@ -738,6 +765,12 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     );
     return rows[0] ? rowToRecord(rows[0]) : null;
   } catch (e) {
+    if (isUniqueViolation(e)) {
+      return storeFindExistingInboundEmail({
+        resendEmailId: input.resendEmailId,
+        messageId: input.messageId,
+      });
+    }
     console.error('[email-inbox] pg append failed', e);
     return null;
   }
@@ -745,8 +778,8 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
 
 /** Most recent inbox row whose stored Message-ID matches any of the given ids. */
 export async function storeFindInboxByMessageIds(messageIds: string[]): Promise<EmailInboxRecord | null> {
-  const normalized = [...new Set(messageIds.map(normalizeMessageId).filter(Boolean))];
-  if (!normalized.length) return null;
+  const keys = [...new Set(messageIds.flatMap(messageIdLookupKeys))];
+  if (!keys.length) return null;
 
   if (databaseUrl()) {
     try {
@@ -756,7 +789,7 @@ export async function storeFindInboxByMessageIds(messageIds: string[]): Promise<
         `SELECT ${INBOX_SELECT} FROM email_inbox
          WHERE message_id = ANY($1::text[])
          ORDER BY received_at DESC LIMIT 1`,
-        [normalized],
+        [keys],
       );
       return rows[0] ? rowToRecord(rows[0]) : null;
     } catch (e) {
@@ -767,11 +800,86 @@ export async function storeFindInboxByMessageIds(messageIds: string[]): Promise<
 
   const path = inboxFilePath();
   if (!existsSync(path)) return null;
-  const idSet = new Set(normalized);
+  const idSet = new Set(keys);
   const hit = parseFileEvents(readFileSync(path, 'utf8'))
-    .filter((e) => idSet.has(normalizeMessageId(e.messageId)))
+    .filter((e) => messageIdLookupKeys(e.messageId).some((k) => idSet.has(k)))
     .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())[0];
   return hit ?? null;
+}
+
+export async function storeFindInboxByResendEmailId(
+  resendEmailId: string,
+): Promise<EmailInboxRecord | null> {
+  const id = resendEmailId.trim();
+  if (!id) return null;
+
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return null;
+      const { rows } = await pool.query(
+        `SELECT ${INBOX_SELECT} FROM email_inbox
+         WHERE resend_email_id = $1
+         ORDER BY received_at ASC LIMIT 1`,
+        [id],
+      );
+      return rows[0] ? rowToRecord(rows[0]) : null;
+    } catch (e) {
+      console.error('[email-inbox] pg find by resend_email_id failed', e);
+      return null;
+    }
+  }
+
+  const path = inboxFilePath();
+  if (!existsSync(path)) return null;
+  const hit = parseFileEvents(readFileSync(path, 'utf8'))
+    .filter((e) => String(e.resendEmailId || '').trim() === id)
+    .sort((a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime())[0];
+  return hit ?? null;
+}
+
+/** Same inbound email already on file (Resend id or Message-ID). */
+export async function storeFindExistingInboundEmail(opts: {
+  resendEmailId?: string | null;
+  messageId?: string | null;
+}): Promise<EmailInboxRecord | null> {
+  const resend = opts.resendEmailId?.trim() || '';
+  if (resend) {
+    const hit = await storeFindInboxByResendEmailId(resend);
+    if (hit) return hit;
+  }
+  const messageId = opts.messageId?.trim() || '';
+  if (messageId) return storeFindInboxByMessageIds([messageId]);
+  return null;
+}
+
+/** Flip notified false → true once. Returns false when already notified or missing. */
+export async function storeClaimEmailInboxNotified(id: string): Promise<boolean> {
+  const trimmed = id.trim();
+  if (!trimmed) return false;
+
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return false;
+      const { rowCount } = await pool.query(
+        `UPDATE email_inbox SET notified = true WHERE id = $1 AND notified = false`,
+        [trimmed],
+      );
+      return (rowCount ?? 0) > 0;
+    } catch (e) {
+      console.error('[email-inbox] pg claim notified failed', e);
+      return false;
+    }
+  }
+
+  const path = inboxFilePath();
+  if (!existsSync(path)) return false;
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const idx = events.findIndex((e) => e.id === trimmed);
+  if (idx === -1 || events[idx]!.notified) return false;
+  events[idx] = { ...events[idx]!, notified: true };
+  return writeFileEvents(events);
 }
 
 export async function storeGetEmailInbox(id: string): Promise<EmailInboxRecord | null> {
@@ -886,6 +994,11 @@ export async function storeListSleepDeferredEmails(limit = 15): Promise<EmailInb
 }
 
 export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<EmailInboxRecord | null> {
+  const existing = await storeFindExistingInboundEmail({
+    resendEmailId: input.resendEmailId,
+    messageId: input.messageId,
+  });
+  if (existing) return existing;
   if (databaseUrl()) return appendToPg(input);
   return appendToFile(input);
 }

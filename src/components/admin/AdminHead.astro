@@ -8,13 +8,14 @@ import type { ResolvedBrandFonts } from "../../lib/brandFonts";
 interface Props {
   companyName: string;
   fonts: ResolvedBrandFonts;
-  /** Override the default "{company} Admin" document title. */
+  /** Override the default PWA / company document title. */
   pageTitle?: string;
 }
 
 const { companyName, fonts, pageTitle } = Astro.props;
 const appName = companyName || "Business OS";
-const docTitle = pageTitle?.trim() || `${appName} Admin`;
+/** Match apple-mobile-web-app-title so iOS push says "from {PWA name}", not "from {name} Admin". */
+const docTitle = pageTitle?.trim() || appName;
 ---
 
 <head>

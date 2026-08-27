@@ -3063,15 +3063,26 @@ function collectExpiredOtpEmailIds(now = Date.now()) {
 
 async function closeOtpPushNotifications(emailIds) {
   if (!('serviceWorker' in navigator) || !emailIds.length) return;
+  const idSet = new Set(emailIds.map(String));
   try {
     const regs = await navigator.serviceWorker.getRegistrations();
     for (const reg of regs) {
       if (typeof reg.getNotifications !== 'function') continue;
-      for (const id of emailIds) {
-        const notes = await reg.getNotifications({ tag: `otp-${id}` });
-        for (const n of notes) n.close();
-        const authNotes = await reg.getNotifications({ tag: `auth-${id}` });
-        for (const n of authNotes) n.close();
+      const notes = await reg.getNotifications();
+      for (const n of notes) {
+        const data = n.data || {};
+        const emailId = String(data.emailId || '');
+        const tag = String(n.tag || data.tag || '');
+        if (idSet.has(emailId)) {
+          n.close();
+          continue;
+        }
+        for (const id of idSet) {
+          if (tag === `otp-${id}` || tag === `auth-${id}`) {
+            n.close();
+            break;
+          }
+        }
       }
     }
   } catch {

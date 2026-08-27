@@ -2,6 +2,9 @@ import type { EmailInboxRecord } from './emailInboxStore';
 import { parseSenderEmail } from './emailAddress';
 import { escapeHtml } from './htmlEscape';
 import { sanitizeEmailHtml } from './sanitizeEmailHtml';
+import { normalizeMessageId } from './emailMessageId';
+
+export { messageIdLookupKeys, normalizeMessageId } from './emailMessageId';
 
 const QUOTE_MARKER_RE = /\n\n---\nOn .+ wrote:\n/;
 const QUOTE_MARKER_LOOSE_RE = /\n\nOn .+ wrote:\n/;
@@ -14,15 +17,6 @@ function headerValue(headers: Record<string, string> | undefined, name: string):
     if (k.toLowerCase() === lower) return String(v).trim();
   }
   return '';
-}
-
-/** RFC 5322 Message-ID values are angle-bracketed. */
-export function normalizeMessageId(raw: string): string {
-  const id = raw.trim();
-  if (!id) return '';
-  if (id.startsWith('<') && id.endsWith('>')) return id;
-  const inner = id.replace(/^<|>$/g, '');
-  return inner ? `<${inner}>` : '';
 }
 
 export function buildReplySubject(subject: string): string {
