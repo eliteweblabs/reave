@@ -2144,34 +2144,74 @@ button.de-placeholder-action:active {
 .re-lab-target-chip--add {
   width: 100%;
   max-width: none;
-  gap: 0.35rem;
-  padding: 0.15rem 0.35rem 0.15rem 0.4rem;
+  gap: 0.4rem;
+  padding: 0.15rem 0.25rem 0.15rem 0.45rem;
   border-style: dashed;
   cursor: text;
   background-image: none;
-  background-color: color-mix(in srgb, currentColor 10%, var(--card, transparent));
+  background-color: color-mix(in srgb, var(--fg, #111) 5%, var(--card, transparent));
 }
-.re-chip-add-plus {
+.re-chip-add-type-wrap {
+  position: relative;
   display: inline-flex;
+  flex-direction: column;
+  align-items: center;
   flex: none;
-  opacity: 0.75;
+  min-width: 3.4rem;
+  cursor: pointer;
 }
 .re-chip-add-type {
-  flex: none;
-  max-width: 7.2rem;
   -webkit-appearance: none;
   appearance: none;
   margin: 0;
-  padding: 0.15rem 0.15rem 0.15rem 0.25rem;
+  padding: 0.05rem 0.1rem 0.7rem;
   border: 0;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--fg, #111) 6%, transparent);
+  border-radius: 0;
+  background: transparent;
   color: inherit;
   font: inherit;
   font-size: max(16px, 0.72rem);
-  font-weight: 600;
-  line-height: 1.2;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
   cursor: pointer;
+}
+.re-chip-add-caret {
+  position: absolute;
+  left: 50%;
+  bottom: 0.05rem;
+  display: inline-flex;
+  color: var(--muted);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+.re-chip-add-caret svg {
+  display: block;
+}
+.re-chip-add-rule {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  margin: 0.2rem 0;
+  background: var(--panel-border, rgba(0, 0, 0, 0.14));
+}
+.re-chip-add-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--panel-border, rgba(0, 0, 0, 0.14));
+  border-radius: 999px;
+  background: var(--card, transparent);
+  color: var(--fg);
+  cursor: pointer;
+}
+.re-chip-add-plus svg {
+  display: block;
 }
 .re-chip-add-input {
   flex: 1 1 auto;

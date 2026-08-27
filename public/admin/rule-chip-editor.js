@@ -208,11 +208,8 @@ export function createChipComposer(opts = {}) {
   const addChip = document.createElement('div');
   addChip.className = `re-lab-target-chip re-lab-target-chip--add re-lab-target-chip--${tone}`;
 
-  const plus = document.createElement('span');
-  plus.className = 're-chip-add-plus';
-  plus.setAttribute('aria-hidden', 'true');
-  plus.innerHTML = iosIcon('plus', 12);
-
+  const typeWrap = document.createElement('label');
+  typeWrap.className = 're-chip-add-type-wrap';
   const typeSel = document.createElement('select');
   typeSel.className = 're-chip-add-type';
   typeSel.setAttribute('aria-label', `${title} field`);
@@ -223,6 +220,15 @@ export function createChipComposer(opts = {}) {
     typeSel.appendChild(option);
   }
   typeSel.value = state.field;
+  const caret = document.createElement('span');
+  caret.className = 're-chip-add-caret';
+  caret.setAttribute('aria-hidden', 'true');
+  caret.innerHTML = iosIcon('chevron-down', 10);
+  typeWrap.append(typeSel, caret);
+
+  const rule = document.createElement('span');
+  rule.className = 're-chip-add-rule';
+  rule.setAttribute('aria-hidden', 'true');
 
   const draftWrap = document.createElement('div');
   draftWrap.className = 're-lab-chip-draft-wrap';
@@ -236,7 +242,13 @@ export function createChipComposer(opts = {}) {
   suggest.hidden = true;
   draftWrap.append(draftIn, suggest);
 
-  addChip.append(plus, typeSel, draftWrap);
+  const plus = document.createElement('button');
+  plus.type = 'button';
+  plus.className = 're-chip-add-plus';
+  plus.setAttribute('aria-label', `Add ${title.toLowerCase()}`);
+  plus.innerHTML = iosIcon('plus', 12);
+
+  addChip.append(typeWrap, rule, draftWrap, plus);
 
   el.append(heading, list, addChip, probe);
 
@@ -298,6 +310,7 @@ export function createChipComposer(opts = {}) {
     draftIn.type = state.field === 'from' ? 'email' : 'text';
     draftIn.disabled = state.disabled;
     typeSel.disabled = state.disabled;
+    plus.disabled = state.disabled;
     draftIn.value = state.draft;
     addChip.hidden = state.disabled;
   }
@@ -429,6 +442,7 @@ export function createChipComposer(opts = {}) {
   function applyDisabled() {
     draftIn.disabled = state.disabled;
     typeSel.disabled = state.disabled;
+    plus.disabled = state.disabled;
     addChip.hidden = state.disabled;
     if (state.disabled) closeContactSuggestions();
     syncDraftInput();
@@ -441,6 +455,12 @@ export function createChipComposer(opts = {}) {
       draftIn.focus();
     }
   };
+
+  plus.addEventListener('click', () => {
+    if (state.disabled) return;
+    if (draftIn.value.trim()) commitDraft();
+    else draftIn.focus();
+  });
 
   typeSel.addEventListener('change', () => {
     if (state.disabled) return;
