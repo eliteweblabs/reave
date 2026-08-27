@@ -53,13 +53,10 @@ export async function buildAdminComposeEmail(
     context: APIContext;
     requireRecipient?: boolean;
     requireSubject?: boolean;
-    /** When false, a missing reply target still renders the draft (preview). */
-    requireOriginal?: boolean;
   },
 ): Promise<AdminComposeBuildResult> {
   const requireRecipient = opts.requireRecipient !== false;
   const requireSubject = opts.requireSubject !== false;
-  const requireOriginal = opts.requireOriginal !== false;
 
   const to = normalizeList(body.to);
   const subject = String(body.subject ?? '').trim();
@@ -98,9 +95,6 @@ export async function buildAdminComposeEmail(
 
   if (inReplyToEmailId) {
     inbound = await storeGetEmailInbox(inReplyToEmailId);
-    if (!inbound && requireOriginal) {
-      return { ok: false, status: 404, error: 'Original message not found' };
-    }
     if (inbound) {
       replyHeaders = buildReplyEmailHeaders(inbound);
       jobSlug = jobSlug || inbound.jobSlug || null;
@@ -150,7 +144,7 @@ export async function buildAdminComposeEmail(
       attachments: composeImages.attachments,
       jobSlug,
       contactUid,
-      inReplyToEmailId,
+      inReplyToEmailId: inbound ? inReplyToEmailId : null,
     },
   };
 }
