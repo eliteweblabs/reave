@@ -246,10 +246,18 @@ html[data-theme="dark"] .overlay-menu-link--primary {
   transform: none;
 }
 
+.overlay-menu-action.brand-btn:not(.brand-btn-glass) {
+  box-shadow: var(--brand-gradient-shadow);
+}
+
 .overlay-menu-action:hover:not(:disabled) {
   transform: none;
   filter: none;
   text-decoration: none;
+}
+
+.overlay-menu-action.brand-btn:not(.brand-btn-glass):hover:not(:disabled) {
+  filter: brightness(1.06);
 }
 
 .overlay-menu-action--danger,

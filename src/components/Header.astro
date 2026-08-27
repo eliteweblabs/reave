@@ -192,7 +192,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
             {showWebsiteEntry && (
               <a
                 href="/"
-                class="brand-btn app-header-admin-cta app-header-website-entry"
+                class="brand-btn brand-btn-glass app-header-admin-cta app-header-website-entry"
                 aria-label="Website"
               >
                 Website
@@ -379,7 +379,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
           <button
             type="button"
             id="topbar-sign-out"
-            class="brand-btn brand-btn-glass overlay-menu-action overlay-menu-action--danger"
+            class="brand-btn overlay-menu-action"
           >
             Sign out
           </button>
@@ -1377,11 +1377,16 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     gap: 0.28rem;
     font-size: 0.75rem;
     border-radius: 999px;
+  }
+
+  .app-header-admin-cta:not(.brand-btn-glass),
+  .app-header-admin-entry.brand-btn,
+  .app-header-website-entry.brand-btn:not(.brand-btn-glass) {
     box-shadow: var(--brand-gradient-shadow);
   }
 
-  .app-header-admin-cta.brand-btn,
-  .app-header-admin-cta.brand-btn:hover {
+  .app-header-admin-cta.brand-btn:not(.brand-btn-glass),
+  .app-header-admin-cta.brand-btn:not(.brand-btn-glass):hover {
     color: #fff;
     -webkit-text-fill-color: #fff;
   }
