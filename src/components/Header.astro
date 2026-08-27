@@ -241,7 +241,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
         </>
       ) : (
         <div class="topbar-profile-cluster">
-          {showDeployIndicator && <DeployStatusDot publicAccess={deployStatusPublic} />}
+          {showDeployIndicator && !showMarketingNav && (
+            <DeployStatusDot publicAccess={deployStatusPublic} />
+          )}
           {showAdminEntry && !showMarketingNav && (
             <a
               href="/admin/"
@@ -306,7 +308,13 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       ))}
 
     {showMarketingNav && (
-      <OverlayMenuToggle mode="nav" controls="marketing-menu-panel" />
+      <div class="topbar-marketing-controls">
+        {showDeployIndicator && showHeaderAccountMenu && (
+          <DeployStatusDot publicAccess={deployStatusPublic} />
+        )}
+        <ThemeToggle />
+        <OverlayMenuToggle mode="nav" controls="marketing-menu-panel" />
+      </div>
     )}
 
   </div>
@@ -1436,6 +1444,15 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     display: inline-flex;
     align-items: center;
     gap: 0.65rem;
+    flex-shrink: 0;
+    overflow: visible;
+  }
+
+  /* Marketing header tail: deploy bulb, theme switch, hamburger — in that order. */
+  .topbar-marketing-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
     flex-shrink: 0;
     overflow: visible;
   }

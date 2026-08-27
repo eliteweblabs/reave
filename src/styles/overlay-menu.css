@@ -349,6 +349,7 @@ html.account-menu-open:not(.account-menu-docked) .admin-setup-alerts {
 
 html.overlay-menu-open .app-header-logo,
 html.overlay-menu-open .marketing-nav,
+html.overlay-menu-open .topbar-marketing-controls,
 html.overlay-menu-open .overlay-menu-toggle,
 html.account-menu-open .topbar-end {
   position: relative;
