@@ -347,6 +347,18 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
         <h2 class="overlay-menu-group-label">Viewing as admin</h2>
       )}
       <ul class="overlay-menu-list">
+        {showWebsiteEntry && (
+          <li class="account-menu-website-item">
+            <a
+              href="/"
+              class="overlay-menu-link"
+              data-account-menu-link
+              aria-label="Website"
+            >
+              Website
+            </a>
+          </li>
+        )}
         {accountMenuItems.map((key) => (
           <li>
             <a
@@ -1378,6 +1390,24 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     height: 0.85rem;
     pointer-events: none;
     flex-shrink: 0;
+  }
+
+  /*
+   * Phones: the Website pill crowds the sleep toggle + avatar. Keep it in
+   * the account drawer instead. Desktop keeps the header CTA.
+   */
+  .account-menu-website-item {
+    display: none;
+  }
+
+  @media (max-width: 639px) {
+    .app-header-website-entry {
+      display: none !important;
+    }
+
+    .account-menu-website-item {
+      display: list-item;
+    }
   }
 
   .app-header-menu {

@@ -34,6 +34,18 @@ assert.match(header, /topbar-profile-close/);
 assert.match(header, /IOS_ICONS\.x/);
 assert.match(header, /mode="nav"/);
 assert.match(header, /brand-btn brand-btn-glass overlay-menu-action overlay-menu-action--danger/);
+assert.match(header, /app-header-website-entry/);
+assert.match(header, /account-menu-website-item/);
+assert.match(
+  header,
+  /@media \(max-width: 639px\)[\s\S]*\.app-header-website-entry[\s\S]*display: none/,
+  'Header Website pill must hide on mobile so the account drawer owns that CTA',
+);
+assert.match(
+  header,
+  /@media \(max-width: 639px\)[\s\S]*\.account-menu-website-item[\s\S]*display: list-item/,
+  'Account drawer must show Website on mobile',
+);
 assert.match(marketing, /brand-btn brand-btn-glass overlay-menu-action/);
 assert.equal(
   overlayCss.includes('border-radius: 10px'),
