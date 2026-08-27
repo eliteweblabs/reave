@@ -100,6 +100,7 @@ const trailingCtas = ctas.slice(1);
 <style is:global>
   .home-sticky-ctas {
     --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
+    --home-sticky-cta-bottom: 5px;
     position: fixed;
     left: 0;
     right: 0;
@@ -115,7 +116,7 @@ const trailingCtas = ctas.slice(1);
     padding:
       10px
       max(28px, env(safe-area-inset-right, 0px))
-      calc(20px + env(safe-area-inset-bottom, 0px))
+      calc(var(--home-sticky-cta-bottom) + env(safe-area-inset-bottom, 0px))
       max(28px, env(safe-area-inset-left, 0px));
     overflow: visible;
     box-sizing: border-box;
@@ -164,11 +165,11 @@ const trailingCtas = ctas.slice(1);
     right: auto;
     bottom: auto;
     top: calc(
-      100vh - var(--home-sticky-cta-h, 2.75rem) - 20px -
+      100vh - var(--home-sticky-cta-h, 2.75rem) - var(--home-sticky-cta-bottom) -
         env(safe-area-inset-bottom, 0px)
     );
     top: calc(
-      100dvh - var(--home-sticky-cta-h, 2.75rem) - 20px -
+      100dvh - var(--home-sticky-cta-h, 2.75rem) - var(--home-sticky-cta-bottom) -
         env(safe-area-inset-bottom, 0px)
     );
     z-index: 100;
