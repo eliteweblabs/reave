@@ -3,14 +3,14 @@
  * /admin/doc/:uid/:template — admin-only "review & send" page.
  *
  * Renders the filled document exactly as the client will see it, then lets the
- * operator send the signing link (Email/SMS) straight from this page. This is
- * the hand-off target from the admin Documents flow: review → send in one
- * place. Gated by Clerk session check below.
+ * operator send the link (Email/SMS). With Digital Signature on, that link is
+ * the sign page; otherwise it is a review/print copy. Gated by Clerk below.
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import { getTemplate, fillAndRenderTemplate } from '../../../../lib/documentTemplates';
 import { DOCUMENT_BRAND_MARK_CSS } from '../../../../lib/documentPrintLayout';
+import { hasDigitalSignature } from '../../../../lib/features';
 import Favicon from '../../../../components/Favicon.astro';
 import ViewportMeta from '../../../../components/ViewportMeta.astro';
 import '../../../../styles/mobile-touch.css';
@@ -61,6 +61,7 @@ if (!uid || !templateSlug) {
   }
 }
 
+const canSign = hasDigitalSignature();
 const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
 ---
 
@@ -89,7 +90,12 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
             <a class="ghost-link" href={signLink} target="_blank" rel="noopener">Open as client ↗</a>
           </div>
           <div class="admin-bar-title">{title}</div>
-          <div class="admin-bar-sub">For {contactName}</div>
+          <div class="admin-bar-sub">
+            For {contactName}
+            {canSign
+              ? ' · client link includes e-sign'
+              : ' · client link is view & print (Digital Signature not enabled)'}
+          </div>
 
           {alreadySignedUrl && (
             <div class="signed-note">

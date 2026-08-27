@@ -113,6 +113,11 @@ export function hasStockPhotoSearch(): boolean {
   return hasFeature('website') || hasFeature('stock_photos');
 }
 
+/** Paid e-sign add-on — requires Dynamic Documents plus digital_signature. */
+export function hasDigitalSignature(): boolean {
+  return hasFeature('documents') && hasFeature('digital_signature');
+}
+
 /** Reset parse cache (tests / hot reload). */
 export function clearFeatureCache(): void {
   _baseCached = null;

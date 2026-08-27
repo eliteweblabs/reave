@@ -16,7 +16,8 @@ function json(body: unknown, status = 200): Response {
 /**
  * POST /api/admin/doc/:uid/send  — admin-only.
  * Body: { template: string, channel: 'email' | 'sms' }
- * Sends the client their signing link for the given template over the channel.
+ * Sends the client their filled-document link for the given template.
+ * Digital Signature installs get sign-page copy; documents-only gets review copy.
  */
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);

@@ -342,7 +342,7 @@ export function fillTemplate(
   return result;
 }
 
-/** Fill shortcodes, then render markdown to HTML for display and signing. */
+/** Fill shortcodes, then render markdown to HTML for display (and signing when enabled). */
 export async function fillAndRenderTemplate(
   markdown: string,
   contact: ContactRecord,

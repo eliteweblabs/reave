@@ -11,7 +11,17 @@ export function isHelperCommandEnabled(cmd: AgentHelperCommand): boolean {
 }
 
 export function listEnabledHelperCommands(): AgentHelperCommand[] {
-  return AGENT_HELPER_COMMANDS.filter(isHelperCommandEnabled);
+  return AGENT_HELPER_COMMANDS.filter(isHelperCommandEnabled).map((cmd) => {
+    if (cmd.slash === '/document' && hasFeature('digital_signature')) {
+      return {
+        ...cmd,
+        summary: 'Send a document signing link',
+        template: 'Send document [template] to [client] for signing.',
+        example: 'Send document service-agreement to Acme Corp for signing.',
+      };
+    }
+    return cmd;
+  });
 }
 
 export function enabledFeatureIds(): FeatureId[] {

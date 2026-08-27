@@ -42,6 +42,8 @@ const SYSTEM_NODES = [
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.example.com · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
   { id: 'portal', title: 'Client Portal', sub: '/c/:uid · vault · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
+  { id: 'documents', title: 'Dynamic Documents', sub: 'templates · fill · send / print (FEATURES: documents)', icon: '📄', hue: 25, status: true, group: 'reave', x: 760, y: 360 },
+  { id: 'digital_signature', title: 'Digital Signature', sub: 'e-sign · ESIGN/UETA audit · POST /api/doc/:uid/sign (FEATURES: digital_signature)', icon: '✍️', hue: 8, status: true, group: 'reave', x: 760, y: 448 },
   { id: 'engagement', title: 'Engagement alerts', sub: 'vault · punch list · share opens · deck views · contact form · dashboard banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
@@ -117,6 +119,10 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'carddav', label: 'CardDAV' },
   { from: 'carddav', to: 'contact_api', label: 'vCard CRUD' },
   { from: 'astro', to: 'portal', label: 'serves /c/:uid' },
+  { from: 'astro', to: 'documents', label: '/doc · /api/documents' },
+  { from: 'documents', to: 'contact_api', label: 'fill shortcodes' },
+  { from: 'documents', to: 'digital_signature', label: 'paid add-on', dashed: true },
+  { from: 'digital_signature', to: 'portal', label: 'signed copies', dashed: true },
   { from: 'portal', to: 'contact_api', label: 'portal link (read/write)' },
   { from: 'portal', to: 'crater', label: 'billing', dashed: true },
   { from: 'portal', to: 'changedetection', label: 'site watch sync', dashed: true },
@@ -233,7 +239,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 

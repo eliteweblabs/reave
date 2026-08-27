@@ -382,9 +382,9 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
   // Documents (plugin)
   {
     slash: '/document',
-    summary: 'Send a document signing link',
-    template: 'Send document [template] to [client] for signing.',
-    example: 'Send document service-agreement to Acme Corp for signing.',
+    summary: 'Send a filled document',
+    template: 'Send document [template] to [client].',
+    example: 'Send document service-agreement to Acme Corp.',
     feature: 'documents',
   },
 

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
   FEATURE_IDS,
   FEATURE_LABELS,
+  FEATURE_BLURBS,
   FEATURE_MARKETING,
   formatCatalogTitle,
   FEATURE_REQUIRES,
@@ -69,6 +70,12 @@ assert.equal(FEATURE_LABELS.digital_signature, 'Digital Signature');
 assert.ok(FEATURE_SALE_SHEET.has('digital_signature'));
 assert.equal(moduleDisplayGroupId('digital_signature'), 'work');
 assert.equal(FEATURE_REQUIRES.digital_signature, 'documents');
+assert.doesNotMatch(
+  FEATURE_BLURBS.documents,
+  /\bsign/i,
+  'documents blurb should not sell e-sign — that is digital_signature',
+);
+assert.match(FEATURE_BLURBS.digital_signature, /\bsign/i);
 for (const [id, label] of Object.entries(FEATURE_LABELS)) {
   assert.equal(label, formatCatalogTitle(label), `${id} title should be title case`);
   assert.doesNotMatch(label, /\band\b/i, `${id} title should use & instead of and`);

@@ -1,11 +1,9 @@
 ---
 /**
- * /doc/:uid/:template  — Client-facing document signing page.
+ * /doc/:uid/:template  — Client-facing filled document.
  *
- * The contact's info is filled into the template placeholders server-side.
- * The client checks the consent checkbox, types their name, and clicks "Sign & Agree"
- * — that POSTs to the sign API which creates the signed artifact and returns the docId.
- * On success the page shows a confirmation and "View & Download PDF" link.
+ * Documents-only: review + print/PDF. Digital Signature add-on: consent, typed
+ * name, and "Sign & Agree" which POSTs to the sign API and stores the artifact.
  */
 import { getContact, extractPortal } from '../../../lib/contactApi';
 import { getCompanyConfig } from '../../../lib/companyConfig';
@@ -16,7 +14,7 @@ import SiteFooter from '../../../components/SiteFooter.astro';
 import PortalAssistantWidget from '../../../components/PortalAssistantWidget.astro';
 import Favicon from '../../../components/Favicon.astro';
 import ViewportMeta from '../../../components/ViewportMeta.astro';
-import { hasFeature } from '../../../lib/features';
+import { hasFeature, hasDigitalSignature } from '../../../lib/features';
 import { isPortalAssistantConfigured } from '../../../lib/portalAssistant';
 import '../../../styles/brand.css';
 
@@ -63,11 +61,13 @@ if (!uid || !templateSlug) {
 
 if (error) Astro.response.status = 404;
 
+const canSign = !error && hasDigitalSignature();
 const signEndpoint = `/api/doc/${encodeURIComponent(uid ?? '')}/sign`;
 const siteBase = Astro.url.origin;
 const showAssistant =
   !error && uid && hasFeature('portal_assistant') && isPortalAssistantConfigured();
 const clientFirstName = contactName.split(/\s+/)[0] || '';
+const pageTitle = error ? 'Not found' : canSign ? `${title} — Sign` : title;
 ---
 
 <!doctype html>
@@ -76,7 +76,7 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
     <meta charset="UTF-8" />
     <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
-    <title>{error ? 'Not found' : `${title} — Sign`}</title>
+    <title>{pageTitle}</title>
     <Favicon />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -109,7 +109,7 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
             <p>This document has already been signed. Your signed copy is available below.</p>
             <a class="view-btn" href={alreadySignedUrl}>View &amp; Download PDF →</a>
           </div>
-        ) : (
+        ) : canSign ? (
           <div class="sign-section" id="sign-section">
             <div class="sign-divider"></div>
             <h2 class="sign-heading">Sign this document</h2>
@@ -145,8 +145,16 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
               Signed electronically via {company.name} · {siteBase}
             </p>
           </div>
+        ) : (
+          <div class="review-section no-print">
+            <div class="sign-divider"></div>
+            <h2 class="sign-heading">Your copy</h2>
+            <p class="review-copy">You can read this document on any device and save a PDF from your browser.</p>
+            <button class="sign-btn" type="button" onclick="window.print()">Download as PDF</button>
+          </div>
         )}
 
+        {canSign && (
         <div class="success-section" id="success-section" style="display:none">
           <div class="success-icon">✓</div>
           <h2>Document signed</h2>
@@ -155,6 +163,7 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
           </p>
           <a class="view-btn" id="view-link" href="#">View &amp; Download PDF →</a>
         </div>
+        )}
 
         <SiteFooter tone="light" />
       </main>
@@ -426,6 +435,8 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
         text-align: center;
         margin: 0;
       }
+      .review-section { padding-bottom: 8px; }
+      .review-copy { color: #555; margin: 0 0 20px; }
 
       /* ── Success ── */
       .success-section {
@@ -484,7 +495,7 @@ const clientFirstName = contactName.split(/\s+/)[0] || '';
 
       /* ── Print ── */
       @media print {
-        .sign-section, .site-foot, .doc-header { display: none !important; }
+        .sign-section, .review-section, .no-print, .site-foot, .doc-header { display: none !important; }
         main { padding: 0; }
         body:has(.doc-onepager) .site-foot { display: none !important; }
         .doc-body { margin-bottom: 0; }

@@ -8,7 +8,7 @@ stage: 2
 
 ## Sibling services
 
-- None
+- `digital_signature` (optional paid add-on) — e-sign, consent, audit trail
 
 ## Required env vars
 
@@ -18,11 +18,12 @@ stage: 2
 
 - Enable `documents` in install config `features[]`
 - Add `documents` to `footerNav` if not present
-- Create signing templates in Admin → Documents
+- Create templates in Admin → Documents
+- Send a filled review/print link from the share sheet (e-sign is a separate module)
 
 ## Checklist
 
 - [ ] Enable `documents` in install config
 - [ ] Create a test template with shortcodes
-- [ ] Verify PDF generation and client fill flow
+- [ ] Verify fill, send, and client print/PDF without Digital Signature
 - [ ] Set `moduleStatus.documents` → `deployed` in install config

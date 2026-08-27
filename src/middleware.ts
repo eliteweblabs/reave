@@ -97,6 +97,12 @@ function isFeatureBlockedPath(pathname: string): boolean {
   ) {
     return true;
   }
+  if (
+    /^\/api\/doc\/[^/]+\/sign\/?$/.test(pathname) &&
+    (!hasFeature("digital_signature") || isFeatureRuntimeBlocked("digital_signature"))
+  ) {
+    return true;
+  }
   if ((pathname === "/focus" || pathname.startsWith("/focus/")) && !isChatFocusSkinEnabled()) {
     return true;
   }

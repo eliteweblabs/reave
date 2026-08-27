@@ -754,9 +754,15 @@ async function openReaveShareSheet(opts = {}) {
   });
 }
 
+function hasInstallFeature(id) {
+  const features = window.__installConfig?.features;
+  return Array.isArray(features) && features.includes(id);
+}
+
 /**
  * Document share sheet: a client-only recipient picker on top of the branded
- * share sheet. Sends the client their personalised signing link for `slug`.
+ * share sheet. Sends the filled document link; Digital Signature installs
+ * get sign-page copy.
  */
 async function openDocumentShareSheet(opts = {}) {
   const backdrop = document.getElementById('reave-share-backdrop');
@@ -780,9 +786,12 @@ async function openDocumentShareSheet(opts = {}) {
   const subEl = document.getElementById('reave-share-sub');
   const noteEl = document.getElementById('reave-share-note');
   const actionsEl = document.getElementById('reave-share-actions');
+  const forSigning = hasInstallFeature('digital_signature');
   if (titleEl) titleEl.textContent = `Send ${docTitle}`;
   if (subEl) {
-    subEl.textContent = `Choose a contact to send "${docTitle}" to. They'll get a branded ${brandName} link to review and sign — no one else.`;
+    subEl.textContent = forSigning
+      ? `Choose a contact to send "${docTitle}" to. They'll get a branded ${brandName} link to review and sign — no one else.`
+      : `Choose a contact to send "${docTitle}" to. They'll get a branded ${brandName} link to review — no one else.`;
   }
   if (noteEl) noteEl.value = '';
   setReaveShareStatus('', null);
@@ -865,7 +874,7 @@ async function openDocumentShareSheet(opts = {}) {
     setNoteVisible(true);
     buildReaveShareActions(state, {
       shareTitle: docTitle,
-      shareText: `Please review and sign: ${docTitle}`,
+      shareText: forSigning ? `Please review and sign: ${docTitle}` : `Please review: ${docTitle}`,
     });
   }
 

@@ -27,6 +27,7 @@ import { serverEnv } from '../../../../lib/serverEnv';
 import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../lib/clientIp';
 import { escHtml } from '../../../../lib/escHtml';
+import { hasDigitalSignature } from '../../../../lib/features';
 
 export const prerender = false;
 
@@ -128,6 +129,10 @@ function err(status: number, error: string): Response {
 // ── route handler ──────────────────────────────────────────────────────────
 
 export const POST: APIRoute = async ({ params, request }) => {
+  if (!hasDigitalSignature()) {
+    return err(403, 'Digital Signature is not enabled on this install');
+  }
+
   const rate = checkInMemoryRateLimit(`doc-sign:${clientIp(request)}`, {
     windowMs: 10 * 60 * 1000,
     maxPerWindow: 15,

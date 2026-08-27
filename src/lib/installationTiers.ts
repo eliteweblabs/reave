@@ -83,7 +83,7 @@ export const INSTALLATION_TIERS: InstallationTier[] = [
       { label: 'Agentic Website Editor', href: '/features#feature-site-editing' },
       { label: 'Voice & Call Routing', href: '/modules#plugin-voice' },
       { label: 'Dynamic Documents', href: '/modules#plugin-documents' },
-      { label: 'Digital Signature', href: '/modules#plugin-documents' },
+      { label: 'Digital Signature', href: '/modules#plugin-digital-signature' },
       { label: 'Newsletters, Social & Analytics', href: '/features#feature-growth' },
       { label: 'Read Receipts & Engagement', href: '/features#feature-growth' },
       { label: 'Website Audits, Uptime & Change Monitoring', href: '/modules#plugin-monitoring' },

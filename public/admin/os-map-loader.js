@@ -166,7 +166,7 @@ import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260824a';
+} from './documents-panel.js?v=20260827a';
 import {
   initKnowledgePanel,
   knowledgeState,
@@ -245,7 +245,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260824a';
+} from './chat-panel.js?v=20260827a';
 import {
   initCreateDrawer,
   beginCreateDrawer,
