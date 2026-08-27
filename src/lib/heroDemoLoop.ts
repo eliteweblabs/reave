@@ -56,8 +56,8 @@ const ACTION_PRESS_MS = 520;
 /** Random hops before settling on the intended chip (inclusive range, capped to chip count). */
 const ACTION_HOVER_HOPS_MIN = 2;
 const ACTION_HOVER_HOPS_MAX = 4;
-const SLASH_PICKER_ARROW_MS = 380;
-const SLASH_PICKER_SELECT_HOLD_MS = 520;
+const SLASH_PICKER_ARROW_MS = 190;
+const SLASH_PICKER_SELECT_HOLD_MS = 260;
 const SLASH_PICKER_OPEN_MS = 200;
 const MENTION_PICKER_ARROW_MS = 320;
 const MENTION_PICKER_SELECT_HOLD_MS = 560;
