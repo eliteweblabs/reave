@@ -2037,11 +2037,18 @@ button.de-placeholder-action:active {
   width: 12px;
   height: 12px;
 }
-.re-lab-target-chip:not(.re-lab-target-chip--add) > span {
+.re-lab-target-chip:not(.re-lab-target-chip--add) > .re-lab-chip-copy,
+.re-lab-target-chip:not(.re-lab-target-chip--add) > .re-lab-chip-face {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: min(16rem, 70vw);
+}
+.re-lab-chip-field {
+  font-weight: 700;
+}
+.re-lab-chip-value {
+  font-weight: 400;
 }
 .re-lab-target-rm {
   display: inline-flex;
@@ -2120,9 +2127,7 @@ button.de-placeholder-action:active {
   color: var(--danger, #dc2626);
 }
 .re-lab-target-chip--target {
-  color: var(--em-notice-active, #3fb950);
-  border-color: color-mix(in srgb, var(--em-notice-active, #3fb950) 40%, transparent);
-  background: color-mix(in srgb, var(--em-notice-active, #3fb950) 12%, var(--card, transparent));
+  color: inherit;
 }
 .re-lab-target-chip--exempt {
   color: var(--danger, #dc2626);
