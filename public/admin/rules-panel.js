@@ -49,12 +49,12 @@ import {
   insertDragWithinScope,
 } from './email-triage-lab.js?v=20260827a';
 import {
-  createChipComposer,
+  createChipPair,
   chipsFromRulePhrases,
   phrasesFromChips,
   fieldsFromChips,
   titleFromRulePhrases,
-} from './rule-chip-editor.js?v=20260827c';
+} from './rule-chip-editor.js?v=20260827e';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
@@ -1079,20 +1079,16 @@ function renderRuleEditPane(pane, opts = {}) {
   form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
 
   const matchChipSeed = chipsFromRulePhrases(rule.phrases, rule.fields);
-  const matchChips = createChipComposer({
-    chips: matchChipSeed,
-    field: (rule.fields || []).length === 1 ? rule.fields[0] : matchChipSeed.at(-1)?.field || 'subject',
-    disabled: isCatalogReadOnly(rule),
-    ariaLabel: 'Match field',
-  });
-
   const exceptChipSeed = chipsFromRulePhrases(rule.exceptPhrases, rule.fields);
-  const exceptChips = createChipComposer({
-    chips: exceptChipSeed,
-    field: (rule.fields || []).length === 1 ? rule.fields[0] : exceptChipSeed.at(-1)?.field || 'subject',
+  const chipPair = createChipPair({
+    targets: matchChipSeed,
+    exemptions: exceptChipSeed,
+    targetField: (rule.fields || []).length === 1 ? rule.fields[0] : matchChipSeed.at(-1)?.field || 'subject',
+    exemptField: (rule.fields || []).length === 1 ? rule.fields[0] : exceptChipSeed.at(-1)?.field || 'subject',
     disabled: isCatalogReadOnly(rule),
-    ariaLabel: 'Except field',
   });
+  const matchChips = chipPair.targets;
+  const exceptChips = chipPair.exemptions;
 
   const scopeIn = document.createElement('input');
   scopeIn.type = 'hidden';
@@ -1101,6 +1097,7 @@ function renderRuleEditPane(pane, opts = {}) {
   scopeWrap.className = 're-scope-field';
   if (canManageUniversalRules()) {
     const scopePill = createSlidingPillSelect({
+      label: 'Applies to',
       value: scopeIn.value,
       options: [
         { value: 'personal', label: 'Personal' },
@@ -1301,27 +1298,22 @@ function renderRuleEditPane(pane, opts = {}) {
     expireInReveal,
   );
 
-  appendRuleField(form, 'When', matchChips.el, null, { as: 'div' });
+  const top = document.createElement('div');
+  top.className = 're-rule-top';
   if (scopeWrap.childNodes.length) {
-    appendRuleField(form, 'Applies to', scopeWrap, null, { as: 'div' });
+    top.appendChild(scopeWrap);
   }
-  appendRuleField(form, 'Description', descIn);
-  appendRuleField(
-    form,
-    'Except (NOT)',
-    exceptChips.el,
-    'Skip this rule if any of these appear.',
-    { as: 'div' },
-  );
   const processFieldWrap = document.createElement('div');
   processFieldWrap.className = 're-process-field';
   const processHint = document.createElement('span');
   processHint.className = 're-field-hint';
   processHint.textContent = processHintText(processSel.value);
   processFieldWrap.append(processPill.el, processHint, processSel);
-  form.appendChild(processFieldWrap);
+  top.append(processFieldWrap, statusIn);
+  form.appendChild(top);
   processField = { wrap: processFieldWrap, hintEl: processHint };
-  form.appendChild(statusIn);
+  form.appendChild(chipPair.el);
+  appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Forward to', forwardWrap);
   notifyField = appendRuleField(
     form,
