@@ -1,8 +1,41 @@
 ---
 /** Empty panel roots populated at runtime by public/admin/os-map-loader.js and panel modules. */
+
+interface Props {
+  /** Show the home skeleton before os-map-loader.js finishes its import graph. */
+  bootDashboard?: boolean;
+}
+
+const { bootDashboard = false } = Astro.props;
+
+/** Keep in sync with skeletonHtml('dashboard-home') in public/admin/shared.js */
+const dashboardBootSkeleton = `<div class="home-dashboard-scroll">
+  <div class="sk-home" role="status" aria-live="polite" aria-busy="true">
+    <span class="sk-sr">Loading dashboard…</span>
+    <div class="sk-home-alerts">${`<div class="sk-bone sk-home-alert"></div>`.repeat(2)}</div>
+    <section class="sk-home-section sk-home-today">
+      <div class="sk-home-today-head">
+        <div class="sk-bone sk-home-pills"></div>
+        <div class="sk-bone sk-home-schedule-btn"></div>
+      </div>
+      <div class="sk-home-events">${`<div class="sk-home-event"><div class="sk-bone sk-home-event-time"></div><div class="sk-home-event-body"><div class="sk-bone sk-home-event-line"></div><div class="sk-bone sk-home-event-line sk-home-event-line--short"></div></div></div>`.repeat(3)}</div>
+    </section>
+    <div class="sk-home-stats">${`<div class="sk-bone sk-home-stat"></div>`.repeat(8)}</div>
+    <div class="sk-home-uptime">${`<div class="sk-bone sk-home-uptime-tile"></div>`.repeat(14)}</div>
+    <section class="sk-home-section sk-home-inbox">
+      <div class="sk-bone sk-home-panel-title"></div>
+      <div class="sk-home-inbox-body">${`<div class="sk-home-inbox-row"><div class="sk-bone sk-home-inbox-subject"></div><div class="sk-bone sk-home-inbox-meta"></div></div>`.repeat(5)}</div>
+    </section>
+  </div>
+</div>`;
 ---
 
-<div id="dashboard-panel" style="display:none" aria-label="Dashboard"></div>
+<div
+  id="dashboard-panel"
+  style={bootDashboard ? "display:flex" : "display:none"}
+  aria-label="Dashboard"
+  set:html={bootDashboard ? dashboardBootSkeleton : ""}
+/>
 
 <div id="settings-panel" style="display:none" aria-label="Settings"></div>
 

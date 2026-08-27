@@ -17,13 +17,7 @@ import {
 } from '../../../lib/dashboardReviewNotifications';
 import { getDeployStatus } from '../../../lib/deployStatus';
 import { syncRecentUptimeIncidentsToPushAlerts } from '../../../lib/uptimePushAlertSync';
-import {
-  bookingList,
-  bookingsToday,
-  bookingsNext24Hours,
-  isBookingConfigured,
-  type DashboardEvent,
-} from '../../../lib/bookingClient';
+import { bookingDashboardSlice } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
 import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView, syncUptimeMonitorsFromApiIfStale } from '../../../lib/uptimeMonitoring';
@@ -46,24 +40,56 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-async function loadEventsToday(): Promise<DashboardEvent[]> {
-  if (!isBookingConfigured()) return [];
-  const out = await bookingsToday();
-  if (!out.ok) {
-    console.error('[dashboard] bookingsToday failed:', out.error);
-    return [];
-  }
-  return out.data.events;
+async function loadClientsTotal(): Promise<number | null> {
+  if (!isContactApiConfigured()) return null;
+  const listed = await listContacts({ limit: 1 });
+  return listed.ok ? listed.data.total : null;
 }
 
-async function loadEventsNext24Hours(): Promise<DashboardEvent[]> {
-  if (!isBookingConfigured()) return [];
-  const out = await bookingsNext24Hours();
-  if (!out.ok) {
-    console.error('[dashboard] bookingsNext24Hours failed:', out.error);
-    return [];
+async function loadTodoSlice(): Promise<{ todosOpen: number; upcomingTodos: DashboardUpcomingTodo[] }> {
+  if (!isTodoDbConfigured()) return { todosOpen: 0, upcomingTodos: [] };
+  const allOpen = await storeListTodos({ status: 'open' });
+  return {
+    todosOpen: allOpen.length,
+    upcomingTodos: await loadUpcomingTodosFromOpen(allOpen),
+  };
+}
+
+async function loadUptimeSlice(): Promise<{
+  uptime: Awaited<ReturnType<typeof getUptimeSummaryView>> | null;
+  uptimeMonitors: Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'];
+  uptimeAccount: Awaited<ReturnType<typeof getUptimeAccountView>> | null;
+}> {
+  if (!hasFeature('uptime_monitoring')) {
+    return { uptime: null, uptimeMonitors: [], uptimeAccount: null };
   }
-  return out.data.events;
+  ensureUptimePollScheduler();
+  await syncUptimeMonitorsFromApiIfStale();
+  const [uptime, monitorsView, uptimeAccount] = await Promise.all([
+    getUptimeSummaryView(),
+    getUptimeMonitorsView(),
+    getUptimeAccountView(),
+  ]);
+  return {
+    uptime,
+    uptimeMonitors: monitorsView.monitors.map(enrichUptimeMonitorView),
+    uptimeAccount,
+  };
+}
+
+async function loadBillingSlice(): Promise<{
+  billing: BillingDashboardStats | null;
+  billingError: string | null;
+  billingConfigured: boolean;
+}> {
+  const billingConfigured = hasFeature('billing') && isCraterConfigured();
+  if (!billingConfigured) {
+    return { billing: null, billingError: null, billingConfigured: false };
+  }
+  const out = await craterBillingDashboardStats();
+  if (out.ok) return { billing: out.data, billingError: null, billingConfigured };
+  console.error('[dashboard] craterBillingDashboardStats failed:', out.error);
+  return { billing: null, billingError: out.error, billingConfigured };
 }
 
 export type DashboardUpcomingTodo = {
@@ -126,12 +152,6 @@ export async function GET(context: APIContext): Promise<Response> {
   ).length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;
 
-  let clientsTotal: number | null = null;
-  if (isContactApiConfigured()) {
-    const listed = await listContacts({ limit: 1 });
-    if (listed.ok) clientsTotal = listed.data.total;
-  }
-
   const recentEmails = events.filter(isEmailInboxActive).slice(0, 5).map((e) => ({
     id: e.id,
     subject: e.subject || '(no subject)',
@@ -140,56 +160,18 @@ export async function GET(context: APIContext): Promise<Response> {
     category: e.category,
   }));
 
-  const eventsToday = await loadEventsToday();
-  const eventsNext24h = await loadEventsNext24Hours();
-  let todosOpen = 0;
-  let upcomingTodos: DashboardUpcomingTodo[] = [];
-  if (isTodoDbConfigured()) {
-    const allOpen = await storeListTodos({ status: 'open' });
-    todosOpen = allOpen.length;
-    upcomingTodos = await loadUpcomingTodosFromOpen(allOpen);
-  }
-  const schedulingConfigured = isBookingConfigured();
-
-  let meetingsTotal: number | null = null;
-  if (schedulingConfigured) {
-    const [upcomingRes, pastRes] = await Promise.all([
-      bookingList({ upcoming: true, status: 'accepted', limit: 500 }),
-      bookingList({ upcoming: false, status: 'accepted', limit: 500 }),
-    ]);
-    if (upcomingRes.ok && pastRes.ok) {
-      const seen = new Set<string>();
-      for (const b of [...upcomingRes.data.bookings, ...pastRes.data.bookings]) {
-        seen.add(b.uid);
-      }
-      meetingsTotal = seen.size;
-    }
-  }
-
-  let uptime: Awaited<ReturnType<typeof getUptimeSummaryView>> | null = null;
-  let uptimeMonitors: Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'] = [];
-  let uptimeAccount: Awaited<ReturnType<typeof getUptimeAccountView>> | null = null;
-  if (hasFeature('uptime_monitoring')) {
-    ensureUptimePollScheduler();
-    await syncUptimeMonitorsFromApiIfStale();
-    uptime = await getUptimeSummaryView();
-    const monitorsView = await getUptimeMonitorsView();
-    uptimeMonitors = monitorsView.monitors.map(enrichUptimeMonitorView);
-    uptimeAccount = await getUptimeAccountView();
-  }
-
-  const billingConfigured = hasFeature('billing') && isCraterConfigured();
-  let billing: BillingDashboardStats | null = null;
-  let billingError: string | null = null;
-  if (billingConfigured) {
-    const out = await craterBillingDashboardStats();
-    if (out.ok) {
-      billing = out.data;
-    } else {
-      billingError = out.error;
-      console.error('[dashboard] craterBillingDashboardStats failed:', out.error);
-    }
-  }
+  const [clientsTotal, bookingSlice, todoSlice, uptimeSlice, billingSlice] = await Promise.all([
+    loadClientsTotal(),
+    bookingDashboardSlice(),
+    loadTodoSlice(),
+    loadUptimeSlice(),
+    loadBillingSlice(),
+  ]);
+  const { eventsToday, eventsNext24h, meetingsTotal, configured: schedulingConfigured } =
+    bookingSlice;
+  const { todosOpen, upcomingTodos } = todoSlice;
+  const { uptime, uptimeMonitors, uptimeAccount } = uptimeSlice;
+  const { billing, billingError, billingConfigured } = billingSlice;
 
   return json({
     ok: true,

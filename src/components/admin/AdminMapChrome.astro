@@ -1,5 +1,12 @@
 ---
 /** OS map canvas chrome: hidden topbar utilities, zoom tools, legend, pan/zoom surface. */
+
+interface Props {
+  /** Hide the empty map canvas until JS boots when the default tab is dashboard. */
+  bootDashboard?: boolean;
+}
+
+const { bootDashboard = false } = Astro.props;
 ---
 
 <div id="topbar-utilities" hidden aria-hidden="true">
@@ -13,7 +20,7 @@
   </span>
 </div>
 
-<div id="tools">
+<div id="tools" style={bootDashboard ? "display:none" : undefined}>
   <button data-act="in" title="Zoom in">+</button>
   <button data-act="out" title="Zoom out">−</button>
   <button data-act="fit" title="Fit to screen">⤢</button>
@@ -22,7 +29,7 @@
 
 <div id="legend"></div>
 
-<div id="wrap">
+<div id="wrap" style={bootDashboard ? "display:none" : undefined}>
   <div id="world">
     <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>

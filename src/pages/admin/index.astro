@@ -73,9 +73,10 @@ if (isOwner && shouldSeedOnBoot()) {
 const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
 const githubRepo = githubRepoSlug();
-const specialPage = isSpecialAdminPageKey(
-  Astro.url.searchParams.get("tab") || Astro.url.searchParams.get("map"),
-);
+const requestedTab =
+  Astro.url.searchParams.get("tab") || Astro.url.searchParams.get("map");
+const specialPage = isSpecialAdminPageKey(requestedTab);
+const bootDashboard = isOwner && (!requestedTab || requestedTab === "dashboard");
 ---
 
 <!doctype html>
@@ -104,8 +105,8 @@ const specialPage = isSpecialAdminPageKey(
 
     {isOwner ? (
       <>
-        <AdminMapChrome />
-        <AdminPanelMounts />
+        <AdminMapChrome bootDashboard={bootDashboard} />
+        <AdminPanelMounts bootDashboard={bootDashboard} />
         <AdminSearchOverlay />
         <AdminDialogs />
         <AdminFooterNav />

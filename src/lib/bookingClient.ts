@@ -8,6 +8,7 @@
 import { getStoredCompanyConfig } from './companyConfigStore';
 import { resolveCalcomUsernameSync } from './installIdentity';
 import { serverEnv } from './serverEnv';
+import { deriveBookingDashboardSlice } from './bookingDashboardSlice';
 
 export type BookingSummary = {
   uid: string;
@@ -655,6 +656,50 @@ export async function bookingsToday(): Promise<
   events.sort((a, b) => a.time.localeCompare(b.time));
 
   return { ok: true, data: { events, configured: true } };
+}
+
+export type BookingDashboardSlice = {
+  eventsToday: DashboardEvent[];
+  eventsNext24h: DashboardEvent[];
+  meetingsTotal: number | null;
+  configured: boolean;
+};
+
+export { deriveBookingDashboardSlice } from './bookingDashboardSlice';
+
+/**
+ * One upcoming + one past list, then derive today / next-24h / unique total.
+ * Dashboard used to call bookingsToday + bookingsNext24Hours + bookingList×2
+ * (five Cal.com round-trips) sequentially.
+ */
+export async function bookingDashboardSlice(): Promise<BookingDashboardSlice> {
+  if (!isBookingConfigured()) {
+    return { eventsToday: [], eventsNext24h: [], meetingsTotal: null, configured: false };
+  }
+
+  const [upcomingRes, pastRes] = await Promise.all([
+    bookingList({ upcoming: true, status: 'accepted', limit: 500 }),
+    bookingList({ upcoming: false, status: 'accepted', limit: 500 }),
+  ]);
+  if (!upcomingRes.ok) {
+    console.error('[dashboard] bookingDashboardSlice failed:', upcomingRes.error);
+    return { eventsToday: [], eventsNext24h: [], meetingsTotal: null, configured: true };
+  }
+  if (!pastRes.ok) {
+    console.error('[dashboard] bookingDashboardSlice failed:', pastRes.error);
+    return { eventsToday: [], eventsNext24h: [], meetingsTotal: null, configured: true };
+  }
+
+  return {
+    ...deriveBookingDashboardSlice(
+      upcomingRes.data.bookings,
+      pastRes.data.bookings,
+      Date.now(),
+      todayKeyInTimezone(),
+      bookingTimezone(),
+    ),
+    configured: true,
+  };
 }
 
 /** Accepted bookings starting within the next 24 hours (from now). */
