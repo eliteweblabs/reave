@@ -3,6 +3,8 @@
  *
  * Official reΛVe.app verifies incoming items with REAVE_HUB_SECRET (or
  * REAVE_HUB_KEY). Client installs send that same key plus their install slug.
+ * Both sides open the same Punch list admin section; items also land on the
+ * official to-do list.
  */
 
 import { getCompanyConfig, headerSafe } from './companyConfig';
@@ -11,6 +13,7 @@ import { secretMatches } from './secretCompare';
 import { serverEnv } from './serverEnv';
 import {
   installPunchlistUid,
+  isInstallPunchlistTodo,
   normalizeInstallSlug,
   punchlistTitleFromInput,
   toHubPunchlistItem,
@@ -113,6 +116,53 @@ export async function listHubPunchlistForSlug(slug: string): Promise<HubPunchlis
   if (!uid) return [];
   const todos = await storeListTodos({ contact_uid: uid });
   return todos.map(toHubPunchlistItem);
+}
+
+/** Official admin: every install-owner request, all slugs. */
+export async function listOfficialPunchlistItems(): Promise<HubPunchlistItem[]> {
+  const todos = await storeListTodos({ shared: true });
+  return todos.map(toHubPunchlistItem);
+}
+
+export async function updateOfficialPunchlistItem(opts: {
+  id: number;
+  title?: string;
+  status?: TodoStatus;
+}): Promise<{ ok: true; item: HubPunchlistItem } | { ok: false; status: number; error: string }> {
+  const todo = await storeReadTodo(opts.id);
+  if (!todo || !isInstallPunchlistTodo(todo)) {
+    return { ok: false, status: 404, error: 'Not found' };
+  }
+  const patch: { title?: string; status?: TodoStatus } = {};
+  if (opts.title !== undefined) {
+    const title = punchlistTitleFromInput(opts.title);
+    if (!title) return { ok: false, status: 400, error: 'title is required' };
+    patch.title = title;
+  }
+  if (opts.status) patch.status = opts.status;
+  if (patch.title == null && patch.status == null) {
+    return { ok: false, status: 400, error: 'Nothing to update' };
+  }
+  const result = await storeUpdateTodo(opts.id, patch);
+  if (!result.ok) {
+    const status = result.error === 'Not found' ? 404 : 400;
+    return { ok: false, status, error: result.error };
+  }
+  return { ok: true, item: toHubPunchlistItem(result.todo) };
+}
+
+export async function deleteOfficialPunchlistItem(
+  id: number,
+): Promise<{ ok: true; id: number } | { ok: false; status: number; error: string }> {
+  const todo = await storeReadTodo(id);
+  if (!todo || !isInstallPunchlistTodo(todo)) {
+    return { ok: false, status: 404, error: 'Not found' };
+  }
+  const result = await storeDeleteTodo(id);
+  if (!result.ok) {
+    return { ok: false, status: result.error === 'Not found' ? 404 : 400, error: result.error || 'Delete failed' };
+  }
+  return { ok: true, id };
 }
 
 export async function createHubPunchlistItem(opts: {

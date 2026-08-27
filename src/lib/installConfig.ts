@@ -84,6 +84,7 @@ export type FooterNavSlotKey = (typeof FOOTER_NAV_SLOT_KEYS)[number];
 export const FOOTER_NAV_MAP_KEYS = [
   'dashboard',
   'todo',
+  'punchlist',
   'documents',
   'sales-sheet',
   'knowledge',
@@ -445,8 +446,17 @@ export async function getInstallConfig(): Promise<InstallConfig> {
   return getInstallConfigSync();
 }
 
+function ensureFooterPunchlist(nav: FooterNavKey[]): FooterNavKey[] {
+  if (nav.includes('punchlist')) return nav;
+  const todoAt = nav.indexOf('todo');
+  if (todoAt >= 0) {
+    return [...nav.slice(0, todoAt + 1), 'punchlist', ...nav.slice(todoAt + 1)];
+  }
+  return [...nav, 'punchlist'];
+}
+
 function clientFooterNav(config: InstallConfig): FooterNavKey[] {
-  let nav = config.footerNav;
+  let nav = ensureFooterPunchlist(config.footerNav);
   if (!config.features.includes('fleet_tracking')) {
     nav = nav.filter((key) => key !== 'fleet');
   }

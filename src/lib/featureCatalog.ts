@@ -238,7 +238,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
 
 /** Short blurbs for demo loader tiles and marketing surfaces. */
 export const FEATURE_BLURBS: Record<FeatureId, string> = {
-  client_portal: 'Branded portal for each client at /c/:uid — punch list, projects, billing, vault',
+  client_portal: 'Branded portal for each client at /c/:uid — projects, billing, vault',
   web_handoff: 'Secure credential & data handoff in the portal Data tab',
   portal_assistant: 'Speed-dial support chat for clients in the portal',
   billing: 'Get paid without leaving the work — send a quote, collect the invoice, or log a payment with Siri*.',

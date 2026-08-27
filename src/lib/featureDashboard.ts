@@ -50,6 +50,7 @@ export const CORE_DASHBOARD_CARDS: readonly DashboardCard[] = [
   { id: 'rules', title: 'Email Lab', icon: 'flask', mapKey: 'rules' },
   { id: 'knowledge', title: 'Knowledge', icon: 'book-open', mapKey: 'knowledge' },
   { id: 'todo', title: 'To-do', icon: 'check-square', mapKey: 'todo' },
+  { id: 'punchlist', title: 'Punch list', icon: 'list-checks', mapKey: 'punchlist' },
   { id: 'modules', title: 'Modules', icon: 'puzzle', mapKey: 'modules' },
 ];
 

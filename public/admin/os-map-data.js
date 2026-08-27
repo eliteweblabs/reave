@@ -41,7 +41,7 @@ const SYSTEM_NODES = [
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.example.com · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
-  { id: 'portal', title: 'Client Portal', sub: '/c/:uid · vault · punch list · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
+  { id: 'portal', title: 'Client Portal', sub: '/c/:uid · vault · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
   { id: 'engagement', title: 'Engagement alerts', sub: 'vault · punch list · share opens · deck views · contact form · dashboard banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
@@ -439,6 +439,7 @@ export const MAPS = {
   },
   // Telegram integration removed — admin Chats tab + Siri Shortcuts are the primary agent surfaces
   todo:      { id: 'todo',      title: 'To\u2011do',  icon: '✅',  type: 'todo',          nodes: [],             edges: [],             groups: [] },
+  punchlist: { id: 'punchlist', title: 'Punch list', icon: '📋',  type: 'punchlist',     nodes: [],             edges: [],             groups: [] },
   documents: { id: 'documents', title: 'Documents',  icon: '📄',  type: 'documents',     nodes: [],             edges: [],             groups: [] },
   knowledge: { id: 'knowledge', title: 'Knowledge',  icon: '📚',  type: 'knowledge',     nodes: [],             edges: [],             groups: [] },
   chats:     { id: 'chats',     title: 'Sessions',   icon: '💬',  type: 'chats',         nodes: [],             edges: [],             groups: [] },
@@ -469,7 +470,7 @@ export const MAPS = {
 };
 
 /** Footer / home tabs keep the wordmark. Keep in sync with src/lib/adminSpecialPages.ts. */
-export const ADMIN_PRIMARY_PAGE_KEYS = ['dashboard', 'chats', 'email', 'work', 'schedule', 'clients', 'todo'];
+export const ADMIN_PRIMARY_PAGE_KEYS = ['dashboard', 'chats', 'email', 'work', 'schedule', 'clients', 'todo', 'punchlist'];
 
 /** Account pages keep the wordmark + their own pane back. Keep in sync with src/lib/adminSpecialPages.ts. */
 export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'company', 'settings', 'socials', 'addons', 'industries', 'vapi', 'lead-scanner'];

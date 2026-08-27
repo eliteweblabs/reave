@@ -111,7 +111,7 @@ import {
   setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260825h';
+} from './admin-ui.js?v=20260826a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -155,7 +155,13 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260826e';
+} from './todo-panel.js?v=20260826f';
+import {
+  initPunchlistPanel,
+  loadPunchlistTab,
+  navigateToPunchlist,
+  punchlistState,
+} from './punchlist-panel.js?v=20260826a';
 import {
   initDocumentsPanel,
   docState,
@@ -345,6 +351,7 @@ const MAP_ICON_KEYS = {
   tooling: 'wrench',
   'email-triage': 'git-branch',
   todo: 'check-square',
+  punchlist: 'list-checks',
   documents: 'file-text',
   knowledge: 'book-open',
   chats: 'agent',
@@ -873,6 +880,7 @@ function isPanelMapKey(key) {
     t === 'chats' ||
     t === 'email' ||
     t === 'todo' ||
+    t === 'punchlist' ||
     t === 'rules' ||
     t === 'newsletter'
   );
@@ -949,6 +957,9 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'todo') {
     const todoId = opts.todoId || parseTodoDeepLinkFromUrl();
     loadTodoTab({ todoId });
+  } else if (MAP.type === 'punchlist') {
+    const itemId = opts.itemId || parsePunchlistDeepLinkFromUrl();
+    loadPunchlistTab({ itemId });
   } else {
     buildMap();
     finishMapLayout();
@@ -974,7 +985,8 @@ function isPanelTab() {
     MAP.type === 'email' ||
     MAP.type === 'rules' ||
     MAP.type === 'newsletter' ||
-    MAP.type === 'todo'
+    MAP.type === 'todo' ||
+    MAP.type === 'punchlist'
   );
 }
 
@@ -1006,6 +1018,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
   setPanelDisplay('newsletter-editor', MAP.type === 'newsletter' ? 'flex' : 'none');
   setPanelDisplay('todo-editor', MAP.type === 'todo' ? 'flex' : 'none');
+  setPanelDisplay('punchlist-editor', MAP.type === 'punchlist' ? 'flex' : 'none');
   // Dashboard content scrolls under the transparent topbar — enable the same
   // progressive blur scrim used on public pages (Header.astro app-header-scrim).
   document.getElementById('topbar')?.classList.toggle(
@@ -4279,7 +4292,7 @@ function reviewNotificationHasOpenTarget(item) {
     if (path !== '/admin') return true;
     const tab = u.searchParams.get('tab');
     if (tab && tab !== 'dashboard') return true;
-    for (const key of ['email', 'slug', 'chat', 'client', 'booking', 'module', 'todo']) {
+    for (const key of ['email', 'slug', 'chat', 'client', 'booking', 'module', 'todo', 'item']) {
       if (u.searchParams.get(key)?.trim()) return true;
     }
     return false;
@@ -4331,10 +4344,10 @@ async function openReviewNotificationTarget(item) {
   if (item.type === 'punchlist_item') {
     const todoId = Number(item.jobSlug);
     if (Number.isInteger(todoId) && todoId > 0) {
-      navigateToTodo(todoId);
+      navigateToPunchlist(todoId);
       return;
     }
-    setActiveMap('todo', { force: true });
+    setActiveMap('punchlist', { force: true });
     return;
   }
   if ((item.type === 'vault_entry' || item.type === 'deck_view' || item.type === 'demo_launch') && item.contactUid) {
@@ -4525,7 +4538,7 @@ function buildReviewAlertBanner(item) {
     });
   } else if (isPunchlistItem) {
     pushNotifyAction('view', {
-      label: 'View to-do',
+      label: 'View punch list',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
@@ -8876,7 +8889,7 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #media-panel, #modules-panel, #search-overlay';
+  '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #punchlist-editor, #media-panel, #modules-panel, #search-overlay';
 /** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
   '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ml-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
@@ -10124,6 +10137,18 @@ function parseTodoDeepLinkFromUrl() {
   }
 }
 
+function parsePunchlistDeepLinkFromUrl() {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('item')?.trim();
+    if (!raw) return null;
+    if (raw === '__new__') return raw;
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseScheduleDeepLinkFromUrl() {
   try {
     return new URLSearchParams(window.location.search).get('booking')?.trim() || null;
@@ -10286,6 +10311,19 @@ function syncAdminTabUrl(key, opts = {}) {
       else url.searchParams.delete('todo');
     } else {
       url.searchParams.delete('todo');
+    }
+
+    if (key === 'punchlist') {
+      const itemId =
+        opts.itemId !== undefined
+          ? opts.itemId
+          : punchlistState.activeId && punchlistState.activeId !== '__new__'
+            ? punchlistState.activeId
+            : parsePunchlistDeepLinkFromUrl();
+      if (itemId && itemId !== '__new__') url.searchParams.set('item', String(itemId));
+      else url.searchParams.delete('item');
+    } else {
+      url.searchParams.delete('item');
     }
 
     url.searchParams.delete('copy');
@@ -11630,6 +11668,20 @@ initTodoPanel({
   attachAutosuggestKeyboardNav,
   SIDEBAR_LIST_GRIP,
   KNOWLEDGE_API,
+});
+
+initPunchlistPanel({
+  setActiveMap,
+  osAlert,
+  beginCreateDrawer,
+  finishCreateDrawer,
+  flagCreateDrawerTitleMissing,
+  isCreateDrawerOpen,
+  mountCreateDrawerChrome,
+  captureSidebarListScroll,
+  finishSidebarListScroll,
+  scrollSidebarListItemIntoView,
+  appendEmptyDetailPane,
 });
 
 initDocumentsPanel({

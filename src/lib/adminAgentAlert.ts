@@ -426,7 +426,7 @@ export async function notifyAdminAgentOfPunchlistItem(opts: {
     `Install: ${opts.contactName}`,
     `Item: ${item}`,
     '',
-    'It is now on your to-do list.',
+    'It is now on Punch list and your to-do.',
   ].join('\n');
 
   await postToSystemAlertsThread({
@@ -435,7 +435,7 @@ export async function notifyAdminAgentOfPunchlistItem(opts: {
       title: `✅ Request: ${opts.contactName}`,
       body: item.slice(0, 120),
       tag: `punchlist-${opts.engagementId}`,
-      url: `/admin?tab=todo&todo=${encodeURIComponent(String(opts.todoId))}`,
+      url: `/admin?tab=punchlist&item=${encodeURIComponent(String(opts.todoId))}`,
     },
   });
 }

@@ -508,6 +508,7 @@ button.de-empty-action:active {
   #knowledge-editor:not(.de-pane-active) .de-pane,
   #work-editor:not(.de-pane-active) .de-pane,
   #todo-editor:not(.de-pane-active) .de-pane,
+  #punchlist-editor:not(.de-pane-active) .de-pane,
   #schedule-panel:not(.de-pane-active) .de-pane,
   #clients-editor:not(.de-pane-active) .de-pane,
   #rule-editor:not(.de-pane-active) .de-pane,
@@ -1130,6 +1131,7 @@ button.de-placeholder-action:active {
 #knowledge-editor,
 #work-editor,
 #todo-editor,
+#punchlist-editor,
 #schedule-panel,
 #clients-editor,
 #rule-editor,
@@ -1278,6 +1280,7 @@ button.de-placeholder-action:active {
   #knowledge-editor,
   #work-editor,
   #todo-editor,
+  #punchlist-editor,
   #schedule-panel,
   #clients-editor,
   #rule-editor,
@@ -1293,11 +1296,14 @@ button.de-placeholder-action:active {
   #rule-editor.de-pane-active .ch-sidebar,
   #todo-editor.de-pane-active .de-sidebar,
   #todo-editor.de-pane-active .ch-sidebar,
+  #punchlist-editor.de-pane-active .de-sidebar,
+  #punchlist-editor.de-pane-active .ch-sidebar,
   #modules-panel.de-pane-active .ch-sidebar { display: none; }
   #knowledge-editor.de-pane-active .de-pane,
   #schedule-panel.de-pane-active .de-pane,
   #rule-editor.de-pane-active .de-pane,
   #todo-editor.de-pane-active .de-pane,
+  #punchlist-editor.de-pane-active .de-pane,
   #modules-panel.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
 }
 .re-settings {
@@ -2738,6 +2744,7 @@ button.de-placeholder-action:active {
   #work-editor.de-pane-active .de-pane,
   #knowledge-editor.de-pane-active .de-pane,
   #todo-editor.de-pane-active .de-pane,
+  #punchlist-editor.de-pane-active .de-pane,
   #rule-editor.de-pane-active .de-pane,
   #doc-editor.de-pane-active .de-pane,
   #schedule-panel.de-pane-active .de-pane {
@@ -2809,7 +2816,8 @@ button.de-placeholder-action:active {
     padding: 0.45rem 0.75rem;
     font-size: 0.8125rem;
   }
-  #todo-editor .re-form-scroll .de-fields {
+  #todo-editor .re-form-scroll .de-fields,
+  #punchlist-editor .re-form-scroll .de-fields {
     padding: 0;
   }
 }
@@ -4268,6 +4276,9 @@ button.de-placeholder-action:active {
 #todo-editor .sliding-pill-select { max-width: none; }
 #todo-editor .de-input,
 #todo-editor .de-textarea { max-width: none; }
+#punchlist-editor .sliding-pill-select { max-width: none; }
+#punchlist-editor .de-input,
+#punchlist-editor .de-textarea { max-width: none; }
 .td-due-field { display: block; }
 .td-due-row {
   display: grid;

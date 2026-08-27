@@ -63,9 +63,6 @@ const TODO_STATUS_LABELS = {
 
 let todoState = {
   todos: [],
-  hubTodos: [],
-  hubConfigured: false,
-  hubError: '',
   jobs: [],
   priorities: ['low', 'normal', 'high', 'urgent'],
   statuses: ['open', 'done'],
@@ -82,55 +79,12 @@ function isCanonicalReave() {
   return window.__installConfig?.isCanonicalReave === true;
 }
 
-function punchlistFilterId() {
-  return isCanonicalReave() ? 'installs' : 'reave';
-}
-
 function isInstallPunchlistTodo(todo) {
   return String(todo?.contact_uid || '').toLowerCase().startsWith('install:');
 }
 
-function isHubTodo(todo) {
-  return todo?.source === 'hub' || String(todo?.id || '').startsWith('hub:');
-}
-
-function hubItemId(id) {
-  const n = Number(id);
-  return Number.isInteger(n) && n > 0 ? `hub:${n}` : String(id);
-}
-
-function parseHubItemId(id) {
-  const s = String(id ?? '');
-  if (s.startsWith('hub:')) {
-    const n = Number(s.slice(4));
-    return Number.isInteger(n) && n > 0 ? n : null;
-  }
-  return null;
-}
-
-function normalizeHubItem(item) {
-  const hubId = Number(item.id);
-  return {
-    id: hubItemId(hubId),
-    hubId,
-    source: 'hub',
-    title: item.title,
-    status: item.status || 'open',
-    priority: item.priority || 'normal',
-    due_date: item.due_date || null,
-    job_slug: '',
-    assignee: '',
-    section: '',
-    contact_uid: item.contact_uid || (item.install_slug ? `install:${item.install_slug}` : ''),
-    contact_name: item.company || item.contact_name || '',
-    created_by: item.created_by || 'install',
-    created_at: item.created_at,
-    updated_at: item.updated_at,
-  };
-}
-
 function visibleTodoPool() {
-  return todoState.filter === 'reave' ? todoState.hubTodos : todoState.todos;
+  return todoState.todos;
 }
 
 let todoSaveTimer = null;
@@ -222,7 +176,7 @@ function todoContactName(todo) {
 function todoSubline(todo) {
   const bits = [];
   const clientName = todoContactName(todo);
-  if (isHubTodo(todo) || isInstallPunchlistTodo(todo)) {
+  if (isInstallPunchlistTodo(todo)) {
     bits.push(clientName || 'Install request');
   } else if (clientName) {
     bits.push(clientName);
@@ -246,7 +200,6 @@ function todoPriorityDotClass(priority) {
 
 function todoMatchesFilter(todo, filter) {
   if (filter === 'installs') return todo.status === 'open' && isInstallPunchlistTodo(todo);
-  if (filter === 'reave') return todo.status === 'open';
   return todo.status === filter;
 }
 
@@ -254,7 +207,7 @@ function todoSearchPlaceholder() {
   const pool = visibleTodoPool();
   const count = pool.filter((t) => todoMatchesFilter(t, todoState.filter)).length;
   const label =
-    todoState.filter === 'installs' || todoState.filter === 'reave'
+    todoState.filter === 'installs'
       ? count === 1
         ? 'Request'
         : 'Requests'
@@ -300,22 +253,6 @@ async function loadTodoTab(opts = {}) {
     todoState.todos = (todoData.todos || []).map(normalizeTodoItemDates);
     todoState.priorities = todoData.priorities || todoState.priorities;
     todoState.statuses = todoData.statuses || todoState.statuses;
-    todoState.hubTodos = [];
-    todoState.hubConfigured = false;
-    todoState.hubError = '';
-    if (!isCanonicalReave()) {
-      try {
-        const hubRes = await adminFetch('/api/admin/punchlist');
-        const hubData = await readAdminJson(hubRes, 'Punch list');
-        todoState.hubConfigured = hubData.configured !== false && hubRes.ok;
-        todoState.hubError = hubRes.ok ? '' : hubData.error || '';
-        todoState.hubTodos = (hubData.items || []).map(normalizeHubItem);
-      } catch (hubErr) {
-        if (hubErr.message === 'Session expired') throw hubErr;
-        todoState.hubConfigured = false;
-        todoState.hubError = hubErr.message || 'Punch list unavailable';
-      }
-    }
     todoState.jobs = [];
     try {
       const workRes = await adminFetch('/api/work');
@@ -346,7 +283,7 @@ async function loadTodoTab(opts = {}) {
   }
 
   if (deepId) {
-    await openTodo(parseHubItemId(deepId) ? deepId : Number(deepId), { keepReturnSlug: true });
+    await openTodo(Number(deepId), { keepReturnSlug: true });
     return;
   }
 
@@ -421,7 +358,7 @@ function startNewTodo(opts = {}) {
       section: '',
       contact_uid: '',
       contact_name: '',
-      source: todoState.filter === 'reave' ? 'hub' : '',
+      source: '',
     };
   }
   if (todoState.draft.job_slug) {
@@ -446,11 +383,9 @@ function fillTodoSidebarList(list) {
       ? 'No matches.'
       : todoState.filter === 'done'
         ? 'No completed to‑dos yet.'
-        : todoState.filter === 'reave' && !todoState.hubConfigured
-          ? todoState.hubError || 'Punch list isn’t connected. Set REAVE_HUB_KEY to send requests to reΛVe.'
-          : todoState.filter === 'reave' || todoState.filter === 'installs'
-            ? 'No install requests yet.'
-            : 'No open to‑dos yet.';
+        : todoState.filter === 'installs'
+          ? 'No install requests yet.'
+          : 'No open to‑dos yet.';
     list.appendChild(empty);
   }
   // Drag-to-reorder disabled — re-enable via attachSidebarListReorder below.
@@ -534,23 +469,19 @@ function updateTodoFilterTabActiveState() {
 }
 
 function renderTodoFilterTabs() {
-  const { todos, hubTodos, filter } = todoState;
+  const { todos, filter } = todoState;
   const openCount = todos.filter((t) => t.status === 'open').length;
-  const punchlistId = punchlistFilterId();
-  const punchlistCount = isCanonicalReave()
-    ? todos.filter((t) => t.status === 'open' && isInstallPunchlistTodo(t)).length
-    : hubTodos.filter((t) => t.status === 'open').length;
+  const punchlistCount = todos.filter((t) => t.status === 'open' && isInstallPunchlistTodo(t)).length;
   const doneCount = todos.filter((t) => t.status === 'done').length;
+  const tabs = [
+    { id: 'open', label: 'Open', count: openCount },
+    ...(isCanonicalReave()
+      ? [{ id: 'installs', label: 'Installs', count: punchlistCount }]
+      : []),
+    { id: 'done', label: 'Done', count: doneCount },
+  ];
   return mountListFilterTabs({
-    tabs: [
-      { id: 'open', label: 'Open', count: openCount },
-      {
-        id: punchlistId,
-        label: isCanonicalReave() ? 'Installs' : 'reΛVe',
-        count: punchlistCount,
-      },
-      { id: 'done', label: 'Done', count: doneCount },
-    ],
+    tabs,
     activeId: filter,
     ariaLabel: 'To-do filters',
     scroll: false,
@@ -619,7 +550,7 @@ function renderTodoEditor() {
 }
 
 function todoAuthorContactUid(todo) {
-  if (isHubTodo(todo) || isInstallPunchlistTodo(todo)) return '';
+  if (isInstallPunchlistTodo(todo)) return '';
   const fromTodo = todo.contact_uid?.trim();
   if (fromTodo) return fromTodo;
   const slug = todo.job_slug?.trim();
@@ -682,10 +613,8 @@ async function openTodo(id, opts = {}) {
   }
   if (opts.fromWorkSlug) todoState.returnToWorkSlug = opts.fromWorkSlug;
 
-  let todo =
-    todoState.hubTodos.find((t) => t.id === id || String(t.id) === String(id)) ||
-    todoState.todos.find((t) => t.id === id || String(t.id) === String(id));
-  if (!todo && !parseHubItemId(id)) {
+  let todo = todoState.todos.find((t) => t.id === id || String(t.id) === String(id));
+  if (!todo) {
     try {
       const res = await fetch(`/api/todos/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await readApiJson(res);
@@ -699,7 +628,7 @@ async function openTodo(id, opts = {}) {
     }
   }
   if (!todo) {
-    shell.osAlert({ title: 'To‑do not found', bodyHtml: 'That request is no longer on the punch list.' });
+    shell.osAlert({ title: 'To‑do not found', bodyHtml: 'That to‑do is no longer on the list.' });
     return;
   }
 
@@ -715,7 +644,7 @@ async function openTodo(id, opts = {}) {
     section: todo.section || '',
     contact_uid: todo.contact_uid || '',
     contact_name: todo.contact_name || '',
-    source: isHubTodo(todo) ? 'hub' : '',
+    source: '',
   };
   todoState.linkedJob = null;
   if (todo.job_slug) {
@@ -768,19 +697,9 @@ async function flushTodoAutosave() {
   }
 }
 
-function applyHubItemToState(item) {
-  const normalized = normalizeHubItem(item);
-  const idx = todoState.hubTodos.findIndex((t) => t.id === normalized.id);
-  if (idx === -1) todoState.hubTodos.unshift(normalized);
-  else todoState.hubTodos[idx] = normalized;
-  return normalized;
-}
-
 async function saveActiveTodoDraft(silent = false) {
   if (!todoState.draft) return true;
   const isNew = todoState.activeId === '__new__';
-  const hubId = parseHubItemId(todoState.activeId);
-  const isHub = todoState.draft.source === 'hub' || hubId != null || todoState.filter === 'reave';
   const payload = {
     title: todoState.draft.title.trim(),
     priority: todoState.draft.priority || 'normal',
@@ -793,31 +712,6 @@ async function saveActiveTodoDraft(silent = false) {
   if (!payload.title) return false;
 
   try {
-    if (isHub) {
-      const res = await fetch(isNew ? '/api/admin/punchlist' : `/api/admin/punchlist/${hubId}`, {
-        method: isNew ? 'POST' : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isNew ? { title: payload.title } : { title: payload.title, status: payload.status }),
-      });
-      const data = await readApiJson(res);
-      const saved = applyHubItemToState(data.item || data);
-      todoState.activeId = saved.id;
-      todoState.dirty = false;
-      todoState.draft = {
-        title: saved.title,
-        priority: saved.priority,
-        status: saved.status,
-        due_date: normalizeTodoDueDateRaw(saved.due_date),
-        job_slug: '',
-        assignee: '',
-        section: '',
-        contact_uid: saved.contact_uid || '',
-        contact_name: saved.contact_name || '',
-        source: 'hub',
-      };
-      refreshTodoSidebarList();
-      return true;
-    }
     if (isNew) {
       const res = await fetch('/api/todos', {
         method: 'POST',
@@ -1024,7 +918,7 @@ function renderTodoEditPane(pane, isNew) {
   sectionLabel.appendChild(sectionInput);
   fields.appendChild(sectionLabel);
 
-  if (!isHubTodo(draft) && draft.source !== 'hub') {
+  if (!isInstallPunchlistTodo(draft) && draft.source !== 'hub') {
     mountTodoProjectPicker(fields, draft, markDirty);
   }
 
@@ -1368,21 +1262,6 @@ async function persistKnowledgeOrder(slugs) {
 
 async function markTodoDone(id) {
   try {
-    const hubId = parseHubItemId(id);
-    if (hubId) {
-      const res = await fetch(`/api/admin/punchlist/${hubId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'done' }),
-      });
-      const data = await readApiJson(res);
-      applyHubItemToState(data.item || data);
-      if (String(todoState.activeId) === String(id)) {
-        todoState.draft = { ...todoState.draft, status: 'done' };
-      }
-      refreshTodoSidebarList();
-      return;
-    }
     const res = await fetch(`/api/todos/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1402,19 +1281,6 @@ async function markTodoDone(id) {
 
 async function reopenTodo(id) {
   try {
-    const hubId = parseHubItemId(id);
-    if (hubId) {
-      const res = await fetch(`/api/admin/punchlist/${hubId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'open' }),
-      });
-      const data = await readApiJson(res);
-      applyHubItemToState(data.item || data);
-      todoState.filter = 'reave';
-      refreshTodoSidebarList();
-      return;
-    }
     const res = await fetch(`/api/todos/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1430,14 +1296,13 @@ async function reopenTodo(id) {
   }
 }
 
-function todoListForId(id) {
-  return parseHubItemId(id) ? todoState.hubTodos : todoState.todos;
+function todoListForId(_id) {
+  return todoState.todos;
 }
 
 function removeTodosLocally(ids) {
   const idSet = new Set(ids.map(String));
   todoState.todos = todoState.todos.filter((t) => !idSet.has(String(t.id)));
-  todoState.hubTodos = todoState.hubTodos.filter((t) => !idSet.has(String(t.id)));
   if (todoState.activeId != null && idSet.has(String(todoState.activeId))) {
     todoState.activeId = null;
     todoState.draft = null;
@@ -1450,7 +1315,7 @@ function removeTodosLocally(ids) {
 
 function restoreTodosLocally(snapshots, { restoreActiveId = null } = {}) {
   for (const snap of snapshots) {
-    const list = isHubTodo(snap.todo) ? todoState.hubTodos : todoState.todos;
+    const list = todoState.todos;
     const have = new Set(list.map((t) => String(t.id)));
     if (have.has(String(snap.todo.id))) continue;
     list.splice(Math.min(snap.idx, list.length), 0, snap.todo);
@@ -1461,8 +1326,7 @@ function restoreTodosLocally(snapshots, { restoreActiveId = null } = {}) {
 }
 
 function deleteUrlForTodoId(id) {
-  const hubId = parseHubItemId(id);
-  return hubId ? `/api/admin/punchlist/${hubId}` : `/api/todos/${id}`;
+  return `/api/todos/${id}`;
 }
 
 async function bulkDeleteTodos(ids) {
