@@ -1,3 +1,14 @@
+<!--
+  PARKED 2026-08-27 — homepage integrations section removed from /.
+  "One platform instead of a dozen..." + replaced-apps logo marquee.
+
+  Restore:
+  1. Copy this file (minus this header) to
+     src/components/home/HomeIntegrationsSection.astro
+  2. Re-import and render it from src/pages/index.astro
+     (`homepage.showIntegrations && <HomeIntegrationsSection />`)
+  3. Set homepage.showIntegrations to true in config/sites/reave-config.json
+-->
 ---
 /**
  * Vapi-style dual marquee: two horizontal logo rows scrolling in opposite

@@ -1,9 +1,7 @@
 <!--
   PARKED 2026-08-26 — homepage integrations section snapshot. Not compiled.
-  Live section still renders on / via HomeIntegrationsSection.astro
-  ("One platform instead of a dozen..." + replaced-apps logo marquee).
-  Restore by copying this file back over src/components/home/HomeIntegrationsSection.astro
-  and dropping this header comment.
+  Removed from / on 2026-08-27. Latest snapshot:
+  src/components/home/_backup/HomeIntegrationsSection.2026-08-27.astro.bak
 -->
 ---
 /**
