@@ -248,6 +248,8 @@
       "image": "portfolio-mdot-world-featured",
       "imageAlt": "M-Dot portrait splash page with bottom music and social dock on black",
       "size": "2x1",
+      "featured": true,
+      "href": "https://mdot.world",
       "imageOrientation": "vertical"
     },
     {
