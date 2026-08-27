@@ -33,6 +33,7 @@ export async function POST(context: APIContext): Promise<Response> {
     context,
     requireRecipient: false,
     requireSubject: false,
+    requireOriginal: false,
   });
   if (!built.ok) return json({ ok: false, error: built.error }, built.status);
 
