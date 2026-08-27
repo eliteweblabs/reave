@@ -3,7 +3,6 @@ import Layout from "../layouts/Layout.astro";
 import LandingLayout from "../layouts/LandingLayout.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
 import HomeStickyCtas from "../components/home/HomeStickyCtas.astro";
-import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
 import HomeFeaturedProjectSection from "../components/home/HomeFeaturedProjectSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
@@ -52,7 +51,6 @@ const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteConten
         {homepage.showFeatures && (
           <FeaturesPageContent embedded introOnly />
         )}
-        {homepage.showIntegrations && <HomeIntegrationsSection />}
         {homepage.showFeatures && (
           <FeaturesPageContent embedded hideIntro showLogoStack={false} showAccordion={false} />
         )}
