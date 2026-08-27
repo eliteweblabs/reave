@@ -356,7 +356,13 @@
   margin: 0;
 }
 .dash-today-view-picker .sliding-pill {
-  min-width: 9.5rem;
+  min-width: 0;
+  width: max-content;
+}
+.dash-today-view-picker .sliding-pill-btn {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
 }
 .dash-events .swipe-row {
   border-radius: 10px;

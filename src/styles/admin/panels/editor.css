@@ -2677,7 +2677,7 @@ button.de-placeholder-action:active {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-pill);
   background: var(--surface-muted);
-  overflow: visible;
+  overflow: hidden;
 }
 .sliding-pill--scroll {
   overflow-x: auto;
@@ -2695,10 +2695,26 @@ button.de-placeholder-action:active {
   text-overflow: unset;
 }
 .sliding-pill-indicator {
-  display: none;
+  position: absolute;
+  top: 0.2rem;
+  bottom: 0.2rem;
+  left: 0;
+  width: 0;
+  border-radius: var(--radius-pill);
+  background: var(--mode-tab-active-bg);
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sliding-pill-indicator--static {
-  display: none;
+  transition: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sliding-pill-indicator {
+    transition: none;
+  }
 }
 .sliding-pill-btn {
   position: relative;
@@ -2722,12 +2738,12 @@ button.de-placeholder-action:active {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.12s, background 0.12s;
+  transition: color 0.18s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .sliding-pill-btn.is-active {
   color: var(--fg);
-  background: var(--mode-tab-active-bg);
+  background: transparent;
 }
 .sliding-pill-btn:hover:not(.is-active) {
   color: var(--fg);

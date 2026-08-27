@@ -1413,10 +1413,8 @@ export function createSlidingPillSelect(opts = {}) {
     }
     indicator.hidden = false;
     indicator.classList.toggle('sliding-pill-indicator--static', !animate);
-    const pillRect = pill.getBoundingClientRect();
-    const btnRect = activeBtn.getBoundingClientRect();
-    indicator.style.width = `${btnRect.width}px`;
-    indicator.style.transform = `translateX(${btnRect.left - pillRect.left}px)`;
+    indicator.style.width = `${activeBtn.offsetWidth}px`;
+    indicator.style.transform = `translateX(${activeBtn.offsetLeft}px)`;
   }
 
   function syncActive() {
