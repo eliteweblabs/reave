@@ -476,6 +476,13 @@ export function isRepoCatalogStatus(status: string): boolean {
   return DEFAULT_RULES.some((d) => d.status.toUpperCase() === key);
 }
 
+/** Stored title is the first unique phrase — same as the chip editor. */
+export function titleFromRulePhrases(phrases: readonly string[] | null | undefined, fallback = 'New rule'): string {
+  const first = (phrases || []).map((p) => String(p || '').replace(/\s+/g, ' ').trim()).find(Boolean);
+  if (!first) return fallback;
+  return first.length > 80 ? `${first.slice(0, 79)}…` : first;
+}
+
 /** Trim + lowercase unique phrases. Empty strings dropped. */
 export function normalizeRuleKeywords(phrases: readonly string[] | null | undefined): string[] {
   const out = new Set<string>();

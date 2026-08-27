@@ -13,6 +13,7 @@ import {
   isSilentTriageStatus,
   matchingCatalogDefinition,
   type EmailRule,
+  titleFromRulePhrases,
 } from '../src/lib/emailRules';
 import {
   defaultEmailFilterRuleStatus,
@@ -72,6 +73,11 @@ const googleSecurity = {
   assert.equal(lose.status, 'NEEDS_CHECK');
   assert.equal(lose.notify, true);
 }
+
+assert.equal(titleFromRulePhrases([]), 'New rule');
+assert.equal(titleFromRulePhrases(['Your package is now with its carrier!']), 'Your package is now with its carrier!');
+assert.equal(titleFromRulePhrases(['  foo  ', 'bar']), 'foo');
+assert.equal(titleFromRulePhrases(['x'.repeat(90)]).length, 80);
 
 assert.equal(isSilentTriageStatus('DELETE'), true);
 assert.equal(isSilentTriageStatus('NEEDS_CHECK'), false);

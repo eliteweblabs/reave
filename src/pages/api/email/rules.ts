@@ -19,6 +19,7 @@ import {
   coalesceRuleNotifyFields,
   normalizeEmailRuleScope,
   normalizeNotifyActions,
+  titleFromRulePhrases,
 } from '../../../lib/emailRules';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
@@ -40,10 +41,10 @@ function parsePhraseList(raw: unknown): string[] {
 }
 
 function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
-  const title = String(body.title ?? '').trim();
   const status = String(body.status ?? '').trim();
-  if (!title || !status) return null;
+  if (!status) return null;
   const phrases = parsePhraseList(body.phrases);
+  const title = String(body.title ?? '').trim() || titleFromRulePhrases(phrases);
   const exceptRaw = body.exceptPhrases !== undefined ? body.exceptPhrases : body.except_phrases;
   const exceptPhrases = parsePhraseList(exceptRaw);
   const fieldsRaw = body.fields;
@@ -135,7 +136,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const input = parseRuleInput(body);
-  if (!input) return json({ ok: false, error: 'title and status are required' }, 400);
+  if (!input) return json({ ok: false, error: 'status is required' }, 400);
 
   const result = await storeCreateEmailRule(input);
   if (!result.ok) {
