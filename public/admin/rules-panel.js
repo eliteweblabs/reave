@@ -592,6 +592,7 @@ function renderFilterChipRow({ chips, stateKey, counts, ariaLabel }) {
     btn.dataset.filter = chip.id;
     const count = counts[chip.id];
     btn.innerHTML =
+      `<span class="re-filter-check" aria-hidden="true">${on ? iosIcon('check', 9) : ''}</span>` +
       `<span class="em-filter-tab-label">${escHtml(chip.label)}</span>` +
       (count != null ? `<span class="em-filter-count">${count}</span>` : '');
     btn.addEventListener('click', () => {
