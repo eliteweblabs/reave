@@ -186,13 +186,23 @@ async function prepareFaviconMark(png: Buffer, size: number, transparent: boolea
   if (isSolidNeutralField(analysis, size * size)) return null;
 
   let mark = png;
-  // Black ink on a clear field — flip for dark favicons / avatars. Skip when
-  // the canvas is already a dark tile (flipping would wash out the background).
-  if (analysis.mostlyBlack && analysis.visible < size * size * 0.85) {
-    mark = (await adaptLogoContrast(mark, 'dark')).buffer;
+  const inkOnClearField = analysis.visible < size * size * 0.85;
+
+  if (transparent) {
+    // Header / email / print sit on a light theme canvas — keep dark ink.
+    // A mostly-white mark would vanish the same way a black mark vanishes on
+    // a dark favicon; flip that case only.
+    if (analysis.mostlyWhite && inkOnClearField) {
+      mark = (await adaptLogoContrast(mark, 'light')).buffer;
+    }
+    return punchSolidNeutralBackground(mark);
   }
 
-  if (transparent) return punchSolidNeutralBackground(mark);
+  // Black ink on a clear field — flip for dark favicons. Skip when the
+  // canvas is already a dark tile (flipping would wash out the background).
+  if (analysis.mostlyBlack && inkOnClearField) {
+    mark = (await adaptLogoContrast(mark, 'dark')).buffer;
+  }
   return compositeOnBlack(mark, size);
 }
 
