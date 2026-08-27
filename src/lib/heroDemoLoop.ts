@@ -41,10 +41,18 @@ const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
-/** Outro fade when a mock conversation ends (JS-ticked — CSS is a no-op on iOS). */
-const SCENE_EXIT_MS = 350;
-/** Delay between each bubble when the outro runs bottom → top. */
-const SCENE_EXIT_STAGGER_MS = 150;
+/** How long a single bubble takes to dissolve when a mock conversation ends. */
+const SCENE_EXIT_MS = 240;
+/**
+ * Delay between each bubble when the outro runs bottom → top. Deliberately
+ * close to the fade itself: at the old 150ms against a 350ms fade, three
+ * bubbles were always dissolving at once and the cascade read as one blink.
+ */
+const SCENE_EXIT_STAGGER_MS = 200;
+/** Long scenes tighten the step instead of dragging the outro out. */
+const SCENE_EXIT_CASCADE_MS = 1200;
+/** Matches the `--stopped` opacity transition — the lane leaves the hero as one piece. */
+const DEMO_STOP_FADE_MS = 1130;
 /** Dwell after action chips appear (all idle) before the hover scan starts. */
 const ACTION_APPEAR_MS = 700;
 /** How long each chip stays “hovered” during a random hop. */
@@ -1997,7 +2005,12 @@ function isSafariBrowser(): boolean {
   return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|FxiOS|Android/i.test(ua);
 }
 
-/** Blur reads ~2× heavier in Safari and its filter transitions snap; skip it there. */
+/**
+ * Blur reads ~2× heavier in WebKit and its filter transitions snap, so the
+ * depth pass skips it there. Every iOS browser is WebKit — including in-app
+ * WebViews, whose UA carries neither `Safari` nor `CriOS` — so `isIOSDevice`
+ * has to gate this too, not just the Safari-branded UA.
+ */
 let depthBlurEnabled = true;
 
 const STACK_INSTANT_CLASS = "home-hero-demo-stack--instant";
@@ -2423,63 +2436,95 @@ async function playActionPlaceholder(
   await wait(reducedMotion ? 400 : 650);
 }
 
+const OUTRO_KEYFRAMES = "heroDemoOutro";
+
 /**
- * Tick opacity in JS. Two CSS approaches already failed on iOS Safari:
- * inline `transition` + opacity snaps (WebKit skips interpolation when both
- * land in one frame), and `@keyframes` with `--delay` in the shorthand all
- * start together (custom-property delays are dropped). Same rAF path as the
- * signature stroke, which does run on iPhone.
+ * Dissolve `elements` one at a time, in the order given.
+ *
+ * Runs as a CSS keyframe animation with the delay written per element as an
+ * inline **longhand** in resolved milliseconds. Both earlier mechanisms broke
+ * on iOS Safari: a `--delay` custom property inside the `animation` shorthand
+ * is dropped by WebKit (so every bubble started together), and per-frame JS
+ * opacity writes are not reliably repainted for bubbles that sit inside the
+ * lane's `-webkit-mask-image`. Keyframes are handed to the compositor once, so
+ * the stagger survives.
+ *
+ * `animation-fill-mode: both` matters: the keyframes declare only the `0`
+ * end, so each bubble interpolates from whatever depth opacity the stack pass
+ * already wrote, holds it through its delay, and stays at 0 afterwards.
  */
-function tickStaggeredFade(
+function playStaggeredFade(
   elements: HTMLElement[],
   fadeMs: number,
   staggerMs: number,
 ): Promise<void> {
   if (!elements.length) return Promise.resolve();
 
-  const items = elements.map((el) => {
+  const duration = Math.max(1, Math.round(fadeMs));
+  const step = Math.max(0, Math.round(staggerMs));
+
+  elements.forEach((el, i) => {
     el.style.transition = "none";
-    el.style.animation = "none";
-    const raw = Number.parseFloat(getComputedStyle(el).opacity);
-    const from = Number.isFinite(raw) ? raw : 1;
-    el.style.opacity = String(from);
-    return { el, from };
+    el.style.animationName = OUTRO_KEYFRAMES;
+    el.style.animationDuration = `${duration}ms`;
+    el.style.animationDelay = `${i * step}ms`;
+    el.style.animationTimingFunction = "linear";
+    el.style.animationIterationCount = "1";
+    el.style.animationFillMode = "both";
+    el.style.animationPlayState = "running";
   });
 
-  const duration = Math.max(1, fadeMs);
-  const step = Math.max(0, staggerMs);
-  const total = duration + step * (items.length - 1);
-  let start = performance.now();
-  let pausedAt = 0;
+  const last = elements[elements.length - 1]!;
+  const total = duration + step * (elements.length - 1);
 
   return new Promise((resolve) => {
-    const tick = (now: number) => {
+    let settled = false;
+    let pausedTotal = 0;
+    let pausedAt = 0;
+    const start = performance.now();
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearInterval(clock);
+      last.removeEventListener("animationend", onEnd);
+      // Hold the end state even if the node outlives the scene teardown.
+      for (const el of elements) el.style.opacity = "0";
+      resolve();
+    };
+
+    const onEnd = (event: AnimationEvent) => {
+      // Typing dots, skeleton pulses and GPS rings all bubble animationend up.
+      if (event.target !== last || event.animationName !== OUTRO_KEYFRAMES) return;
+      finish();
+    };
+
+    /*
+     * Admin play/pause/next, plus a wall-clock backstop: iOS drops
+     * `animationend` when a layer is recomposited mid-flight, and the demo
+     * loop must not stall waiting for it.
+     */
+    const clock = window.setInterval(() => {
       if (demoClock.skipScene) {
-        for (const item of items) item.el.style.opacity = "0";
-        resolve();
+        finish();
         return;
       }
       if (demoClock.userPaused) {
-        if (!pausedAt) pausedAt = now;
-        requestAnimationFrame(tick);
+        if (!pausedAt) {
+          pausedAt = performance.now();
+          for (const el of elements) el.style.animationPlayState = "paused";
+        }
         return;
       }
       if (pausedAt) {
-        start += now - pausedAt;
+        pausedTotal += performance.now() - pausedAt;
         pausedAt = 0;
+        for (const el of elements) el.style.animationPlayState = "running";
       }
-      const elapsed = now - start;
-      for (let i = 0; i < items.length; i++) {
-        const local = elapsed - i * step;
-        if (local <= 0) continue;
-        const t = Math.min(1, local / duration);
-        const item = items[i]!;
-        item.el.style.opacity = String(item.from * (1 - easeOutCubic(t)));
-      }
-      if (elapsed < total) requestAnimationFrame(tick);
-      else resolve();
-    };
-    requestAnimationFrame(tick);
+      if (performance.now() - start - pausedTotal >= total + 200) finish();
+    }, 50);
+
+    last.addEventListener("animationend", onEnd);
   });
 }
 
@@ -2504,12 +2549,16 @@ async function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
   flushPaint(sceneEl);
 
   if (!messages.length) {
-    await tickStaggeredFade([sceneEl], scaleMs(SCENE_EXIT_MS), 0);
+    await playStaggeredFade([sceneEl], scaleMs(SCENE_EXIT_MS), 0);
     sceneEl.remove();
     return;
   }
 
-  await tickStaggeredFade(bottomUp, scaleMs(SCENE_EXIT_MS), scaleMs(SCENE_EXIT_STAGGER_MS));
+  const stagger = Math.min(
+    SCENE_EXIT_STAGGER_MS,
+    SCENE_EXIT_CASCADE_MS / Math.max(1, bottomUp.length - 1),
+  );
+  await playStaggeredFade(bottomUp, scaleMs(SCENE_EXIT_MS), scaleMs(stagger));
   sceneEl.remove();
 }
 
@@ -2550,8 +2599,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
     null;
   if (!viewport || !stack || !hero) return;
 
-  depthBlurEnabled = !isSafariBrowser();
-  if (!depthBlurEnabled) root.classList.add("home-hero-demo--safari");
+  depthBlurEnabled = !isSafariBrowser() && !isIOSDevice();
+  if (!depthBlurEnabled) root.classList.add("home-hero-demo--webkit");
 
   timingScale = isIOSDevice() ? TIMING_SCALE * IOS_TIMING_SCALE : TIMING_SCALE;
 
@@ -2608,7 +2657,7 @@ export function initHeroDemoLoop(root: HTMLElement) {
     window.clearTimeout(hideTimer);
     hideTimer = window.setTimeout(() => {
       root.hidden = true;
-    }, scaleMs(SCENE_EXIT_MS));
+    }, DEMO_STOP_FADE_MS);
     syncControls();
   };
 
