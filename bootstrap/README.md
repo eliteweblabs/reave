@@ -12,7 +12,7 @@ git init && git add -A && git commit -m "Initial materials-api"
 gh repo create eliteweblabs/materials-api --public --source=. --remote=origin --push
 ```
 
-See `bootstrap/materials-api/README.md` and `src/knowledge/materials-api-reference.md`.
+See `bootstrap/materials-api/README.md` and `plugins/materials/knowledge/materials-api-reference.md`.
 
 ## fleet-api
 
@@ -32,7 +32,7 @@ Railway setup:
 4. On Astro: `FLEET_API_BASE_URL=https://${{ fleet-api.RAILWAY_PUBLIC_DOMAIN }}`
 5. Enable `"fleet_tracking"` in install config
 
-See `bootstrap/fleet-api/README.md` and `src/knowledge/fleet-api-reference.md`.
+See `bootstrap/fleet-api/README.md` and `plugins/fleet/knowledge/fleet-api-reference.md`.
 
 ## kap-railway
 

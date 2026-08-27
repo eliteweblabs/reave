@@ -30,7 +30,7 @@ import {
   moduleDisplayGroupId,
 } from '../src/lib/moduleDisplayGroups.ts';
 import { parseComposeDraftResponse } from '../src/lib/composeDraft.ts';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   DEFAULT_VISIBLE_SOCIAL_PLATFORMS,
   composeSocialUrl,
@@ -241,5 +241,31 @@ assert.equal(composeSocialUrl('reave.app', bluesky), 'https://bsky.app/profile/r
 const substack = getSocialPlatform('substack');
 assert.equal(extractSocialHandle('https://acme.substack.com', substack), 'acme');
 assert.equal(composeSocialUrl('acme', substack), 'https://acme.substack.com');
+
+const registrySrc = readFileSync('src/lib/pluginRegistry.ts', 'utf8');
+const coreDefaultBlock = registrySrc.match(/export const CORE_DEFAULT_SLUGS[\s\S]*?\];/)?.[0] ?? '';
+const pluginOwnedRefs = [
+  ['paulino-wizard', 'paulino-wizard-reference'],
+  ['inventory', 'inventory-api-reference'],
+  ['materials', 'materials-api-reference'],
+  ['fleet', 'fleet-api-reference'],
+] as const;
+for (const [pluginId, slug] of pluginOwnedRefs) {
+  assert.equal(
+    coreDefaultBlock.includes(`'${slug}'`),
+    false,
+    `${slug} must live in plugins/${pluginId}/knowledge, not CORE_DEFAULT_SLUGS`,
+  );
+  assert.match(
+    registrySrc,
+    new RegExp(`case '${pluginId}':[\\s\\S]*?'${slug}'`),
+    `${slug} must be gated on plugin ${pluginId}`,
+  );
+  assert.equal(existsSync(`src/knowledge/${slug}.md`), false, `${slug} must not ship in src/knowledge`);
+  assert.ok(
+    existsSync(`plugins/${pluginId}/knowledge/${slug}.md`),
+    `${slug} must live under plugins/${pluginId}/knowledge`,
+  );
+}
 
 console.log('verify-module-groups: ok');

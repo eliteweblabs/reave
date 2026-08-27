@@ -52,7 +52,7 @@ npm run dev
 4. Set `API_KEY` (shared variable pattern)
 5. On Astro: `FLEET_API_BASE_URL=https://${{ fleet-api.RAILWAY_PUBLIC_DOMAIN }}`
 
-See `src/knowledge/fleet-api-reference.md` in the [reave](https://github.com/eliteweblabs/reave) repo.
+See `plugins/fleet/knowledge/fleet-api-reference.md` in the [reave](https://github.com/eliteweblabs/reave) repo.
 
 ## Publish to GitHub
 

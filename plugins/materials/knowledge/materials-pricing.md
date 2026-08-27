@@ -35,7 +35,7 @@ When active + configured:
 - `quote_materials` — line-item quote with quantities for Crater estimates
 - `list_materials_providers` — configured retailers and upstream status
 
-Read slug **`materials-api-reference`** in core knowledge for API details before quoting prices.
+Read slug **`materials-api-reference`** in this plugin for API details before quoting prices.
 
 ## Use cases
 

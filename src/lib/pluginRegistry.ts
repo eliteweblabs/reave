@@ -94,11 +94,11 @@ export function isPluginActive(plugin: ReavePlugin): boolean {
   return true;
 }
 
-/** Plugin-owned knowledge is visible only when the plugin is active. */
+/** Plugin-owned knowledge is visible when the module is enabled — lost when it is turned off. */
 export function isPluginKnowledgeActive(pluginId: string): boolean {
   const plugin = getPlugin(pluginId);
   if (!plugin) return false;
-  return isPluginActive(plugin);
+  return pluginFeatureEnabled(plugin);
 }
 
 export function activeAgentToolModules(): AgentToolModule[] {
@@ -111,7 +111,7 @@ export function activeAgentToolModules(): AgentToolModule[] {
 export function isKnowledgeSlugAvailable(slug: string): boolean {
   for (const plugin of REAVE_PLUGINS) {
     if (pluginKnowledgeSlugs(plugin.id).includes(slug)) {
-      return isPluginActive(plugin);
+      return isPluginKnowledgeActive(plugin.id);
     }
   }
   return true;
@@ -121,7 +121,7 @@ export function isKnowledgeSlugAvailable(slug: string): boolean {
 export function isDefaultKnowledgeSlug(slug: string): boolean {
   if (CORE_DEFAULT_SLUGS.has(slug)) return true;
   for (const plugin of REAVE_PLUGINS) {
-    if (!isPluginActive(plugin)) continue;
+    if (!isPluginKnowledgeActive(plugin.id)) continue;
     if (pluginKnowledgeSlugs(plugin.id).includes(slug)) return true;
   }
   return false;
@@ -131,9 +131,6 @@ export function isDefaultKnowledgeSlug(slug: string): boolean {
 export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'contact-api-reference',
   'git-workflow',
-  'materials-api-reference',
-  'inventory-api-reference',
-  'paulino-wizard-reference',
   'contact-import',
   'email-rules',
   'siri-examples',
@@ -165,17 +162,17 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'uptime-monitoring':
       return ['uptime-monitoring'];
     case 'fleet':
-      return ['fleet-tracking'];
+      return ['fleet-tracking', 'fleet-api-reference'];
     case 'paulino-wizard':
-      return ['paulino-wizard'];
+      return ['paulino-wizard', 'paulino-wizard-reference'];
     case 'demo':
       return ['demo-setup'];
     case 'real-estate-data':
       return ['real-estate-data'];
     case 'inventory':
-      return ['inventory-sync'];
+      return ['inventory-sync', 'inventory-api-reference'];
     case 'materials':
-      return ['materials-pricing'];
+      return ['materials-pricing', 'materials-api-reference'];
     case 'online-reviews':
       return ['online-reviews'];
     case 'social-inbox':
@@ -196,8 +193,6 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['inquiry-website-audit', 'inquiry-website-audit-quick', 'cloudflare-dns'];
     case 'analytic-audit':
       return ['analytic-audit'];
-    case 'clerk-auth':
-      return ['clerk-setup-paulino'];
     case 'cookie-notice':
       return ['cookie-notice'];
     case 'deploy-wizard':

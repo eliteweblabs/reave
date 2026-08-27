@@ -34,7 +34,7 @@ When active + configured:
 - `get_inventory_product` — single item by platform + external id
 - `list_inventory_channels` — configured platforms
 
-Read slug **`inventory-api-reference`** in core knowledge for API details before quoting stock.
+Read slug **`inventory-api-reference`** in this plugin for API details before quoting stock.
 
 ## Use cases
 

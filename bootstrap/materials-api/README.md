@@ -108,4 +108,4 @@ curl -X POST http://localhost:8080/api/search -H 'Content-Type: application/json
 
 ## Reave consumer
 
-See `src/knowledge/materials-api-reference.md` in the [reave](https://github.com/eliteweblabs/reave) repo for env vars and client usage.
+See `plugins/materials/knowledge/materials-api-reference.md` in the [reave](https://github.com/eliteweblabs/reave) repo for env vars and client usage.

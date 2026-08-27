@@ -35,9 +35,10 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `analytic-audit/` | `analytic_audit` | Search Console / GA4 / Plausible / IndexNow | yes |
 | `site-monitoring/` | `site_monitoring` | — | yes |
 | `uptime-monitoring/` | `uptime_monitoring` | `uptime-monitoring.md` | yes |
-| `fleet/` | `fleet_tracking` | `fleet-tracking.md` | yes |
-| `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md` | yes |
-| `inventory/` | `inventory_sync` | `inventory-sync.md` | yes |
+| `fleet/` | `fleet_tracking` | `fleet-tracking.md`, `fleet-api-reference.md` | yes |
+| `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md`, `paulino-wizard-reference.md` | yes |
+| `inventory/` | `inventory_sync` | `inventory-sync.md`, `inventory-api-reference.md` | yes |
+| `materials/` | `materials_pricing` | `materials-pricing.md`, `materials-api-reference.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |
 | `website/` | `website` | `website.md` | — client website pack (bundles editor + stock photos; no hosting APIs) |
 | `content-management/` | `content_management` | `content-management.md`, `github-dev-tools.md` | yes — Git publish to a locked per-install website repo (Agentic Website Editor) |
