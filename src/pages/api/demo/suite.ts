@@ -3,6 +3,7 @@
  * POST /api/demo/suite — store demo suite in cookie and return redirect target
  */
 import type { APIContext } from 'astro';
+import { checkDemoLoaderCatalogRateLimit } from '../../../lib/demoLaunch';
 import { demoModuleIdForFeature } from '../../../lib/demoModuleCatalog';
 import {
   DEMO_SUITE_COOKIE,
@@ -16,10 +17,14 @@ import {
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
+function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
+      ...(extraHeaders || {}),
+    },
   });
 }
 
@@ -54,6 +59,13 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
+  const rate = checkDemoLoaderCatalogRateLimit(context.request);
+  if (!rate.ok) {
+    return json({ error: 'Too many requests' }, 429, {
+      'Retry-After': String(rate.retryAfterSeconds),
+    });
+  }
+
   const url = new URL(context.request.url);
   let parsed = parseDemoSuiteFromSearchParams(url.searchParams);
 

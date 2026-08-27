@@ -37,5 +37,6 @@ const company = await getCompanyConfig(Astro.request);
     </div>
   </div>
 
+  <script is:inline src={`/module-loader-shared.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
   <script is:inline src={`/demo-loader.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
 </Layout>

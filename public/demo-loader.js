@@ -6,14 +6,9 @@
  *   data-toggles="false" — browse-only catalog; no switches, no launch form
  */
 (function () {
-  const STATUS = {
-    deployed: { label: 'Deployed', tone: 'live' },
-    development: { label: 'Development', tone: 'deploying' },
-    request: { label: 'Requested', tone: 'alert' },
-    rejected: { label: 'Rejected', tone: 'alert' },
-  };
+  const { MODULE_STATUS: STATUS, escHtml: esc } = window.ModuleLoaderShared;
 
-  let modules = [];
+  /** Browse catalog only — never render switches or the demo request form. */
   let sections = [];
   let included = [];
   let industries = [];
@@ -33,13 +28,7 @@
   /** Browse catalog only — never render switches or the demo request form. */
   const togglesEnabled = root.dataset.toggles !== 'false';
 
-  function esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
+  let modules = [];
 
   function toggleableModules() {
     return modules.filter((m) => m.toggleable && m.moduleId);

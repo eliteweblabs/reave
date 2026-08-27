@@ -2,19 +2,14 @@
  * Owner deploy wizard — demo-loader tile grid, then Railway reference plan.
  */
 (function () {
+  const { MODULE_STATUS: STATUS, escHtml: esc } = window.ModuleLoaderShared;
+
   const STEPS = [
     { id: 'modules', label: 'Modules' },
     { id: 'services', label: 'Services' },
     { id: 'variables', label: 'Variables' },
     { id: 'review', label: 'Review' },
   ];
-
-  const STATUS = {
-    deployed: { label: 'Deployed', tone: 'live' },
-    development: { label: 'Development', tone: 'deploying' },
-    request: { label: 'Requested', tone: 'alert' },
-    rejected: { label: 'Rejected', tone: 'alert' },
-  };
 
   const KIND_LABEL = {
     reference: 'Reference',
@@ -150,14 +145,6 @@
 
   const root = document.getElementById('deploy-wizard-app');
   if (!root) return;
-
-  function esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
 
   function renderMulti(id, rows, selected) {
     const chosen = new Set((selected || []).map((v) => String(v).toLowerCase()));

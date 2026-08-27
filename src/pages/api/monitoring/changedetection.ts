@@ -59,4 +59,4 @@ export const POST: APIRoute = async ({ request, url }) => {
   return json({ ok: true, ...result });
 };
 
-export const GET: APIRoute = async () => json({ ok: true, endpoint: 'changedetection webhook' });
+export const GET: APIRoute = async () => new Response('Not found', { status: 404 });

@@ -8,6 +8,10 @@ import {
   normalizeOAuthCode,
   tokenFieldsFromBody,
 } from '../src/lib/social/oauth.ts';
+import {
+  createMetaSignedRequestForTest,
+  verifyMetaSignedRequest,
+} from '../src/lib/social/metaSignedRequest.ts';
 
 const ig = OAUTH_CONFIGS.instagram;
 assert.ok(ig);
@@ -32,5 +36,17 @@ assert.equal(nested.permissions, 'instagram_business_basic');
 
 const flat = tokenFieldsFromBody({ access_token: 'flat', expires_in: 3600 });
 assert.equal(flat.access_token, 'flat');
+
+const secret = 'test-instagram-app-secret';
+const signed = createMetaSignedRequestForTest(
+  { algorithm: 'HMAC-SHA256', user_id: '12345', issued_at: 1_700_000_000 },
+  secret,
+);
+const verified = verifyMetaSignedRequest(signed, secret);
+assert.equal(verified.ok, true);
+if (verified.ok) assert.equal(verified.payload.user_id, '12345');
+
+const bad = verifyMetaSignedRequest(signed, 'wrong-secret');
+assert.equal(bad.ok, false);
 
 console.log('verify-social-oauth: ok');

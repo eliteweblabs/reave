@@ -174,12 +174,7 @@ async function handleCallHangup(payload: TelnyxCallPayload): Promise<void> {
 
 // ─── Webhook route ─────────────────────────────────────────────────────────
 
-export const GET: APIRoute = async () => {
-  return new Response(
-    JSON.stringify({ status: 'ok', message: 'Voice webhook endpoint is running' }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } },
-  );
-};
+export const GET: APIRoute = async () => new Response('Not found', { status: 404 });
 
 export const POST: APIRoute = async ({ request }) => {
   // Respond 200 immediately so Telnyx doesn't retry; process the event async.

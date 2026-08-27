@@ -6,10 +6,14 @@
  */
 import type { APIContext } from 'astro';
 import { deleteSocialToken } from '../../../../../lib/social/tokenStore.ts';
+import { authorizeInstagramMetaCallback } from '../../../../../lib/social/metaSignedRequest.ts';
 
 export const prerender = false;
 
-export async function POST(_context: APIContext): Promise<Response> {
+export async function POST(context: APIContext): Promise<Response> {
+  const authError = await authorizeInstagramMetaCallback(context.request);
+  if (authError) return authError;
+
   try {
     await deleteSocialToken('instagram');
   } catch (e) {
@@ -22,7 +26,5 @@ export async function POST(_context: APIContext): Promise<Response> {
 }
 
 export async function GET(): Promise<Response> {
-  return new Response(JSON.stringify({ ok: true, service: 'instagram-deauthorize' }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+  return new Response('Not found', { status: 404 });
 }

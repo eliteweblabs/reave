@@ -3,6 +3,8 @@
  * Keeps the native <select> in sync for autosave; renders a filterable dropdown.
  */
 
+import { escHtml } from './shared.js';
+
 const MAX_VISIBLE = 60;
 
 function normalizeQuery(raw) {
@@ -35,19 +37,8 @@ function syncNativeSelect(select, entry) {
     select.innerHTML = '';
     return;
   }
-  select.innerHTML = `<option value="${escapeAttr(entry.id)}" selected>${escapeHtml(entry.label)}</option>`;
+  select.innerHTML = `<option value="${escHtml(entry.id)}" selected>${escHtml(entry.label)}</option>`;
   select.value = entry.id;
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escapeAttr(value) {
-  return escapeHtml(value);
 }
 
 /**
