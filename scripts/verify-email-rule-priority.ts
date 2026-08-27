@@ -24,6 +24,8 @@ import {
 import {
   applyRepoCatalog,
   normalizeEmailRuleSortOrder,
+  parseEmailRuleInput,
+  sanitizeEmailRuleInput,
   sortOrderForNewRule,
   type EmailRuleRecord,
   type EmailRulesConfig,
@@ -78,6 +80,57 @@ assert.equal(titleFromRulePhrases([]), 'New rule');
 assert.equal(titleFromRulePhrases(['Your package is now with its carrier!']), 'Your package is now with its carrier!');
 assert.equal(titleFromRulePhrases(['  foo  ', 'bar']), 'foo');
 assert.equal(titleFromRulePhrases(['x'.repeat(90)]).length, 80);
+
+// Autosave sends JSON null for an empty Forward-to field. That used to become
+// the string "null" and fail as "Invalid rule" when flipping Archive → Delete.
+{
+  const parsed = parseEmailRuleInput({
+    title: 'Square receipts',
+    status: 'DELETE',
+    phrases: ['squareup.com'],
+    fields: ['from'],
+    matchMode: 'any',
+    notify: false,
+    notifyPush: false,
+    notifyDashboard: false,
+    notifyActions: [],
+    enabled: true,
+    forwardTo: null,
+    createProject: false,
+    expiresAt: null,
+  });
+  assert.ok(parsed);
+  assert.equal(parsed.forwardTo, null);
+  const clean = sanitizeEmailRuleInput(parsed);
+  assert.equal(clean.ok, true);
+  if (clean.ok) {
+    assert.equal(clean.value.status, 'DELETE');
+    assert.equal(clean.value.forwardTo, null);
+  }
+
+  const archiveToDelete = parseEmailRuleInput({
+    title: 'noreply@messaging.squareup.com',
+    status: 'AUTO_ARCHIVED',
+    phrases: ['noreply@messaging.squareup.com'],
+    fields: ['from'],
+    forwardTo: null,
+    expiresAt: null,
+  });
+  assert.ok(archiveToDelete);
+  const flipped = sanitizeEmailRuleInput({ ...archiveToDelete, status: 'DELETE' });
+  assert.equal(flipped.ok, true);
+
+  const badForward = parseEmailRuleInput({
+    title: 'x',
+    status: 'AUTO_ARCHIVED',
+    phrases: ['foo'],
+    forwardTo: 'not-an-email',
+  });
+  assert.ok(badForward);
+  const rejected = sanitizeEmailRuleInput(badForward);
+  assert.equal(rejected.ok, false);
+  if (!rejected.ok) assert.match(rejected.error, /forward/i);
+}
 
 assert.equal(isSilentTriageStatus('DELETE'), true);
 assert.equal(isSilentTriageStatus('NEEDS_CHECK'), false);
