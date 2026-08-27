@@ -52,7 +52,7 @@ export function normalizeEmailBody(text?: string, html?: string, max = MAX_STORE
 }
 
 function stripScriptTags(html: string): string {
-  return sanitizeEmailHtml(html);
+  return sanitizeEmailHtml(html, { keepStyles: true });
 }
 
 /**
@@ -93,7 +93,7 @@ export function normalizeEmailHtml(
   let raw = (html ?? '').trim();
   if (!raw && text?.trim() && looksLikeHtml(text)) raw = text.trim();
   if (!raw) return '';
-  raw = sanitizeEmailHtml(raw, opts);
+  raw = sanitizeEmailHtml(raw, { keepStyles: true, ...opts });
   if (raw.length > max) return `${raw.slice(0, max)}\n<!-- truncated -->`;
   return raw;
 }
@@ -101,6 +101,11 @@ export function normalizeEmailHtml(
 /** Store outbound HTML we authored — keep inline styles for the sent preview. */
 export function normalizeSentEmailHtml(text?: string, html?: string, max = MAX_STORED_EMAIL_HTML): string {
   return normalizeEmailHtml(text, html, max, { keepStyles: true });
+}
+
+/** True when stored HTML still has author inline styles (not stripped on ingest). */
+export function emailHtmlHasInlineStyles(html?: string): boolean {
+  return /\bstyle\s*=/i.test(String(html || ''));
 }
 
 /** HTML to render in the inbox detail view (stored html, or legacy html-in-text fallback). */

@@ -14,10 +14,15 @@ import {
 import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
 import { patchForMarkJunk } from '../../../../lib/emailJunkNotifyInvariant';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
-import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
+import {
+  emailHtmlHasInlineStyles,
+  normalizeEmailHtml,
+  plainTextForDisplay,
+  resolveEmailHtmlForDisplay,
+} from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
 import { parseEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../lib/emailUnsubscribe';
-import { fetchResendInboundEmailHeaders } from '../../../../lib/resendInboundEmail';
+import { fetchResendInboundEmail } from '../../../../lib/resendInboundEmail';
 import { unlinkProjectItem } from '../../../../lib/projectLinks';
 import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
 import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
@@ -116,9 +121,15 @@ export async function GET(context: APIContext): Promise<Response> {
     envelopeTo.length > 0 &&
     envelopeTo.every((addr) => isGenericInboundMailbox(addr)) &&
     !hasOriginalRecipientHeaders(headers);
-  if ((!hasListUnsubscribeHeader(headers) || needsOriginalTo) && event.resendEmailId) {
-    const fresh = await fetchResendInboundEmailHeaders(event.resendEmailId);
-    if (Object.keys(fresh).length) headers = { ...headers, ...fresh };
+  let bodyHtml = event.bodyHtml;
+  const needsHeaders = !hasListUnsubscribeHeader(headers) || needsOriginalTo;
+  const needsHtmlStyles = Boolean(event.resendEmailId) && !emailHtmlHasInlineStyles(bodyHtml);
+  if ((needsHeaders || needsHtmlStyles) && event.resendEmailId) {
+    const fresh = await fetchResendInboundEmail(event.resendEmailId);
+    if (Object.keys(fresh.headers).length) headers = { ...headers, ...fresh.headers };
+    if (needsHtmlStyles && fresh.html?.trim()) {
+      bodyHtml = normalizeEmailHtml('', fresh.html);
+    }
   }
 
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
@@ -142,7 +153,7 @@ export async function GET(context: APIContext): Promise<Response> {
       toDisplay,
       matchedRuleId: matchedRule?.ruleId ?? null,
       matchedRuleTitle: matchedRule?.ruleTitle ?? null,
-      bodyHtml: resolveEmailHtmlForDisplay(event.bodyHtml, event.bodyText),
+      bodyHtml: resolveEmailHtmlForDisplay(bodyHtml, event.bodyText),
       bodyText: plainTextForDisplay(event.bodyText),
       bodySnippet: plainTextForDisplay(event.bodySnippet),
       summary: event.summary ? plainTextForDisplay(event.summary) : event.summary,

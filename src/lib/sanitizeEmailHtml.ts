@@ -40,10 +40,22 @@ function isUnsafeUrl(value: string): boolean {
   );
 }
 
+function isUnsafeCss(value: string): boolean {
+  const v = value.replace(/\s+/g, '').toLowerCase();
+  return (
+    v.includes('javascript:') ||
+    v.includes('vbscript:') ||
+    v.includes('expression(') ||
+    v.includes('behavior:') ||
+    v.includes('-moz-binding')
+  );
+}
+
 /** Sanitize inbound/stored email HTML for safe inbox rendering. */
 export function sanitizeEmailHtml(html: string, opts?: { keepStyles?: boolean }): string {
   const trimmed = html.trim();
   if (!trimmed) return '';
+  const keepStyles = opts?.keepStyles !== false;
 
   const $ = load(trimmed, null, false);
 
@@ -62,8 +74,14 @@ export function sanitizeEmailHtml(html: string, opts?: { keepStyles?: boolean })
     if (!attribs) return;
     for (const [name, value] of Object.entries(attribs)) {
       const lower = name.toLowerCase();
-      if (lower.startsWith('on') || (lower === 'style' && !opts?.keepStyles)) {
+      if (lower.startsWith('on')) {
         $(rawEl).removeAttr(name);
+        continue;
+      }
+      if (lower === 'style') {
+        if (!keepStyles || (typeof value === 'string' && isUnsafeCss(value))) {
+          $(rawEl).removeAttr(name);
+        }
         continue;
       }
       if (URL_ATTRS.has(lower) && typeof value === 'string' && isUnsafeUrl(value)) {

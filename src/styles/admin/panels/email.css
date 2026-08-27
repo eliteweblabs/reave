@@ -1075,10 +1075,9 @@
   flex-direction: column;
   gap: 0.45rem;
   margin: 0 0 0.75rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 10px;
-  border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
-  background: rgba(124, 92, 252, 0.08);
+  padding: 0;
+  border: 0;
+  background: none;
 }
 .em-lab-bar-hint {
   margin: 0;

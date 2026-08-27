@@ -16080,7 +16080,7 @@ function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-la
     });
   }
   const createBtn = bar.querySelector('[data-email-lab-create]');
-  if (createBtn) createBtn.disabled = emailState.labPhrases.length === 0 || emailState.labCreating;
+  if (createBtn) createBtn.disabled = emailState.labCreating;
 }
 
 function enableEmailLabSelectionStyles(doc) {
@@ -16259,7 +16259,6 @@ function renderEmailLabBar() {
   createBtn.className = 'de-btn de-btn-primary';
   createBtn.dataset.emailLabCreate = '1';
   createBtn.textContent = 'Create Rule';
-  createBtn.disabled = true;
   createBtn.addEventListener('click', () => void createRuleFromEmailLab());
   const doneBtn = document.createElement('button');
   doneBtn.type = 'button';
@@ -16323,12 +16322,12 @@ function createEmailLabBtn(ev) {
 }
 
 async function createRuleFromEmailLab() {
+  if (emailState.labCreating) return;
+  captureAllLabSelections();
   const labId = emailState.labEmailId;
   const ev =
     emailState.allEvents.find((e) => String(e.id) === String(labId)) ||
     emailState.allEvents.find((e) => String(e.id) === String(emailState.activeId));
-  const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
-  if (!phrases.length || emailState.labCreating) return;
   if (!ev) {
     await osAlert({
       title: 'Could not create rule',
@@ -16336,6 +16335,12 @@ async function createRuleFromEmailLab() {
     });
     return;
   }
+  if (!emailState.labPhrases.length) {
+    const subject = String(ev.subject || '').trim();
+    if (subject) addEmailLabPhrase(subject, 'subject');
+  }
+  const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
+  const titleSource = phrases[0] || String(ev.subject || '').trim() || 'New rule';
   const fields = [...new Set(emailState.labPhrases.map((p) => p.field))];
   emailState.labCreating = true;
   refreshEmailLabBar();
@@ -16346,7 +16351,7 @@ async function createRuleFromEmailLab() {
   }
   try {
     const rule = await startNewRule({
-      title: phrases[0].length > 48 ? `${phrases[0].slice(0, 47)}…` : phrases[0],
+      title: titleSource.length > 48 ? `${titleSource.slice(0, 47)}…` : titleSource,
       status: 'DELETE',
       scope: 'personal',
       description: '',
