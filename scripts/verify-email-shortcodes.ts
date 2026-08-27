@@ -3,6 +3,7 @@
  * Run: npm run check:email-shortcodes
  */
 import assert from 'node:assert/strict';
+import { rewriteComposeHtmlForPreview } from '../src/lib/emailComposeImages.ts';
 import {
   hasEmailShortcodes,
   parseEmailShortcodes,
@@ -50,5 +51,12 @@ assert.equal(mixed.blocks[2].type, 'p');
 
 const rejected = parseEmailShortcodes('[button title="Nope" href="javascript:alert(1)"/]');
 assert.deepEqual(rejected.blocks, [{ type: 'p', text: 'Nope', align: 'left' }]);
+
+assert.equal(
+  rewriteComposeHtmlForPreview('<img src="cid:compose-img-0" alt="Pic">', [
+    { filename: 'pic.png', content: 'abc123', contentId: 'compose-img-0', contentType: 'image/png' },
+  ]),
+  '<img src="data:image/png;base64,abc123" alt="Pic">',
+);
 
 console.log('verify-email-shortcodes: ok');

@@ -15124,6 +15124,76 @@ function emailSendPayloadFromSnapshot(snap) {
   return payload;
 }
 
+function setEmailComposePreviewing(form, previewing) {
+  if (!(form instanceof HTMLElement)) return;
+  form.classList.toggle('em-compose--previewing', previewing);
+  const previewBtn = form.querySelector('.em-compose-preview');
+  if (previewBtn instanceof HTMLButtonElement) {
+    previewBtn.setAttribute('aria-pressed', previewing ? 'true' : 'false');
+    previewBtn.setAttribute('aria-label', previewing ? 'Back to edit' : 'Preview');
+    previewBtn.title = previewing ? 'Back to edit' : 'Preview';
+    previewBtn.innerHTML = (previewing ? IOS_ICONS['eye-off'] : IOS_ICONS.eye) || '';
+  }
+}
+
+function hideEmailComposePreview(form) {
+  const pane = form?.querySelector('.em-compose-preview-pane');
+  const frame = pane?.querySelector('.em-compose-preview-frame');
+  if (frame instanceof HTMLIFrameElement) frame.removeAttribute('srcdoc');
+  if (pane instanceof HTMLElement) pane.hidden = true;
+  setEmailComposePreviewing(form, false);
+}
+
+async function toggleEmailComposePreview(form, previewBtn) {
+  if (!(form instanceof HTMLElement) || emailState.sending) return;
+  if (form.classList.contains('em-compose--previewing')) {
+    hideEmailComposePreview(form);
+    return;
+  }
+  syncComposeFromDom();
+  const bodyTrim = String(emailState.compose.body || '').trim();
+  const images = normalizeEmailComposeImages(emailState.compose.images);
+  if (!bodyTrim && !images.length) {
+    await osAlert({
+      title: 'Nothing to preview',
+      bodyHtml: '<p>Write a message or attach an image first.</p>',
+    });
+    return;
+  }
+  if (previewBtn instanceof HTMLButtonElement) previewBtn.disabled = true;
+  try {
+    const res = await adminFetch('/api/email/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(emailSendPayloadFromSnapshot(snapshotActiveEmailCompose())),
+    });
+    const data = await readAdminJson(res, 'Email preview');
+    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const html = String(data.html || '').trim();
+    if (!html) throw new Error('Preview did not return HTML.');
+    const pane = form.querySelector('.em-compose-preview-pane');
+    const frame = pane?.querySelector('.em-compose-preview-frame');
+    const meta = pane?.querySelector('.em-compose-preview-meta');
+    const subject = String(emailState.compose.subject || data.subject || '').trim();
+    if (meta) {
+      meta.textContent = '';
+      const label = document.createElement('strong');
+      label.textContent = 'Subject';
+      meta.appendChild(label);
+      meta.appendChild(document.createTextNode(subject || '(no subject)'));
+    }
+    if (frame instanceof HTMLIFrameElement) frame.srcdoc = html;
+    if (pane instanceof HTMLElement) pane.hidden = false;
+    setEmailComposePreviewing(form, true);
+  } catch (e) {
+    if (e instanceof Error && e.message === 'Session expired') return;
+    hideEmailComposePreview(form);
+    await osAlert({ title: 'Could not preview email', bodyHtml: escHtml(e.message) });
+  } finally {
+    if (previewBtn instanceof HTMLButtonElement && !emailState.sending) previewBtn.disabled = false;
+  }
+}
+
 async function revealSentEmailAfterSend(resendId, replyId) {
   if (emailState.composing || MAP?.type !== 'email') return;
   if (replyId) {
@@ -15527,8 +15597,31 @@ function renderEmailComposePane(pane) {
     '[center][button title="Open" href="https://example.com"/][/center]';
   hint.appendChild(shortHint);
 
+  const previewPane = document.createElement('div');
+  previewPane.className = 'em-compose-preview-pane';
+  previewPane.hidden = true;
+  const previewMeta = document.createElement('p');
+  previewMeta.className = 'em-compose-preview-meta';
+  const previewFrame = document.createElement('iframe');
+  previewFrame.className = 'em-compose-preview-frame';
+  previewFrame.sandbox = 'allow-popups allow-popups-to-escape-sandbox';
+  previewFrame.title = 'Email preview';
+  previewPane.appendChild(previewMeta);
+  previewPane.appendChild(previewFrame);
+
   const actions = document.createElement('div');
   actions.className = 'em-compose-actions';
+  const previewBtn = document.createElement('button');
+  previewBtn.type = 'button';
+  previewBtn.className = 'em-compose-preview';
+  previewBtn.setAttribute('aria-label', 'Preview');
+  previewBtn.setAttribute('aria-pressed', 'false');
+  previewBtn.title = 'Preview';
+  previewBtn.innerHTML = IOS_ICONS.eye || '';
+  previewBtn.disabled = emailState.sending;
+  previewBtn.addEventListener('click', () => {
+    void toggleEmailComposePreview(form, previewBtn);
+  });
   const sendBtn = document.createElement('button');
   sendBtn.type = 'button';
   sendBtn.className = 'em-compose-send';
@@ -15541,12 +15634,14 @@ function renderEmailComposePane(pane) {
     void sendEmailCompose();
   });
 
+  actions.appendChild(previewBtn);
   actions.appendChild(sendBtn);
   form.appendChild(toField);
   form.appendChild(ccField);
   form.appendChild(subjectField);
   form.appendChild(bodyField);
   form.appendChild(hint);
+  form.appendChild(previewPane);
   form.appendChild(actions);
   pane.appendChild(form);
 }

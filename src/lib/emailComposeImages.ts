@@ -99,3 +99,16 @@ export async function resolveComposeImagesForSend(raw: unknown): Promise<{
 
   return { images, attachments, inline };
 }
+
+/** Swap cid: refs for data URLs so a srcdoc preview can show attached images. */
+export function rewriteComposeHtmlForPreview(html: string, attachments: EmailSendAttachment[]): string {
+  let out = html;
+  for (const attachment of attachments) {
+    const cid = attachment.contentId?.trim();
+    const content = attachment.content?.trim();
+    if (!cid || !content) continue;
+    const type = attachment.contentType || 'image/png';
+    out = out.split(`cid:${cid}`).join(`data:${type};base64,${content}`);
+  }
+  return out;
+}

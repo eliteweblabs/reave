@@ -3,18 +3,11 @@
  */
 
 import type { APIContext } from 'astro';
-import { resolveComposeImagesForSend } from '../../../lib/emailComposeImages';
+import { buildAdminComposeEmail } from '../../../lib/adminComposeEmail';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../lib/emailInboxStore';
-import { buildReplyEmailHeaders, formatQuotedReplyHtml, splitQuotedReplyBody } from '../../../lib/emailReply';
-import { brandedPlainTextEmail } from '../../../lib/inboundEmailReply';
 import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
-import {
-  appendSignatureToHtmlFragment,
-  appendSignatureToPlainText,
-  getUserEmailSignature,
-} from '../../../lib/userEmailSignature';
 
 export const prerender = false;
 
@@ -41,122 +34,42 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const normalizeList = (raw: unknown): string[] => {
-    if (Array.isArray(raw)) {
-      return raw.map((v) => String(v).trim()).filter(Boolean);
-    }
-    return String(raw ?? '')
-      .split(/[,;]+/)
-      .map((v) => v.trim())
-      .filter(Boolean);
-  };
-
-  const to = normalizeList(body.to);
-  const subject = String(body.subject ?? '').trim();
-  const html = String(body.html ?? '').trim() || undefined;
-  const text = String(body.text ?? body.body ?? '').trim();
-  const from = String(body.from ?? '').trim() || undefined;
-  const cc = body.cc;
-  const bcc = body.bcc;
-  const inReplyToEmailId = String(body.inReplyToEmailId ?? body.in_reply_to_email_id ?? '').trim() || null;
-
-  let composeImages: Awaited<ReturnType<typeof resolveComposeImagesForSend>>;
-  try {
-    composeImages = await resolveComposeImagesForSend(body.images);
-  } catch (e) {
-    return json(
-      { ok: false, success: false, error: e instanceof Error ? e.message : 'Could not load images' },
-      400,
-    );
-  }
-
-  if (!to.length) return json({ ok: false, success: false, error: 'Recipient (to) is required' }, 400);
-  if (!subject) return json({ ok: false, success: false, error: 'Subject is required' }, 400);
-  if (!text && !html && !composeImages.inline.length) {
-    return json({ ok: false, success: false, error: 'Message body is required' }, 400);
-  }
-
-  let jobSlug = String(body.jobSlug ?? body.job_slug ?? '').trim() || null;
-  let contactUid = String(body.contactUid ?? body.contact_uid ?? '').trim() || null;
-  let replyHeaders: Record<string, string> | undefined;
-  let inbound: Awaited<ReturnType<typeof storeGetEmailInbox>> = null;
-
-  if (inReplyToEmailId) {
-    inbound = await storeGetEmailInbox(inReplyToEmailId);
-    if (!inbound) {
-      return json({ ok: false, success: false, error: 'Original message not found' }, 404);
-    }
-    replyHeaders = buildReplyEmailHeaders(inbound);
-    jobSlug = jobSlug || inbound.jobSlug || null;
-    contactUid = contactUid || inbound.contactUid || null;
-  }
-
-  let sendText = text || html || '';
-  let sendHtml = html;
-  const signature = await getUserEmailSignature(userId, context);
-
-  if ((!sendHtml && sendText && !/<[a-z][\s\S]*>/i.test(sendText)) || composeImages.inline.length) {
-    const primaryTo = to[0] || '';
-    let firstName =
-      inbound?.contactName?.trim().split(/\s+/)[0] ||
-      primaryTo.split('@')[0] ||
-      'there';
-    const { quote } = splitQuotedReplyBody(sendText);
-    const quotedHtml =
-      quote && inbound
-        ? formatQuotedReplyHtml({
-            from: inbound.from,
-            receivedAt: inbound.receivedAt,
-            bodyHtml: inbound.bodyHtml,
-            bodyText: inbound.bodyText,
-          })
-        : undefined;
-    const wrapped = await brandedPlainTextEmail({
-      firstName,
-      body: sendText,
-      signature,
-      quotedHtml,
-      inlineImages: composeImages.inline,
-    });
-    sendText = wrapped.text;
-    sendHtml = wrapped.html;
-  } else {
-    sendText = appendSignatureToPlainText(sendText, signature);
-    if (sendHtml) sendHtml = appendSignatureToHtmlFragment(sendHtml, signature);
-  }
+  const built = await buildAdminComposeEmail(body, { userId, context });
+  if (!built.ok) return json({ ok: false, success: false, error: built.error }, built.status);
+  const mail = built.mail;
 
   const result = await sendEmail({
-    to,
-    subject,
-    text: sendText,
-    html: sendHtml,
-    cc: typeof cc === 'string' || Array.isArray(cc) ? cc : undefined,
-    bcc: typeof bcc === 'string' || Array.isArray(bcc) ? bcc : undefined,
-    from,
-    headers: replyHeaders,
-    attachments: composeImages.attachments,
+    to: mail.to,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+    cc: mail.cc,
+    bcc: mail.bcc,
+    from: mail.from,
+    headers: mail.headers,
+    attachments: mail.attachments,
   });
   if (!result.ok) return json({ ok: false, success: false, error: result.error }, 502);
 
-  for (const toEmail of to) {
+  for (const toEmail of mail.to) {
     void logOutboundEmailForProject({
       toEmail,
-      subject,
+      subject: mail.subject,
       resendId: result.id,
       sentBy: userId,
-      source: inReplyToEmailId ? 'admin_reply' : 'admin_compose',
-      jobSlug,
-      contactUid,
-      bodyText: sendText,
-      bodyHtml: sendHtml ?? null,
+      source: mail.inReplyToEmailId ? 'admin_reply' : 'admin_compose',
+      jobSlug: mail.jobSlug,
+      contactUid: mail.contactUid,
+      bodyText: mail.text,
+      bodyHtml: mail.html ?? null,
     });
   }
 
   let routed = false;
-  if (inReplyToEmailId) {
-    const existing = await storeGetEmailInbox(inReplyToEmailId);
+  if (mail.inReplyToEmailId) {
+    const existing = await storeGetEmailInbox(mail.inReplyToEmailId);
     if (existing) {
-      const updated = await storeUpdateEmailInbox(inReplyToEmailId, {
+      const updated = await storeUpdateEmailInbox(mail.inReplyToEmailId, {
         action: 'filed',
         status: 'FILED',
         ...(existing.category === 'review' ? { category: 'internal' } : {}),
@@ -165,5 +78,11 @@ export async function POST(context: APIContext): Promise<Response> {
     }
   }
 
-  return json({ ok: true, success: true, id: result.id, routed, inReplyToEmailId });
+  return json({
+    ok: true,
+    success: true,
+    id: result.id,
+    routed,
+    inReplyToEmailId: mail.inReplyToEmailId,
+  });
 }
