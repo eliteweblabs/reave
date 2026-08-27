@@ -190,8 +190,7 @@ html {
   .home-scroll .home-dialogue,
   .home-scroll .home-section[data-home-section="contact"],
   .home-scroll .fx-page--tour .fx-examples,
-  .home-scroll .fx-page--tour .fx-custom,
-  .home-scroll .fx-page--tour .fx-closing {
+  .home-scroll .fx-page--tour .fx-custom {
     box-sizing: border-box;
     display: flex;
     flex-direction: column;

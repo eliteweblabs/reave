@@ -2,7 +2,7 @@
 /**
  * Homepage hero CTAs — full-bleed dock outside .home-scroll.
  * Sibling of .home-scroll — .home-hero is isolation:isolate and would trap
- * position:fixed. Hide at #contact.
+ * position:fixed. Parks in the features closing row, or hides at #contact.
  */
 import { ArrowRight } from "lucide-astro";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -136,6 +136,16 @@ const trailingCtas = ctas.slice(1);
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       opacity 0.4s ease,
       visibility 0s linear 0.55s;
+  }
+
+  /* Parked in the features closing row — same pills, no floating chrome. */
+  .home-sticky-ctas.is-docked {
+    top: var(--sticky-cta-dock-top, auto);
+    bottom: auto;
+    padding: 0;
+    transform: none;
+    opacity: 1;
+    visibility: visible;
   }
 
   @media (prefers-reduced-motion: reduce) {
