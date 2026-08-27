@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260824b — OTP tap copies in the open admin window; never navigates to /admin/copy. */
+   v20260827 — collapse duplicate OTP/email pushes by tag, collapseId, and code. */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -52,23 +52,54 @@ function notifyClientsDismissAlert(alertId) {
   });
 }
 
+const presentedPushIds = new Set();
+
+function pushPresentationIds(data, tag, collapseId, verificationCode) {
+  const ids = [];
+  const collapse = String(collapseId || '').trim();
+  const trayTag = String(tag || '').trim();
+  const code = String(verificationCode || '').trim();
+  if (collapse) ids.push(collapse);
+  if (trayTag && trayTag !== 'inbox' && trayTag !== 'reave-badge-sync') ids.push(trayTag);
+  if (code) ids.push(`otp-code:${code}`);
+  return ids;
+}
+
+function claimPushPresentation(ids) {
+  if (ids.some((id) => presentedPushIds.has(id))) return false;
+  for (const id of ids) presentedPushIds.add(id);
+  return true;
+}
+
+function notificationMatchesPushIdentity(note, ids, emailId, verificationCode) {
+  const data = note.data || {};
+  const noteIds = pushPresentationIds(
+    data,
+    note.tag,
+    data.collapseId,
+    data.verificationCode || verificationCode,
+  );
+  if (noteIds.some((id) => ids.includes(id))) return true;
+  if (emailId && String(data.emailId || '') === emailId) return true;
+  return false;
+}
+
 async function closeMatchingNotifications(filter) {
   try {
     const notes = await self.registration.getNotifications();
     const alertId = filter?.alertId ? String(filter.alertId) : '';
     const emailId = filter?.emailId ? String(filter.emailId) : '';
     const tag = filter?.tag ? String(filter.tag) : '';
+    const collapseId = filter?.collapseId ? String(filter.collapseId) : '';
+    const verificationCode = filter?.verificationCode ? String(filter.verificationCode).trim() : '';
+    const ids = pushPresentationIds(filter, tag, collapseId, verificationCode);
     for (const note of notes) {
       const data = note.data || {};
       if (alertId && String(data.alertId || '') === alertId) {
         note.close();
         continue;
       }
-      if (emailId && String(data.emailId || '') === emailId) {
-        note.close();
-        continue;
-      }
-      if (tag && String(note.tag || '') === tag) {
+      if (notificationMatchesPushIdentity(note, ids, emailId, verificationCode)) {
         note.close();
       }
     }
@@ -272,10 +303,15 @@ self.addEventListener('push', (event) => {
   const alertId = data.alertId ? String(data.alertId) : '';
   const emailId = data.emailId ? String(data.emailId) : '';
   const verificationCode = data.verificationCode ? String(data.verificationCode).trim() : '';
+  const collapseId = data.collapseId ? String(data.collapseId) : '';
   const kind = data.kind ? String(data.kind) : '';
   const tag = data.tag || 'inbox';
+  const trayTag = collapseId || tag;
   const isAuditAlert = String(tag).toLowerCase().startsWith('siri-proposal-');
-  const isOtp = kind === 'otp' || String(tag).toLowerCase().startsWith('otp-');
+  const isOtp =
+    kind === 'otp' ||
+    String(tag).toLowerCase().startsWith('otp-') ||
+    String(trayTag).toLowerCase().startsWith('otp-');
   const resolvedOtpCode =
     verificationCode || otpCodeFromNotificationText(data.title, data.body);
   const isBadgeSync =
@@ -320,25 +356,40 @@ self.addEventListener('push', (event) => {
         ];
   }
 
-  const tasks = [
-    self.registration.showNotification(data.title, {
+  const identityIds = pushPresentationIds(data, tag, trayTag, resolvedOtpCode);
+  const alreadyClaimed = !claimPushPresentation(identityIds);
+
+  const present = async () => {
+    if (alreadyClaimed) return;
+    try {
+      const existing = await self.registration.getNotifications();
+      if (existing.some((note) => notificationMatchesPushIdentity(note, identityIds, emailId, resolvedOtpCode))) {
+        return;
+      }
+    } catch {
+      /* show anyway */
+    }
+    await self.registration.showNotification(data.title, {
       body: data.body,
-      tag,
+      tag: trayTag,
       timestamp: Number(data.timestamp) > 0 ? Number(data.timestamp) : Date.now(),
-      renotify: true,
+      renotify: false,
       icon: '/api/branding/icon?size=192',
       badge: '/api/branding/icon?size=192',
       data: {
         url: isOtp ? otpAdminCopyUrl(resolvedOtpCode) : data.url || '/admin?tab=email',
         alertId,
         emailId,
+        tag,
+        collapseId: trayTag,
         verificationCode: resolvedOtpCode,
         kind: isOtp ? 'otp' : kind,
       },
       actions,
-    }),
-    notifyClientsInboxPush(),
-  ];
+    });
+  };
+
+  const tasks = [present(), notifyClientsInboxPush()];
   if (badgeCount != null) tasks.push(writeBadgeCount(badgeCount));
   if (isOtp && resolvedOtpCode) {
     tasks.push(stashPendingOtpCopy({ code: resolvedOtpCode, emailId, alertId, tag }));

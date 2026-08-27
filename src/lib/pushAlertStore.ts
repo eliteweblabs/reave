@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { getPgPool } from './pgPool';
 import { workSlugFromAdminUrl } from './notificationFormat';
+import { isReusablePushAlertTag } from './pushNotificationIdentity';
 
 export type PushAlertKind =
   | 'uptime'
@@ -63,6 +64,21 @@ CREATE INDEX IF NOT EXISTS admin_push_alerts_pending_idx
   ON admin_push_alerts (staff_ack_at, created_at DESC);
 `;
 
+const PENDING_TAG_UNIQUE_SQL = [
+  `UPDATE admin_push_alerts a
+      SET staff_ack_at = now()
+    FROM admin_push_alerts b
+    WHERE a.staff_ack_at IS NULL
+      AND b.staff_ack_at IS NULL
+      AND a.tag <> ''
+      AND a.tag NOT IN ('inbox', 'reave-badge-sync')
+      AND a.tag = b.tag
+      AND (a.created_at > b.created_at OR (a.created_at = b.created_at AND a.id > b.id))`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS admin_push_alerts_pending_tag_uidx
+     ON admin_push_alerts (tag)
+     WHERE staff_ack_at IS NULL AND tag <> '' AND tag NOT IN ('inbox', 'reave-badge-sync')`,
+];
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FILE_PATH = join(__dirname, '..', 'knowledge', 'push-alerts.json');
 const MAX_FILE_ALERTS = 2000;
@@ -74,13 +90,17 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
-    _schemaReady = pool
-      .query(SCHEMA_SQL)
-      .then(() => undefined)
-      .catch((e) => {
-        _schemaReady = null;
-        throw e;
-      });
+    _schemaReady = (async () => {
+      await pool.query(SCHEMA_SQL);
+      for (const sql of PENDING_TAG_UNIQUE_SQL) {
+        await pool.query(sql).catch((e) => {
+          console.warn('[push-alerts] pending-tag unique index skipped', e);
+        });
+      }
+    })().catch((e) => {
+      _schemaReady = null;
+      throw e;
+    });
   }
   await _schemaReady;
   return pool;
@@ -206,7 +226,9 @@ export async function storeFindPushAlertByTag(tag: string): Promise<PushAlert | 
   );
 }
 
-export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise<PushAlert | null> {
+export type EnsuredPushAlert = { alert: PushAlert; created: boolean };
+
+async function insertPushAlert(input: CreatePushAlertInput): Promise<PushAlert | null> {
   const id = randomUUID();
   const tag = (input.tag ?? 'inbox').slice(0, 120);
   const kind = input.kind ?? inferPushAlertKind(tag, input.url ?? '');
@@ -238,7 +260,10 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
       return rows[0] ? rowToAlert(rows[0]) : null;
     }
   } catch (e) {
+    const code = e && typeof e === 'object' && 'code' in e ? String(e.code) : '';
+    if (code === '23505') return null;
     console.warn('[push-alerts] postgres create failed', e);
+    return null;
   }
 
   const alert: PushAlert = {
@@ -256,6 +281,31 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
   alerts.unshift(alert);
   writeFileAlerts(alerts);
   return alert;
+}
+
+/** Reuse a pending dashboard alert with the same tag instead of inserting another. */
+export async function storeEnsurePushAlert(
+  input: CreatePushAlertInput,
+): Promise<EnsuredPushAlert | null> {
+  const tag = (input.tag ?? 'inbox').slice(0, 120);
+  if (isReusablePushAlertTag(tag)) {
+    const existing = await storeFindPendingPushAlertByTag(tag);
+    if (existing) return { alert: existing, created: false };
+  }
+  const created = await insertPushAlert(input);
+  if (!created) {
+    if (isReusablePushAlertTag(tag)) {
+      const existing = await storeFindPendingPushAlertByTag(tag);
+      if (existing) return { alert: existing, created: false };
+    }
+    return null;
+  }
+  return { alert: created, created: true };
+}
+
+export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise<PushAlert | null> {
+  const ensured = await storeEnsurePushAlert(input);
+  return ensured?.alert ?? null;
 }
 
 export async function storeListPendingPushAlerts(opts?: {

@@ -7,13 +7,26 @@ import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfi
 import { canonicalizeReaveBrandEmail } from './reavePublicEmail';
 import { getReviewsPendingCount } from './reviewsPendingCount';
 import { formatNotificationPayload, formatPwaPushTitle } from './notificationFormat';
-import { inferPushAlertKind, storeCreatePushAlert, type PushAlertKind } from './pushAlertStore';
+import { inferPushAlertKind, storeEnsurePushAlert, type PushAlertKind } from './pushAlertStore';
+import { isReusablePushAlertTag, pushPresentationIds } from './pushNotificationIdentity';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
 import { isPushQuietHoursActive } from './pushQuietHours';
 
 let _configured = false;
 let _configuredSubject: string | null = null;
+
+const recentPushAt = new Map<string, number>();
+const RECENT_PUSH_MS = 120_000;
+
+function claimRecentPushSend(tag: string, collapseId: string, verificationCode: string): boolean {
+  const ids = pushPresentationIds({ tag, collapseId, verificationCode });
+  if (!ids.length) return true;
+  const now = Date.now();
+  if (ids.some((id) => now - (recentPushAt.get(id) || 0) < RECENT_PUSH_MS)) return false;
+  for (const id of ids) recentPushAt.set(id, now);
+  return true;
+}
 
 async function configureWebPush(): Promise<boolean> {
   const publicKey = serverEnv('VAPID_PUBLIC_KEY')?.trim();
@@ -65,6 +78,8 @@ export async function sendPushNotification(payload: {
   emailId?: string;
   /** OTP digits — service worker copies these on notification tap. */
   verificationCode?: string;
+  /** Stable OS-tray id — Message-ID / Resend id / OTP code, not the inbox UUID. */
+  collapseId?: string;
   /** Optional action button ids (view, archive, delete, copy, …). */
   actions?: string[];
 }): Promise<void> {
@@ -80,6 +95,7 @@ export async function sendPushNotification(payload: {
   const pushBody = formatted.detail;
   const emailId = payload.emailId?.trim() || '';
   const verificationCode = payload.verificationCode?.trim() || '';
+  const collapseId = payload.collapseId?.trim() || '';
   const kind = badgeOnly ? 'badge-sync' : (payload.kind ?? inferPushAlertKind(tag, url));
   const actions = Array.isArray(payload.actions)
     ? payload.actions.map(String).map((s) => s.trim()).filter(Boolean)
@@ -91,8 +107,9 @@ export async function sendPushNotification(payload: {
   });
 
   let alertId: string | undefined;
+  let createdDashboardAlert = true;
   if (!payload.skipDashboardAlert && !badgeOnly) {
-    const alert = await storeCreatePushAlert({
+    const ensured = await storeEnsurePushAlert({
       tag,
       kind: kind === 'badge-sync' ? 'system' : kind,
       title: formatted.title,
@@ -100,10 +117,19 @@ export async function sendPushNotification(payload: {
       url,
       actions,
     }).catch(() => null);
-    alertId = alert?.id;
+    alertId = ensured?.alert.id;
+    createdDashboardAlert = ensured?.created ?? true;
   }
 
   if (payload.skipPhonePush || quiet) return;
+  if (!createdDashboardAlert && isReusablePushAlertTag(tag)) {
+    console.info('[push] skipped duplicate phone push', { tag, collapseId });
+    return;
+  }
+  if (!claimRecentPushSend(tag, collapseId, verificationCode)) {
+    console.info('[push] skipped duplicate in-flight phone push', { tag, collapseId });
+    return;
+  }
 
   if (!isPushConfigured() || !(await configureWebPush())) return;
 
@@ -126,6 +152,7 @@ export async function sendPushNotification(payload: {
     ...(alertId ? { alertId } : {}),
     ...(emailId ? { emailId } : {}),
     ...(verificationCode ? { verificationCode } : {}),
+    ...(collapseId ? { collapseId } : {}),
     ...(actions.length ? { actions } : {}),
     ...(badgeCount != null ? { badgeCount } : {}),
   });
@@ -160,6 +187,8 @@ export async function sendInboxPushNotification(payload: {
   emailId?: string;
   /** OTP digits — copied when the push notification is tapped. */
   verificationCode?: string;
+  /** Stable OS-tray id shared across duplicate ingest of the same email. */
+  collapseId?: string;
   urgent?: boolean;
   kind?: PushAlertKind;
   /** When true, phone push only — no second dashboard banner. */
@@ -173,8 +202,16 @@ export async function sendInboxPushNotification(payload: {
     : payload.emailId
       ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
       : '/admin?tab=email';
-  const { kind, skipDashboardAlert, skipPhonePush, emailId, verificationCode, actions, ...rest } =
-    payload;
+  const {
+    kind,
+    skipDashboardAlert,
+    skipPhonePush,
+    emailId,
+    verificationCode,
+    collapseId,
+    actions,
+    ...rest
+  } = payload;
   return sendPushNotification({
     ...rest,
     url,
@@ -183,6 +220,7 @@ export async function sendInboxPushNotification(payload: {
     skipPhonePush,
     emailId,
     verificationCode,
+    collapseId,
     actions,
   });
 }

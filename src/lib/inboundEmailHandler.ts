@@ -4,6 +4,8 @@ import { ensureInboundSince, isInboundEmailAllowed } from './inboundEmailSince';
 import { inboundBelongsToInstall, recipientList } from './inboundEmailInstall';
 import { isSleepModeActive, sleepModeStatus } from './pushQuietHours';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
+import { withInboundIdentityLock } from './inboundEmailIdentity';
+import { storeFindExistingInboundEmail } from './emailInboxStore';
 
 export interface InboundEmailResult {
   ok: boolean;
@@ -86,7 +88,40 @@ export async function handleInboundEmail(email: {
     return { ok: true, action: 'ignored', status: 'WRONG_INSTALL', from };
   }
 
+  return withInboundIdentityLock(email, () => processOwnedInboundEmail(email, from));
+}
+
+async function processOwnedInboundEmail(
+  email: {
+    from?: string;
+    subject?: string;
+    text?: string;
+    html?: string;
+    to?: string[];
+    cc?: string[];
+    bcc?: string[];
+    replyTo?: string[];
+    headers?: Record<string, string>;
+    messageId?: string;
+    resendEmailId?: string;
+    attachments?: import('./emailAttachments').EmailAttachmentMeta[];
+  },
+  from: string,
+): Promise<InboundEmailResult> {
+  const existing = await storeFindExistingInboundEmail({
+    resendEmailId: email.resendEmailId,
+    messageId: email.messageId,
+  });
+
   if (await isSleepModeActive()) {
+    if (existing) {
+      console.info('[email] deferred during sleep mode', {
+        from,
+        subject: email.subject ?? '',
+        existingId: existing.id,
+      });
+      return { ok: true, action: 'sleep_deferred', status: 'SLEEP_DEFERRED', from };
+    }
     const { label } = await sleepModeStatus();
     const bodyText = normalizeEmailBody(email.text ?? '', email.html);
     const bodyHtml = email.html?.slice(0, 500_000) ?? '';
@@ -134,6 +169,9 @@ export async function handleInboundEmail(email: {
 
   const { isAllowedSender } = await import('./inboundEmailAllowlist');
   if (!isAllowedSender(from)) {
+    if (existing) {
+      return { ok: true, action: 'rejected', status: 'REJECTED', from };
+    }
     const { storeRecordEmailInbox } = await import('./emailInboxStore');
     await storeRecordEmailInbox({
       from,
@@ -148,20 +186,29 @@ export async function handleInboundEmail(email: {
     return { ok: true, action: 'rejected', status: 'REJECTED', from };
   }
 
-  const result = await processInboundEmail({
-    from,
-    subject: email.subject ?? '',
-    text: email.text ?? '',
-    html: email.html,
-    to: email.to,
-    cc: email.cc,
-    bcc: email.bcc,
-    replyTo: email.replyTo,
-    headers: email.headers,
-    messageId: email.messageId,
-    resendEmailId: email.resendEmailId,
-    attachments: email.attachments,
-  });
+  if (existing && existing.status !== 'SLEEP_DEFERRED') {
+    return { ok: true, action: 'duplicate', status: existing.status, from };
+  }
+
+  const result = await processInboundEmail(
+    {
+      from,
+      subject: email.subject ?? '',
+      text: email.text ?? '',
+      html: email.html,
+      to: email.to,
+      cc: email.cc,
+      bcc: email.bcc,
+      replyTo: email.replyTo,
+      headers: email.headers,
+      messageId: email.messageId,
+      resendEmailId: email.resendEmailId,
+      attachments: email.attachments,
+    },
+    existing
+      ? { existingInboxId: existing.id, receivedAt: existing.receivedAt }
+      : undefined,
+  );
 
   return {
     ok: result.ok,

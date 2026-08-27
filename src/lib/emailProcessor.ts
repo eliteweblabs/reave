@@ -25,10 +25,16 @@ import { resolveContact, getContact, getClientKind, siteBaseUrl, type ClientKind
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import {
+  storeClaimEmailInboxNotified,
+  storeFindExistingInboundEmail,
   storeRecordEmailInbox,
   storeUpdateEmailInbox,
   type EmailInboxRecord,
 } from './emailInboxStore';
+import {
+  emailPushCollapseId,
+  type EmailPushKind,
+} from './pushNotificationIdentity';
 import { linkProjectItem } from './projectLinks';
 import { hasFeature } from './features';
 import { detectMeetingFollowUp } from './emailMeetingFollowup';
@@ -582,6 +588,32 @@ export async function processInboundEmail(
   const dryRun = options?.dryRun === true;
   const receivedAt = options?.receivedAt || new Date().toISOString();
   const from = email.from ?? '';
+  if (!dryRun && !options?.existingInboxId) {
+    const existing = await storeFindExistingInboundEmail({
+      resendEmailId: email.resendEmailId,
+      messageId: email.messageId,
+    });
+    if (existing && existing.status !== 'SLEEP_DEFERRED') {
+      return {
+        ok: true,
+        category: existing.category,
+        status: existing.status,
+        action: 'duplicate',
+        from,
+        record: existing,
+        summary: existing.summary,
+        routeNote: existing.routeNote,
+        contactUid: existing.contactUid,
+        contactName: existing.contactName,
+        jobSlug: existing.jobSlug,
+        jobTitle: existing.jobTitle,
+        automationKind: existing.automationKind,
+        verificationCode: existing.verificationCode,
+        actionUrl: existing.actionUrl,
+        deleteAfterAt: existing.deleteAfterAt,
+      };
+    }
+  }
   const senderEmail = parseSenderEmail(from);
   const bodyText = normalizeEmailBody(email.text, email.html);
   const bodyHtml = normalizeEmailHtml(email.text, email.html);
@@ -1915,24 +1947,31 @@ export async function processInboundEmail(
       pushAudit('agent', `Would alert agent for ${ruleResult.status}`);
     }
   } else {
-    if (inboxRecord && wouldNotify && !inboxRecord.notified) {
-      await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
-    }
+    const claimedNotify =
+      Boolean(inboxRecord && wouldNotify && channelsEffective.notify) &&
+      (await storeClaimEmailInboxNotified(inboxRecord!.id));
 
     const deliver = (opts: {
       title: string;
       body: string;
       tag: string;
-      kind?: 'otp' | 'auth_link' | 'triage' | 'email';
+      kind?: EmailPushKind;
       verificationCode?: string;
       urgent?: boolean;
       skipDashboardAlert?: boolean;
     }) => {
-      if (!channelsEffective.notify || !inboxRecord) return;
+      if (!claimedNotify || !channelsEffective.notify || !inboxRecord) return;
       sendInboxPushNotification({
         title: opts.title,
         body: opts.body,
         tag: opts.tag,
+        collapseId: emailPushCollapseId({
+          kind: opts.kind ?? 'email',
+          inboxId: inboxRecord.id,
+          messageId: email.messageId || inboxRecord.messageId,
+          resendEmailId: email.resendEmailId || inboxRecord.resendEmailId,
+          verificationCode: opts.verificationCode || inboxRecord.verificationCode,
+        }),
         emailId: inboxRecord.id,
         verificationCode: opts.verificationCode,
         kind: opts.kind,
