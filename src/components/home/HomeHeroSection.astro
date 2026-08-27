@@ -511,19 +511,33 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       filter 0.53s ease;
   }
 
-  /* Safari: opacity + scale only — blur is skipped in JS and filter breaks easing. */
-  .home-hero-demo--safari .home-hero-demo-msg {
+  /*
+   * WebKit: opacity + scale only. The depth pass never writes a blur here, so
+   * `filter` would sit at a permanent `blur(0px)` — enough to promote every
+   * bubble to its own layer inside the lane's mask, which is where iOS stops
+   * repainting incremental opacity changes.
+   */
+  .home-hero-demo--webkit .home-hero-demo-msg {
+    filter: none;
     transition:
       opacity 0.53s ease,
       transform 0.53s ease;
   }
 
-  /* Exit cascade is JS-ticked. Do not animate opacity here — iOS Safari
-   * drops custom-property delays in the animation shorthand and snaps
-   * same-frame transition+opacity, which made every bubble vanish at once. */
+  /*
+   * Outro cascade. `animation-name`, `-duration` and `-delay` are written per
+   * bubble as inline longhands by heroDemoLoop.ts — a `--delay` custom
+   * property inside the `animation` shorthand is dropped by WebKit, which
+   * started every bubble at once on iOS.
+   */
   .home-hero-demo-msg.home-hero-demo-msg--exit {
     transition: none;
-    animation: none;
+  }
+
+  @keyframes heroDemoOutro {
+    to {
+      opacity: 0;
+    }
   }
 
   .home-hero-demo-msg--user {
