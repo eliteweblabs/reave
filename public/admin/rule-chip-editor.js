@@ -287,7 +287,7 @@ export function createChipComposer(opts = {}) {
   }
 
   function syncDraftInput() {
-    draftIn.placeholder = state.chips.length ? chipPlaceholderFor(state.field) : 'Add new';
+    draftIn.placeholder = chipPlaceholderFor(state.field);
     draftIn.type = state.field === 'from' ? 'email' : 'text';
     draftIn.disabled = state.disabled;
     typeSel.disabled = state.disabled;

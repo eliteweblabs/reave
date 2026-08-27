@@ -2143,6 +2143,8 @@ button.de-placeholder-action:active {
   padding: 0.15rem 0.35rem 0.15rem 0.4rem;
   border-style: dashed;
   cursor: text;
+  background-image: none;
+  background-color: color-mix(in srgb, currentColor 10%, var(--card, transparent));
 }
 .re-chip-add-plus {
   display: inline-flex;

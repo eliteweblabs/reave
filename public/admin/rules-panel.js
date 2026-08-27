@@ -54,7 +54,7 @@ import {
   phrasesFromChips,
   fieldsFromChips,
   titleFromRulePhrases,
-} from './rule-chip-editor.js?v=20260827e';
+} from './rule-chip-editor.js?v=20260827f';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
