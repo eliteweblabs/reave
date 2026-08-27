@@ -2112,10 +2112,13 @@ async function playUserTurn(
     await wait(280);
     picker.remove();
 
-    const slashBody = activeSlash.slice(1);
-    await typeText(textEl, slashBody, SLASH_CHAR_MS, isAlive, relayout);
+    // Selection inserts the command — same as picking a mention, not typing it out.
+    fillBubbleText(textEl, activeSlash);
+    relayout();
     const rest = full.slice(activeSlash.length);
-    if (rest.includes("@")) {
+    if (!rest) {
+      await wait(reducedMotion ? 140 : 280);
+    } else if (rest.includes("@")) {
       await playMentionPickerSegment(
         textEl,
         relayout,
