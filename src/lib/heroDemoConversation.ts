@@ -66,7 +66,7 @@ export type HeroDemoMentionOption = {
 };
 
 /**
- * Spoofed people for the hero @-mention picker (demo only).
+ * Fictional people for the hero @-mention picker (demo only — never real clients).
  * Includes "The …" contacts for soft-mention demos like "send contract to The".
  */
 export const HERO_DEMO_MENTION_PICKER: HeroDemoMentionOption[] = [
@@ -79,41 +79,41 @@ export const HERO_DEMO_MENTION_PICKER: HeroDemoMentionOption[] = [
   {
     name: "Sarah Chen",
     company: "Approvals",
-    email: "sarah@parkermktg.com",
+    email: "sarah@fieldstone.demo",
     kind: "team",
   },
   {
-    name: "Parker Marketing",
-    company: "Parker Marketing",
-    email: "sarah@parkermktg.com",
-    phone: "6175550142",
+    name: "Fieldstone Creative",
+    company: "Fieldstone Creative",
+    email: "sarah@fieldstone.demo",
+    phone: "5550142",
   },
   {
-    name: "The Bottle Shop Beverly",
-    company: "The Bottle Shop",
-    email: "alex@thebottleshopbeverly.com",
-    phone: "16175431000",
+    name: "The Cedar Market",
+    company: "The Cedar Market",
+    email: "alex@cedarmarket.demo",
+    phone: "5550100",
   },
   {
-    name: "The Cabot Theatre",
-    company: "The Cabot Performing Arts Center",
-    email: "info@thecabot.org",
-    phone: "9789273100",
+    name: "The Lantern Playhouse",
+    company: "The Lantern Playhouse",
+    email: "info@lanternplayhouse.demo",
+    phone: "5550120",
   },
   {
-    name: "The Reading Studio",
-    company: "The Reading Studio",
-    email: "kdimauro@thereadingstudio.com",
+    name: "The Page Workshop",
+    company: "The Page Workshop",
+    email: "hello@pageworkshop.demo",
   },
   {
-    name: "The Rustic Mandala",
-    company: "The Rustic Mandala",
+    name: "The Copper Wren",
+    company: "The Copper Wren",
   },
   {
-    name: "The Solid Builder",
-    company: "The Solid Builder",
-    email: "reggie@thesolidbuilder.com",
-    phone: "19788106088",
+    name: "The Northline Workshop",
+    company: "The Northline Workshop",
+    email: "reggie@northline.demo",
+    phone: "5550188",
   },
 ];
 
@@ -124,8 +124,8 @@ export const HERO_DEMO_MENTION_PICKER: HeroDemoMentionOption[] = [
 export const HERO_DEMO_MENTION_EXTRAS: HeroDemoMentionOption[] = [
   {
     name: "Reggie",
-    company: "The Solid Builder",
-    email: "reggie@thesolidbuilder.com",
+    company: "The Northline Workshop",
+    email: "reggie@northline.demo",
   },
   {
     name: "Mike Torres",
@@ -240,7 +240,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
     turns: [
       {
         role: "user",
-        text: "Let's bill everything open on the Henderson project.",
+        text: "Let's bill everything open on the Whitmore project.",
         kind: "voice",
       },
       {
@@ -277,14 +277,14 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
         role: "user",
         /**
          * Soft-mention showcase: types "Send contract to The" (no `@`),
-         * picker suggests The Solid Builder, then inserts @The Solid Builder.
+         * picker suggests The Northline Workshop, then inserts @The Northline Workshop.
          */
-        text: "Send contract to @The Solid Builder for signing.",
+        text: "Send contract to @The Northline Workshop for signing.",
         kind: "soft-mention",
       },
       {
         role: "assistant",
-        text: "NDA sent to @The Solid Builder — @Reggie, reggie@thesolidbuilder.com.",
+        text: "NDA sent to @The Northline Workshop — @Reggie, reggie@northline.demo.",
         pauseMs: 1500,
       },
       {
@@ -315,7 +315,7 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "INV-0042 · Henderson · $4,280",
+        text: "INV-0042 · Whitmore · $4,280",
         kind: "link",
         pauseMs: 620,
       },
@@ -327,13 +327,13 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       },
       {
         role: "assistant",
-        text: "INV-0031 · Parker Marketing · $1,200",
+        text: "INV-0031 · Fieldstone Creative · $1,200",
         kind: "link",
         pauseMs: 170,
       },
       {
         role: "assistant",
-        text: "INV-0019 · The Bottle Shop · $890",
+        text: "INV-0019 · The Cedar Market · $890",
         kind: "link",
         pauseMs: 170,
       },
@@ -490,17 +490,17 @@ export const HERO_DEMO_SCENES: HeroDemoScene[] = [
       {
         role: "user",
         /** Soft mention via payment + for — types "for The", not `@`. */
-        text: "Add a $500 payment for @The Solid Builder",
+        text: "Add a $500 payment for @The Northline Workshop",
         kind: "soft-mention",
       },
       {
         role: "assistant",
-        text: "Looking up open invoices for @The Solid Builder…",
+        text: "Looking up open invoices for @The Northline Workshop…",
         pauseMs: 700,
       },
       {
         role: "assistant",
-        text: "Great — two open invoices for @The Solid Builder. Which one should I apply the $500 to?",
+        text: "Great — two open invoices for @The Northline Workshop. Which one should I apply the $500 to?",
         pauseMs: 1500,
         actions: [
           { label: "Website redesign", variant: "primary" },
