@@ -8,13 +8,19 @@
  */
 
 import {
+  knowledgeSlugsForPlugin,
   parseKnowledgeMarkdown,
+  pluginIdForKnowledgeSlug,
   readKnowledgeMarkdown,
   summarizeKnowledgeIndex,
 } from './localKnowledge';
 import {
   isDefaultKnowledgeSlug,
   isKnowledgeSlugAvailable,
+  isPluginKnowledgeActive,
+  pluginKnowledgeSlugs,
+  pluginsForFeature,
+  REAVE_PLUGINS,
   DEFAULT_KNOWLEDGE_SLUGS,
 } from './pluginRegistry';
 import {
@@ -25,10 +31,44 @@ import {
   dbWriteKnowledge,
   dbDeleteKnowledge,
   dbSeedBundled,
+  dbPurgeKnowledgeSlugs,
   type KnowledgeEntry,
 } from './pgKnowledge';
 
 export { isKnowledgeDbConfigured, type KnowledgeEntry, DEFAULT_KNOWLEDGE_SLUGS, isDefaultKnowledgeSlug };
+
+function knowledgeSlugVisible(slug: string): boolean {
+  const pluginId = pluginIdForKnowledgeSlug(slug);
+  if (pluginId) return isPluginKnowledgeActive(pluginId);
+  return isKnowledgeSlugAvailable(slug);
+}
+
+function inactiveAddonKnowledgeSlugs(): string[] {
+  const slugs = new Set<string>();
+  for (const plugin of REAVE_PLUGINS) {
+    if (isPluginKnowledgeActive(plugin.id)) continue;
+    for (const slug of pluginKnowledgeSlugs(plugin.id)) slugs.add(slug);
+    for (const slug of knowledgeSlugsForPlugin(plugin.id)) slugs.add(slug);
+  }
+  return [...slugs];
+}
+
+/** Drop add-on playbooks from the live DB while the module is off. */
+export async function purgeInactivePluginKnowledge(): Promise<string[]> {
+  if (!isKnowledgeDbConfigured()) return [];
+  return dbPurgeKnowledgeSlugs(inactiveAddonKnowledgeSlugs());
+}
+
+/** Drop one add-on's playbooks immediately when the owner turns it off. */
+export async function purgePluginKnowledgeForFeature(feature: string): Promise<string[]> {
+  if (!isKnowledgeDbConfigured()) return [];
+  const slugs = new Set<string>();
+  for (const plugin of pluginsForFeature(feature)) {
+    for (const slug of pluginKnowledgeSlugs(plugin.id)) slugs.add(slug);
+    for (const slug of knowledgeSlugsForPlugin(plugin.id)) slugs.add(slug);
+  }
+  return dbPurgeKnowledgeSlugs([...slugs]);
+}
 
 export interface KnowledgePreview {
   slug: string;
@@ -52,12 +92,13 @@ export interface KnowledgeDoc {
 
 /** List all knowledge entries: DB entries first, then bundled slugs not already in DB. */
 export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
+  await purgeInactivePluginKnowledge();
   const dbRows = await dbListKnowledge();
   const bundled = summarizeKnowledgeIndex();
 
   if (!dbRows) {
     return bundled
-      .filter((b) => isKnowledgeSlugAvailable(b.slug))
+      .filter((b) => knowledgeSlugVisible(b.slug))
       .map((b) => ({
       slug: b.slug,
       title: b.preview,
@@ -69,7 +110,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
 
   const dbSlugs = new Set(dbRows.map((r) => r.slug));
   const dbPreviews: KnowledgePreview[] = dbRows
-    .filter((r) => isKnowledgeSlugAvailable(r.slug))
+    .filter((r) => knowledgeSlugVisible(r.slug))
     .map((r) => ({
     slug: r.slug,
     title: r.title,
@@ -81,7 +122,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
   }));
 
   const bundledOnly = bundled
-    .filter((b) => !dbSlugs.has(b.slug) && isKnowledgeSlugAvailable(b.slug))
+    .filter((b) => !dbSlugs.has(b.slug) && knowledgeSlugVisible(b.slug))
     .map((b) => ({
       slug: b.slug,
       title: b.preview,
@@ -95,7 +136,8 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
 
 /** Read one knowledge entry: DB first, then bundled fallback. */
 export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | null> {
-  if (!isKnowledgeSlugAvailable(slug)) return null;
+  await purgeInactivePluginKnowledge();
+  if (!knowledgeSlugVisible(slug)) return null;
   const dbEntry = await dbReadKnowledge(slug);
   if (dbEntry) {
     return {
@@ -138,10 +180,11 @@ export async function storeSearchKnowledge(
 ): Promise<{ slug: string; title: string; preview: string; source: 'db' | 'bundled' }[]> {
   const q = query.toLowerCase().trim();
 
+  await purgeInactivePluginKnowledge();
   const dbResults = await dbSearchKnowledge(query);
   const bundled = summarizeKnowledgeIndex();
   const bundledMatches = bundled
-    .filter((b) => isKnowledgeSlugAvailable(b.slug))
+    .filter((b) => knowledgeSlugVisible(b.slug))
     .filter((b) => b.slug.includes(q) || b.preview.toLowerCase().includes(q))
     .map((b) => ({ slug: b.slug, title: b.preview, preview: b.preview, source: 'bundled' as const }));
 
@@ -151,7 +194,7 @@ export async function storeSearchKnowledge(
 
   const dbSlugs = new Set(dbResults.map((r) => r.slug));
   const dbMapped = dbResults
-    .filter((r) => isKnowledgeSlugAvailable(r.slug))
+    .filter((r) => knowledgeSlugVisible(r.slug))
     .map((r) => ({ ...r, source: 'db' as const }));
 
   return [...dbMapped, ...bundledMatches.filter((b) => !dbSlugs.has(b.slug))];
@@ -166,6 +209,9 @@ export async function storeWriteKnowledge(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isKnowledgeDbConfigured()) {
     return { ok: false, error: 'Knowledge DB not configured — cannot save.' };
+  }
+  if (!knowledgeSlugVisible(entry.slug)) {
+    return { ok: false, error: 'That playbook belongs to an add-on that is not active.' };
   }
   return dbWriteKnowledge({
     slug: entry.slug,
@@ -204,5 +250,6 @@ export async function storeSeedBundled(): Promise<{
       errors: [{ slug: '*', error: 'Knowledge DB not configured' }],
     };
   }
+  await purgeInactivePluginKnowledge();
   return dbSeedBundled();
 }

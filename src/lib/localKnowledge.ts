@@ -62,6 +62,29 @@ function pluginIdFromPath(path: string): string | null {
   return match?.[1] ?? null;
 }
 
+/** Plugin id that owns this bundled slug, whether or not the add-on is on. */
+export function pluginIdForKnowledgeSlug(slug: string): string | null {
+  for (const path of Object.keys(pluginRawByPath)) {
+    if (pathToSlug(path) === slug) return pluginIdFromPath(path);
+  }
+  for (const path of Object.keys(pluginInstallRawByPath)) {
+    if (pathToSlug(path) === slug) return pluginIdFromPath(path);
+  }
+  return null;
+}
+
+/** Every bundled slug under plugins/{id}/knowledge, including install-scoped files. */
+export function knowledgeSlugsForPlugin(pluginId: string): string[] {
+  const slugs = new Set<string>();
+  for (const path of Object.keys(pluginRawByPath)) {
+    if (pluginIdFromPath(path) === pluginId) slugs.add(pathToSlug(path));
+  }
+  for (const path of Object.keys(pluginInstallRawByPath)) {
+    if (pluginIdFromPath(path) === pluginId) slugs.add(pathToSlug(path));
+  }
+  return [...slugs];
+}
+
 function installSlugFromPluginPath(path: string): string | null {
   const match = path.match(/plugins\/[^/]+\/knowledge\/installs\/([^/]+)\//);
   return match?.[1] ?? null;

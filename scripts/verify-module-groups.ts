@@ -268,4 +268,13 @@ for (const [pluginId, slug] of pluginOwnedRefs) {
   );
 }
 
+const pgKnowledge = readFileSync('src/lib/pgKnowledge.ts', 'utf8');
+assert.match(pgKnowledge, /isAddonPlaybookSlug/, 'empty-DB seed must skip add-on playbooks');
+assert.match(pgKnowledge, /dbPurgeKnowledgeSlugs/, 'add-on playbooks must be deletable from the live DB');
+const knowledgeStore = readFileSync('src/lib/knowledgeStore.ts', 'utf8');
+assert.match(knowledgeStore, /purgeInactivePluginKnowledge/, 'off add-ons must drop leftover DB rows');
+assert.match(knowledgeStore, /purgePluginKnowledgeForFeature/, 'toggle-off must drop that add-on\'s playbooks');
+const addonsApi = readFileSync('src/pages/api/admin/addons.ts', 'utf8');
+assert.match(addonsApi, /purgePluginKnowledgeForFeature/, 'Add-ons toggle-off must purge knowledge');
+
 console.log('verify-module-groups: ok');

@@ -8,8 +8,10 @@ import { databaseUrl, getPgPool } from './pgPool';
 import {
   listKnowledgeSlugs,
   parseKnowledgeMarkdown,
+  pluginIdForKnowledgeSlug,
   readKnowledgeMarkdown,
 } from './localKnowledge';
+import { isPluginOwnedKnowledgeSlug } from './pluginRegistry';
 import { serverEnv } from './serverEnv';
 import { createLogger } from './logger';
 
@@ -54,11 +56,16 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_search ON knowledge USING GIN(
 let _schemaReady: Promise<void> | null = null;
 let _seedReady: Promise<void> | null = null;
 
+function isAddonPlaybookSlug(slug: string): boolean {
+  return Boolean(pluginIdForKnowledgeSlug(slug)) || isPluginOwnedKnowledgeSlug(slug);
+}
+
 async function seedBundledIfEmpty(pool: pg.Pool): Promise<void> {
   const { rows } = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM knowledge');
   if ((rows[0]?.n ?? 0) > 0) return;
 
   for (const slug of listKnowledgeSlugs()) {
+    if (isAddonPlaybookSlug(slug)) continue;
     const raw = readKnowledgeMarkdown(slug);
     if (!raw) continue;
     const parsed = parseKnowledgeMarkdown(raw.content);
@@ -194,6 +201,24 @@ export async function dbDeleteKnowledge(
   }
 }
 
+/** Delete add-on playbooks from the live DB so a turned-off module leaves no rows. */
+export async function dbPurgeKnowledgeSlugs(slugs: string[]): Promise<string[]> {
+  const unique = [...new Set(slugs.map((s) => s.trim()).filter(Boolean))];
+  if (!unique.length) return [];
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return [];
+    const { rows } = await pool.query<{ slug: string }>(
+      `DELETE FROM knowledge WHERE slug = ANY($1::text[]) RETURNING slug`,
+      [unique],
+    );
+    return rows.map((r) => r.slug);
+  } catch (e) {
+    log.error('purge error', e);
+    return [];
+  }
+}
+
 /** Import bundled docs into DB (skips slugs that already exist). */
 export async function dbSeedBundled(): Promise<{
   seeded: string[];
@@ -214,6 +239,10 @@ export async function dbSeedBundled(): Promise<{
   }
 
   for (const slug of listKnowledgeSlugs()) {
+    if (isAddonPlaybookSlug(slug)) {
+      skipped.push(slug);
+      continue;
+    }
     const existing = await dbReadKnowledge(slug);
     if (existing) {
       skipped.push(slug);

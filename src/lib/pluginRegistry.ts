@@ -107,6 +107,18 @@ export function activeAgentToolModules(): AgentToolModule[] {
     .filter((m): m is AgentToolModule => !!m);
 }
 
+export function pluginsForFeature(feature: string): ReavePlugin[] {
+  return REAVE_PLUGINS.filter((plugin) => plugin.feature === feature);
+}
+
+/** Slugs owned by a plugin — hidden and purged while the add-on is off. */
+export function isPluginOwnedKnowledgeSlug(slug: string): boolean {
+  for (const plugin of REAVE_PLUGINS) {
+    if (pluginKnowledgeSlugs(plugin.id).includes(slug)) return true;
+  }
+  return false;
+}
+
 /** Whether bundled/DB slug is visible for this install (plugin-gated docs). */
 export function isKnowledgeSlugAvailable(slug: string): boolean {
   for (const plugin of REAVE_PLUGINS) {

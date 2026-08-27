@@ -34,6 +34,7 @@ import {
 import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
 import { formatModulePrice } from '../../../lib/moduleStorefront';
 import { setFeatureOverride } from '../../../lib/featureOverridesStore';
+import { purgePluginKnowledgeForFeature } from '../../../lib/knowledgeStore';
 
 export const prerender = false;
 
@@ -98,6 +99,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const enabled = body.enabled === true || body.enabled === 'true';
     await setFeatureOverride(feature, enabled);
     refreshFeatureCache();
+    if (!enabled) await purgePluginKnowledgeForFeature(feature);
 
     const label = catalogLabel(feature, FEATURE_LABELS[feature]);
     // Completion ping only — no System alerts Session and no dashboard row.
