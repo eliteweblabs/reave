@@ -2805,6 +2805,10 @@ button.de-placeholder-action:active {
   #work-editor.de-pane-active .detail-chrome > .de-header .de-doc-name {
     padding-right: 0.15rem;
   }
+  /* Project title already reads as a project; drop the briefcase to free the row. */
+  #work-editor .de-header-title-leading {
+    display: none;
+  }
   #work-editor .sliding-pill-select {
     gap: 0;
   }
