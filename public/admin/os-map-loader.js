@@ -14239,7 +14239,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
         removeBtn.type = 'button';
         removeBtn.className = 'em-compose-to-chip-remove';
         removeBtn.setAttribute('aria-label', `Remove ${emailRecipientLabel(r)}`);
-        removeBtn.textContent = '×';
+        removeBtn.innerHTML = iosIcon('x', 11);
         removeBtn.addEventListener('click', () => {
           removeRecipient(r.email);
           input.focus();
