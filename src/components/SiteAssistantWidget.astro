@@ -12,8 +12,8 @@ export interface Props {
   /** Slide the FAB in horizontally a few seconds after the user engages (marketing site). */
   revealFabOnEngagement?: boolean;
   /**
-   * Slide the FAB away horizontally while homepage hero / contact are in view.
-   * Defaults on for the marketing site so the button doesn't cover those sections.
+   * Slide the FAB away while a page hero / contact section is in view.
+   * Unused on the homepage — that page does not mount this widget.
    */
   hideFabForHero?: boolean;
 }
@@ -24,7 +24,7 @@ const {
   supportEmail = '',
   pagePath = '',
   revealFabOnEngagement = false,
-  hideFabForHero = true,
+  hideFabForHero = false,
 } = Astro.props;
 
 const greeting = siteAssistantGreetingForPath(pagePath || Astro.url.pathname);

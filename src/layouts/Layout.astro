@@ -94,8 +94,11 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const fullBleed = fullBleedProp ?? isIndexPage;
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
+/** Marketing help chat — never on the homepage (do not mount or load the widget). */
 const showSiteAssistant =
-	hasFeature("portal_assistant") && isSiteAssistantConfigured();
+  !isIndexPage &&
+  hasFeature("portal_assistant") &&
+  isSiteAssistantConfigured();
 const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
@@ -171,7 +174,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 					supportPhone={company.supportPhone}
 					supportEmail={company.supportEmail}
 					pagePath={Astro.url.pathname}
-					hideFabForHero={isIndexPage}
 				/>
 			)
 		}
