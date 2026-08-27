@@ -287,7 +287,7 @@ export const knowledgeModule: AgentToolModule = {
             function: {
               name: 'write_knowledge',
               description:
-                'Create or update a knowledge entry in the live database. Use this to save new context, notes, playbooks, or corrections so they persist across restarts without a redeploy. Requires DATABASE_URL (Railway Postgres) to be set.',
+                'Create or update a custom knowledge entry in the live database. Do not use this for module/add-on playbooks — those are read live from plugins/{id}/knowledge/*.md. Requires DATABASE_URL (Railway Postgres) to be set.',
               parameters: {
                 type: 'object',
                 properties: {

@@ -4,7 +4,8 @@
  * Job/work files under src/knowledge/jobs/ are intentionally excluded — they are
  * loaded on demand via workStore (list_work / read_work), not this index.
  *
- * Bundled plugin playbooks live under plugins/{id}/knowledge/ — not src/knowledge/.
+ * Bundled plugin playbooks live under plugins/{id}/knowledge/ and are read
+ * from those files — they are never copied into the knowledge DB.
  */
 
 import {
@@ -19,6 +20,7 @@ import {
   isKnowledgeSlugAvailable,
   isOpsOnlyKnowledgeSlug,
   isPluginKnowledgeActive,
+  isPluginOwnedKnowledgeSlug,
   OPS_ONLY_KNOWLEDGE_SLUGS,
   pluginKnowledgeSlugs,
   pluginsForFeature,
@@ -40,6 +42,10 @@ import {
 
 export { isKnowledgeDbConfigured, type KnowledgeEntry, DEFAULT_KNOWLEDGE_SLUGS, isDefaultKnowledgeSlug };
 
+function isModulePlaybookSlug(slug: string): boolean {
+  return Boolean(pluginIdForKnowledgeSlug(slug)) || isPluginOwnedKnowledgeSlug(slug);
+}
+
 function knowledgeSlugVisible(slug: string): boolean {
   if (isOpsOnlyKnowledgeSlug(slug) && !isCanonicalReaveInstall()) return false;
   const pluginId = pluginIdForKnowledgeSlug(slug);
@@ -47,20 +53,19 @@ function knowledgeSlugVisible(slug: string): boolean {
   return isKnowledgeSlugAvailable(slug);
 }
 
-function inactiveAddonKnowledgeSlugs(): string[] {
+function allModuleKnowledgeSlugs(): string[] {
   const slugs = new Set<string>();
   for (const plugin of REAVE_PLUGINS) {
-    if (isPluginKnowledgeActive(plugin.id)) continue;
     for (const slug of pluginKnowledgeSlugs(plugin.id)) slugs.add(slug);
     for (const slug of knowledgeSlugsForPlugin(plugin.id)) slugs.add(slug);
   }
   return [...slugs];
 }
 
-/** Drop add-on playbooks from the live DB while the module is off. */
+/** Module playbooks are the plugin markdown files — never keep a Postgres copy. */
 export async function purgeInactivePluginKnowledge(): Promise<string[]> {
   if (!isKnowledgeDbConfigured()) return [];
-  const slugs = inactiveAddonKnowledgeSlugs();
+  const slugs = allModuleKnowledgeSlugs();
   if (!isCanonicalReaveInstall()) slugs.push(...OPS_ONLY_KNOWLEDGE_SLUGS);
   return dbPurgeKnowledgeSlugs(slugs);
 }
@@ -83,6 +88,8 @@ export interface KnowledgePreview {
   source: 'db' | 'bundled';
   /** True for built-in app playbooks; false for business/owner-specific docs. */
   isDefault: boolean;
+  /** False for module markdown — those files are not saved to the knowledge DB. */
+  editable: boolean;
   tags?: string[];
   updated_at?: string;
 }
@@ -92,6 +99,7 @@ export interface KnowledgeDoc {
   title: string;
   content: string;
   source: 'db' | 'bundled';
+  editable: boolean;
   tags?: string[];
   updated_at?: string;
 }
@@ -111,46 +119,51 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
       preview: b.preview,
       source: 'bundled' as const,
       isDefault: isDefaultKnowledgeSlug(b.slug),
+      editable: !isModulePlaybookSlug(b.slug),
     }));
   }
 
   const dbSlugs = new Set(dbRows.map((r) => r.slug));
   const dbPreviews: KnowledgePreview[] = dbRows
-    .filter((r) => knowledgeSlugVisible(r.slug))
+    .filter((r) => knowledgeSlugVisible(r.slug) && !isModulePlaybookSlug(r.slug))
     .map((r) => ({
     slug: r.slug,
     title: r.title,
     preview: r.preview,
     source: 'db' as const,
     isDefault: isDefaultKnowledgeSlug(r.slug),
+    editable: true,
     tags: r.tags,
     updated_at: r.updated_at,
   }));
 
   const bundledOnly = bundled
-    .filter((b) => !dbSlugs.has(b.slug) && knowledgeSlugVisible(b.slug))
+    .filter((b) => knowledgeSlugVisible(b.slug) && (isModulePlaybookSlug(b.slug) || !dbSlugs.has(b.slug)))
     .map((b) => ({
       slug: b.slug,
       title: b.preview,
       preview: b.preview,
       source: 'bundled' as const,
       isDefault: isDefaultKnowledgeSlug(b.slug),
+      editable: !isModulePlaybookSlug(b.slug),
     }));
 
   return [...dbPreviews, ...bundledOnly];
 }
 
-/** Read one knowledge entry: DB first, then bundled fallback. */
+/** Read one knowledge entry. Module playbooks always come from plugin markdown. */
 export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | null> {
   await purgeInactivePluginKnowledge();
   if (!knowledgeSlugVisible(slug)) return null;
-  const dbEntry = await dbReadKnowledge(slug);
+  const fileBacked = isModulePlaybookSlug(slug);
+  const dbEntry = fileBacked ? null : await dbReadKnowledge(slug);
   if (dbEntry) {
     return {
       slug: dbEntry.slug,
       title: dbEntry.title,
       content: dbEntry.content,
       source: 'db',
+      editable: true,
       tags: dbEntry.tags,
       updated_at: dbEntry.updated_at,
     };
@@ -168,6 +181,7 @@ export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | n
       title,
       content: parsed.body,
       source: 'bundled',
+      editable: !fileBacked,
       tags: parsed.tags.length ? parsed.tags : undefined,
     };
   }
@@ -198,10 +212,10 @@ export async function storeSearchKnowledge(
     return bundledMatches;
   }
 
-  const dbSlugs = new Set(dbResults.map((r) => r.slug));
   const dbMapped = dbResults
-    .filter((r) => knowledgeSlugVisible(r.slug))
+    .filter((r) => knowledgeSlugVisible(r.slug) && !isModulePlaybookSlug(r.slug))
     .map((r) => ({ ...r, source: 'db' as const }));
+  const dbSlugs = new Set(dbMapped.map((r) => r.slug));
 
   return [...dbMapped, ...bundledMatches.filter((b) => !dbSlugs.has(b.slug))];
 }
@@ -215,6 +229,9 @@ export async function storeWriteKnowledge(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isKnowledgeDbConfigured()) {
     return { ok: false, error: 'Knowledge DB not configured — cannot save.' };
+  }
+  if (isModulePlaybookSlug(entry.slug)) {
+    return { ok: false, error: 'Module playbooks are read from the plugin markdown — they are not saved to the knowledge DB.' };
   }
   if (!knowledgeSlugVisible(entry.slug)) {
     return { ok: false, error: 'That playbook belongs to an add-on that is not active.' };
@@ -233,6 +250,9 @@ export async function storeDeleteKnowledge(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isKnowledgeDbConfigured()) {
     return { ok: false, error: 'Knowledge DB not configured — cannot save.' };
+  }
+  if (isModulePlaybookSlug(slug)) {
+    return { ok: false, error: 'Module playbooks live in the plugin directory and cannot be deleted from the knowledge DB.' };
   }
   return dbDeleteKnowledge(slug);
 }

@@ -2,7 +2,7 @@
 
 Self-contained feature packages. Each plugin owns its **knowledge**, optional **agent tools**, and (when extracted) its integration client code.
 
-Reave core (`src/knowledge/`) holds **generic product mechanics only**. Plugin playbooks never live there. Add-on knowledge is gained when the module is turned on and deleted from the live DB when it is turned off — no leftover rows.
+Reave core (`src/knowledge/`) holds **generic product mechanics only**. Plugin playbooks never live there. Add-on knowledge is read live from `plugins/{id}/knowledge/` when the module is on. It is never copied into the knowledge DB.
 
 ## Layout
 

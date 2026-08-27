@@ -309,7 +309,7 @@ function renderKnowledgeEditor() {
   const hint = document.createElement('div');
   hint.className = 'de-empty';
   hint.style.padding = '0 0.65rem 0.5rem';
-  hint.textContent = 'Live DB + bundled docs · bot reads DB first';
+  hint.textContent = 'Module playbooks read from plugin files · custom docs live in the DB';
   sidebar.appendChild(hint);
 
   const gateHost = document.createElement('div');
@@ -438,12 +438,14 @@ function renderEditKnowledgeForm(pane) {
           title: data.title || entry?.title || slug,
           subtitle: slug,
           beforeIcons: [agentBtn],
-          icons: [
-            paneDeleteIcon({
-              label: 'Delete knowledge doc',
-              onClick: () => deleteKnowledge(slug),
-            }),
-          ],
+          icons: data.editable === false
+            ? []
+            : [
+                paneDeleteIcon({
+                  label: 'Delete knowledge doc',
+                  onClick: () => deleteKnowledge(slug),
+                }),
+              ],
         }).root,
       );
 
@@ -451,14 +453,19 @@ function renderEditKnowledgeForm(pane) {
       ta.className = 'de-textarea';
       ta.spellcheck = false;
       ta.value = data.content;
-      ta.addEventListener('input', () => {
-        knowledgeState.dirty = ta.value !== knowledgeState.content;
-        scheduleKnowledgeAutosave(slug, ta);
-      });
-      ta.addEventListener('blur', () => {
-        knowledgeAutosaveFlush = () => autosaveKnowledgeQuiet(slug, ta.value, ta);
-        void autosaveKnowledgeQuiet(slug, ta.value, ta);
-      });
+      if (data.editable === false) {
+        ta.readOnly = true;
+        ta.setAttribute('aria-readonly', 'true');
+      } else {
+        ta.addEventListener('input', () => {
+          knowledgeState.dirty = ta.value !== knowledgeState.content;
+          scheduleKnowledgeAutosave(slug, ta);
+        });
+        ta.addEventListener('blur', () => {
+          knowledgeAutosaveFlush = () => autosaveKnowledgeQuiet(slug, ta.value, ta);
+          void autosaveKnowledgeQuiet(slug, ta.value, ta);
+        });
+      }
       pane.appendChild(ta);
 
       shell.clearEditorFooterSave();
@@ -658,12 +665,13 @@ function createKnowledgeListItem(entry) {
 }
 
 function createKnowledgeSwipeRow(entry) {
-  return createSwipeRow(createKnowledgeListItem(entry), [
-    swipeAgentAction(() => askAgentAboutKnowledge(entry)),
-    swipeDeleteAction({
+  const actions = [swipeAgentAction(() => askAgentAboutKnowledge(entry))];
+  if (entry.editable !== false) {
+    actions.push(swipeDeleteAction({
       onClick: () => deleteKnowledge(entry.slug),
-    }),
-  ]);
+    }));
+  }
+  return createSwipeRow(createKnowledgeListItem(entry), actions);
 }
 export {
   knowledgeState,
