@@ -41,7 +41,7 @@ const DEFAULT_THINK_MS = 1500;
 const DEFAULT_USER_PAUSE_MS = 1300;
 const DEFAULT_HOLD_MS = 900;
 const SCENE_GAP_MS = 350;
-/** Outro fade when a mock conversation ends — keep in sync with CSS. */
+/** Outro fade when a mock conversation ends (JS-ticked — CSS is a no-op on iOS). */
 const SCENE_EXIT_MS = 350;
 /** Delay between each bubble when the outro runs bottom → top. */
 const SCENE_EXIT_STAGGER_MS = 150;
@@ -2423,6 +2423,66 @@ async function playActionPlaceholder(
   await wait(reducedMotion ? 400 : 650);
 }
 
+/**
+ * Tick opacity in JS. Two CSS approaches already failed on iOS Safari:
+ * inline `transition` + opacity snaps (WebKit skips interpolation when both
+ * land in one frame), and `@keyframes` with `--delay` in the shorthand all
+ * start together (custom-property delays are dropped). Same rAF path as the
+ * signature stroke, which does run on iPhone.
+ */
+function tickStaggeredFade(
+  elements: HTMLElement[],
+  fadeMs: number,
+  staggerMs: number,
+): Promise<void> {
+  if (!elements.length) return Promise.resolve();
+
+  const items = elements.map((el) => {
+    el.style.transition = "none";
+    el.style.animation = "none";
+    const raw = Number.parseFloat(getComputedStyle(el).opacity);
+    const from = Number.isFinite(raw) ? raw : 1;
+    el.style.opacity = String(from);
+    return { el, from };
+  });
+
+  const duration = Math.max(1, fadeMs);
+  const step = Math.max(0, staggerMs);
+  const total = duration + step * (items.length - 1);
+  let start = performance.now();
+  let pausedAt = 0;
+
+  return new Promise((resolve) => {
+    const tick = (now: number) => {
+      if (demoClock.skipScene) {
+        for (const item of items) item.el.style.opacity = "0";
+        resolve();
+        return;
+      }
+      if (demoClock.userPaused) {
+        if (!pausedAt) pausedAt = now;
+        requestAnimationFrame(tick);
+        return;
+      }
+      if (pausedAt) {
+        start += now - pausedAt;
+        pausedAt = 0;
+      }
+      const elapsed = now - start;
+      for (let i = 0; i < items.length; i++) {
+        const local = elapsed - i * step;
+        if (local <= 0) continue;
+        const t = Math.min(1, local / duration);
+        const item = items[i]!;
+        item.el.style.opacity = String(item.from * (1 - easeOutCubic(t)));
+      }
+      if (elapsed < total) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
 async function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduced) {
@@ -2430,43 +2490,26 @@ async function animateSceneExit(sceneEl: HTMLElement): Promise<void> {
     return;
   }
 
-  /*
-   * CSS animation, not an inline transition. WebKit skips interpolation when
-   * `transition` and the end opacity are set in the same frame — on iOS the
-   * bubbles just vanished instead of cascading out.
-   */
   const messages = Array.from(sceneEl.querySelectorAll<HTMLElement>(".home-hero-demo-msg"));
-  const fadeMs = scaleMs(SCENE_EXIT_MS);
-  const staggerMs = scaleMs(SCENE_EXIT_STAGGER_MS);
-
   sceneEl.classList.add("home-hero-demo-scene--exit");
 
   const bottomUp = [...messages].reverse();
-  for (let i = 0; i < bottomUp.length; i++) {
-    const msg = bottomUp[i]!;
+  for (const msg of bottomUp) {
     msg.classList.remove("home-hero-demo-msg--enter");
-    msg.style.setProperty("--hero-msg-exit-ms", `${fadeMs}ms`);
-    msg.style.setProperty("--hero-msg-exit-delay", `${i * staggerMs}ms`);
+    msg.classList.add("home-hero-demo-msg--exit");
   }
 
   flushPaint(sceneEl);
   await nextFrame();
   flushPaint(sceneEl);
 
-  for (const msg of bottomUp) {
-    msg.classList.add("home-hero-demo-msg--exit");
-  }
-
   if (!messages.length) {
-    sceneEl.style.setProperty("--hero-scene-exit-ms", `${fadeMs}ms`);
-    flushPaint(sceneEl);
-    await nextFrame();
-    sceneEl.classList.add("home-hero-demo-scene--fade");
+    await tickStaggeredFade([sceneEl], scaleMs(SCENE_EXIT_MS), 0);
+    sceneEl.remove();
+    return;
   }
 
-  const holdMs =
-    messages.length > 0 ? SCENE_EXIT_MS + (messages.length - 1) * SCENE_EXIT_STAGGER_MS : SCENE_EXIT_MS;
-  await wait(holdMs);
+  await tickStaggeredFade(bottomUp, scaleMs(SCENE_EXIT_MS), scaleMs(SCENE_EXIT_STAGGER_MS));
   sceneEl.remove();
 }
 

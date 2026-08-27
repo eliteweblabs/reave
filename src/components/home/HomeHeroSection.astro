@@ -484,7 +484,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     padding-bottom: 8px;
   }
 
-  /* Marker only — per-message opacity is staggered in heroDemoLoop.ts. */
+  /* Marker only — per-message opacity is ticked in heroDemoLoop.ts (iOS-safe). */
   .home-hero-demo-scene--exit {
     pointer-events: none;
   }
@@ -518,20 +518,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       transform 0.53s ease;
   }
 
-  .home-hero-demo-scene--fade {
-    animation: heroDemoExit var(--hero-scene-exit-ms, 350ms) ease forwards;
-  }
-
-  /* After the base `.home-hero-demo-msg` transition so this override wins. */
+  /* Exit cascade is JS-ticked. Do not animate opacity here — iOS Safari
+   * drops custom-property delays in the animation shorthand and snaps
+   * same-frame transition+opacity, which made every bubble vanish at once. */
   .home-hero-demo-msg.home-hero-demo-msg--exit {
     transition: none;
-    animation: heroDemoExit var(--hero-msg-exit-ms, 350ms) ease var(--hero-msg-exit-delay, 0ms) forwards;
-  }
-
-  @keyframes heroDemoExit {
-    to {
-      opacity: 0;
-    }
+    animation: none;
   }
 
   .home-hero-demo-msg--user {
@@ -1767,8 +1759,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   @media (prefers-reduced-motion: reduce) {
     .home-hero-demo-msg--enter,
     .home-hero-demo-msg.home-hero-demo-msg--exit,
-    .home-hero-demo-scene--exit,
-    .home-hero-demo-scene--fade {
+    .home-hero-demo-scene--exit {
       animation: none;
       transition: none;
     }
