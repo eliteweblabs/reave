@@ -14,6 +14,7 @@ import { ensureSeededInboxClearedOnLiveEmail } from './seededInboxCleanup';
 import { serverEnv } from './serverEnv';
 import { runSleepDeferredCatchUp } from './inboundEmailHandler';
 import { scheduleReviewsBadgePush } from './pushBadgeSync';
+import { ensureEmailScheduledScheduler } from './emailScheduledScheduler';
 
 let _timer: ReturnType<typeof setInterval> | null = null;
 let _running = false;
@@ -92,6 +93,7 @@ export function ensureEmailCleanupScheduler(): void {
     );
   }
   void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));
+  ensureEmailScheduledScheduler();
   _timer = setInterval(() => {
     void runEmailCleanup().catch((e) => console.warn('[email-cleanup] run failed', e));
     void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));

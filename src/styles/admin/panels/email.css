@@ -144,6 +144,7 @@
 .em-filter-tab--tone-routed { --em-chip-accent: var(--em-notice-internal); }
 .em-filter-tab--tone-sent { --em-chip-accent: var(--em-notice-sent); }
 .em-filter-tab--tone-draft { --em-chip-accent: var(--em-notice-draft); }
+.em-filter-tab--tone-scheduled { --em-chip-accent: var(--em-notice-scheduled); }
 .em-filter-tab--tone-client { --em-chip-accent: var(--em-notice-client); }
 .em-filter-tab--tone-working { --em-chip-accent: var(--em-notice-working); }
 .em-filter-tab--tone-audit { --em-chip-accent: var(--em-notice-audit); }
@@ -534,6 +535,10 @@
   color: var(--em-notice-sent);
   background: color-mix(in srgb, var(--em-notice-sent) 12%, transparent);
 }
+.em-status-scheduled {
+  color: var(--em-notice-scheduled);
+  background: color-mix(in srgb, var(--em-notice-scheduled) 12%, transparent);
+}
 .em-resend-id {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.82em;
@@ -726,7 +731,8 @@
   padding-top: 0.25rem;
 }
 .em-compose--previewing .em-compose-field,
-.em-compose--previewing .em-compose-hint {
+.em-compose--previewing .em-compose-hint,
+.em-compose--previewing .em-compose-scheduled-banner {
   display: none;
 }
 .em-compose-preview-pane {
@@ -755,6 +761,117 @@
   border: 1px solid var(--card-border);
   border-radius: 8px;
   background: #fff;
+}
+.em-compose-scheduled-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  margin: 0 0 0.15rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--em-notice-scheduled) 35%, var(--card-border));
+  border-radius: var(--radius-input);
+  background: color-mix(in srgb, var(--em-notice-scheduled) 10%, var(--card));
+  color: var(--fg);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+.em-compose-scheduled-banner strong {
+  font-weight: 600;
+}
+.em-compose-scheduled-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+.em-compose-scheduled-banner button {
+  margin: 0;
+  padding: 0.15rem 0.45rem;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.em-compose-scheduled-banner button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
+}
+.em-compose-schedule {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  min-width: var(--control-h);
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-input);
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+  transition: filter 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+}
+.em-compose-schedule:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 6%, var(--card));
+}
+.em-compose-schedule[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--em-notice-scheduled) 16%, var(--card));
+  color: var(--em-notice-scheduled);
+}
+.em-compose-schedule:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.em-compose-schedule svg {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  stroke-width: 2;
+}
+.em-schedule-dialog-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+}
+.em-schedule-dialog-preset {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.em-schedule-dialog-preset:hover,
+.em-schedule-dialog-preset.is-selected {
+  border-color: color-mix(in srgb, var(--em-notice-scheduled) 50%, var(--panel-border));
+  background: color-mix(in srgb, var(--em-notice-scheduled) 14%, var(--card));
+}
+.em-schedule-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.em-schedule-dialog-field label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.em-schedule-dialog-field input {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-input);
+  background: var(--card);
+  color: var(--fg);
+  font: inherit;
 }
 .em-compose-preview {
   display: inline-flex;

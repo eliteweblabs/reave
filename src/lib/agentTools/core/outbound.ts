@@ -86,6 +86,9 @@ import {
   sendEmail,
   sendSms,
 } from '../../outbound';
+import { isImmediateScheduledAt, parseComposeScheduledAt } from '../../emailComposeSchedule';
+import { createScheduledEmail } from '../../emailScheduledStore';
+import { ensureEmailScheduledScheduler } from '../../emailScheduledScheduler';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from '../../devTaskRunner';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../devStatus';
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from '../../githubClient';
@@ -191,6 +194,36 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
 
   const from = String(args.from ?? '').trim() || undefined;
   const inReplyToEmailId = String(args.in_reply_to_email_id ?? '').trim() || null;
+
+  let scheduledAt: Date | null = null;
+  try {
+    scheduledAt = parseComposeScheduledAt(args.scheduled_at);
+  } catch (e) {
+    return JSON.stringify({
+      success: false,
+      error: e instanceof Error ? e.message : 'Invalid scheduled_at',
+    });
+  }
+  if (scheduledAt && !isImmediateScheduledAt(scheduledAt)) {
+    const record = await createScheduledEmail({
+      to: [{ email: to, name: '', uid: null }],
+      cc: (cc ?? []).map((email) => ({ email, name: '', uid: null })),
+      subject,
+      body,
+      inReplyToEmailId,
+      scheduledAt: scheduledAt.toISOString(),
+      createdBy: getAgentContext().userId ?? null,
+    });
+    ensureEmailScheduledScheduler();
+    return JSON.stringify({
+      success: true,
+      scheduled: true,
+      id: record.id,
+      scheduled_at: record.scheduledAt,
+      to,
+      subject,
+    });
+  }
   let jobSlug = String(args.job_slug ?? '').trim() || null;
   let replyHeaders: Record<string, string> | undefined;
 
@@ -310,7 +343,7 @@ export const outboundModule: AgentToolModule = {
             function: {
               name: 'send_email',
               description:
-                'Send an outbound email via Resend (same backend as POST /api/email/send). Use when the user asks you to email someone directly — not for delivering client portal links (use send_client_portal for that).',
+                'Send an outbound email via Resend (same backend as POST /api/email/send). Use when the user asks you to email someone directly — not for delivering client portal links (use send_client_portal for that). Pass scheduled_at (ISO) to queue a later send instead of delivering now.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -331,6 +364,11 @@ export const outboundModule: AgentToolModule = {
                     type: 'string',
                     description:
                       'Optional inbox email_id — adds In-Reply-To/References headers and marks the message handled after send',
+                  },
+                  scheduled_at: {
+                    type: 'string',
+                    description:
+                      'Optional ISO datetime — queue this correspondence to send later instead of immediately',
                   },
                 },
                 required: ['to', 'subject', 'body'],

@@ -127,7 +127,7 @@ import {
   applyEmailFilterTabsScroll,
   shouldCenterEmailFilterTab,
 } from './filter-tabs.js?v=20260826a';
-import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260826a';
+import { osAlert, osConfirm, osDialog, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260826a';
 import {
   initWorkPanel,
   workState,
@@ -9675,7 +9675,7 @@ function deleteKeyboardShortcutAvailable() {
     return !!chatState.activeId;
   }
   if (activeKey === 'email') {
-    if (emailState.composing || emailState.inboxFilter === 'sent' || emailState.inboxFilter === 'draft') return false;
+    if (emailState.composing || isEmailMailFolder(emailState.inboxFilter)) return false;
     return !!emailState.activeId;
   }
   return false;
@@ -9994,6 +9994,7 @@ let emailState = {
   allEvents: [],
   sentEvents: [],
   draftEvents: [],
+  scheduledEvents: [],
   inboxFilter: 'all',
   search: '',
   activeId: null,
@@ -10002,6 +10003,8 @@ let emailState = {
   replyMode: null,
   replySourceFull: null,
   activeDraftId: null,
+  activeScheduledId: null,
+  scheduledAt: null,
   compose: { to: [], cc: [], subject: '', body: '', images: [] },
   sending: false,
   storage: 'files',
@@ -10183,10 +10186,14 @@ async function openEmailFromDeepLink(id) {
   if (!id) return false;
   const knownDraft = (emailState.draftEvents || []).some((d) => d.id === id);
   if (knownDraft) return openDraftEvent(id, { fromDeepLink: true });
+  const knownScheduled = (emailState.scheduledEvents || []).some((d) => d.id === id);
+  if (knownScheduled) return openScheduledEvent(id, { fromDeepLink: true });
   let ev = emailState.allEvents.find((e) => e.id === id);
   if (!ev) {
     const openedDraft = await openDraftEvent(id, { fromDeepLink: true });
     if (openedDraft) return true;
+    const openedScheduled = await openScheduledEvent(id, { fromDeepLink: true });
+    if (openedScheduled) return true;
     try {
       const res = await fetch(`/api/email/inbox/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await readApiJson(res);
@@ -10379,7 +10386,11 @@ function resumeEmailDeepLinkFromUrl() {
     void leaveEmailCompose().then(() => openEmailFromDeepLink(emailId));
     return;
   }
-  if (emailState.allEvents.length || (emailState.draftEvents || []).length) {
+  if (
+    emailState.allEvents.length ||
+    (emailState.draftEvents || []).length ||
+    (emailState.scheduledEvents || []).length
+  ) {
     void openEmailFromDeepLink(emailId);
   } else {
     pendingEmailDeepLinkId = emailId;
@@ -10498,8 +10509,13 @@ function inboxTabCounts() {
     junk: all.filter((e) => e.category === 'junk').length,
     auto_deleted: all.filter(isAutoDeletedEmail).length,
     draft: (emailState.draftEvents || []).length,
+    scheduled: (emailState.scheduledEvents || []).length,
     sent: (emailState.sentEvents || []).length,
   };
+}
+
+function isEmailMailFolder(filter) {
+  return filter === 'sent' || filter === 'draft' || filter === 'scheduled';
 }
 
 function inboxEventsForFilter() {
@@ -10583,6 +10599,62 @@ function filteredSentEvents() {
       ev.bodyText,
     ),
   );
+}
+
+function filteredScheduledEvents() {
+  const q = emailState.search.trim();
+  let events = emailState.scheduledEvents || [];
+  if (!q) return events;
+  return events.filter((ev) => {
+    const recipients = (ev.to || []).flatMap((r) => [r.email, r.name]).filter(Boolean);
+    return matchesListSearch(q, ev.subject, ev.body, ev.error, ev.status, ...recipients);
+  });
+}
+
+function eventsForEmailFilter() {
+  if (emailState.inboxFilter === 'sent') return filteredSentEvents();
+  if (emailState.inboxFilter === 'draft') return filteredDraftEvents();
+  if (emailState.inboxFilter === 'scheduled') return filteredScheduledEvents();
+  return filteredInboxEvents();
+}
+
+function formatScheduledSendLabel(iso, opts = {}) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, {
+    weekday: opts.weekday === false ? undefined : 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function toDatetimeLocalValue(iso) {
+  const d = iso ? new Date(iso) : new Date(Date.now() + 60 * 60 * 1000);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function scheduledSendPresets() {
+  const now = new Date();
+  const laterToday = new Date(now);
+  laterToday.setHours(18, 0, 0, 0);
+  const tomorrowAm = new Date(now);
+  tomorrowAm.setDate(tomorrowAm.getDate() + 1);
+  tomorrowAm.setHours(8, 0, 0, 0);
+  const nextMon = new Date(now);
+  const daysUntilMon = (8 - nextMon.getDay()) % 7 || 7;
+  nextMon.setDate(nextMon.getDate() + daysUntilMon);
+  nextMon.setHours(8, 0, 0, 0);
+  const out = [];
+  if (laterToday.getTime() > now.getTime() + 15 * 60 * 1000) {
+    out.push({ id: 'later_today', label: 'Later today', at: laterToday });
+  }
+  out.push({ id: 'tomorrow_morning', label: 'Tomorrow morning', at: tomorrowAm });
+  out.push({ id: 'next_monday', label: 'Monday morning', at: nextMon });
+  return out;
 }
 
 export function clearTopbarPanelContext() {
@@ -13560,6 +13632,25 @@ async function loadEmailDraftEvents(quiet) {
   }
 }
 
+async function loadEmailScheduledEvents(quiet) {
+  const activeId = emailState.activeScheduledId;
+  const activeLocal = activeId
+    ? (emailState.scheduledEvents || []).find((d) => d.id === activeId)
+    : null;
+  try {
+    const res = await adminFetch('/api/email/scheduled?limit=200');
+    const data = await readAdminJson(res, 'Scheduled mail');
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    emailState.scheduledEvents = data.events || [];
+    if (activeLocal && emailState.composing) {
+      upsertScheduledEvent(activeLocal);
+    }
+  } catch (e) {
+    if (e.message === 'Session expired') throw e;
+    if (!quiet) console.warn('[email] scheduled fetch failed', e);
+  }
+}
+
 async function switchEmailInboxFilter(nextFilter) {
   await leaveEmailCompose();
   if (emailState.inboxFilter === nextFilter) return;
@@ -13569,6 +13660,7 @@ async function switchEmailInboxFilter(nextFilter) {
   getEmailPanel()?.classList.remove('em-pane-active');
   if (nextFilter === 'sent') await loadEmailSentEvents(true);
   if (nextFilter === 'draft') await loadEmailDraftEvents(true);
+  if (nextFilter === 'scheduled') await loadEmailScheduledEvents(true);
   if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
   renderEmailPanel();
 }
@@ -13582,6 +13674,7 @@ async function loadEmailTab(quiet) {
       adminFetch('/api/email/inbox?junk=1&limit=500'),
       loadEmailSentEvents(true),
       loadEmailDraftEvents(true),
+      loadEmailScheduledEvents(true),
       ensureContactAuthorIconsReady(),
     ]);
     const data = await readAdminJson(inboxRes, 'Inbox');
@@ -13621,11 +13714,7 @@ async function loadEmailTab(quiet) {
   } else if (
     emailState.activeId &&
     !emailState.composing &&
-    (emailState.inboxFilter === 'sent'
-      ? !filteredSentEvents().some((ev) => ev.id === emailState.activeId)
-      : emailState.inboxFilter === 'draft'
-        ? !filteredDraftEvents().some((ev) => ev.id === emailState.activeId)
-        : !filteredInboxEvents().some((ev) => ev.id === emailState.activeId))
+    !eventsForEmailFilter().some((ev) => ev.id === emailState.activeId)
   ) {
     emailState.activeId = null;
   }
@@ -13640,12 +13729,7 @@ async function loadEmailTab(quiet) {
       return;
     }
     const stillVisible =
-      !emailState.activeId ||
-      (emailState.inboxFilter === 'sent'
-        ? filteredSentEvents().some((ev) => ev.id === emailState.activeId)
-        : emailState.inboxFilter === 'draft'
-          ? filteredDraftEvents().some((ev) => ev.id === emailState.activeId)
-          : filteredInboxEvents().some((ev) => ev.id === emailState.activeId));
+      !emailState.activeId || eventsForEmailFilter().some((ev) => ev.id === emailState.activeId);
     if (stillVisible) {
       renderEmailPanel({ preserveSidebar: true, preservePane: true });
     } else {
@@ -13676,6 +13760,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
     ],
     fixedTabs: [
       { id: 'draft', label: 'Draft', count: counts.draft, variant: 'draft' },
+      { id: 'scheduled', label: 'Scheduled', count: counts.scheduled },
       { id: 'sent', label: 'Sent', count: counts.sent, variant: 'sent' },
     ],
     activeId: emailState.inboxFilter,
@@ -13726,6 +13811,9 @@ function emailSidebarEmptyInnerHtml() {
   if (emailState.inboxFilter === 'draft') {
     return 'No drafts yet.<br><span class="em-hint">Unsent compose messages will appear here.</span>';
   }
+  if (emailState.inboxFilter === 'scheduled') {
+    return 'No scheduled emails.<br><span class="em-hint">Pick a send time from compose and the message waits here until it goes out.</span>';
+  }
   if (emailState.inboxFilter === 'junk') return 'No junk messages.';
   if (emailState.inboxFilter === 'auto_deleted') {
     return 'No automatically deleted messages.<br><span class="em-hint">Mail removed by DELETE rules is kept here so you can confirm nothing was filtered by mistake.</span>';
@@ -13751,21 +13839,24 @@ function fillEmailSidebarList(list) {
   const target = pullRefreshContentRoot(list);
   const isSent = emailState.inboxFilter === 'sent';
   const isDraft = emailState.inboxFilter === 'draft';
-  const events = isSent
-    ? filteredSentEvents()
-    : isDraft
-      ? filteredDraftEvents()
-      : filteredInboxEvents();
+  const isScheduled = emailState.inboxFilter === 'scheduled';
+  const events = eventsForEmailFilter();
   target.replaceChildren();
   for (const ev of events) {
     target.appendChild(
-      isSent ? createSentListItem(ev) : isDraft ? createDraftListItem(ev) : createEmailSwipeRow(ev),
+      isSent
+        ? createSentListItem(ev)
+        : isDraft
+          ? createDraftListItem(ev)
+          : isScheduled
+            ? createScheduledListItem(ev)
+            : createEmailSwipeRow(ev),
     );
   }
   if (events.length === 0) {
     target.appendChild(createCenteredListEmpty({ innerHtml: emailSidebarEmptyInnerHtml() }));
   }
-  if (!isSent && !isDraft) bindEmailListSeenObserver(list);
+  if (!isSent && !isDraft && !isScheduled) bindEmailListSeenObserver(list);
   resyncListMultiSelect(list);
 }
 
@@ -13810,12 +13901,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
       placeholder: `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`,
       onInput: (value) => {
         emailState.search = value;
-        const visible =
-          emailState.inboxFilter === 'sent'
-            ? filteredSentEvents()
-            : emailState.inboxFilter === 'draft'
-              ? filteredDraftEvents()
-              : filteredInboxEvents();
+        const visible = eventsForEmailFilter();
         const clearedActive =
           emailState.activeId && !visible.some((ev) => ev.id === emailState.activeId);
         if (clearedActive) {
@@ -13832,6 +13918,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
 
   const isSent = emailState.inboxFilter === 'sent';
   const isDraft = emailState.inboxFilter === 'draft';
+  const isScheduled = emailState.inboxFilter === 'scheduled';
   if (subheader) {
     sidebar.appendChild(subheader.el);
     applyEmailFilterTabsScroll(
@@ -13846,7 +13933,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  if (!isSent && !isDraft) {
+  if (!isSent && !isDraft && !isScheduled) {
     bindListMultiSelect(list, {
       onBulkArchive: bulkArchiveEmails,
       onBulkDelete: bulkDeleteEmails,
@@ -13997,6 +14084,47 @@ function createDraftListItem(ev) {
   return item;
 }
 
+function createScheduledListItem(ev) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
+  item.dataset.id = ev.id;
+  const statusLabel = ev.status === 'failed' ? 'Failed' : 'Scheduled';
+  const statusClass = ev.status === 'failed' ? 'em-status-rejected' : 'em-status-scheduled';
+  item.innerHTML =
+    emailListAuthorIconHtml(ev) +
+    `<span class="ch-list-content">` +
+    `<span class="em-item-row em-item-header">` +
+      `<span class="em-status ${statusClass}">${escHtml(statusLabel)}</span>` +
+      `<span class="em-item-date">${escHtml(formatScheduledSendLabel(ev.scheduledAt))}</span>` +
+      `<span class="em-item-from">${escHtml(draftRecipientSummary(ev))}</span>` +
+    `</span>` +
+    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}${
+      ev.error ? ` · ${escHtml(ev.error)}` : ''
+    }</span>` +
+    `</span>`;
+  item.addEventListener('click', () => void openScheduledEvent(ev.id));
+  return item;
+}
+
+function upsertScheduledEvent(event) {
+  if (!event?.id) return;
+  const next = {
+    ...event,
+    to: (event.to || []).map(normalizeEmailRecipient).filter(Boolean),
+    cc: (event.cc || []).map(normalizeEmailRecipient).filter(Boolean),
+  };
+  const idx = (emailState.scheduledEvents || []).findIndex((d) => d.id === next.id);
+  if (idx !== -1) {
+    emailState.scheduledEvents[idx] = { ...emailState.scheduledEvents[idx], ...next };
+  } else {
+    emailState.scheduledEvents.unshift(next);
+  }
+  emailState.scheduledEvents.sort(
+    (a, b) => new Date(a.scheduledAt || a.createdAt).getTime() - new Date(b.scheduledAt || b.createdAt).getTime(),
+  );
+}
+
 function upsertDraftEvent(event) {
   if (!event?.id) return;
   const next = {
@@ -14039,6 +14167,8 @@ function rememberedOpenEmailDraft() {
 function applyDraftToCompose(draft, opts = {}) {
   emailState.activeId = draft.id;
   emailState.activeDraftId = draft.id;
+  emailState.activeScheduledId = null;
+  emailState.scheduledAt = null;
   emailState.composing = true;
   emailState.replyToId = draft.inReplyToEmailId || null;
   emailState.replyMode = opts.replyMode || (draft.inReplyToEmailId ? emailState.replyMode || 'reply' : null);
@@ -14107,6 +14237,78 @@ async function openDraftEvent(id, opts = {}) {
         emailState.compose.cc = cc;
         emailState.replyMode = 'reply-all';
       }
+      renderEmailPane();
+    });
+  }
+  return true;
+}
+
+async function fetchScheduledEmailById(id) {
+  const local = (emailState.scheduledEvents || []).find((d) => d.id === id) || null;
+  try {
+    const res = await adminFetch(`/api/email/scheduled/${encodeURIComponent(id)}`);
+    const data = await readAdminJson(res, 'Scheduled');
+    if (res.ok && data.event) {
+      upsertScheduledEvent(data.event);
+      return data.event;
+    }
+  } catch (e) {
+    if (e.message === 'Session expired') throw e;
+  }
+  return local;
+}
+
+function applyScheduledToCompose(event, opts = {}) {
+  emailState.activeId = event.id;
+  emailState.activeScheduledId = event.id;
+  emailState.activeDraftId = null;
+  emailState.scheduledAt = event.scheduledAt || null;
+  emailState.composing = true;
+  emailState.replyToId = event.inReplyToEmailId || null;
+  emailState.replyMode = opts.replyMode || (event.inReplyToEmailId ? emailState.replyMode || 'reply' : null);
+  emailState.sending = false;
+  emailState.compose = {
+    to: (event.to || []).map(normalizeEmailRecipient).filter(Boolean),
+    cc: (event.cc || []).map(normalizeEmailRecipient).filter(Boolean),
+    subject: event.subject || '',
+    body: event.body || '',
+    images: normalizeEmailComposeImages(event.images),
+  };
+}
+
+async function openScheduledEvent(id, opts = {}) {
+  if (!id) return false;
+  if (emailState.composing && emailState.activeScheduledId === id) return true;
+  if (emailState.composing) await saveActiveEmailDraft(true);
+  const event = await fetchScheduledEmailById(id);
+  if (!event) return false;
+  emailState.search = '';
+  const filterChanged = emailState.inboxFilter !== 'scheduled';
+  emailState.inboxFilter = 'scheduled';
+  emailState.replySourceFull = null;
+  applyScheduledToCompose(event, opts);
+  rememberOpenEmailDraft(id);
+  getEmailPanel()?.classList.add('em-pane-active');
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: id });
+  if (filterChanged) {
+    renderEmailPanel();
+  } else {
+    syncEmailSidebarActiveState({ scroll: true });
+    renderEmailPane();
+  }
+  syncFooterNav();
+  requestAnimationFrame(() => {
+    const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
+    if (bodyEl) {
+      bodyEl.focus();
+      bodyEl.setSelectionRange(0, 0);
+      bodyEl.scrollTop = 0;
+    }
+  });
+  if (event.inReplyToEmailId) {
+    void fetchFullEmailRecord({ id: event.inReplyToEmailId }).then((full) => {
+      if (emailState.activeScheduledId !== id || !emailState.composing || !full?.id) return;
+      emailState.replySourceFull = full;
       renderEmailPane();
     });
   }
@@ -14866,14 +15068,21 @@ function emailDraftPayload() {
 function persistEmailDraftKeepAlive() {
   if (!emailState.composing) return;
   syncComposeFromDom();
-  if (!isEmailComposeDirty() && !emailState.activeDraftId) return;
-  const payload = JSON.stringify(emailDraftPayload());
+  if (!isEmailComposeDirty() && !emailState.activeDraftId && !emailState.activeScheduledId) return;
+  const payload = JSON.stringify(
+    emailState.activeScheduledId
+      ? { ...emailDraftPayload(), scheduledAt: emailState.scheduledAt }
+      : emailDraftPayload(),
+  );
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-  const url = emailState.activeDraftId
-    ? `/api/email/drafts/${encodeURIComponent(emailState.activeDraftId)}`
-    : '/api/email/drafts';
+  const url = emailState.activeScheduledId
+    ? `/api/email/scheduled/${encodeURIComponent(emailState.activeScheduledId)}`
+    : emailState.activeDraftId
+      ? `/api/email/drafts/${encodeURIComponent(emailState.activeDraftId)}`
+      : '/api/email/drafts';
+  const method = emailState.activeScheduledId || emailState.activeDraftId ? 'PATCH' : 'POST';
   void fetch(url, {
-    method: emailState.activeDraftId ? 'PATCH' : 'POST',
+    method,
     headers,
     body: payload,
     credentials: 'same-origin',
@@ -14901,11 +15110,27 @@ async function saveActiveEmailDraft(silent = true) {
   if (!emailState.composing) return true;
   flushScheduledEmailDraftSave();
   syncComposeFromDom();
-  if (!isEmailComposeDirty() && !emailState.activeDraftId) return true;
+  if (!isEmailComposeDirty() && !emailState.activeDraftId && !emailState.activeScheduledId) return true;
   const payload = emailDraftPayload();
   const pending = (async () => {
     try {
-      if (emailState.activeDraftId) {
+      if (emailState.activeScheduledId) {
+        const res = await adminFetch(
+          `/api/email/scheduled/${encodeURIComponent(emailState.activeScheduledId)}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              ...(emailState.scheduledAt ? { scheduledAt: emailState.scheduledAt } : {}),
+            }),
+          },
+        );
+        const data = await readAdminJson(res, 'Save scheduled');
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        upsertScheduledEvent(data.event);
+        emailState.scheduledAt = data.event.scheduledAt || emailState.scheduledAt;
+      } else if (emailState.activeDraftId) {
         const res = await adminFetch(
           `/api/email/drafts/${encodeURIComponent(emailState.activeDraftId)}`,
           {
@@ -14930,9 +15155,13 @@ async function saveActiveEmailDraft(silent = true) {
         upsertDraftEvent(data.event);
       }
       if (emailState.composing && MAP?.type === 'email') {
-        syncAdminTabUrl('email', { emailId: emailState.activeDraftId });
+        syncAdminTabUrl('email', {
+          emailId: emailState.activeScheduledId || emailState.activeDraftId,
+        });
       }
-      if (emailState.composing) rememberOpenEmailDraft(emailState.activeDraftId);
+      if (emailState.composing) {
+        rememberOpenEmailDraft(emailState.activeScheduledId || emailState.activeDraftId);
+      }
       if (!silent) showChatToast('Draft saved');
       return true;
     } catch (e) {
@@ -14968,6 +15197,8 @@ async function leaveEmailCompose() {
   emailState.composing = false;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
+  emailState.activeScheduledId = null;
+  emailState.scheduledAt = null;
   emailState.compose = emptyEmailCompose();
   emailState.sending = false;
   rememberOpenEmailDraft(null);
@@ -14982,6 +15213,8 @@ async function closeEmailCompose(opts = { saveDraft: true }) {
   emailState.composing = false;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
+  emailState.activeScheduledId = null;
+  emailState.scheduledAt = null;
   emailState.activeId = null;
   emailState.compose = emptyEmailCompose();
   emailState.sending = false;
@@ -15001,6 +15234,8 @@ async function startNewEmail(opts = {}) {
   emailState.composing = true;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
+  emailState.activeScheduledId = null;
+  emailState.scheduledAt = null;
   emailState.compose = emptyEmailCompose({ to });
   emailState.sending = false;
   rememberOpenEmailDraft(null);
@@ -15030,6 +15265,8 @@ async function startReplyEmail(ev, mode = 'reply') {
   emailState.replyMode = replyMode;
   emailState.replySourceFull = null;
   emailState.activeDraftId = null;
+  emailState.activeScheduledId = null;
+  emailState.scheduledAt = null;
   emailState.sending = false;
   emailState.compose = emptyEmailCompose();
   getEmailPanel()?.classList.add('em-pane-active');
@@ -15078,6 +15315,8 @@ function snapshotActiveEmailCompose() {
     replyMode: emailState.replyMode,
     replySourceFull: emailState.replySourceFull,
     draftId: emailState.activeDraftId,
+    scheduledId: emailState.activeScheduledId,
+    scheduledAt: emailState.scheduledAt,
   };
 }
 
@@ -15089,14 +15328,17 @@ function restoreEmailComposeSnapshot(snap) {
   emailState.replyMode = snap.replyMode || null;
   emailState.replySourceFull = snap.replySourceFull || null;
   emailState.activeDraftId = snap.draftId || null;
-  emailState.activeId = snap.draftId || snap.replyToId || null;
-  rememberOpenEmailDraft(snap.draftId || null);
+  emailState.activeScheduledId = snap.scheduledId || null;
+  emailState.scheduledAt = snap.scheduledAt || null;
+  emailState.activeId = snap.scheduledId || snap.draftId || snap.replyToId || null;
+  if (snap.scheduledId) emailState.inboxFilter = 'scheduled';
+  rememberOpenEmailDraft(snap.scheduledId || snap.draftId || null);
   getEmailPanel()?.classList.add('em-pane-active');
   if (MAP?.type !== 'email') {
-    setActiveMap('email', { force: true, emailId: snap.draftId || null });
+    setActiveMap('email', { force: true, emailId: snap.scheduledId || snap.draftId || null });
     return;
   }
-  syncAdminTabUrl('email', { emailId: snap.draftId || null });
+  syncAdminTabUrl('email', { emailId: snap.scheduledId || snap.draftId || null });
   renderEmailPanel();
   syncFooterNav();
   requestAnimationFrame(() => {
@@ -15120,7 +15362,10 @@ function emailSendPayloadFromSnapshot(snap) {
     images: normalizeEmailComposeImages(snap.compose.images),
   };
   if (ccEmails.length) payload.cc = ccEmails.length === 1 ? ccEmails[0] : ccEmails;
+  payload.toRecipients = recipients;
+  payload.ccRecipients = ccRecipients;
   if (snap.replyToId) payload.inReplyToEmailId = snap.replyToId;
+  if (snap.scheduledAt) payload.scheduledAt = snap.scheduledAt;
   return payload;
 }
 
@@ -15225,9 +15470,74 @@ async function revealSentEmailAfterSend(resendId, replyId) {
   renderEmailPanel();
 }
 
+async function revealScheduledEmailAfterQueue(eventId) {
+  if (emailState.composing || MAP?.type !== 'email') return;
+  await loadEmailScheduledEvents(true);
+  const scheduled = (emailState.scheduledEvents || []).find((e) => e.id === eventId);
+  emailState.inboxFilter = 'scheduled';
+  emailState.activeId = scheduled?.id || eventId || null;
+  if (emailState.activeId) getEmailPanel()?.classList.add('em-pane-active');
+  renderEmailPanel();
+  syncFooterNav();
+  if (emailState.activeId) syncAdminTabUrl('email', { emailId: emailState.activeId });
+}
+
 async function commitQueuedEmailSend(snap) {
-  const payload = emailSendPayloadFromSnapshot(snap);
   try {
+    if (snap.sendNowScheduledId) {
+      const saveRes = await fetch(`/api/email/scheduled/${encodeURIComponent(snap.sendNowScheduledId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: snap.compose.to,
+          cc: snap.compose.cc,
+          subject: snap.compose.subject,
+          body: snap.compose.body,
+          images: snap.compose.images,
+          inReplyToEmailId: snap.replyToId,
+        }),
+      });
+      const saveData = await readApiJson(saveRes);
+      if (!saveRes.ok) throw new Error(saveData.error || `HTTP ${saveRes.status}`);
+      const res = await fetch(`/api/email/scheduled/${encodeURIComponent(snap.sendNowScheduledId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await readApiJson(res);
+      if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      emailState.scheduledEvents = (emailState.scheduledEvents || []).filter(
+        (e) => e.id !== snap.sendNowScheduledId,
+      );
+      await loadEmailSentEvents(true);
+      if (emailState.composing) return;
+      await revealSentEmailAfterSend(data.id, snap.replyToId);
+      return;
+    }
+
+    if (snap.rescheduleId && snap.scheduledAt) {
+      const res = await fetch(`/api/email/scheduled/${encodeURIComponent(snap.rescheduleId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: snap.compose.to,
+          cc: snap.compose.cc,
+          subject: snap.compose.subject,
+          body: snap.compose.body,
+          images: snap.compose.images,
+          inReplyToEmailId: snap.replyToId,
+          scheduledAt: snap.scheduledAt,
+        }),
+      });
+      const data = await readApiJson(res);
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      upsertScheduledEvent(data.event);
+      if (emailState.composing) return;
+      showChatToast(`Scheduled for ${formatScheduledSendLabel(data.event.scheduledAt)}`);
+      await revealScheduledEmailAfterQueue(data.event.id);
+      return;
+    }
+
+    const payload = emailSendPayloadFromSnapshot(snap);
     const res = await fetch('/api/email/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -15236,6 +15546,13 @@ async function commitQueuedEmailSend(snap) {
     const data = await readApiJson(res);
     if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     if (snap.draftId) void deleteEmailDraftById(snap.draftId);
+    if (data.scheduled) {
+      await loadEmailScheduledEvents(true);
+      if (emailState.composing) return;
+      showChatToast(`Scheduled for ${formatScheduledSendLabel(data.scheduledAt)}`);
+      await revealScheduledEmailAfterQueue(data.id);
+      return;
+    }
     await loadEmailSentEvents(true);
     if (emailState.composing) return;
     await revealSentEmailAfterSend(data.id, snap.replyToId);
@@ -15273,13 +15590,144 @@ async function sendEmailCompose() {
   };
   await saveActiveEmailDraft(true);
   const snapshot = snapshotActiveEmailCompose();
+  if (emailState.activeScheduledId) snapshot.sendNowScheduledId = emailState.activeScheduledId;
   await closeEmailCompose({ saveDraft: false });
   void ensureShakePermission();
   await queueShakeUndo({
-    key: `send:email:${snapshot.draftId || Date.now()}`,
+    key: `send:email:${snapshot.draftId || snapshot.scheduledId || Date.now()}`,
     commit: () => commitQueuedEmailSend(snapshot),
     undo: () => restoreEmailComposeSnapshot(snapshot),
   });
+}
+
+async function pickScheduledSendAt(initialIso) {
+  const presets = scheduledSendPresets();
+  let selectedIso = initialIso || presets[0]?.at.toISOString() || new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const presetHtml = presets
+    .map(
+      (p) =>
+        `<button type="button" class="em-schedule-dialog-preset" data-preset="${escHtml(p.id)}" data-iso="${escHtml(p.at.toISOString())}">${escHtml(p.label)}</button>`,
+    )
+    .join('');
+  const confirmed = await osDialog({
+    title: initialIso ? 'Reschedule send' : 'Schedule send',
+    confirmLabel: 'Schedule',
+    showCancel: true,
+    bodyHtml:
+      `<div class="em-schedule-dialog-presets">${presetHtml}</div>` +
+      `<div class="em-schedule-dialog-field">` +
+      `<label for="em-schedule-at">Send at</label>` +
+      `<input id="em-schedule-at" type="datetime-local" value="${escHtml(toDatetimeLocalValue(selectedIso))}">` +
+      `</div>`,
+    onOpen: ({ bodyEl }) => {
+      const input = bodyEl.querySelector('#em-schedule-at');
+      const buttons = [...bodyEl.querySelectorAll('.em-schedule-dialog-preset')];
+      const syncSelected = () => {
+        buttons.forEach((btn) => {
+          btn.classList.toggle('is-selected', btn.dataset.iso === selectedIso);
+        });
+      };
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          selectedIso = btn.dataset.iso;
+          if (input instanceof HTMLInputElement) input.value = toDatetimeLocalValue(selectedIso);
+          syncSelected();
+        });
+      });
+      input?.addEventListener('input', () => {
+        if (!(input instanceof HTMLInputElement) || !input.value) return;
+        const next = new Date(input.value);
+        if (!Number.isNaN(next.getTime())) selectedIso = next.toISOString();
+        syncSelected();
+      });
+      syncSelected();
+      scheduleOsDialogFieldFocus(input);
+    },
+  });
+  if (!confirmed) return null;
+  const at = new Date(selectedIso);
+  if (Number.isNaN(at.getTime())) return null;
+  if (at.getTime() <= Date.now() + 15_000) {
+    await osAlert({
+      title: 'Pick a later time',
+      bodyHtml: '<p>Choose a send time at least a minute from now.</p>',
+    });
+    return null;
+  }
+  return at.toISOString();
+}
+
+async function scheduleEmailCompose() {
+  void ensureShakePermission();
+  syncComposeFromDom();
+  const { to, cc, subject, body } = emailState.compose;
+  const recipients = (Array.isArray(to) ? to : []).map(normalizeEmailRecipient).filter(Boolean);
+  const ccRecipients = (Array.isArray(cc) ? cc : []).map(normalizeEmailRecipient).filter(Boolean);
+  const toEmails = recipients.map((r) => r.email);
+  const subjectTrim = String(subject || '').trim();
+  const bodyTrim = String(body || '').trim();
+  const images = normalizeEmailComposeImages(emailState.compose.images);
+  if (!toEmails.length || !subjectTrim || (!bodyTrim && !images.length) || emailState.sending) {
+    renderEmailPanel();
+    return;
+  }
+
+  const nextAt = await pickScheduledSendAt(emailState.scheduledAt);
+  if (!nextAt) return;
+
+  emailState.compose = {
+    to: recipients,
+    cc: ccRecipients,
+    subject: subjectTrim,
+    body: bodyTrim,
+    images,
+  };
+  emailState.scheduledAt = nextAt;
+  await saveActiveEmailDraft(true);
+  const snapshot = snapshotActiveEmailCompose();
+  snapshot.scheduledAt = nextAt;
+  if (emailState.activeScheduledId) snapshot.rescheduleId = emailState.activeScheduledId;
+  await closeEmailCompose({ saveDraft: false });
+  void ensureShakePermission();
+  await queueShakeUndo({
+    key: `schedule:email:${snapshot.scheduledId || snapshot.draftId || Date.now()}`,
+    commit: () => commitQueuedEmailSend(snapshot),
+    undo: () => restoreEmailComposeSnapshot(snapshot),
+  });
+}
+
+async function cancelScheduledCompose() {
+  const id = emailState.activeScheduledId;
+  if (!id) return;
+  const ok = await osConfirm({
+    title: 'Don’t send later?',
+    bodyHtml: '<p>This stays as a draft. It will not go out on its own.</p>',
+    confirmLabel: 'Keep as draft',
+  });
+  if (!ok) return;
+  await saveActiveEmailDraft(true);
+  try {
+    const res = await adminFetch(`/api/email/scheduled/${encodeURIComponent(id)}?toDraft=1`, {
+      method: 'DELETE',
+    });
+    const data = await readAdminJson(res, 'Cancel schedule');
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    emailState.scheduledEvents = (emailState.scheduledEvents || []).filter((e) => e.id !== id);
+    if (data.draft) {
+      upsertDraftEvent(data.draft);
+      emailState.activeScheduledId = null;
+      emailState.scheduledAt = null;
+      applyDraftToCompose(data.draft);
+      emailState.inboxFilter = 'draft';
+      rememberOpenEmailDraft(data.draft.id);
+      if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: data.draft.id });
+      renderEmailPanel();
+      showChatToast('Moved to Drafts');
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message === 'Session expired') return;
+    await osAlert({ title: 'Could not cancel schedule', bodyHtml: escHtml(e.message) });
+  }
 }
 
 function emailShareText(ev) {
@@ -15622,11 +16070,25 @@ function renderEmailComposePane(pane) {
   previewBtn.addEventListener('click', () => {
     void toggleEmailComposePreview(form, previewBtn);
   });
+  const scheduleBtn = document.createElement('button');
+  scheduleBtn.type = 'button';
+  scheduleBtn.className = 'em-compose-schedule';
+  const scheduledLabel = emailState.scheduledAt
+    ? `Scheduled for ${formatScheduledSendLabel(emailState.scheduledAt)}`
+    : 'Schedule send';
+  scheduleBtn.setAttribute('aria-label', scheduledLabel);
+  scheduleBtn.setAttribute('aria-pressed', emailState.scheduledAt ? 'true' : 'false');
+  scheduleBtn.title = scheduledLabel;
+  scheduleBtn.innerHTML = IOS_ICONS.clock || '';
+  scheduleBtn.disabled = emailState.sending;
+  scheduleBtn.addEventListener('click', () => {
+    void scheduleEmailCompose();
+  });
   const sendBtn = document.createElement('button');
   sendBtn.type = 'button';
   sendBtn.className = 'em-compose-send';
-  sendBtn.setAttribute('aria-label', emailState.sending ? 'Sending…' : 'Send');
-  sendBtn.title = emailState.sending ? 'Sending…' : 'Send';
+  sendBtn.setAttribute('aria-label', emailState.sending ? 'Sending…' : 'Send now');
+  sendBtn.title = emailState.sending ? 'Sending…' : emailState.scheduledAt ? 'Send now' : 'Send';
   sendBtn.innerHTML = IOS_ICONS.send || '';
   sendBtn.disabled = emailState.sending;
   sendBtn.addEventListener('click', () => {
@@ -15635,14 +16097,47 @@ function renderEmailComposePane(pane) {
   });
 
   actions.appendChild(previewBtn);
+  actions.appendChild(scheduleBtn);
   actions.appendChild(sendBtn);
-  form.appendChild(toField);
-  form.appendChild(ccField);
-  form.appendChild(subjectField);
-  form.appendChild(bodyField);
-  form.appendChild(hint);
-  form.appendChild(previewPane);
-  form.appendChild(actions);
+
+  if (emailState.scheduledAt) {
+    const banner = document.createElement('div');
+    banner.className = 'em-compose-scheduled-banner';
+    const bannerText = document.createElement('span');
+    bannerText.innerHTML = `Sends <strong>${escHtml(formatScheduledSendLabel(emailState.scheduledAt))}</strong>`;
+    const bannerActions = document.createElement('div');
+    bannerActions.className = 'em-compose-scheduled-banner-actions';
+    const changeBtn = document.createElement('button');
+    changeBtn.type = 'button';
+    changeBtn.textContent = 'Change';
+    changeBtn.disabled = emailState.sending;
+    changeBtn.addEventListener('click', () => void scheduleEmailCompose());
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Don’t send';
+    cancelBtn.disabled = emailState.sending;
+    cancelBtn.addEventListener('click', () => void cancelScheduledCompose());
+    bannerActions.appendChild(changeBtn);
+    bannerActions.appendChild(cancelBtn);
+    banner.appendChild(bannerText);
+    banner.appendChild(bannerActions);
+    form.appendChild(toField);
+    form.appendChild(ccField);
+    form.appendChild(subjectField);
+    form.appendChild(bodyField);
+    form.appendChild(hint);
+    form.appendChild(previewPane);
+    form.appendChild(banner);
+    form.appendChild(actions);
+  } else {
+    form.appendChild(toField);
+    form.appendChild(ccField);
+    form.appendChild(subjectField);
+    form.appendChild(bodyField);
+    form.appendChild(hint);
+    form.appendChild(previewPane);
+    form.appendChild(actions);
+  }
   pane.appendChild(form);
 }
 

@@ -50,7 +50,7 @@ export async function buildAdminComposeEmail(
   body: Record<string, unknown>,
   opts: {
     userId: string;
-    context: APIContext;
+    context?: APIContext;
     requireRecipient?: boolean;
     requireSubject?: boolean;
   },

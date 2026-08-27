@@ -117,6 +117,7 @@ const FILTER_TAB_TONES = {
   routed: 'routed',
   draft: 'draft',
   sent: 'sent',
+  scheduled: 'scheduled',
   working: 'working',
   archive: 'archive',
   professional: 'client',

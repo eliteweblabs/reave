@@ -1,12 +1,17 @@
 /**
  * POST /api/email/send — send outbound mail from the admin compose UI (Resend).
+ * Pass scheduledAt (ISO) to queue a later send instead of delivering now.
  */
 
 import type { APIContext } from 'astro';
 import { buildAdminComposeEmail } from '../../../lib/adminComposeEmail';
-import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../lib/emailInboxStore';
-import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
-import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
+import { deliverAdminComposeMail } from '../../../lib/deliverAdminCompose';
+import { isImmediateScheduledAt, parseComposeScheduledAt } from '../../../lib/emailComposeSchedule';
+import { normalizeEmailComposeImages } from '../../../lib/emailComposeImages';
+import { createScheduledEmail } from '../../../lib/emailScheduledStore';
+import { ensureEmailScheduledScheduler } from '../../../lib/emailScheduledScheduler';
+import { normalizeEmailDraftRecipients } from '../../../lib/emailDraftStore';
+import { isEmailSendConfigured } from '../../../lib/outbound';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -34,55 +39,54 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const built = await buildAdminComposeEmail(body, { userId, context });
-  if (!built.ok) return json({ ok: false, success: false, error: built.error }, built.status);
-  const mail = built.mail;
+  let scheduledAt: Date | null = null;
+  try {
+    scheduledAt = parseComposeScheduledAt(body.scheduledAt ?? body.scheduled_at);
+  } catch (e) {
+    return json({ ok: false, error: e instanceof Error ? e.message : 'Invalid scheduled time' }, 400);
+  }
 
-  const result = await sendEmail({
-    to: mail.to,
-    subject: mail.subject,
-    text: mail.text,
-    html: mail.html,
-    cc: mail.cc,
-    bcc: mail.bcc,
-    from: mail.from,
-    headers: mail.headers,
-    attachments: mail.attachments,
-  });
-  if (!result.ok) return json({ ok: false, success: false, error: result.error }, 502);
+  if (scheduledAt && !isImmediateScheduledAt(scheduledAt)) {
+    const built = await buildAdminComposeEmail(body, { userId, context });
+    if (!built.ok) return json({ ok: false, success: false, error: built.error }, built.status);
 
-  for (const toEmail of mail.to) {
-    void logOutboundEmailForProject({
-      toEmail,
-      subject: mail.subject,
-      resendId: result.id,
-      sentBy: userId,
-      source: mail.inReplyToEmailId ? 'admin_reply' : 'admin_compose',
-      jobSlug: mail.jobSlug,
-      contactUid: mail.contactUid,
-      bodyText: mail.text,
-      bodyHtml: mail.html ?? null,
+    const record = await createScheduledEmail({
+      to: normalizeEmailDraftRecipients(body.toRecipients ?? body.to),
+      cc: normalizeEmailDraftRecipients(body.ccRecipients ?? body.cc),
+      subject: String(body.subject ?? ''),
+      body: String(body.text ?? body.body ?? ''),
+      images: normalizeEmailComposeImages(body.images),
+      inReplyToEmailId:
+        body.inReplyToEmailId != null
+          ? String(body.inReplyToEmailId).trim() || null
+          : body.in_reply_to_email_id != null
+            ? String(body.in_reply_to_email_id).trim() || null
+            : null,
+      scheduledAt: scheduledAt.toISOString(),
+      createdBy: userId,
+    });
+    ensureEmailScheduledScheduler();
+    return json({
+      ok: true,
+      success: true,
+      scheduled: true,
+      id: record.id,
+      scheduledAt: record.scheduledAt,
     });
   }
 
-  let routed = false;
-  if (mail.inReplyToEmailId) {
-    const existing = await storeGetEmailInbox(mail.inReplyToEmailId);
-    if (existing) {
-      const updated = await storeUpdateEmailInbox(mail.inReplyToEmailId, {
-        action: 'filed',
-        status: 'FILED',
-        ...(existing.category === 'review' ? { category: 'internal' } : {}),
-      });
-      routed = Boolean(updated);
-    }
-  }
+  const built = await buildAdminComposeEmail(body, { userId, context });
+  if (!built.ok) return json({ ok: false, success: false, error: built.error }, built.status);
 
+  const result = await deliverAdminComposeMail(built.mail, userId);
+  if (!result.ok) return json({ ok: false, success: false, error: result.error }, 502);
+
+  ensureEmailScheduledScheduler();
   return json({
     ok: true,
     success: true,
     id: result.id,
-    routed,
-    inReplyToEmailId: mail.inReplyToEmailId,
+    routed: result.routed,
+    inReplyToEmailId: result.inReplyToEmailId,
   });
 }
