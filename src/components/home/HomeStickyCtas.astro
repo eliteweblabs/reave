@@ -146,6 +146,9 @@ const trailingCtas = ctas.slice(1);
     display: grid;
     width: 100%;
     overflow: clip;
+    /* Glow sits in the padding so overflow:clip cannot shave the Demo pill. */
+    padding-bottom: 20px;
+    box-sizing: border-box;
   }
 
   .home-sticky-cta-track__body,
@@ -164,11 +167,11 @@ const trailingCtas = ctas.slice(1);
     right: auto;
     bottom: auto;
     top: calc(
-      100vh - var(--home-sticky-cta-h, 2.75rem) - 20px -
+      100vh - var(--home-sticky-cta-h, 2.75rem) - 40px -
         env(safe-area-inset-bottom, 0px)
     );
     top: calc(
-      100dvh - var(--home-sticky-cta-h, 2.75rem) - 20px -
+      100dvh - var(--home-sticky-cta-h, 2.75rem) - 40px -
         env(safe-area-inset-bottom, 0px)
     );
     z-index: 100;
