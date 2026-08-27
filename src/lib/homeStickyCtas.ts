@@ -1,57 +1,23 @@
 /**
- * Homepage hero CTAs — dock into the features closing section, or hide at #contact.
+ * Homepage hero CTAs — size the CSS sticky track, or hide at #contact.
  */
 import { initFloatingWidgetSectionHide } from "./floatingWidgetSectionHide";
 
-function initStickyCtaDock(el: HTMLElement, dock: HTMLElement): void {
+function syncStickyCtaHeight(el: HTMLElement, track: HTMLElement): void {
   const row = el.querySelector<HTMLElement>(".home-sticky-ctas__row");
-  let undockedHeight = 0;
-  let rowOffset = 0;
-  let ticking = false;
+  const dock = track.querySelector<HTMLElement>("[data-home-sticky-ctas-dock]");
+  const height = Math.round((row ?? el).getBoundingClientRect().height);
+  if (height > 0) {
+    track.style.setProperty("--home-sticky-cta-h", `${height}px`);
+    if (dock) dock.style.minHeight = `${height}px`;
+  }
+}
 
-  const measureUndocked = () => {
-    if (el.classList.contains("is-docked")) return;
-    undockedHeight = el.offsetHeight;
-    if (row) {
-      rowOffset = row.getBoundingClientRect().top - el.getBoundingClientRect().top;
-      dock.style.minHeight = `${Math.round(row.getBoundingClientRect().height)}px`;
-    }
-  };
-
-  const floatingRowTop = () => window.innerHeight - undockedHeight + rowOffset;
-
-  const sync = () => {
-    ticking = false;
-    if (!document.contains(el) || !document.contains(dock)) return;
-
-    if (!el.classList.contains("is-docked")) measureUndocked();
-
-    const dockTop = dock.getBoundingClientRect().top;
-    const meetAt = el.classList.contains("is-docked")
-      ? floatingRowTop()
-      : (row ?? el).getBoundingClientRect().top;
-
-    if (dockTop <= meetAt) {
-      el.classList.add("is-docked");
-      el.style.setProperty("--sticky-cta-dock-top", `${dockTop}px`);
-    } else {
-      el.classList.remove("is-docked");
-      el.style.removeProperty("--sticky-cta-dock-top");
-      measureUndocked();
-    }
-  };
-
-  const onScrollOrResize = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(sync);
-  };
-
-  measureUndocked();
-  sync();
-  window.addEventListener("scroll", onScrollOrResize, { passive: true });
-  window.addEventListener("resize", onScrollOrResize);
-  window.visualViewport?.addEventListener("resize", onScrollOrResize);
+function initStickyCtaTrack(el: HTMLElement, track: HTMLElement): void {
+  const measure = () => syncStickyCtaHeight(el, track);
+  measure();
+  window.addEventListener("resize", measure);
+  window.visualViewport?.addEventListener("resize", measure);
 }
 
 export function initHomeStickyCtas(root?: HTMLElement | null): void {
@@ -61,9 +27,9 @@ export function initHomeStickyCtas(root?: HTMLElement | null): void {
   if (!el || el.dataset.stickyCtasBound === "1") return;
   el.dataset.stickyCtasBound = "1";
 
-  const dock = document.querySelector<HTMLElement>("[data-home-sticky-ctas-dock]");
-  if (dock) {
-    initStickyCtaDock(el, dock);
+  const track = el.closest<HTMLElement>("[data-home-sticky-ctas-track]");
+  if (track) {
+    initStickyCtaTrack(el, track);
     return;
   }
 

@@ -1,8 +1,8 @@
 ---
 /**
- * Homepage hero CTAs — full-bleed dock outside .home-scroll.
- * Sibling of .home-scroll — .home-hero is isolation:isolate and would trap
- * position:fixed. Parks in the features closing row, or hides at #contact.
+ * Homepage hero CTAs. On the features tour they live in a CSS sticky
+ * track that ends at the closing row (no JS top-chasing). Without that
+ * track they stay viewport-fixed and hide at #contact.
  */
 import { ArrowRight } from "lucide-astro";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
@@ -138,14 +138,47 @@ const trailingCtas = ctas.slice(1);
       visibility 0s linear 0.55s;
   }
 
-  /* Parked in the features closing row — same pills, no floating chrome. */
-  .home-sticky-ctas.is-docked {
-    top: var(--sticky-cta-dock-top, auto);
+  /*
+   * Overlap the tour and stick to the viewport bottom until the track
+   * ends — the compositor owns scroll, so fast flicks stay glued.
+   */
+  .home-sticky-cta-track {
+    display: grid;
+    width: 100%;
+    overflow: clip;
+  }
+
+  .home-sticky-cta-track__body,
+  .home-sticky-cta-track > .home-sticky-ctas {
+    grid-area: 1 / 1;
+  }
+
+  .home-sticky-cta-track__body {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .home-sticky-cta-track > .home-sticky-ctas {
+    position: sticky;
+    left: auto;
+    right: auto;
     bottom: auto;
+    top: calc(
+      100vh - var(--home-sticky-cta-h, 2.75rem) - 20px -
+        env(safe-area-inset-bottom, 0px)
+    );
+    top: calc(
+      100dvh - var(--home-sticky-cta-h, 2.75rem) - 20px -
+        env(safe-area-inset-bottom, 0px)
+    );
+    z-index: 100;
+    align-self: start;
+    justify-self: center;
+    width: fit-content;
+    height: max-content;
+    max-width: calc(100vw - 40px);
+    margin-inline: auto;
     padding: 0;
-    transform: none;
-    opacity: 1;
-    visibility: visible;
   }
 
   @media (prefers-reduced-motion: reduce) {

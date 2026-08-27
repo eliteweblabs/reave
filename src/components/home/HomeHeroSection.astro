@@ -1,8 +1,8 @@
 ---
 /**
  * Homepage hero — icon + headline centered, chat scrolls up under them.
- * CTAs are viewport-fixed in index.astro (sibling of .home-scroll). They
- * cannot live in this section: isolation:isolate traps position:fixed.
+ * Homepage CTAs sit in the sticky track beside this section — not inside
+ * it, because isolation:isolate would trap position:fixed.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";

@@ -46,23 +46,22 @@ const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteConten
   ) : (
     <Layout>
       <div class="home-scroll">
-        <HomeHeroSection siteContent={siteContent} />
-
-        {homepage.showFeatures && (
-          <FeaturesPageContent embedded introOnly />
-        )}
-        {homepage.showFeatures && (
-          <FeaturesPageContent embedded hideIntro showLogoStack={false} showAccordion={false} />
+        {homepage.showFeatures ? (
+          <div class="home-sticky-cta-track" data-home-sticky-ctas-track>
+            <div class="home-sticky-cta-track__body">
+              <HomeHeroSection siteContent={siteContent} />
+              <FeaturesPageContent embedded introOnly />
+              <FeaturesPageContent embedded hideIntro showLogoStack={false} showAccordion={false} />
+            </div>
+            <HomeStickyCtas siteContent={siteContent} />
+          </div>
+        ) : (
+          <HomeHeroSection siteContent={siteContent} />
         )}
         <HomeFeaturedProjectSection />
         {homepage.showContact && <HomeContactSection />}
       </div>
-      {/*
-        Viewport-fixed chrome must sit outside .home-hero. That section is
-        isolation:isolate + z-index:0, so nested position:fixed buttons cannot
-        paint above later sections.
-      */}
-      <HomeStickyCtas siteContent={siteContent} />
+      {!homepage.showFeatures && <HomeStickyCtas siteContent={siteContent} />}
     </Layout>
   )
 }
