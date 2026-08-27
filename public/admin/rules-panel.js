@@ -1262,7 +1262,7 @@ function renderRuleEditPane(pane, opts = {}) {
 
   const expiresToggle = createRuleToggle({
     checked: !!rule.expiresAt,
-    label: 'Expires',
+    label: 'Expires on',
     onToggle: (on) => {
       if (on && ruleToggleOn(expireInToggle)) setToggleSwitch(expireInToggle, false);
       if (on && !expiresAtIn.value) expiresAtIn.value = defaultRuleExpiresLocalValue();
@@ -1292,12 +1292,13 @@ function renderRuleEditPane(pane, opts = {}) {
   const expiresWrap = document.createElement('div');
   expiresWrap.className = 're-expires-field';
   expiresWrap.append(
-    createRuleToggleRow('Expires', expiresToggle),
+    createRuleToggleRow('Expires on', expiresToggle, { iconKey: 'clock' }),
     expiresAtReveal,
-    createRuleToggleRow('Expire in', expireInToggle),
+    createRuleToggleRow('Expire in', expireInToggle, { iconKey: 'stopwatch' }),
     expireInReveal,
   );
 
+  appendRuleField(form, 'Description', descIn);
   const top = document.createElement('div');
   top.className = 're-rule-top';
   if (scopeWrap.childNodes.length) {
@@ -1313,7 +1314,6 @@ function renderRuleEditPane(pane, opts = {}) {
   form.appendChild(top);
   processField = { wrap: processFieldWrap, hintEl: processHint };
   form.appendChild(chipPair.el);
-  appendRuleField(form, 'Description', descIn);
   appendRuleField(form, 'Forward to', forwardWrap);
   notifyField = appendRuleField(
     form,
