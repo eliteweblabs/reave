@@ -1,6 +1,6 @@
 /**
  * Guard: install punch-list helpers tag hub items as install:<slug>
- * and keep titles bounded.
+ * and keep titles bounded. Shared Punch list is an admin section both sides open.
  * Run: npm run check:punchlist
  */
 import assert from 'node:assert/strict';

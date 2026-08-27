@@ -35,9 +35,12 @@ export const IOS_ICONS = {
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></svg>',
   send: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
   square: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>',
-  /* IOS_ICONS.check-square — Lucide check-square; to-do / punch list */
+  /* IOS_ICONS.check-square — Lucide check-square; to-do */
   'check-square':
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5"/><path d="m9 11 3 3L22 4"/></svg>',
+  /* IOS_ICONS.list-checks — Lucide list-checks; shared punch list */
+  'list-checks':
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>',
   plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
   /* IOS_ICONS.minus — Lucide minus; off / unset flag */
   minus:
@@ -951,7 +954,7 @@ function applyHeaderBackLabel(label) {
 function isHeaderBackOwnerVisible(owner) {
   if (!(owner instanceof HTMLElement) || !owner.isConnected) return false;
   const host = owner.closest(
-    '#settings-panel, #dashboard-panel, #doc-editor, #knowledge-editor, #work-editor, #schedule-panel, #clients-editor, #social-panel, #chat-panel, #email-panel, #rule-editor, #todo-editor, #sales-sheet-editor, .de-pane--drawer',
+    '#settings-panel, #dashboard-panel, #doc-editor, #knowledge-editor, #work-editor, #schedule-panel, #clients-editor, #social-panel, #chat-panel, #email-panel, #rule-editor, #todo-editor, #punchlist-editor, #sales-sheet-editor, .de-pane--drawer',
   );
   if (!host) return true;
   if (host.hidden) return false;
@@ -2079,6 +2082,7 @@ const SPLIT_VIEW_TYPES = new Set([
   'rules',
   'schedule',
   'todo',
+  'punchlist',
   'social',
   'sales-sheet',
 ]);
@@ -2092,6 +2096,7 @@ const SIDEBAR_PANEL_IDS = [
   'rule-editor',
   'schedule-panel',
   'todo-editor',
+  'punchlist-editor',
   'social-panel',
   'sales-sheet-editor',
 ];

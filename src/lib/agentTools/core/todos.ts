@@ -340,7 +340,7 @@ export const todosModule: AgentToolModule = {
               function: {
                 name: 'list_todos',
                 description:
-                  'List personal to-do items. On the official reΛVe install, shared:true lists incoming install-owner feature requests. On a client install, for_reave:true lists this install\'s punch list on reΛVe. Not client jobs — do not use list_work.',
+                  'List personal to-do items. Punch list is a shared admin section (dashboard → Punch list). On the official reΛVe install, shared:true lists incoming install-owner feature requests. On a client install, for_reave:true lists this install\'s punch list on reΛVe. Not client jobs — do not use list_work.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -382,7 +382,7 @@ export const todosModule: AgentToolModule = {
               function: {
                 name: 'create_todo',
                 description:
-                  'Add a personal to-do (not a client job). On a client install, set for_reave:true to send a feature request to the official reΛVe owner\'s to-do list. Never use create_work for personal or punch-list tasks.',
+                  'Add a personal to-do (not a client job). On a client install, set for_reave:true to add a feature request to the shared Punch list (and the official reΛVe owner\'s to-do). Never use create_work for personal or punch-list tasks.',
                 parameters: {
                   type: 'object',
                   properties: {

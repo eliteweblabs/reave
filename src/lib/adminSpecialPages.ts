@@ -17,6 +17,7 @@ export const ADMIN_PRIMARY_PAGE_KEYS = [
   'schedule',
   'clients',
   'todo',
+  'punchlist',
   'home',
 ] as const;
 

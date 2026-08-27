@@ -1,6 +1,6 @@
 /**
- * GET  /api/admin/punchlist — install owner's reΛVe punch list (proxies to hub)
- * POST /api/admin/punchlist — add a feature request for official reΛVe
+ * GET  /api/admin/punchlist — shared Punch list (official local, client hub)
+ * POST /api/admin/punchlist — client install adds a request for official reΛVe
  */
 
 import type { APIContext } from 'astro';
@@ -9,10 +9,12 @@ import {
   fetchPunchlistHub,
   isPunchlistHubClientConfigured,
   isPunchlistHubHost,
+  listOfficialPunchlistItems,
   localPunchlistIdentity,
   punchlistHubUrl,
 } from '../../../../lib/punchlistHub';
 import type { HubPunchlistItem } from '../../../../lib/punchlist';
+import { isTodoDbConfigured } from '../../../../lib/todoStore';
 
 export const prerender = false;
 
@@ -26,8 +28,13 @@ function json(body: unknown, status = 200): Response {
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
+
   if (isPunchlistHubHost()) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    if (!isTodoDbConfigured()) {
+      return json({ ok: true, configured: false, host: true, items: [] });
+    }
+    const items = await listOfficialPunchlistItems();
+    return json({ ok: true, configured: true, host: true, items });
   }
 
   const identity = await localPunchlistIdentity(context.request);
@@ -61,7 +68,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
   if (isPunchlistHubHost()) {
-    return json({ ok: false, error: 'Not found' }, 404);
+    return json({ ok: false, error: 'Add items from Punch list on a client install.' }, 400);
   }
   if (!isPunchlistHubClientConfigured()) {
     return json({ ok: false, error: 'Punch list is not connected. Set REAVE_HUB_KEY.' }, 503);

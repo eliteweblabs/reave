@@ -12,6 +12,7 @@
 #knowledge-editor.de-drawer-host,
 #work-editor.de-drawer-host,
 #todo-editor.de-drawer-host,
+#punchlist-editor.de-drawer-host,
 #clients-editor.de-drawer-host,
 #rule-editor.de-drawer-host {
   z-index: var(--ios-sheet-z-drawer, 4800);
@@ -61,6 +62,7 @@
 #knowledge-editor .de-pane.de-pane--drawer,
 #work-editor .de-pane.de-pane--drawer,
 #todo-editor .de-pane.de-pane--drawer,
+#punchlist-editor .de-pane.de-pane--drawer,
 #clients-editor .de-pane.de-pane--drawer,
 #rule-editor .de-pane.de-pane--drawer {
   display: flex;

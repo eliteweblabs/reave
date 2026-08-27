@@ -55,6 +55,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   __chat__: 'Sessions',
   dashboard: 'Dashboard',
   todo: 'To-do',
+  punchlist: 'Punch list',
   documents: 'Documents',
   'sales-sheet': 'Sales sheet',
   knowledge: 'Knowledge',
