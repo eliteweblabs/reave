@@ -82,6 +82,20 @@ export type PrepareInlineBrandSvgOptions = {
   idPrefix?: string;
 };
 
+/** True when the markup already sets fill (attribute or CSS), including `none`. */
+export function svgSpecifiesFill(svg: string): boolean {
+  return /(?:fill\s*=|fill\s*:)/i.test(svg);
+}
+
+/**
+ * Pasted brand marks often omit `fill` (Illustrator default = black). That
+ * disappears on a dark favicon. Set a root fill so paths inherit it.
+ */
+export function withSvgFill(svg: string, fill: string): string {
+  if (svgSpecifiesFill(svg)) return svg;
+  return svg.replace(/<svg\b/i, `<svg fill="${fill}"`);
+}
+
 /** Sanitize, prefix ids, and attach presentation classes for inline use. */
 export function prepareInlineBrandSvg(
   raw: string,

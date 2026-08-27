@@ -6,11 +6,16 @@
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { SITE } from '../config/site';
-import { sanitizeInlineSvg, resolveSvgAssetUrls } from './brandSvg';
+import { sanitizeInlineSvg, resolveSvgAssetUrls, withSvgFill } from './brandSvg';
 import { rasterizeBrandIcon } from './brandIconRaster';
 import type { StoredCompanyConfig } from './companyConfigStore';
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from './ogImageSize';
-import { punchSolidNeutralBackground } from './logoContrastAdapt';
+import {
+  adaptLogoContrast,
+  analyzeLogoContrast,
+  punchSolidNeutralBackground,
+  type LogoContrastAnalysis,
+} from './logoContrastAdapt';
 import { readPublicBrandingFile } from './publicBranding';
 
 export type BrandMarkSource =
@@ -155,6 +160,42 @@ export function companyIconSvgMarkup(stored: StoredCompanyConfig | null): string
   return disk ? disk.data.toString('utf8') : null;
 }
 
+/** Solid black/white tile — the mark was lost (unfilled SVG on a black canvas). */
+export function isSolidNeutralField(analysis: LogoContrastAnalysis, pixelCount: number): boolean {
+  if (pixelCount <= 0) return true;
+  if (analysis.visible < pixelCount * 0.92) return false;
+  return Math.max(analysis.blackRatio, analysis.whiteRatio) > 0.96;
+}
+
+async function compositeOnBlack(png: Buffer, size: number): Promise<Buffer> {
+  return sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 },
+    },
+  })
+    .composite([{ input: png, gravity: 'centre' }])
+    .png()
+    .toBuffer();
+}
+
+async function prepareFaviconMark(png: Buffer, size: number, transparent: boolean): Promise<Buffer | null> {
+  const analysis = await analyzeLogoContrast(png);
+  if (isSolidNeutralField(analysis, size * size)) return null;
+
+  let mark = png;
+  // Black ink on a clear field — flip for dark favicons / avatars. Skip when
+  // the canvas is already a dark tile (flipping would wash out the background).
+  if (analysis.mostlyBlack && analysis.visible < size * size * 0.85) {
+    mark = (await adaptLogoContrast(mark, 'dark')).buffer;
+  }
+
+  if (transparent) return punchSolidNeutralBackground(mark);
+  return compositeOnBlack(mark, size);
+}
+
 async function rasterizeSvgSource(
   svg: string,
   size: number,
@@ -279,8 +320,14 @@ export async function renderBrandMarkSquarePng(
   const fit = opts?.fit ?? 'cover';
   const transparent = opts?.transparent ?? false;
   for (const source of sources) {
-    const png = await rasterizeSource(source, size, fit);
-    if (png) return transparent ? punchSolidNeutralBackground(png) : png;
+    const prepared =
+      source.kind === 'svg' && !transparent
+        ? { ...source, svg: withSvgFill(source.svg, '#ffffff') }
+        : source;
+    const png = await rasterizeSource(prepared, size, fit);
+    if (!png) continue;
+    const usable = await prepareFaviconMark(png, size, transparent);
+    if (usable) return usable;
   }
   const svg = buildLetterSvg(letter, size, transparent);
   return sharp(Buffer.from(svg)).png().toBuffer();

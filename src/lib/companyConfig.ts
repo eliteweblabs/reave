@@ -333,11 +333,15 @@ export function companyBrandingVersion(company: CompanyConfig): string | null {
   return v || null;
 }
 
+/** Bump when favicon rasterization changes so browsers drop a stale tile. */
+const BRAND_ICON_RENDER = 'av1';
+
 /** Build a sized branding icon URL (admin PNG/SVG rasterized at request time). */
 export function brandIconUrl(size: number, version?: string | null, opts?: { transparent?: boolean }): string {
   const params = new URLSearchParams({ size: String(size) });
   const v = trim(version);
   if (v) params.set('v', v);
+  params.set('r', BRAND_ICON_RENDER);
   if (opts?.transparent) params.set('transparent', '1');
   return `${BRANDING_ICON_PATH}?${params.toString()}`;
 }
@@ -353,7 +357,10 @@ export type CompanyFaviconUrls = {
 
 function versionedRootIcon(path: string, version?: string | null): string {
   const v = trim(version);
-  return v ? `${path}?v=${encodeURIComponent(v)}` : path;
+  const params = new URLSearchParams();
+  if (v) params.set('v', v);
+  params.set('r', BRAND_ICON_RENDER);
+  return `${path}?${params.toString()}`;
 }
 
 /** Resolved favicon / PWA icon URLs — rasterized from admin branding at request time. */

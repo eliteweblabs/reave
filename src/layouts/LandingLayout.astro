@@ -30,7 +30,7 @@ const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const landing = siteContent.landing ?? {};
 const isEditorial = landing.variant === "editorial";
-const title = shareSafeText(titleProp ?? landing.title ?? company.name);
+const title = (titleProp ?? landing.title ?? company.name).trim();
 const description = descriptionProp ?? landing.description ?? company.description;
 const shareTitle = shareSafeText(landing.name ?? company.name);
 const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);

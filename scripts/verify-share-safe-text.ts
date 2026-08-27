@@ -1,5 +1,6 @@
 /**
- * Share / tab titles must be ASCII — iMessage has no glyph for the Λ in reΛVe.app.
+ * Share-card titles must be ASCII — iMessage has no glyph for the Λ in reΛVe.app.
+ * Browser <title> keeps the branded display name.
  * Run: npm run check:share-safe-text
  */
 import assert from 'node:assert/strict';

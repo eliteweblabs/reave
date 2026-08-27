@@ -64,9 +64,9 @@ const themeColor = themeColorProp ?? "#ffffff";
 const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
 const ogImage = ogImageProp ?? companyOgImageUrl(company);
-/** Browser tab title — "Page | Company | Tagline" (tagline from admin → Company → description). */
+/** Browser tab title — branded display name, not the ASCII share fold (reΛVe.app stays reΛVe.app). */
 const titleParts = [title, company.name, company.description]
-  .map((part) => shareSafeText(part?.trim() ?? ""))
+  .map((part) => part?.trim() ?? "")
   .filter((part, i, arr): part is string => Boolean(part) && arr.indexOf(part) === i);
 const pageTitle = titleParts.join(" | ");
 /** Link-preview title — page name on inner pages, company name on homepage. ASCII-folded so iMessage does not render reΛVe as re/\Ve. */
