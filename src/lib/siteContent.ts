@@ -89,6 +89,8 @@ export type SitePortfolioItem = {
   alternateImages?: SitePortfolioAlternateImage[];
   /** When true, this item can appear in the homepage featured-project section. */
   featured?: boolean;
+  /** Optional live-site or deep link for the homepage featured section. */
+  href?: string;
 };
 
 const OBJECT_POSITION_TOKEN = /^(?:left|right|center|top|bottom|-?\d+(?:\.\d+)?(?:%|px)?)$/;
@@ -99,6 +101,20 @@ export function resolveImagePosition(raw: unknown): string | undefined {
   if (parts.length < 1 || parts.length > 2) return undefined;
   if (!parts.every((part) => OBJECT_POSITION_TOKEN.test(part))) return undefined;
   return parts.join(' ');
+}
+
+function resolvePortfolioHref(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const href = raw.trim();
+  if (!href) return undefined;
+  if (href.startsWith('/') && !href.startsWith('//')) return href;
+  try {
+    const url = new URL(href);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return href;
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 export type SiteLandingProperty = {
@@ -307,6 +323,7 @@ function resolvePortfolio(raw: SitePortfolioItem[] | undefined): SitePortfolioIt
               .filter((alt) => alt.image)
           : undefined,
         featured: item.featured === true,
+        href: resolvePortfolioHref(item.href),
       };
     })
     .filter((item) => item.title && item.image);

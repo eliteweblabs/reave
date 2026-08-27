@@ -1,37 +1,71 @@
 ---
 import { ArrowRight } from "lucide-astro";
-import { getSiteContent } from "../../lib/siteContent";
+import { getSiteContent, type SitePortfolioItem } from "../../lib/siteContent";
 
-const featured = (getSiteContent().portfolio ?? []).find((item) => item.featured);
-const slides = featured
-  ? [
-      {
-        image: featured.image,
-        imageAlt: featured.imageAlt,
-        imagePosition: featured.imagePosition,
-      },
-      ...(featured.alternateImages ?? []),
-    ].filter((slide) => slide.image)
-  : [];
+function featuredSlides(item: SitePortfolioItem) {
+  return [
+    {
+      image: item.image,
+      imageAlt: item.imageAlt,
+      imagePosition: item.imagePosition,
+    },
+    ...(item.alternateImages ?? []),
+  ].filter((slide) => slide.image);
+}
+
+function featuredSlug(title: string) {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project";
+}
+
+function featuredCtaHost(href: string) {
+  try {
+    return new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+const featuredItems = (getSiteContent().portfolio ?? [])
+  .filter((item) => item.featured)
+  .map((item, index) => {
+    const slides = featuredSlides(item);
+    const slug = featuredSlug(item.title);
+    const sectionId = index === 0 ? "featured" : `featured-${slug}`;
+    const href = item.href || "/about#portfolio";
+    const external = Boolean(item.href && /^https?:\/\//.test(item.href));
+    const host = external ? featuredCtaHost(href) : "";
+    return {
+      item,
+      slides,
+      sectionId,
+      titleId: `${sectionId}-title`,
+      href,
+      external,
+      ctaLabel: host ? `Visit ${host}` : "See the portfolio",
+      flip: index % 2 === 1,
+    };
+  });
 ---
 
 {
-  featured && (
+  featuredItems.map((block) => (
     <section
-      id="featured"
+      id={block.sectionId}
       class="home-featured"
       data-home-section="featured"
-      aria-labelledby="featured-title"
+      aria-labelledby={block.titleId}
     >
       <div class="home-featured-inner">
         <p class="marketing-label">Featured Project</p>
-        <div class="home-featured-layout">
+        <div class:list={["home-featured-layout", block.flip && "home-featured-layout--flip"]}>
           <a
             class="home-featured-visual"
-            href="/about#portfolio"
-            data-featured-fade={slides.length > 1 ? "" : undefined}
+            href={block.href}
+            target={block.external ? "_blank" : undefined}
+            rel={block.external ? "noopener noreferrer" : undefined}
+            data-featured-fade={block.slides.length > 1 ? "" : undefined}
           >
-            {slides.map((slide, index) => (
+            {block.slides.map((slide, index) => (
               <img
                 src={slide.image}
                 alt={index === 0 ? slide.imageAlt : ""}
@@ -46,26 +80,31 @@ const slides = featured
             ))}
           </a>
           <div class="home-featured-copy">
-            <h2 id="featured-title">{featured.title}</h2>
-            <p class="home-featured-lead">{featured.description}</p>
+            <h2 id={block.titleId}>{block.item.title}</h2>
+            <p class="home-featured-lead">{block.item.description}</p>
             {
-              featured.tags.length > 0 && (
+              block.item.tags.length > 0 && (
                 <ul class="home-featured-tags" aria-label="Tags">
-                  {featured.tags.map((tag) => (
+                  {block.item.tags.map((tag) => (
                     <li>{tag}</li>
                   ))}
                 </ul>
               )
             }
-            <a href="/about#portfolio" class="home-featured-cta brand-btn-glass">
-              See the portfolio
+            <a
+              href={block.href}
+              class="home-featured-cta brand-btn-glass"
+              target={block.external ? "_blank" : undefined}
+              rel={block.external ? "noopener noreferrer" : undefined}
+            >
+              {block.ctaLabel}
               <ArrowRight size={16} strokeWidth={1.75} aria-hidden="true" />
             </a>
           </div>
         </div>
       </div>
     </section>
-  )
+  ))
 }
 
 <style>
@@ -205,6 +244,14 @@ const slides = featured
       grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
       gap: 48px;
     }
+
+    .home-featured-layout--flip {
+      grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+    }
+
+    .home-featured-layout--flip .home-featured-visual {
+      order: 2;
+    }
   }
 
   @media (max-width: 768px) {
@@ -216,10 +263,10 @@ const slides = featured
 </style>
 
 {
-  slides.length > 1 && (
+  featuredItems.some((block) => block.slides.length > 1) && (
     <script>
-      const root = document.querySelector("[data-featured-fade]");
-      if (root instanceof HTMLElement) {
+      document.querySelectorAll("[data-featured-fade]").forEach((root) => {
+        if (!(root instanceof HTMLElement)) return;
         const frames = [...root.querySelectorAll("img")];
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (frames.length > 1 && !reduceMotion) {
@@ -232,7 +279,7 @@ const slides = featured
             frames[index]?.removeAttribute("aria-hidden");
           }, 5000);
         }
-      }
+      });
     </script>
   )
 }
