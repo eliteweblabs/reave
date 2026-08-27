@@ -154,6 +154,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   <div class="app-header-end topbar-end">
     {!showMarketingNav && <ThemeToggle />}
+    {showMarketingNav && (
+      <div class="topbar-marketing-controls">
+        {showDeployIndicator && showHeaderAccountMenu && (
+          <DeployStatusDot publicAccess={deployStatusPublic} />
+        )}
+        <ThemeToggle />
+      </div>
+    )}
     {adminShell && (
       <div
         id="topbar-module-hooks"
@@ -308,13 +316,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       ))}
 
     {showMarketingNav && (
-      <div class="topbar-marketing-controls">
-        {showDeployIndicator && showHeaderAccountMenu && (
-          <DeployStatusDot publicAccess={deployStatusPublic} />
-        )}
-        <ThemeToggle />
-        <OverlayMenuToggle mode="nav" controls="marketing-menu-panel" />
-      </div>
+      <OverlayMenuToggle mode="nav" controls="marketing-menu-panel" />
     )}
 
   </div>
@@ -1107,11 +1109,15 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     object-position: left center;
   }
 
+  /*
+   * The brand mark ships dark on transparent, so it only needs inverting on a
+   * dark canvas. Inverting it on every public header (back when the marketing
+   * site was dark-only) painted it white on the light theme — invisible.
+   */
   html[data-theme="dark"] .app-header-logo-svg,
   html[data-theme="dark"] .app-header-logo-img,
   html[data-theme="dark"] svg.home-hero-icon,
-  html[data-theme="dark"] .topbar-profile-btn .topbar-profile-icon-img:not(.topbar-profile-icon-img--round),
-  .app-header:not(.app-header--admin) .topbar-profile-btn .topbar-profile-icon-img:not(.topbar-profile-icon-img--round) {
+  html[data-theme="dark"] .topbar-profile-btn .topbar-profile-icon-img:not(.topbar-profile-icon-img--round) {
     filter: invert(1);
   }
 
@@ -1448,7 +1454,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     overflow: visible;
   }
 
-  /* Marketing header tail: deploy bulb, theme switch, hamburger — in that order. */
+  /* Marketing header tail: deploy bulb + theme switch, then account icon, then hamburger. */
   .topbar-marketing-controls {
     display: inline-flex;
     align-items: center;

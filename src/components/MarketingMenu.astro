@@ -59,9 +59,6 @@ const showOverlayFooter =
         </a>
       ))
     }
-  </nav>
-
-  <div class="marketing-nav-actions">
     {
       showAdminEntry && (
         <a
@@ -74,6 +71,9 @@ const showOverlayFooter =
         </a>
       )
     }
+  </nav>
+
+  <div class="marketing-nav-actions">
     {
       showDemoCta && demoCta && (
         <a class="marketing-nav-cta" href={demoCta.href}>
@@ -375,20 +375,22 @@ const showOverlayFooter =
     text-decoration: none;
   }
 
-  .marketing-nav-actions .marketing-nav-admin {
-    display: none;
+  /* Sits in the primary nav after the last link (Contact); the row itself is hidden on phones. */
+  .marketing-nav-desktop .marketing-nav-admin {
+    display: inline-flex;
     flex-shrink: 0;
     height: auto;
+    margin-left: 0.4rem;
     padding: 0.38rem 0.75rem 0.38rem 0.85rem;
     gap: 0.28rem;
     font-size: 0.75rem;
   }
 
-  .marketing-nav-actions .marketing-nav-admin:hover {
+  .marketing-nav-desktop .marketing-nav-admin:hover {
     transform: none;
   }
 
-  .marketing-nav-actions .marketing-nav-admin svg {
+  .marketing-nav-desktop .marketing-nav-admin svg {
     width: 0.85rem;
     height: 0.85rem;
     flex-shrink: 0;
@@ -417,10 +419,6 @@ const showOverlayFooter =
     }
 
     .marketing-nav-cta {
-      display: inline-flex;
-    }
-
-    .marketing-nav-actions .marketing-nav-admin {
       display: inline-flex;
     }
   }
