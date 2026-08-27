@@ -3,7 +3,6 @@ import Header from "../components/Header.astro";
 import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import SiteFooter from "../components/SiteFooter.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
@@ -13,8 +12,6 @@ import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH 
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
 import { shareSafeText } from "../lib/shareSafeText";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
@@ -94,11 +91,6 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const fullBleed = fullBleedProp ?? isIndexPage;
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
-/** Marketing help chat — never on the homepage (do not mount or load the widget). */
-const showSiteAssistant =
-  !isIndexPage &&
-  hasFeature("portal_assistant") &&
-  isSiteAssistantConfigured();
 const userId = Astro.locals.auth()?.userId ?? null;
 ---
 
@@ -167,16 +159,7 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		{marketingNav && <HomepageSectionScroll />}
 		<ScrollFadeIn />
 		<CookieNotice />
-		{
-			showSiteAssistant && (
-				<SiteAssistantWidget
-					brandTitle={company.name}
-					supportPhone={company.supportPhone}
-					supportEmail={company.supportEmail}
-					pagePath={Astro.url.pathname}
-				/>
-			)
-		}
+		<slot name="end" />
 	</body>
 </html>
 
