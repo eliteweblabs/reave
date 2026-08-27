@@ -13,12 +13,7 @@ import {
   createToggleSwitch,
   setToggleSwitch,
   createPanelBackBtn,
-  createEditableHeaderTitleInput,
-  wrapEditableHeaderTitle,
-  armTitleFocus,
-  requestTitleFocus,
   flushTitleFocus,
-  cancelTitleFocus,
   matchesListSearch,
   initSidebarLayout,
   syncAdminSplitView,
@@ -48,12 +43,19 @@ import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
 import {
-  createEmailTriageLab,
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260826c';
+} from './email-triage-lab.js?v=20260827a';
+import {
+  createChipComposer,
+  chipsFromRulePhrases,
+  phrasesFromChips,
+  fieldsFromChips,
+  titleFromRulePhrases,
+} from './rule-chip-editor.js?v=20260827c';
+import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
@@ -74,42 +76,13 @@ let ruleState = {
   scopeFilter: 'all',
   activeId: null,
   dirty: false,
-  /** Live tester (left filter) + accordion rule editor (right). */
-  view: 'flow',
+  missingTitle: '',
 };
-
-/** @type {ReturnType<typeof createEmailTriageLab> | null} */
-let triageLab = null;
 
 let ruleAutosaveTimer = null;
 /** @type {null | (() => Promise<boolean>)} */
 let ruleAutosaveFlush = null;
 let ruleAutosaveError = '';
-
-function getTriageLab() {
-  if (!triageLab) {
-    triageLab = createEmailTriageLab({
-      getRuleState: () => ruleState,
-      getRuleEditor,
-      reloadRules: async () => {
-        const res = await fetch('/api/email/rules', { cache: 'no-store' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        ruleState.rules = data.rules || [];
-        ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
-        ruleState.storage = data.storage || 'files';
-      },
-      toggleRuleEditor: (id) => openRuleEditor(id),
-      renderRuleForm: (container) => renderRuleEditPane(container, { accordion: true }),
-      getActiveRuleId: () => ruleState.activeId,
-      flushRuleAutosave: () => flushRuleAutosave(),
-      inboundAddressExample: () =>
-        String(shell.companyBrand?.()?.inboundEmailExample || '').trim() ||
-        'inbox@inbound.example.com',
-    });
-  }
-  return triageLab;
-}
 
 function ruleScope(rule) {
   return rule?.scope === 'universal' ? 'universal' : 'personal';
@@ -296,6 +269,63 @@ function processIsSilentFile(process) {
   return process === 'delete' || process === 'archive' || process === 'receipt';
 }
 
+/** Primary action shown on the list row (icon + chip). */
+function ruleKind(rule) {
+  const process = ruleProcessValue(rule);
+  if (process === 'delete') {
+    return { id: 'delete', label: 'Auto delete', icon: 'trash', statusClass: 'em-status-delete' };
+  }
+  if (process === 'archive') {
+    return { id: 'archive', label: 'Archive', icon: 'archive', statusClass: 'em-status-auto_archived' };
+  }
+  if (process === 'receipt') {
+    return { id: 'receipt', label: 'Receipt', icon: 'receipt', statusClass: 'em-cat-receipt' };
+  }
+  if (rule?.forwardTo) {
+    return { id: 'forward', label: 'Forward', icon: 'send', statusClass: 'em-status-sent' };
+  }
+  const status = String(rule?.status || '').toUpperCase();
+  if (status === 'VERIFICATION_CODE') {
+    return { id: 'otp', label: 'Verification', icon: 'key', statusClass: 'em-cat-otp' };
+  }
+  if (status === 'AUTH_LINK') {
+    return { id: 'auth', label: 'Auth link', icon: 'link', statusClass: 'em-cat-otp' };
+  }
+  if (ruleNotifyChannels(rule).notify) {
+    return { id: 'notify', label: formatRuleProcessLabel(rule), icon: 'bell', statusClass: 'em-cat-alert' };
+  }
+  return { id: 'keep', label: 'Keep', icon: 'mail', statusClass: 'em-status-default' };
+}
+
+function ruleListSummary(rule) {
+  const bits = [];
+  if (ruleScope(rule) === 'universal' || showPersonal()) bits.push(ruleScopeLabel(rule));
+  bits.push(fieldsSummary(rule.fields));
+  if (rule.forwardTo) bits.push(`→ ${rule.forwardTo}`);
+  return bits.join(' · ');
+}
+
+function ruleListItemInnerHtml(rule) {
+  const kind = ruleKind(rule);
+  const extras = [];
+  if (kind.id !== 'forward' && rule.forwardTo) {
+    extras.push('<span class="em-status em-status-sent">Forward</span>');
+  }
+  if (rule.enabled === false) extras.push('<span class="em-status em-status-default">Off</span>');
+  if (isRuleExpired(rule)) extras.push('<span class="em-status em-status-rejected">Expired</span>');
+  return `
+    <span class="sidebar-list-author-icon re-kind-icon re-kind-icon--${escHtml(kind.id)}" aria-hidden="true">${iosIcon(kind.icon, 14)}</span>
+    <span class="ch-list-content">
+      <span class="em-item-row em-item-header">
+        <span class="em-status ${kind.statusClass}">${escHtml(kind.label)}</span>
+        ${extras.join('')}
+        <span class="em-item-date">${escHtml(formatRuleHitLabel(rule))}</span>
+      </span>
+      <span class="em-item-subject">${escHtml(titleFromRulePhrases(rule.phrases, rule.title || rule.status || 'Rule'))}</span>
+      <span class="em-item-summary">${escHtml(ruleListSummary(rule))}</span>
+    </span>`;
+}
+
 function processHintText(process) {
   if (process === 'delete') {
     return 'Matched mail goes to Auto deleted (filtered review). Junk is only for spam. No notification.';
@@ -432,21 +462,16 @@ function createRuleListItem(rule, activeId) {
   const isActive = activeId === rule.id || String(activeId) === String(rule.id);
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = `ch-list-item${isActive ? ' active' : ''}${rule.enabled === false || isRuleExpired(rule) ? ' re-list-disabled' : ''}`;
+  btn.className = `em-list-item${isActive ? ' active' : ''}${rule.enabled === false || isRuleExpired(rule) ? ' re-list-disabled' : ''}`;
   btn.dataset.id = rule.id;
   if (isActive) btn.setAttribute('aria-current', 'page');
-  btn.innerHTML = `
-    <span class="ch-item-row">
-      <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
-      <span class="ch-item-date">${escHtml(formatRuleHitLabel(rule))}</span>
-    </span>
-    <span class="de-item-slug">${ruleScopePillHtml(rule)} ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}</span>`;
-  btn.addEventListener('click', () => openRuleEditor(rule.id));
+  btn.innerHTML = ruleListItemInnerHtml(rule);
+  btn.addEventListener('click', () => void openRuleEditor(rule.id));
   return btn;
 }
 
 function createRuleSwipeRow(rule, activeId) {
-  const actions = [swipeAgentAction(() => askAgentAboutRule(rule))];
+  const actions = [swipeAgentAction(() => shell.askAgentAboutRule?.(rule))];
   if (canDeleteRule(rule)) {
     actions.push(swipeDeleteAction({
       onClick: () => deleteRule(rule.id),
@@ -455,23 +480,87 @@ function createRuleSwipeRow(rule, activeId) {
   return createSwipeRow(createRuleListItem(rule, activeId), actions);
 }
 
-function fillRulesSidebarList(list) {
-  const { rules, activeId } = ruleState;
-  const ordered = [...rules]
+function ruleMatchesScopeFilter(rule) {
+  if (ruleState.scopeFilter === 'universal') return ruleScope(rule) === 'universal';
+  if (ruleState.scopeFilter === 'personal') return ruleScope(rule) === 'personal';
+  return true;
+}
+
+function ruleMatchesSidebarSearch(rule) {
+  const kind = ruleKind(rule);
+  return matchesListSearch(
+    ruleState.search,
+    rule.title,
+    rule.status,
+    kind.label,
+    ruleSubline(rule),
+    ruleListSummary(rule),
+    rule.description,
+    ruleScopeLabel(rule),
+    formatRuleWhenClause(rule),
+    formatRuleLabMeta(rule),
+    rule.forwardTo,
+    ...(rule.phrases || []),
+    ...(rule.exceptPhrases || []),
+  );
+}
+
+function filteredRules() {
+  return [...ruleState.rules]
     .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    .filter((rule) => {
-      if (ruleState.scopeFilter === 'universal' && ruleScope(rule) !== 'universal') return false;
-      if (ruleState.scopeFilter === 'personal' && ruleScope(rule) !== 'personal') return false;
-      return matchesListSearch(
-        ruleState.search,
-        rule.title,
-        rule.status,
-        ruleSubline(rule),
-        rule.description,
-        ruleScopeLabel(rule),
-        ...(rule.exceptPhrases || []),
-      );
-    });
+    .filter((rule) => ruleMatchesScopeFilter(rule) && ruleMatchesSidebarSearch(rule));
+}
+
+function ruleCountForActiveTab() {
+  return ruleState.rules.filter(ruleMatchesScopeFilter).length;
+}
+
+function ruleScopeCounts() {
+  let all = 0;
+  let personal = 0;
+  let universal = 0;
+  for (const rule of ruleState.rules) {
+    all += 1;
+    if (ruleScope(rule) === 'universal') universal += 1;
+    else personal += 1;
+  }
+  return { all, personal, universal };
+}
+
+function renderRuleFilterTabs() {
+  const counts = ruleScopeCounts();
+  return mountListFilterTabs({
+    tabs: [
+      { id: 'all', label: 'All', count: counts.all },
+      { id: 'personal', label: 'Personal', count: counts.personal },
+      { id: 'universal', label: 'Universal', count: counts.universal },
+    ],
+    activeId: ruleState.scopeFilter || 'all',
+    ariaLabel: 'Rule filters',
+    scroll: false,
+    onSelect(tabId) {
+      if (ruleState.scopeFilter === tabId) return;
+      ruleState.scopeFilter = tabId;
+      const visible = filteredRules();
+      let cleared = false;
+      if (
+        ruleState.activeId &&
+        !visible.some((r) => String(r.id) === String(ruleState.activeId))
+      ) {
+        ruleState.activeId = null;
+        ruleState.dirty = false;
+        getRuleEditor()?.classList.remove('de-pane-active');
+        cleared = true;
+      }
+      refreshRulesSidebarList();
+      if (cleared) renderRulesPane();
+    },
+  });
+}
+
+function fillRulesSidebarList(list) {
+  const { activeId } = ruleState;
+  const ordered = filteredRules();
   list.replaceChildren();
   for (const rule of ordered) {
     list.appendChild(createRuleSwipeRow(rule, activeId));
@@ -493,11 +582,13 @@ function refreshRulesSidebarList() {
     renderRulesEditor();
     return;
   }
+  const n = ruleCountForActiveTab();
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput instanceof HTMLInputElement) {
-    const n = ruleState.rules.length;
     searchInput.placeholder = `Search ${n} ${n === 1 ? 'Rule' : 'Rules'}`;
   }
+  const tabs = root.querySelector('.em-filter-tabs');
+  if (tabs) tabs.replaceWith(renderRuleFilterTabs());
   fillRulesSidebarList(list);
   syncRulesSidebarActiveState();
 }
@@ -507,7 +598,7 @@ function syncRulesSidebarActiveState(opts = {}) {
   const root = getRuleEditor();
   if (!root) return;
   let activeEl = null;
-  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+  root.querySelectorAll('.ch-sidebar .em-list-item, .ch-sidebar .ch-list-item').forEach((el) => {
     const isActive = el.dataset.id === String(ruleState.activeId);
     el.classList.toggle('active', isActive);
     if (isActive) {
@@ -525,11 +616,6 @@ function syncRulesSidebarActiveState(opts = {}) {
   }
 }
 
-function renderRulesPane() {
-  getTriageLab().syncExpandedRule();
-  flushTitleFocus('rules');
-}
-
 function orderedRulesForFlow() {
   return [...ruleState.rules].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 }
@@ -539,7 +625,7 @@ function createFlowRuleCard(rule, index) {
   row.className = `re-flow-row${rule.enabled === false || isRuleExpired(rule) ? ' re-flow-row--off' : ''}${String(ruleState.activeId) === String(rule.id) ? ' re-flow-row--active' : ''}`;
   row.dataset.id = rule.id;
   row.dataset.scope = ruleScope(rule);
-  row.setAttribute('aria-label', `Priority ${index + 1}: ${rule.title || rule.status}`);
+  row.setAttribute('aria-label', `Priority ${index + 1}: ${titleFromRulePhrases(rule.phrases, rule.title || rule.status)}`);
 
   const catalog = isCatalogReadOnly(rule);
   if (catalog) row.dataset.locked = '1';
@@ -566,9 +652,9 @@ function createFlowRuleCard(rule, index) {
   when.innerHTML = `
     <span class="re-flow-badge">When</span>
     ${ruleScopePillHtml(rule)}
-    <span class="re-flow-title">${escHtml(rule.title || rule.status)}</span>
+    <span class="re-flow-title">${escHtml(titleFromRulePhrases(rule.phrases, rule.title || rule.status))}</span>
     <span class="re-flow-sub">${escHtml(flowWhenSubline(rule))}</span>
-    <span class="re-flow-meta">${escHtml(`${rule.matchMode || 'any'} · ${fieldsSummary(rule.fields)} · ${formatRuleHitLabel(rule)}`)}</span>`;
+    <span class="re-flow-meta">${escHtml(`${fieldsSummary(rule.fields)} · ${formatRuleHitLabel(rule)}`)}</span>`;
 
   const arrow = document.createElement('span');
   arrow.className = 're-flow-arrow';
@@ -737,17 +823,88 @@ function renderRulesFlowShell(root) {
 function renderRulesEditor() {
   const root = getRuleEditor();
   if (!root) return;
+  const savedSidebarScroll = shell.captureSidebarListScroll?.(root);
   root.innerHTML = '';
-  root.classList.remove('re-view-flow', 're-view-list', 'de-pane-active');
-  getTriageLab().render(root);
+  root.classList.remove('re-view-flow', 're-view-lab', 're-view-list', 'de-drawer-host');
+  root.classList.toggle('de-pane-active', Boolean(ruleState.activeId));
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const countForTab = ruleCountForActiveTab();
+  const subheader = listSearchSubheader({
+    itemCount: countForTab,
+    search: {
+      value: ruleState.search,
+      placeholder: `Search ${countForTab} ${countForTab === 1 ? 'Rule' : 'Rules'}`,
+      onInput: (value) => {
+        ruleState.search = value;
+        refreshRulesSidebarList();
+      },
+    },
+    below: renderRuleFilterTabs(),
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
+
+  if (ruleState.storage === 'files') {
+    const warn = document.createElement('div');
+    warn.className = 're-warn-inline';
+    warn.textContent = 'Using local file storage — set DATABASE_URL on Railway for production.';
+    sidebar.appendChild(warn);
+  }
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
+  bindListMultiSelect(list, { onBulkDelete: bulkDeleteRules });
+  fillRulesSidebarList(list);
+  attachIosPullToRefresh(list, () => loadRulesTab());
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+  root.appendChild(pane);
+  renderRulesPane();
+  shell.finishSidebarListScroll?.(root, savedSidebarScroll);
+  scanPanelSidebars?.();
 }
 
-function isRuleAccordionMounted(id) {
+function renderMissingRulePane(pane) {
+  pane.appendChild(
+    createPaneHeader({
+      back: { label: 'Back to rules', onClick: () => void closeRuleEditor() },
+      title: ruleState.missingTitle || 'Rule not found',
+      subtitle: 'This classification still cites this rule, but it is not in the current list.',
+    }).root,
+  );
+}
+
+function renderRulesPane() {
   const root = getRuleEditor();
-  if (!root || id == null) return false;
-  const card = root.querySelector(`.re-lab-pipe-card[data-rule-id="${CSS.escape(String(id))}"]`);
-  const body = card?.querySelector('.re-lab-pipe-card-body');
-  return Boolean(body && body.dataset.mounted === '1' && !body.hidden);
+  if (!root) return;
+  const pane = root.querySelector('.de-pane');
+  if (!pane) {
+    renderRulesEditor();
+    return;
+  }
+  pane.innerHTML = '';
+  if (ruleState.activeId) {
+    root.classList.add('de-pane-active');
+    const rule = ruleState.rules.find((r) => String(r.id) === String(ruleState.activeId));
+    if (!rule) renderMissingRulePane(pane);
+    else renderRuleEditPane(pane);
+  } else {
+    root.classList.remove('de-pane-active');
+    shell.clearEditorFooterSave();
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'rules',
+      iconName: 'flask',
+      bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
+      onCreate: () => void startNewRule(),
+    });
+  }
+  flushTitleFocus('rules');
 }
 
 async function leaveRuleIfSaved() {
@@ -761,39 +918,50 @@ async function leaveRuleIfSaved() {
 }
 
 async function openRuleEditor(id) {
-  // Tap the open accordion again to collapse. If activeId is stale and the
-  // form never mounted, treat the tap as open — not a discard/close.
-  if (String(id) === String(ruleState.activeId) && isRuleAccordionMounted(id)) {
-    await closeRuleEditor(true);
+  if (
+    String(id) === String(ruleState.activeId) &&
+    getRuleEditor()?.querySelector('.de-pane .re-form-scroll')
+  ) {
     return;
   }
   if (!(await leaveRuleIfSaved())) return;
   const resolved = resolveLabRuleId(id) || id;
   ruleState.activeId = resolved;
   ruleState.dirty = false;
+  const selected = ruleState.rules.find((r) => String(r.id) === String(resolved));
+  if (selected) {
+    if (!ruleMatchesScopeFilter(selected)) ruleState.scopeFilter = 'all';
+    if (!ruleMatchesSidebarSearch(selected)) ruleState.search = '';
+  }
   shell.clearEditorFooterSave();
   const root = getRuleEditor();
-  root?.classList.remove('de-pane-active', 'de-drawer-host');
-  getTriageLab().syncExpandedRule();
-  if (resolved && !isRuleAccordionMounted(resolved) && root?.classList.contains('re-view-lab')) {
-    getTriageLab().render(root);
+  if (!root?.querySelector('.ch-sidebar')) {
+    renderRulesEditor();
+    return;
   }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput instanceof HTMLInputElement) searchInput.value = ruleState.search;
+  refreshRulesSidebarList();
+  syncRulesSidebarActiveState({ scroll: true });
+  renderRulesPane();
 }
 
-async function closeRuleEditor(_checkDirty = true) {
-  // Always collapse. A failed autosave must not open a sheet and trap the accordion.
+async function closeRuleEditor() {
   await flushRuleAutosave();
   ruleAutosaveFlush = null;
   ruleState.activeId = null;
   ruleState.dirty = false;
+  ruleState.missingTitle = '';
   shell.clearEditorFooterSave();
   getRuleEditor()?.classList.remove('de-pane-active');
-  getTriageLab().syncExpandedRule();
+  syncRulesSidebarActiveState();
+  renderRulesPane();
 }
 
 function renderRuleEditPane(pane, opts = {}) {
   const accordion = opts.accordion === true;
   ruleState.dirty = false;
+  let headerTitleEl = null;
   const rule = ruleState.rules.find((r) => r.id === ruleState.activeId);
   if (!rule) {
     pane.innerHTML = '<div class="de-loading de-error">Rule not found.</div>';
@@ -802,7 +970,7 @@ function renderRuleEditPane(pane, opts = {}) {
 
   const agentBtn = createAgentBtn({
     label: 'Agent',
-    onClick: () => askAgentAboutRule(rule),
+    onClick: () => shell.askAgentAboutRule?.(rule),
   });
 
   if (accordion) {
@@ -822,33 +990,42 @@ function renderRuleEditPane(pane, opts = {}) {
     pane.appendChild(actions);
   } else {
     const inDrawer = shell.isCreateDrawerOpen('rules');
-    pane.appendChild(
-      createPaneHeader({
-        back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
-        title: rule.title || rule.status || 'Rule',
-        subtitle: ruleHitsSubline(rule),
-        beforeIcons: [agentBtn],
-        icons: inDrawer || !canDeleteRule(rule)
-          ? []
-          : [
-              paneDeleteIcon({
-                label: 'Delete rule',
-                onClick: () => deleteRule(rule.id),
-              }),
-            ],
-      }).root,
-    );
+    const header = createPaneHeader({
+      back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
+      title: titleFromRulePhrases(rule.phrases, rule.title || rule.status || 'Rule'),
+      subtitle: ruleHitsSubline(rule),
+      beforeIcons: [agentBtn],
+      icons: inDrawer || !canDeleteRule(rule)
+        ? []
+        : [
+            paneDeleteIcon({
+              label: 'Delete rule',
+              onClick: () => deleteRule(rule.id),
+            }),
+          ],
+    });
+    headerTitleEl = header.root.querySelector('.de-doc-name');
+    pane.appendChild(header.root);
   }
 
   const form = document.createElement('div');
   form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
 
-  const titleIn = document.createElement('input');
-  titleIn.className = 'de-input';
-  titleIn.type = 'text';
-  titleIn.value = rule.title || '';
-  titleIn.autocomplete = 'off';
-  if (!isCatalogReadOnly(rule)) requestTitleFocus('rules', titleIn);
+  const matchChipSeed = chipsFromRulePhrases(rule.phrases, rule.fields);
+  const matchChips = createChipComposer({
+    chips: matchChipSeed,
+    field: (rule.fields || []).length === 1 ? rule.fields[0] : matchChipSeed.at(-1)?.field || 'subject',
+    disabled: isCatalogReadOnly(rule),
+    ariaLabel: 'Match field',
+  });
+
+  const exceptChipSeed = chipsFromRulePhrases(rule.exceptPhrases, rule.fields);
+  const exceptChips = createChipComposer({
+    chips: exceptChipSeed,
+    field: (rule.fields || []).length === 1 ? rule.fields[0] : exceptChipSeed.at(-1)?.field || 'subject',
+    disabled: isCatalogReadOnly(rule),
+    ariaLabel: 'Except field',
+  });
 
   const scopeIn = document.createElement('input');
   scopeIn.type = 'hidden';
@@ -881,36 +1058,9 @@ function renderRuleEditPane(pane, opts = {}) {
   descIn.rows = 2;
   descIn.value = rule.description || '';
 
-  const phrasesIn = document.createElement('textarea');
-  phrasesIn.className = 're-textarea';
-  phrasesIn.rows = 6;
-  phrasesIn.placeholder = 'One keyword or phrase per line';
-  phrasesIn.value = (rule.phrases || []).join('\n');
-
-  const exceptIn = document.createElement('textarea');
-  exceptIn.className = 're-textarea';
-  exceptIn.rows = 3;
-  exceptIn.placeholder = 'One phrase per line — if any appear, this rule does not match';
-  exceptIn.value = (rule.exceptPhrases || []).join('\n');
-
-  const matchSel = document.createElement('select');
-  matchSel.className = 'de-input';
-  matchSel.innerHTML = '<option value="any">Any phrase matches</option><option value="all">All phrases must match</option>';
-  matchSel.value = rule.matchMode === 'all' ? 'all' : 'any';
-
-  const fieldsWrap = document.createElement('div');
-  fieldsWrap.className = 're-checks';
-  const fieldSet = new Set(rule.fields || ['subject', 'body']);
-  for (const [val, lab] of [['subject', 'Subject'], ['body', 'Body'], ['from', 'From']]) {
-    const lb = document.createElement('label');
-    lb.className = 're-check';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = val;
-    cb.checked = fieldSet.has(val);
-    lb.append(cb, document.createTextNode(` ${lab}`));
-    fieldsWrap.appendChild(lb);
-  }
+  const matchModeIn = document.createElement('input');
+  matchModeIn.type = 'hidden';
+  matchModeIn.value = rule.matchMode === 'all' ? 'all' : 'any';
 
   const processSel = document.createElement('input');
   processSel.type = 'hidden';
@@ -1084,15 +1234,18 @@ function renderRuleEditPane(pane, opts = {}) {
     expireInReveal,
   );
 
-  appendRuleField(form, 'Title', titleIn);
+  appendRuleField(form, 'When', matchChips.el, null, { as: 'div' });
   if (scopeWrap.childNodes.length) {
     appendRuleField(form, 'Applies to', scopeWrap, null, { as: 'div' });
   }
   appendRuleField(form, 'Description', descIn);
-  appendRuleField(form, 'Keywords / phrases', phrasesIn);
-  appendRuleField(form, 'Except (NOT)', exceptIn);
-  appendRuleField(form, 'Match mode', matchSel);
-  appendRuleField(form, 'Search in', fieldsWrap);
+  appendRuleField(
+    form,
+    'Except (NOT)',
+    exceptChips.el,
+    'Skip this rule if any of these appear.',
+    { as: 'div' },
+  );
   const processFieldWrap = document.createElement('div');
   processFieldWrap.className = 're-process-field';
   const processHint = document.createElement('span');
@@ -1122,16 +1275,15 @@ function renderRuleEditPane(pane, opts = {}) {
   pane.appendChild(form);
 
   const ruleInputs = {
-    titleIn,
+    matchChips,
+    exceptChips,
+    matchModeIn,
     scopeIn,
     scopeWrap,
     statusIn,
     processSel,
     descIn,
-    phrasesIn,
-    exceptIn,
-    matchSel,
-    fieldsWrap,
+    originalFields: Array.isArray(rule.fields) && rule.fields.length ? rule.fields : ['subject', 'body'],
     pushToggle,
     dashToggle,
     notifyActionsWrap,
@@ -1142,6 +1294,7 @@ function renderRuleEditPane(pane, opts = {}) {
     expireInToggle,
     expireInSecs,
     syncExpireUi,
+    headerTitleEl,
   };
   const inDrawer = !accordion && shell.isCreateDrawerOpen('rules');
   if (isCatalogReadOnly(rule)) {
@@ -1152,15 +1305,19 @@ function renderRuleEditPane(pane, opts = {}) {
     });
   } else {
     bindRuleAutosave(rule, ruleInputs, { defer: inDrawer });
+    if (!(rule.phrases || []).length) matchChips.focusDraft();
   }
   shell.clearEditorFooterSave();
 }
 
 function collectRulePayload(inputs) {
-  const fields = [];
-  inputs.fieldsWrap.querySelectorAll('input[type=checkbox]').forEach((cb) => {
-    if (cb.checked) fields.push(cb.value);
-  });
+  inputs.matchChips?.commitDraft?.();
+  inputs.exceptChips?.commitDraft?.();
+  const matchChips = inputs.matchChips?.getChips?.() || [];
+  const exceptChips = inputs.exceptChips?.getChips?.() || [];
+  const phrases = phrasesFromChips(matchChips);
+  const exceptPhrases = phrasesFromChips(exceptChips);
+  const fields = fieldsFromChips(matchChips, inputs.originalFields);
   const notifyActions = [];
   inputs.notifyActionsWrap.querySelectorAll('[data-notify-action]').forEach((btn) => {
     if (ruleToggleOn(btn)) notifyActions.push(btn.dataset.notifyAction);
@@ -1180,14 +1337,14 @@ function collectRulePayload(inputs) {
     expiresAt = fromRuleDatetimeLocalValue(inputs.expiresAtIn.value);
   }
   return {
-    title: inputs.titleIn.value.trim(),
+    title: titleFromRulePhrases(phrases),
     scope,
     status: statusForProcess(process, inputs.statusIn.value.trim()),
     description: inputs.descIn.value.trim(),
-    phrases: inputs.phrasesIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
-    exceptPhrases: inputs.exceptIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
-    matchMode: inputs.matchSel.value,
-    fields: fields.length ? fields : ['subject', 'body'],
+    phrases,
+    exceptPhrases,
+    matchMode: inputs.matchModeIn?.value === 'all' ? 'all' : 'any',
+    fields,
     notify: notifyPush || notifyDashboard,
     notifyPush,
     notifyDashboard,
@@ -1207,35 +1364,25 @@ function syncRuleListItem(id, payload, savedRule) {
   const rule = ruleState.rules.find((r) => r.id === id);
   if (rule) Object.assign(rule, payload, savedRule || {});
   const root = getRuleEditor();
-  const item = root?.querySelector(`.ch-list-item[data-id="${CSS.escape(id)}"]`);
-  if (item) {
-    const titleEl = item.querySelector('.ch-item-title');
-    if (titleEl) titleEl.textContent = payload.title || payload.status || 'Rule';
-    const dateEl = item.querySelector('.ch-item-date');
-    if (dateEl) {
-      dateEl.textContent = formatRuleHitLabel(rule || { hitCount: savedRule?.hitCount });
-    }
-    const subEl = item.querySelector('.de-item-slug');
-    if (subEl && rule) {
-      subEl.innerHTML = `${ruleScopePillHtml(rule)} ${escHtml(ruleSubline(rule).replace(/^(Universal|Personal) · /, ''))}`;
-    }
-    item.classList.toggle('re-list-disabled', rule?.enabled === false || isRuleExpired(rule));
+  const item = root?.querySelector(
+    `.em-list-item[data-id="${CSS.escape(id)}"], .ch-list-item[data-id="${CSS.escape(id)}"]`,
+  );
+  if (item && rule) {
+    item.innerHTML = ruleListItemInnerHtml(rule);
+    item.classList.toggle('re-list-disabled', rule.enabled === false || isRuleExpired(rule));
   }
-  const card = root?.querySelector(`.re-lab-pipe-card[data-rule-id="${CSS.escape(String(id))}"]`);
+  const card = root?.querySelector(
+    `.re-lab-pipe-card--rule[data-rule-id="${CSS.escape(String(id))}"]`,
+  );
   if (card && rule) {
-    const titleEl = card.querySelector('.re-lab-pipe-title');
-    if (titleEl) titleEl.textContent = formatRuleWhenClause(rule);
-    const subEl = card.querySelector('.re-lab-pipe-sub');
-    if (subEl) subEl.textContent = formatRuleLabMeta(rule);
+    const title = card.querySelector('.re-lab-pipe-title');
+    const sub = card.querySelector('.re-lab-pipe-sub');
+    const whenClause = formatRuleWhenClause(rule);
+    if (title) title.textContent = whenClause;
+    if (sub) sub.textContent = formatRuleLabMeta(rule);
     const toggle = card.querySelector('.re-lab-pipe-card-toggle');
-    const pri = card.querySelector('.re-lab-pri')?.textContent?.replace(/^#/, '') || '';
-    if (toggle) {
-      toggle.setAttribute(
-        'aria-label',
-        `Priority ${pri || '?'}: ${formatRuleWhenClause(rule)}`,
-      );
-    }
-    card.classList.toggle('re-lab-pipe-card--off', rule.enabled === false || isRuleExpired(rule));
+    const pri = card.querySelector('.re-lab-pri')?.textContent || '';
+    if (toggle) toggle.setAttribute('aria-label', `${pri}: ${whenClause}`.replace(/^#/, 'Priority '));
   }
 }
 
@@ -1245,14 +1392,11 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
   let savingLock = Promise.resolve();
 
   const allFields = () => [
-    inputs.titleIn,
+    inputs.matchChips?.probe,
+    inputs.exceptChips?.probe,
     inputs.scopeIn,
     ...(inputs.processSel ? [inputs.processSel] : []),
     inputs.descIn,
-    inputs.phrasesIn,
-    inputs.exceptIn,
-    inputs.matchSel,
-    ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
     inputs.pushToggle,
     inputs.dashToggle,
     ...inputs.notifyActionsWrap.querySelectorAll('[data-notify-action]'),
@@ -1297,8 +1441,8 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       ruleAutosaveError = '';
       return true;
     }
-    if (!payload.title || !payload.status) {
-      ruleAutosaveError = 'Title is required.';
+    if (!payload.status) {
+      ruleAutosaveError = 'Status is required.';
       if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
       return false;
     }
@@ -1339,6 +1483,9 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
       ruleState.dirty = false;
       ruleAutosaveError = '';
       syncRuleListItem(rule.id, payload, data.rule);
+      if (inputs.headerTitleEl) {
+        inputs.headerTitleEl.textContent = data.rule?.title || payload.title;
+      }
       if (activeEl) shell.flashFormFieldSaved(activeEl);
       ok = true;
     } catch (e) {
@@ -1380,7 +1527,6 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     el.addEventListener('blur', () => {
       activeEl = el;
       const payload = collectRulePayload(inputs);
-      if (!payload.title && el === inputs.titleIn) shell.setFormFieldState(el, 'invalid');
       clearTimeout(ruleAutosaveTimer);
       void flush();
     });
@@ -1406,8 +1552,8 @@ async function flushRuleAutosave() {
 
 async function saveRule(id, inputs) {
   const payload = collectRulePayload(inputs);
-  if (!payload.title || !payload.status) {
-    alert('Title is required.');
+  if (!payload.status) {
+    alert('Status is required.');
     return;
   }
   if (inputs.saveBtn) {
@@ -1517,9 +1663,7 @@ async function deleteRule(id) {
 
 async function startNewRule(draft = null) {
   const fromLab = Boolean(draft && typeof draft === 'object');
-  if (!fromLab) armTitleFocus('rules');
   if (!(await leaveRuleIfSaved())) {
-    if (!fromLab) cancelTitleFocus();
     return null;
   }
   const phrases = fromLab
@@ -1529,7 +1673,7 @@ async function startNewRule(draft = null) {
     : [];
   const payload = fromLab
     ? {
-        title: String(draft.title || phrases[0] || 'New rule').trim() || 'New rule',
+        title: titleFromRulePhrases(phrases, String(draft.title || '').trim() || 'New rule'),
         status: String(draft.status || 'CUSTOM').trim() || 'CUSTOM',
         scope: draft.scope === 'universal' ? 'universal' : 'personal',
         description: String(draft.description || ''),
@@ -1581,7 +1725,6 @@ async function startNewRule(draft = null) {
     await loadRulesTab();
     return data.rule;
   } catch (e) {
-    if (!fromLab) cancelTitleFocus();
     if (fromLab) throw e;
     await showKeywordCollisionAlert(e);
     return null;
@@ -1635,16 +1778,21 @@ async function showKeywordCollisionAlert(err, opts = {}) {
 }
 
 /**
- * Open Rules and prefill tester terms from an inbox record (notification deep link).
+ * Open Rules from an inbox record (notification / teach-from-email deep link).
+ * Selects the matched rule when known; otherwise seeds search from the subject.
  * @param {object} emailRecord
- * @param {{ run?: boolean }} [opts]
  */
-async function openRulesLabWithEmail(emailRecord, opts = {}) {
+async function openRulesLabWithEmail(emailRecord) {
   if (!emailRecord || typeof emailRecord !== 'object') return;
+  const matchedId = String(emailRecord.matchedRuleId || '').trim();
+  if (matchedId) ruleState.activeId = matchedId;
+  else {
+    const subject = String(emailRecord.subject || '').trim();
+    if (subject) ruleState.search = subject.slice(0, 80);
+  }
   shell.setActiveMap?.('rules', { force: true });
   await loadRulesTab();
-  const lab = getTriageLab();
-  await lab.loadInboxEmail(emailRecord, { run: opts.run !== false });
+  if (matchedId) await openRuleEditor(matchedId);
 }
 
 function resolveLabRuleId(ruleId) {
@@ -1653,24 +1801,17 @@ function resolveLabRuleId(ruleId) {
   return '';
 }
 
-/** Open Email Lab and expand the rule the inbox classification landed on. */
+/** Open Rules and select the rule the inbox classification landed on. */
 async function openRulesLabWithRule(ruleId, opts = {}) {
   const requested = String(ruleId || '').trim();
   if (requested) ruleState.activeId = requested;
+  ruleState.missingTitle = String(opts.ruleTitle || opts.email?.matchedRuleTitle || '').trim();
   shell.setActiveMap?.('rules', { force: true });
   await loadRulesTab();
   const id = resolveLabRuleId(requested);
   ruleState.activeId = id || requested || null;
-  const lab = getTriageLab();
-  if (opts.email && typeof opts.email === 'object') {
-    await lab.loadInboxEmail(opts.email, {
-      run: opts.run !== false,
-      filterToMatches: false,
-      focusRuleId: requested,
-    });
-  }
   if (!id) {
-    lab.showMissingRule?.(requested, opts.ruleTitle || opts.email?.matchedRuleTitle);
+    renderRulesPane();
     return;
   }
   await openRuleEditor(id);

@@ -272,7 +272,7 @@ import {
   openRulesLabWithRule,
   startNewRule,
   showKeywordCollisionAlert,
-} from './rules-panel.js?v=20260826c';
+} from './rules-panel.js?v=20260827c';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -11730,6 +11730,7 @@ initRulesPanel({
   finishCreateDrawer,
   companyBrand,
   setActiveMap,
+  askAgentAboutRule,
 });
 
 initNewsletterPanel({});
@@ -11976,11 +11977,19 @@ async function askAgentAboutRule(rule) {
       `Status tag: ${rule.status}`,
     ];
     if (rule.description) lines.push(`Description: ${rule.description}`);
-    lines.push(`Match mode: ${rule.matchMode === 'all' ? 'All phrases must match' : 'Any phrase matches'}`);
-    lines.push(`Search in: ${(rule.fields || ['subject', 'body']).join(', ')}`);
+    const fields = rule.fields?.length ? rule.fields : ['subject', 'body'];
     if (rule.phrases && rule.phrases.length > 0) {
-      lines.push('', 'Keywords / phrases:');
+      lines.push('', 'Match chips:');
       for (const phrase of rule.phrases) {
+        for (const field of fields) {
+          const label = field === 'from' ? 'email' : field;
+          lines.push(`  - ${label}: ${phrase}`);
+        }
+      }
+    }
+    if (rule.exceptPhrases && rule.exceptPhrases.length > 0) {
+      lines.push('', 'Except:');
+      for (const phrase of rule.exceptPhrases) {
         lines.push(`  - ${phrase}`);
       }
     }
@@ -16896,9 +16905,8 @@ async function createRuleFromEmailLab() {
       if (createBtn) createBtn.textContent = 'Create Rule';
       return;
     }
-    const full = await fetchFullEmailRecord(ev);
     exitEmailLabMode({ silent: true });
-    await openRulesLabWithEmail(full, { run: true });
+    await openRulesLabWithRule(rule.id);
   } catch (e) {
     emailState.labCreating = false;
     refreshEmailLabBar();

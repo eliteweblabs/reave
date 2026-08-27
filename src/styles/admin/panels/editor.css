@@ -1465,6 +1465,37 @@ button.de-placeholder-action:active {
 }
 .re-list-disabled { opacity: 0.55; }
 
+/* Rule type indicator — icon + chip on the inbox-style list row */
+.re-kind-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+.re-kind-icon svg {
+  width: 14px;
+  height: 14px;
+}
+.re-kind-icon--delete { color: #f87171; background: rgba(248, 113, 113, 0.14); }
+.re-kind-icon--archive { color: #a78bfa; background: rgba(167, 139, 250, 0.14); }
+.re-kind-icon--receipt { color: #34d399; background: rgba(52, 211, 153, 0.14); }
+.re-kind-icon--forward { color: #60a5fa; background: rgba(96, 165, 250, 0.14); }
+.re-kind-icon--otp,
+.re-kind-icon--auth { color: #fbbf24; background: rgba(251, 191, 36, 0.14); }
+.re-kind-icon--notify { color: #fb923c; background: rgba(251, 146, 60, 0.14); }
+.re-kind-icon--keep { color: #94a3b8; background: rgba(148, 163, 184, 0.14); }
+#rule-editor .em-list-item .em-item-header {
+  flex-wrap: wrap;
+}
+#rule-editor .em-list-item .em-item-date {
+  margin-left: auto;
+}
+#rule-editor .em-list-item .em-item-summary {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 /* ── Rules Flow (n8n-style priority map) ── */
 #rule-editor.re-view-flow {
   flex-direction: column;
@@ -1990,6 +2021,21 @@ button.de-placeholder-action:active {
 }
 .re-lab-field-pills {
   margin-bottom: 0.55rem;
+}
+.re-rule-chip-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-weight: 400;
+}
+.re-rule-chip-editor .re-lab-target-list {
+  margin-bottom: 0;
+}
+.re-rule-chip-editor .re-lab-field-pills {
+  margin-bottom: 0;
+}
+.re-form-scroll .re-rule-chip-editor .de-input {
+  max-width: none;
 }
 .re-lab-chip-add {
   display: flex;
