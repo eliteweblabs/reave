@@ -294,21 +294,26 @@ function scheduleBookingIsSample(b) {
   const title = String(b?.title || '');
   const desc = String(b?.description || '');
   return (
+    b?.demo === true ||
     b?.sample === true ||
     b?.seeded === true ||
+    /^\[demo\]/i.test(title) ||
     /^\[sample\]/i.test(title) ||
     /\[demo-seed\]/i.test(desc) ||
-    /\[sample\]/i.test(desc)
+    /\[sample\]/i.test(desc) ||
+    /\[demo\]/i.test(desc)
   );
 }
 
 function scheduleBookingDisplayTitle(b) {
-  const cleaned = String(b?.title || 'Meeting').replace(/^\[sample\]\s*/i, '').trim();
+  const cleaned = String(b?.title || 'Meeting')
+    .replace(/^\[(?:demo|sample)\]\s*/i, '')
+    .trim();
   return cleaned || 'Meeting';
 }
 
 function scheduleSampleBadgeHtml() {
-  return '<span class="cal-sample-badge">Sample</span>';
+  return '<span class="cal-sample-badge">Demo</span>';
 }
 
 /**
@@ -1770,7 +1775,7 @@ function renderScheduleDetail(pane, booking) {
         onClick: () => closeScheduleDetail(),
       },
       title: scheduleBookingIsSample(booking)
-        ? `${scheduleBookingDisplayTitle(booking)} · Sample`
+        ? `${scheduleBookingDisplayTitle(booking)} · Demo`
         : scheduleBookingDisplayTitle(booking),
       icons,
       secondary: renderScheduleDetailWhenNav(booking),
