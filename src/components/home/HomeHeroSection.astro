@@ -5,7 +5,6 @@
  * it, because isolation:isolate would trap position:fixed.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
-import InlineBrandSvg from "../../components/InlineBrandSvg.astro";
 import { companyHeroIconSvg, getCompanyConfig } from "../../lib/companyConfig";
 import { prepareInlineBrandSvg, svgHasExternalRasterRefs, withSvgFill } from "../../lib/brandSvg";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
@@ -32,16 +31,15 @@ const showHeroCtas = (homepage.ctas?.length ?? 0) > 0;
 const mapboxToken = getPublicMapboxAccessToken() || "";
 
 /**
- * Etched mark: the glyph is hollowed out to a 2px outset stroke over a frosted
- * interior, with patterned dashes crawling around the outline.
+ * Glass-neon mark: the glyph is a window onto a slow field of coloured light,
+ * with a bloom around it.
  *
- * Both halves need the mark's silhouette — the interior as a mask for the
- * backdrop blur, the outline as a hole punched out of the ring so only the
- * outer half of a 4px stroke survives. The pasted artwork doubles as that
- * silhouette unmodified: mask-mode is alpha, so whatever colour the paths
- * carry, an opaque glyph gives an exact silhouette. It has to be a real vector
- * with a viewBox to work as a CSS image, and stroking an <image> sidecar
- * paints nothing — installs failing either test keep the solid mark.
+ * The pasted artwork is the mask, unmodified — mask-mode is alpha, so whatever
+ * colour the paths carry, an opaque glyph gives an exact silhouette. It has to
+ * be a real vector with a viewBox to work as a CSS image, and an <image>
+ * sidecar will not load inside one (image documents cannot fetch external
+ * resources), which would leave an empty mask and no visible mark. Installs
+ * failing either test keep the solid mark.
  */
 const heroIconSvg = companyHeroIconSvg(company);
 /* Marks pasted without a fill rely on the Illustrator default; as a mask that
@@ -52,14 +50,14 @@ const heroMaskSvg = heroIconSvg
 const heroMaskUsable = Boolean(
   heroMaskSvg && /xmlns\s*=/i.test(heroMaskSvg) && /viewBox\s*=/i.test(heroMaskSvg),
 );
-const etchedMark = heroMaskUsable && !svgHasExternalRasterRefs(heroIconSvg);
+const neonMark = heroMaskUsable && !svgHasExternalRasterRefs(heroIconSvg);
 /*
  * Percent-encode the parens and apostrophes encodeURIComponent leaves alone,
  * then wrap in single quotes: this value travels through a style attribute and
  * then a url() token, and an unescaped quote or paren silently kills the mask —
  * which does not fail loudly, it just makes the masked layer disappear.
  */
-const heroMarkSilhouette = etchedMark
+const heroMarkSilhouette = neonMark
   ? `url('data:image/svg+xml,${encodeURIComponent(heroMaskSvg as string)
       .replace(/\(/g, "%28")
       .replace(/\)/g, "%29")
@@ -75,58 +73,23 @@ const heroMarkSilhouette = etchedMark
 >
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
-      {etchedMark ? (
+      {neonMark ? (
         <span
           class="home-hero-mark"
           aria-hidden="true"
           style={`--home-hero-mark-silhouette: ${heroMarkSilhouette};`}
         >
-          <span class="home-hero-mark-glass"></span>
-          <span class="home-hero-mark-ring">
-            <InlineBrandSvg
-              svg={heroIconSvg}
-              class="home-hero-mark-outline home-hero-mark-outline--base"
-              idPrefix="hero-outline-base"
-            />
-            <InlineBrandSvg
-              svg={heroIconSvg}
-              class="home-hero-mark-outline home-hero-mark-outline--weave"
-              idPrefix="hero-outline-weave"
-            />
-            <InlineBrandSvg
-              svg={heroIconSvg}
-              class="home-hero-mark-outline home-hero-mark-outline--circuit"
-              idPrefix="hero-outline-circuit"
-            />
+          <span class="home-hero-mark-glow">
+            <span class="home-hero-mark-fill">
+              <span class="home-hero-mark-body"></span>
+              <span class="home-hero-mark-blob home-hero-mark-blob--a"></span>
+              <span class="home-hero-mark-blob home-hero-mark-blob--b"></span>
+              <span class="home-hero-mark-blob home-hero-mark-blob--c"></span>
+              <span class="home-hero-mark-blob home-hero-mark-blob--d"></span>
+              <span class="home-hero-mark-blob home-hero-mark-blob--e"></span>
+              <span class="home-hero-mark-sheen"></span>
+            </span>
           </span>
-          <!--
-            Paint servers for the strokes above. SVG paint references resolve by
-            id anywhere in the document, so the patterns can live in their own
-            zero-size <svg> instead of being injected into the pasted artwork.
-            Tiles are in the mark's user units (a 512² canvas here), so they read
-            as fine texture across a 2px stroke rather than as flat colour.
-          -->
-          <svg class="home-hero-mark-defs" width="0" height="0" aria-hidden="true" focusable="false">
-            <defs>
-              <pattern
-                id="hero-mark-weave"
-                width="34"
-                height="34"
-                patternUnits="userSpaceOnUse"
-                patternTransform="rotate(38)"
-              >
-                <path d="M0 4h34" stroke="#f472b6" stroke-width="8"></path>
-                <path d="M0 12h34" stroke="#38bdf8" stroke-width="8"></path>
-                <path d="M0 20h34" stroke="#c084fc" stroke-width="8"></path>
-                <path d="M0 28h34" stroke="#34d399" stroke-width="8"></path>
-              </pattern>
-              <pattern id="hero-mark-circuit" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M0 10h20" stroke="#a5b4fc" stroke-width="6"></path>
-                <path d="M10 0v20" stroke="#fbbf24" stroke-width="5"></path>
-                <circle cx="0" cy="0" r="4" fill="#f0abfc"></circle>
-              </pattern>
-            </defs>
-          </svg>
         </span>
       ) : (
         <BrandIconInline company={company} />
@@ -252,40 +215,70 @@ const heroMarkSilhouette = etchedMark
     margin-top: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-above) * -1);
     pointer-events: none;
     overflow: visible;
-    /*
-     * No isolation here: the frosted interior samples its backdrop up to the
-     * nearest backdrop root, and isolating this box would leave it sampling
-     * nothing but itself. .home-hero is the root instead, which is what puts
-     * the demo chat behind the glyph in the blur.
-     */
+    isolation: isolate;
   }
 
-  /* ---- Etched mark: 2px outset stroke, frosted interior ---- */
+  /* ---- Glass-neon mark: the glyph as a mask over moving light ---- */
 
   .home-hero-mark {
-    /* Light canvas: the pattern colours are pastel and vanish on white, so
-     * they get pushed to pigment the same way the old halo was. */
-    --home-hero-mark-ink: saturate(1.5) brightness(0.62);
+    /*
+     * Light canvas: neon does not exist on white. The same colours get pushed
+     * to pigment — darker and more saturated — so the fill still reads.
+     */
+    --home-hero-mark-ink: saturate(1.9) brightness(0.85);
+    /*
+     * Glass body under the colour, so the letterform stays solid where no blob
+     * has reached. Keep it faint — a heavy body desaturates everything above it
+     * and the fill goes back to flat grey. Light canvas wants a dark body.
+     */
+    --home-hero-mark-body: linear-gradient(
+      158deg,
+      color-mix(in srgb, var(--site-fg, #171717) 22%, transparent),
+      color-mix(in srgb, var(--site-fg, #171717) 10%, transparent) 48%,
+      color-mix(in srgb, var(--site-fg, #171717) 18%, transparent)
+    );
+    --home-hero-mark-bloom:
+      drop-shadow(0 0 4px rgba(192, 132, 252, 0.28))
+      drop-shadow(0 0 14px rgba(56, 189, 248, 0.18));
     position: relative;
     display: block;
     width: 100%;
     height: 100%;
-    color: var(--site-fg, #171717);
   }
 
   :global(html[data-theme="dark"]) .home-hero-mark {
-    /* Straight pattern colours read as candy stripe at this scale. */
-    --home-hero-mark-ink: saturate(0.85);
+    --home-hero-mark-ink: saturate(1.75) brightness(1.35);
+    --home-hero-mark-body: linear-gradient(
+      158deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(255, 255, 255, 0.02) 48%,
+      rgba(255, 255, 255, 0.05)
+    );
+    /* Chained: each shadow blooms the result of the last, which is what builds
+     * a neon falloff instead of three separate rings. */
+    --home-hero-mark-bloom:
+      drop-shadow(0 0 3px rgba(255, 255, 255, 0.3))
+      drop-shadow(0 0 12px rgba(192, 132, 252, 0.6))
+      drop-shadow(0 0 30px rgba(56, 189, 248, 0.36));
   }
 
-  .home-hero-mark-glass {
+  /*
+   * The bloom has to live on the PARENT of the masked layer. Filters are applied
+   * before masking, so a drop-shadow on the masked element itself is generated
+   * from the unmasked box and then clipped away by its own mask — nothing
+   * escapes the glyph. From out here the child is already a glyph-shaped alpha,
+   * which is exactly what drop-shadow needs to bloom.
+   */
+  .home-hero-mark-glow {
     position: absolute;
     inset: 0;
-    /* A whisper of tint so the glyph still reads as glass on an empty canvas —
-     * blurring a flat background otherwise returns the flat background. */
-    background: color-mix(in srgb, var(--site-fg, #171717) 5%, transparent);
-    -webkit-backdrop-filter: blur(10px) saturate(1.3);
-    backdrop-filter: blur(10px) saturate(1.3);
+    filter: var(--home-hero-mark-bloom);
+  }
+
+  .home-hero-mark-fill {
+    position: absolute;
+    inset: 0;
+    filter: var(--home-hero-mark-ink);
     -webkit-mask-image: var(--home-hero-mark-silhouette);
     mask-image: var(--home-hero-mark-silhouette);
     -webkit-mask-size: 100% 100%;
@@ -296,100 +289,218 @@ const heroMarkSilhouette = etchedMark
     mask-repeat: no-repeat;
   }
 
-  /*
-   * Punch the glyph out of the ring so a 4px stroke keeps only its outer half —
-   * a true 2px outset rather than a stroke straddling the edge. Where
-   * mask-composite is not supported the layers union instead, which just leaves
-   * the full 4px outline showing: thicker, not broken.
-   */
-  .home-hero-mark-ring {
+  .home-hero-mark-body {
     position: absolute;
     inset: 0;
-    filter: var(--home-hero-mark-ink);
-    -webkit-mask-image: linear-gradient(#000, #000), var(--home-hero-mark-silhouette);
-    mask-image: linear-gradient(#000, #000), var(--home-hero-mark-silhouette);
-    -webkit-mask-size: 100% 100%, 100% 100%;
-    mask-size: 100% 100%, 100% 100%;
-    -webkit-mask-position: center, center;
-    mask-position: center, center;
-    -webkit-mask-repeat: no-repeat, no-repeat;
-    mask-repeat: no-repeat, no-repeat;
-    -webkit-mask-composite: source-out, source-over;
-    mask-composite: subtract, add;
-  }
-
-  /* Injected markup carries no scope hash, so the copies are matched globally
-   * from this scoped parent. overflow must be visible or the viewBox clips the
-   * half of the stroke that sits outside the glyph. */
-  .home-hero-mark-ring :global(svg) {
-    position: absolute;
-    inset: 0;
-    display: block;
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-  }
-
-  .home-hero-mark-ring :global(svg *) {
-    fill: none !important;
-    stroke-width: 4px;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    /* Keeps the 4px honest at any rendered size — the artwork is a 512² canvas
-     * scaled into a ~200–310px box. */
-    vector-effect: non-scaling-stroke;
-  }
-
-  /* Continuous hairline so the glyph always reads as a whole outline; the
-   * patterned passes are highlights travelling over it, not the outline itself. */
-  .home-hero-mark-ring :global(.home-hero-mark-outline--base *) {
-    stroke: currentColor;
-    opacity: 0.34;
+    background: var(--home-hero-mark-body);
   }
 
   /*
-   * Dash periods (60 and 32) match the distance each pass travels per loop, so
-   * the crawl is seamless without knowing the path length. Opposite directions
-   * on unrelated durations keep the two textures sliding against each other.
+   * Same trick as the parked hero field: independent blobs on unrelated periods,
+   * each ramping to transparent across its own radius. No full-box wash — that
+   * would be a fixed ellipse whose silhouette never changes, and stacking them
+   * over the centre sums to white.
    */
-  .home-hero-mark-ring :global(.home-hero-mark-outline--weave *) {
-    stroke: url(#hero-mark-weave);
-    stroke-dasharray: 34 96;
-    stroke-dashoffset: 0;
-    opacity: 0.55;
-    animation: homeHeroMarkWeave 13s linear infinite;
-  }
-
-  .home-hero-mark-ring :global(.home-hero-mark-outline--circuit *) {
-    stroke: url(#hero-mark-circuit);
-    stroke-dasharray: 10 70;
-    stroke-dashoffset: 0;
-    opacity: 0.45;
-    animation: homeHeroMarkCircuit 19s linear infinite;
-  }
-
-  @keyframes homeHeroMarkWeave {
-    to {
-      stroke-dashoffset: -130;
-    }
-  }
-
-  @keyframes homeHeroMarkCircuit {
-    to {
-      stroke-dashoffset: 80;
-    }
-  }
-
-  .home-hero-mark-defs {
+  .home-hero-mark-blob {
     position: absolute;
-    width: 0;
-    height: 0;
-    overflow: hidden;
+    border-radius: 50%;
+    filter: blur(13px);
+    opacity: 1;
+  }
+
+  .home-hero-mark-blob--a {
+    left: -8%;
+    top: 8%;
+    width: 58%;
+    height: 52%;
+    background: radial-gradient(
+      closest-side,
+      rgba(244, 114, 182, 0.95) 0%,
+      rgba(244, 114, 182, 0.55) 34%,
+      rgba(244, 114, 182, 0.18) 62%,
+      rgba(244, 114, 182, 0) 100%
+    );
+    animation: homeHeroMarkBlobA 17s ease-in-out infinite;
+    animation-delay: -6s;
+  }
+
+  .home-hero-mark-blob--b {
+    right: -10%;
+    top: 0%;
+    width: 52%;
+    height: 62%;
+    background: radial-gradient(
+      closest-side,
+      rgba(56, 189, 248, 0.95) 0%,
+      rgba(56, 189, 248, 0.55) 34%,
+      rgba(56, 189, 248, 0.18) 62%,
+      rgba(56, 189, 248, 0) 100%
+    );
+    animation: homeHeroMarkBlobB 23s ease-in-out infinite;
+    animation-delay: -13s;
+  }
+
+  .home-hero-mark-blob--c {
+    left: 6%;
+    bottom: -10%;
+    width: 62%;
+    height: 54%;
+    background: radial-gradient(
+      closest-side,
+      rgba(192, 132, 252, 0.95) 0%,
+      rgba(192, 132, 252, 0.55) 34%,
+      rgba(192, 132, 252, 0.18) 62%,
+      rgba(192, 132, 252, 0) 100%
+    );
+    animation: homeHeroMarkBlobC 19s ease-in-out infinite;
+    animation-delay: -3s;
+  }
+
+  .home-hero-mark-blob--d {
+    left: 26%;
+    top: -12%;
+    width: 46%;
+    height: 44%;
+    opacity: 0.75;
+    background: radial-gradient(
+      closest-side,
+      rgba(251, 191, 36, 0.85) 0%,
+      rgba(251, 191, 36, 0.45) 36%,
+      rgba(251, 191, 36, 0.14) 66%,
+      rgba(251, 191, 36, 0) 100%
+    );
+    animation: homeHeroMarkBlobD 29s ease-in-out infinite;
+    animation-delay: -17s;
+  }
+
+  .home-hero-mark-blob--e {
+    right: 8%;
+    bottom: 2%;
+    width: 48%;
+    height: 42%;
+    opacity: 0.75;
+    background: radial-gradient(
+      closest-side,
+      rgba(52, 211, 153, 0.85) 0%,
+      rgba(52, 211, 153, 0.45) 36%,
+      rgba(52, 211, 153, 0.14) 66%,
+      rgba(52, 211, 153, 0) 100%
+    );
+    animation: homeHeroMarkBlobE 31s ease-in-out infinite;
+    animation-delay: -8s;
+  }
+
+  /* Specular pass — the thing that reads as glass rather than as a lit panel.
+   * Travels slowly so the highlight crosses the letterforms. */
+  .home-hero-mark-sheen {
+    position: absolute;
+    inset: -20%;
+    background: linear-gradient(
+      118deg,
+      transparent 34%,
+      rgba(255, 255, 255, 0.5) 47%,
+      rgba(255, 255, 255, 0.14) 53%,
+      transparent 66%
+    );
+    mix-blend-mode: screen;
+    opacity: 0.26;
+    animation: homeHeroMarkSheen 21s ease-in-out infinite;
+    animation-delay: -7s;
+  }
+
+  @keyframes homeHeroMarkBlobA {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    28% {
+      transform: translate(30%, -14%) scale(1.16, 0.88);
+    }
+    54% {
+      transform: translate(44%, 16%) scale(0.9, 1.12);
+    }
+    78% {
+      transform: translate(12%, 26%) scale(1.1, 0.94);
+    }
+  }
+
+  @keyframes homeHeroMarkBlobB {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    30% {
+      transform: translate(-34%, 22%) scale(0.88, 1.16);
+    }
+    58% {
+      transform: translate(-16%, 48%) scale(1.14, 0.9);
+    }
+    82% {
+      transform: translate(-42%, 10%) scale(0.96, 1.06);
+    }
+  }
+
+  @keyframes homeHeroMarkBlobC {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    26% {
+      transform: translate(20%, -30%) scale(1.12, 0.9);
+    }
+    52% {
+      transform: translate(-24%, -16%) scale(0.92, 1.14);
+    }
+    76% {
+      transform: translate(-10%, -38%) scale(1.06, 0.96);
+    }
+  }
+
+  @keyframes homeHeroMarkBlobD {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    34% {
+      transform: translate(-36%, 44%) scale(1.2, 1.05);
+    }
+    62% {
+      transform: translate(24%, 66%) scale(0.9, 1.2);
+    }
+    86% {
+      transform: translate(42%, 28%) scale(1.08, 0.92);
+    }
+  }
+
+  @keyframes homeHeroMarkBlobE {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    32% {
+      transform: translate(26%, -36%) scale(0.9, 1.18);
+    }
+    60% {
+      transform: translate(-30%, -56%) scale(1.16, 0.92);
+    }
+    84% {
+      transform: translate(-44%, -14%) scale(1.02, 1.08);
+    }
+  }
+
+  @keyframes homeHeroMarkSheen {
+    0%,
+    100% {
+      transform: translate3d(-26%, -12%, 0);
+    }
+    50% {
+      transform: translate3d(26%, 12%, 0);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .home-hero-mark-ring :global(.home-hero-mark-outline--weave *),
-    .home-hero-mark-ring :global(.home-hero-mark-outline--circuit *) {
+    .home-hero-mark-blob,
+    .home-hero-mark-sheen {
       animation: none;
     }
   }
