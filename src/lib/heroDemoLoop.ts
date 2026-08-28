@@ -2405,7 +2405,7 @@ async function simulateActionPress(
 
 /**
  * "View signing status" — acknowledge the press, then cut. The generic
- * Opening toast + scene hold parked on the last Reggie bubble too long.
+ * Reading toast + scene hold parked on the last Reggie bubble too long.
  */
 async function playSigningStatusBeat(
   sceneEl: HTMLElement,
@@ -2431,7 +2431,7 @@ async function playActionPlaceholder(
     reducedMotion,
     isAlive,
     label,
-    "Opening…",
+    "Reading…",
   );
   await wait(reducedMotion ? 400 : 650);
 }
