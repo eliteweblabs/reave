@@ -347,6 +347,44 @@ html.account-menu-open:not(.account-menu-docked) .admin-setup-alerts {
   pointer-events: none;
 }
 
+/*
+ * Same stacking trap: the header scrim’s backdrop-filter sits in the raised
+ * header context, so it samples the drawer and smears the panel edge (and
+ * the admin pill sitting on that seam). Hide it while the overlay is open.
+ */
+html.overlay-menu-open:not(.account-menu-docked) .app-header > .app-header-scrim,
+html.overlay-menu-open:not(.account-menu-docked) .app-header--admin.app-header--scrim > .app-header-scrim,
+html.marketing-menu-open .app-header > .app-header-scrim {
+  display: none;
+}
+
+/*
+ * Desktop public header is position:fixed. Keep the overlay *below* that
+ * band so the dimmed/blurred backdrop cannot paint through the transparent
+ * chrome. Docked admin already owns its own top:0 column.
+ */
+@media (min-width: 769px) {
+  html.overlay-menu-open:not(.account-menu-docked) .overlay-menu:not([hidden]),
+  html.marketing-menu-open .overlay-menu:not([hidden]) {
+    top: var(--app-header-offset);
+  }
+
+  html.overlay-menu-open:not(.account-menu-docked) .overlay-menu-scroll,
+  html.marketing-menu-open .overlay-menu-scroll {
+    padding-top: 20px;
+  }
+}
+
+/*
+ * Mobile public header is position:absolute and the overlay is full-viewport.
+ * Paint the chrome band so the dimmed backdrop cannot show through.
+ */
+@media (max-width: 768px) {
+  html.overlay-menu-open:not(.account-menu-docked) .app-header:not(.app-header--admin) .app-header-row {
+    background-color: var(--site-canvas, #fff);
+  }
+}
+
 html.overlay-menu-open .app-header-logo,
 html.overlay-menu-open .marketing-nav,
 html.overlay-menu-open .topbar-marketing-controls,
