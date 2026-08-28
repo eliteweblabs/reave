@@ -3,6 +3,7 @@
   "rainbowThemeColor": true,
   "pages": [
     "/",
+    "/card",
     "/platform",
     "/features",
     "/features-tight",

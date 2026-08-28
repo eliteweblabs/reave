@@ -68,7 +68,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   clients: 'Contacts',
   social: 'Social',
   reviews: 'Reviews',
-  media: 'Media',
+  media: 'Media Library',
   analytics: 'Analytics',
   fleet: 'Fleet',
   finance: 'Finance',
