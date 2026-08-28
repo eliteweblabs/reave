@@ -103,6 +103,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 <style>
   .home-hero {
     --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
+    --home-sticky-cta-bottom: 5px;
     --home-hero-brand-bottom: 42%;
     --home-hero-icon-size: clamp(190px, 42vw, 312px);
     --home-hero-icon-pad: 1.25rem; /* ~20px at 16px root */
@@ -365,6 +366,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     display: none;
   }
 
+  @media (min-width: 640px) {
+    .home-hero {
+      --home-sticky-cta-bottom: 20px;
+    }
+  }
+
   @media (max-width: 640px) {
     .home-hero {
       /* Keep the chat lane tucked under the raised brand block. */
@@ -440,12 +447,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     overflow: visible;
   }
 
-  /* Reserve the CTA band in the chat column — buttons are viewport-fixed. */
+  /* Reserve the CTA band in the chat column — buttons are viewport-fixed.
+     Extra inset matches --home-sticky-cta-bottom above the 5px phones keep. */
   .home-sticky-ctas-spacer {
     flex: none;
     width: 100%;
-    height: var(--home-hero-copy-h, 88px);
-    min-height: var(--home-hero-copy-h, 88px);
+    height: calc(
+      var(--home-hero-copy-h, 88px) + var(--home-sticky-cta-bottom, 5px) - 5px
+    );
+    min-height: calc(
+      var(--home-hero-copy-h, 88px) + var(--home-sticky-cta-bottom, 5px) - 5px
+    );
     pointer-events: none;
   }
 

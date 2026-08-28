@@ -128,6 +128,12 @@ const trailingCtas = ctas.slice(1);
       visibility 0s linear 0s;
   }
 
+  @media (min-width: 640px) {
+    .home-sticky-ctas {
+      --home-sticky-cta-bottom: 20px;
+    }
+  }
+
   .home-sticky-ctas.is-contact-occluding {
     transform: translateY(calc(100% + 28px));
     opacity: 0;
