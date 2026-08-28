@@ -272,7 +272,7 @@ import {
   openRulesLabWithRule,
   startNewRule,
   showKeywordCollisionAlert,
-} from './rules-panel.js?v=20260828b';
+} from './rules-panel.js?v=20260828c';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -960,7 +960,7 @@ function activateMapPanel(opts = {}) {
     }
     loadEmailTab(emailPanelHasList());
   } else if (MAP.type === 'rules') {
-    loadRulesTab();
+    loadRulesTab({ ruleId: opts.ruleId || parseRuleDeepLinkFromUrl() });
   } else if (MAP.type === 'newsletter') {
     loadNewsletterTab();
   } else if (MAP.type === 'todo') {
@@ -3601,7 +3601,10 @@ function classificationAuditRuleLinkHtml(step, { asTitle = false } = {}) {
   const attrs = ruleId
     ? `data-em-open-rule="${escHtml(ruleId)}"`
     : 'data-em-open-lab';
-  return `<a class="admin-classification-audit-rule" href="/admin/?tab=rules" ${attrs}>${escHtml(label)}</a>`;
+  const href = ruleId
+    ? `/admin/?tab=rules&rule=${encodeURIComponent(ruleId)}`
+    : '/admin/?tab=rules';
+  return `<a class="admin-classification-audit-rule" href="${href}" ${attrs}>${escHtml(label)}</a>`;
 }
 
 function classificationAuditTrailHtml(item) {
@@ -10407,6 +10410,14 @@ function parsePunchlistDeepLinkFromUrl() {
   }
 }
 
+function parseRuleDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('rule')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function parseScheduleDeepLinkFromUrl() {
   try {
     return new URLSearchParams(window.location.search).get('booking')?.trim() || null;
@@ -10588,6 +10599,17 @@ function syncAdminTabUrl(key, opts = {}) {
       url.searchParams.delete('item');
     }
 
+    if (key === 'rules') {
+      const ruleId =
+        opts.ruleId !== undefined
+          ? opts.ruleId
+          : ruleState.activeId || parseRuleDeepLinkFromUrl();
+      if (ruleId) url.searchParams.set('rule', String(ruleId));
+      else url.searchParams.delete('rule');
+    } else {
+      url.searchParams.delete('rule');
+    }
+
     if (key === 'analytics') {
       if (opts.analyticsSiteId !== undefined) {
         const siteId = String(opts.analyticsSiteId || '').trim();
@@ -10627,6 +10649,20 @@ function resumeScheduleDeepLinkFromUrl() {
   const bookingUid = parseScheduleDeepLinkFromUrl();
   if (!bookingUid) return;
   openScheduleTab({ uid: bookingUid, view: 'week' });
+}
+
+function resumeRuleDeepLinkFromUrl() {
+  const ruleId = parseRuleDeepLinkFromUrl();
+  if (!ruleId) return;
+  if (MAP?.type !== 'rules') {
+    setActiveMap('rules', { force: true, ruleId });
+    return;
+  }
+  if (String(ruleState.activeId || '') === ruleId) {
+    syncAdminTabUrl('rules', { ruleId });
+    return;
+  }
+  void loadRulesTab({ ruleId });
 }
 
 function resumeEmailDeepLinkFromUrl() {
@@ -10716,6 +10752,11 @@ function handleNotificationOpen(url) {
     const moduleFeature = u.searchParams.get('module')?.trim();
     if ((tab === 'modules' || !tab) && moduleFeature) {
       setActiveMap('modules', { force: true, moduleFeature });
+      return;
+    }
+    const ruleId = u.searchParams.get('rule')?.trim();
+    if ((tab === 'rules' || !tab) && ruleId) {
+      setActiveMap('rules', { force: true, ruleId });
       return;
     }
     if (tab && MAPS[tab]) setActiveMap(tab, { force: true });
@@ -11995,6 +12036,7 @@ initRulesPanel({
   setActiveMap,
   navigateToEmail,
   askAgentAboutRule,
+  syncAdminTabUrl,
 });
 
 initNewsletterPanel({});
@@ -17689,6 +17731,7 @@ function loadActiveKey() {
     if (params.get('booking')?.trim()) return 'schedule';
     if (params.get('module')?.trim()) return 'modules';
     if (params.get('todo')?.trim()) return 'todo';
+    if (params.get('rule')?.trim()) return 'rules';
     const tab = resolveMapKey(params.get('tab'));
     if (tab && MAPS[tab] && canOpenMapKey(tab)) return tab;
   } catch {}
@@ -17800,6 +17843,7 @@ window.addEventListener('pageshow', (ev) => {
   resumeEmailDeepLinkFromUrl();
   resumeClientDeepLinkFromUrl();
   resumeScheduleDeepLinkFromUrl();
+  resumeRuleDeepLinkFromUrl();
   queueTriageEmailFromUrl();
   void purgeExpiredOtpsQuietly();
   void consumePendingOtpCopy();

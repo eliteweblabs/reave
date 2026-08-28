@@ -432,9 +432,27 @@ function appendRuleField(parent, label, el, hint, opts = {}) {
 
 let rulesLoadGen = 0;
 
-async function loadRulesTab() {
+function revealRuleInFilters(rule) {
+  if (!rule) return;
+  const scope = ruleScope(rule);
+  if (ruleState.scopeOn?.[scope] === false) ruleState.scopeOn[scope] = true;
+  const process = ruleProcessValue(rule);
+  if (ruleState.processOn?.[process] === false) ruleState.processOn[process] = true;
+  if (!ruleMatchesSidebarSearch(rule)) ruleState.search = '';
+}
+
+function syncRulesTabUrl() {
+  shell.syncAdminTabUrl?.('rules', { ruleId: ruleState.activeId || '' });
+}
+
+async function loadRulesTab(opts = {}) {
   const root = getRuleEditor();
   if (!root) return;
+  if (opts.flush !== false && ruleState.activeId && typeof ruleAutosaveFlush === 'function') {
+    if (!(await flushRuleAutosave())) return;
+  }
+  const requested = String(opts.ruleId || ruleState.activeId || '').trim();
+  if (requested) ruleState.activeId = requested;
   const gen = ++rulesLoadGen;
   mountPanelSkeleton(root, 'list', 'Loading rules…', { contentSelector: '.ch-sidebar' });
   try {
@@ -451,12 +469,18 @@ async function loadRulesTab() {
     return;
   }
   if (gen !== rulesLoadGen) return;
-  if (ruleState.activeId && !ruleState.rules.some((r) => String(r.id) === String(ruleState.activeId))) {
+  if (requested) {
+    const found = ruleState.rules.find((r) => String(r.id) === requested);
+    revealRuleInFilters(found);
+    ruleState.activeId = requested;
+    if (!found) ruleState.dirty = false;
+  } else if (ruleState.activeId && !ruleState.rules.some((r) => String(r.id) === String(ruleState.activeId))) {
     // Keep the requested id so Edit rule can show a missing-rule stub instead of
     // wiping the selection and leaving an empty filtered pipeline.
     ruleState.dirty = false;
   }
   renderRulesEditor();
+  syncRulesTabUrl();
 }
 
 function createRuleListItem(rule, activeId) {
@@ -574,7 +598,10 @@ function applyRuleFilters() {
     cleared = true;
   }
   refreshRulesSidebarList();
-  if (cleared) renderRulesPane();
+  if (cleared) {
+    syncRulesTabUrl();
+    renderRulesPane();
+  }
 }
 
 function renderFilterChipRow({ chips, stateKey, counts, ariaLabel }) {
@@ -1015,6 +1042,7 @@ async function openRuleEditor(id) {
     String(id) === String(ruleState.activeId) &&
     getRuleEditor()?.querySelector('.de-pane .re-form-scroll')
   ) {
+    syncRulesTabUrl();
     return;
   }
   if (!(await leaveRuleIfSaved())) return;
@@ -1022,17 +1050,12 @@ async function openRuleEditor(id) {
   ruleState.activeId = resolved;
   ruleState.dirty = false;
   const selected = ruleState.rules.find((r) => String(r.id) === String(resolved));
-  if (selected) {
-    const scope = ruleScope(selected);
-    if (ruleState.scopeOn?.[scope] === false) ruleState.scopeOn[scope] = true;
-    const process = ruleProcessValue(selected);
-    if (ruleState.processOn?.[process] === false) ruleState.processOn[process] = true;
-    if (!ruleMatchesSidebarSearch(selected)) ruleState.search = '';
-  }
+  revealRuleInFilters(selected);
   shell.clearEditorFooterSave();
   const root = getRuleEditor();
   if (!root?.querySelector('.ch-sidebar')) {
     renderRulesEditor();
+    syncRulesTabUrl();
     return;
   }
   const searchInput = root.querySelector('.panel-list-search');
@@ -1040,6 +1063,7 @@ async function openRuleEditor(id) {
   refreshRulesSidebarList();
   syncRulesSidebarActiveState({ scroll: true });
   renderRulesPane();
+  syncRulesTabUrl();
 }
 
 async function closeRuleEditor() {
@@ -1057,6 +1081,7 @@ async function closeRuleEditor() {
     shell.navigateToEmail(returnEmailId);
     return;
   }
+  syncRulesTabUrl();
   renderRulesPane();
 }
 
@@ -1675,6 +1700,7 @@ function removeRulesLocally(ids) {
     ruleState.dirty = false;
     ruleState.activeId = null;
     getRuleEditor()?.classList.remove('de-pane-active');
+    syncRulesTabUrl();
   }
   renderRulesEditor();
 }
@@ -1840,7 +1866,7 @@ function keywordCollisionBodyHtml(err) {
   const extra = hit.phrases.length > 6 ? ` (+${hit.phrases.length - 6} more)` : '';
   const detail = shown ? ` (${escHtml(shown)}${escHtml(extra)})` : '';
   return (
-    `<p>Keywords already used by “<a class="os-dialog-link" href="/admin/?tab=rules" data-em-open-rule="${escHtml(hit.id)}">${escHtml(label)}</a>”${detail}. Edit that rule instead of creating another.</p>`
+    `<p>Keywords already used by “<a class="os-dialog-link" href="/admin/?tab=rules&rule=${encodeURIComponent(hit.id)}" data-em-open-rule="${escHtml(hit.id)}">${escHtml(label)}</a>”${detail}. Edit that rule instead of creating another.</p>`
   );
 }
 
@@ -1887,8 +1913,8 @@ async function openRulesLabWithEmail(emailRecord) {
     const subject = String(emailRecord.subject || '').trim();
     if (subject) ruleState.search = subject.slice(0, 80);
   }
-  shell.setActiveMap?.('rules', { force: true });
-  await loadRulesTab();
+  shell.setActiveMap?.('rules', { force: true, ruleId: matchedId || undefined });
+  await loadRulesTab({ ruleId: matchedId || undefined });
   if (matchedId) await openRuleEditor(matchedId);
 }
 
@@ -1904,12 +1930,13 @@ async function openRulesLabWithRule(ruleId, opts = {}) {
   rememberRuleReturnEmail(opts.email || opts.fromEmailId);
   if (requested) ruleState.activeId = requested;
   ruleState.missingTitle = String(opts.ruleTitle || opts.email?.matchedRuleTitle || '').trim();
-  shell.setActiveMap?.('rules', { force: true });
-  await loadRulesTab();
+  shell.setActiveMap?.('rules', { force: true, ruleId: requested || undefined });
+  await loadRulesTab({ ruleId: requested || undefined });
   const id = resolveLabRuleId(requested);
   ruleState.activeId = id || requested || null;
   if (!id) {
     renderRulesPane();
+    syncRulesTabUrl();
     return;
   }
   await openRuleEditor(id);
