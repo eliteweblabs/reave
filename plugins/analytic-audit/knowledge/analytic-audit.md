@@ -6,6 +6,7 @@ Search Console, GA4, Plausible, and IndexNow tools for **full** website audits a
 
 - Full audit tier (`inquiry-website-audit` / Siri `full_audit`) — run search + analytics tools alongside Lighthouse/fetch/etc.
 - Admin Analytics dashboard (Plausible default, GA4 when preferred)
+- Fleet view of every live Railway custom domain plus client websites; dashboard home shows a visitors preview. Sync Railway sites tries the Plausible Sites API (Enterprise); Community Edition needs each domain added in Plausible once.
 - Managing GSC properties on the agency Google account (list, add, verify, sitemaps, inspect)
 
 ## Never default the site
