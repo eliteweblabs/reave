@@ -38,3 +38,4 @@ src/knowledge/.media/
 src/knowledge/branding/*
 !src/knowledge/branding/.gitkeep
 !src/knowledge/branding/README.md
+!src/knowledge/branding/logo.alt.png

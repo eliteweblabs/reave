@@ -9,8 +9,9 @@
  *
  * Uses the public Railway proxy URL from .env.railway.postgres when unset.
  * Generates ~2 months of events around today: 2–3 on weekdays, 1–2 on weekends.
- * --from-contacts reads CONTACT_API_BASE_URL / CONTACT_API_KEY and books real
- * people (titles are prefixed [Demo]; metadata.seeded + metadata.demo).
+ * --from-contacts reads CONTACT_API_BASE_URL / CONTACT_API_KEY and books people
+ * already marked Client (professional) in the book — not Proposed / Service /
+ * Personal. Titles are prefixed [Demo]; metadata.seeded + metadata.demo.
  *
  * Cal.com stores startTime/endTime as UTC in timestamp-without-tz columns. Pass
  * --fresh to delete prior seeded rows before inserting (needed after fixing TZ).
@@ -315,6 +316,26 @@ function skipAutoContact(name: string, email: string): boolean {
   return false;
 }
 
+async function contactIsBookedClient(
+  base: string,
+  key: string,
+  uid: string,
+): Promise<boolean> {
+  if (!uid.trim()) return false;
+  const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid)}/links`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${key}`,
+      'X-API-Key': key,
+    },
+  });
+  if (!res.ok) return false;
+  const json = (await res.json()) as { links?: Array<{ system?: string; metadata?: { clientKind?: string; personal?: boolean } }> };
+  const portal = (json.links ?? []).find((l) => l.system === 'portal');
+  const kind = String(portal?.metadata?.clientKind ?? '').trim().toLowerCase();
+  return kind === 'professional';
+}
+
 function demoEmailFor(name: string, email: string): string {
   const trimmed = email.trim();
   if (trimmed) return trimmed;
@@ -352,8 +373,10 @@ async function fetchContactsFromApi(skipEmails: Set<string>): Promise<DemoContac
     for (const raw of batch) {
       const name = String(raw.name ?? '').trim();
       const rawEmail = String(raw.email ?? '').trim();
+      const uid = String(raw.uid ?? '').trim();
       if (skipAutoContact(name, rawEmail)) continue;
       if (rawEmail && skipEmails.has(rawEmail.toLowerCase())) continue;
+      if (!(await contactIsBookedClient(base, key, uid))) continue;
       const email = demoEmailFor(name, rawEmail);
       const phone = String(raw.phone ?? '').trim() || undefined;
       const address =
@@ -379,7 +402,7 @@ async function fetchContactsFromApi(skipEmails: Set<string>): Promise<DemoContac
     if (offset > 5000) break;
   }
   if (!out.length) {
-    throw new Error('--from-contacts found no usable contacts (after skipping service / junk / owner)');
+    throw new Error('--from-contacts found no Client-kind contacts (Proposed / Service / Personal skipped)');
   }
   return out;
 }

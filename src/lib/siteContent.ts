@@ -245,6 +245,8 @@ export type SiteContentConfig = {
      */
     template?: HomepageTemplate;
     heroHeadlineHtml: string;
+    /** Quiet public `/` line under the company name (login homepage). */
+    subtitle?: string;
     showHeroDemo?: boolean;
     showDialogue?: boolean;
     showIntegrations?: boolean;
@@ -466,6 +468,7 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
       homepage: {
         template,
         heroHeadlineHtml: raw.homepage?.heroHeadlineHtml ?? '',
+        subtitle: typeof raw.homepage?.subtitle === 'string' ? raw.homepage.subtitle.trim() : undefined,
         showHeroDemo: raw.homepage?.showHeroDemo ?? false,
         showDialogue: raw.homepage?.showDialogue ?? false,
         showIntegrations: raw.homepage?.showIntegrations ?? false,

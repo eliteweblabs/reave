@@ -4,6 +4,7 @@ import LandingLayout from "../layouts/LandingLayout.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
 import HomeStickyCtas from "../components/home/HomeStickyCtas.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
+import HomeClientLogosSection from "../components/home/HomeClientLogosSection.astro";
 import HomeFeaturedProjectSection from "../components/home/HomeFeaturedProjectSection.astro";
 import HomeSoftwareShowcaseSection from "../components/home/HomeSoftwareShowcaseSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
@@ -52,6 +53,7 @@ const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteConten
             <div class="home-sticky-cta-track__body">
               <HomeHeroSection siteContent={siteContent} />
               <FeaturesPageContent embedded introOnly />
+              <HomeClientLogosSection />
               <HomeSoftwareShowcaseSection />
               <FeaturesPageContent embedded hideIntro showLogoStack={false} showAccordion={false} />
             </div>

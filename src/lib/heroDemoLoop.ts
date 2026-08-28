@@ -32,12 +32,17 @@ import {
 /** Demo pacing (~33% slower than baseline). Applied in wait() and exit timeouts. */
 const TIMING_SCALE = 1.33;
 /**
- * Extra slowdown on iOS only. Mobile Safari reads the same ms as faster (and the
- * right-growing bubble made typing feel rushed); gate the fix so desktop stays put.
+ * Extra slowdown for the per-character typing cadence on iOS only. Mobile Safari
+ * reads the same ms as faster and the right-growing bubble made typing feel
+ * rushed. This deliberately does NOT touch `timingScale`: folding it into the
+ * global clock stretched every think/hold/picker beat too, which pushed a long
+ * scene past 45s and meant the payoff artifact (the signed contract, the paid
+ * invoice) usually never arrived before the visitor scrolled away.
  */
-const IOS_TIMING_SCALE = 1.75;
+const IOS_TYPING_SCALE = 1.75;
 
 let timingScale = TIMING_SCALE;
+let typingScale = 1;
 
 function scaleMs(ms: number): number {
   return Math.round(ms * timingScale);
@@ -1873,6 +1878,8 @@ function buildSlashPicker(): HTMLElement {
 }
 
 const PICKER_LANE_PAD = 8;
+/** ~3 rows. Below this the scan animation has nothing legible to move through. */
+const PICKER_MIN_HEIGHT = 84;
 
 function demoPickerLane(from: HTMLElement): HTMLElement | null {
   return (
@@ -1882,9 +1889,28 @@ function demoPickerLane(from: HTMLElement): HTMLElement | null {
 }
 
 /**
+ * Where the lane's mask gradient finishes ramping, in viewport coordinates.
+ * Anything above this is being faded out under the headline. Falls back to the
+ * lane top when the probe is missing, which is the old behaviour.
+ */
+function laneOpaqueTop(lane: HTMLElement, fallbackTop: number): number {
+  const probe = lane
+    .closest<HTMLElement>(".home-hero-demo")
+    ?.querySelector<HTMLElement>("[data-hero-demo-fade-probe]");
+  const bottom = probe?.getBoundingClientRect().bottom;
+  return typeof bottom === "number" && bottom > 0 ? bottom : fallbackTop;
+}
+
+/**
  * Keep slash/mention popovers inside the demo lane. They used to size against
  * `100vw` and (mentions) drop below the newest bubble — both miss the canvas
  * on phones. Also avoid `scrollIntoView`, which scrolls the document on iOS.
+ *
+ * The vertical cap is measured against the *opaque* part of the lane rather
+ * than its top edge: a picker that merely fits inside the lane still opened
+ * into the fade on phones, so its first few rows rendered at 10–30% and the
+ * option the demo was scanning to could not be read. Capping here makes the
+ * pane scroll instead, which is what the real composer does anyway.
  */
 function fitPickerInLane(picker: HTMLElement, lane: HTMLElement): void {
   const row = picker.closest<HTMLElement>(".home-hero-demo-msg");
@@ -1906,10 +1932,11 @@ function fitPickerInLane(picker: HTMLElement, lane: HTMLElement): void {
     row.style.setProperty("--hero-picker-shift-x", `${shiftX}px`);
   }
 
+  const ceiling = laneOpaqueTop(lane, laneRect.top) + PICKER_LANE_PAD;
   const after = picker.getBoundingClientRect();
-  if (after.top < laneRect.top + PICKER_LANE_PAD) {
-    const allowed = after.bottom - (laneRect.top + PICKER_LANE_PAD);
-    picker.style.maxHeight = `${Math.max(72, Math.floor(allowed))}px`;
+  if (after.top < ceiling) {
+    const allowed = after.bottom - ceiling;
+    picker.style.maxHeight = `${Math.max(PICKER_MIN_HEIGHT, Math.floor(allowed))}px`;
   }
 }
 
@@ -2158,7 +2185,7 @@ async function typeText(
     if (!isAlive()) return;
     appendBubbleChars(el, ch);
     onTick?.();
-    await wait(msPerChar);
+    await wait(msPerChar * typingScale);
   }
 }
 
@@ -2171,6 +2198,13 @@ async function typeText(
  * pass costs no per-message geometry at all.
  */
 const DEPTH_PER_MESSAGE = 0.05;
+/**
+ * WebKit gets no depth blur (see `depthBlurEnabled`), so opacity and scale carry
+ * the whole recession there. At the shared 0.05 step a four-turn-old bubble is
+ * still at 80% and pin sharp, which reads as clutter stacked behind the headline
+ * rather than as distance — the desktop look depends on the blur doing that work.
+ */
+const DEPTH_PER_MESSAGE_NO_BLUR = 0.09;
 const DEPTH_SCALE = 0.24;
 const DEPTH_BLUR_PX = 6;
 
@@ -2192,7 +2226,8 @@ const STACK_INSTANT_CLASS = "home-hero-demo-stack--instant";
 
 /** 0 = the current turn. 1 = fully dissolved. */
 function messageDepth(turnsBehindNewest: number): number {
-  return Math.min(1, Math.max(0, turnsBehindNewest) * DEPTH_PER_MESSAGE);
+  const step = depthBlurEnabled ? DEPTH_PER_MESSAGE : DEPTH_PER_MESSAGE_NO_BLUR;
+  return Math.min(1, Math.max(0, turnsBehindNewest) * step);
 }
 
 function applyMessageFocus(msg: HTMLElement) {
@@ -2580,7 +2615,7 @@ async function simulateActionPress(
 
 /**
  * "View signing status" — acknowledge the press, then cut. The generic
- * Opening toast + scene hold parked on the last Reggie bubble too long.
+ * Reading toast + scene hold parked on the last Reggie bubble too long.
  */
 async function playSigningStatusBeat(
   sceneEl: HTMLElement,
@@ -2606,7 +2641,7 @@ async function playActionPlaceholder(
     reducedMotion,
     isAlive,
     label,
-    "Opening…",
+    "Reading…",
   );
   await wait(reducedMotion ? 400 : 650);
 }
@@ -2777,7 +2812,8 @@ export function initHeroDemoLoop(root: HTMLElement) {
   depthBlurEnabled = !isSafariBrowser() && !isIOSDevice();
   if (!depthBlurEnabled) root.classList.add("home-hero-demo--webkit");
 
-  timingScale = isIOSDevice() ? TIMING_SCALE * IOS_TIMING_SCALE : TIMING_SCALE;
+  timingScale = TIMING_SCALE;
+  typingScale = isIOSDevice() ? IOS_TYPING_SCALE : 1;
 
   // Seven static frames can't be fetched at the moment the beat plays without
   // leaving the letterbox empty, so pull them in while the hero is still idle.

@@ -30,6 +30,16 @@ export function plausibleDashboardUrl(siteId: string): string | null {
   return `${base}/${encodeURIComponent(siteId)}`;
 }
 
+/** Plausible CE “add a site” screen — Sites API is Enterprise-only. */
+export function plausibleSitesNewUrl(): string | null {
+  const base = apiBase();
+  return base ? `${base}/sites/new` : null;
+}
+
+export function plausibleTimezone(): string {
+  return trim(serverEnv('PLAUSIBLE_TIMEZONE')) || 'America/New_York';
+}
+
 /** Bare hostname from a website URL or domain (no www). */
 export function hostnameFromWebsite(raw?: string): string {
   const trimmed = trim(raw);
@@ -196,4 +206,139 @@ export async function plausibleRealtimeVisitors(
   return plausibleGet<PlausibleRealtimeResult>('/api/v1/stats/realtime/visitors', {
     site_id: siteId,
   });
+}
+
+export function isPlausibleSiteMissingError(error: string | undefined): boolean {
+  const msg = (error || '').toLowerCase();
+  if (!msg) return false;
+  return (
+    /invalid site|site (does )?not (exist|found)|unknown site|not found|couldn't find|could not find/.test(
+      msg,
+    ) || /\b404\b/.test(msg)
+  );
+}
+
+export function isPlausibleSiteExistsError(error: string | undefined): boolean {
+  const msg = (error || '').toLowerCase();
+  return /already (exists|taken|registered)|duplicate|been taken/.test(msg);
+}
+
+export function isPlausibleSitesApiUnavailableError(error: string | undefined): boolean {
+  const msg = (error || '').toLowerCase();
+  return /\b404\b/.test(msg) || /not found|not (included|available)|enterprise/.test(msg);
+}
+
+async function plausibleRequest<T>(
+  path: string,
+  init: { method?: string; body?: string; contentType?: string },
+): Promise<PlausibleFetchResult<T>> {
+  const base = apiBase();
+  const key = apiKey();
+  if (!base || !key) return { ok: false, error: 'Plausible is not configured' };
+
+  const url = new URL(path.startsWith('/') ? path : `/${path}`, `${base}/`);
+  try {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${key}`,
+      Accept: 'application/json',
+    };
+    if (init.body) headers['Content-Type'] = init.contentType || 'application/json';
+    const res = await fetch(url.toString(), {
+      method: init.method || 'GET',
+      headers,
+      body: init.body,
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: `Plausible ${res.status}${text ? `: ${text.slice(0, 240)}` : ''}`,
+      };
+    }
+    if (!text.trim()) return { ok: true, data: {} as T };
+    try {
+      return { ok: true, data: JSON.parse(text) as T };
+    } catch {
+      return { ok: false, error: 'Plausible returned invalid JSON' };
+    }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Plausible request failed' };
+  }
+}
+
+export type PlausibleListedSite = { domain: string; timezone?: string };
+
+/** Sites API (Enterprise / some CE builds). 404 means CE without provisioning. */
+export async function plausibleListSites(): Promise<
+  PlausibleFetchResult<{ sites: PlausibleListedSite[]; sitesApi: boolean }>
+> {
+  const listed = await plausibleGet<{
+    sites?: Array<{ domain?: string; timezone?: string }>;
+    results?: Array<{ domain?: string; timezone?: string }>;
+  }>('/api/v1/sites', {});
+  if (!listed.ok) {
+    return {
+      ok: false,
+      error: listed.error,
+    };
+  }
+  const raw = listed.data.sites || listed.data.results || [];
+  const sites = raw
+    .map((row) => ({
+      domain: hostnameFromWebsite(String(row.domain || '')),
+      timezone: row.timezone,
+    }))
+    .filter((row) => row.domain);
+  return { ok: true, data: { sites, sitesApi: true } };
+}
+
+export type PlausibleCreateSiteResult =
+  | { ok: true; created: boolean; alreadyExisted: boolean; sitesApi: true }
+  | { ok: false; error: string; sitesApi: boolean; alreadyExisted?: boolean };
+
+/** Register a hostname in Plausible. Sites API is Enterprise-only on current CE. */
+export async function plausibleCreateSite(
+  siteId: string,
+  timezone = plausibleTimezone(),
+): Promise<PlausibleCreateSiteResult> {
+  const domain = hostnameFromWebsite(siteId);
+  if (!domain) return { ok: false, error: 'site id is required', sitesApi: false };
+
+  const jsonBody = JSON.stringify({ domain, timezone });
+  const jsonAttempt = await plausibleRequest<{ domain?: string }>('/api/v1/sites', {
+    method: 'POST',
+    body: jsonBody,
+  });
+  if (jsonAttempt.ok) return { ok: true, created: true, alreadyExisted: false, sitesApi: true };
+  if (isPlausibleSiteExistsError(jsonAttempt.error)) {
+    return { ok: true, created: false, alreadyExisted: true, sitesApi: true };
+  }
+
+  const form = new URLSearchParams({ domain, timezone }).toString();
+  const formAttempt = await plausibleRequest<{ domain?: string }>('/api/v1/sites', {
+    method: 'POST',
+    body: form,
+    contentType: 'application/x-www-form-urlencoded',
+  });
+  if (formAttempt.ok) return { ok: true, created: true, alreadyExisted: false, sitesApi: true };
+  if (isPlausibleSiteExistsError(formAttempt.error)) {
+    return { ok: true, created: false, alreadyExisted: true, sitesApi: true };
+  }
+
+  const error = formAttempt.error || jsonAttempt.error;
+  return {
+    ok: false,
+    error,
+    sitesApi: !isPlausibleSitesApiUnavailableError(error),
+    alreadyExisted: isPlausibleSiteExistsError(error),
+  };
+}
+
+export async function plausibleSiteRegistered(siteId: string): Promise<boolean | null> {
+  const domain = hostnameFromWebsite(siteId);
+  if (!domain || !isPlausibleConfigured()) return null;
+  const agg = await plausibleAggregate(domain, '30d', ['visitors'], false);
+  if (agg.ok) return true;
+  if (isPlausibleSiteMissingError(agg.error)) return false;
+  return null;
 }
