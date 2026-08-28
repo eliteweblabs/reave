@@ -879,7 +879,7 @@ const customPrompts: PromptExample[] = [
     /* Same fluid gap as --home-section-follow-gap (title ↔ chips ↔ next title). */
     --fx-hero-copy-gap: var(--home-section-follow-gap, clamp(2.5rem, 5vw, 3.75rem));
     /* Header clearance lives on main (html.site-page). */
-    padding: 0 20px 6rem;
+    padding: 0 var(--site-page-gutter, 20px) 6rem;
     display: flex;
     flex-direction: column;
     align-items: center;

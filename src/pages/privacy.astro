@@ -149,7 +149,7 @@ const supportMail = companyPublicEmail(company, "support");
   /* Dark background/text default now lives in Layout.astro. */
 
   .page {
-    padding: 0 24px calc(48px + env(safe-area-inset-bottom, 0px));
+    padding: 0 var(--site-doc-gutter, 24px) calc(48px + env(safe-area-inset-bottom, 0px));
     display: flex;
     justify-content: center;
   }
@@ -162,7 +162,7 @@ const supportMail = companyPublicEmail(company, "support");
   .doc-header {
     margin-bottom: 40px;
     padding-bottom: 32px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid var(--site-border, rgba(23, 23, 23, 0.1));
   }
 
   .doc-label {
@@ -184,7 +184,7 @@ const supportMail = companyPublicEmail(company, "support");
 
   .doc-meta {
     font-size: 14px;
-    color: rgba(255,255,255,0.4);
+    color: var(--site-fg-muted, #525252);
     margin: 0;
   }
 
@@ -202,14 +202,14 @@ const supportMail = companyPublicEmail(company, "support");
   h3 {
     font-size: 15px;
     font-weight: 600;
-    color: rgba(255,255,255,0.85);
+    color: var(--site-fg, #171717);
     margin: 16px 0 8px;
   }
 
   p, li {
     font-size: 15px;
     line-height: 1.7;
-    color: rgba(255,255,255,0.75);
+    color: var(--site-fg, #171717);
     margin: 0 0 12px;
   }
 
@@ -225,5 +225,5 @@ const supportMail = companyPublicEmail(company, "support");
 
   a:hover { text-decoration: underline; }
 
-  strong { color: rgba(255,255,255,0.9); }
+  strong { color: var(--site-fg, #171717); }
 </style>
