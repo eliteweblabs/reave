@@ -14,6 +14,20 @@ import {
   type HeroDemoScene,
   type HeroDemoTurn,
 } from "./heroDemoConversation";
+import {
+  HERO_GPS_BEARING,
+  HERO_GPS_CENTER,
+  HERO_GPS_END_ZOOM,
+  HERO_GPS_FRAME_COUNT,
+  HERO_GPS_MAX_OVERZOOM,
+  HERO_GPS_OVERSCAN,
+  HERO_GPS_START_ZOOM,
+  HERO_GPS_STYLE,
+  HERO_GPS_ZOOMS,
+  heroGpsFrameSrc,
+  heroGpsLayerState,
+  heroGpsUsableFrames,
+} from "./heroGpsMap";
 
 /** Demo pacing (~33% slower than baseline). Applied in wait() and exit timeouts. */
 const TIMING_SCALE = 1.33;
@@ -1183,8 +1197,6 @@ async function playProposalFlow(
 
 const MAPBOX_CSS = "https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css";
 const MAPBOX_JS = "https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm";
-/** Dark basemap — static + GL share the same look. */
-const MAPBOX_STYLE = "mapbox/dark-v11";
 
 let mapboxLoadPromise: Promise<any> | null = null;
 
@@ -1197,12 +1209,27 @@ function ensureMapboxCss() {
   document.head.appendChild(link);
 }
 
+/**
+ * A blocked or slow CDN must not strand the beat on an empty letterbox, so the
+ * module load is bounded and the caller falls back to the static ladder.
+ */
+const MAPBOX_JS_TIMEOUT_MS = 4000;
+
 async function loadMapboxGl(): Promise<any> {
   ensureMapboxCss();
   if (!mapboxLoadPromise) {
     mapboxLoadPromise = import(/* @vite-ignore */ MAPBOX_JS).then((mod: any) => mod.default || mod);
+    // A later loop may retry; keep a rejection from surfacing as unhandled.
+    mapboxLoadPromise.catch(() => {
+      mapboxLoadPromise = null;
+    });
   }
-  return mapboxLoadPromise;
+  return Promise.race([
+    mapboxLoadPromise,
+    new Promise<never>((_, reject) => {
+      window.setTimeout(() => reject(new Error("mapbox-gl load timed out")), MAPBOX_JS_TIMEOUT_MS);
+    }),
+  ]);
 }
 
 /**
@@ -1213,37 +1240,63 @@ function preferStaticMapbox(): boolean {
   return isIOSDevice();
 }
 
-/** Mapbox Static Images URL — fills the letterbox via object-fit: cover. */
-function mapboxStaticUrl(opts: {
-  token: string;
-  lng: number;
-  lat: number;
-  zoom: number;
-  bearing?: number;
-  pitch?: number;
-  width: number;
-  height: number;
-}): string {
-  const width = Math.min(1280, Math.max(64, Math.round(opts.width)));
-  const height = Math.min(1280, Math.max(64, Math.round(opts.height)));
-  const bearing = opts.bearing ?? 0;
-  const pitch = opts.pitch ?? 0;
-  const path =
-    `${opts.lng},${opts.lat},${opts.zoom},${bearing},${pitch}/${width}x${height}@2x`;
-  return (
-    `https://api.mapbox.com/styles/v1/${MAPBOX_STYLE}/static/${path}` +
-    `?access_token=${encodeURIComponent(opts.token)}&attribution=false&logo=false`
-  );
+/** How long the letterbox may stay empty waiting on the world-view frame. */
+const HERO_GPS_FIRST_FRAME_MS = 2600;
+/**
+ * Grace period for the rest of the ladder once the world view is up. The wait
+ * reads as the hold before takeoff, so it costs nothing visually.
+ */
+const HERO_GPS_LADDER_GRACE_MS = 1400;
+
+/** Shared across loop replays and both hero instances — frames never change. */
+const heroGpsFrameLoads = new Map<string, Promise<void>>();
+
+/**
+ * Resolves once the browser has the frame's bytes. Deliberately tracks
+ * readiness rather than the element, so each mount gets a fresh `<img>` served
+ * from cache instead of reparenting one shared node.
+ */
+function loadHeroGpsFrame(src: string, timeoutMs = 0): Promise<void> {
+  let entry = heroGpsFrameLoads.get(src);
+  if (!entry) {
+    entry = new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("hero map frame failed"));
+      img.src = src;
+    });
+    // A failed frame must not poison the next replay.
+    entry.catch(() => heroGpsFrameLoads.delete(src));
+    heroGpsFrameLoads.set(src, entry);
+  }
+
+  if (!timeoutMs) return entry;
+  return Promise.race([
+    entry,
+    new Promise<void>((_, reject) => {
+      window.setTimeout(() => reject(new Error("hero map frame timed out")), timeoutMs);
+    }),
+  ]);
 }
 
-function preloadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("map image failed"));
-    img.src = src;
-  });
+/**
+ * Pull the ladder into cache before the GPS beat is reached. Without this the
+ * first iOS pass sits on an empty letterbox while seven frames negotiate.
+ */
+function warmHeroGpsFrames(): void {
+  const start = () => {
+    for (let i = 0; i < HERO_GPS_FRAME_COUNT; i++) {
+      loadHeroGpsFrame(heroGpsFrameSrc(i)).catch(() => {
+        /* the beat degrades on its own */
+      });
+    }
+  };
+  const idle = (window as any).requestIdleCallback as
+    | ((cb: () => void, opts?: { timeout: number }) => number)
+    | undefined;
+  if (idle) idle(start, { timeout: 1200 });
+  else window.setTimeout(start, 200);
 }
 
 /** Hide everything except land + water. No labels, roads, buildings, etc. */
@@ -1316,29 +1369,123 @@ function createGpsLocateCard(root: HTMLElement, faceUrl?: string): HTMLElement {
   return row;
 }
 
-function gpsLetterboxSize(mapEl: HTMLElement): { width: number; height: number } {
-  const rect = mapEl.getBoundingClientRect();
-  // Static API max 1280; request retina via @2x. Floor so a pre-layout 0 doesn't 404.
-  const width = Math.max(320, Math.round(rect.width || mapEl.clientWidth || 320));
-  const height = Math.max(180, Math.round(rect.height || mapEl.clientHeight || 180));
-  return { width, height };
+type HeroGpsLayer = {
+  el: HTMLImageElement;
+  zoom: number;
+  live: boolean;
+};
+
+function heroGpsFrameEl(index: number, zIndex: number): HTMLImageElement {
+  const img = new Image();
+  img.className = "home-hero-demo-sk-gps-static-frame";
+  img.src = heroGpsFrameSrc(index);
+  img.alt = "";
+  img.decoding = "async";
+  img.draggable = false;
+  img.style.zIndex = String(zIndex);
+  return img;
+}
+
+function heroGpsApplyZoom(layers: HeroGpsLayer[], zoom: number): void {
+  // Only the frames that loaded are mounted, so the hand-off boundaries come
+  // from this ladder rather than the full set of zooms.
+  const ladder = layers.map((layer) => layer.zoom);
+
+  for (let i = 0; i < layers.length; i++) {
+    const layer = layers[i]!;
+    const state = heroGpsLayerState(ladder, i, zoom);
+
+    if (!state.visible) {
+      if (layer.live) {
+        layer.live = false;
+        layer.el.style.opacity = "0";
+        layer.el.style.visibility = "hidden";
+      }
+      continue;
+    }
+
+    if (!layer.live) {
+      layer.live = true;
+      layer.el.style.visibility = "";
+    }
+
+    layer.el.style.transform = `scale(${state.scale.toFixed(4)})`;
+    layer.el.style.opacity = state.opacity.toFixed(3);
+  }
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 /**
- * iOS-safe Mapbox path: Static Images + CSS fly/crossfade. Avoids WebGL canvas
- * sizing bugs when the bubble/stack use CSS transforms.
+ * Drive the ladder from rAF rather than CSS: the visible zoom has to be
+ * exponential in time and shared across layers, which keyframes can't express.
  */
-async function playGpsStaticFly(
+function runHeroGpsZoom(
+  layers: HeroGpsLayer[],
+  opts: {
+    fromZoom: number;
+    toZoom: number;
+    durationMs: number;
+    markerAtMs: number;
+    onMarker: () => void;
+    isAlive: () => boolean;
+  },
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let elapsed = 0;
+    let last = performance.now();
+    let markerFired = false;
+    let frame = 0;
+
+    const finish = () => {
+      cancelAnimationFrame(frame);
+      resolve();
+    };
+
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      // The demo's own clock owns pausing; don't bank time while frozen.
+      if (!demoClock.userPaused) elapsed += dt;
+
+      if (!opts.isAlive()) {
+        finish();
+        return;
+      }
+
+      const t = Math.min(1, elapsed / opts.durationMs);
+      heroGpsApplyZoom(layers, opts.fromZoom + (opts.toZoom - opts.fromZoom) * easeInOutCubic(t));
+
+      if (!markerFired && elapsed >= opts.markerAtMs) {
+        markerFired = true;
+        opts.onMarker();
+      }
+
+      if (t >= 1) {
+        if (!markerFired) opts.onMarker();
+        finish();
+        return;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+  });
+}
+
+/**
+ * iOS-safe Mapbox path: a ladder of Static Images zoomed through in step, which
+ * gives the same continuous world-to-job-site zoom as GL `flyTo` without a
+ * WebGL canvas. Frames are flat (no pitch) because pitch is not a rigid
+ * transform and would break the ladder's scale math.
+ */
+async function playGpsStaticZoom(
   mapEl: HTMLElement,
   pinEl: HTMLElement | null,
   card: HTMLElement | null,
   opts: {
-    token: string;
-    target: [number, number];
-    start: [number, number];
-    endZoom: number;
-    endPitch: number;
-    endBearing: number;
     flyMs: number;
     markerAt: number;
     reducedMotion: boolean;
@@ -1346,83 +1493,115 @@ async function playGpsStaticFly(
     relayout: Relayout;
   },
 ): Promise<void> {
-  const { width, height } = gpsLetterboxSize(mapEl);
-  const overviewUrl = mapboxStaticUrl({
-    token: opts.token,
-    lng: opts.start[0],
-    lat: opts.start[1],
-    zoom: 2.6,
-    width,
-    height,
-  });
-  const detailUrl = mapboxStaticUrl({
-    token: opts.token,
-    lng: opts.target[0],
-    lat: opts.target[1],
-    zoom: opts.endZoom,
-    bearing: opts.endBearing,
-    pitch: opts.endPitch,
-    width,
-    height,
-  });
+  const dropPin = () => {
+    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+  };
+  const settleCard = () => {
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
+  };
 
-  const [overviewImg, detailImg] = await Promise.all([
-    preloadImage(overviewUrl),
-    preloadImage(detailUrl),
-  ]);
+  const ready = new Array<boolean>(HERO_GPS_FRAME_COUNT).fill(false);
+  const loads = HERO_GPS_ZOOMS.map((_, i) =>
+    loadHeroGpsFrame(heroGpsFrameSrc(i)).then(
+      () => {
+        ready[i] = true;
+      },
+      () => {
+        /* dropped from the ladder below */
+      },
+    ),
+  );
+
+  // Only the world view gates the reveal — everything else joins in flight.
+  mapEl.classList.add("home-hero-demo-sk-gps-map--static", "home-hero-demo-sk-gps-map--loading");
+  await loadHeroGpsFrame(heroGpsFrameSrc(0), HERO_GPS_FIRST_FRAME_MS);
   if (!opts.isAlive()) return;
 
-  mapEl.classList.add("home-hero-demo-sk-gps-map--static");
+  mapEl.classList.remove("home-hero-demo-sk-gps-map--loading");
   mapEl.replaceChildren();
 
   const stage = document.createElement("div");
   stage.className = "home-hero-demo-sk-gps-static-stage";
-
-  overviewImg.className = "home-hero-demo-sk-gps-static-img home-hero-demo-sk-gps-static-img--overview";
-  overviewImg.alt = "";
-  overviewImg.draggable = false;
-
-  detailImg.className = "home-hero-demo-sk-gps-static-img home-hero-demo-sk-gps-static-img--detail";
-  detailImg.alt = "";
-  detailImg.draggable = false;
-
-  stage.appendChild(overviewImg);
-  stage.appendChild(detailImg);
+  stage.style.setProperty("--hero-gps-overscan", String(HERO_GPS_OVERSCAN));
   mapEl.appendChild(stage);
 
+  const worldEl = heroGpsFrameEl(0, 0);
+  stage.appendChild(worldEl);
+  await worldEl.decode?.().catch(() => {
+    /* cached bytes already decoded */
+  });
+  if (!opts.isAlive()) return;
+
+  const world: HeroGpsLayer = { el: worldEl, zoom: HERO_GPS_ZOOMS[0]!, live: true };
+  heroGpsApplyZoom([world], HERO_GPS_START_ZOOM);
   opts.relayout(true);
 
   if (opts.reducedMotion) {
-    stage.classList.add("home-hero-demo-sk-gps-static-stage--settled");
-    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
-    card?.classList.remove("home-hero-demo-sk-gps--pop");
-    card?.classList.add("home-hero-demo-sk-gps--settled");
+    // Skip the flight, but still wait for a frame close to the job site.
+    await Promise.race([Promise.allSettled(loads), sleep(HERO_GPS_LADDER_GRACE_MS)]);
+    if (!opts.isAlive()) return;
+    const top = ready.lastIndexOf(true);
+    if (top > 0) {
+      const el = heroGpsFrameEl(top, top);
+      stage.appendChild(el);
+      el.style.opacity = "1";
+      el.style.transform = "scale(1)";
+    }
+    dropPin();
+    settleCard();
     await wait(480);
     return;
   }
 
+  // The world view holds while the rest of the ladder lands, so this wait is free.
+  await Promise.race([Promise.allSettled(loads), sleep(HERO_GPS_LADDER_GRACE_MS)]);
+  if (!opts.isAlive()) return;
+
+  // Frames fail independently. Anything sitting past a hole too wide to fly on
+  // one frame is dropped: a shorter zoom beats a blurred middle.
+  const arrived = [0, ...HERO_GPS_ZOOMS.map((_, i) => i).filter((i) => i > 0 && ready[i])];
+  const usable = arrived.slice(0, heroGpsUsableFrames(arrived.map((i) => HERO_GPS_ZOOMS[i]!)));
+
+  const layers: HeroGpsLayer[] = [world];
+  for (const i of usable) {
+    if (i === 0) continue;
+    const el = heroGpsFrameEl(i, i);
+    el.style.opacity = "0";
+    el.style.visibility = "hidden";
+    stage.appendChild(el);
+    layers.push({ el, zoom: HERO_GPS_ZOOMS[i]!, live: false });
+  }
+
+  // A partial ladder still zooms — just not all the way, so it stays legible.
+  const topZoom = layers[layers.length - 1]!.zoom;
+  const toZoom = Math.min(HERO_GPS_END_ZOOM, topZoom + HERO_GPS_MAX_OVERZOOM);
+
+  // GL drops the pop transform before flying; match it so the two paths land alike.
+  settleCard();
+  opts.relayout(true);
+
   const flyMs = scaleMs(opts.flyMs);
-  stage.style.setProperty("--hero-gps-fly-ms", `${flyMs}ms`);
-  void stage.offsetWidth;
-  stage.classList.add("home-hero-demo-sk-gps-static-stage--fly");
-
-  await wait(opts.markerAt);
+  await runHeroGpsZoom(layers, {
+    fromZoom: HERO_GPS_START_ZOOM,
+    toZoom,
+    durationMs: flyMs,
+    markerAtMs: opts.markerAt,
+    onMarker: dropPin,
+    isAlive: opts.isAlive,
+  });
   if (!opts.isAlive()) return;
-  pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
 
-  await wait(Math.max(0, flyMs - opts.markerAt) + 120);
-  if (!opts.isAlive()) return;
-
-  stage.classList.add("home-hero-demo-sk-gps-static-stage--settled");
-  card?.classList.remove("home-hero-demo-sk-gps--pop");
-  card?.classList.add("home-hero-demo-sk-gps--settled");
+  heroGpsApplyZoom(layers, toZoom);
+  await wait(320);
   opts.relayout(true);
 }
 
 /**
- * Status-line GPS beat: Mapbox fly-in. iOS uses Static Images (WebGL mis-sizes
- * under our transforms); desktop uses GL with land/water stripping. A fixed
- * center pin appears mid-flight. Letterbox stays in the stack for later turns.
+ * Status-line GPS beat: Mapbox fly-in. iOS zooms a Static Images ladder (WebGL
+ * mis-sizes under our transforms); desktop uses GL with land/water stripping. A
+ * fixed center pin appears mid-flight. Letterbox stays in the stack for later
+ * turns.
  */
 async function playGpsLocateSkeleton(
   root: HTMLElement,
@@ -1435,11 +1614,10 @@ async function playGpsLocateSkeleton(
 ): Promise<void> {
   const FLY_MS = 2600;
   const MARKER_AT = Math.round(FLY_MS * 0.66);
-  const END_ZOOM = 13.4;
+  const END_ZOOM = HERO_GPS_END_ZOOM;
   const END_PITCH = 48;
-  const END_BEARING = -22;
-  // Arbitrary coastal job site — not meant to match a real address.
-  const TARGET: [number, number] = [-70.255, 43.661];
+  const END_BEARING = HERO_GPS_BEARING;
+  const TARGET: [number, number] = [HERO_GPS_CENTER[0], HERO_GPS_CENTER[1]];
   const START: [number, number] = [-95.7, 37.1];
 
   const row = createGpsLocateCard(root, faceUrl);
@@ -1455,23 +1633,23 @@ async function playGpsLocateSkeleton(
     card.classList.add(reducedMotion ? "home-hero-demo-sk-gps--settled" : "home-hero-demo-sk-gps--pop");
   }
 
-  if (!mapboxToken || !mapEl) {
+  const giveUpOnMap = async () => {
     pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
+    card?.classList.remove("home-hero-demo-sk-gps--pop");
+    card?.classList.add("home-hero-demo-sk-gps--settled");
     await wait(reducedMotion ? 400 : 900);
+  };
+
+  if (!mapEl) {
+    await giveUpOnMap();
     return;
   }
 
-  // Let the bubble pop settle before measuring / painting map content.
+  // Let the bubble pop settle before painting map content.
   await wait(reducedMotion ? 80 : 420);
   if (!isAlive()) return;
 
   const staticOpts = {
-    token: mapboxToken,
-    target: TARGET,
-    start: START,
-    endZoom: END_ZOOM,
-    endPitch: END_PITCH,
-    endBearing: END_BEARING,
     flyMs: FLY_MS,
     markerAt: scaleMs(MARKER_AT),
     reducedMotion,
@@ -1479,14 +1657,13 @@ async function playGpsLocateSkeleton(
     relayout,
   };
 
-  if (preferStaticMapbox()) {
+  // Static frames come from our own proxy, so unlike GL they need no client
+  // token — which also makes them the right path when that token is absent.
+  if (preferStaticMapbox() || !mapboxToken) {
     try {
-      await playGpsStaticFly(mapEl, pinEl, card, staticOpts);
+      await playGpsStaticZoom(mapEl, pinEl, card, staticOpts);
     } catch {
-      pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
-      card?.classList.remove("home-hero-demo-sk-gps--pop");
-      card?.classList.add("home-hero-demo-sk-gps--settled");
-      await wait(reducedMotion ? 400 : 900);
+      await giveUpOnMap();
     }
     return;
   }
@@ -1533,7 +1710,7 @@ async function playGpsLocateSkeleton(
     mapboxgl.accessToken = mapboxToken;
     map = new mapboxgl.Map({
       container: mapEl,
-      style: `mapbox://styles/${MAPBOX_STYLE}`,
+      style: `mapbox://styles/${HERO_GPS_STYLE}`,
       center: reducedMotion ? TARGET : START,
       zoom: reducedMotion ? END_ZOOM : 2.4,
       pitch: reducedMotion ? END_PITCH : 0,
@@ -1623,18 +1800,16 @@ async function playGpsLocateSkeleton(
   } catch {
     teardown();
     orphanWatch.disconnect();
-    // Desktop WebGL failed — same static path iOS uses.
+    // Desktop WebGL failed — same static ladder iOS uses.
     if (isAlive() && mapEl.isConnected) {
       try {
-        await playGpsStaticFly(mapEl, pinEl, card, staticOpts);
+        await playGpsStaticZoom(mapEl, pinEl, card, staticOpts);
         return;
       } catch {
         /* fall through */
       }
     }
-    pinEl?.classList.add("home-hero-demo-sk-gps-marker--in", "home-hero-demo-sk-gps-marker--active");
-    card?.classList.remove("home-hero-demo-sk-gps--pop");
-    card?.classList.add("home-hero-demo-sk-gps--settled");
+    await giveUpOnMap();
   }
 }
 
@@ -2440,7 +2615,7 @@ async function simulateActionPress(
 
 /**
  * "View signing status" — acknowledge the press, then cut. The generic
- * Opening toast + scene hold parked on the last Reggie bubble too long.
+ * Reading toast + scene hold parked on the last Reggie bubble too long.
  */
 async function playSigningStatusBeat(
   sceneEl: HTMLElement,
@@ -2466,7 +2641,7 @@ async function playActionPlaceholder(
     reducedMotion,
     isAlive,
     label,
-    "Opening…",
+    "Reading…",
   );
   await wait(reducedMotion ? 400 : 650);
 }
@@ -2639,6 +2814,13 @@ export function initHeroDemoLoop(root: HTMLElement) {
 
   timingScale = TIMING_SCALE;
   typingScale = isIOSDevice() ? IOS_TYPING_SCALE : 1;
+
+  // Seven static frames can't be fetched at the moment the beat plays without
+  // leaving the letterbox empty, so pull them in while the hero is still idle.
+  const wantsStaticMap = preferStaticMapbox() || !mapboxToken;
+  if (wantsStaticMap && scenes.some((s) => s.turns.some((t) => t.effect === "gps-locate"))) {
+    warmHeroGpsFrames();
+  }
 
   const once = root.dataset.once === "1";
   const pickRandomSceneIndex = (exclude: number) => {

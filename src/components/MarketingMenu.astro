@@ -38,8 +38,11 @@ const navGroups = siteNavGroupsForUser(signedIn, siteContent);
 const demoCta = siteDemoCta(siteContent);
 const showDemoCta = siteShowDemoCta(signedIn, siteContent, pathname);
 const showSignIn = siteContent.nav.showSignIn !== false;
+/** Phones swap the header "Sign in" text for a drawer footer button. */
+const showOverlaySignIn = !signedIn && showSignIn;
 const showOverlayFooter =
-  (!signedIn && showDemoCta && Boolean(demoCta)) || (signedIn && showAccountNav);
+  (!signedIn && ((showDemoCta && Boolean(demoCta)) || showOverlaySignIn)) ||
+  (signedIn && showAccountNav);
 ---
 
 <div class="marketing-nav" data-marketing-nav>
@@ -162,13 +165,30 @@ const showOverlayFooter =
   {
     showOverlayFooter && (
       <footer slot="footer" class="overlay-menu-footer">
-        <div class="overlay-menu-footer-row">
+        <div
+          class:list={[
+            "overlay-menu-footer-row",
+            !signedIn && "overlay-menu-footer-row--stack",
+          ]}
+        >
           {
             !signedIn && showDemoCta && demoCta && (
               <a class="brand-btn overlay-menu-footer-cta" href={demoCta.href} data-marketing-menu-link>
                 Demo now
                 <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
               </a>
+            )
+          }
+          {
+            showOverlaySignIn && (
+              <button
+                type="button"
+                class="brand-btn brand-btn-glass overlay-menu-footer-cta overlay-menu-signin"
+                data-ios-sheet-open="sign-in-sheet"
+                data-marketing-menu-link
+              >
+                Sign in
+              </button>
             )
           }
           {
@@ -435,6 +455,11 @@ const showOverlayFooter =
     .marketing-nav-cta {
       padding: 0.38rem 0.72rem;
       font-size: 0.76rem;
+    }
+
+    /* Hamburger widths: sign-in lives at the bottom of the drawer instead. */
+    .marketing-nav-signin {
+      display: none;
     }
   }
 </style>

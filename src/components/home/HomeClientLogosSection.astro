@@ -1,0 +1,68 @@
+---
+/**
+ * Homepage "worked with" logo marquee — same strip as /about, sitting under the
+ * feature chips. Renders nothing when the install has no client logos configured.
+ */
+import ClientLogos from "../ClientLogos.astro";
+import { getSiteContent } from "../../lib/siteContent";
+
+const hasLogos = (getSiteContent().clientLogos?.length ?? 0) > 0;
+---
+
+{
+  hasLogos && (
+    <section class="home-client-logos" aria-labelledby="home-client-logos-title">
+      <header class="home-client-logos-copy scroll-fade-in">
+        <h2 class="home-client-logos-title" id="home-client-logos-title">
+          Current &amp; past company
+        </h2>
+      </header>
+
+      {/*
+        Marquee stays out of the fade: an infinite translateX + mask-image inside
+        a view() subject stalls the next section's fade-in (iOS especially).
+      */}
+      <div class="home-client-logos-strip" data-no-scroll-fade>
+        <ClientLogos />
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .home-client-logos {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 100%;
+    padding: 0 20px var(--home-section-padding-y);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: clip;
+  }
+
+  .home-client-logos-copy {
+    width: 100%;
+    max-width: 760px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .home-client-logos-title {
+    margin: 0;
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .home-client-logos-strip {
+    width: 100vw;
+    max-width: none;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+</style>

@@ -225,6 +225,13 @@ html[data-theme="dark"] .overlay-menu-link--primary {
   gap: 12px;
 }
 
+/* Signed-out drawer stacks its full-width CTAs (Demo now over Sign in). */
+.overlay-menu-footer-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
 .overlay-menu-footer-actions {
   display: flex;
   align-items: center;
@@ -320,6 +327,7 @@ html[data-theme="dark"] [data-account-menu] .overlay-menu-footer {
 
 .overlay-menu-footer-cta {
   width: 100%;
+  min-height: 44px;
 }
 
 html.overlay-menu-open,
