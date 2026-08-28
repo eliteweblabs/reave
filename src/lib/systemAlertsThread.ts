@@ -25,6 +25,7 @@ import {
 } from './agentRunControl';
 import { getAliveAgentRunLease } from './pgAgentRunLeases';
 import {
+  DEPLOY_FAILURE_MAX_AUTO_RUNS,
   DEPLOY_FAILURE_RERUN_COOLDOWN_MS,
   DEPLOY_FAILURE_REUSE_MS,
   findReusableAlertThread,
@@ -229,18 +230,27 @@ async function postAlertInner(opts: {
 
     if (reused && autoRun) {
       const last = lastAssistantTurn(priorTurns);
+      const assistantRunCount = priorTurns.filter((t) => t.role === 'assistant').length;
       const decision = shouldAutoRunRepairFollowUp({
         runActive: await threadRunIsActive(userId, threadId),
         lastAssistantAtMs,
         lastAssistantUnresolved: last ? lastAssistantIsUnresolved(last.content) : false,
+        assistantRunCount,
         nowMs: Date.now(),
         cooldownMs: DEPLOY_FAILURE_RERUN_COOLDOWN_MS,
+        maxAutoRuns: DEPLOY_FAILURE_MAX_AUTO_RUNS,
       });
 
       if (decision !== 'run') {
-        await storeAppendChatMessages(userId, threadId, [{ role: 'user', content: opts.message }]);
+        const note =
+          decision === 'suppress-exhausted'
+            ? `\n\n(Auto-repair stopped after ${DEPLOY_FAILURE_MAX_AUTO_RUNS} attempts on this Session. The previous successful deploy is still live. Owner can continue this chat to try again.)`
+            : '';
+        await storeAppendChatMessages(userId, threadId, [
+          { role: 'user', content: `${opts.message}${note}` },
+        ]);
         suppressed = true;
-        log.info('repair follow-up suppressed', { threadId, title, reason: decision });
+        log.info('repair follow-up suppressed', { threadId, title, reason: decision, assistantRunCount });
       }
     }
 

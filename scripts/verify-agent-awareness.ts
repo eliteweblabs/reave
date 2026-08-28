@@ -104,6 +104,26 @@ assert.equal(
     lastAssistantAtMs: now - 60_000,
     nowMs: now,
   }),
+  'suppress-cooldown',
+);
+assert.equal(
+  shouldAutoRunRepairFollowUp({
+    runActive: false,
+    lastAssistantUnresolved: false,
+    lastAssistantAtMs: now - 20 * 60_000,
+    nowMs: now,
+    assistantRunCount: 3,
+  }),
+  'suppress-exhausted',
+);
+assert.equal(
+  shouldAutoRunRepairFollowUp({
+    runActive: false,
+    lastAssistantUnresolved: false,
+    lastAssistantAtMs: now - 20 * 60_000,
+    nowMs: now,
+    assistantRunCount: 2,
+  }),
   'run',
 );
 

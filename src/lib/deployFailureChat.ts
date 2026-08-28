@@ -83,6 +83,8 @@ function buildRepairPrompt(opts: {
     '3. Do NOT ask the owner what to do. Do NOT stop at diagnosis.',
     '4. End with exactly one line: ✅ RESOLVED — <reason>   OR   🚨 UNRESOLVED — <what you tried + owner action>',
     '',
+    'Docker-image services (calcom-web-app and anything sourced from image:tag, especially :latest): Railway may auto-redeploy when the tag moves — the owner did not push. After TWO failed env-var attempts, stop flipping variables (each set_railway_variables starts another deploy and another webhook). Mark 🚨 UNRESOLVED and tell the owner to pin the image digest. Do not keep "fixing" stale duplicate webhooks.',
+    '',
     '## Alert',
     opts.baseMessage.trim(),
   ];

@@ -195,7 +195,10 @@ const billed = buildDeployWizardPlan({
 });
 assert.ok(billed.services.some((s) => s.id === 'crater'));
 assert.equal(billed.services.find((s) => s.id === 'calcom-booking-api')?.repo, 'eliteweblabs/calcom-booking-api');
-assert.equal(billed.services.find((s) => s.id === 'calcom-web-app')?.image, 'calcom/cal.com:latest');
+assert.equal(
+  billed.services.find((s) => s.id === 'calcom-web-app')?.image,
+  'calcom/cal.com@sha256:ace3bb1219fb7306585ab9f4d94d41af7ee064c343db0498173436bbe857bd49',
+);
 assert.ok(billed.services.some((s) => s.id === 'fleet-api'));
 assert.ok(billed.services.some((s) => s.id === 'materials-api'));
 

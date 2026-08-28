@@ -10,6 +10,8 @@ import { titleFromMessage, type ChatThreadSummary, type ChatTurn } from './chatT
 export const DEPLOY_FAILURE_TITLE_PREFIX = 'Deploy failed —';
 export const DEPLOY_FAILURE_REUSE_MS = 6 * 60 * 60 * 1000;
 export const DEPLOY_FAILURE_RERUN_COOLDOWN_MS = 8 * 60 * 1000;
+/** Hard cap so a webhook storm + env-var redeploys cannot burn unlimited Opus runs. */
+export const DEPLOY_FAILURE_MAX_AUTO_RUNS = 3;
 export const MAX_RECENT_SESSIONS_IN_PROMPT = 12;
 
 export type ReusableAlertThread = {
@@ -18,7 +20,11 @@ export type ReusableAlertThread = {
   updated_at: string;
 };
 
-export type RepairFollowUpDecision = 'run' | 'suppress-running' | 'suppress-cooldown';
+export type RepairFollowUpDecision =
+  | 'run'
+  | 'suppress-running'
+  | 'suppress-cooldown'
+  | 'suppress-exhausted';
 
 export type OwnerIdentityInput = {
   companyName: string;
@@ -108,16 +114,18 @@ export function shouldAutoRunRepairFollowUp(opts: {
   runActive: boolean;
   lastAssistantAtMs?: number | null;
   lastAssistantUnresolved?: boolean;
+  assistantRunCount?: number;
   nowMs: number;
   cooldownMs?: number;
+  maxAutoRuns?: number;
 }): RepairFollowUpDecision {
   if (opts.runActive) return 'suppress-running';
+  const maxRuns = opts.maxAutoRuns ?? DEPLOY_FAILURE_MAX_AUTO_RUNS;
+  if ((opts.assistantRunCount ?? 0) >= maxRuns) return 'suppress-exhausted';
   const cooldown = opts.cooldownMs ?? DEPLOY_FAILURE_RERUN_COOLDOWN_MS;
-  if (
-    opts.lastAssistantUnresolved &&
-    opts.lastAssistantAtMs &&
-    opts.nowMs - opts.lastAssistantAtMs < cooldown
-  ) {
+  // Cooldown after ANY reply — not only 🚨 UNRESOLVED. A mistaken ✅ RESOLVED
+  // used to immediately re-run on the next duplicate webhook and burn credits.
+  if (opts.lastAssistantAtMs && opts.nowMs - opts.lastAssistantAtMs < cooldown) {
     return 'suppress-cooldown';
   }
   return 'run';

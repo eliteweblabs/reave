@@ -387,7 +387,7 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'calcom-web-app',
     kind: 'api',
     description: 'Cal.com admin UI (same Docker image as reΛVe.app — not the GitHub fork).',
-    image: 'calcom/cal.com:latest',
+    image: 'calcom/cal.com@sha256:ace3bb1219fb7306585ab9f4d94d41af7ee064c343db0498173436bbe857bd49',
     features: ['scheduling'],
   },
   {
