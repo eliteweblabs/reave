@@ -54,7 +54,7 @@ import {
   fieldsFromChips,
   titleFromRulePhrases,
 } from './rule-chip-editor.js?v=20260828a';
-import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
+import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260828a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initRulesPanel(). */
