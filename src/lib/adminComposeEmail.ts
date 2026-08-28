@@ -8,6 +8,7 @@ import {
   resolveComposeImagesForSend,
   type EmailSendAttachment,
 } from './emailComposeImages';
+import { siteBaseUrl } from './contactApi';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { buildReplyEmailHeaders, formatQuotedReplyHtml, splitQuotedReplyBody } from './emailReply';
 import { brandedPlainTextEmail } from './inboundEmailReply';
@@ -69,7 +70,9 @@ export async function buildAdminComposeEmail(
 
   let composeImages: Awaited<ReturnType<typeof resolveComposeImagesForSend>>;
   try {
-    composeImages = await resolveComposeImagesForSend(body.images);
+    composeImages = await resolveComposeImagesForSend(body.images, {
+      baseUrl: opts.context?.request ? siteBaseUrl(opts.context.request) : siteBaseUrl(),
+    });
   } catch (e) {
     return {
       ok: false,

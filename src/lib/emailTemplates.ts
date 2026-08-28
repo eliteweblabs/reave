@@ -21,7 +21,7 @@ import { emailSafeFontById } from './emailSafeFonts';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
 import { signatureHtmlForEmail } from './userEmailSignature';
-import type { EmailInlineImage } from './emailComposeImages';
+import { inlineImageSrc, type EmailInlineImage } from './emailComposeImages';
 import type { EmailBodyBlock } from './emailShortcodes';
 
 function esc(s: string): string {
@@ -83,7 +83,7 @@ export async function brandedEmailHtml(opts: {
   footerAddress?: string;
   /** Quoted original message HTML (reply threads). Rendered after the new copy. */
   quotedHtml?: string;
-  /** CID inline images from compose paste/attach. Rendered after body paragraphs. */
+  /** Compose paste/attach images. Hosted URL preferred; cid: kept for older mail. */
   inlineImages?: EmailInlineImage[];
 }): Promise<string> {
   const company = await getCompanyConfig();
@@ -184,11 +184,12 @@ export async function brandedEmailHtml(opts: {
     : '';
 
   const inlineImagesHtml = (opts.inlineImages || [])
-    .filter((img) => img.cid.trim())
-    .map(
-      (img) =>
-        `<tr><td style="padding:0 0 16px"><img src="cid:${esc(img.cid)}" alt="${esc(img.alt || 'Image')}" width="480" style="display:block;max-width:100%;height:auto;border:0;outline:none;border-radius:8px" /></td></tr>`,
-    )
+    .map((img) => {
+      const src = inlineImageSrc(img);
+      if (!src) return '';
+      return `<tr><td style="padding:0 0 16px"><img src="${esc(src)}" alt="${esc(img.alt || 'Image')}" width="480" style="display:block;max-width:100%;height:auto;border:0;outline:none;border-radius:8px" /></td></tr>`;
+    })
+    .filter(Boolean)
     .join('\n');
 
   const signatureHtml = opts.signature?.trim()
