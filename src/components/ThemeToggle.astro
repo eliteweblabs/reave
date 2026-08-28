@@ -134,16 +134,14 @@
   /*
    * Circular reveal, centered on the toggle that was clicked.
    *
-   * Preferred path: a View Transition (Safari 18 / iOS 18+, Chrome, Edge) that
-   * clips the new theme's snapshot in with an expanding circle.
+   * Preferred path: a View Transition (Safari 18 / iOS 18+, Chrome, Edge).
+   * The clip itself is driven from JS (WAAPI) with concrete px values —
+   * CSS variables do not reliably inherit into the view-transition tree,
+   * and the UA group animation defaults to 250ms, which hitches a longer
+   * clip halfway through (especially on a tall iPhone viewport).
    */
-  @keyframes theme-reveal-clip {
-    from {
-      clip-path: circle(0px at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
-    }
-    to {
-      clip-path: circle(var(--theme-reveal-r, 150vmax) at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
-    }
+  html.theme-reveal::view-transition-group(root) {
+    animation: none;
   }
 
   html.theme-reveal::view-transition-image-pair(root) {
@@ -154,6 +152,10 @@
   html.theme-reveal::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
+    /* Match the group (viewport) so clip-path isn't tessellating a tall page. */
+    width: 100%;
+    height: 100%;
+    overflow: clip;
   }
 
   html.theme-reveal::view-transition-old(root) {
@@ -162,7 +164,6 @@
 
   html.theme-reveal::view-transition-new(root) {
     z-index: 1;
-    animation: theme-reveal-clip 0.62s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   }
 
   /*
@@ -171,6 +172,9 @@
    * animates clip-path rather than transform on purpose — WebKit promotes a
    * transform-animated layer and drops the blend, which is why the old version
    * did nothing on iOS.
+   *
+   * ease-in (not Material ease-out): radius ease-out on a tall phone looks
+   * like the wave covers the top half, then crawls to the bottom corner.
    */
   .theme-reveal-circle {
     position: fixed;
@@ -184,14 +188,10 @@
 
   .theme-reveal-circle.is-expanding {
     clip-path: circle(var(--theme-reveal-r, 150vmax) at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
-    transition: clip-path 0.62s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: clip-path 0.52s ease-in;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    html.theme-reveal::view-transition-new(root) {
-      animation: none;
-    }
-
     .theme-reveal-circle,
     .theme-reveal-circle.is-expanding {
       transition: none;
@@ -201,6 +201,8 @@
 
 <script>
   const KEY = "reave-theme";
+  const REVEAL_MS = 520;
+  const REVEAL_EASE = "ease-in";
   let revealing = false;
 
   function currentTheme(): "light" | "dark" {
@@ -208,7 +210,12 @@
     return attr === "dark" ? "dark" : "light";
   }
 
-  function applyTheme(theme: "light" | "dark") {
+  function applyChromeColor(theme: "light" | "dark") {
+    const meta = document.querySelector('meta[name="theme-color"]:not([media])');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#111111" : "#ffffff");
+  }
+
+  function applyTheme(theme: "light" | "dark", opts?: { chrome?: boolean }) {
     document.documentElement.setAttribute("data-theme", theme);
     document.documentElement.style.colorScheme = theme;
     try {
@@ -216,15 +223,17 @@
     } catch {
       /* ignore */
     }
-    const meta = document.querySelector('meta[name="theme-color"]:not([media])');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#111111" : "#ffffff");
+    if (opts?.chrome !== false) applyChromeColor(theme);
     document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]").forEach((btn) => {
       btn.setAttribute("aria-checked", theme === "dark" ? "true" : "false");
       btn.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
     });
   }
 
-  type ViewTransitionLike = { finished: Promise<unknown> };
+  type ViewTransitionLike = {
+    finished: Promise<unknown>;
+    ready: Promise<unknown>;
+  };
   type DocumentWithViewTransition = Document & {
     startViewTransition?: (callback: () => void) => ViewTransitionLike;
   };
@@ -261,15 +270,38 @@
     if (typeof doc.startViewTransition === "function") {
       revealing = true;
       root.classList.add("theme-reveal");
+      let settled = false;
       const done = () => {
+        if (settled) return;
+        settled = true;
+        applyChromeColor(next);
         root.classList.remove("theme-reveal");
         clearRevealVars();
         revealing = false;
       };
       try {
-        doc.startViewTransition(() => {
-          applyTheme(next);
-        }).finished.then(done, done);
+        const transition = doc.startViewTransition(() => {
+          applyTheme(next, { chrome: false });
+        });
+        transition.ready.then(() => {
+          try {
+            root.animate(
+              [
+                { clipPath: `circle(0px at ${x}px ${y}px)` },
+                { clipPath: `circle(${radius}px at ${x}px ${y}px)` },
+              ],
+              {
+                duration: REVEAL_MS,
+                easing: REVEAL_EASE,
+                fill: "both",
+                pseudoElement: "::view-transition-new(root)",
+              },
+            );
+          } catch {
+            /* finished still settles */
+          }
+        }, done);
+        transition.finished.then(done, done);
       } catch {
         applyTheme(next);
         done();
@@ -299,7 +331,7 @@
       finish();
     };
     circle.addEventListener("transitionend", onEnd);
-    window.setTimeout(finish, 800);
+    window.setTimeout(finish, REVEAL_MS + 200);
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
