@@ -290,6 +290,27 @@ function scheduleBookingWho(b) {
   return b.attendee && b.attendee !== 'Unknown' ? b.attendee : b.email || 'Guest';
 }
 
+function scheduleBookingIsSample(b) {
+  const title = String(b?.title || '');
+  const desc = String(b?.description || '');
+  return (
+    b?.sample === true ||
+    b?.seeded === true ||
+    /^\[sample\]/i.test(title) ||
+    /\[demo-seed\]/i.test(desc) ||
+    /\[sample\]/i.test(desc)
+  );
+}
+
+function scheduleBookingDisplayTitle(b) {
+  const cleaned = String(b?.title || 'Meeting').replace(/^\[sample\]\s*/i, '').trim();
+  return cleaned || 'Meeting';
+}
+
+function scheduleSampleBadgeHtml() {
+  return '<span class="cal-sample-badge">Sample</span>';
+}
+
 /**
  * Bookings only carry a single Cal.com attendee (name/email). Additional
  * guests are cosmetic-only: we stash them as a hidden JSON marker at the end
@@ -1748,7 +1769,9 @@ function renderScheduleDetail(pane, booking) {
         label: 'Back to schedule',
         onClick: () => closeScheduleDetail(),
       },
-      title: booking.title || 'Meeting',
+      title: scheduleBookingIsSample(booking)
+        ? `${scheduleBookingDisplayTitle(booking)} · Sample`
+        : scheduleBookingDisplayTitle(booking),
       icons,
       secondary: renderScheduleDetailWhenNav(booking),
     }).root,
@@ -1935,7 +1958,9 @@ function createCalAgendaItem(booking) {
   item.innerHTML =
     `<span class="cal-agenda-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>` +
     `<span class="cal-agenda-main">` +
-      `<span class="cal-agenda-title">${escHtml(booking.title || 'Meeting')}</span>` +
+      `<span class="cal-agenda-title">${escHtml(scheduleBookingDisplayTitle(booking))}` +
+        (scheduleBookingIsSample(booking) ? scheduleSampleBadgeHtml() : '') +
+      `</span>` +
       `<span class="cal-agenda-sub">${escHtml(who)}</span>` +
     `</span>`;
   item.addEventListener('click', () => selectScheduleBooking(booking.uid));
@@ -2244,7 +2269,9 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
       block.style.top = `${top}px`;
       block.style.height = `${height}px`;
       block.innerHTML =
-        `<span class="cal-event-block-title">${escHtml(booking.title || 'Meeting')}</span>` +
+        `<span class="cal-event-block-title">${escHtml(scheduleBookingDisplayTitle(booking))}` +
+          (scheduleBookingIsSample(booking) ? scheduleSampleBadgeHtml() : '') +
+        `</span>` +
         `<span class="cal-event-block-sub">${escHtml(scheduleBookingWhoLabel(booking))}</span>`;
       block.addEventListener('click', (e) => {
         e.stopPropagation();

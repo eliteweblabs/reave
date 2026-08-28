@@ -682,6 +682,19 @@
   font-weight: 600;
   line-height: 1.3;
 }
+.cal-sample-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.04rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  vertical-align: 0.08em;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.16);
+}
 .cal-agenda-sub {
   display: block;
   margin-top: 0.12rem;

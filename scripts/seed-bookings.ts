@@ -5,9 +5,12 @@
  *   CALCOM_DATABASE_URL="postgresql://..." npx tsx scripts/seed-bookings.ts
  *   CALCOM_DATABASE_URL="postgresql://..." npx tsx scripts/seed-bookings.ts --dry-run
  *   CALCOM_DATABASE_URL="postgresql://..." npx tsx scripts/seed-bookings.ts --fresh
+ *   CALCOM_DATABASE_URL="postgresql://..." npx tsx scripts/seed-bookings.ts --fresh --from-contacts
  *
  * Uses the public Railway proxy URL from .env.railway.postgres when unset.
- * Generates ~2 months of events: 2–3 on weekdays, 1–2 on weekends.
+ * Generates ~2 months of events around today: 2–3 on weekdays, 1–2 on weekends.
+ * --from-contacts reads CONTACT_API_BASE_URL / CONTACT_API_KEY and books real
+ * people (titles are prefixed [Sample]; metadata.seeded + metadata.sample).
  *
  * Cal.com stores startTime/endTime as UTC in timestamp-without-tz columns. Pass
  * --fresh to delete prior seeded rows before inserting (needed after fixing TZ).
@@ -15,6 +18,7 @@
 
 import crypto from 'node:crypto';
 import pg from 'pg';
+import { isDemoContactEmail } from './demo-data.ts';
 import { getDemoIndustryFixtures } from './demo-industries/index.ts';
 
 const { Pool } = pg;
@@ -30,6 +34,7 @@ function parseCliArg(flag: string): string | undefined {
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const FRESH = process.argv.includes('--fresh');
+const FROM_CONTACTS = process.argv.includes('--from-contacts');
 const INDUSTRY = parseCliArg('--industry') || process.env.DEMO_INDUSTRY || 'general';
 
 const DATABASE_URL =
@@ -194,7 +199,17 @@ const FALLBACK_CONTACTS: DemoContact[] = [
   },
 ];
 
-const CONTACTS = FIXTURE_CONTACTS.length ? FIXTURE_CONTACTS : FALLBACK_CONTACTS;
+const DEFAULT_CONTACTS = FIXTURE_CONTACTS.length ? FIXTURE_CONTACTS : FALLBACK_CONTACTS;
+const DEFAULT_ADDRESS = 'Five Federal Street, Salem, MA 01970';
+const DEFAULT_LAT = 42.5195;
+const DEFAULT_LNG = -70.8967;
+const SAMPLE_NOTES = [
+  'Sample — rate review',
+  'Sample — pre-approval consult',
+  'Sample — application follow-up',
+  'Sample — closing prep',
+  'Sample — refinance check-in',
+];
 
 const WEEKDAY_SLOTS = ['09:00:00', '10:30:00', '13:00:00', '14:30:00', '16:00:00'];
 const WEEKEND_SLOTS = ['10:00:00', '11:30:00', '14:00:00'];
@@ -228,13 +243,80 @@ function pickN<T>(items: T[], n: number, rand: () => number): T[] {
   return out;
 }
 
-function generateDemoBookings(): DemoBooking[] {
+function skipAutoContact(name: string, email: string): boolean {
+  const n = name.trim().toLowerCase();
+  const e = email.trim().toLowerCase();
+  if (!n || !e) return true;
+  if (isDemoContactEmail(e)) return true;
+  if (/^(no-?reply|mailer-daemon|notifications|donotreply)@/i.test(e)) return true;
+  if (n === 'noreply' || n === 'no reply' || n === 'mailer-daemon') return true;
+  return false;
+}
+
+async function fetchContactsFromApi(skipEmails: Set<string>): Promise<DemoContact[]> {
+  const base = process.env.CONTACT_API_BASE_URL?.trim()?.replace(/\/+$/, '');
+  const key = process.env.CONTACT_API_KEY?.trim();
+  if (!base || !key) {
+    throw new Error('--from-contacts requires CONTACT_API_BASE_URL and CONTACT_API_KEY');
+  }
+
+  const out: DemoContact[] = [];
+  let offset = 0;
+  const limit = 100;
+  for (;;) {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    const res = await fetch(`${base}/api/contacts?${params}`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${key}`,
+        'X-API-Key': key,
+      },
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`list contacts: HTTP ${res.status} ${text.slice(0, 180)}`);
+    const json = text ? (JSON.parse(text) as { contacts?: Array<Record<string, unknown>> }) : {};
+    const batch = json.contacts ?? [];
+    for (const raw of batch) {
+      const name = String(raw.name ?? '').trim();
+      const email = String(raw.email ?? '').trim();
+      if (skipAutoContact(name, email)) continue;
+      if (skipEmails.has(email.toLowerCase())) continue;
+      const phone = String(raw.phone ?? '').trim() || undefined;
+      const address =
+        String(raw.address ?? '').trim() ||
+        String((raw.notes as string | undefined) ?? '').match(
+          /\d.+(Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Way|Court|Ct)[^,]*,\s*[A-Z]{2}\b.*/i,
+        )?.[0] ||
+        DEFAULT_ADDRESS;
+      const lat = typeof raw.lat === 'number' ? raw.lat : DEFAULT_LAT;
+      const lng = typeof raw.lng === 'number' ? raw.lng : DEFAULT_LNG;
+      out.push({
+        name,
+        email,
+        phone,
+        notes: SAMPLE_NOTES[out.length % SAMPLE_NOTES.length],
+        address,
+        lat,
+        lng,
+      });
+    }
+    if (batch.length < limit) break;
+    offset += limit;
+    if (offset > 5000) break;
+  }
+  if (!out.length) {
+    throw new Error('--from-contacts found no usable contacts (after skipping noreply / demo / owner)');
+  }
+  return out;
+}
+
+function generateDemoBookings(contacts: DemoContact[]): DemoBooking[] {
   const rand = mulberry32(20260717);
   const bookings: DemoBooking[] = [];
 
-  // Two months from Jul 15 through Sep 17, 2026 (includes a couple days before "today").
-  const start = new Date(2026, 6, 15);
-  const end = new Date(2026, 8, 17);
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 14);
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 45);
   let contactIdx = 0;
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -247,10 +329,11 @@ function generateDemoBookings(): DemoBooking[] {
 
     const times = pickN(slotPool, count, rand).sort();
     for (const time of times) {
-      const contact = CONTACTS[contactIdx % CONTACTS.length];
+      const contact = contacts[contactIdx % contacts.length];
       contactIdx += 1;
       bookings.push({
         ...contact,
+        notes: SAMPLE_NOTES[bookings.length % SAMPLE_NOTES.length],
         startLocal: `${dateKey(d)} ${time}`,
       });
     }
@@ -258,8 +341,6 @@ function generateDemoBookings(): DemoBooking[] {
 
   return bookings;
 }
-
-const DEMO_BOOKINGS = generateDemoBookings();
 
 async function main() {
   const pool = new Pool({
@@ -269,7 +350,7 @@ async function main() {
 
   try {
     const userRes = await pool.query(
-      `SELECT u.id, et.id AS event_type_id, et.length, et.title
+      `SELECT u.id, u.email, et.id AS event_type_id, et.length, et.title
        FROM users u
        JOIN "EventType" et ON et."userId" = u.id
        WHERE u.username = $1
@@ -280,8 +361,23 @@ async function main() {
     const user = userRes.rows[0];
     if (!user) throw new Error(`Cal.com user not found: ${CALCOM_USERNAME}`);
 
-    const { id: userId, event_type_id: eventTypeId, length, title } = user;
-    console.log(`Seeding ${DEMO_BOOKINGS.length} demo bookings for @${CALCOM_USERNAME} (${title}, ${length}m)`);
+    const { id: userId, event_type_id: eventTypeId, length, title, email: ownerEmail } = user;
+
+    const skipEmails = new Set<string>();
+    if (typeof ownerEmail === 'string' && ownerEmail.trim()) {
+      skipEmails.add(ownerEmail.trim().toLowerCase());
+    }
+
+    const contacts = FROM_CONTACTS
+      ? await fetchContactsFromApi(skipEmails)
+      : DEFAULT_CONTACTS;
+    const DEMO_BOOKINGS = generateDemoBookings(contacts);
+    const source = FROM_CONTACTS
+      ? `${contacts.length} contact-api people (sample)`
+      : `${contacts.length} fixture contacts`;
+    console.log(
+      `Seeding ${DEMO_BOOKINGS.length} sample bookings for @${CALCOM_USERNAME} (${title}, ${length}m) from ${source}`,
+    );
 
     if (FRESH && !DRY_RUN) {
       const del = await pool.query(
@@ -318,7 +414,10 @@ async function main() {
         },
         ...(demo.phone ? { phoneE164: demo.phone } : {}),
         seeded: true,
+        sample: true,
       };
+      const sampleTitle = `[Sample] Meeting with ${demo.name}`;
+      const sampleNotes = `[demo-seed] ${demo.notes || 'Sample appointment'}`;
 
       if (DRY_RUN) {
         if (dryRunSamples < 3) {
@@ -340,9 +439,9 @@ async function main() {
           eventTypeId,
           startDate,
           endDate,
-          title || '30 min meeting',
+          sampleTitle || title || '30 min meeting',
           JSON.stringify(metadata),
-          demo.notes || null,
+          sampleNotes,
           demo.address,
         ],
       );
