@@ -20,7 +20,7 @@
 // ───────────────────────── SYSTEM (runtime architecture) ─────────────────────────
 const SYSTEM_NODES = [
   // Contacts / entry points
-  { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go · /card · /digital-audit · /deploy', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
+  { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go · /card · /digital-audit · /dscr · /deploy', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats · @mentions · Settings', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · @mentions · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
@@ -59,6 +59,7 @@ const SYSTEM_NODES = [
   { id: 'event_ticketing', title: 'Event Ticketing', sub: 'reference · ticket sales · QR check-in (FEATURES: event_ticketing · request)', icon: '🎟️', hue: 330, status: true, ghost: true, group: 'reave', x: 640, y: 948 },
   { id: 'cookie_notice', title: 'Cookie Notice', sub: 'implied consent bar · /cookies (FEATURES: cookie_notice)', icon: '🍪', hue: 32, status: true, group: 'reave', x: 640, y: 1020 },
   { id: 'credit_check', title: 'Credit Check', sub: 'reference · applicant pull · form API (FEATURES: credit_check · request)', icon: '💳', hue: 8, status: true, ghost: true, group: 'reave', x: 640, y: 1092 },
+  { id: 'dscr_calculator', title: 'DSCR Calculator', sub: '/dscr · /admin/?tab=dscr · /api/dscr/calculate (FEATURES: dscr_calculator)', icon: '🧮', hue: 168, status: true, group: 'reave', x: 640, y: 1236 },
   { id: 'website', title: 'Agentic Website Editor', sub: 'client web tools · editor + stock photos · no hosting APIs (FEATURES: website)', icon: '🌐', hue: 195, status: true, group: 'reave', x: 400, y: 600 },
   { id: 'time_tracking', title: 'Time Tracking', sub: 'Time tab · /api/work/timer · /api/work/:slug/time · Siri start/stop (FEATURES: time_tracking)', icon: '⏱️', hue: 88, status: true, group: 'reave', x: 220, y: 600 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'locked website repo · auto-commit · undo that (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
@@ -188,6 +189,9 @@ const SYSTEM_EDGES = [
   { from: 'seo_directory', to: 'brightlocal', label: 'Citation Builder API', dashed: true, ghost: true },
   { from: 'astro', to: 'event_ticketing', label: 'planned', dashed: true, ghost: true },
   { from: 'astro', to: 'credit_check', label: 'planned', dashed: true, ghost: true },
+  { from: 'astro', to: 'dscr_calculator', label: '/api/dscr/calculate' },
+  { from: 'web', to: 'dscr_calculator', label: '/dscr', dashed: true },
+  { from: 'dev', to: 'dscr_calculator', label: 'admin tab', dashed: true },
   { from: 'web', to: 'cookie_notice', label: 'notice · continue = agree', dashed: true },
   { from: 'astro', to: 'cookie_notice', label: '/cookies', dashed: true },
   { from: 'astro', to: 'visit_planner', label: '/admin/visit-plan · /api/work/visit-plan', dashed: true },
@@ -240,7 +244,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
@@ -473,6 +477,7 @@ export const MAPS = {
   catalog:   { id: 'catalog',   title: 'Catalog',    icon: 'layers', type: 'catalog',     nodes: [],             edges: [],             groups: [] },
   vapi:      { id: 'vapi',      title: 'Vapi',       icon: '🎙️',  type: 'vapi',          nodes: [],             edges: [],             groups: [] },
   'lead-scanner': { id: 'lead-scanner', title: 'Lead Scanner', icon: '📍', type: 'lead-scanner', nodes: [], edges: [], groups: [] },
+  dscr: { id: 'dscr', title: 'DSCR Calculator', icon: '🧮', type: 'dscr', nodes: [], edges: [], groups: [] },
   addons:    { id: 'addons',    title: 'Add-ons',    icon: '🧩',  type: 'addons',        nodes: [],             edges: [],             groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰' },
 };

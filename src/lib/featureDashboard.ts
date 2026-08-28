@@ -40,6 +40,7 @@ export const FEATURE_DASHBOARD: Partial<Record<FeatureId, FeatureDashboardDef>> 
   deploy_wizard: { dashboard: true, icon: 'sparkles' },
   site_audits: { dashboard: true, icon: 'receipt' },
   fleet_tracking: { dashboard: true, icon: 'truck' },
+  dscr_calculator: { dashboard: true, icon: 'calculator' },
 };
 
 /** Always-on OS surfaces that are not optional FeatureIds. */

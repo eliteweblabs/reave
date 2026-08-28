@@ -333,6 +333,13 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
     modules: ['real_estate_data'],
     kind: 'capability',
   },
+  {
+    id: 'dscr_calculator',
+    label: 'DSCR Calculator',
+    modules: ['dscr_calculator'],
+    kind: 'capability',
+    href: '/dscr',
+  },
   ...chipsForModule('online_reviews'),
   {
     id: 'wordpress-content',

@@ -30,6 +30,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   time_tracking: ['work'],
   demo: ['modules'],
   real_estate_data: ['lead-scanner'],
+  dscr_calculator: ['dscr'],
   inventory_sync: ['__system__'],
   online_reviews: ['reviews'],
   wayback_machine: ['__system__'],
@@ -80,6 +81,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   catalog: 'Catalog',
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
+  dscr: 'DSCR Calculator',
   modules: 'Modules',
   deploy: 'Deploy wizard',
 };

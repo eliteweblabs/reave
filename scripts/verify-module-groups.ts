@@ -45,6 +45,10 @@ function configFeatures(slug: string): string[] {
   return Array.isArray(raw.features) ? raw.features : [];
 }
 
+assert.ok(FEATURE_IDS.includes('dscr_calculator'));
+assert.equal(FEATURE_LABELS.dscr_calculator, 'DSCR Calculator');
+assert.ok(featureShowsDashboard('dscr_calculator'));
+assert.equal(FEATURE_DASHBOARD.dscr_calculator?.icon, 'calculator');
 assert.ok(FEATURE_IDS.includes('social_inbox'));
 assert.ok(FEATURE_IDS.includes('google_workspace'));
 assert.ok(FEATURE_IDS.includes('hosting_core_os'));
@@ -154,6 +158,7 @@ for (const group of ['core', 'work', 'google_workspace', 'hosting', 'social', 'e
     assert.equal(nums[i], nums[i - 1]! + 1, `${group} ids must be consecutive`);
   }
 }
+assert.ok(catalog.some((row) => row.feature === 'dscr_calculator' && row.group === 'other' && row.label === 'DSCR Calculator' && row.priceAmount === 175));
 assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group === 'work' && row.saleSheet));
 assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
 assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'google_workspace' && row.saleSheet && row.visibility === 'service'));

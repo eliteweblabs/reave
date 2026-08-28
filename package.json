@@ -61,6 +61,7 @@
     "check:account-menu": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-account-menu-bind.ts",
     "check:media-thumb": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-media-pdf-thumb.ts",
     "check:module-groups": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-module-groups.ts",
+    "check:dscr": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-dscr-calculator.ts",
     "check:hero-gps": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-hero-gps-ladder.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
     "icons:generate": "node scripts/generate-brand-icons.mjs",

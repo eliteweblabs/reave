@@ -29,6 +29,7 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   namecom_dns: { amount: 150, interval: 'once', currency: 'usd' },
   time_tracking: { amount: 150, interval: 'once', currency: 'usd' },
   real_estate_data: { amount: 275, interval: 'once', currency: 'usd' },
+  dscr_calculator: { amount: 175, interval: 'once', currency: 'usd' },
   inventory_sync: { amount: 275, interval: 'once', currency: 'usd' },
   online_reviews: { amount: 175, interval: 'once', currency: 'usd' },
   wayback_machine: { amount: 100, interval: 'once', currency: 'usd' },

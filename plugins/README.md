@@ -37,6 +37,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `uptime-monitoring/` | `uptime_monitoring` | `uptime-monitoring.md` | yes |
 | `fleet/` | `fleet_tracking` | `fleet-tracking.md`, `fleet-api-reference.md` | yes |
 | `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md`, `paulino-wizard-reference.md` | yes |
+| `dscr-calculator/` | `dscr_calculator` | `dscr-calculator.md` | yes — admin + public `/dscr` |
 | `inventory/` | `inventory_sync` | `inventory-sync.md`, `inventory-api-reference.md` | yes |
 | `materials/` | `materials_pricing` | `materials-pricing.md`, `materials-api-reference.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |

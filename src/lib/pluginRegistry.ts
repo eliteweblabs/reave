@@ -26,6 +26,7 @@ import { fleetPlugin } from '../../plugins/fleet/manifest';
 import { paulinoWizardPlugin } from '../../plugins/paulino-wizard/manifest';
 import { demoPlugin } from '../../plugins/demo/manifest';
 import { realEstateDataPlugin } from '../../plugins/real-estate-data/manifest';
+import { dscrCalculatorPlugin } from '../../plugins/dscr-calculator/manifest';
 import { inventoryPlugin } from '../../plugins/inventory/manifest';
 import { materialsPlugin } from '../../plugins/materials/manifest';
 import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
@@ -59,6 +60,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   paulinoWizardPlugin,
   demoPlugin,
   realEstateDataPlugin,
+  dscrCalculatorPlugin,
   inventoryPlugin,
   materialsPlugin,
   onlineReviewsPlugin,
@@ -193,6 +195,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['demo-setup'];
     case 'real-estate-data':
       return ['real-estate-data'];
+    case 'dscr-calculator':
+      return ['dscr-calculator'];
     case 'inventory':
       return ['inventory-sync', 'inventory-api-reference'];
     case 'materials':

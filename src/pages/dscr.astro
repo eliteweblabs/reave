@@ -1,0 +1,346 @@
+---
+/**
+ * Public DSCR calculator — same lender formula as the admin module.
+ * No email gate. 404 when the module is off.
+ */
+import MarketingLayout from '../layouts/MarketingLayout.astro';
+import { getCompanyConfig } from '../lib/companyConfig';
+import {
+  DEFAULT_DSCR_INPUT,
+  US_STATES,
+  calculateDscr,
+  serializeDscrResult,
+} from '../lib/dscrCalculator';
+import { hasFeature } from '../lib/features';
+
+export const prerender = false;
+
+if (!hasFeature('dscr_calculator')) {
+  return new Response('Not found', { status: 404 });
+}
+
+const company = await getCompanyConfig(Astro.request);
+const initial = serializeDscrResult(calculateDscr(DEFAULT_DSCR_INPUT));
+---
+
+<MarketingLayout
+  title="DSCR Calculator"
+  description={`Lender-grade DSCR for rental property — LTV, estimated rate, PITI, and pass/fail. ${company.name}.`}
+>
+  <div class="dscr-pub">
+    <header class="dscr-pub-hero">
+      <p class="dscr-pub-kicker">Free — no sign-up</p>
+      <h1>Calculate your <em>DSCR</em> instantly</h1>
+      <p>
+        Same formula the major residential DSCR lenders use. Built for real estate
+        investors and self-employed borrowers.
+      </p>
+    </header>
+
+    <div class="dscr-pub-grid">
+      <form id="dscr-pub-form" class="dscr-pub-card">
+        <label>
+          Subject property state
+          <select name="state">
+            {US_STATES.map((state) => (
+              <option value={state} selected={state === 'California'}>{state}</option>
+            ))}
+          </select>
+        </label>
+        <div class="dscr-pub-row">
+          <label>
+            Borrower middle FICO
+            <input name="fico" type="number" min="300" max="850" value="800" required />
+          </label>
+          <label>
+            Subject property units
+            <select name="units">
+              <option value="1-4" selected>1-4 units</option>
+              <option value="5-8">5-8 units</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          Purpose of loan
+          <select name="purpose">
+            <option value="Purchase">Purchase</option>
+            <option value="RateAndTerm" selected>Rate & Term</option>
+            <option value="Cashout">Cash-out</option>
+          </select>
+        </label>
+        <div class="dscr-pub-row">
+          <label>
+            Value of subject property
+            <input name="propertyValue" inputmode="decimal" value="1,000,000" required />
+          </label>
+          <label>
+            Proposed loan amount
+            <input name="loanAmount" inputmode="decimal" value="450,000" required />
+          </label>
+        </div>
+        <div class="dscr-pub-row">
+          <label>
+            Est. monthly rent
+            <input name="monthlyRent" inputmode="decimal" value="5,000" required />
+          </label>
+          <label>
+            Est. monthly insurance
+            <input name="monthlyInsurance" inputmode="decimal" value="250" required />
+          </label>
+        </div>
+        <div class="dscr-pub-row">
+          <label>
+            Est. monthly property taxes
+            <input name="monthlyTaxes" inputmode="decimal" value="1,200" required />
+          </label>
+          <label>
+            Monthly HOA dues (if any)
+            <input name="monthlyHoa" inputmode="decimal" value="0" />
+          </label>
+        </div>
+        <button type="submit">Calculate DSCR</button>
+      </form>
+
+      <div class="dscr-pub-card dscr-pub-out" id="dscr-pub-out" data-initial={JSON.stringify(initial)}>
+      </div>
+    </div>
+
+    <section class="dscr-pub-faq">
+      <h2>Frequently asked questions</h2>
+      <details open>
+        <summary>What is a good DSCR ratio for a rental property?</summary>
+        <p>
+          Most lenders require a minimum DSCR of 1.00 — rental income at least equals
+          the monthly payment (PITI). 1.25 or higher is strong. Some lenders offer
+          no-ratio products below 1.00 with 25% or more equity.
+        </p>
+      </details>
+      <details>
+        <summary>How is DSCR calculated for a mortgage?</summary>
+        <p>
+          Gross monthly rental income divided by the total monthly debt obligation
+          (principal + interest + taxes + insurance + HOA).
+        </p>
+      </details>
+      <details>
+        <summary>What credit score do I need for a DSCR loan?</summary>
+        <p>
+          Most programs require a 660 middle FICO. Higher scores (720+) qualify for
+          better estimated rates on this matrix.
+        </p>
+      </details>
+      <details>
+        <summary>Can I get a DSCR loan if rent does not cover the payment?</summary>
+        <p>
+          Some lenders offer no-ratio products when rent does not fully cover debt
+          service. Those typically need 25% or more equity.
+        </p>
+      </details>
+    </section>
+  </div>
+</MarketingLayout>
+
+<script>
+  const out = document.getElementById('dscr-pub-out');
+  const form = document.getElementById('dscr-pub-form') as HTMLFormElement | null;
+  const initialRaw = out?.getAttribute('data-initial');
+  let last: Record<string, unknown> | null = null;
+  try {
+    last = initialRaw ? JSON.parse(initialRaw) : null;
+  } catch {
+    last = null;
+  }
+
+  function money(value: FormDataEntryValue | null) {
+    return Number(String(value ?? '').replace(/[$,]/g, '')) || 0;
+  }
+
+  function render(result: Record<string, unknown> | null) {
+    if (!out) return;
+    if (!result) {
+      out.innerHTML = '<p>Enter the property and loan, then calculate.</p>';
+      return;
+    }
+    const passed = result.passed === true;
+    const errors = Array.isArray(result.errors) ? result.errors : [];
+    const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+    out.innerHTML =
+      `<div class="dscr-pub-status ${passed ? 'is-pass' : 'is-fail'}">` +
+      `<span>${passed ? '✓' : '✕'}</span>` +
+      `<div><h2>${passed ? 'You passed' : "Didn't pass DSCR"}</h2>` +
+      `<p>${passed ? 'Check the numbers below.' : 'Adjust the structure, or look at a no-ratio path with 25%+ equity.'}</p></div></div>` +
+      (errors.length ? `<div class="dscr-pub-err">${errors.map((m) => `<p>⚠ ${m}</p>`).join('')}</div>` : '') +
+      (warnings.length ? `<div class="dscr-pub-warn">${warnings.map((m) => `<p>${m}</p>`).join('')}</div>` : '') +
+      `<dl>` +
+      `<div><dt>Loan-to-value (LTV)</dt><dd>${result.ltvLabel ?? '—'}</dd></div>` +
+      `<div><dt>Estimated interest rate</dt><dd>${result.rateLabel ?? '—'}</dd></div>` +
+      `<div><dt>Principal & interest</dt><dd>${result.principalAndInterestLabel ?? '—'}</dd></div>` +
+      `<div><dt>Combined payment (PITI)</dt><dd>${result.pitiLabel ?? '—'}</dd></div>` +
+      `<div class="is-hero"><dt>DSCR ratio</dt><dd>${result.dscrLabel ?? '—'}</dd></div>` +
+      `</dl>`;
+  }
+
+  async function run() {
+    if (!form) return;
+    const data = new FormData(form);
+    const payload = {
+      state: String(data.get('state') || ''),
+      fico: Number(data.get('fico')),
+      units: String(data.get('units') || '1-4'),
+      purpose: String(data.get('purpose') || 'RateAndTerm'),
+      propertyValue: money(data.get('propertyValue')),
+      loanAmount: money(data.get('loanAmount')),
+      monthlyRent: money(data.get('monthlyRent')),
+      monthlyInsurance: money(data.get('monthlyInsurance')),
+      monthlyTaxes: money(data.get('monthlyTaxes')),
+      monthlyHoa: money(data.get('monthlyHoa')),
+    };
+    const res = await fetch('/api/dscr/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    last = json.ok ? json.result : { passed: false, errors: [json.error || 'Could not calculate'] };
+    render(last);
+  }
+
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    void run();
+  });
+  render(last);
+</script>
+
+<style>
+  .dscr-pub {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 4.5rem 1.25rem 5rem;
+  }
+  .dscr-pub-hero {
+    text-align: center;
+    max-width: 40rem;
+    margin: 0 auto 2.25rem;
+  }
+  .dscr-pub-kicker {
+    display: inline-block;
+    margin: 0 0 0.85rem;
+    padding: 0.28rem 0.75rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent, #3b82f6) 16%, transparent);
+    color: var(--accent, #60a5fa);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .dscr-pub-hero h1 {
+    margin: 0 0 0.7rem;
+    font-size: clamp(2rem, 5vw, 3rem);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .dscr-pub-hero em {
+    font-style: normal;
+    color: var(--accent, #60a5fa);
+  }
+  .dscr-pub-hero p,
+  .dscr-pub-faq p {
+    color: var(--muted, #94a3b8);
+    line-height: 1.5;
+  }
+  .dscr-pub-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 1.25rem;
+    align-items: start;
+  }
+  .dscr-pub-card {
+    background: color-mix(in srgb, var(--surface, #111827) 88%, black);
+    border: 1px solid color-mix(in srgb, var(--panel-border, #1f2937) 80%, white 8%);
+    border-radius: 16px;
+    padding: 1.4rem 1.3rem 1.5rem;
+  }
+  .dscr-pub-card label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .dscr-pub-card input,
+  .dscr-pub-card select {
+    min-height: 42px;
+    padding: 0.5rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--panel-border, #334155) 90%, white);
+    background: color-mix(in srgb, var(--bg, #0b1220) 92%, white 4%);
+    color: inherit;
+    font: inherit;
+  }
+  .dscr-pub-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .dscr-pub-card button {
+    width: 100%;
+    min-height: 46px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent, #2563eb);
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .dscr-pub-status {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+  .dscr-pub-status span {
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .dscr-pub-status.is-pass span { background: rgba(34, 197, 94, 0.16); color: #4ade80; }
+  .dscr-pub-status.is-fail span { background: rgba(239, 68, 68, 0.14); color: #f87171; }
+  .dscr-pub-status h2 { margin: 0 0 0.2rem; font-size: 1.15rem; }
+  .dscr-pub-out dl { margin: 0; }
+  .dscr-pub-out dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--panel-border, #334155) 80%, transparent);
+  }
+  .dscr-pub-out dt { color: var(--muted, #94a3b8); }
+  .dscr-pub-out dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dscr-pub-out .is-hero dd { font-size: 1.25rem; }
+  .dscr-pub-err, .dscr-pub-warn {
+    padding: 0.65rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    margin-bottom: 0.8rem;
+  }
+  .dscr-pub-err { background: rgba(239, 68, 68, 0.12); color: #f87171; }
+  .dscr-pub-warn { background: rgba(250, 204, 21, 0.1); color: #facc15; }
+  .dscr-pub-faq {
+    max-width: 40rem;
+    margin: 3rem auto 0;
+  }
+  .dscr-pub-faq h2 { margin: 0 0 1rem; }
+  .dscr-pub-faq details {
+    border-top: 1px solid color-mix(in srgb, var(--panel-border, #334155) 80%, transparent);
+    padding: 0.85rem 0;
+  }
+  .dscr-pub-faq summary { cursor: pointer; font-weight: 650; }
+  @media (max-width: 820px) {
+    .dscr-pub-grid, .dscr-pub-row { grid-template-columns: 1fr; }
+  }
+</style>

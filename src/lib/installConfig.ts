@@ -43,6 +43,7 @@ const FEATURE_IDS_LIST = [
   'time_tracking',
   'demo',
   'real_estate_data',
+  'dscr_calculator',
   'inventory_sync',
   'online_reviews',
   'wayback_machine',
@@ -108,6 +109,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'catalog',
   'vapi',
   'lead-scanner',
+  'dscr',
   'fleet',
   'reviews',
   'media',
@@ -455,8 +457,27 @@ function ensureFooterPunchlist(nav: FooterNavKey[]): FooterNavKey[] {
   return [...nav, 'punchlist'];
 }
 
+function ensureFooterDscr(nav: FooterNavKey[], enabled: boolean): FooterNavKey[] {
+  if (!enabled) return nav.filter((key) => key !== 'dscr');
+  if (nav.includes('dscr')) return nav;
+  const leadAt = nav.indexOf('lead-scanner');
+  if (leadAt >= 0) {
+    return [...nav.slice(0, leadAt + 1), 'dscr', ...nav.slice(leadAt + 1)];
+  }
+  const fleetAt = nav.indexOf('fleet');
+  if (fleetAt >= 0) {
+    return [...nav.slice(0, fleetAt), 'dscr', ...nav.slice(fleetAt)];
+  }
+  const financeAt = nav.indexOf('finance');
+  if (financeAt >= 0) {
+    return [...nav.slice(0, financeAt), 'dscr', ...nav.slice(financeAt)];
+  }
+  return [...nav, 'dscr'];
+}
+
 function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   let nav = ensureFooterPunchlist(config.footerNav);
+  nav = ensureFooterDscr(nav, config.features.includes('dscr_calculator'));
   if (!config.features.includes('fleet_tracking')) {
     nav = nav.filter((key) => key !== 'fleet');
   }
