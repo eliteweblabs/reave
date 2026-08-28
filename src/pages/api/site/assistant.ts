@@ -6,8 +6,8 @@
  * `src/lib/siteAssistant.ts`.
  */
 import type { APIRoute } from 'astro';
-import { parseAssistantHistory } from '../../../lib/assistantHistory';
-import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
+import { assistantRateLimitResponse, parseAssistantPostRequest } from '../../../lib/assistantRoute';
+import { jsonResponse } from '../../../lib/apiResponse';
 import { companyToBrandContext, getCompanyConfig } from '../../../lib/companyConfig';
 import { hasFeature } from '../../../lib/features';
 import {
@@ -17,34 +17,19 @@ import {
   runSiteAssistantReply,
   type SiteAssistantTurn,
 } from '../../../lib/siteAssistant';
-import { checkPortalAssistantRateLimit } from '../../../lib/portalAssistantRateLimit';
 import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
-
-const MAX_MESSAGE_CHARS = 2_000;
-const MAX_HISTORY_TURNS = 20;
-const MAX_HISTORY_TURN_CHARS = 4_000;
 
 export const POST: APIRoute = async ({ request }) => {
   if (!hasFeature('portal_assistant') || !isSiteAssistantConfigured()) {
     return jsonResponse({ ok: false, error: 'Not found' }, 404);
   }
 
-  const parsed = await readJsonBody(request);
-  if (parsed instanceof Response) return parsed;
-  const { body } = parsed;
+  const parsed = await parseAssistantPostRequest<SiteAssistantTurn>(request);
+  if (!parsed.ok) return parsed.response;
+  const { message, history, body } = parsed;
 
-  const message = typeof body.message === 'string' ? body.message.trim() : '';
-  if (!message) return jsonResponse({ ok: false, error: 'message is required' }, 400);
-  if (message.length > MAX_MESSAGE_CHARS) {
-    return jsonResponse({ ok: false, error: 'Message is too long.' }, 400);
-  }
-  const history = parseAssistantHistory<SiteAssistantTurn>(
-    body.history,
-    MAX_HISTORY_TURNS,
-    MAX_HISTORY_TURN_CHARS,
-  );
   let pagePath = normalizeSiteAssistantPagePath(
     typeof body.pagePath === 'string' ? body.pagePath : '',
   );
@@ -57,13 +42,8 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
 
-  const rate = checkPortalAssistantRateLimit(`site:${clientIp(request)}`);
-  if (!rate.ok) {
-    return jsonResponse(
-      { ok: false, error: "You're sending messages a bit fast — please wait a moment and try again." },
-      429,
-    );
-  }
+  const rateLimited = assistantRateLimitResponse(`site:${clientIp(request)}`);
+  if (rateLimited) return rateLimited;
 
   const org = await getCompanyConfig(request);
   const brand = companyToBrandContext(org, request);

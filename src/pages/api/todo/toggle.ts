@@ -11,7 +11,7 @@ import { projectRoot } from '../../../lib/projectRoot';
  */
 import type { APIRoute } from 'astro';
 import type { APIContext } from 'astro';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
@@ -48,7 +48,11 @@ export const POST: APIRoute = async (context) => {
   }
 
   const dir = todoDir();
-  const filePath = join(dir, `${slug}.md`);
+  const resolvedDir = resolve(dir);
+  const filePath = resolve(resolvedDir, `${slug}.md`);
+  if (!filePath.startsWith(resolvedDir + sep)) {
+    return new Response('Bad Request', { status: 400 });
+  }
 
   if (!existsSync(filePath)) {
     return new Response('Not Found', { status: 404 });

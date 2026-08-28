@@ -5,6 +5,18 @@ import { clientIp } from '../../../lib/clientIp';
 import { jsonResponse } from '../../../lib/apiResponse';
 import { isValidEmail } from '../../../lib/installIdentityFormat';
 
+/** Max field lengths — keeps public form abuse bounded. */
+const MAX_NAME_CHARS = 200;
+const MAX_EMAIL_CHARS = 254;
+const MAX_COMPANY_CHARS = 200;
+const MAX_PHONE_CHARS = 40;
+const MAX_SUBJECT_CHARS = 200;
+const MAX_MESSAGE_CHARS = 10_000;
+
+function trimField(value: unknown, max: number): string {
+  return String(value ?? '').trim().slice(0, max);
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const rate = checkInMemoryRateLimit(`form:${clientIp(request)}`, {
     windowMs: 10 * 60 * 1000,
@@ -27,12 +39,13 @@ export const POST: APIRoute = async ({ request }) => {
       return jsonResponse({ success: true, message: 'Form submitted successfully' });
     }
 
-    const name = String(
-      formData.name || formData.fullName || formData.full_name || '',
-    ).trim();
-    const email = String(formData.email || '').trim();
-    const company = String(formData.company || '').trim();
-    const phone = String(formData.phone || formData.tel || '').trim();
+    const name = trimField(
+      formData.name || formData.fullName || formData.full_name,
+      MAX_NAME_CHARS,
+    );
+    const email = trimField(formData.email, MAX_EMAIL_CHARS);
+    const company = trimField(formData.company, MAX_COMPANY_CHARS);
+    const phone = trimField(formData.phone || formData.tel, MAX_PHONE_CHARS);
     const smsRaw = formData.sms_opt_in ?? formData.smsOptIn;
     const smsOptIn =
       smsRaw === 'yes' || smsRaw === true
@@ -40,8 +53,8 @@ export const POST: APIRoute = async ({ request }) => {
         : smsRaw === 'no' || smsRaw === false
           ? false
           : null;
-    const message = String(formData.message || '').trim();
-    const subject = String(formData.subject || 'New form submission').trim();
+    const message = trimField(formData.message, MAX_MESSAGE_CHARS);
+    const subject = trimField(formData.subject || 'New form submission', MAX_SUBJECT_CHARS);
 
     if (!name && !email && !message) {
       return jsonResponse({ success: false, error: 'Empty submission' }, 400);
