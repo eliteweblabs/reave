@@ -1,6 +1,5 @@
 {
   "key": "reave",
-  "rainbowThemeColor": true,
   "pages": [
     "/",
     "/card",
