@@ -5,11 +5,12 @@
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { normalizeEmailBody, normalizeSentEmailHtml, plainTextForDisplay, resolveSentEmailHtmlForDisplay } from '../../../../lib/emailBody';
+import { htmlHasCidImages } from '../../../../lib/emailComposeImages';
 import {
   getOutboundEmail,
   updateOutboundEmailBodies,
 } from '../../../../lib/projectOutboundEmail';
-import { fetchResendSentEmail } from '../../../../lib/resendSentEmail';
+import { fetchResendSentEmail, hydrateSentHtmlCidImages } from '../../../../lib/resendSentEmail';
 
 export const prerender = false;
 
@@ -38,10 +39,21 @@ export async function GET(context: APIContext): Promise<Response> {
     if (fetched) {
       bodyText = normalizeEmailBody(fetched.text, fetched.html);
       bodyHtml = normalizeSentEmailHtml(fetched.text, fetched.html);
-      if (bodyText || bodyHtml) {
-        void updateOutboundEmailBodies(event.id, { bodyText, bodyHtml });
-      }
     }
+  }
+
+  if (htmlHasCidImages(bodyHtml) && event.resendId) {
+    const hydrated = await hydrateSentHtmlCidImages(bodyHtml, event.resendId);
+    if (hydrated.hydrated) {
+      bodyHtml = normalizeSentEmailHtml(bodyText, hydrated.html);
+    }
+  }
+
+  if (
+    (bodyText && bodyText !== (event.bodyText ?? '')) ||
+    (bodyHtml && bodyHtml !== (event.bodyHtml ?? ''))
+  ) {
+    void updateOutboundEmailBodies(event.id, { bodyText, bodyHtml });
   }
 
   return json({

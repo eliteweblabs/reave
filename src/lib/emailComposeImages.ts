@@ -100,6 +100,10 @@ export async function resolveComposeImagesForSend(raw: unknown): Promise<{
   return { images, attachments, inline };
 }
 
+export function htmlHasCidImages(html: string): boolean {
+  return /\bsrc\s*=\s*["']?cid:/i.test(html);
+}
+
 /** Swap cid: refs for data URLs so a srcdoc preview can show attached images. */
 export function rewriteComposeHtmlForPreview(html: string, attachments: EmailSendAttachment[]): string {
   let out = html;

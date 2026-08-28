@@ -3,7 +3,11 @@
  * Run: npm run check:email-compose-images
  */
 import assert from 'node:assert/strict';
-import { normalizeEmailComposeImages } from '../src/lib/emailComposeImages.ts';
+import {
+  htmlHasCidImages,
+  normalizeEmailComposeImages,
+  rewriteComposeHtmlForPreview,
+} from '../src/lib/emailComposeImages.ts';
 
 assert.deepEqual(normalizeEmailComposeImages(undefined), []);
 assert.deepEqual(normalizeEmailComposeImages('nope'), []);
@@ -33,6 +37,20 @@ assert.deepEqual(
     },
     { mediaId: '33333333-3333-4333-8333-333333333333' },
   ],
+);
+
+assert.equal(htmlHasCidImages('<img src="cid:compose-img-0" alt="image.png">'), true);
+assert.equal(htmlHasCidImages('<img src="https://reave.app/logo.png">'), false);
+assert.equal(
+  rewriteComposeHtmlForPreview('<img src="cid:compose-img-0" alt="image.png">', [
+    {
+      filename: 'image.png',
+      content: 'abc123',
+      contentId: 'compose-img-0',
+      contentType: 'image/png',
+    },
+  ]),
+  '<img src="data:image/png;base64,abc123" alt="image.png">',
 );
 
 console.log('verify-email-compose-images: ok');

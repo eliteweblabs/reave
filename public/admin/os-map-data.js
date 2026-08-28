@@ -75,7 +75,7 @@ const SYSTEM_NODES = [
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'outbound · projectCreate · domains', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 220 },
   { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · one repair Session per service · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
   { id: 'kinsta_api', title: 'Kinsta API', sub: 'outbound · list_kinsta_sites · clear cache', icon: '🟣', brand: 'kinsta', hue: 280, status: true, group: 'external', x: 1160, y: 460 },
-  { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound compose/scheduled/portal', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
+  { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound compose/scheduled/portal · sent CID hydrate', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
   { id: 'github', title: 'GitHub', sub: 'owner/repo · REST · create repo · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
   { id: 'wayback', title: 'Wayback Machine', sub: 'Internet Archive snapshots (FEATURES: wayback_machine)', icon: '🕰️', brand: 'internetarchive', hue: 42, status: true, group: 'external', x: 1160, y: 880 },
