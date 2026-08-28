@@ -44,6 +44,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
         <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
         <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
       </span>
+      <span class="home-hero-icon-grid" aria-hidden="true"></span>
       <BrandIconInline company={company} />
     </div>
     <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
@@ -166,6 +167,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     margin-top: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-above) * -1);
     pointer-events: none;
     overflow: visible;
+    isolation: isolate;
   }
 
   /*
@@ -306,6 +308,43 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   :global(html[data-theme="dark"]) .home-hero-icon-glow-lava {
     opacity: 0.28;
+  }
+
+  /*
+   * Cartesian graph paper over the halo, under the mark.
+   * Isolated so difference only inverts the glow, not the page.
+   */
+  .home-hero-icon-grid {
+    --home-hero-grid-minor: 14px;
+    --home-hero-grid-major: 70px;
+    position: absolute;
+    inset: -8%;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      repeating-linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.55) 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.55) 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.95) 0 1.5px,
+        transparent 1.5px var(--home-hero-grid-major)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.95) 0 1.5px,
+        transparent 1.5px var(--home-hero-grid-major)
+      );
+    mix-blend-mode: difference;
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 38%, transparent 72%);
+    mask-image: radial-gradient(circle at 50% 50%, #000 38%, transparent 72%);
   }
 
   @media (prefers-reduced-motion: reduce) {
