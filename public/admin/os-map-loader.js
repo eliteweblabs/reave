@@ -11675,6 +11675,7 @@ function openNewContactFromEmail(ev) {
   navigateToNewClient({
     email,
     name: parseSenderDisplayName(ev.from) || '',
+    fromEmailId: ev.id || emailState.activeId || null,
   });
 }
 
@@ -11699,7 +11700,9 @@ function applyEmailFromClientMatch(host, ev, match) {
     chip.append(icon, label);
     chip.addEventListener('click', (e) => {
       e.stopPropagation();
-      navigateToClient(match.uid);
+      navigateToClient(match.uid, {
+        fromEmailId: ev.id || emailState.activeId || null,
+      });
     });
     host.appendChild(chip);
     return;
@@ -12168,6 +12171,7 @@ initSchedulePanel({
 
 initClientsPanel({
   setActiveMap,
+  navigateToEmail,
   osAlert,
   syncFooterNav,
   beginCreateDrawer,

@@ -106,6 +106,7 @@ let clientState = {
   draft: null,
   returnToWorkSlug: null,
   returnToScheduleUid: null,
+  returnToEmailId: null,
 };
 const CLIENT_LAST_ACTIVE_KEY = 'clients:lastActiveUid-v1';
 
@@ -353,6 +354,7 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
         clientState.autosaveGetPayload = null;
         clientState.returnToWorkSlug = null;
         clientState.returnToScheduleUid = null;
+        clientState.returnToEmailId = null;
         clearClientLastActiveUid();
         syncClientDeepLinkUrl(null);
         getClientsEditor()?.classList.remove('de-pane-active');
@@ -534,6 +536,7 @@ async function loadClientsTab(opts = {}) {
   if (!restoreUid) {
     clientState.returnToWorkSlug = null;
     clientState.returnToScheduleUid = null;
+    clientState.returnToEmailId = null;
   }
   clientState.activeUid = restoreUid || null;
   clientState.dirty = false;
@@ -669,6 +672,7 @@ function navigateToNewClient(opts = {}) {
     name: String(opts.name || '').trim(),
     email: String(opts.email || '').trim(),
   };
+  setClientReturnTargets(opts);
   pendingClientDeepLinkUid = null;
   shell.setActiveMap('clients', { force: true, newClient: true });
 }
@@ -2162,9 +2166,37 @@ function renderEditClientForm(pane) {
     });
 }
 
+function setClientReturnTargets(opts = {}) {
+  if (opts.fromWorkSlug) {
+    clientState.returnToWorkSlug = opts.fromWorkSlug;
+    clientState.returnToScheduleUid = null;
+    clientState.returnToEmailId = null;
+    return true;
+  }
+  if (opts.fromScheduleUid) {
+    clientState.returnToScheduleUid = opts.fromScheduleUid;
+    clientState.returnToWorkSlug = null;
+    clientState.returnToEmailId = null;
+    return true;
+  }
+  if (opts.fromEmailId) {
+    clientState.returnToEmailId = opts.fromEmailId;
+    clientState.returnToWorkSlug = null;
+    clientState.returnToScheduleUid = null;
+    return true;
+  }
+  if (!opts.keepReturnSlug) {
+    clientState.returnToWorkSlug = null;
+    clientState.returnToScheduleUid = null;
+    clientState.returnToEmailId = null;
+  }
+  return false;
+}
+
 function clientBackLabel() {
   if (clientState.returnToWorkSlug) return 'Back to project';
   if (clientState.returnToScheduleUid) return 'Back to schedule';
+  if (clientState.returnToEmailId) return 'Back to email';
   return 'Back to contacts';
 }
 
@@ -2173,12 +2205,14 @@ async function closeClientEditor(checkDirty = true) {
   if (checkDirty && clientState.dirty && !(await confirmDiscardChanges())) return;
   const returnWorkSlug = clientState.returnToWorkSlug;
   const returnScheduleUid = clientState.returnToScheduleUid;
+  const returnEmailId = clientState.returnToEmailId;
   clientState.activeUid = null;
   clientState.detailTab = 'profile';
   clientState.draft = null;
   clientState.autosaveGetPayload = null;
   clientState.returnToWorkSlug = null;
   clientState.returnToScheduleUid = null;
+  clientState.returnToEmailId = null;
   clearClientLastActiveUid();
   syncClientDeepLinkUrl(null);
   // Navigate to the referrer first so a failed hop cannot leave mobile on the
@@ -2191,6 +2225,10 @@ async function closeClientEditor(checkDirty = true) {
     shell.setActiveMap('schedule', { force: true, scheduleUid: returnScheduleUid });
     return;
   }
+  if (returnEmailId && typeof shell.navigateToEmail === 'function') {
+    shell.navigateToEmail(returnEmailId);
+    return;
+  }
   getClientsEditor()?.classList.remove('de-pane-active');
   syncClientsListActiveState();
   renderClientsPane();
@@ -2198,16 +2236,12 @@ async function closeClientEditor(checkDirty = true) {
 
 async function openClient(uid, opts = {}) {
   if (uid === clientState.activeUid) {
-    let returnChanged = false;
-    if (opts.fromWorkSlug) {
-      clientState.returnToWorkSlug = opts.fromWorkSlug;
-      clientState.returnToScheduleUid = null;
-      returnChanged = true;
-    } else if (opts.fromScheduleUid) {
-      clientState.returnToScheduleUid = opts.fromScheduleUid;
-      clientState.returnToWorkSlug = null;
-      returnChanged = true;
-    }
+    const returnChanged = setClientReturnTargets({
+      fromWorkSlug: opts.fromWorkSlug,
+      fromScheduleUid: opts.fromScheduleUid,
+      fromEmailId: opts.fromEmailId,
+      keepReturnSlug: true,
+    });
     syncClientsListActiveState({ scroll: true });
     ensureClientMobilePaneOpen();
     if (returnChanged) renderClientsPane();
@@ -2215,16 +2249,7 @@ async function openClient(uid, opts = {}) {
   }
   await flushClientAutosave();
   if (clientState.dirty && clientState.activeUid && !(await confirmDiscardChanges())) return;
-  if (opts.fromWorkSlug) {
-    clientState.returnToWorkSlug = opts.fromWorkSlug;
-    clientState.returnToScheduleUid = null;
-  } else if (opts.fromScheduleUid) {
-    clientState.returnToScheduleUid = opts.fromScheduleUid;
-    clientState.returnToWorkSlug = null;
-  } else if (!opts.keepReturnSlug) {
-    clientState.returnToWorkSlug = null;
-    clientState.returnToScheduleUid = null;
-  }
+  setClientReturnTargets(opts);
   clientState.activeUid = uid;
   if (opts.detailTab) {
     clientState.detailTab = normalizeClientDetailTab(opts.detailTab) || 'profile';
@@ -2678,16 +2703,7 @@ function parseClientDeepLinkFromUrl() {
 function navigateToClient(uid, opts = {}) {
   if (!uid) return;
   clearClientSearchForTarget();
-  if (opts.fromWorkSlug) {
-    clientState.returnToWorkSlug = opts.fromWorkSlug;
-    clientState.returnToScheduleUid = null;
-  } else if (opts.fromScheduleUid) {
-    clientState.returnToScheduleUid = opts.fromScheduleUid;
-    clientState.returnToWorkSlug = null;
-  } else {
-    clientState.returnToWorkSlug = null;
-    clientState.returnToScheduleUid = null;
-  }
+  setClientReturnTargets(opts);
   if (opts.detailTab) {
     clientState.detailTab = normalizeClientDetailTab(opts.detailTab) || 'profile';
   } else if (uid !== clientState.activeUid) {
