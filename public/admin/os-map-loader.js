@@ -3654,12 +3654,13 @@ let uptimePlatformSyncActive = false;
 const UPTIME_SYNC_SITES_BTN_SELECTOR = '.dash-uptime-sync-sites-btn';
 
 function uptimeMonitorTileMeta(m) {
-  if (m?.tile_label) return { offline: m.is_offline === true, label: m.tile_label };
+  const paused = m?.is_paused === true || Number(m?.status) === 0;
+  if (paused) return { offline: false, paused: true, label: m.tile_label || 'paused' };
+  if (m?.tile_label) return { offline: m.is_offline === true, paused: false, label: m.tile_label };
   const status = Number(m?.status);
-  if (status === 0) return { offline: true, label: 'offline' };
-  if (status === 8 || status === 9 || m?.is_down) return { offline: true, label: 'down' };
-  if (m?.uptime_ratio_7d != null) return { offline: false, label: `${Number(m.uptime_ratio_7d).toFixed(1)}%` };
-  return { offline: false, label: 'up' };
+  if (status === 8 || status === 9 || m?.is_down) return { offline: true, paused: false, label: 'down' };
+  if (m?.uptime_ratio_7d != null) return { offline: false, paused: false, label: `${Number(m.uptime_ratio_7d).toFixed(1)}%` };
+  return { offline: false, paused: false, label: 'up' };
 }
 
 function getUptimeSyncSitesButton() {
@@ -5301,7 +5302,11 @@ function queueTriageEmailFromUrl() {
   }
 }
 
-function renderAdminDashboard(data) {
+let lastDashboardPayload = null;
+let dashboardAnalyticsHydrateGen = 0;
+
+function renderAdminDashboard(data, opts = {}) {
+  lastDashboardPayload = data;
   const root = document.getElementById('dashboard-panel');
   if (!root) return;
   root.innerHTML = '';
@@ -5465,6 +5470,7 @@ function renderAdminDashboard(data) {
 
   const analyticsLive = data?.analyticsConfigured === true;
   const analyticsPreview = data?.analytics;
+  const analyticsError = typeof data?.analyticsError === 'string' ? data.analyticsError : '';
   if (analyticsLive || analyticsPreview) {
     const visitors = analyticsPreview?.visitors ?? stats.analyticsVisitors ?? 0;
     const liveCount = analyticsPreview?.realtimeVisitors ?? stats.analyticsRealtime ?? 0;
@@ -5475,10 +5481,18 @@ function renderAdminDashboard(data) {
       label: 'Visitors',
       hint: analyticsPreview
         ? `${liveCount} live · ${siteCount} site${siteCount === 1 ? '' : 's'}${unregistered ? ` · ${unregistered} not wired` : ''}`
-        : analyticsLive
-          ? 'loading Plausible'
-          : 'not configured',
-      tone: unregistered > 0 ? 'stale' : analyticsPreview?.siteCount ? 'live' : 'muted',
+        : analyticsError
+          ? 'couldn’t load'
+          : analyticsLive
+            ? 'loading Plausible'
+            : 'not configured',
+      tone: analyticsError
+        ? 'failed'
+        : unregistered > 0
+          ? 'stale'
+          : analyticsPreview?.siteCount
+            ? 'live'
+            : 'muted',
       muted: !analyticsPreview,
       onClick: () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }),
     }));
@@ -5492,8 +5506,9 @@ function renderAdminDashboard(data) {
     const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
     for (const m of monitors) {
       const li = document.createElement('li');
-      const { offline, label } = uptimeMonitorTileMeta(m);
-      li.className = `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}`;
+      const { offline, paused, label } = uptimeMonitorTileMeta(m);
+      li.className =
+        `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}`;
       li.innerHTML =
         `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
         `<div class="dash-uptime-name">${escHtml(m.friendly_name || m.url || `Monitor ${m.id}`)}</div>` +
@@ -5593,6 +5608,46 @@ function renderAdminDashboard(data) {
   scroll.appendChild(grid);
 
   root.appendChild(scroll);
+
+  if (!opts.skipHydrate && analyticsLive && !analyticsPreview && !analyticsError) {
+    void hydrateDashboardAnalytics();
+  }
+}
+
+async function hydrateDashboardAnalytics() {
+  const gen = ++dashboardAnalyticsHydrateGen;
+  try {
+    const res = await adminFetch('/api/admin/analytics?view=preview');
+    const payload = await readAdminJson(res, 'analytics');
+    if (gen !== dashboardAnalyticsHydrateGen) return;
+    if (MAP?.type !== 'dashboard') return;
+    if (!payload.ok || !payload.analytics) {
+      throw new Error(payload.error || `HTTP ${res.status}`);
+    }
+    if (!lastDashboardPayload) return;
+    const preview = payload.analytics;
+    lastDashboardPayload = {
+      ...lastDashboardPayload,
+      analytics: preview,
+      analyticsError: '',
+      stats: {
+        ...(lastDashboardPayload.stats || {}),
+        analyticsVisitors: preview.visitors ?? null,
+        analyticsRealtime: preview.realtimeVisitors ?? null,
+        analyticsSites: preview.siteCount ?? null,
+        analyticsUnregistered: preview.unregisteredCount ?? null,
+      },
+    };
+    renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+  } catch (e) {
+    if (gen !== dashboardAnalyticsHydrateGen) return;
+    if (MAP?.type !== 'dashboard' || !lastDashboardPayload) return;
+    lastDashboardPayload = {
+      ...lastDashboardPayload,
+      analyticsError: e?.message || 'couldn’t load',
+    };
+    renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+  }
 }
 
 function showAddUptimeSiteDialog() {

@@ -12,6 +12,7 @@ import {
   type AnalyticsSiteOption,
 } from './analyticsSites';
 import {
+  hostnameFromWebsite,
   isPlausibleConfigured,
   isPlausibleSiteMissingError,
   plausibleAggregate,
@@ -126,7 +127,9 @@ export async function listAnalyticsAccounts(
     freshRailway: opts.freshRailway,
   });
 
-  const accounts = await Promise.all(sites.map((site) => loadAnalyticsAccountRow(site, rangeDays)));
+  const accounts = await mapPool(sites, ANALYTICS_ACCOUNT_CONCURRENCY, (site) =>
+    loadAnalyticsAccountRow(site, rangeDays),
+  );
   return {
     configured: isPlausibleConfigured(),
     rangeDays,
@@ -136,17 +139,82 @@ export async function listAnalyticsAccounts(
   };
 }
 
+const PREVIEW_TTL_MS = 2 * 60_000;
+const ANALYTICS_ACCOUNT_CONCURRENCY = 6;
+
+let previewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;
+let previewInflight: Promise<AnalyticsFleetPreview> | null = null;
+let previewInflightDomain = '';
+
+function previewCacheDomain(companyDomain: string): string {
+  return hostnameFromWebsite(companyDomain) || companyDomain.trim().toLowerCase();
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let idx = 0;
+  async function worker() {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i]!);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
+}
+
+export function peekCachedAnalyticsDashboardPreview(
+  companyDomain: string,
+  opts: { allowStale?: boolean } = {},
+): AnalyticsFleetPreview | null {
+  if (!previewCache) return null;
+  const domain = previewCacheDomain(companyDomain);
+  if (previewCache.domain !== domain) return null;
+  if (!opts.allowStale && Date.now() - previewCache.at > PREVIEW_TTL_MS) return null;
+  return previewCache.preview;
+}
+
 export async function buildAnalyticsDashboardPreview(
   companyDomain: string,
+  opts: { fresh?: boolean } = {},
 ): Promise<AnalyticsFleetPreview> {
+  const domain = previewCacheDomain(companyDomain);
+  if (!opts.fresh) {
+    const cached = peekCachedAnalyticsDashboardPreview(companyDomain);
+    if (cached) return cached;
+    if (previewInflight && previewInflightDomain === domain) return previewInflight;
+  } else if (previewInflight && previewInflightDomain === domain) {
+    return previewInflight;
+  }
+
   if (!isPlausibleConfigured()) {
     return summarizeAnalyticsAccounts([], 30, { configured: false });
   }
-  const { accounts } = await listAnalyticsAccounts(companyDomain, {
-    rangeDays: 30,
-    includeRailway: true,
-  });
-  return summarizeAnalyticsAccounts(accounts, 30, { configured: true });
+
+  const pending = (async () => {
+    const { accounts } = await listAnalyticsAccounts(companyDomain, {
+      rangeDays: 30,
+      includeRailway: true,
+    });
+    const preview = summarizeAnalyticsAccounts(accounts, 30, { configured: true });
+    previewCache = { at: Date.now(), domain, preview };
+    return preview;
+  })();
+
+  previewInflight = pending;
+  previewInflightDomain = domain;
+  try {
+    return await pending;
+  } finally {
+    if (previewInflight === pending) {
+      previewInflight = null;
+      previewInflightDomain = '';
+    }
+  }
 }
 
 export async function syncPlausibleSitesFromRailway(): Promise<AnalyticsSyncResult> {

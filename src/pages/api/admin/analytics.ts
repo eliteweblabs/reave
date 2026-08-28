@@ -11,7 +11,7 @@
  */
 import type { APIContext } from 'astro';
 import { buildAnalyticsDashboard } from '../../../lib/analyticsDashboard';
-import { listAnalyticsAccounts } from '../../../lib/analyticsFleet';
+import { buildAnalyticsDashboardPreview, listAnalyticsAccounts } from '../../../lib/analyticsFleet';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
@@ -45,7 +45,12 @@ export async function GET(context: APIContext): Promise<Response> {
     const url = new URL(context.request.url);
     const rangeDays = parseRange(url.searchParams.get('range'));
     const company = await getCompanyConfig(context.request);
-    if ((url.searchParams.get('view') || '').trim() === 'accounts') {
+    const view = (url.searchParams.get('view') || '').trim();
+    if (view === 'preview') {
+      const analytics = await buildAnalyticsDashboardPreview(company.domain);
+      return json({ ok: true, view: 'preview', analytics });
+    }
+    if (view === 'accounts') {
       const fleet = await listAnalyticsAccounts(company.domain, {
         rangeDays,
         includeRailway: true,

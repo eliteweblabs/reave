@@ -117,6 +117,7 @@ async function plausibleGet<T>(
   try {
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(8_000),
     });
     const text = await res.text();
     if (!res.ok) {

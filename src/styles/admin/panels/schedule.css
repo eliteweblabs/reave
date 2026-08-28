@@ -63,6 +63,11 @@
   background: rgba(248, 113, 113, 0.08);
   border-color: rgba(248, 113, 113, 0.35);
 }
+.dash-uptime-tile--paused {
+  background: var(--surface-muted);
+  border-color: var(--panel-border);
+  opacity: 0.72;
+}
 #dashboard-panel button.dash-uptime-tile {
   width: 100%;
   border-radius: 10px;
@@ -137,6 +142,7 @@
   flex-shrink: 0;
 }
 .dash-uptime-tile--down .dash-uptime-dot { background: #f85149; }
+.dash-uptime-tile--paused .dash-uptime-dot { background: #8b949e; }
 .dash-uptime-name {
   font-size: var(--dash-uptime-name-size);
   font-weight: 600;

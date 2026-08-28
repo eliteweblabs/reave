@@ -176,7 +176,7 @@ export function uptimeStatusIsPaused(status: number): boolean {
   return status === UPTIME_MONITOR_STATUS.PAUSED;
 }
 
-/** Paused (disabled in UptimeRobot) or actively down — show as offline on the dashboard. */
+/** Paused (disabled in UptimeRobot) or actively down. */
 export function uptimeStatusIsOffline(status: number): boolean {
   return uptimeStatusIsDown(status) || uptimeStatusIsPaused(status);
 }
@@ -184,28 +184,35 @@ export function uptimeStatusIsOffline(status: number): boolean {
 export function uptimeMonitorTileMeta(
   status: number,
   uptimeRatio7d: number | null | undefined,
-): { offline: boolean; label: string } {
+): { offline: boolean; paused: boolean; label: string } {
   if (uptimeStatusIsPaused(status)) {
-    return { offline: true, label: 'offline' };
+    return { offline: false, paused: true, label: 'paused' };
   }
   if (uptimeStatusIsDown(status)) {
-    return { offline: true, label: 'down' };
+    return { offline: true, paused: false, label: 'down' };
   }
   if (uptimeRatio7d != null && Number.isFinite(Number(uptimeRatio7d))) {
-    return { offline: false, label: `${Number(uptimeRatio7d).toFixed(1)}%` };
+    return { offline: false, paused: false, label: `${Number(uptimeRatio7d).toFixed(1)}%` };
   }
-  return { offline: false, label: 'up' };
+  return { offline: false, paused: false, label: 'up' };
 }
 
 export function enrichUptimeMonitorView<T extends { status: number; uptime_ratio_7d?: number | null }>(
   monitor: T,
-): T & { status_label: string; is_down: boolean; is_offline: boolean; tile_label: string } {
+): T & {
+  status_label: string;
+  is_down: boolean;
+  is_offline: boolean;
+  is_paused: boolean;
+  tile_label: string;
+} {
   const tile = uptimeMonitorTileMeta(monitor.status, monitor.uptime_ratio_7d);
   return {
     ...monitor,
     status_label: uptimeStatusLabel(monitor.status),
     is_down: uptimeStatusIsDown(monitor.status),
     is_offline: tile.offline,
+    is_paused: tile.paused,
     tile_label: tile.label,
   };
 }

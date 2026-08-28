@@ -30,7 +30,11 @@ import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
-import { buildAnalyticsDashboardPreview, type AnalyticsFleetPreview } from '../../../lib/analyticsFleet';
+import {
+  buildAnalyticsDashboardPreview,
+  peekCachedAnalyticsDashboardPreview,
+  type AnalyticsFleetPreview,
+} from '../../../lib/analyticsFleet';
 import { isPlausibleConfigured } from '../../../lib/plausibleClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 
@@ -90,18 +94,12 @@ async function loadAnalyticsSlice(
   if (!analyticsConfigured) {
     return { analytics: null, analyticsConfigured: false };
   }
-  try {
-    const preview = await Promise.race([
-      buildAnalyticsDashboardPreview(companyDomain),
-      new Promise<null>((resolve) => {
-        setTimeout(() => resolve(null), 8000);
-      }),
-    ]);
-    return { analytics: preview, analyticsConfigured };
-  } catch (e) {
+  const cached = peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true });
+  const fresh = peekCachedAnalyticsDashboardPreview(companyDomain);
+  void buildAnalyticsDashboardPreview(companyDomain, { fresh: !fresh }).catch((e) => {
     console.error('[dashboard] analytics preview failed:', e instanceof Error ? e.message : e);
-    return { analytics: null, analyticsConfigured };
-  }
+  });
+  return { analytics: cached, analyticsConfigured };
 }
 
 async function loadBillingSlice(): Promise<{
