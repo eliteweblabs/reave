@@ -261,6 +261,8 @@ export type SiteContentConfig = {
   aboutImage?: string;
   clientLogos?: SiteClientLogo[];
   portfolio?: SitePortfolioItem[];
+  /** Scroll-driven rainbow `<meta name="theme-color">`. Opt-in per frontend site. */
+  rainbowThemeColor?: boolean;
 };
 
 function resolveHeroDemoAvatars(
@@ -429,6 +431,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       showContact: true,
       showLegalLinks: true,
     },
+    rainbowThemeColor: true,
   };
 }
 
@@ -478,6 +481,7 @@ export function loadSiteContentByKey(key: string): SiteContentConfig {
       aboutImage: siteMediaSrc(raw.aboutImage) || undefined,
       clientLogos: resolveClientLogos(raw.clientLogos),
       portfolio: resolvePortfolio(raw.portfolio),
+      rainbowThemeColor: raw.rainbowThemeColor === true,
     };
     _cache.set(slug, config);
     return config;
