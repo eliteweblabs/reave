@@ -1,5 +1,6 @@
 /**
  * GET /api/email/sent/:id — full outbound message (stored body, or Resend fallback).
+ * Rewrites leftover cid: compose images so the Sent iframe can show them.
  */
 
 import type { APIContext } from 'astro';
@@ -9,7 +10,7 @@ import {
   getOutboundEmail,
   updateOutboundEmailBodies,
 } from '../../../../lib/projectOutboundEmail';
-import { fetchResendSentEmail } from '../../../../lib/resendSentEmail';
+import { fetchResendSentEmail, rewriteSentEmailCidImages } from '../../../../lib/resendSentEmail';
 
 export const prerender = false;
 
@@ -44,12 +45,16 @@ export async function GET(context: APIContext): Promise<Response> {
     }
   }
 
+  const displayHtml = resolveSentEmailHtmlForDisplay(bodyHtml, bodyText);
+  const rewritten = await rewriteSentEmailCidImages(displayHtml, event.resendId);
+
   return json({
     ok: true,
     event: {
       ...event,
-      bodyHtml: resolveSentEmailHtmlForDisplay(bodyHtml, bodyText),
+      bodyHtml: rewritten.html,
       bodyText: plainTextForDisplay(bodyText),
+      attachments: rewritten.attachments,
     },
   });
 }

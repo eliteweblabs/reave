@@ -51,7 +51,7 @@ export async function brandedPlainTextEmail(opts: {
   signature?: string;
   /** Pre-built HTML for the quoted original (reply threads). */
   quotedHtml?: string;
-  /** CID inline images from compose paste/attach. */
+  /** Compose paste/attach images (hosted URL or cid:). */
   inlineImages?: EmailInlineImage[];
 }): Promise<{ text: string; html: string }> {
   const { draft, quote } = splitQuotedReplyBody(opts.body);

@@ -14053,6 +14053,44 @@ function openSentEvent(id) {
   ensureEmailMobilePaneOpen();
 }
 
+function emailAttachmentSizeLabel(size) {
+  if (typeof size !== 'number' || size <= 0) return '';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10240 ? 1 : 0)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function emailDetailAttachmentsHtml(attachments, hrefFor) {
+  const rows = Array.isArray(attachments) ? attachments : [];
+  if (!rows.length) return '';
+  return (
+    `<div class="em-detail-attachments">` +
+      `<div class="em-detail-attachments-title">${rows.length} attachment${rows.length === 1 ? '' : 's'}</div>` +
+      `<ul class="em-detail-attachments-list">` +
+      rows
+        .map((a) => {
+          const name = a.filename || 'attachment';
+          const size = emailAttachmentSizeLabel(a.size);
+          const href = hrefFor(a);
+          return (
+            `<li class="em-detail-attachment">` +
+              `<a class="em-detail-attachment-link" href="${escHtml(href)}" download="${escHtml(name)}">` +
+                `<span class="em-detail-attachment-name">${escHtml(name)}</span>` +
+                (size || a.contentType
+                  ? `<span class="em-detail-attachment-meta">${escHtml(
+                      [a.contentType, size].filter(Boolean).join(' · '),
+                    )}</span>`
+                  : '') +
+              `</a>` +
+            `</li>`
+          );
+        })
+        .join('') +
+      `</ul>` +
+    `</div>`
+  );
+}
+
 function sentShareText(ev) {
   return [
     ev.subject,
@@ -17008,6 +17046,14 @@ function renderEmailPane() {
           ? `<span><strong>Resend ID</strong> <code class="em-resend-id">${escHtml(sent.resendId)}</code></span>`
           : '') +
       `</div>`;
+    const sentAttachments = Array.isArray(sent.attachments) ? sent.attachments : [];
+    if (sentAttachments.length) {
+      detailHtml += emailDetailAttachmentsHtml(
+        sentAttachments,
+        (a) =>
+          `/api/email/sent/${encodeURIComponent(sent.id)}/attachments/${encodeURIComponent(a.id)}`,
+      );
+    }
     if (bodyHtmlSource) {
       detailHtml +=
         `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Sent message"></iframe></div>`;
@@ -17219,38 +17265,11 @@ function renderEmailPane() {
   if (auditHtml) detailHtml += `<div class="em-detail-audit">${auditHtml}</div>`;
   const attachments = Array.isArray(ev.attachments) ? ev.attachments : [];
   if (attachments.length) {
-    detailHtml +=
-      `<div class="em-detail-attachments">` +
-        `<div class="em-detail-attachments-title">${attachments.length} attachment${attachments.length === 1 ? '' : 's'}</div>` +
-        `<ul class="em-detail-attachments-list">` +
-        attachments
-          .map((a) => {
-            const name = a.filename || 'attachment';
-            const size =
-              typeof a.size === 'number' && a.size > 0
-                ? a.size < 1024
-                  ? `${a.size} B`
-                  : a.size < 1024 * 1024
-                    ? `${(a.size / 1024).toFixed(a.size < 10240 ? 1 : 0)} KB`
-                    : `${(a.size / (1024 * 1024)).toFixed(1)} MB`
-                : '';
-            const href = `/api/email/inbox/${encodeURIComponent(ev.id)}/attachments/${encodeURIComponent(a.id)}`;
-            return (
-              `<li class="em-detail-attachment">` +
-                `<a class="em-detail-attachment-link" href="${escHtml(href)}" download="${escHtml(name)}">` +
-                  `<span class="em-detail-attachment-name">${escHtml(name)}</span>` +
-                  (size || a.contentType
-                    ? `<span class="em-detail-attachment-meta">${escHtml(
-                        [a.contentType, size].filter(Boolean).join(' · '),
-                      )}</span>`
-                    : '') +
-                `</a>` +
-              `</li>`
-            );
-          })
-          .join('') +
-        `</ul>` +
-      `</div>`;
+    detailHtml += emailDetailAttachmentsHtml(
+      attachments,
+      (a) =>
+        `/api/email/inbox/${encodeURIComponent(ev.id)}/attachments/${encodeURIComponent(a.id)}`,
+    );
   }
   const bodyHtmlSource = (ev.bodyHtml || '').trim();
   const plainBody = ev.bodyText || ev.bodySnippet || '';
