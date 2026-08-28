@@ -66,6 +66,7 @@ import {
   looksLikeIncomingPayment,
   looksLikePaymentNotification,
   looksLikeShipmentNotice,
+  ruleBlocksReceiptOverride,
   shouldAutoFileAsReceipt,
 } from './emailMoney';
 import {
@@ -200,8 +201,10 @@ function shouldSkipAutoReceipt(opts: {
   category: EmailCategory;
   ruleStatus: string;
   isProjectReply: boolean;
+  forwardTo?: string | null;
 }): boolean {
   if (opts.isProjectReply) return true;
+  if (ruleBlocksReceiptOverride(opts.forwardTo)) return true;
   if (opts.category === 'junk' || opts.category === 'auto_deleted') return true;
   if (opts.category === 'alert') return true;
   if (opts.ruleStatus.toUpperCase() === 'AUTO_ARCHIVED') return true;
@@ -1014,7 +1017,8 @@ export async function processInboundEmail(
         : 'Activation link — tap Activate';
     }
 
-    // Receipt override: DELETE must not win over a completed payment receipt.
+    // Receipt override: DELETE must not win over a completed payment receipt —
+    // unless the matched rule already forwards the mail away from this inbox.
     if (
       !isVerificationCode &&
       !isAuthLink &&
@@ -1027,7 +1031,13 @@ export async function processInboundEmail(
         bodyText,
         bodySnippet: snippet(bodyText),
       });
-      if (earlyReceipt) {
+      if (earlyReceipt && ruleBlocksReceiptOverride(forwardTo)) {
+        pushAudit(
+          'override',
+          'Forward rule kept — skip receipt override',
+          `Matched mail is relayed to ${forwardTo}; no dashboard tax receipt`,
+        );
+      } else if (earlyReceipt) {
         category = 'receipt';
         action = 'receipt';
         routeNote = earlyReceipt.routeNote;
@@ -1272,6 +1282,7 @@ export async function processInboundEmail(
       category,
       ruleStatus: ruleResult.status,
       isProjectReply,
+      forwardTo,
     })
   ) {
     const autoReceipt = shouldAutoFileAsReceipt({

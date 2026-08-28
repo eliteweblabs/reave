@@ -177,6 +177,14 @@ function receiptAuditStep(
   return detail ? { step, decision, detail } : { step, decision };
 }
 
+/**
+ * A matched Forward-to rule already relocated this mail.
+ * Do not steal it back as a tax receipt (dashboard / Crater banner).
+ */
+export function ruleBlocksReceiptOverride(forwardTo?: string | null): boolean {
+  return Boolean(forwardTo?.trim());
+}
+
 /** Auto-file as tax/expense receipt when text has a dollar amount and expense-side keywords. */
 export function shouldAutoFileAsReceipt(ev: {
   from?: string;

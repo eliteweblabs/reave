@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import {
   looksLikeFailedOrDuePayment,
   looksLikeShipmentNotice,
+  ruleBlocksReceiptOverride,
   shouldAutoFileAsReceipt,
 } from '../src/lib/emailMoney';
 import {
@@ -531,6 +532,13 @@ function main() {
     assert.equal(looksLikeFailedOrDuePayment(stripeCapital), true, 'stripe capital is due/debit');
     assert.equal(shouldAutoFileAsReceipt(stripeCapital), null, 'stripe capital is not a receipt');
     assert.ok(shouldAutoFileAsReceipt(amazonOrder), 'amazon order confirm is a receipt');
+    assert.equal(ruleBlocksReceiptOverride(null), false, 'no forward keeps receipt override');
+    assert.equal(ruleBlocksReceiptOverride(''), false, 'empty forward keeps receipt override');
+    assert.equal(
+      ruleBlocksReceiptOverride('jk@jasonkahan.com'),
+      true,
+      'forward rule blocks receipt override / dashboard tax receipt',
+    );
 
     const buildPhrases = extractPhrases({
       subject: 'Build failed for REAVE App Demo',
