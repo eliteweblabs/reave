@@ -127,6 +127,10 @@ const heroMarkSilhouette = neonMark
             </svg>
           </span>
         </template>
+        {/* Zero-width probe: its bottom edge is where the lane mask reaches full
+            opacity. Measuring it beats re-deriving the gradient in JS, which
+            cannot resolve dvh/clamp from a custom property. */}
+        <div class="home-hero-demo-fade-probe" data-hero-demo-fade-probe aria-hidden="true" />
         <div class="home-hero-demo-viewport" data-hero-demo-viewport>
           <div class="home-hero-demo-stack" data-hero-demo-stack role="list"></div>
         </div>
@@ -165,8 +169,18 @@ const heroMarkSilhouette = neonMark
      * may travel, --fade how long the mask takes to reach full opacity under
      * it. A turn is gone by the time it clears the headline.
      */
+    /*
+     * dvh, not vh: `vh` resolves against the *large* viewport (URL bar
+     * retracted), while the hero itself is sized in dvh. On iOS that mismatch
+     * made the ramp longer than the box it fades inside, so the lane was still
+     * washing out well below where it does on desktop.
+     */
     --home-hero-demo-rise: clamp(120px, 18vh, 190px);
-    --home-hero-demo-fade: calc(var(--home-hero-demo-rise) + clamp(90px, 13vh, 140px));
+    --home-hero-demo-rise: clamp(120px, 18dvh, 190px);
+    /* Distance past the brand block before the lane is fully opaque. */
+    --home-hero-demo-fade-run: clamp(90px, 13vh, 140px);
+    --home-hero-demo-fade-run: clamp(90px, 13dvh, 140px);
+    --home-hero-demo-fade: calc(var(--home-hero-demo-rise) + var(--home-hero-demo-fade-run));
     position: relative;
     z-index: 0;
     width: 100%;
@@ -397,6 +411,12 @@ const heroMarkSilhouette = neonMark
     .home-hero {
       /* Keep the chat lane tucked under the raised brand block. */
       --home-hero-brand-bottom: 32%;
+      /*
+       * Phones give the lane ~260px under the brand block. A 90px ramp spent a
+       * third of that fading, which is what left the top half of an open
+       * slash/mention picker washed out. Shorter ramp, same intent.
+       */
+      --home-hero-demo-fade-run: clamp(56px, 9dvh, 96px);
     }
 
     .home-hero-title {
@@ -458,6 +478,17 @@ const heroMarkSilhouette = neonMark
   .home-hero-demo--stopped {
     opacity: 0;
     transition: opacity 1.13s ease;
+  }
+
+  /* Out of flow and never painted — exists only to be measured. */
+  .home-hero-demo-fade-probe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: var(--home-hero-demo-fade);
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .home-hero-demo-viewport {
