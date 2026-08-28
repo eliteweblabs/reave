@@ -586,6 +586,25 @@ export async function storeReadWork(slug: string): Promise<WorkJobDoc | null> {
   return fileReadWork(slug);
 }
 
+/** Which of `slugs` still have a live work record. */
+export async function storeExistingWorkSlugs(slugs: string[]): Promise<Set<string>> {
+  const unique = [...new Set(slugs.map((s) => s.trim()).filter(Boolean))];
+  const found = new Set<string>();
+  if (!unique.length) return found;
+  if (isWorkDbConfigured()) {
+    const { dbExistingWorkSlugs } = await import('./pgJobs');
+    const rows = await dbExistingWorkSlugs(unique);
+    if (rows) {
+      for (const slug of rows) found.add(slug);
+      return found;
+    }
+  }
+  for (const slug of unique) {
+    if (fileReadWork(slug)) found.add(slug);
+  }
+  return found;
+}
+
 export async function storeWriteWork(
   slug: string,
   input: WorkJobInput,
@@ -698,6 +717,10 @@ async function cleanupDeletedWorkSlug(slug: string): Promise<void> {
   const { unlinkAllProjectItems } = await import('./projectLinks');
   await unlinkAllProjectItems(slug).catch((e) => {
     console.warn('[work] project-link cleanup failed', e);
+  });
+  const { storeClearEmailInboxJobLinks } = await import('./emailInboxStore');
+  await storeClearEmailInboxJobLinks(slug).catch((e) => {
+    console.warn('[work] inbox job-link cleanup failed', e);
   });
 }
 

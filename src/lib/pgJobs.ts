@@ -279,6 +279,23 @@ export async function dbReadWork(slug: string): Promise<WorkJobDoc | null> {
   }
 }
 
+export async function dbExistingWorkSlugs(slugs: string[]): Promise<string[] | null> {
+  const unique = [...new Set(slugs.map((s) => s.trim()).filter(Boolean))];
+  if (!unique.length) return [];
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{ slug: string }>(
+      `SELECT slug FROM jobs WHERE slug = ANY($1::text[])`,
+      [unique],
+    );
+    return rows.map((row) => row.slug);
+  } catch (e) {
+    console.error('[jobs:pg] existing slugs error:', e);
+    return null;
+  }
+}
+
 export async function dbCreateWork(input: {
   slug: string;
   title: string;

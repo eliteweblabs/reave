@@ -4318,6 +4318,19 @@ async function navigateToWorkIfExists(slug, opts = {}) {
   return true;
 }
 
+async function openEmailLinkedProject(ev) {
+  const slug = ev?.jobSlug;
+  if (!slug) return;
+  if (await navigateToWorkIfExists(slug, { fromEmailId: ev.id || null })) return;
+  ev.jobSlug = null;
+  ev.jobTitle = null;
+  if (emailState.activeId === ev.id) renderEmailPane();
+  await osAlert({
+    title: `${postTitle(1)} not found`,
+    bodyHtml: `This ${postLower(1)} was deleted.`,
+  });
+}
+
 async function handleMissingWorkNotification(item) {
   await dismissReviewNotification(item);
   await osAlert({
@@ -17178,7 +17191,14 @@ function renderEmailPane() {
     const projectBtn = detail.querySelector('.em-project-link');
     if (projectBtn && sent.jobSlug) {
       projectBtn.addEventListener('click', () => {
-        setActiveMap('work', { force: true, workSlug: sent.jobSlug });
+        void navigateToWorkIfExists(sent.jobSlug).then((ok) => {
+          if (!ok) {
+            void osAlert({
+              title: `${postTitle(1)} not found`,
+              bodyHtml: `This ${postLower(1)} was deleted.`,
+            });
+          }
+        });
       });
     }
     const bodyFrame = detail.querySelector('.em-detail-body-frame');
@@ -17460,7 +17480,7 @@ function renderEmailPane() {
   }
   void mountEmailScheduleActions(detail.querySelector('.em-schedule-actions'), ev);
   detail.querySelectorAll('.em-project-link').forEach((btn) => {
-    btn.addEventListener('click', () => navigateToWork(ev.jobSlug, { fromEmailId: ev.id }));
+    btn.addEventListener('click', () => void openEmailLinkedProject(ev));
   });
   detail.querySelector('[data-em-add-contact]')?.addEventListener('click', () => {
     openNewContactFromEmail(ev);

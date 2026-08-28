@@ -882,7 +882,71 @@ export async function storeClaimEmailInboxNotified(id: string): Promise<boolean>
   return writeFileEvents(events);
 }
 
-export async function storeGetEmailInbox(id: string): Promise<EmailInboxRecord | null> {
+function withoutJobLink(record: EmailInboxRecord): EmailInboxRecord {
+  if (!record.jobSlug && !record.jobTitle) return record;
+  return { ...record, jobSlug: null, jobTitle: null };
+}
+
+/** Drop denormalized job chips whose project no longer exists, and persist the clear. */
+async function dropMissingJobLinks(records: EmailInboxRecord[]): Promise<EmailInboxRecord[]> {
+  const slugs = [
+    ...new Set(records.map((record) => record.jobSlug?.trim()).filter((slug): slug is string => Boolean(slug))),
+  ];
+  if (!slugs.length) return records;
+  try {
+    const { storeExistingWorkSlugs } = await import('./workStore');
+    const existing = await storeExistingWorkSlugs(slugs);
+    const stale = new Set<string>();
+    const next = records.map((record) => {
+      const slug = record.jobSlug?.trim();
+      if (!slug || existing.has(slug)) return record;
+      stale.add(slug);
+      return withoutJobLink(record);
+    });
+    if (stale.size) {
+      void Promise.all([...stale].map((slug) => storeClearEmailInboxJobLinks(slug))).catch((e) => {
+        console.warn('[email-inbox] stale job-link heal failed', e);
+      });
+    }
+    return next;
+  } catch (e) {
+    console.warn('[email-inbox] job-link existence check failed', e);
+    return records;
+  }
+}
+
+/** Clear inbox job_slug/job_title snapshots after a project is deleted. */
+export async function storeClearEmailInboxJobLinks(jobSlug: string): Promise<number> {
+  const slug = jobSlug.trim();
+  if (!slug) return 0;
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return 0;
+      const { rowCount } = await pool.query(
+        `UPDATE email_inbox SET job_slug = NULL, job_title = NULL WHERE job_slug = $1`,
+        [slug],
+      );
+      return rowCount ?? 0;
+    } catch (e) {
+      console.error('[email-inbox] clear job links failed', e);
+      return 0;
+    }
+  }
+  const path = inboxFilePath();
+  if (!existsSync(path)) return 0;
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  let cleared = 0;
+  const next = events.map((event) => {
+    if (event.jobSlug !== slug) return event;
+    cleared += 1;
+    return withoutJobLink(event);
+  });
+  if (cleared === 0) return 0;
+  return writeFileEvents(next) ? cleared : 0;
+}
+
+async function storeGetEmailInboxRaw(id: string): Promise<EmailInboxRecord | null> {
   if (databaseUrl()) {
     try {
       const pool = await ensureSchema();
@@ -901,16 +965,24 @@ export async function storeGetEmailInbox(id: string): Promise<EmailInboxRecord |
   return parseFileEvents(readFileSync(path, 'utf8')).find((e) => e.id === id) ?? null;
 }
 
+export async function storeGetEmailInbox(id: string): Promise<EmailInboxRecord | null> {
+  const record = await storeGetEmailInboxRaw(id);
+  if (!record) return null;
+  const [healed] = await dropMissingJobLinks([record]);
+  return healed ?? record;
+}
+
 export async function storeListEmailInbox(
   limit = 100,
   opts?: { hideJunk?: boolean; forDigest?: boolean },
 ): Promise<EmailInboxRecord[]> {
   const hideJunk = opts?.hideJunk !== false;
-  if (databaseUrl()) {
-    if (opts?.forDigest) return listAllFromPg(limit);
-    return listFromPg(limit, hideJunk);
-  }
-  return listFromFile(limit, hideJunk);
+  const rows = databaseUrl()
+    ? opts?.forDigest
+      ? await listAllFromPg(limit)
+      : await listFromPg(limit, hideJunk)
+    : await listFromFile(limit, hideJunk);
+  return dropMissingJobLinks(rows);
 }
 
 const RECEIPT_SCAN_SELECT = `${INBOX_LIST_SELECT}, body_text`;
