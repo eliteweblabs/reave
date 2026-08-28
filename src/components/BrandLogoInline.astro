@@ -9,9 +9,10 @@ import InlineBrandSvg from './InlineBrandSvg.astro';
 
 export interface Props {
   company: CompanyConfig;
+  idPrefix?: string;
 }
 
-const { company } = Astro.props;
+const { company, idPrefix = 'header-logo' } = Astro.props;
 const inlineLogoSvg = companyUsableInlineSvg(company.logoSvg);
 const logoImageUrl = hasCompanyHeaderLogoImage(company)
   ? companyLogoUrl(company.logoPath, company.logoVersion)
@@ -24,7 +25,7 @@ const displayName = company.name?.trim() || 'Business OS';
     <InlineBrandSvg
       svg={inlineLogoSvg}
       class="app-header-logo-svg"
-      idPrefix="header-logo"
+      idPrefix={idPrefix}
     />
   ) : logoImageUrl ? (
     <img

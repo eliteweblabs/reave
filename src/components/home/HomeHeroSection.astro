@@ -5,8 +5,8 @@
  * it, because isolation:isolate would trap position:fixed.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
-import { companyHeroIconSvg, getCompanyConfig } from "../../lib/companyConfig";
-import { prepareInlineBrandSvg, svgHasExternalRasterRefs, withSvgFill } from "../../lib/brandSvg";
+import BrandIconLockup from "../../components/BrandIconLockup.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
 import { siteMediaSrc } from "../../lib/siteMedia";
@@ -29,40 +29,6 @@ const homepage = siteContent.homepage;
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 const showHeroCtas = (homepage.ctas?.length ?? 0) > 0;
 const mapboxToken = getPublicMapboxAccessToken() || "";
-
-/**
- * Glass-neon mark: the glyph is a window onto a slow field of coloured light,
- * with a bloom around it.
- *
- * The pasted artwork is the mask, unmodified — mask-mode is alpha, so whatever
- * colour the paths carry, an opaque glyph gives an exact silhouette. It has to
- * be a real vector with a viewBox to work as a CSS image, and an <image>
- * sidecar will not load inside one (image documents cannot fetch external
- * resources), which would leave an empty mask and no visible mark. Installs
- * failing either test keep the solid mark.
- */
-const heroIconSvg = companyHeroIconSvg(company);
-/* Marks pasted without a fill rely on the Illustrator default; as a mask that
- * would read as an empty silhouette, so pin one the way the favicon does. */
-const heroMaskSvg = heroIconSvg
-  ? prepareInlineBrandSvg(withSvgFill(heroIconSvg, "#000"), { idPrefix: "hero-mark-mask" })
-  : null;
-const heroMaskUsable = Boolean(
-  heroMaskSvg && /xmlns\s*=/i.test(heroMaskSvg) && /viewBox\s*=/i.test(heroMaskSvg),
-);
-const neonMark = heroMaskUsable && !svgHasExternalRasterRefs(heroIconSvg);
-/*
- * Percent-encode the parens and apostrophes encodeURIComponent leaves alone,
- * then wrap in single quotes: this value travels through a style attribute and
- * then a url() token, and an unescaped quote or paren silently kills the mask —
- * which does not fail loudly, it just makes the masked layer disappear.
- */
-const heroMarkSilhouette = neonMark
-  ? `url('data:image/svg+xml,${encodeURIComponent(heroMaskSvg as string)
-      .replace(/\(/g, "%28")
-      .replace(/\)/g, "%29")
-      .replace(/'/g, "%27")}')`
-  : "";
 ---
 
 <section
@@ -72,27 +38,7 @@ const heroMarkSilhouette = neonMark
   aria-labelledby="home-hero-title"
 >
   <div class="home-hero-brand" data-hero-brand>
-    <div class="home-hero-icon-wrap" data-hero-icon>
-      {neonMark ? (
-        <span
-          class="home-hero-mark"
-          aria-hidden="true"
-          style={`--home-hero-mark-silhouette: ${heroMarkSilhouette};`}
-        >
-          <span class="home-hero-mark-bloom">
-            <span class="home-hero-mark-paint">
-              <span class="home-hero-mark-sweep"></span>
-            </span>
-          </span>
-          <span class="home-hero-mark-paint home-hero-mark-paint--face">
-            <span class="home-hero-mark-sweep"></span>
-            <span class="home-hero-mark-sheen"></span>
-          </span>
-        </span>
-      ) : (
-        <BrandIconInline company={company} />
-      )}
-    </div>
+    <BrandIconLockup company={company} variant="hero" idPrefix="hero-icon" />
     <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
   </div>
 
@@ -213,182 +159,6 @@ const heroMarkSilhouette = neonMark
     width: min(100%, 540px);
     padding: 0 20px;
     pointer-events: none;
-  }
-
-  .home-hero-icon-wrap {
-    position: relative;
-    z-index: 1;
-    flex: none;
-    box-sizing: content-box;
-    width: var(--home-hero-icon-size);
-    height: var(--home-hero-icon-size);
-    padding: var(--home-hero-icon-pad);
-    /* Hug the letterforms — 512² canvases have ~27% empty box above the ink. */
-    margin-top: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-above) * -1);
-    pointer-events: none;
-    overflow: visible;
-    isolation: isolate;
-  }
-
-  /* ---- Glass-neon mark: the glyph as a mask over a moving spectrum ---- */
-
-  .home-hero-mark {
-    /*
-     * One saturated spectrum rather than a field of coloured blobs. Blobs left
-     * gaps between them, and a gap falls through to whatever is underneath —
-     * on a near-black canvas that reads as a hole in the logo. A gradient has
-     * no gaps, so every part of the glyph is lit at all times.
-     *
-     * Period is in px so the travel per loop can match it exactly; the last stop
-     * repeats the first so the wrap has no hard edge.
-     */
-    --home-hero-mark-period: 210px;
-    --home-hero-mark-spectrum: repeating-linear-gradient(
-      45deg,
-      #ff2d6f 0px,
-      #ff8a00 35px,
-      #ffe600 70px,
-      #34ff9b 105px,
-      #00e0ff 140px,
-      #4b6bff 175px,
-      #ff2d6f 210px
-    );
-    --home-hero-mark-ink: saturate(1.15) brightness(0.94);
-    --home-hero-mark-bloom-blur: 22px;
-    --home-hero-mark-bloom-opacity: 0.5;
-    position: relative;
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-
-  :global(html[data-theme="dark"]) .home-hero-mark {
-    --home-hero-mark-ink: saturate(1.2) brightness(1.06);
-    --home-hero-mark-bloom-opacity: 0.75;
-  }
-
-  /* The glyph itself: mask plus colour grade, both static. */
-  .home-hero-mark-paint {
-    position: absolute;
-    inset: 0;
-    filter: var(--home-hero-mark-ink);
-    -webkit-mask-image: var(--home-hero-mark-silhouette);
-    mask-image: var(--home-hero-mark-silhouette);
-    -webkit-mask-size: 100% 100%;
-    mask-size: 100% 100%;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-  }
-
-  /*
-   * The moving part, and it moves by transform rather than by background-position.
-   * Animating a paint property on a layer that also carries a mask and a filter
-   * works on desktop but is the kind of thing mobile Safari rasterises once and
-   * never repaints — the mark just sat there on iOS. A transform is composited,
-   * so it animates without asking anything to repaint, which is also cheaper on
-   * a phone.
-   *
-   * Repeating rather than a one-shot ramp, because that makes the loop exact:
-   * shifting a periodic gradient by exactly one period reproduces the same
-   * pixels, so this can run continuously instead of ping-ponging, with no seam
-   * and no reversal. Keep --home-hero-mark-period and the keyframe in step —
-   * the translation is one period along the 45deg axis, i.e. period ÷ √2 on
-   * each axis.
-   */
-  .home-hero-mark-sweep {
-    position: absolute;
-    /* Room for a full period of travel beyond the glyph in both directions. */
-    inset: -150%;
-    background: var(--home-hero-mark-spectrum);
-    animation: homeHeroMarkSweep 3.5s linear infinite;
-  }
-
-  /*
-   * The halo is the same painted glyph, blurred — which is why its colour
-   * tracks the fill instead of reading as a coloured drop shadow. The blur has
-   * to sit on the PARENT: filters are applied before masking, so blurring the
-   * masked layer itself would spread the paint and then clip it back to the
-   * glyph, and nothing would escape.
-   */
-  .home-hero-mark-bloom {
-    position: absolute;
-    inset: 0;
-    filter: blur(var(--home-hero-mark-bloom-blur));
-    opacity: var(--home-hero-mark-bloom-opacity);
-  }
-
-  /* Specular pass — reads as glass over the light rather than a flat fill. */
-  .home-hero-mark-sheen {
-    position: absolute;
-    inset: -20%;
-    background: linear-gradient(
-      118deg,
-      transparent 34%,
-      rgba(255, 255, 255, 0.55) 47%,
-      rgba(255, 255, 255, 0.16) 53%,
-      transparent 66%
-    );
-    opacity: 0.4;
-    animation: homeHeroMarkSheen 5.25s ease-in-out infinite;
-    animation-delay: -1.75s;
-  }
-
-  /* One period along the gradient axis: 210px ÷ √2 = 148.49px per axis. linear,
-   * because any easing would make a continuous loop visibly stutter. */
-  @keyframes homeHeroMarkSweep {
-    from {
-      transform: translate3d(0, 0, 0);
-    }
-    to {
-      transform: translate3d(148.49px, -148.49px, 0);
-    }
-  }
-
-  @keyframes homeHeroMarkSheen {
-    0%,
-    100% {
-      transform: translate3d(-26%, -12%, 0);
-    }
-    50% {
-      transform: translate3d(26%, 12%, 0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .home-hero-mark-sweep,
-    .home-hero-mark-sheen {
-      animation: none;
-    }
-  }
-
-  .home-hero-icon-wrap > :global(svg),
-  .home-hero-icon-wrap > :global(img) {
-    position: relative;
-    z-index: 1;
-    display: block;
-    width: 100%;
-    height: 100%;
-    filter: none;
-  }
-
-  .home-hero-icon-wrap > :global(.home-hero-icon-name) {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 0 8px;
-    font-family: var(--font-primary);
-    font-size: clamp(1.35rem, 3.2vw, 2rem);
-    font-weight: 600;
-    letter-spacing: -0.04em;
-    line-height: 1.1;
-    text-align: center;
-    color: var(--site-fg, #171717);
   }
 
   .home-hero-title {

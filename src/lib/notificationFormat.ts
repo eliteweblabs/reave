@@ -234,8 +234,9 @@ export function normalizePushAlertCopy(
 
 /**
  * Phone-banner title: "{PWA name} - {notification title}".
- * iOS also prepends "from {document.title}" — keep that page title as the PWA
- * name (not the marketing tagline) so the banner is not triple-branded.
+ * HTML `<title>` is a separate string (`formatHtmlPageTitle`) — do not pass
+ * page titles or taglines here. iOS may also prepend "from {document.title}";
+ * standalone PWAs pin that to the company name via PwaDocumentTitle.
  */
 export function formatPwaPushTitle(pwaTitle: string, notificationTitle: string): string {
   const pwa = pwaTitle.trim();

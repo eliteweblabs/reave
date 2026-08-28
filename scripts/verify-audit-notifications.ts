@@ -4,6 +4,7 @@
  * Run: npm run check:audit-notifications
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { renderButton } from '../src/lib/chatResponseRenderer.ts';
 import {
   auditLabelFromTitle,
@@ -17,6 +18,7 @@ import {
   normalizePushAlertCopy,
   stripNotificationDecorations,
 } from '../src/lib/notificationFormat.ts';
+import { formatHtmlPageTitle, formatPwaAppTitle } from '../src/lib/pageTitle.ts';
 import { formatOtpPushNotification } from '../src/lib/emailOtpParser.ts';
 import { isAuditWorkInProgress } from '../src/lib/auditReportCard.ts';
 import {
@@ -204,6 +206,48 @@ const wayneReply = [
   assert.equal(otp.title, 'Verification code');
   assert.equal(otp.body, 'Code 95014 — tap to copy');
   console.log('ok — phone push is "{PWA title} - {notification title}" plus the description only');
+}
+
+{
+  assert.equal(
+    formatHtmlPageTitle({
+      siteName: 'reΛVe.app',
+      tagline: 'Small Business, Smaller Workday',
+    }),
+    'reΛVe.app | Small Business, Smaller Workday',
+  );
+  assert.equal(
+    formatHtmlPageTitle({ page: 'Features', siteName: 'reΛVe.app' }),
+    'Features | reΛVe.app',
+  );
+  assert.equal(
+    formatHtmlPageTitle({ page: 'Sign in — reΛVe.app', siteName: 'reΛVe.app' }),
+    'Sign in — reΛVe.app',
+  );
+  assert.equal(formatPwaAppTitle('reΛVe.app'), 'reΛVe.app');
+  assert.notEqual(
+    formatHtmlPageTitle({
+      siteName: 'reΛVe.app',
+      tagline: 'Small Business, Smaller Workday',
+    }),
+    formatPwaAppTitle('reΛVe.app'),
+  );
+  const phone = formatNotificationPayload('Verification code', 'Code 95014 — tap to copy', {
+    pwaTitle: formatPwaAppTitle('reΛVe.app'),
+  });
+  assert.equal(phone.title.includes('Smaller Workday'), false);
+  console.log('ok — HTML page titles keep the tagline; push uses the PWA name only');
+}
+
+{
+  const hero = readFileSync('src/components/home/HomeHeroSection.astro', 'utf8');
+  const card = readFileSync('src/pages/card.astro', 'utf8');
+  const header = readFileSync('src/components/Header.astro', 'utf8');
+  assert.match(hero, /BrandIconLockup/);
+  assert.match(card, /BrandIconLockup/);
+  assert.match(card, /BrandLogoInline/);
+  assert.match(header, /BrandLogoInline/);
+  console.log('ok — homepage and /card share BrandIconLockup; header and /card share BrandLogoInline');
 }
 
 console.log('all audit notification checks passed');

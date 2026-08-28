@@ -11,11 +11,13 @@ import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from "../lib/ogImageSize";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
+import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import { shareSafeText } from "../lib/shareSafeText";
 import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import CookieNotice from "../components/CookieNotice.astro";
+import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ThemeInit from "../components/ThemeInit.astro";
 import "../styles/brand.css";
 
@@ -64,16 +66,18 @@ const themeColor = themeColorProp ?? "#ffffff";
 const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
 const ogImage = ogImageProp ?? companyOgImageUrl(company);
+const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 /**
- * Browser tab / iOS web-push "from" line — "{Page} | {PWA name}".
- * Do not append company.description (the marketing tagline). iOS copies
- * `<title>` into every push banner as "from …", so a homepage title like
- * "reΛVe.app | Small Business, Smaller Workday" leaked into alerts.
+ * Browser tab / SEO title — page name, or company + tagline on the homepage.
+ * Push banners use `formatPwaAppTitle` / `apple-mobile-web-app-title`, not this.
  */
-const titleParts = [title, company.name]
-  .map((part) => part?.trim() ?? "")
-  .filter((part, i, arr): part is string => Boolean(part) && arr.indexOf(part) === i);
-const pageTitle = titleParts.join(" | ");
+const pwaTitle = formatPwaAppTitle(company.name);
+const pageTitle = formatHtmlPageTitle({
+  page: title,
+  siteName: company.name,
+  tagline: isIndexPage ? company.description : undefined,
+});
 /** Link-preview title — page name on inner pages, company name on homepage. ASCII-folded so iMessage does not render reΛVe as re/\Ve. */
 const shareTitle = shareSafeText(title?.trim() || company.name);
 /** Omit on homepage: og:site_name + og:title with the same value renders as "Name · Name" in iMessage/Slack. */
@@ -90,9 +94,6 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${LOGO_ICON_OG_PATH}`
   : ogImageAbsolute;
 const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
-
-const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
-const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const fullBleed = fullBleedProp ?? isIndexPage;
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
@@ -122,8 +123,8 @@ try {
 		<meta name="theme-color" content={themeColor} />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-title" content={company.name} />
-		<meta name="application-name" content={company.name} />
+		<meta name="apple-mobile-web-app-title" content={pwaTitle} />
+		<meta name="application-name" content={pwaTitle} />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="generator" content={Astro.generator} />
 
@@ -133,6 +134,7 @@ try {
 		<BrandFontHead fonts={company.fonts} />
 
 		<title>{pageTitle}</title>
+		<PwaDocumentTitle pwaTitle={pwaTitle} />
 		<meta name="description" content={description} />
 		<link rel="canonical" href={canonical} />
 		{noIndex && <meta name="robots" content="noindex, nofollow" />}

@@ -49,6 +49,7 @@ import { googlePlacesListedFlag } from '../../lib/auditPlacesListing';
 import SiteFooter from '../../components/SiteFooter.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
+import PwaDocumentTitle from '../../components/PwaDocumentTitle.astro';
 import ViewportMeta from '../../components/ViewportMeta.astro';
 import SiteBackground from '../../components/SiteBackground.astro';
 import ThemeInit from '../../components/ThemeInit.astro';
@@ -444,6 +445,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     <ViewportMeta />
     <meta name="robots" content="noindex, nofollow" />
     <title>{notFound ? 'Not found' : pageTitle}</title>
+    {!notFound && <PwaDocumentTitle pwaTitle={appTitle} />}
     {!notFound && (
       <>
         <meta name="description" content={ogDescription} />

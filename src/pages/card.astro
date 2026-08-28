@@ -4,19 +4,17 @@
  * Program chips to https://{domain}/card (or /nfc).
  */
 import BrandFontHead from '../components/BrandFontHead.astro';
-import BrandIconInline from '../components/BrandIconInline.astro';
+import BrandIconLockup from '../components/BrandIconLockup.astro';
+import BrandLogoInline from '../components/BrandLogoInline.astro';
 import Favicon from '../components/Favicon.astro';
+import PwaDocumentTitle from '../components/PwaDocumentTitle.astro';
 import SiteBackground from '../components/SiteBackground.astro';
 import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import { mapsDirectionsUrl } from '../lib/calendarLinks';
 import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
-import {
-  companyHeroIconImageUrl,
-  companyHeroIconSvg,
-  companyOgImageUrl,
-  getCompanyConfig,
-} from '../lib/companyConfig';
+import { companyOgImageUrl, getCompanyConfig } from '../lib/companyConfig';
+import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
 import { contactTelHref } from '../lib/contactApi';
 import { LOGO_ICON_OG_PATH } from '../lib/companyLogo';
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
@@ -54,9 +52,9 @@ const directionsHref = (() => {
   return '';
 })();
 
-const hasMark = Boolean(companyHeroIconSvg(company) || companyHeroIconImageUrl(company));
 const vcardLabel = `Add ${displayName}`;
-const pageTitle = displayName;
+const pwaTitle = formatPwaAppTitle(displayName);
+const pageTitle = formatHtmlPageTitle({ siteName: displayName, tagline });
 const shareTitle = shareSafeText(displayName);
 const description =
   tagline || `Call, text, save ${displayName} to contacts, or get directions.`;
@@ -81,9 +79,11 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content={displayName} />
+    <meta name="apple-mobile-web-app-title" content={pwaTitle} />
+    <meta name="application-name" content={pwaTitle} />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>{pageTitle}</title>
+    <PwaDocumentTitle pwaTitle={pwaTitle} />
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={shareTitle} />
@@ -104,12 +104,10 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     <SiteBackground />
     <main class="nfc-shell">
       <header class="nfc-brand">
-        {hasMark && (
-          <div class="nfc-mark" aria-hidden="true">
-            <BrandIconInline company={company} class="nfc-mark-icon" idPrefix="nfc-mark" />
-          </div>
-        )}
-        <h1 class="nfc-name">{displayName}</h1>
+        <BrandIconLockup company={company} variant="card" idPrefix="nfc-mark" />
+        <h1 class="nfc-name" aria-label={displayName}>
+          <BrandLogoInline company={company} idPrefix="nfc-logo" />
+        </h1>
         {tagline && <p class="nfc-tagline">{tagline}</p>}
       </header>
 
@@ -207,33 +205,37 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     margin-bottom: 36px;
   }
 
-  .nfc-mark {
+  .nfc-name {
     display: flex;
-    align-items: center;
     justify-content: center;
-    width: 5.5rem;
-    height: 5.5rem;
-    margin-bottom: 1.25rem;
+    width: min(100%, 16rem);
+    margin: 0;
+    line-height: 0;
   }
 
-  .nfc-mark-icon {
+  .nfc-name :global(.app-header-logo-svg),
+  .nfc-name :global(.app-header-logo-img) {
     display: block;
     width: 100%;
-    height: 100%;
-    object-fit: contain;
+    height: auto;
+    max-width: 100%;
   }
 
-  html[data-theme='dark'] .nfc-mark-icon {
+  html[data-theme='dark'] .nfc-name :global(.app-header-logo-svg),
+  html[data-theme='dark'] .nfc-name :global(.app-header-logo-img) {
     filter: invert(1);
   }
 
-  .nfc-name {
-    margin: 0;
+  .nfc-name :global(.app-header-logo-name) {
+    display: block;
+    width: 100%;
     font-family: var(--font-primary);
     font-size: clamp(1.75rem, 6vw, 2.15rem);
     font-weight: 600;
     letter-spacing: -0.04em;
     line-height: 1.1;
+    text-align: center;
+    color: var(--site-fg, #171717);
   }
 
   .nfc-tagline {

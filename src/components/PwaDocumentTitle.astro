@@ -1,0 +1,25 @@
+---
+/**
+ * Pin `document.title` to the short PWA name when the page is running as an
+ * installed home-screen app. Browser tabs keep the full HTML `<title>`
+ * (page + tagline). iOS web-push prefixes banners with "from {document.title}",
+ * so the standalone title must stay the company name — never the marketing title.
+ */
+interface Props {
+  pwaTitle: string;
+}
+
+const { pwaTitle } = Astro.props;
+const name = pwaTitle.trim();
+---
+
+{name && (
+  <script is:inline define:vars={{ name }}>
+    (function () {
+      var standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+      if (standalone) document.title = name;
+    })();
+  </script>
+)}

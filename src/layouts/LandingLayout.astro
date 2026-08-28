@@ -8,7 +8,9 @@ import { getSiteContent } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import CookieNotice from "../components/CookieNotice.astro";
+import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
+import { formatPwaAppTitle } from "../lib/pageTitle";
 import "../styles/scroll-fade.css";
 
 export interface Props {
@@ -31,6 +33,7 @@ const siteContent = getSiteContent();
 const landing = siteContent.landing ?? {};
 const isEditorial = landing.variant === "editorial";
 const title = (titleProp ?? landing.title ?? company.name).trim();
+const pwaTitle = formatPwaAppTitle(company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
 const shareTitle = shareSafeText(landing.name ?? company.name);
 const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);
@@ -54,11 +57,12 @@ const htmlStyle = isEditorial
     <meta charset="UTF-8" />
     <ViewportMeta />
     <meta name="theme-color" content={themeColor} />
-    <meta name="apple-mobile-web-app-title" content={company.name} />
-    <meta name="application-name" content={company.name} />
+    <meta name="apple-mobile-web-app-title" content={pwaTitle} />
+    <meta name="application-name" content={pwaTitle} />
     <meta name="generator" content={Astro.generator} />
     <Favicon />
     <title>{title}</title>
+    <PwaDocumentTitle pwaTitle={pwaTitle} />
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={shareTitle} />

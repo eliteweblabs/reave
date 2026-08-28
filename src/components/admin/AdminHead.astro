@@ -1,21 +1,22 @@
 ---
 import Favicon from "../Favicon.astro";
 import BrandFontHead from "../BrandFontHead.astro";
+import PwaDocumentTitle from "../PwaDocumentTitle.astro";
 import ViewportMeta from "../ViewportMeta.astro";
 import ThemeInit from "../ThemeInit.astro";
 import type { ResolvedBrandFonts } from "../../lib/brandFonts";
+import { formatHtmlPageTitle, formatPwaAppTitle } from "../../lib/pageTitle";
 
 interface Props {
   companyName: string;
   fonts: ResolvedBrandFonts;
-  /** Override the default PWA / company document title. */
+  /** Browser-tab title. Standalone PWA / push "from" stays `companyName`. */
   pageTitle?: string;
 }
 
 const { companyName, fonts, pageTitle } = Astro.props;
-const appName = companyName || "Business OS";
-/** Match apple-mobile-web-app-title so iOS push says "from {PWA name}", not "from {name} Admin". */
-const docTitle = pageTitle?.trim() || appName;
+const appName = formatPwaAppTitle(companyName);
+const docTitle = formatHtmlPageTitle({ page: pageTitle, siteName: appName });
 ---
 
 <head>
@@ -34,6 +35,7 @@ const docTitle = pageTitle?.trim() || appName;
   <meta name="application-name" content={appName} />
   <link rel="manifest" href="/admin/manifest.webmanifest" />
   <title>{docTitle}</title>
+  <PwaDocumentTitle pwaTitle={appName} />
   <Favicon />
   <BrandFontHead fonts={fonts} />
   <link rel="stylesheet" href={`/ios-sheet.css?v=${__PUBLIC_ASSET_VERSION__}`} />
