@@ -231,7 +231,8 @@ const trailingCtas = ctas.slice(1);
       transform 0.15s ease,
       filter 0.15s ease,
       background 0.15s ease,
-      border-color 0.15s ease;
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .home-sticky-ctas__btn--primary {
@@ -253,6 +254,27 @@ const trailingCtas = ctas.slice(1);
 
   .home-sticky-ctas__btn--ghost:hover {
     transform: translateY(-1px);
+  }
+
+  /*
+   * The chip marquee paints pills in the canvas's inverse, so a 42%-alpha
+   * ghost pill washes out to mid-grey the moment it scrolls over that band.
+   * Go opaque there — canvas fill is black on the dark theme, white on light,
+   * either way the opposite of the chips underneath. `data-cta-over` is set
+   * by homeStickyCtas.ts from any [data-cta-backdrop] band it overlaps.
+   */
+  .home-sticky-ctas[data-cta-over="invert"] .home-sticky-ctas__btn--ghost {
+    background: var(--site-canvas, #fff);
+    border-color: color-mix(in srgb, var(--site-fg) 45%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Filled pill matches the chips exactly — ring it so it keeps an edge. */
+  .home-sticky-ctas[data-cta-over="invert"] .home-sticky-ctas__btn--primary {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--brand-btn-fg, #fff) 45%, transparent),
+      var(--brand-gradient-shadow);
   }
 
   .home-hero-demo-controls {

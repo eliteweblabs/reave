@@ -490,7 +490,13 @@ const customPrompts: PromptExample[] = [
       inside a view() subject inflates the scrollport so later sections stall
       mid fade-in (iOS especially).
     */}
-    <div class="fx-chips" data-feature-chips data-no-scroll-fade aria-label="Platform features">
+    <div
+      class="fx-chips"
+      data-feature-chips
+      data-no-scroll-fade
+      data-cta-backdrop="invert"
+      aria-label="Platform features"
+    >
       {
         chipRowLayouts.map((layout) => (
           <div class:list={["fx-chips-set", `fx-chips-set--${layout.key}`]}>
