@@ -276,7 +276,12 @@ const heroMarkSilhouette = neonMark
     mask-position: center;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    animation: homeHeroMarkSpectrum 19s ease-in-out infinite alternate;
+    /*
+     * linear, not ease-in-out: on an alternating loop the eased curve is nearly
+     * stationary at both turnarounds, so most of the cycle looks like a still
+     * image. Constant speed reads as motion at the same duration.
+     */
+    animation: homeHeroMarkSpectrum 9.5s linear infinite alternate;
   }
 
   /*
@@ -305,8 +310,8 @@ const heroMarkSilhouette = neonMark
       transparent 66%
     );
     opacity: 0.4;
-    animation: homeHeroMarkSheen 21s ease-in-out infinite;
-    animation-delay: -7s;
+    animation: homeHeroMarkSheen 10.5s ease-in-out infinite;
+    animation-delay: -3.5s;
   }
 
   @keyframes homeHeroMarkSpectrum {
