@@ -5334,7 +5334,10 @@ function renderAdminDashboard(data) {
       btn.innerHTML =
         `<span class="dash-inbox-subject">${escHtml(mail.subject)}</span>` +
         `<span class="dash-inbox-meta">${escHtml(mail.from || 'Unknown')} · ${escHtml(formatEmailWhen(mail.receivedAt))}</span>`;
-      btn.addEventListener('click', () => setActiveMap('email', { force: true }));
+      btn.addEventListener('click', () => {
+        if (mail.id) navigateToEmail(mail.id);
+        else setActiveMap('email', { force: true });
+      });
       const li = document.createElement('li');
       li.appendChild(btn);
       list.appendChild(li);
