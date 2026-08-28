@@ -1514,7 +1514,9 @@ const heroMarkSilhouette = neonMark
     border-radius: 1rem;
     border-bottom-left-radius: 0.28rem;
     border: 1px solid var(--demo-line, var(--site-border));
-    background: color-mix(in srgb, var(--site-fg) 88%, var(--site-canvas));
+    /* Same fill as chat bubbles so the translucent --demo-line composites
+     * identically. 88% --site-fg inverted in dark mode and lit the stroke. */
+    background: var(--demo-bubble-fill, var(--site-card));
     overflow: hidden;
     transform-origin: bottom left;
     opacity: 0;
