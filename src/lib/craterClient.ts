@@ -1135,6 +1135,7 @@ export async function craterGetClientPayments(input: CraterContactMatch): Promis
 export type BillingDashboardStats = {
   outstandingCount: number;
   overdueCount: number;
+  overdueDue: number;
   totalDue: number;
   recurringActive: number;
 };
@@ -1149,6 +1150,7 @@ export async function craterBillingDashboardStats(): Promise<CraterResult<Billin
 
   let outstandingCount = 0;
   let overdueCount = 0;
+  let overdueDue = 0;
   let totalDue = 0;
 
   for (const inv of invoicesRes.data.invoices ?? []) {
@@ -1157,7 +1159,10 @@ export async function craterBillingDashboardStats(): Promise<CraterResult<Billin
       outstandingCount++;
       totalDue += due;
     }
-    if ((inv.status ?? '').toUpperCase() === 'OVERDUE') overdueCount++;
+    if ((inv.status ?? '').toUpperCase() === 'OVERDUE') {
+      overdueCount++;
+      if (Number.isFinite(due) && due > 0) overdueDue += due;
+    }
   }
 
   return {
@@ -1165,6 +1170,7 @@ export async function craterBillingDashboardStats(): Promise<CraterResult<Billin
     data: {
       outstandingCount,
       overdueCount,
+      overdueDue,
       totalDue,
       recurringActive: recurringRes.ok ? (recurringRes.data.recurring_invoices ?? []).length : 0,
     },
