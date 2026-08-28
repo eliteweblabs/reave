@@ -2244,20 +2244,27 @@ button.de-placeholder-action:active {
   align-items: center;
   justify-content: center;
   flex: none;
-  align-self: stretch;
-  aspect-ratio: 1;
-  width: auto;
-  height: auto;
+  align-self: center;
+  box-sizing: border-box;
+  width: var(--icon-btn-sm, 24px);
+  height: var(--icon-btn-sm, 24px);
+  min-width: var(--icon-btn-sm, 24px);
+  min-height: var(--icon-btn-sm, 24px);
   margin: 0;
   padding: 0;
   border: 1px solid var(--panel-border, rgba(0, 0, 0, 0.14));
-  border-radius: inherit;
-  background: var(--card, transparent);
+  border-radius: 50%;
+  background: var(--card, #fff);
   color: var(--fg);
   cursor: pointer;
 }
+.re-chip-add-plus:hover {
+  background: var(--surface-hover, color-mix(in srgb, var(--fg, #111) 6%, var(--card, #fff)));
+}
 .re-chip-add-plus svg {
   display: block;
+  width: var(--icon-btn-sm-glyph, 12px);
+  height: var(--icon-btn-sm-glyph, 12px);
 }
 .re-chip-add-input {
   flex: 1 1 auto;
