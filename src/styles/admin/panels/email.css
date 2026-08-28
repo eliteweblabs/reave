@@ -2079,6 +2079,20 @@ html.reave-agent-asleep
   color: var(--em-notice-auto-deleted);
   background: color-mix(in srgb, var(--em-notice-auto-deleted) 12%, transparent);
 }
+.em-detail > .em-item-row {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.em-status.em-forwarded {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--em-notice-sent);
+  background: color-mix(in srgb, var(--em-notice-sent) 12%, transparent);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .em-cat-client {
   --em-item-accent: var(--em-notice-client);
   color: var(--em-notice-client);

@@ -17,7 +17,6 @@ import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import CookieNotice from "../components/CookieNotice.astro";
 import ThemeInit from "../components/ThemeInit.astro";
-import RainbowThemeColor from "../components/RainbowThemeColor.astro";
 import "../styles/brand.css";
 
 export interface Props {
@@ -166,7 +165,6 @@ const userId = Astro.locals.auth()?.userId ?? null;
 		</main>
 		{marketingNav && <HomepageSectionScroll />}
 		<ScrollFadeIn />
-		{siteContent.rainbowThemeColor && <RainbowThemeColor />}
 		<CookieNotice />
 		<slot name="end" />
 	</body>

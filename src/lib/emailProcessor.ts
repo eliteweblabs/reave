@@ -810,13 +810,16 @@ export async function processInboundEmail(
     } else {
       const { forwardEmail } = await import('./emailForward');
       const fwd = await forwardEmail(email, forwardTo);
-      if (!fwd.ok) {
+      if (fwd.ok) {
+        pushAudit('forward', `Forwarded to ${forwardTo}`, 'Relayed via Resend');
+      } else {
         console.warn('[email] rule forward failed', {
           from,
           subject: email.subject,
           forwardTo,
           error: fwd.error,
         });
+        pushAudit('forward', `Forward to ${forwardTo} failed`, fwd.error || 'Resend forward failed');
       }
     }
   }

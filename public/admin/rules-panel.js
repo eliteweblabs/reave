@@ -37,7 +37,6 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-  createAgentBtn,
 } from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
@@ -47,14 +46,14 @@ import {
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260827a';
+} from './email-triage-lab.js?v=20260828a';
 import {
   createChipPair,
   chipsFromRulePhrases,
   phrasesFromChips,
   fieldsFromChips,
   titleFromRulePhrases,
-} from './rule-chip-editor.js?v=20260827i';
+} from './rule-chip-editor.js?v=20260828a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
@@ -77,6 +76,8 @@ let ruleState = {
   activeId: null,
   dirty: false,
   missingTitle: '',
+  /** When set, the rule editor chevron returns to this inbox message. */
+  returnToEmailId: null,
 };
 
 let ruleAutosaveTimer = null;
@@ -955,10 +956,17 @@ function renderRulesEditor() {
   scanPanelSidebars?.();
 }
 
+function ruleEditorBack() {
+  return {
+    label: ruleState.returnToEmailId ? 'Back to email' : 'Back to rules',
+    onClick: () => void closeRuleEditor(),
+  };
+}
+
 function renderMissingRulePane(pane) {
   pane.appendChild(
     createPaneHeader({
-      back: { label: 'Back to rules', onClick: () => void closeRuleEditor() },
+      back: ruleEditorBack(),
       title: ruleState.missingTitle || 'Rule not found',
       subtitle: 'This classification still cites this rule, but it is not in the current list.',
     }).root,
@@ -1036,13 +1044,19 @@ async function openRuleEditor(id) {
 
 async function closeRuleEditor() {
   await flushRuleAutosave();
+  const returnEmailId = String(ruleState.returnToEmailId || '').trim();
   ruleAutosaveFlush = null;
   ruleState.activeId = null;
   ruleState.dirty = false;
   ruleState.missingTitle = '';
+  ruleState.returnToEmailId = null;
   shell.clearEditorFooterSave();
   getRuleEditor()?.classList.remove('de-pane-active');
   syncRulesSidebarActiveState();
+  if (returnEmailId && typeof shell.navigateToEmail === 'function') {
+    shell.navigateToEmail(returnEmailId);
+    return;
+  }
   renderRulesPane();
 }
 
@@ -1056,11 +1070,6 @@ function renderRuleEditPane(pane, opts = {}) {
     return;
   }
 
-  const agentBtn = createAgentBtn({
-    label: 'Agent',
-    onClick: () => shell.askAgentAboutRule?.(rule),
-  });
-
   if (accordion) {
     const actions = document.createElement('div');
     actions.className = 're-lab-rule-actions';
@@ -1068,21 +1077,20 @@ function renderRuleEditPane(pane, opts = {}) {
     hits.className = 're-lab-rule-hits';
     hits.textContent = ruleHitsSubline(rule) || (isCatalogReadOnly(rule) ? 'Catalog rule' : 'Edit rule');
     if (canDeleteRule(rule)) {
-      actions.append(hits, agentBtn, paneDeleteIcon({
+      actions.append(hits, paneDeleteIcon({
         label: 'Delete rule',
         onClick: () => deleteRule(rule.id),
       }));
     } else {
-      actions.append(hits, agentBtn);
+      actions.append(hits);
     }
     pane.appendChild(actions);
   } else {
     const inDrawer = shell.isCreateDrawerOpen('rules');
     const header = createPaneHeader({
-      back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
+      back: inDrawer ? null : ruleEditorBack(),
       title: titleFromRulePhrases(rule.phrases, rule.title || rule.status || 'Rule'),
       subtitle: ruleHitsSubline(rule),
-      beforeIcons: [agentBtn],
       icons: inDrawer || !canDeleteRule(rule)
         ? []
         : [
@@ -1862,8 +1870,17 @@ async function showKeywordCollisionAlert(err, opts = {}) {
  * Selects the matched rule when known; otherwise seeds search from the subject.
  * @param {object} emailRecord
  */
+function rememberRuleReturnEmail(emailOrId) {
+  const id =
+    typeof emailOrId === 'string'
+      ? emailOrId.trim()
+      : String(emailOrId?.id || '').trim();
+  ruleState.returnToEmailId = id || null;
+}
+
 async function openRulesLabWithEmail(emailRecord) {
   if (!emailRecord || typeof emailRecord !== 'object') return;
+  rememberRuleReturnEmail(emailRecord);
   const matchedId = String(emailRecord.matchedRuleId || '').trim();
   if (matchedId) ruleState.activeId = matchedId;
   else {
@@ -1884,6 +1901,7 @@ function resolveLabRuleId(ruleId) {
 /** Open Rules and select the rule the inbox classification landed on. */
 async function openRulesLabWithRule(ruleId, opts = {}) {
   const requested = String(ruleId || '').trim();
+  rememberRuleReturnEmail(opts.email || opts.fromEmailId);
   if (requested) ruleState.activeId = requested;
   ruleState.missingTitle = String(opts.ruleTitle || opts.email?.matchedRuleTitle || '').trim();
   shell.setActiveMap?.('rules', { force: true });

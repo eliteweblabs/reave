@@ -79,8 +79,9 @@ const CHIP_FIELD_OPTIONS = [
 ];
 
 function chipFieldLabel(field) {
-  if (field === 'from') return 'email';
-  return String(field || 'body').trim() || 'body';
+  if (field === 'from') return 'From';
+  if (field === 'subject') return 'Subject';
+  return 'Body';
 }
 
 function newChipId() {
