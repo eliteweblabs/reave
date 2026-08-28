@@ -247,6 +247,9 @@ const wayneReply = [
   assert.match(card, /BrandIconLockup/);
   assert.match(card, /variant="hero"/);
   assert.match(card, /nfc-title/);
+  assert.match(card, /nativeMapsDirectionsUrl/);
+  assert.match(card, /data-apple-maps/);
+  assert.doesNotMatch(card, /https:\/\/www\.google\.com\/maps\/dir/);
   assert.doesNotMatch(card, /BrandLogoInline/);
   assert.match(header, /BrandLogoInline/);
   console.log('ok — homepage and /card share BrandIconLockup; header keeps BrandLogoInline');

@@ -37,6 +37,31 @@ export function mapsDirectionsUrl(address: string): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${q}`;
 }
 
+/** Driving directions in Apple Maps (iPhone / iPad / Mac). */
+export function appleMapsDirectionsUrl(address: string): string {
+  const q = encodeURIComponent(address.trim());
+  return `https://maps.apple.com/?daddr=${q}&dirflg=d`;
+}
+
+const APPLE_MAPS_UA = /iPhone|iPad|iPod|Macintosh|Mac OS X/i;
+
+/** True when the client should open Apple Maps instead of Google™ Maps. */
+export function prefersAppleMaps(userAgent: string | null | undefined): boolean {
+  return !!userAgent && APPLE_MAPS_UA.test(userAgent);
+}
+
+/** Platform-native directions: Apple Maps on Apple devices, Google™ Maps elsewhere. */
+export function nativeMapsDirectionsUrl(
+  address: string,
+  userAgent?: string | null,
+): string {
+  const dest = address.trim();
+  if (!dest) return '';
+  return prefersAppleMaps(userAgent)
+    ? appleMapsDirectionsUrl(dest)
+    : mapsDirectionsUrl(dest);
+}
+
 /** Public .ics download for a Cal.com booking uid. */
 export function bookingCalendarUrl(uid: string): string {
   return `${siteBaseUrl()}/api/bookings/${encodeURIComponent(uid)}/calendar.ics`;

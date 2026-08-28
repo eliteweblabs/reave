@@ -10,7 +10,11 @@ import PwaDocumentTitle from '../components/PwaDocumentTitle.astro';
 import SiteBackground from '../components/SiteBackground.astro';
 import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
-import { mapsDirectionsUrl } from '../lib/calendarLinks';
+import {
+  appleMapsDirectionsUrl,
+  mapsDirectionsUrl,
+  nativeMapsDirectionsUrl,
+} from '../lib/calendarLinks';
 import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
 import { companyOgImageUrl, getCompanyConfig } from '../lib/companyConfig';
 import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
@@ -60,13 +64,15 @@ function formatPhoneDisplay(raw: string): string {
 
 const phoneLabel = phoneRaw ? formatPhoneDisplay(phoneRaw) : '';
 
-const directionsHref = (() => {
-  if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${geo.lat},${geo.lng}`)}`;
-  }
-  if (address) return mapsDirectionsUrl(address);
-  return '';
-})();
+const directionsDest =
+  geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)
+    ? `${geo.lat},${geo.lng}`
+    : address;
+const directionsHref = directionsDest
+  ? nativeMapsDirectionsUrl(directionsDest, Astro.request.headers.get('user-agent'))
+  : '';
+const appleDirectionsHref = directionsDest ? appleMapsDirectionsUrl(directionsDest) : '';
+const googleDirectionsHref = directionsDest ? mapsDirectionsUrl(directionsDest) : '';
 
 const vcardLabel = `Add ${displayName}`;
 const pwaTitle = formatPwaAppTitle(displayName);
@@ -165,7 +171,10 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
         {directionsHref && (
           <a
             class="nfc-btn"
+            id="nfc-directions"
             href={directionsHref}
+            data-apple-maps={appleDirectionsHref}
+            data-google-maps={googleDirectionsHref}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={address ? `Directions to ${address}` : `Directions to ${displayName}`}
@@ -182,6 +191,20 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
         )}
       </nav>
     </main>
+    {directionsHref && (
+      <script is:inline>
+        (function () {
+          var a = document.getElementById('nfc-directions');
+          if (!a) return;
+          var apple = a.getAttribute('data-apple-maps');
+          var google = a.getAttribute('data-google-maps');
+          if (!apple || !google) return;
+          var ua = navigator.userAgent || '';
+          var useApple = /iPhone|iPad|iPod|Macintosh|Mac OS X/i.test(ua);
+          a.href = useApple ? apple : google;
+        })();
+      </script>
+    )}
   </body>
 </html>
 
