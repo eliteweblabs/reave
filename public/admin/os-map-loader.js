@@ -118,7 +118,7 @@ import {
   buildAdminNotice,
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
-} from './admin-notice.js?v=20260825c';
+} from './admin-notice.js?v=20260828a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
 import {
   captureFilterTabsScroll,
@@ -850,7 +850,12 @@ function setActiveMap(key, opts = {}) {
     }
   }
   syncAdminTabUrl(key, opts);
-  if (key === 'dashboard' && prevType !== 'dashboard') void refreshInboxBadgeQuiet();
+  if (key === 'dashboard' && prevType !== 'dashboard') {
+    void refreshInboxBadgeQuiet();
+    syncMeetingNoticeExpiry();
+  } else if (prevType === 'dashboard' && MAP.type !== 'dashboard') {
+    clearMeetingExpiryHolds();
+  }
 }
 
 function dashboardPanelHasContent() {
@@ -3413,7 +3418,103 @@ function projectMatchAttachmentBit(item) {
   return 'no attachments';
 }
 
+const MEETING_EXPIRED_LABEL = 'Meeting Notification expired';
+const MEETING_EXPIRED_HOLD_MS = 2200;
+const meetingExpiredHoldTimers = new Map();
+
+function isExpiringMeetingNotice(item) {
+  const type = item?.type;
+  if (type === 'meeting' || type === 'meeting_request' || type === 'meeting_conflict') return true;
+  return type === 'push_alert' && item?.alertKind === 'calendar';
+}
+
+function meetingNoticeStartMs(item) {
+  if (!isExpiringMeetingNotice(item)) return NaN;
+  const direct = item?.bookingStart || item?.proposedMeetingStart;
+  if (direct) {
+    const ms = Date.parse(direct);
+    if (Number.isFinite(ms)) return ms;
+  }
+  const tag = String(item?.tag || '');
+  const match = tag.match(/^calendar-reminder-(.+)-(\d+)$/i);
+  if (!match) return NaN;
+  const offset = Number(match[2]);
+  const created = Date.parse(item?.receivedAt || '');
+  if (!Number.isFinite(offset) || offset < 1 || !Number.isFinite(created)) return NaN;
+  return created + offset * 60_000;
+}
+
+function meetingNoticeStorageKey(id) {
+  return `reave-meeting-expired:${id}`;
+}
+
+function hasShownMeetingExpired(id) {
+  if (!id) return false;
+  try {
+    return sessionStorage.getItem(meetingNoticeStorageKey(id)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function rememberMeetingExpired(id) {
+  if (!id) return;
+  try {
+    sessionStorage.setItem(meetingNoticeStorageKey(id), '1');
+  } catch {
+    /* private mode */
+  }
+}
+
+function isDashboardViewActive() {
+  return MAP?.type === 'dashboard' && document.visibilityState === 'visible';
+}
+
+function applyMeetingExpiredCopy(alert) {
+  const strong = alert.querySelector('.admin-setup-alert-copy strong');
+  if (strong) strong.textContent = MEETING_EXPIRED_LABEL;
+  alert.dataset.meetingExpired = '1';
+}
+
+function clearMeetingExpiryHolds() {
+  for (const timer of meetingExpiredHoldTimers.values()) window.clearTimeout(timer);
+  meetingExpiredHoldTimers.clear();
+}
+
+function syncMeetingNoticeExpiry() {
+  const alerts = document.querySelectorAll('.dash-review-alerts .admin-setup-alert[data-meeting-start]');
+  if (!alerts.length) return;
+  if (!isDashboardViewActive()) {
+    clearMeetingExpiryHolds();
+    return;
+  }
+  const now = Date.now();
+  alerts.forEach((alert) => {
+    const id = alert.getAttribute('data-meeting-notice-id') || '';
+    const start = Date.parse(alert.getAttribute('data-meeting-start') || '');
+    if (!Number.isFinite(start)) return;
+    if (alert.dataset.meetingExpired === '1' || hasShownMeetingExpired(id)) {
+      applyMeetingExpiredCopy(alert);
+      rememberMeetingExpired(id);
+      return;
+    }
+    if (meetingExpiredHoldTimers.has(id || alert)) return;
+    const waitMs = start > now ? start - now + MEETING_EXPIRED_HOLD_MS : MEETING_EXPIRED_HOLD_MS;
+    const timer = window.setTimeout(() => {
+      meetingExpiredHoldTimers.delete(id || alert);
+      if (!alert.isConnected || !isDashboardViewActive()) return;
+      applyMeetingExpiredCopy(alert);
+      rememberMeetingExpired(id);
+    }, waitMs);
+    meetingExpiredHoldTimers.set(id || alert, timer);
+  });
+}
+
 function reviewAlertCopyHtml(item) {
+  const meetingId = isExpiringMeetingNotice(item) ? reviewNotificationUndoKey(item) : '';
+  if (meetingId && hasShownMeetingExpired(meetingId)) {
+    return `<strong>${escHtml(MEETING_EXPIRED_LABEL)}</strong>`;
+  }
   if (item?.type === 'project_match') {
     const when = formatReviewAlertWhen(item.receivedAt);
     const projectName = projectMatchDisplayName(item);
@@ -3966,6 +4067,7 @@ function restoreReviewAlertBanner(item) {
   }
   wrap.insertBefore(buildReviewAlertBanner(item), wrap.firstChild);
   syncOtpCountdownTimers();
+  syncMeetingNoticeExpiry();
   syncReviewBadge(reviewsPendingCount + 1);
 }
 
@@ -4720,6 +4822,13 @@ function buildReviewAlertBanner(item) {
       'data-review-engagement-id': item.engagementId || null,
       'data-review-alert-id': item.alertId || null,
       'data-review-alert-tag': item.tag || null,
+      'data-meeting-start': (() => {
+        const ms = meetingNoticeStartMs(item);
+        return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+      })(),
+      'data-meeting-notice-id': isExpiringMeetingNotice(item)
+        ? reviewNotificationUndoKey(item) || item.id || null
+        : null,
     },
     actions,
     onCopyClick: () => {
@@ -5074,6 +5183,7 @@ function buildReviewAlertBanners(notifications) {
     wrap.appendChild(buildReviewAlertBanner(item));
   }
   syncOtpCountdownTimers();
+  queueMicrotask(() => syncMeetingNoticeExpiry());
   return wrap;
 }
 
@@ -17689,6 +17799,7 @@ document.addEventListener('visibilitychange', () => {
     stopChatRunningPoll();
     stopWorkAuditingPoll();
     stopDeployPoll();
+    clearMeetingExpiryHolds();
   } else {
     void purgeExpiredOtpsQuietly();
     syncHealthLifecycle();
@@ -17701,7 +17812,12 @@ document.addEventListener('visibilitychange', () => {
     resumeEmailDeepLinkFromUrl();
     resumeClientDeepLinkFromUrl();
     void consumePendingOtpCopy();
+    syncMeetingNoticeExpiry();
   }
+});
+
+window.addEventListener('focus', () => {
+  if (MAP?.type === 'dashboard') syncMeetingNoticeExpiry();
 });
 
 document.addEventListener('reave-purge-expired-otps', () => {

@@ -7,11 +7,15 @@ import {
   calendarReminderTag,
   calendarReminderUrl,
   formatReminderOffsetLabel,
+  inferCalendarReminderStartMs,
+  isExpiringMeetingNotice,
   parseCalendarReminderOffsets,
+  parseCalendarReminderTag,
   reminderDecision,
   reminderDedupKey,
   reminderFireAtMs,
   reminderPushCopy,
+  resolveMeetingNoticeStartMs,
   sameBookingStart,
 } from '../src/lib/calendarReminderLogic.ts';
 
@@ -56,5 +60,40 @@ assert.equal(calendarReminderTag('abc', 15), 'calendar-reminder-abc-15');
 assert.equal(calendarReminderUrl('abc'), '/admin?tab=schedule&booking=abc');
 assert.ok(sameBookingStart('2026-08-13T16:00:00.000Z', '2026-08-13T16:00:30.000Z'));
 assert.equal(sameBookingStart('2026-08-13T16:00:00.000Z', '2026-08-13T16:10:00.000Z'), false);
+
+assert.deepEqual(parseCalendarReminderTag('calendar-reminder-abc-15'), {
+  bookingUid: 'abc',
+  offsetMinutes: 15,
+});
+assert.deepEqual(parseCalendarReminderTag('calendar-reminder-uid-with-dashes-60'), {
+  bookingUid: 'uid-with-dashes',
+  offsetMinutes: 60,
+});
+assert.equal(parseCalendarReminderTag('inbox'), null);
+assert.equal(
+  inferCalendarReminderStartMs({
+    tag: 'calendar-reminder-abc-15',
+    createdAt: '2026-08-13T15:45:00.000Z',
+  }),
+  Date.parse('2026-08-13T16:00:00.000Z'),
+);
+assert.equal(isExpiringMeetingNotice({ type: 'meeting_followup' }), false);
+assert.equal(isExpiringMeetingNotice({ type: 'push_alert', alertKind: 'calendar' }), true);
+assert.equal(
+  resolveMeetingNoticeStartMs({
+    type: 'meeting',
+    bookingStart: '2026-08-13T16:00:00.000Z',
+  }),
+  Date.parse('2026-08-13T16:00:00.000Z'),
+);
+assert.equal(
+  resolveMeetingNoticeStartMs({
+    type: 'push_alert',
+    alertKind: 'calendar',
+    tag: 'calendar-reminder-abc-15',
+    receivedAt: '2026-08-13T15:45:00.000Z',
+  }),
+  Date.parse('2026-08-13T16:00:00.000Z'),
+);
 
 console.log('ok: calendar reminders');
