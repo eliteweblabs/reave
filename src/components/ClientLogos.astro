@@ -20,7 +20,7 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 const COLS = 8;
-const MIN_PER_REEL = 3;
+const PER_REEL = 5;
 const LOOP_COPIES = 2;
 
 const configured = getSiteContent().clientLogos ?? [];
@@ -33,29 +33,25 @@ const logos: ClientLogo[] = shuffle(
   })),
 );
 
+/** Each column starts on a different logo and walks the list by 3s so neighbors don't share a reel. */
 function dealReels(items: ClientLogo[]): ClientLogo[][] {
-  const reels: ClientLogo[][] = Array.from({ length: COLS }, () => []);
-  items.forEach((logo, i) => reels[i % COLS].push(logo));
-
-  for (const reel of reels) {
-    if (reel.length === 0 && items.length > 0) {
-      reel.push(items[0]);
+  if (items.length === 0) return [];
+  const size = Math.min(PER_REEL, items.length);
+  return Array.from({ length: COLS }, (_, col) => {
+    const reel: ClientLogo[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i < items.length * 2 && reel.length < size; i++) {
+      const logo = items[(col + i * 3) % items.length];
+      if (seen.has(logo.name) && reel.length < items.length) continue;
+      seen.add(logo.name);
+      reel.push(logo);
     }
-    let i = 0;
-    while (reel.length < MIN_PER_REEL && items.length > 0) {
-      const extra = items[i % items.length];
-      if (!reel.some((logo) => logo.name === extra.name) || i >= items.length) {
-        reel.push(extra);
-      }
-      i += 1;
-      if (i > items.length * 4) break;
-    }
-  }
-  return reels;
+    return reel;
+  });
 }
 
-const DURATIONS = [11, 14, 9, 16, 12, 10, 15, 13];
-const DELAYS = [0, -3.2, -1.4, -5.1, -2.1, -4.6, -0.7, -6.3];
+const DURATION_S = 20;
+const DELAYS = [0, -3.4, -1.1, -6.8, -2.2, -5.5, -0.7, -8.1];
 
 const reels = dealReels(logos).map((reel) =>
   Array.from({ length: LOOP_COPIES }, () => reel).flat(),
@@ -69,7 +65,7 @@ const reels = dealReels(logos).map((reel) =>
         reels.map((track, col) => (
           <div
             class="client-logos-reel"
-            style={`--reel-duration: ${DURATIONS[col]}s; --reel-delay: ${DELAYS[col]}s; --reel-dir: ${col % 2 === 0 ? "normal" : "reverse"}`}
+            style={`--reel-duration: ${DURATION_S}s; --reel-delay: ${DELAYS[col]}s`}
           >
             <div class="client-logos-reel-track">
               {
@@ -83,7 +79,7 @@ const reels = dealReels(logos).map((reel) =>
                       alt={index === 0 ? logo.name : ""}
                       width={logo.width}
                       height={logo.height}
-                      loading="eager"
+                      loading={index === 0 ? "eager" : "lazy"}
                       decoding="async"
                       draggable="false"
                     />
@@ -116,15 +112,15 @@ const reels = dealReels(logos).map((reel) =>
     -webkit-mask-image: linear-gradient(
       180deg,
       transparent 0%,
-      #000 28%,
-      #000 72%,
+      #000 16%,
+      #000 84%,
       transparent 100%
     );
     mask-image: linear-gradient(
       180deg,
       transparent 0%,
-      #000 28%,
-      #000 72%,
+      #000 16%,
+      #000 84%,
       transparent 100%
     );
   }
@@ -132,9 +128,8 @@ const reels = dealReels(logos).map((reel) =>
   .client-logos-reel-track {
     display: flex;
     flex-direction: column;
-    animation: client-logos-slot var(--reel-duration, 12s) linear infinite;
+    animation: client-logos-slot var(--reel-duration, 20s) ease-in-out infinite;
     animation-delay: var(--reel-delay, 0s);
-    animation-direction: var(--reel-dir, normal);
     will-change: transform;
   }
 
@@ -142,12 +137,33 @@ const reels = dealReels(logos).map((reel) =>
     animation-play-state: paused;
   }
 
+  /*
+   * Five logos per reel (duplicated for a seamless loop). Each 20% slice
+   * holds ~3.2s on a fully visible mark, then eases 0.8s to the next.
+   */
   @keyframes client-logos-slot {
-    from {
+    0%,
+    16% {
       transform: translate3d(0, 0, 0);
     }
-    to {
-      transform: translate3d(0, -50%, 0);
+    20%,
+    36% {
+      transform: translate3d(0, calc(var(--slot-h) * -1), 0);
+    }
+    40%,
+    56% {
+      transform: translate3d(0, calc(var(--slot-h) * -2), 0);
+    }
+    60%,
+    76% {
+      transform: translate3d(0, calc(var(--slot-h) * -3), 0);
+    }
+    80%,
+    96% {
+      transform: translate3d(0, calc(var(--slot-h) * -4), 0);
+    }
+    100% {
+      transform: translate3d(0, calc(var(--slot-h) * -5), 0);
     }
   }
 
