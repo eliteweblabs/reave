@@ -14085,7 +14085,9 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
     ],
     fixedTabs: [
       { id: 'draft', label: 'Draft', count: counts.draft, variant: 'draft' },
-      { id: 'scheduled', label: 'Scheduled', count: counts.scheduled },
+      ...(counts.scheduled > 0
+        ? [{ id: 'scheduled', label: 'Scheduled', count: counts.scheduled }]
+        : []),
       { id: 'sent', label: 'Sent', count: counts.sent, variant: 'sent' },
     ],
     activeId: emailState.inboxFilter,
@@ -14187,6 +14189,18 @@ function fillEmailSidebarList(list) {
 
 function updateEmailFilterTabCounts(root) {
   const counts = inboxTabCounts();
+  const scheduledTab = root.querySelector('.em-filter-tab[data-filter="scheduled"]');
+  const shouldShowScheduled = (counts.scheduled ?? 0) > 0;
+  if (Boolean(scheduledTab) !== shouldShowScheduled) {
+    const wrap = root.querySelector('.em-filter-tabs-wrap');
+    if (wrap?.parentNode) {
+      const saved = captureFilterTabsScroll(root);
+      const next = renderEmailFilterTabs(saved);
+      wrap.replaceWith(next);
+      applyEmailFilterTabsScroll(next, saved, emailState.inboxFilter, false);
+    }
+    return;
+  }
   root.querySelectorAll('.em-filter-tab[data-filter]').forEach((btn) => {
     const id = btn.dataset.filter;
     if (!id) return;
