@@ -197,6 +197,7 @@ export async function GET(context: APIContext): Promise<Response> {
       billingTotalDue: billing?.totalDue ?? null,
       billingOutstanding: billing?.outstandingCount ?? null,
       billingOverdue: billing?.overdueCount ?? null,
+      billingOverdueDue: billing?.overdueDue ?? null,
       billingRecurring: billing?.recurringActive ?? null,
     },
     recentEmails,

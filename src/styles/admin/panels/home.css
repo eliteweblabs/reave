@@ -107,6 +107,10 @@
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
+.dash-stat-value--mix {
+  font-size: calc(var(--dash-stat-value-size) * 0.72);
+  letter-spacing: -0.04em;
+}
 .dash-stat-label {
   font-size: 0.78rem;
   font-weight: 600;
