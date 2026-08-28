@@ -34,7 +34,7 @@ const cards: DemoCard[] = [
   {
     icon: SlidersHorizontal,
     title: "Build your demo",
-    body: "Pick the modules you care about and an industry preset. We’ll prepare a personalized demo environment and notify you when it’s ready.",
+    body: "Pick the modules you care about and an industry preset, and we’ll put together a demo around your business.",
     href: "/demo-loader",
     cta: "Configure demo",
   },
@@ -134,7 +134,7 @@ if (!demo.adminUrl) {
 
 <style>
   .demo-page {
-    padding: 0 20px calc(96px + env(safe-area-inset-bottom, 0px));
+    padding: 0 var(--site-page-gutter, 20px) calc(96px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     align-items: center;
