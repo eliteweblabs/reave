@@ -38,13 +38,16 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 >
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
-      <span class="home-hero-icon-glow" aria-hidden="true">
-        <span class="home-hero-icon-glow-wash"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
+      <span class="home-hero-icon-grid" aria-hidden="true">
+        <span class="home-hero-icon-grid-lines">
+          <span class="home-hero-icon-glow">
+            <span class="home-hero-icon-glow-wash"></span>
+            <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
+            <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
+            <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
+          </span>
+        </span>
       </span>
-      <span class="home-hero-icon-grid" aria-hidden="true"></span>
       <BrandIconInline company={company} />
     </div>
     <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
@@ -156,6 +159,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-icon-wrap {
+    /*
+     * The halo now only ever shows through 1px strokes, so it has to be
+     * pigment rather than light: saturated and pushed dark enough to read
+     * against the canvas.
+     */
+    --home-hero-glow-ink: saturate(2.4) brightness(0.62);
     position: relative;
     z-index: 1;
     flex: none;
@@ -172,11 +181,13 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   /*
    * Rainbow backlight — wide oval wash + three oblong blobs. Loops start
-   * mid-cycle so the stretch is already moving on first paint.
+   * mid-cycle so the stretch is already moving on first paint. Lives inside
+   * the grid mask, so the halo only ever paints on the graph strokes; inset
+   * is 12% of the oversized grid box to land where 6% of the wrap used to.
    */
   .home-hero-icon-glow {
     position: absolute;
-    inset: 6%;
+    inset: 12%;
     z-index: 0;
     pointer-events: none;
     overflow: visible;
@@ -207,8 +218,13 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       #f472b6,
       #f87171
     );
-    filter: blur(26px);
-    opacity: 0.14;
+    /*
+     * hue-rotate is declared at 0deg here so the spin keyframe animates a
+     * matching function list — otherwise the added saturate/brightness break
+     * filter interpolation and the hue jumps.
+     */
+    filter: blur(26px) hue-rotate(0deg) var(--home-hero-glow-ink);
+    opacity: 1;
     animation:
       homeHeroGlowSpin 12s linear infinite,
       homeHeroGlowHue 9.33s linear infinite;
@@ -216,8 +232,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-icon-glow-lava {
-    filter: blur(20px);
-    opacity: 0.2;
+    filter: blur(20px) var(--home-hero-glow-ink);
+    opacity: 1;
   }
 
   .home-hero-icon-glow-lava--a {
@@ -271,7 +287,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   @keyframes homeHeroGlowHue {
     to {
-      filter: blur(26px) hue-rotate(360deg);
+      filter: blur(26px) hue-rotate(360deg) var(--home-hero-glow-ink);
     }
   }
 
@@ -314,26 +330,39 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
-  :global(html[data-theme="dark"]) .home-hero-icon-glow-wash {
-    opacity: 0.2;
+  :global(html[data-theme="dark"]) .home-hero-icon-wrap {
+    --home-hero-glow-ink: saturate(1.9) brightness(1.15);
   }
 
-  :global(html[data-theme="dark"]) .home-hero-icon-glow-lava {
-    opacity: 0.28;
+  :global(html[data-theme="dark"]) .home-hero-icon-grid {
+    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 34%, transparent);
   }
 
   /*
-   * Thin black 1px graph lines — high-opacity strokes, no blur.
-   * The mask feathers the field out so they read as traces on the glow.
+   * Graph paper as the only visible surface. The outer layer feathers the
+   * field at its edges; the inner layer is masked down to 1px strokes, and
+   * because a mask clips descendants too, the animated halo it wraps can
+   * only paint inside those strokes — the lines take the rainbow, the page
+   * behind them stays clean.
    */
   .home-hero-icon-grid {
     --home-hero-grid-minor: 16px;
     --home-hero-grid-major: 64px;
+    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 30%, transparent);
     position: absolute;
     inset: -8%;
     z-index: 0;
     pointer-events: none;
-    background-image:
+    -webkit-mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
+    mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
+  }
+
+  /* Four repeating gradients — minor + major, both axes — added together. */
+  .home-hero-icon-grid-lines {
+    position: absolute;
+    inset: 0;
+    background-color: var(--home-hero-grid-ink);
+    -webkit-mask-image:
       repeating-linear-gradient(
         to right,
         #000 0 1px,
@@ -354,9 +383,27 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
         #000 0 1px,
         transparent 1px var(--home-hero-grid-major)
       );
-    opacity: 0.82;
-    -webkit-mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
-    mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
+    mask-image:
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      );
   }
 
   @media (prefers-reduced-motion: reduce) {
