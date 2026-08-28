@@ -44,7 +44,7 @@ const SEED: SeedItem[] = [
   { slug: 'portfolio-mdot-world-featured', file: 'src/assets/images/portfolio/mdot-world-featured.webp', alt: 'M-Dot' },
   { slug: 'portfolio-mohegan-sun-featured', file: 'src/assets/images/portfolio/mohegan-sun-featured.webp', alt: 'Mohegan Sun' },
   { slug: 'portfolio-porsche-miami-art-week-featured', file: 'src/assets/images/portfolio/porsche-miami-art-week-featured.webp', alt: 'Porsche Miami Art Week' },
-  { slug: 'portfolio-vip-perks-marker-security-featured', file: 'src/assets/images/portfolio/vip-perks-marker-security-featured.webp', alt: 'VIP Perks Marker Security' },
+  { slug: 'portfolio-vip-perks-marker-security-featured', file: 'src/assets/images/portfolio/vip-perks-marker-security-featured.webp', alt: 'Marker Protection' },
   { slug: 'portfolio-luxe-meds-featured', file: 'src/assets/images/portfolio/luxe-meds-featured.webp', alt: 'LUXEMEDS' },
   { slug: 'portfolio-creed-featured', file: 'src/assets/images/portfolio/creed-featured.webp', alt: 'Creed Lounge' },
   { slug: 'portfolio-ar-featured', file: 'src/assets/images/portfolio/ar-featured.webp', alt: 'Air Race 21' },
