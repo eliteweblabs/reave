@@ -7,8 +7,8 @@
  * `src/lib/portalAssistant.ts` for the system prompt and model call.
  */
 import type { APIRoute } from 'astro';
-import { parseAssistantHistory } from '../../../../lib/assistantHistory';
-import { jsonResponse, readJsonBody } from '../../../../lib/apiResponse';
+import { assistantRateLimitResponse, parseAssistantPostRequest } from '../../../../lib/assistantRoute';
+import { jsonResponse } from '../../../../lib/apiResponse';
 import { clientIp } from '../../../../lib/clientIp';
 import { getContact, extractPortal, contactStringField } from '../../../../lib/contactApi';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
@@ -22,13 +22,7 @@ import {
   type PortalAssistantJobSummary,
   type PortalAssistantBilling,
 } from '../../../../lib/portalAssistant';
-import { checkPortalAssistantRateLimit } from '../../../../lib/portalAssistantRateLimit';
-
 export const prerender = false;
-
-const MAX_MESSAGE_CHARS = 2_000;
-const MAX_HISTORY_TURNS = 20;
-const MAX_HISTORY_TURN_CHARS = 4_000;
 
 const JOB_STATUS_LABEL: Record<string, string> = {
   inquiry: 'Submitted',
@@ -46,28 +40,12 @@ export const POST: APIRoute = async ({ params, request }) => {
   const uid = (params.slug ?? '').trim();
   if (!uid) return jsonResponse({ ok: false, error: 'Missing contact id' }, 400);
 
-  const parsed = await readJsonBody(request);
-  if (parsed instanceof Response) return parsed;
-  const { body } = parsed;
+  const parsed = await parseAssistantPostRequest<PortalAssistantTurn>(request);
+  if (!parsed.ok) return parsed.response;
+  const { message, history } = parsed;
 
-  const message = typeof body.message === 'string' ? body.message.trim() : '';
-  if (!message) return jsonResponse({ ok: false, error: 'message is required' }, 400);
-  if (message.length > MAX_MESSAGE_CHARS) {
-    return jsonResponse({ ok: false, error: 'Message is too long.' }, 400);
-  }
-  const history = parseAssistantHistory<PortalAssistantTurn>(
-    body.history,
-    MAX_HISTORY_TURNS,
-    MAX_HISTORY_TURN_CHARS,
-  );
-
-  const rate = checkPortalAssistantRateLimit(`${uid}:${clientIp(request)}`);
-  if (!rate.ok) {
-    return jsonResponse(
-      { ok: false, error: "You're sending messages a bit fast — please wait a moment and try again." },
-      429,
-    );
-  }
+  const rateLimited = assistantRateLimitResponse(`${uid}:${clientIp(request)}`);
+  if (rateLimited) return rateLimited;
 
   const contactRes = await getContact(uid);
   if (!contactRes.ok || contactRes.data.archived) {
