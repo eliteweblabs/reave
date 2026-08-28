@@ -160,6 +160,7 @@
   color: var(--em-chip-accent);
   background: color-mix(in srgb, var(--em-chip-accent) 14%, transparent);
   border-color: color-mix(in srgb, var(--em-chip-accent) 28%, transparent);
+  filter: grayscale(1);
 }
 .em-filter-tab--tone:hover {
   color: var(--em-chip-accent);
@@ -169,6 +170,7 @@
   color: var(--em-chip-accent);
   background: color-mix(in srgb, var(--em-chip-accent) 24%, transparent);
   border-color: color-mix(in srgb, var(--em-chip-accent) 45%, transparent);
+  filter: none;
 }
 .em-filter-tab.em-filter-tab--purge,
 .em-filter-tab.active.em-filter-tab--purge {
