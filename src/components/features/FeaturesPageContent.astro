@@ -50,7 +50,10 @@ interface Props {
    * Homepage slot: heading + lead + pills only (no examples / custom / close).
    */
   introOnly?: boolean;
-  /** Homepage rest of the tour — skip the heading + pills already shown above. */
+  /**
+   * Skip the hero heading + lead + pills. Used by /features (opens on the tour)
+   * and by the homepage's second slot, where the intro is already shown above.
+   */
   hideIntro?: boolean;
 }
 
@@ -460,8 +463,8 @@ const customPrompts: PromptExample[] = [
     <>
     <section class="fx-hero">
       {/*
-        Standalone /features keeps this as the page h1. On the homepage it is
-        embedded under HomeHeroSection's h1, so demote to h2 — same visual class.
+        Embedded under HomeHeroSection's h1, so this is an h2 — same visual
+        class. A standalone host without its own h1 gets the h1 branch.
 
         Fade the copy only — not this section. The chip marquee’s mask +
         infinite transform is a known iOS Safari tripwire for view()
@@ -918,11 +921,11 @@ const customPrompts: PromptExample[] = [
     max-width: 640px;
   }
 
-  .fx-page--tour {
-    padding-top: var(--home-section-padding-y);
-  }
-
-  /* Sticky CTAs land on the closing dock — no extra page pad under it. */
+  /*
+   * Standalone /features clears the header via html.site-page, so only the
+   * embedded slot pads the top. Sticky CTAs land on the closing dock there —
+   * no extra page pad under it.
+   */
   .fx-page--embedded.fx-page--tour {
     padding-top: var(--home-section-padding-y);
     padding-bottom: 0;

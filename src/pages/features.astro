@@ -10,5 +10,5 @@ const company = await getCompanyConfig(Astro.request);
   title="Features"
   description={`${company.name} replaces the SaaS stack most businesses pay for separately — Gmail, QuickBooks, ChatGPT, Calendly, HubSpot, Mailchimp, and more — with one platform: contacts, portal, billing, AI, newsletters, social metrics, analytics, and plugins.`}
 >
-  <FeaturesPageContent showLogoStack={false} />
+  <FeaturesPageContent showLogoStack={false} hideIntro />
 </Layout>
