@@ -1,0 +1,36 @@
+{
+  "features": [
+    "client_portal",
+    "documents",
+    "digital_signature",
+    "scheduling"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "work",
+    "schedule",
+    "clients"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "addons"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "homepageTemplate": "login",
+  "siteContentKey": "pattheplumber",
+  "moduleStatus": {
+    "client_portal": "deployed",
+    "documents": "deployed",
+    "digital_signature": "deployed",
+    "scheduling": "request"
+  }
+}
