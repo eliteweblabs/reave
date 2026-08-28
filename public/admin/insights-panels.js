@@ -43,7 +43,7 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
 import { createFleetMap } from '/admin/fleet-map.js';
-import { initSocialPanel, loadSocialTab } from './social-panel.js?v=20260820a';
+import { initSocialPanel, loadSocialTab } from './social-panel.js?v=20260827a';
 
 /** Injected by os-map-loader via initInsightsPanels(). */
 let shell = {};

@@ -190,7 +190,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260824a';
+} from './schedule-panel.js?v=20260827a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -263,7 +263,7 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260825a';
+} from './insights-panels.js?v=20260827a';
 import {
   initRulesPanel,
   ruleState,

@@ -53,18 +53,73 @@ function rootEl() {
   return document.getElementById('social-panel');
 }
 
-function formatSocialDate(iso) {
+const HOUR_WORDS = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+  'twenty-one',
+  'twenty-two',
+  'twenty-three',
+];
+
+function formatSocialRelativeTime(iso) {
   if (!iso) return '';
   try {
     const d = new Date(iso);
-    const now = new Date();
-    if (d.toDateString() === now.toDateString()) {
-      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (Number.isNaN(d.getTime())) return '';
+    const diffMs = Date.now() - d.getTime();
+    if (diffMs < 45 * 1000) return 'just now';
+    const minutes = Math.floor(diffMs / 60000);
+    if (minutes < 60) {
+      return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
     }
+    const hoursExact = diffMs / 3600000;
+    if (hoursExact < 24) {
+      const halves = Math.round(hoursExact * 2) / 2;
+      if (halves >= 24) return 'one day ago';
+      const whole = Math.floor(halves);
+      const half = halves % 1 === 0.5;
+      if (whole < 1 && half) return 'half an hour ago';
+      const word = HOUR_WORDS[whole] || String(whole);
+      if (half) return `${word} and a half hours ago`;
+      return whole === 1 ? 'one hour ago' : `${word} hours ago`;
+    }
+    if (hoursExact < 48) return 'one day ago';
     return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   } catch {
     return '';
   }
+}
+
+function handleFromName(name) {
+  const slug = String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 24);
+  return slug || 'user';
+}
+
+function itemHandle(item) {
+  const raw = String(item?.authorHandle || '').replace(/^@/, '').trim();
+  return raw || handleFromName(item?.authorName);
 }
 
 function networkById(id) {
@@ -78,6 +133,7 @@ function filteredItems() {
     if (!q) return true;
     return (
       item.authorName.toLowerCase().includes(q) ||
+      itemHandle(item).includes(q) ||
       item.text.toLowerCase().includes(q) ||
       item.platformLabel.toLowerCase().includes(q) ||
       item.kind.toLowerCase().includes(q)
@@ -242,7 +298,7 @@ function createSocialListItem(item) {
     `<span class="ch-list-content">` +
       `<span class="ch-item-row">` +
         `<span class="ch-item-title">${escHtml(item.authorName)}</span>` +
-        `<span class="ch-item-date">${escHtml(formatSocialDate(item.createdAt))}</span>` +
+        `<span class="ch-item-date">${escHtml(formatSocialRelativeTime(item.createdAt))}</span>` +
       `</span>` +
       `<span class="ch-item-sub">${escHtml(item.platformLabel)} · ${escHtml(kind)} ${rating} ${demo}</span>` +
       `<span class="soc-item-snippet">${escHtml(snippet(item.text))}</span>` +
@@ -338,8 +394,60 @@ async function requestComposeDraft(payload) {
 function setButtonBusy(btn, busy, idleLabel) {
   if (!btn) return;
   btn.disabled = busy;
-  if (busy) btn.textContent = 'Writing…';
-  else if (idleLabel) btn.textContent = idleLabel;
+  btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+  if (btn.classList.contains('em-compose-agent')) {
+    btn.textContent = busy ? 'Writing…' : idleLabel || 'Write with agent';
+  }
+}
+
+function fallbackReplyDraft(item) {
+  const first = String(item.authorName || '').trim().split(/\s+/)[0] || 'there';
+  const text = String(item.text || '').toLowerCase();
+  if (item.kind === 'review') {
+    const rating = Number(item.rating);
+    if (Number.isFinite(rating) && rating <= 3) {
+      return `Thanks for the feedback, ${first}. We’d like to make this right — please message us and we’ll take it from here.`;
+    }
+    return `Thank you so much, ${first} — we really appreciate you taking the time to share this.`;
+  }
+  if (/book|quote|open|saturday|appointment|avail/.test(text)) {
+    return `Thanks for reaching out, ${first}! Send us a message with the details and we’ll get you sorted.`;
+  }
+  if (/thank|loved|exactly|needed|great|amazing/.test(text)) {
+    return `So glad it landed, ${first} — thank you for the kind words!`;
+  }
+  if (/tag|mention|tried|thinking|look/.test(text)) {
+    return `Thanks for the mention, ${first} — we’re here and happy to help. Message us anytime.`;
+  }
+  return `Thanks for writing, ${first} — we appreciate you. Message us anytime and we’ll take care of it.`;
+}
+
+function needsReplyDraft(item) {
+  if (!item || item.kind === 'post') return false;
+  if (item.status === 'responded') return false;
+  return !String(item.replyDraft || '').trim();
+}
+
+const autoDrafting = new Set();
+
+async function ensureReplyDraft(item, agentBtn) {
+  if (!needsReplyDraft(item) || autoDrafting.has(item.id)) return;
+  autoDrafting.add(item.id);
+  const draft = fallbackReplyDraft(item);
+  item.replyDraft = draft;
+  const textarea = rootEl()?.querySelector('#soc-reply-draft');
+  if (textarea instanceof HTMLTextAreaElement && !textarea.value.trim()) {
+    textarea.value = draft;
+  }
+  try {
+    await saveReply(item);
+  } catch {
+    /* keep the box filled */
+  }
+  if (item.live) {
+    await writeSocialReplyWithAgent(item, agentBtn, { silent: true });
+  }
+  autoDrafting.delete(item.id);
 }
 
 async function writeSocialComposeWithAgent(btn) {
@@ -368,7 +476,7 @@ async function writeSocialComposeWithAgent(btn) {
   }
 }
 
-async function writeSocialReplyWithAgent(item, btn) {
+async function writeSocialReplyWithAgent(item, btn, opts = {}) {
   const textarea = rootEl()?.querySelector('#soc-reply-draft');
   setButtonBusy(btn, true);
   try {
@@ -389,9 +497,9 @@ async function writeSocialReplyWithAgent(item, btn) {
     } catch {
       /* draft is still in the box */
     }
-    shell.osAlert?.('Draft ready — review before posting.', 'success');
+    if (!opts.silent) shell.osAlert?.('Draft ready — review before posting.', 'success');
   } catch (e) {
-    shell.osAlert?.(e.message || 'Write failed', 'error');
+    if (!opts.silent) shell.osAlert?.(e.message || 'Write failed', 'error');
   } finally {
     setButtonBusy(btn, false, 'Write with agent');
   }
@@ -431,8 +539,7 @@ function renderSocialComposePane(pane) {
       icons: [
         createAgentBtn({
           title: 'Write with agent',
-          label: 'Write with agent',
-          onClick: () => void writeSocialComposeWithAgent(rootEl()?.querySelector('#soc-compose-agent')),
+          onClick: (btn) => void writeSocialComposeWithAgent(btn),
         }),
       ],
     }).root,
@@ -457,7 +564,7 @@ function renderSocialComposePane(pane) {
     `<p class="em-hint">${escHtml(socialState.composeHint || 'Copy the post, then open each network to publish. In-app posting is not live yet.')}</p>` +
     `<div class="soc-compose-nets">${checks || '<p class="em-hint">Add profile links under Socials to choose networks.</p>'}</div>` +
     `<label class="prof-field">` +
-      `<span class="prof-label soc-compose-label">Post <button type="button" class="em-compose-agent" id="soc-compose-agent">Write with agent</button></span>` +
+      `<span class="prof-label">Post</span>` +
       `<textarea id="soc-compose-text" class="em-compose-textarea soc-compose-text" rows="8" placeholder="Write once, open each network to publish…">${escHtml(socialState.composeText)}</textarea>` +
     `</label>` +
     `<div class="soc-detail-actions" id="soc-compose-actions"></div>`;
@@ -479,10 +586,6 @@ function renderSocialComposePane(pane) {
   textarea?.addEventListener('input', () => {
     socialState.composeText = textarea.value;
   });
-  body.querySelector('#soc-compose-agent')?.addEventListener('click', (ev) => {
-    void writeSocialComposeWithAgent(ev.currentTarget);
-  });
-
   const actions = body.querySelector('#soc-compose-actions');
   if (!actions) return;
 
@@ -534,12 +637,19 @@ function renderSocialComposePane(pane) {
   actions.appendChild(openBtn);
 }
 
-function renderSocialDetailPane(pane, item) {
-  const title =
-    item.kind === 'review'
-      ? `${item.authorName} · ${item.platformLabel} review`
-      : `${item.authorName} · ${KIND_LABELS[item.kind] || item.kind}`;
+function socialIdentityNode(item) {
+  const el = document.createElement('div');
+  el.className = 'soc-identity';
+  el.innerHTML =
+    platformIcon(item.platform) +
+    `<span class="soc-handle-chip">@${escHtml(itemHandle(item))}</span>` +
+    (item.kind === 'review' ? starsHtml(item.rating) : '') +
+    `<span class="soc-detail-date">${escHtml(formatSocialRelativeTime(item.createdAt))}</span>` +
+    (item.live ? '' : '<span class="soc-chip soc-chip--demo">Sample</span>');
+  return el;
+}
 
+function renderSocialDetailPane(pane, item) {
   const icons = [];
   if (item.url) {
     icons.push(
@@ -557,50 +667,29 @@ function renderSocialDetailPane(pane, item) {
       onClick: () => rootEl()?.querySelector('#soc-reply-draft')?.focus(),
     }),
   );
-  icons.push(
-    createAgentBtn({
-      title: 'Write with agent',
-      label: 'Write with agent',
-      onClick: () => void writeSocialReplyWithAgent(item, rootEl()?.querySelector('#soc-reply-agent')),
-    }),
-  );
+  const agentBtn = createAgentBtn({
+    title: 'Write with agent',
+    onClick: (btn) => void writeSocialReplyWithAgent(item, btn),
+  });
+  icons.push(agentBtn);
 
   pane.appendChild(
     createPaneHeader({
       back: { label: 'Back to feed', onClick: () => clearSocialDetail() },
-      title,
+      titleNode: socialIdentityNode(item),
       icons,
     }).root,
   );
 
   const detail = document.createElement('div');
   detail.className = 'soc-detail em-detail';
-  const demoNote = item.live
-    ? ''
-    : `<p class="em-hint">Sample activity for the saved ${escHtml(item.platformLabel)} profile. Connect the account under Socials when you want live posts and comments.</p>`;
-  const reviewNote =
-    item.source === 'review'
-      ? `<p class="em-hint">Draft here, then open ${escHtml(item.platformLabel)} to post the reply. Mark responded when it’s live.</p>`
-      : `<p class="em-hint">Replies are not posted into ${escHtml(item.platformLabel)} from Reave yet — copy or open the link and reply there.</p>`;
+  const readyDraft = item.replyDraft || (needsReplyDraft(item) ? fallbackReplyDraft(item) : '');
 
   detail.innerHTML =
-    `<div class="soc-detail-meta">` +
-      platformIcon(item.platform) +
-      `<span class="soc-detail-kind">${escHtml(item.platformLabel)} · ${escHtml(KIND_LABELS[item.kind] || item.kind)}</span>` +
-      (item.kind === 'review' ? starsHtml(item.rating) : '') +
-      `<span class="soc-detail-date">${escHtml(formatSocialDate(item.createdAt))}</span>` +
-      (item.live ? '' : '<span class="soc-chip soc-chip--demo">Sample</span>') +
-    `</div>` +
-    `<h2 class="soc-detail-author">${escHtml(item.authorName)}</h2>` +
     `<div class="em-detail-body">${escHtml(item.text)}</div>` +
-    demoNote +
-    reviewNote +
-    (item.url
-      ? `<p><a class="soc-detail-link" href="${escHtml(item.url)}" target="_blank" rel="noopener">Open on ${escHtml(item.platformLabel)} ↗</a></p>`
-      : '') +
     `<label class="prof-field">` +
-      `<span class="prof-label soc-compose-label">Reply draft <button type="button" class="em-compose-agent" id="soc-reply-agent">Write with agent</button></span>` +
-      `<textarea id="soc-reply-draft" class="em-compose-textarea soc-compose-text" rows="5" placeholder="Write a reply…">${escHtml(item.replyDraft || '')}</textarea>` +
+      `<span class="prof-label">Reply</span>` +
+      `<textarea id="soc-reply-draft" class="em-compose-textarea soc-compose-text" rows="5" placeholder="Write a reply…">${escHtml(readyDraft)}</textarea>` +
     `</label>` +
     `<label class="prof-field">` +
       `<span class="prof-label">Posted reply <span class="prof-hint">(paste what you published, optional)</span></span>` +
@@ -609,9 +698,9 @@ function renderSocialDetailPane(pane, item) {
     `<div class="soc-detail-actions" id="soc-item-actions"></div>`;
 
   pane.appendChild(detail);
-  detail.querySelector('#soc-reply-agent')?.addEventListener('click', (ev) => {
-    void writeSocialReplyWithAgent(item, ev.currentTarget);
-  });
+  if (needsReplyDraft(item)) {
+    void ensureReplyDraft(item, agentBtn);
+  }
   const actions = detail.querySelector('#soc-item-actions');
   if (!actions) return;
 

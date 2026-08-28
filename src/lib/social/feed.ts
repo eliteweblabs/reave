@@ -52,6 +52,8 @@ export interface SocialFeedItem {
   platformLabel: string;
   kind: SocialFeedItemKind;
   authorName: string;
+  /** Bare handle without @, e.g. "samortiz". */
+  authorHandle: string;
   text: string;
   url: string | null;
   createdAt: string;
@@ -101,11 +103,41 @@ const REVIEW_TO_FEED: Record<ReviewPlatform, SocialFeedNetworkId> = {
 };
 
 const SAMPLE_INBOUND = [
-  { kind: 'comment' as const, author: 'Maya Chen', text: 'Loved this — when can we book again?' },
-  { kind: 'mention' as const, author: 'Jordan Hale', text: 'Just tagged you — can someone from the team take a look?' },
-  { kind: 'comment' as const, author: 'Priya Nair', text: 'Are you open Saturday morning? Need a quote.' },
-  { kind: 'comment' as const, author: 'Chris Alvarez', text: 'This is exactly what we needed. Thank you!' },
-  { kind: 'mention' as const, author: 'Sam Ortiz', text: 'Anyone tried these folks? Thinking of reaching out.' },
+  {
+    kind: 'comment' as const,
+    author: 'Maya Chen',
+    handle: 'mayachen',
+    text: 'Loved this — when can we book again?',
+    reply: "Thanks Maya — we'd love to have you back. Message us or book from the site and we'll get you on the calendar.",
+  },
+  {
+    kind: 'mention' as const,
+    author: 'Jordan Hale',
+    handle: 'jordanhale',
+    text: 'Just tagged you — can someone from the team take a look?',
+    reply: "Thanks for the tag, Jordan — we're on it and will take a look.",
+  },
+  {
+    kind: 'comment' as const,
+    author: 'Priya Nair',
+    handle: 'priyanair',
+    text: 'Are you open Saturday morning? Need a quote.',
+    reply: 'Hi Priya — thanks for reaching out. Send us the details and we will get you a quote. Saturday mornings are often available.',
+  },
+  {
+    kind: 'comment' as const,
+    author: 'Chris Alvarez',
+    handle: 'chrisalvarez',
+    text: 'This is exactly what we needed. Thank you!',
+    reply: 'So glad it helped, Chris — thank you for the kind words!',
+  },
+  {
+    kind: 'mention' as const,
+    author: 'Sam Ortiz',
+    handle: 'samortiz',
+    text: 'Anyone tried these folks? Thinking of reaching out.',
+    reply: "Hey Sam — thanks for thinking of us! We'd love to help. Send a message anytime and we'll take it from there.",
+  },
 ];
 
 const SAMPLE_POSTS = [
@@ -136,6 +168,18 @@ function makeRng(seed: number): () => number {
 
 function isoHoursAgo(hours: number): string {
   return new Date(Date.now() - hours * 3600 * 1000).toISOString();
+}
+
+function isoMinutesAgo(minutes: number): string {
+  return new Date(Date.now() - minutes * 60 * 1000).toISOString();
+}
+
+export function handleFromAuthorName(name: string): string {
+  const slug = String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 24);
+  return slug || 'user';
 }
 
 function catalogById(id: SocialPlatformId): SocialPlatformDef | undefined {
@@ -185,7 +229,7 @@ function applyReply(
   if (!saved) return item;
   return {
     ...item,
-    replyDraft: saved.replyDraft,
+    replyDraft: saved.replyDraft.trim() ? saved.replyDraft : item.replyDraft,
     replyText: saved.replyText,
     status: saved.status,
   };
@@ -196,6 +240,11 @@ function sampleItemsForAccount(account: SocialAccount): SocialFeedItem[] {
   const rng = makeRng(seed);
   const items: SocialFeedItem[] = [];
   const inboundCount = 2 + Math.floor(rng() * 2);
+  const inboundAgesMin = [
+    15 + Math.floor(rng() * 5),
+    6 * 60 + 25 + Math.floor(rng() * 10),
+    24 * 60 + Math.floor(rng() * 20),
+  ];
   for (let i = 0; i < inboundCount; i++) {
     const sample = SAMPLE_INBOUND[Math.floor(rng() * SAMPLE_INBOUND.length)];
     const token = (seed + i * 97).toString(36);
@@ -205,12 +254,13 @@ function sampleItemsForAccount(account: SocialAccount): SocialFeedItem[] {
       platformLabel: account.label,
       kind: sample.kind,
       authorName: sample.author,
+      authorHandle: sample.handle,
       text: sample.text,
       url: itemPermalink(account, sample.kind, token),
-      createdAt: isoHoursAgo(4 + i * 18 + Math.floor(rng() * 8)),
+      createdAt: isoMinutesAgo(inboundAgesMin[i] ?? 15),
       rating: null,
       status: 'new',
-      replyDraft: '',
+      replyDraft: sample.reply,
       replyText: '',
       live: false,
       source: 'social',
@@ -225,6 +275,7 @@ function sampleItemsForAccount(account: SocialAccount): SocialFeedItem[] {
     platformLabel: account.label,
     kind: 'post',
     authorName: account.handle,
+    authorHandle: account.handle.replace(/^@/, ''),
     text: post,
     url: itemPermalink(account, 'post', (seed + 3).toString(36)),
     createdAt: isoHoursAgo(10 + Math.floor(rng() * 40)),
@@ -249,6 +300,7 @@ function reviewToItem(review: OnlineReview): SocialFeedItem {
     platformLabel: meta.label,
     kind: 'review',
     authorName: review.authorName || 'Anonymous',
+    authorHandle: handleFromAuthorName(review.authorName || 'Anonymous'),
     text: review.reviewText || '(No review text)',
     url: review.reviewUrl,
     createdAt: review.reviewedAt || review.fetchedAt,
@@ -396,6 +448,7 @@ export async function buildSocialFeed(
     if (!search) return true;
     return (
       item.authorName.toLowerCase().includes(search) ||
+      (item.authorHandle || '').toLowerCase().includes(search) ||
       item.text.toLowerCase().includes(search) ||
       item.platformLabel.toLowerCase().includes(search) ||
       item.kind.toLowerCase().includes(search)
