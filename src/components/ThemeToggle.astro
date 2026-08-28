@@ -217,7 +217,9 @@
       /* ignore */
     }
     const meta = document.querySelector('meta[name="theme-color"]:not([media])');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#111111" : "#ffffff");
+    if (meta && document.documentElement.dataset.rainbowThemeColor !== "1") {
+      meta.setAttribute("content", theme === "dark" ? "#111111" : "#ffffff");
+    }
     document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]").forEach((btn) => {
       btn.setAttribute("aria-checked", theme === "dark" ? "true" : "false");
       btn.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
