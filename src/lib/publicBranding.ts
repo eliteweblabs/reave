@@ -9,10 +9,11 @@ import { projectRoot } from './projectRoot';
 /** Not under /public — a folder there would shadow the /branding/*.png routes. */
 export const PUBLIC_BRANDING_DIR = 'src/knowledge/branding';
 
-export type PublicBrandFile = 'logo.png' | 'icon.png' | 'logo.svg' | 'icon.svg';
+export type PublicBrandFile = 'logo.png' | 'logo.alt.png' | 'icon.png' | 'logo.svg' | 'icon.svg';
 
 const MEDIA: Record<PublicBrandFile, string> = {
   'logo.png': 'image/png',
+  'logo.alt.png': 'image/png',
   'icon.png': 'image/png',
   'logo.svg': 'image/svg+xml',
   'icon.svg': 'image/svg+xml',

@@ -1,0 +1,21 @@
+{
+  "key": "pattheplumber",
+  "pages": ["/", "/card", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "login",
+    "heroHeadlineHtml": "",
+    "subtitle": "Coming soon",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": false
+  }
+}

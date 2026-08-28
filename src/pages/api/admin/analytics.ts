@@ -7,9 +7,11 @@
  *   site_id=… (Plausible)
  *   property_id=… (GA4)
  *   contact_uid=… (per-client token / meta)
+ *   view=accounts — fleet list of every live / registered site
  */
 import type { APIContext } from 'astro';
 import { buildAnalyticsDashboard } from '../../../lib/analyticsDashboard';
+import { listAnalyticsAccounts } from '../../../lib/analyticsFleet';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
@@ -43,6 +45,21 @@ export async function GET(context: APIContext): Promise<Response> {
     const url = new URL(context.request.url);
     const rangeDays = parseRange(url.searchParams.get('range'));
     const company = await getCompanyConfig(context.request);
+    if ((url.searchParams.get('view') || '').trim() === 'accounts') {
+      const fleet = await listAnalyticsAccounts(company.domain, {
+        rangeDays,
+        includeRailway: true,
+      });
+      return json({
+        ok: true,
+        view: 'accounts',
+        configured: fleet.configured,
+        rangeDays: fleet.rangeDays,
+        railwayConfigured: fleet.railwayConfigured,
+        accounts: fleet.accounts,
+        warnings: fleet.warnings,
+      });
+    }
     const dashboard = await buildAnalyticsDashboard(company.domain, {
       rangeDays,
       source: url.searchParams.get('source'),

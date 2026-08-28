@@ -15,8 +15,9 @@ import {
   GOOGLE_WEBMASTER_PROVIDER,
   isGoogleWebmasterOAuthConfigured,
 } from '../../../../lib/googleWebmasterAuth';
-import { isPlausibleConfigured, plausibleSiteId } from '../../../../lib/plausibleClient';
+import { isPlausibleConfigured, plausibleSiteId, plausibleSitesNewUrl } from '../../../../lib/plausibleClient';
 import { listAnalyticsSites } from '../../../../lib/analyticsSites';
+import { isRailwayConfigured } from '../../../../lib/railwayClient';
 import { isIndexNowConfigured } from '../../../../lib/indexNowClient';
 import { isBingWebmasterConfigured } from '../../../../lib/bingWebmasterClient';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
@@ -53,6 +54,8 @@ export async function GET(context: APIContext): Promise<Response> {
       configured: isPlausibleConfigured(),
       siteId: plausibleSiteId(company.domain),
       sites,
+      railwayConfigured: isRailwayConfigured(),
+      sitesNewUrl: plausibleSitesNewUrl(),
     },
     indexNow: { configured: isIndexNowConfigured() },
     bing: { configured: isBingWebmasterConfigured(), placeholder: true },

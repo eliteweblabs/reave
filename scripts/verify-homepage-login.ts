@@ -57,6 +57,21 @@ const defaultInstall = JSON.parse(readFileSync('config/config-default.json', 'ut
 assert.equal(defaultInstall.homepageTemplate, 'login');
 assert.equal(defaultInstall.siteContentKey, 'default');
 
+const patSite = JSON.parse(readFileSync('config/sites/pattheplumber-config.json', 'utf8')) as {
+  homepage?: { template?: string; subtitle?: string };
+  pages?: string[];
+};
+assert.equal(patSite.homepage?.template, 'login');
+assert.equal(patSite.homepage?.subtitle, 'Coming soon');
+assert.equal(patSite.pages?.includes('/features'), false);
+
+const patInstall = JSON.parse(readFileSync('config/config-pattheplumber.json', 'utf8')) as {
+  homepageTemplate?: string;
+  siteContentKey?: string;
+};
+assert.equal(patInstall.homepageTemplate, 'login');
+assert.equal(patInstall.siteContentKey, 'pattheplumber');
+
 assert.equal(
   homepageTemplateFromConfig({
     siteTemplate: 'login',

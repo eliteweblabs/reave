@@ -576,6 +576,59 @@
   gap: 0.65rem;
   flex-wrap: wrap;
 }
+.ana-account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.65rem;
+}
+.ana-account-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.85rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-muted);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ana-account-card:hover {
+  background: var(--surface-hover-strong);
+}
+.ana-account-card--off {
+  border-style: dashed;
+}
+.ana-account-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.ana-account-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  letter-spacing: -0.02em;
+}
+.ana-account-id {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.ana-account-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--fg-secondary);
+}
+.ana-account-metrics strong {
+  font-variant-numeric: tabular-nums;
+}
 .ana-site-picker {
   display: flex;
   align-items: center;

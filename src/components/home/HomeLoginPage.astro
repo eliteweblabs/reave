@@ -4,10 +4,12 @@ import Favicon from "../Favicon.astro";
 import ViewportMeta from "../ViewportMeta.astro";
 import ThemeInit from "../ThemeInit.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { getSiteContent } from "../../lib/siteContent";
 import "../../styles/mobile-touch.css";
 import "../../styles/brand.css";
 
 const company = await getCompanyConfig(Astro.request);
+const subtitle = getSiteContent().homepage.subtitle?.trim() || "";
 ---
 
 <!doctype html>
@@ -27,6 +29,7 @@ const company = await getCompanyConfig(Astro.request);
     <Header />
     <main class="login-stage">
       <h1>{company.name}</h1>
+      {subtitle && <p>{subtitle}</p>}
     </main>
   </body>
 </html>
