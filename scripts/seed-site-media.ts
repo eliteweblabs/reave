@@ -41,7 +41,7 @@ const SEED: SeedItem[] = [
   { slug: 'client-sharpie', file: 'public/logos/clients/sharpie.svg', alt: 'Sharpie' },
   { slug: 'client-overlook', file: 'public/logos/clients/overlook.png', alt: 'The Overlook' },
   { slug: 'client-coinbase', file: 'public/logos/clients/coinbase.svg', alt: 'Coinbase' },
-  { slug: 'portfolio-mdot-world-featured', file: 'src/assets/images/portfolio/mdot-world-featured.webp', alt: 'M-Dot' },
+  { slug: 'portfolio-mdot-world-featured', file: 'src/assets/images/portfolio/mdot-world-featured.webp', alt: 'MDOT.world' },
   { slug: 'portfolio-mohegan-sun-featured', file: 'src/assets/images/portfolio/mohegan-sun-featured.webp', alt: 'Mohegan Sun' },
   { slug: 'portfolio-porsche-miami-art-week-featured', file: 'src/assets/images/portfolio/porsche-miami-art-week-featured.webp', alt: 'Miami Art Week' },
   { slug: 'portfolio-vip-perks-marker-security-featured', file: 'src/assets/images/portfolio/vip-perks-marker-security-featured.webp', alt: 'Marker Protection' },

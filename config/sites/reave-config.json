@@ -238,7 +238,7 @@
   ],
   "portfolio": [
     {
-      "title": "M-Dot",
+      "title": "MDOT.world",
       "description": "Boston-born East Coast hip-hop artist and producer — a lyric-first MC with two decades in the underground, collaborations with Pete Rock, DJ Premier, and Method Man, 17 European tours, and placements on NBC, STARZ, and Def Jam. reΛVe.app built his digital home base to match that pedigree.",
       "tags": [
         "Web Development",
@@ -246,7 +246,7 @@
         "Managed Hosting"
       ],
       "image": "portfolio-mdot-world-featured",
-      "imageAlt": "M-Dot portrait splash page with bottom music and social dock on black",
+      "imageAlt": "MDOT.world portrait splash page with bottom music and social dock on black",
       "size": "2x1",
       "featured": true,
       "href": "https://mdot.world",
