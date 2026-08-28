@@ -5,7 +5,10 @@
  */
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
+import { BRAND_ICON_RENDER } from '../src/lib/brandIconRaster.ts';
 import {
+  brandMarkInk,
+  brandingEtag,
   isSolidNeutralField,
   renderCompanyBrandIconPng,
 } from '../src/lib/brandImageRender.ts';
@@ -20,7 +23,9 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
 {
   assert.equal(svgSpecifiesFill(UNFILLED_AV), false);
   assert.ok(svgSpecifiesFill(withSvgFill(UNFILLED_AV, '#ffffff')));
-  assert.equal(svgSpecifiesFill('<svg fill="none"><path/></svg>'), true);
+  assert.equal(svgSpecifiesFill('<svg fill="none"><path/></svg>'), false);
+  assert.equal(withSvgFill('<svg fill="none"><path/></svg>', '#ffffff'), '<svg fill="#ffffff"><path/></svg>');
+  assert.ok(svgSpecifiesFill('<svg fill="#111"><path/></svg>'));
 }
 
 {
@@ -43,6 +48,30 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
   assert.equal(isSolidNeutralField(analysis, 32 * 32), false, 'avatar must not be a solid tile');
   assert.ok(analysis.blackRatio > 0.5, `transparent avatar must keep black ink, blackRatio=${analysis.blackRatio}`);
   assert.ok(analysis.whiteRatio < 0.15, `transparent avatar must not flip to white, whiteRatio=${analysis.whiteRatio}`);
+}
+
+{
+  const etag = brandingEtag({ name: 'reΛVe.app', iconSvg: UNFILLED_AV, brandPrimary: '#000000' }, 32);
+  assert.match(etag, new RegExp(`:${BRAND_ICON_RENDER}:`));
+  assert.match(etag, /#000000/);
+  const other = brandingEtag({ name: 'reΛVe.app', iconSvg: UNFILLED_AV }, 32);
+  assert.notEqual(etag, other);
+}
+
+{
+  const admin = brandMarkInk({ brandPrimary: '#22c55e', brandSecondary: '#16a34a' }, 'dark');
+  assert.equal(admin.from, '#22c55e');
+  const darkAdmin = brandMarkInk({ brandPrimary: '#000000', brandSecondary: '#505050' }, 'dark');
+  assert.equal(darkAdmin.from, '#ffffff');
+  const unset = brandMarkInk({ name: 'reΛVe.app' }, 'dark');
+  assert.equal(unset.from, '#ffffff');
+  assert.doesNotMatch(unset.from + unset.to, /#f472b6|#c026d3|#6366f1|#a855f7/i);
+}
+
+{
+  const png = await renderCompanyBrandIconPng({ name: 'reΛVe.app' }, 32);
+  const analysis = await analyzeLogoContrast(png);
+  assert.equal(isSolidNeutralField(analysis, 32 * 32), false, 'letter fallback must not be a solid tile');
 }
 
 console.log('verify-brand-favicon: ok');

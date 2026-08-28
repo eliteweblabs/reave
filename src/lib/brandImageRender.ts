@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { SITE } from '../config/site';
 import { sanitizeInlineSvg, resolveSvgAssetUrls, withSvgFill } from './brandSvg';
-import { rasterizeBrandIcon } from './brandIconRaster';
+import { BRAND_ICON_RENDER, rasterizeBrandIcon } from './brandIconRaster';
 import type { StoredCompanyConfig } from './companyConfigStore';
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from './ogImageSize';
 import {
@@ -79,14 +79,27 @@ function pushSvg(sources: BrandMarkSource[], raw?: string | null): void {
   if (svg) sources.push({ kind: 'svg', svg });
 }
 
-/** Icon PNG → icon SVG → logo PNG → logo SVG. */
+function pushDiskBranding(sources: BrandMarkSource[]): void {
+  const iconSvg = readPublicBrandingFile('icon.svg');
+  if (iconSvg) pushSvg(sources, iconSvg.data.toString('utf8'));
+  const iconPng = readPublicBrandingFile('icon.png');
+  if (iconPng) sources.push({ kind: 'raster', buffer: iconPng.data });
+  const logoSvg = readPublicBrandingFile('logo.svg');
+  if (logoSvg) pushSvg(sources, logoSvg.data.toString('utf8'));
+  const logoPng = readPublicBrandingFile('logo.png');
+  if (logoPng) sources.push({ kind: 'raster', buffer: logoPng.data });
+}
+
+/** Icon PNG → icon SVG → logo PNG → logo SVG, then disk branding files. */
 export function collectBrandMarkSources(stored: StoredCompanyConfig | null): BrandMarkSource[] {
   const sources: BrandMarkSource[] = [];
-  if (!stored) return sources;
-  pushRaster(sources, stored.iconData, stored.iconMediaType);
-  pushSvg(sources, stored.iconSvg);
-  pushRaster(sources, stored.logoData, stored.logoMediaType);
-  pushSvg(sources, stored.logoSvg);
+  if (stored) {
+    pushRaster(sources, stored.iconData, stored.iconMediaType);
+    pushSvg(sources, stored.iconSvg);
+    pushRaster(sources, stored.logoData, stored.logoMediaType);
+    pushSvg(sources, stored.logoSvg);
+  }
+  if (sources.length === 0) pushDiskBranding(sources);
   return sources;
 }
 
@@ -257,7 +270,45 @@ async function rasterizeSource(
   }
 }
 
-function buildLetterSvg(letter: string, size: number, transparent: boolean): string {
+type BrandMarkInk = { from: string; to: string };
+
+function brandHex(raw?: string | null): string | null {
+  const t = (raw ?? '').trim();
+  const m = t.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (!m) return null;
+  const hex = m[1]!;
+  if (hex.length === 3) {
+    return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toLowerCase();
+  }
+  return `#${hex}`.toLowerCase();
+}
+
+function hexLuminance(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+}
+
+/**
+ * Ink for favicon tiles. Uses admin Company colors when they contrast on the
+ * canvas. Never falls through to the pink/magenta site defaults.
+ */
+export function brandMarkInk(stored: StoredCompanyConfig | null, surface: 'dark' | 'light' = 'dark'): BrandMarkInk {
+  const primary = brandHex(stored?.brandPrimary);
+  const secondary = brandHex(stored?.brandSecondary) ?? primary;
+  if (primary) {
+    const lum = hexLuminance(primary);
+    if (surface === 'dark' ? lum > 0.45 : lum < 0.55) {
+      return { from: primary, to: secondary ?? primary };
+    }
+  }
+  return surface === 'dark'
+    ? { from: '#ffffff', to: '#e4e4e7' }
+    : { from: '#09090b', to: '#3f3f46' };
+}
+
+function buildLetterSvg(letter: string, size: number, transparent: boolean, ink: BrandMarkInk): string {
   const safe = escapeXml(letter);
   const two = [...letter].length > 1;
   const fontSize = Math.round(size * (two ? 0.4 : 0.52));
@@ -269,22 +320,22 @@ function buildLetterSvg(letter: string, size: number, transparent: boolean): str
   ${background}
   <defs>
     <linearGradient id="brand-letter" x1="0" y1="${size}" x2="${size}" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#e4e4e7"/>
+      <stop offset="0%" stop-color="${ink.from}"/>
+      <stop offset="100%" stop-color="${ink.to}"/>
     </linearGradient>
   </defs>
   <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" fill="url(#brand-letter)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="${fontSize}" font-weight="700"${tracking}>${safe}</text>
 </svg>`;
 }
 
-function buildLetterOgSvg(letter: string): string {
+function buildLetterOgSvg(letter: string, ink: BrandMarkInk): string {
   const safe = escapeXml(letter);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${PORTAL_OG_WIDTH}" height="${PORTAL_OG_HEIGHT}" viewBox="0 0 ${PORTAL_OG_WIDTH} ${PORTAL_OG_HEIGHT}">
   <rect width="${PORTAL_OG_WIDTH}" height="${PORTAL_OG_HEIGHT}" fill="#0a0a0a"/>
   <defs>
     <linearGradient id="brand-letter-og" x1="0" y1="${PORTAL_OG_HEIGHT}" x2="${PORTAL_OG_WIDTH}" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#e4e4e7"/>
+      <stop offset="0%" stop-color="${ink.from}"/>
+      <stop offset="100%" stop-color="${ink.to}"/>
     </linearGradient>
   </defs>
   <text x="600" y="340" text-anchor="middle" dominant-baseline="middle" fill="url(#brand-letter-og)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="280" font-weight="700">${safe}</text>
@@ -325,21 +376,22 @@ export async function renderBrandMarkSquarePng(
   sources: BrandMarkSource[],
   letter: string,
   size: number,
-  opts?: { transparent?: boolean; fit?: 'cover' | 'contain' },
+  opts?: { transparent?: boolean; fit?: 'cover' | 'contain'; stored?: StoredCompanyConfig | null },
 ): Promise<Buffer> {
   const fit = opts?.fit ?? 'cover';
   const transparent = opts?.transparent ?? false;
+  const ink = brandMarkInk(opts?.stored ?? null, transparent ? 'light' : 'dark');
   for (const source of sources) {
     const prepared =
       source.kind === 'svg' && !transparent
-        ? { ...source, svg: withSvgFill(source.svg, '#ffffff') }
+        ? { ...source, svg: withSvgFill(source.svg, ink.from) }
         : source;
     const png = await rasterizeSource(prepared, size, fit);
     if (!png) continue;
     const usable = await prepareFaviconMark(png, size, transparent);
     if (usable) return usable;
   }
-  const svg = buildLetterSvg(letter, size, transparent);
+  const svg = buildLetterSvg(letter, size, transparent, ink);
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
@@ -350,7 +402,7 @@ export async function renderCompanyBrandIconPng(
 ): Promise<Buffer> {
   const letter = brandMarkLetter(stored?.name ?? '');
   const sources = collectBrandMarkSources(stored);
-  return renderBrandMarkSquarePng(sources, letter, size, opts);
+  return renderBrandMarkSquarePng(sources, letter, size, { ...opts, stored });
 }
 
 /** Square icon for QR / compact marks: SVG → uploaded icon → initials. */
@@ -363,6 +415,7 @@ export async function renderCompanyIconMarkPng(
   return renderBrandMarkSquarePng(collectCompanyIconSources(stored), initials, size, {
     fit: opts?.fit ?? 'contain',
     transparent: opts?.transparent ?? false,
+    stored,
   });
 }
 
@@ -396,7 +449,7 @@ export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Pro
     if (png) return composeSquareOnOgCanvas(png);
   }
 
-  return sharp(Buffer.from(buildLetterOgSvg(letter)))
+  return sharp(Buffer.from(buildLetterOgSvg(letter, brandMarkInk(stored, 'dark'))))
     .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT)
     .png()
     .toBuffer();
@@ -423,5 +476,6 @@ export function brandingEtag(
     opts?.transparent ? 't' : '',
   ].join('');
   const nameTag = brandingNameTag(stored?.name ?? '');
-  return `${updated}:${flags}:${nameTag}:${kind}:${size}`;
+  const colors = [brandHex(stored?.brandPrimary) ?? '', brandHex(stored?.brandSecondary) ?? ''].join(':');
+  return `${updated}:${flags}:${nameTag}:${kind}:${size}:${BRAND_ICON_RENDER}:${colors}`;
 }

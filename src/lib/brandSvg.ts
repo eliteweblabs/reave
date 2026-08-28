@@ -82,17 +82,24 @@ export type PrepareInlineBrandSvgOptions = {
   idPrefix?: string;
 };
 
-/** True when the markup already sets fill (attribute or CSS), including `none`. */
+/** True when the markup already sets a paint fill (attribute or CSS). `none` does not count. */
 export function svgSpecifiesFill(svg: string): boolean {
-  return /(?:fill\s*=|fill\s*:)/i.test(svg);
+  const withoutNone = svg
+    .replace(/fill\s*=\s*["']none["']/gi, '')
+    .replace(/fill\s*:\s*none\b/gi, '');
+  return /(?:fill\s*=|fill\s*:)/i.test(withoutNone);
 }
 
 /**
- * Pasted brand marks often omit `fill` (Illustrator default = black). That
- * disappears on a dark favicon. Set a root fill so paths inherit it.
+ * Pasted brand marks often omit `fill` (Illustrator default = black) or set
+ * `fill="none"` on the root. Either disappears on a dark favicon. Set a root
+ * fill so paths inherit it.
  */
 export function withSvgFill(svg: string, fill: string): string {
   if (svgSpecifiesFill(svg)) return svg;
+  if (/<svg\b[^>]*fill\s*=\s*["']none["']/i.test(svg)) {
+    return svg.replace(/(<svg\b[^>]*fill\s*=\s*["'])none(["'])/i, `$1${fill}$2`);
+  }
   return svg.replace(/<svg\b/i, `<svg fill="${fill}"`);
 }
 

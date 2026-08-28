@@ -11,7 +11,7 @@ import {
   normalizePublicLogoPath,
 } from './companyLogo';
 import { prepareInlineBrandSvg } from './brandSvg';
-import { BRAND_ICON_SIZES } from './brandIconRaster';
+import { BRAND_ICON_RENDER, BRAND_ICON_SIZES } from './brandIconRaster';
 import {
   getStoredCompanyConfig,
   setStoredCompanyConfig,
@@ -332,9 +332,6 @@ export function companyBrandingVersion(company: CompanyConfig): string | null {
   const v = trim(company.iconVersion) || trim(company.logoVersion);
   return v || null;
 }
-
-/** Bump when favicon rasterization changes so browsers drop a stale tile. */
-const BRAND_ICON_RENDER = 'av2';
 
 /** Build a sized branding icon URL (admin PNG/SVG rasterized at request time). */
 export function brandIconUrl(size: number, version?: string | null, opts?: { transparent?: boolean }): string {

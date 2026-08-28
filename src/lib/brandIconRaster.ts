@@ -7,6 +7,9 @@ import sharp from 'sharp';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../../public/', import.meta.url));
 
+/** Bump when favicon rasterization changes so browsers/CDNs drop a stale tile. */
+export const BRAND_ICON_RENDER = 'av3';
+
 /** Sizes referenced by Favicon.astro, manifests, and service workers. */
 export const BRAND_ICON_SIZES = {
   png16: 16,
