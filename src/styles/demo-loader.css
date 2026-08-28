@@ -47,19 +47,6 @@
   color: rgba(255, 255, 255, 0.68);
 }
 
-.dl-notice {
-  margin: 18px auto 0;
-  max-width: 560px;
-  padding: 0.75rem 1rem;
-  font-family: var(--font-content);
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(251, 191, 36, 0.28);
-  border-radius: 10px;
-  background: rgba(251, 191, 36, 0.08);
-}
-
 .dl-sandbox-note {
   margin: 14px 0 0;
   font-size: 0.82rem;
@@ -1006,7 +993,6 @@ html:not([data-theme="dark"]) .dw-places-empty {
   color: var(--site-fg-muted, #525252);
 }
 
-html:not([data-theme="dark"]) .dl-notice,
 html:not([data-theme="dark"]) .dl-sandbox-note a,
 html:not([data-theme="dark"]) .dl-success-body,
 html:not([data-theme="dark"]) .dl-success-meta,
