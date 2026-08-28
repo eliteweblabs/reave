@@ -3,6 +3,12 @@
  */
 
 import {
+  inferCalendarReminderStartMs,
+  parseCalendarReminderTag,
+  reminderDedupKey,
+} from './calendarReminderLogic';
+import { storeFindCalendarReminderByDedup } from './calendarReminderStore';
+import {
   bestWorkDisplayName,
   emailIdFromPushAlertTag,
   normalizePushAlertCopy,
@@ -39,9 +45,27 @@ export type PushAlertReviewNotification = {
   verificationCode?: string | null;
   actionUrl?: string | null;
   deleteAfterAt?: string | null;
+  /** Calendar reminder meeting start — used to expire the dashboard card. */
+  bookingStart?: string | null;
   /** Optional action button ids from the matching email rule. */
   actions?: string[];
 };
+
+async function resolveCalendarReminderStart(alert: PushAlert): Promise<string | null> {
+  if (alert.kind !== 'calendar') return null;
+  const parsed = parseCalendarReminderTag(alert.tag);
+  if (parsed) {
+    const row = await storeFindCalendarReminderByDedup(
+      reminderDedupKey(parsed.bookingUid, parsed.offsetMinutes),
+    ).catch(() => null);
+    if (row?.startTime) return row.startTime;
+  }
+  const inferred = inferCalendarReminderStartMs({
+    tag: alert.tag,
+    createdAt: alert.createdAt,
+  });
+  return inferred != null ? new Date(inferred).toISOString() : null;
+}
 
 async function resolvePushAlertDisplayName(alert: PushAlert): Promise<string | undefined> {
   const slug = siriProposalSlugFromTag(alert.tag) ?? workSlugFromAdminUrl(alert.url);
@@ -71,9 +95,10 @@ async function resolveLinkedInboxEmail(alert: PushAlert) {
 export async function toPushAlertReviewNotification(
   alert: PushAlert,
 ): Promise<PushAlertReviewNotification> {
-  const [displayName, inbox] = await Promise.all([
+  const [displayName, inbox, bookingStart] = await Promise.all([
     resolvePushAlertDisplayName(alert),
     resolveLinkedInboxEmail(alert),
+    resolveCalendarReminderStart(alert),
   ]);
   const copy = normalizePushAlertCopy(alert, { displayName });
   return {
@@ -86,6 +111,7 @@ export async function toPushAlertReviewNotification(
     alertId: alert.id,
     url: alert.url,
     tag: alert.tag,
+    ...(bookingStart ? { bookingStart } : {}),
     ...(alert.actions?.length ? { actions: alert.actions } : {}),
     ...(inbox
       ? {

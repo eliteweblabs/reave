@@ -32,6 +32,57 @@ export function calendarReminderTag(bookingUid: string, offsetMinutes: number): 
   return `calendar-reminder-${bookingUid.trim()}-${offsetMinutes}`;
 }
 
+/** Inverse of calendarReminderTag — bookingUid may contain hyphens. */
+export function parseCalendarReminderTag(
+  tag?: string | null,
+): { bookingUid: string; offsetMinutes: number } | null {
+  const raw = String(tag || '').trim();
+  const match = raw.match(/^calendar-reminder-(.+)-(\d+)$/i);
+  if (!match) return null;
+  const offsetMinutes = Number(match[2]);
+  if (!Number.isFinite(offsetMinutes) || offsetMinutes < 1) return null;
+  return { bookingUid: match[1], offsetMinutes };
+}
+
+/** Start time inferred from when the reminder alert was created (fire ≈ start − offset). */
+export function inferCalendarReminderStartMs(opts: {
+  tag?: string | null;
+  createdAt?: string | null;
+}): number | null {
+  const parsed = parseCalendarReminderTag(opts.tag);
+  if (!parsed) return null;
+  const created = Date.parse(String(opts.createdAt || ''));
+  if (!Number.isFinite(created)) return null;
+  return created + parsed.offsetMinutes * 60_000;
+}
+
+/** Meeting review / calendar-reminder cards that should expire after the slot. */
+export function isExpiringMeetingNotice(item: {
+  type?: string | null;
+  alertKind?: string | null;
+}): boolean {
+  const type = String(item?.type || '');
+  if (type === 'meeting' || type === 'meeting_request' || type === 'meeting_conflict') return true;
+  return type === 'push_alert' && item?.alertKind === 'calendar';
+}
+
+export function resolveMeetingNoticeStartMs(item: {
+  type?: string | null;
+  alertKind?: string | null;
+  bookingStart?: string | null;
+  proposedMeetingStart?: string | null;
+  tag?: string | null;
+  receivedAt?: string | null;
+}): number | null {
+  if (!isExpiringMeetingNotice(item)) return null;
+  const direct = item.bookingStart || item.proposedMeetingStart;
+  if (direct) {
+    const ms = Date.parse(direct);
+    if (Number.isFinite(ms)) return ms;
+  }
+  return inferCalendarReminderStartMs({ tag: item.tag, createdAt: item.receivedAt });
+}
+
 export function calendarReminderUrl(bookingUid: string): string {
   return `/admin?tab=schedule&booking=${encodeURIComponent(bookingUid.trim())}`;
 }

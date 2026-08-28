@@ -32,7 +32,7 @@ import {
 } from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260826a';
-import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260825c';
+import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260828a';
 
 function section(root, title, hint, build) {
   const el = document.createElement('section');
@@ -379,22 +379,27 @@ function mount() {
       noticeHost.style.marginTop = '0.75rem';
       el.insertBefore(noticeHost, el.querySelector('.cg-status'));
       const notice = buildAdminNotice({
-        tone: 'info',
+        tone: 'alert',
         copyHtml: '<strong>Admin notice</strong><p>buildAdminNotice + appendAdminNoticeAction</p>',
+        actions: [
+          {
+            label: 'View',
+            iconKey: 'eye',
+            title: 'View',
+            onClick: () => setStatus('Notice view'),
+          },
+          {
+            label: 'Archive',
+            iconKey: 'archive',
+            title: 'Archive',
+            onClick: () => setStatus('Notice archive'),
+          },
+        ],
         onDismiss: (btn) => {
           btn.closest('.admin-setup-alert')?.remove();
           setStatus('Notice dismissed');
         },
       });
-      const toolbar = document.createElement('div');
-      toolbar.className = 'admin-setup-alert-toolbar';
-      toolbar.dataset.actionCount = '1';
-      appendAdminNoticeAction(toolbar, {
-        label: 'Action',
-        primary: true,
-        onClick: () => setStatus('Notice action'),
-      });
-      notice.insertBefore(toolbar, notice.querySelector('.admin-setup-alert-dismiss'));
       noticeHost.appendChild(notice);
     },
   );

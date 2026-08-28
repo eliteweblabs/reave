@@ -3,12 +3,12 @@
  *
  * Every dismissible dashboard / header notice (PWA install, push enable,
  * confirm banners, review notifications) must be built through
- * `buildAdminNotice` so layout, dismiss X, and tone classes stay in sync.
+ * `buildAdminNotice` so layout, the corner dismiss badge, and tone classes stay in sync.
  *
  * Styles live on `.admin-setup-alert*` in src/styles/admin/shell.css.
  */
 
-import { iosIcon, createBrandBtn, createIosIconBtn } from './admin-ui.js?v=20260825h';
+import { iosIcon, createBrandBtn, createIosIconBtn } from './admin-ui.js?v=20260826a';
 
 export const ADMIN_NOTICE_DISMISS_SVG = iosIcon('x', 16);
 
@@ -122,6 +122,7 @@ export function buildAdminNotice(opts) {
     iconKey: 'x',
     label: opts.dismissLabel || 'Dismiss',
     className: 'ios-icon-btn admin-setup-alert-dismiss',
+    size: 'sm',
     onClick: opts.onDismiss
       ? (btn, ev) => opts.onDismiss(btn, ev)
       : undefined,

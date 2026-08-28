@@ -463,11 +463,15 @@ select,
   position: relative;
   z-index: 1;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
   /* Cancel header inline pad so cards align with dashboard (1rem sides). */
   margin-left: calc(-1 * var(--app-header-inline-pad, 1rem));
   margin-right: calc(-1 * var(--app-header-inline-pad, 1rem));
   width: calc(100% + 2 * var(--app-header-inline-pad, 1rem));
-  padding: 0.45rem 1rem;
+  /* Extra top/side pad so the corner dismiss badge is not clipped. */
+  padding: 0.55rem 1.15rem 0.45rem;
   box-sizing: border-box;
 }
 @media (max-width: 639px) {
@@ -509,10 +513,10 @@ select,
   align-items: flex-start;
   gap: 0.65rem;
   min-width: 0;
-  padding-right: 2rem;
+  padding-right: 1.15rem;
 }
 .admin-setup-alert > .admin-setup-alert-copy {
-  padding-right: 2rem;
+  padding-right: 1.15rem;
 }
 .admin-setup-alert-brand {
   flex-shrink: 0;
@@ -775,19 +779,36 @@ select,
   flex: 0 0 auto;
   width: auto;
 }
-.admin-setup-alert-icon-btn.ios-icon-btn,
-.admin-setup-alert-dismiss.ios-icon-btn {
+.admin-setup-alert-icon-btn.ios-icon-btn {
   width: 2.25rem;
   height: 2.25rem;
 }
+/* Tiny red-bubble X — a close badge, not another toolbar icon. */
+.admin-setup-alert-dismiss.ios-icon-btn {
+  --icon-btn-box: 1.125rem;
+  --icon-btn-glyph: 0.625rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  min-width: 1.125rem;
+  min-height: 1.125rem;
+  padding: 0.2rem;
+  background: #ff3b30;
+  color: #fff;
+  box-shadow: 0 0 0 1.5px var(--bg, #fff);
+}
+.admin-setup-alert-dismiss.ios-icon-btn:hover,
+.admin-setup-alert-dismiss.ios-icon-btn:focus-visible {
+  background: #e0342b;
+  color: #fff;
+}
 .admin-setup-alert-dismiss {
   position: absolute;
-  top: 0.35rem;
-  right: 0.35rem;
+  top: -0.35rem;
+  right: -0.35rem;
   z-index: 3;
 }
-/* Keep the visible X small, but give the control a 44px finger target so the
-   top-right dismiss cannot lose to the Triage action below it. */
+/* Visible badge stays tiny; 44px finger target so dismiss still wins over
+   nearby toolbar icons. */
 .admin-setup-alert-dismiss::before {
   content: '';
   position: absolute;
@@ -902,7 +923,7 @@ select,
     flex: 0 0 auto;
     align-self: center;
     gap: 0.35rem;
-    padding-right: 2rem;
+    padding-right: 0.35rem;
   }
   .admin-setup-alert-toolbar .admin-setup-alert-btn,
   .admin-setup-alert-actions .admin-setup-alert-btn {
