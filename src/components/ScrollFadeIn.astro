@@ -41,7 +41,7 @@
     if (
       el.matches("section, article") &&
       !el.classList.contains("scroll-fade-in") &&
-      el.querySelector(".scroll-fade-in")
+      el.querySelector(".scroll-fade-in, section, article")
     ) {
       return false;
     }
