@@ -8,6 +8,7 @@
   --mod-tone-social: #7c3aed;
   --mod-tone-commerce: #0d9488;
   --mod-tone-web: #4f46e5;
+  --mod-tone-estate: #0f766e;
   --mod-tone-other: #64748b;
   --mod-tone-internal: #78716c;
   position: fixed;
@@ -32,6 +33,7 @@
 #modules-panel .em-filter-tab--tone-social { --em-chip-accent: var(--mod-tone-social); }
 #modules-panel .em-filter-tab--tone-commerce { --em-chip-accent: var(--mod-tone-commerce); }
 #modules-panel .em-filter-tab--tone-web { --em-chip-accent: var(--mod-tone-web); }
+#modules-panel .em-filter-tab--tone-estate { --em-chip-accent: var(--mod-tone-estate); }
 #modules-panel .em-filter-tab--tone-other { --em-chip-accent: var(--mod-tone-other); }
 #modules-panel .em-filter-tab--tone-internal { --em-chip-accent: var(--mod-tone-internal); }
 
@@ -84,6 +86,7 @@
 .mod-tone-social { --mod-icon-accent: var(--mod-tone-social); }
 .mod-tone-commerce { --mod-icon-accent: var(--mod-tone-commerce); }
 .mod-tone-web { --mod-icon-accent: var(--mod-tone-web); }
+.mod-tone-estate { --mod-icon-accent: var(--mod-tone-estate); }
 .mod-tone-other { --mod-icon-accent: var(--mod-tone-other); }
 .mod-tone-internal { --mod-icon-accent: var(--mod-tone-internal); }
 

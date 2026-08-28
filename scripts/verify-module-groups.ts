@@ -149,7 +149,7 @@ assert.ok(
 );
 assert.ok(catalog.every((row) => row.id !== '—'));
 assert.ok(catalog.every((row) => !row.feature.includes('-')), 'feature slugs must use underscores');
-for (const group of ['core', 'work', 'google_workspace', 'hosting', 'social', 'e_commerce', 'web_development', 'other', 'internal']) {
+for (const group of ['core', 'work', 'google_workspace', 'hosting', 'social', 'e_commerce', 'web_development', 'real_estate', 'other', 'internal']) {
   const nums = catalog
     .filter((row) => row.group === group)
     .map((row) => Number(row.id))
@@ -158,7 +158,11 @@ for (const group of ['core', 'work', 'google_workspace', 'hosting', 'social', 'e
     assert.equal(nums[i], nums[i - 1]! + 1, `${group} ids must be consecutive`);
   }
 }
-assert.ok(catalog.some((row) => row.feature === 'dscr_calculator' && row.group === 'other' && row.label === 'DSCR Calculator' && row.priceAmount === 175));
+assert.ok(catalog.some((row) => row.feature === 'dscr_calculator' && row.group === 'real_estate' && row.saleSheet && row.label === 'DSCR Calculator' && row.priceAmount === 175));
+assert.equal(moduleDisplayGroupId('dscr_calculator'), 'real_estate');
+assert.ok(FEATURE_SALE_SHEET.has('dscr_calculator'));
+const dscrId = Number(demoModuleIdForFeature('dscr_calculator'));
+assert.ok(dscrId >= 901 && dscrId <= 999, 'dscr_calculator should be in the Real Estate 901–999 band');
 assert.ok(catalog.some((row) => row.feature === 'time_tracking' && row.group === 'work' && row.saleSheet));
 assert.ok(catalog.some((row) => row.feature === 'social_inbox' && row.label === 'Agentic Social Media'));
 assert.ok(catalog.some((row) => row.feature === 'google_workspace' && row.group === 'google_workspace' && row.saleSheet && row.visibility === 'service'));

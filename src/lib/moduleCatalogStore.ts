@@ -140,6 +140,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
     let group: CatalogGroupId = isCatalogGroupId(rawGroup) ? rawGroup : 'other';
     if (feature === 'google_workspace') group = 'google_workspace';
     if (isHostingFeature(feature)) group = 'hosting';
+    if (feature === 'dscr_calculator') group = 'real_estate';
     const kind = normalizeKind(o.kind);
     let key = typeof o.key === 'string' && o.key.trim() ? o.key.trim().slice(0, 80) : `${kind}:${feature}`;
     if (kind === 'core') key = `core:${feature}`;

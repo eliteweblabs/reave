@@ -6,7 +6,8 @@
  * Core 001–100, Work 101–200, Social 201–300, E-commerce 301–400,
  * Web Development 401–500, Other 501–600, Internal 601–700,
  * Google™ Workspace 701–800 (client mail/DNS — not a reΛVe.app feature),
- * Hosting 801–900 (managed care plans from /hosting — not a reΛVe.app feature).
+ * Hosting 801–900 (managed care plans from /hosting — not a reΛVe.app feature),
+ * Real Estate 901–999 (DSCR and the rest of the investor calculator suite).
  * Assignment order is a stable shuffle — ids are not A–Z rank.
  */
 import {
@@ -47,6 +48,7 @@ export const CATALOG_GROUPS = [
   'social',
   'e_commerce',
   'web_development',
+  'real_estate',
   'other',
   'internal',
 ] as const;
@@ -61,6 +63,7 @@ export const CATALOG_ID_BANDS: Record<CatalogGroupId, { start: number; end: numb
   social: { start: 201, end: 300 },
   e_commerce: { start: 301, end: 400 },
   web_development: { start: 401, end: 500 },
+  real_estate: { start: 901, end: 999 },
   other: { start: 501, end: 600 },
   internal: { start: 601, end: 700 },
 };
@@ -120,6 +123,7 @@ export const CATALOG_GROUP_TITLES: Record<CatalogGroupId, string> = {
   social: 'Social',
   e_commerce: 'E-commerce',
   web_development: 'Web Development',
+  real_estate: 'Real Estate',
   other: 'Other',
   internal: 'Internal',
 };
@@ -230,6 +234,7 @@ export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
   if (grouped?.id === 'social') return 'social';
   if (grouped?.id === 'e_commerce') return 'e_commerce';
   if (grouped?.id === 'web_development') return 'web_development';
+  if (grouped?.id === 'real_estate') return 'real_estate';
   return 'other';
 }
 

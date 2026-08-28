@@ -8,6 +8,7 @@ export type ModuleDisplayGroupId =
   | 'social'
   | 'e_commerce'
   | 'web_development'
+  | 'real_estate'
   | 'work'
   | 'google_workspace'
   | 'hosting';
@@ -49,6 +50,11 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
       'materials_pricing',
       'credit_check',
     ],
+  },
+  {
+    id: 'real_estate',
+    title: 'Real Estate',
+    features: ['dscr_calculator'],
   },
   {
     id: 'web_development',

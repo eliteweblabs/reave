@@ -30,6 +30,7 @@ const GROUP_META = {
   social: { title: 'Social', short: 'Social', icon: 'share', tone: 'social' },
   e_commerce: { title: 'E-commerce', short: 'E-comm', icon: 'shopping-bag', tone: 'commerce' },
   web_development: { title: 'Web Development', short: 'Web', icon: 'globe', tone: 'web' },
+  real_estate: { title: 'Real Estate', short: 'RE', icon: 'home', tone: 'estate' },
   other: { title: 'Other', short: 'Other', icon: 'puzzle', tone: 'other' },
   internal: { title: 'Internal', short: 'Internal', icon: 'key', tone: 'internal' },
 };

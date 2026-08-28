@@ -331,6 +331,7 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'email_marketing',
   'time_tracking',
   'real_estate_data',
+  'dscr_calculator',
   'google_workspace',
 ]);
 
