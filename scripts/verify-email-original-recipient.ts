@@ -11,7 +11,9 @@ import {
 } from '../src/lib/emailOriginalRecipient.ts';
 import {
   attachClassificationRuleLinks,
+  extractForwardedToFromAudit,
   primaryClassificationRule,
+  resolveForwardedTo,
 } from '../src/lib/emailClassificationAudit.ts';
 
 assert.equal(isInboundReceivingHost('inbound.reave.app'), true);
@@ -93,5 +95,40 @@ assert.deepEqual(primaryClassificationRule(linked), {
   ruleId: 'ship-1',
   ruleTitle: 'Shipment tracked',
 });
+
+assert.equal(
+  extractForwardedToFromAudit([
+    { step: 'forward', decision: 'Forwarded to jk@capcofire.com', detail: 'Relayed via Resend' },
+  ]),
+  'jk@capcofire.com',
+);
+assert.equal(
+  extractForwardedToFromAudit([
+    { step: 'forward', decision: 'Would forward to ops@example.com', detail: 'Dry-run' },
+  ]),
+  'ops@example.com',
+);
+assert.equal(
+  extractForwardedToFromAudit([
+    { step: 'forward', decision: 'Forward to broken@example.com failed', detail: 'Resend forward failed' },
+  ]),
+  null,
+);
+assert.equal(
+  resolveForwardedTo({
+    steps: [{ step: 'rules', decision: 'Matched DELETE rule' }],
+    rules: [{ id: 'flex-1', title: 'Flexcar marketing emails', forwardTo: 'who@where.com' }],
+    matchedRuleId: 'flex-1',
+  }),
+  'who@where.com',
+);
+assert.equal(
+  resolveForwardedTo({
+    steps: [{ step: 'forward', decision: 'Forwarded to audit@example.com' }],
+    rules: [{ id: 'flex-1', forwardTo: 'rule@example.com' }],
+    matchedRuleId: 'flex-1',
+  }),
+  'audit@example.com',
+);
 
 console.log('verify-email-original-recipient: ok');

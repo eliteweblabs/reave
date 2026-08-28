@@ -32,6 +32,7 @@ import {
   explainReceiptClassification,
   parseClassificationAudit,
   primaryClassificationRule,
+  resolveForwardedTo,
 } from '../../../../lib/emailClassificationAudit';
 import { storeListEmailRules } from '../../../../lib/emailRuleStore';
 import {
@@ -143,6 +144,11 @@ export async function GET(context: APIContext): Promise<Response> {
     routeNote: event.routeNote,
   });
   const matchedRule = primaryClassificationRule(classificationAudit);
+  const forwardedTo = resolveForwardedTo({
+    steps: classificationAudit,
+    rules,
+    matchedRuleId: matchedRule?.ruleId,
+  });
   const toDisplay = displayInboxRecipients(envelopeTo, headers);
   return json({
     ok: true,
@@ -153,6 +159,7 @@ export async function GET(context: APIContext): Promise<Response> {
       toDisplay,
       matchedRuleId: matchedRule?.ruleId ?? null,
       matchedRuleTitle: matchedRule?.ruleTitle ?? null,
+      forwardedTo,
       bodyHtml: resolveEmailHtmlForDisplay(bodyHtml, event.bodyText),
       bodyText: plainTextForDisplay(event.bodyText),
       bodySnippet: plainTextForDisplay(event.bodySnippet),
