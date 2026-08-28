@@ -240,7 +240,8 @@ const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               classification_audit, proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
               automation_ack_at, automation_triage_at, automation_triage_action, automation_triage_rule_id,
-              automation_kind, verification_code, action_url, delete_after_at, attachments_json`;
+              automation_kind, verification_code, action_url, delete_after_at, attachments_json,
+              LEFT(body_text, 4000) AS body_text_prefix`;
 
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, body_html, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
@@ -283,6 +284,7 @@ type InboxRow = {
   subject: string;
   body_snippet: string;
   body_text?: string;
+  body_text_prefix?: string;
   body_html?: string;
   to_addrs?: string[] | null;
   cc_addrs?: string[] | null;
@@ -356,7 +358,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     from: row.from_address,
     subject: row.subject,
     bodySnippet: row.body_snippet,
-    bodyText: row.body_text ?? row.body_snippet ?? '',
+    bodyText: row.body_text ?? row.body_text_prefix ?? row.body_snippet ?? '',
     bodyHtml: row.body_html ?? '',
     to: parseJsonStringArray(row.to_addrs),
     cc: parseJsonStringArray(row.cc_addrs),

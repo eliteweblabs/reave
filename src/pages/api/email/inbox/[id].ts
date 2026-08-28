@@ -16,6 +16,7 @@ import { patchForMarkJunk } from '../../../../lib/emailJunkNotifyInvariant';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
 import {
   emailHtmlHasInlineStyles,
+  inboxListExcerpt,
   normalizeEmailHtml,
   plainTextForDisplay,
   resolveEmailHtmlForDisplay,
@@ -162,8 +163,8 @@ export async function GET(context: APIContext): Promise<Response> {
       forwardedTo,
       bodyHtml: resolveEmailHtmlForDisplay(bodyHtml, event.bodyText),
       bodyText: plainTextForDisplay(event.bodyText),
-      bodySnippet: plainTextForDisplay(event.bodySnippet),
-      summary: event.summary ? plainTextForDisplay(event.summary) : event.summary,
+      bodySnippet: inboxListExcerpt(event),
+      summary: inboxListExcerpt(event) || event.summary,
       monetaryAmount,
       hasMonetaryValue: monetaryAmount != null,
       unsubscribe,

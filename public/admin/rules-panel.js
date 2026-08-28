@@ -46,7 +46,7 @@ import {
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260828a';
+} from './email-triage-lab.js?v=20260828b';
 import {
   createChipPair,
   chipsFromRulePhrases,

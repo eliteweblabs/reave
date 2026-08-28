@@ -7,6 +7,10 @@ export function htmlToPlainText(html: string): string {
   return html
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    // Drop images/SVGs without emitting alt text — logos and profile photos
+    // are not excerpt-worthy and must not become the inbox preview.
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<img\b[^>]*>/gi, ' ')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<\/div>/gi, '\n')
@@ -126,7 +130,74 @@ export function resolveSentEmailHtmlForDisplay(bodyHtml?: string, bodyText?: str
   return '';
 }
 
+/** Whole-line image / decorative chrome from HTML-mail text/plain fallbacks. */
+const IMAGE_CHROME_LINE =
+  /^(?:\[(?:image:\s*)?[^\]]+\]|(?:the\s+)?[\w.&'’+-]+(?:\s+[\w.&'’+-]+){0,4}\s+)?(?:logo|wordmark|icon|badge|banner|header(?:\s+image)?|hero(?:\s+image)?|spacer|pixel|tracking(?:\s+pixel)?)$/i;
+
+const PROFILE_CHROME_LINE =
+  /^(?:your\s+)?(?:profile|user|account)\s+(?:photo|picture|image|avatar|headshot)$/i;
+
+const BARE_IMAGE_LINE = /^(?:image|graphic|photo|picture|photo\s+\d+|image\s+\d+)$/i;
+
+function lineWithoutUrls(line: string): string {
+  return line
+    .replace(/\(?https?:\/\/[^\s)]+\)?/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isImageChromeLine(line: string): boolean {
+  const t = line.replace(/\s+/g, ' ').trim();
+  if (!t) return true;
+  if (/^https?:\/\/\S+$/i.test(t)) return true;
+  if (/^\(https?:\/\/[^)]+\)$/i.test(t)) return true;
+  if (/^\[(?:image:\s*)[^\]]*\]$/i.test(t)) return true;
+  if (/^\[[^\]]*\b(?:logo|icon|photo|picture|avatar|banner|spacer|pixel)[^\]]*\]$/i.test(t)) {
+    return true;
+  }
+  const withoutUrl = lineWithoutUrls(t);
+  if (!withoutUrl) return true;
+  if (IMAGE_CHROME_LINE.test(withoutUrl) || PROFILE_CHROME_LINE.test(withoutUrl)) return true;
+  if (BARE_IMAGE_LINE.test(withoutUrl)) return true;
+  return false;
+}
+
+/** Leading chrome tokens in an already-flattened snippet (stored rows). */
+const LEADING_IMAGE_CHROME =
+  /^(?:(?:your\s+)?(?:profile|user|account)\s+(?:photo|picture|image|avatar|headshot)|(?:the\s+)?(?:[\w.&'’+-]+\s+){0,2}(?:logo|wordmark|icon|badge|banner|hero(?:\s+image)?|header(?:\s+image)?|spacer|pixel)|\[(?:image:\s*)[^\]]+\]|\[[^\]]*\b(?:logo|icon|photo|picture|banner|spacer|pixel)[^\]]*\]|\(?https?:\/\/[^\s)]+\)?)[\s,;:–—-]*/i;
+
+function stripLeadingImageChrome(text: string): string {
+  const lines = text.split(/\r?\n/);
+  let i = 0;
+  while (i < lines.length && isImageChromeLine(lines[i])) i += 1;
+  const fromLines = lines.slice(i).join('\n').trim();
+  let rest = (fromLines || text).replace(/\s+/g, ' ').trim();
+  let prev = '';
+  while (rest && rest !== prev) {
+    prev = rest;
+    rest = rest.replace(LEADING_IMAGE_CHROME, '').trim();
+  }
+  return rest;
+}
+
 export function inboxPreviewSnippet(text: string, max = 500): string {
-  const clean = text.replace(/\s+/g, ' ').trim();
+  const source = plainTextForDisplay(text);
+  const clean = stripLeadingImageChrome(source).replace(/\s+/g, ' ').trim();
   return clean.length > max ? `${clean.slice(0, max)}…` : clean;
+}
+
+/** Inbox card / notification line — skip image chrome, then snippet, then subject. */
+export function inboxListExcerpt(email: {
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+  subject?: string;
+}): string {
+  const summary = inboxPreviewSnippet(email.summary || '');
+  if (summary) return summary;
+  const snippet = inboxPreviewSnippet(email.bodySnippet || '');
+  if (snippet) return snippet;
+  const body = inboxPreviewSnippet(email.bodyText || '');
+  if (body) return body;
+  return String(email.subject || '').replace(/\s+/g, ' ').trim();
 }

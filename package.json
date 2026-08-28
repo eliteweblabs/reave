@@ -41,6 +41,7 @@
     "check:email-original-recipient": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-original-recipient.ts",
     "check:email-compose-images": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-compose-images.ts",
     "check:email-shortcodes": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-shortcodes.ts",
+    "check:email-preview": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-preview-snippet.ts",
     "check:seeded-inbox": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-seeded-inbox-cleanup.ts",
     "check:deploy-wizard": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-deploy-wizard.ts",
     "check:social-oauth": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-social-oauth.ts",

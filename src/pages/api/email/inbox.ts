@@ -8,10 +8,10 @@ import {
   storeListEmailInbox,
   computeInboxDigest,
   toEmailInboxListRecord,
-  type EmailInboxListRecord,
+  type EmailInboxRecord,
 } from '../../../lib/emailInboxStore';
 import { getReviewsPendingCount } from '../../../lib/reviewsPendingCount';
-import { plainTextForDisplay } from '../../../lib/emailBody';
+import { inboxListExcerpt } from '../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { isPushConfigured } from '../../../lib/webPush';
@@ -21,12 +21,13 @@ import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCle
 
 export const prerender = false;
 
-function enrichEmailEvent(event: EmailInboxListRecord) {
+function enrichEmailEvent(event: EmailInboxRecord) {
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  const excerpt = inboxListExcerpt(event);
   return {
-    ...event,
-    bodySnippet: plainTextForDisplay(event.bodySnippet),
-    summary: event.summary ? plainTextForDisplay(event.summary) : event.summary,
+    ...toEmailInboxListRecord(event),
+    bodySnippet: excerpt,
+    summary: excerpt || event.summary,
     monetaryAmount,
     hasMonetaryValue: monetaryAmount != null,
   };
@@ -57,7 +58,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   return json({
     ok: true,
-    events: events.map((e) => enrichEmailEvent(toEmailInboxListRecord(e))),
+    events: events.map((e) => enrichEmailEvent(e)),
     digest: {
       ...computeInboxDigest(events, !showJunk),
       reviewsPending,
