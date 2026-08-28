@@ -938,7 +938,6 @@ async function loadFleetTabQuiet() {
 export {
   loadSocialTab,
   loadAnalyticsTab,
-  openAnalyticsSite,
   loadFleetTab,
   loadFleetTabQuiet,
   initFleetLocationReporter,

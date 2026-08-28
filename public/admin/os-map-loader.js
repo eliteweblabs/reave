@@ -263,7 +263,7 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260828a';
+} from './insights-panels.js?v=20260828b';
 import {
   initRulesPanel,
   ruleState,
