@@ -49,6 +49,7 @@ export const CORE_DASHBOARD_CARDS: readonly DashboardCard[] = [
   { id: 'email-triage', title: 'Email triage', icon: 'git-branch', mapKey: 'email-triage' },
   { id: 'rules', title: 'Email Lab', icon: 'flask', mapKey: 'rules' },
   { id: 'knowledge', title: 'Knowledge', icon: 'book-open', mapKey: 'knowledge' },
+  { id: 'media', title: 'Media Library', icon: 'image', mapKey: 'media' },
   { id: 'todo', title: 'To-do', icon: 'check-square', mapKey: 'todo' },
   { id: 'punchlist', title: 'Punch list', icon: 'list-checks', mapKey: 'punchlist' },
   { id: 'modules', title: 'Modules', icon: 'puzzle', mapKey: 'modules' },
@@ -84,7 +85,6 @@ export function dashboardCardsForFeatures(
   const cards: DashboardCard[] = [];
 
   for (const core of CORE_DASHBOARD_CARDS) {
-    used.add(core.mapKey);
     cards.push(core);
   }
 
@@ -94,6 +94,8 @@ export function dashboardCardsForFeatures(
     if (!def?.dashboard) continue;
     if (id === 'deploy_wizard' && !opts.showDeployWizard) continue;
     const mapKey = dashboardMapKeyForFeature(id);
+    // Feature tiles dedupe on destination. Core OS tiles (e.g. Media Library)
+    // may share a mapKey with an optional module (Agentic Website Editor).
     if (!mapKey || used.has(mapKey)) continue;
     used.add(mapKey);
     cards.push({
