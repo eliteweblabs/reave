@@ -323,12 +323,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   /*
-   * Cartesian graph paper over the halo, under the mark.
-   * Isolated so difference only inverts the glow, not the page.
+   * Thin black 1px graph lines — high-opacity strokes, no blur.
+   * The mask feathers the field out so they read as traces on the glow.
    */
   .home-hero-icon-grid {
-    --home-hero-grid-minor: 14px;
-    --home-hero-grid-major: 70px;
+    --home-hero-grid-minor: 16px;
+    --home-hero-grid-major: 64px;
     position: absolute;
     inset: -8%;
     z-index: 0;
@@ -336,27 +336,27 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     background-image:
       repeating-linear-gradient(
         to right,
-        rgba(255, 255, 255, 0.55) 0 1px,
+        #000 0 1px,
         transparent 1px var(--home-hero-grid-minor)
       ),
       repeating-linear-gradient(
         to bottom,
-        rgba(255, 255, 255, 0.55) 0 1px,
+        #000 0 1px,
         transparent 1px var(--home-hero-grid-minor)
       ),
       repeating-linear-gradient(
         to right,
-        rgba(255, 255, 255, 0.95) 0 1.5px,
-        transparent 1.5px var(--home-hero-grid-major)
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
       ),
       repeating-linear-gradient(
         to bottom,
-        rgba(255, 255, 255, 0.95) 0 1.5px,
-        transparent 1.5px var(--home-hero-grid-major)
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
       );
-    mix-blend-mode: difference;
-    -webkit-mask-image: radial-gradient(ellipse 92% 42% at 50% 50%, #000 36%, transparent 74%);
-    mask-image: radial-gradient(ellipse 92% 42% at 50% 50%, #000 36%, transparent 74%);
+    opacity: 0.82;
+    -webkit-mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
+    mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
   }
 
   @media (prefers-reduced-motion: reduce) {
