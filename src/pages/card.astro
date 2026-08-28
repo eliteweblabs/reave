@@ -1,0 +1,335 @@
+---
+/**
+ * NFC business-card landing — branding only, no site nav.
+ * Program chips to https://{domain}/card (or /nfc).
+ */
+import BrandFontHead from '../components/BrandFontHead.astro';
+import BrandIconInline from '../components/BrandIconInline.astro';
+import Favicon from '../components/Favicon.astro';
+import SiteBackground from '../components/SiteBackground.astro';
+import ThemeInit from '../components/ThemeInit.astro';
+import ViewportMeta from '../components/ViewportMeta.astro';
+import { mapsDirectionsUrl } from '../lib/calendarLinks';
+import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
+import {
+  companyHeroIconImageUrl,
+  companyHeroIconSvg,
+  companyOgImageUrl,
+  getCompanyConfig,
+} from '../lib/companyConfig';
+import { contactTelHref } from '../lib/contactApi';
+import { LOGO_ICON_OG_PATH } from '../lib/companyLogo';
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
+import { requestOrigin } from '../lib/requestOrigin';
+import { shareSafeText } from '../lib/shareSafeText';
+import '../styles/brand.css';
+
+export const prerender = false;
+
+const company = await getCompanyConfig(Astro.request);
+
+const displayName = company.name?.trim() || 'Contact';
+const tagline = company.description?.trim() || '';
+const phoneRaw = company.supportPhone?.trim() || '';
+const telDigits = contactTelHref(phoneRaw);
+const phoneHref = telDigits ? `tel:${telDigits}` : '';
+const smsHref = telDigits ? `sms:${telDigits}` : '';
+const address = company.address?.trim() || '';
+const geo = company.geo;
+
+function formatPhoneDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  const n = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (n.length === 10) return `(${n.slice(0, 3)}) ${n.slice(3, 6)}-${n.slice(6)}`;
+  return raw.trim();
+}
+
+const phoneLabel = phoneRaw ? formatPhoneDisplay(phoneRaw) : '';
+
+const directionsHref = (() => {
+  if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${geo.lat},${geo.lng}`)}`;
+  }
+  if (address) return mapsDirectionsUrl(address);
+  return '';
+})();
+
+const hasMark = Boolean(companyHeroIconSvg(company) || companyHeroIconImageUrl(company));
+const vcardLabel = `Add ${displayName}`;
+const pageTitle = displayName;
+const shareTitle = shareSafeText(displayName);
+const description =
+  tagline || `Call, text, save ${displayName} to contacts, or get directions.`;
+const origin = requestOrigin(Astro.request);
+const canonical = company.domain
+  ? `https://${company.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/card`
+  : `${origin}/card`;
+const ogImage = companyOgImageUrl(company);
+const ogImageAbsolute = ogImage.startsWith('http') ? ogImage : `${origin}${ogImage}`;
+const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
+  ? `${origin}${LOGO_ICON_OG_PATH}`
+  : ogImageAbsolute;
+---
+
+<!doctype html>
+<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
+  <head>
+    <ThemeInit />
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content={displayName} />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={shareTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="profile" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageSafe} />
+    <meta property="og:image:width" content={String(OG_IMAGE_WIDTH)} />
+    <meta property="og:image:height" content={String(OG_IMAGE_HEIGHT)} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={shareTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageSafe} />
+    <Favicon />
+    <BrandFontHead fonts={company.fonts} />
+  </head>
+  <body class="nfc-body">
+    <SiteBackground />
+    <main class="nfc-shell">
+      <header class="nfc-brand">
+        {hasMark && (
+          <div class="nfc-mark" aria-hidden="true">
+            <BrandIconInline company={company} class="nfc-mark-icon" idPrefix="nfc-mark" />
+          </div>
+        )}
+        <h1 class="nfc-name">{displayName}</h1>
+        {tagline && <p class="nfc-tagline">{tagline}</p>}
+      </header>
+
+      <nav class="nfc-actions" aria-label={`Contact ${displayName}`}>
+        <a class="nfc-btn nfc-btn--primary" href="/contact.vcf" aria-label={vcardLabel}>
+          <span class="nfc-btn-ico" aria-hidden="true">
+            <!-- IOS_ICONS.user-plus — keep in sync with public/admin/admin-ui.js -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+          </span>
+          <span class="nfc-btn-copy">
+            <span class="nfc-btn-label">Add contact</span>
+            <span class="nfc-btn-meta">Save to your phone</span>
+          </span>
+        </a>
+
+        {phoneHref && (
+          <a class="nfc-btn" href={phoneHref} aria-label={`Call ${phoneLabel || displayName}`}>
+            <span class="nfc-btn-ico" aria-hidden="true">
+              <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+            </span>
+            <span class="nfc-btn-copy">
+              <span class="nfc-btn-label">Call</span>
+              {phoneLabel && <span class="nfc-btn-meta">{phoneLabel}</span>}
+            </span>
+          </a>
+        )}
+
+        {smsHref && (
+          <a class="nfc-btn" href={smsHref} aria-label={`Text ${phoneLabel || displayName}`}>
+            <span class="nfc-btn-ico" aria-hidden="true">
+              <!-- IOS_ICONS.message — keep in sync with public/admin/admin-ui.js -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+            </span>
+            <span class="nfc-btn-copy">
+              <span class="nfc-btn-label">Text</span>
+              <span class="nfc-btn-meta">Send a message</span>
+            </span>
+          </a>
+        )}
+
+        {directionsHref && (
+          <a
+            class="nfc-btn"
+            href={directionsHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={address ? `Directions to ${address}` : `Directions to ${displayName}`}
+          >
+            <span class="nfc-btn-ico" aria-hidden="true">
+              <!-- IOS_ICONS.map-pin — keep in sync with public/admin/admin-ui.js -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+            </span>
+            <span class="nfc-btn-copy">
+              <span class="nfc-btn-label">Directions</span>
+              {address && <span class="nfc-btn-meta">{address}</span>}
+            </span>
+          </a>
+        )}
+      </nav>
+    </main>
+  </body>
+</html>
+
+<style>
+  .nfc-body {
+    margin: 0;
+    min-height: 100%;
+    min-height: 100dvh;
+    font-family: var(--font-content);
+    color: var(--site-fg, #171717);
+    background-color: var(--site-canvas, #fff);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .nfc-shell {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100dvh;
+    width: 100%;
+    padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nfc-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: min(100%, 22rem);
+    margin-bottom: 36px;
+  }
+
+  .nfc-mark {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 5.5rem;
+    height: 5.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .nfc-mark-icon {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  html[data-theme='dark'] .nfc-mark-icon {
+    filter: invert(1);
+  }
+
+  .nfc-name {
+    margin: 0;
+    font-family: var(--font-primary);
+    font-size: clamp(1.75rem, 6vw, 2.15rem);
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+  }
+
+  .nfc-tagline {
+    margin: 0.55rem 0 0;
+    max-width: 20rem;
+    color: var(--site-fg-muted, #525252);
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .nfc-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(100%, 22rem);
+  }
+
+  .nfc-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 64px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: var(--site-fg, #171717);
+    background: var(--brand-glass-bg);
+    border: 1px solid var(--brand-glass-border-color);
+    backdrop-filter: var(--brand-glass-blur);
+    -webkit-backdrop-filter: var(--brand-glass-blur);
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 0.15s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .nfc-btn:hover,
+  .nfc-btn:focus-visible {
+    background: var(--brand-glass-bg-hover);
+    border-color: var(--brand-glass-border-color-hover);
+  }
+
+  .nfc-btn:active {
+    transform: scale(0.985);
+  }
+
+  .nfc-btn--primary {
+    background: var(--brand-btn-bg, #111);
+    color: var(--brand-btn-fg, #fff);
+    border-color: transparent;
+  }
+
+  .nfc-btn--primary:hover,
+  .nfc-btn--primary:focus-visible {
+    background: var(--brand-btn-bg, #111);
+    border-color: transparent;
+    filter: brightness(1.06);
+  }
+
+  .nfc-btn-ico {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    color: inherit;
+  }
+
+  .nfc-btn-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .nfc-btn-label {
+    font-family: var(--font-primary);
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .nfc-btn-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .nfc-btn--primary .nfc-btn-meta {
+    color: color-mix(in srgb, var(--brand-btn-fg, #fff) 68%, transparent);
+  }
+</style>

@@ -374,7 +374,7 @@ function normalizePagePath(pathname: string): string {
 function fallbackStandaloneConfig(key: string): SiteContentConfig {
   return {
     key,
-    pages: ['/', '/privacy', '/terms', '/cookies'],
+    pages: ['/', '/card', '/privacy', '/terms', '/cookies'],
     nav: {
       links: [],
       groups: [],
@@ -399,6 +399,7 @@ function fallbackReaveConfig(): SiteContentConfig {
     key: 'reave',
     pages: [
       '/',
+      '/card',
       '/platform',
       '/features',
       '/features-tight',

@@ -1,6 +1,6 @@
 {
   "key": "default",
-  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "pages": ["/", "/card", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [],
     "groups": [],
