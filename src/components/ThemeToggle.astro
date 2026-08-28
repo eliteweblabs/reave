@@ -132,32 +132,66 @@
   }
 
   /*
-   * Expanding invert circle. A white disc with mix-blend-mode:difference
-   * turns the canvas black and the type white as it passes (and the reverse
-   * going back to light). Centered on the toggle that was clicked.
+   * Circular reveal, centered on the toggle that was clicked.
+   *
+   * Preferred path: a View Transition (Safari 18 / iOS 18+, Chrome, Edge) that
+   * clips the new theme's snapshot in with an expanding circle.
+   */
+  @keyframes theme-reveal-clip {
+    from {
+      clip-path: circle(0px at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+    }
+    to {
+      clip-path: circle(var(--theme-reveal-r, 150vmax) at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+    }
+  }
+
+  html.theme-reveal::view-transition-image-pair(root) {
+    isolation: auto;
+  }
+
+  html.theme-reveal::view-transition-old(root),
+  html.theme-reveal::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  html.theme-reveal::view-transition-old(root) {
+    z-index: 0;
+  }
+
+  html.theme-reveal::view-transition-new(root) {
+    z-index: 1;
+    animation: theme-reveal-clip 0.62s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  /*
+   * Fallback for browsers without view transitions (iOS 17 and older): a white
+   * disc with mix-blend-mode:difference inverts the canvas as it passes. It
+   * animates clip-path rather than transform on purpose — WebKit promotes a
+   * transform-animated layer and drops the blend, which is why the old version
+   * did nothing on iOS.
    */
   .theme-reveal-circle {
     position: fixed;
+    inset: 0;
     z-index: 2147483000;
-    width: var(--theme-reveal-d, 0px);
-    height: var(--theme-reveal-d, 0px);
-    left: var(--theme-reveal-x, 0px);
-    top: var(--theme-reveal-y, 0px);
-    margin: calc(var(--theme-reveal-d, 0px) / -2) 0 0 calc(var(--theme-reveal-d, 0px) / -2);
-    border-radius: 50%;
     background: #fff;
     mix-blend-mode: difference;
     pointer-events: none;
-    transform: scale(0);
-    transform-origin: center;
+    clip-path: circle(0px at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
   }
 
   .theme-reveal-circle.is-expanding {
-    transform: scale(1);
-    transition: transform 0.62s cubic-bezier(0.4, 0, 0.2, 1);
+    clip-path: circle(var(--theme-reveal-r, 150vmax) at var(--theme-reveal-x, 50%) var(--theme-reveal-y, 50%));
+    transition: clip-path 0.62s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   @media (prefers-reduced-motion: reduce) {
+    html.theme-reveal::view-transition-new(root) {
+      animation: none;
+    }
+
     .theme-reveal-circle,
     .theme-reveal-circle.is-expanding {
       transition: none;
@@ -183,11 +217,25 @@
       /* ignore */
     }
     const meta = document.querySelector('meta[name="theme-color"]:not([media])');
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#111111" : "#ffffff");
+    if (meta && document.documentElement.dataset.rainbowThemeColor !== "1") {
+      meta.setAttribute("content", theme === "dark" ? "#111111" : "#ffffff");
+    }
     document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]").forEach((btn) => {
       btn.setAttribute("aria-checked", theme === "dark" ? "true" : "false");
       btn.setAttribute("aria-label", theme === "dark" ? "Switch to light theme" : "Switch to dark theme");
     });
+  }
+
+  type ViewTransitionLike = { finished: Promise<unknown> };
+  type DocumentWithViewTransition = Document & {
+    startViewTransition?: (callback: () => void) => ViewTransitionLike;
+  };
+
+  function clearRevealVars() {
+    const root = document.documentElement;
+    root.style.removeProperty("--theme-reveal-x");
+    root.style.removeProperty("--theme-reveal-y");
+    root.style.removeProperty("--theme-reveal-r");
   }
 
   function revealFromToggle(btn: HTMLButtonElement, next: "light" | "dark") {
@@ -201,22 +249,40 @@
     const rect = btn.getBoundingClientRect();
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
-    const diameter =
-      2 *
-      Math.hypot(
-        Math.max(x, window.innerWidth - x),
-        Math.max(y, window.innerHeight - y),
-      );
+    const radius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    );
 
     const root = document.documentElement;
     root.style.setProperty("--theme-reveal-x", `${x}px`);
     root.style.setProperty("--theme-reveal-y", `${y}px`);
-    root.style.setProperty("--theme-reveal-d", `${diameter}px`);
+    root.style.setProperty("--theme-reveal-r", `${radius}px`);
+
+    const doc = document as DocumentWithViewTransition;
+    if (typeof doc.startViewTransition === "function") {
+      revealing = true;
+      root.classList.add("theme-reveal");
+      const done = () => {
+        root.classList.remove("theme-reveal");
+        clearRevealVars();
+        revealing = false;
+      };
+      try {
+        doc.startViewTransition(() => {
+          applyTheme(next);
+        }).finished.then(done, done);
+      } catch {
+        applyTheme(next);
+        done();
+      }
+      return;
+    }
 
     const circle = document.createElement("span");
     circle.className = "theme-reveal-circle";
     circle.setAttribute("aria-hidden", "true");
-    root.appendChild(circle);
+    (document.body || root).appendChild(circle);
     revealing = true;
 
     let settled = false;
@@ -225,18 +291,16 @@
       settled = true;
       applyTheme(next);
       circle.remove();
-      root.style.removeProperty("--theme-reveal-x");
-      root.style.removeProperty("--theme-reveal-y");
-      root.style.removeProperty("--theme-reveal-d");
+      clearRevealVars();
       revealing = false;
     };
 
-    const done = (ev: TransitionEvent) => {
-      if (ev.propertyName !== "transform") return;
-      circle.removeEventListener("transitionend", done);
+    const onEnd = (ev: TransitionEvent) => {
+      if (ev.propertyName !== "clip-path") return;
+      circle.removeEventListener("transitionend", onEnd);
       finish();
     };
-    circle.addEventListener("transitionend", done);
+    circle.addEventListener("transitionend", onEnd);
     window.setTimeout(finish, 800);
 
     requestAnimationFrame(() => {

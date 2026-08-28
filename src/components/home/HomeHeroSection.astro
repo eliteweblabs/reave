@@ -38,11 +38,15 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 >
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
-      <span class="home-hero-icon-glow" aria-hidden="true">
-        <span class="home-hero-icon-glow-wash"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
-        <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
+      <span class="home-hero-icon-grid" aria-hidden="true">
+        <span class="home-hero-icon-grid-lines">
+          <span class="home-hero-icon-glow">
+            <span class="home-hero-icon-glow-wash"></span>
+            <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--a"></span>
+            <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--b"></span>
+            <span class="home-hero-icon-glow-lava home-hero-icon-glow-lava--c"></span>
+          </span>
+        </span>
       </span>
       <BrandIconInline company={company} />
     </div>
@@ -155,6 +159,12 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-icon-wrap {
+    /*
+     * The halo now only ever shows through 1px strokes, so it has to be
+     * pigment rather than light: saturated and pushed dark enough to read
+     * against the canvas.
+     */
+    --home-hero-glow-ink: saturate(2.4) brightness(0.62);
     position: relative;
     z-index: 1;
     flex: none;
@@ -166,19 +176,23 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     margin-top: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-above) * -1);
     pointer-events: none;
     overflow: visible;
+    isolation: isolate;
   }
 
   /*
-   * Faint rainbow backlight — same wash + lava as before, with a slow
-   * squash/rotate so the halo doesn't sit as a perfect circle.
+   * Rainbow backlight — wide oval wash + three oblong blobs. Loops start
+   * mid-cycle so the stretch is already moving on first paint. Lives inside
+   * the grid mask, so the halo only ever paints on the graph strokes; inset
+   * is 12% of the oversized grid box to land where 6% of the wrap used to.
    */
   .home-hero-icon-glow {
     position: absolute;
-    inset: 6%;
+    inset: 12%;
     z-index: 0;
     pointer-events: none;
     overflow: visible;
-    animation: homeHeroGlowDrift 26s ease-in-out infinite;
+    animation: homeHeroGlowDrift 8.67s ease-in-out infinite;
+    animation-delay: -3.5s;
   }
 
   .home-hero-icon-glow-wash,
@@ -189,7 +203,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-icon-glow-wash {
-    inset: 14%;
+    top: 32%;
+    bottom: 32%;
+    left: -6%;
+    right: -6%;
     background: conic-gradient(
       from 0deg,
       #f87171,
@@ -201,51 +218,64 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
       #f472b6,
       #f87171
     );
-    filter: blur(26px);
-    opacity: 0.14;
+    /*
+     * hue-rotate is declared at 0deg here so the spin keyframe animates a
+     * matching function list — otherwise the added saturate/brightness break
+     * filter interpolation and the hue jumps.
+     */
+    filter: blur(26px) hue-rotate(0deg) var(--home-hero-glow-ink);
+    opacity: 1;
     animation:
-      homeHeroGlowSpin 36s linear infinite,
-      homeHeroGlowHue 28s linear infinite;
+      homeHeroGlowSpin 12s linear infinite,
+      homeHeroGlowHue 9.33s linear infinite;
+    animation-delay: -4s, -3s;
   }
 
   .home-hero-icon-glow-lava {
-    width: 52%;
-    height: 52%;
-    filter: blur(20px);
-    opacity: 0.2;
+    filter: blur(20px) var(--home-hero-glow-ink);
+    opacity: 1;
   }
 
   .home-hero-icon-glow-lava--a {
-    left: 6%;
-    top: 16%;
-    background: radial-gradient(circle, #f472b6 0%, transparent 72%);
-    animation: homeHeroLavaA 22s ease-in-out infinite;
+    left: 0;
+    top: 22%;
+    width: 78%;
+    height: 36%;
+    background: radial-gradient(ellipse, #f472b6 0%, transparent 72%);
+    animation: homeHeroLavaA 7.33s ease-in-out infinite;
+    animation-delay: -2.4s;
   }
 
   .home-hero-icon-glow-lava--b {
-    right: 4%;
-    top: 10%;
-    background: radial-gradient(circle, #38bdf8 0%, transparent 72%);
-    animation: homeHeroLavaB 28s ease-in-out infinite;
+    right: 0;
+    top: 2%;
+    width: 38%;
+    height: 82%;
+    background: radial-gradient(ellipse, #38bdf8 0%, transparent 72%);
+    animation: homeHeroLavaB 9.33s ease-in-out infinite;
+    animation-delay: -4.2s;
   }
 
   .home-hero-icon-glow-lava--c {
-    left: 26%;
-    bottom: 8%;
-    background: radial-gradient(circle, #c084fc 0%, transparent 72%);
-    animation: homeHeroLavaC 24s ease-in-out infinite;
+    left: 16%;
+    bottom: 2%;
+    width: 72%;
+    height: 40%;
+    background: radial-gradient(ellipse, #c084fc 0%, transparent 72%);
+    animation: homeHeroLavaC 8s ease-in-out infinite;
+    animation-delay: -5s;
   }
 
   @keyframes homeHeroGlowDrift {
     0%,
     100% {
-      transform: rotate(-6deg) scale(1, 0.94);
+      transform: rotate(-18deg) scale(1.22, 0.68);
     }
     40% {
-      transform: rotate(8deg) scale(1.06, 0.9);
+      transform: rotate(14deg) scale(1.32, 0.6);
     }
     70% {
-      transform: rotate(-3deg) scale(0.92, 1.05);
+      transform: rotate(-8deg) scale(1.16, 0.74);
     }
   }
 
@@ -257,55 +287,123 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   @keyframes homeHeroGlowHue {
     to {
-      filter: blur(26px) hue-rotate(360deg);
+      filter: blur(26px) hue-rotate(360deg) var(--home-hero-glow-ink);
     }
   }
 
   @keyframes homeHeroLavaA {
     0%,
     100% {
-      transform: translate(0, 0) rotate(0deg) scale(1);
+      transform: translate(0, 0) rotate(-10deg) scale(1.22, 0.68);
     }
     40% {
-      transform: translate(16%, -10%) rotate(18deg) scale(1.1);
+      transform: translate(14%, -12%) rotate(16deg) scale(1.34, 0.58);
     }
     70% {
-      transform: translate(-8%, 14%) rotate(-12deg) scale(0.92);
+      transform: translate(-10%, 12%) rotate(-18deg) scale(1.16, 0.74);
     }
   }
 
   @keyframes homeHeroLavaB {
     0%,
     100% {
-      transform: translate(0, 0) rotate(0deg) scale(1.05);
+      transform: translate(0, 0) rotate(8deg) scale(0.62, 1.28);
     }
     35% {
-      transform: translate(-14%, 12%) rotate(-16deg) scale(0.9);
+      transform: translate(-12%, 10%) rotate(-12deg) scale(0.54, 1.36);
     }
     65% {
-      transform: translate(10%, -8%) rotate(14deg) scale(1.12);
+      transform: translate(10%, -10%) rotate(16deg) scale(0.7, 1.18);
     }
   }
 
   @keyframes homeHeroLavaC {
     0%,
     100% {
-      transform: translate(0, 0) rotate(0deg) scale(0.96);
+      transform: translate(0, 0) rotate(-6deg) scale(1.18, 0.72);
     }
     45% {
-      transform: translate(12%, -14%) rotate(12deg) scale(1.14);
+      transform: translate(12%, -14%) rotate(14deg) scale(1.3, 0.6);
     }
     75% {
-      transform: translate(-10%, 8%) rotate(-10deg) scale(1);
+      transform: translate(-10%, 8%) rotate(-14deg) scale(1.12, 0.78);
     }
   }
 
-  :global(html[data-theme="dark"]) .home-hero-icon-glow-wash {
-    opacity: 0.2;
+  :global(html[data-theme="dark"]) .home-hero-icon-wrap {
+    --home-hero-glow-ink: saturate(1.9) brightness(1.15);
   }
 
-  :global(html[data-theme="dark"]) .home-hero-icon-glow-lava {
-    opacity: 0.28;
+  :global(html[data-theme="dark"]) .home-hero-icon-grid {
+    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 34%, transparent);
+  }
+
+  /*
+   * Graph paper as the only visible surface. The outer layer feathers the
+   * field at its edges; the inner layer is masked down to 1px strokes, and
+   * because a mask clips descendants too, the animated halo it wraps can
+   * only paint inside those strokes — the lines take the rainbow, the page
+   * behind them stays clean.
+   */
+  .home-hero-icon-grid {
+    --home-hero-grid-minor: 16px;
+    --home-hero-grid-major: 64px;
+    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 30%, transparent);
+    position: absolute;
+    inset: -8%;
+    z-index: 0;
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
+    mask-image: radial-gradient(ellipse 78% 52% at 50% 50%, #000 8%, rgba(0, 0, 0, 0.45) 36%, transparent 62%);
+  }
+
+  /* Four repeating gradients — minor + major, both axes — added together. */
+  .home-hero-icon-grid-lines {
+    position: absolute;
+    inset: 0;
+    background-color: var(--home-hero-grid-ink);
+    -webkit-mask-image:
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      );
+    mask-image:
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      );
   }
 
   @media (prefers-reduced-motion: reduce) {
