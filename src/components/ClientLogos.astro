@@ -1,6 +1,6 @@
 ---
-// Desaturated "worked with" logo marquee. Images come from the media library
-// via site content (config/sites/{key}-config.json → clientLogos).
+// Constrained 4/8-column logo wall. Each column is a vertical reel that
+// translateY-cycles like a slot machine — no more full-bleed horizontal slide.
 import { getSiteContent } from "../lib/siteContent";
 
 interface ClientLogo {
@@ -19,35 +19,12 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
-function isCompact(logo: ClientLogo): boolean {
-  return logo.width / Math.max(logo.height, 1) < 1.8;
-}
-
-/** Shuffle, but never put two compact marks next to each other while a wide one remains. */
-function arrangeLogos(items: ClientLogo[]): ClientLogo[] {
-  const compact = shuffle(items.filter(isCompact));
-  const wide = shuffle(items.filter((logo) => !isCompact(logo)));
-  const out: ClientLogo[] = [];
-  let ci = 0;
-  let wi = 0;
-  let compactStreak = 0;
-
-  while (ci < compact.length || wi < wide.length) {
-    const preferWide =
-      wi < wide.length && (compactStreak >= 1 || ci >= compact.length || Math.random() < 0.55);
-    if (preferWide) {
-      out.push(wide[wi++]);
-      compactStreak = 0;
-      continue;
-    }
-    out.push(compact[ci++]);
-    compactStreak += 1;
-  }
-  return out;
-}
+const COLS = 8;
+const MIN_PER_REEL = 3;
+const LOOP_COPIES = 2;
 
 const configured = getSiteContent().clientLogos ?? [];
-const logos: ClientLogo[] = arrangeLogos(
+const logos: ClientLogo[] = shuffle(
   configured.map((logo) => ({
     name: logo.name,
     src: logo.image,
@@ -56,135 +33,140 @@ const logos: ClientLogo[] = arrangeLogos(
   })),
 );
 
-const LOOP_COPIES = 3;
-const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
+function dealReels(items: ClientLogo[]): ClientLogo[][] {
+  const reels: ClientLogo[][] = Array.from({ length: COLS }, () => []);
+  items.forEach((logo, i) => reels[i % COLS].push(logo));
+
+  for (const reel of reels) {
+    if (reel.length === 0 && items.length > 0) {
+      reel.push(items[0]);
+    }
+    let i = 0;
+    while (reel.length < MIN_PER_REEL && items.length > 0) {
+      const extra = items[i % items.length];
+      if (!reel.some((logo) => logo.name === extra.name) || i >= items.length) {
+        reel.push(extra);
+      }
+      i += 1;
+      if (i > items.length * 4) break;
+    }
+  }
+  return reels;
+}
+
+const DURATIONS = [11, 14, 9, 16, 12, 10, 15, 13];
+const DELAYS = [0, -3.2, -1.4, -5.1, -2.1, -4.6, -0.7, -6.3];
+
+const reels = dealReels(logos).map((reel) =>
+  Array.from({ length: LOOP_COPIES }, () => reel).flat(),
+);
 ---
 
 {
   logos.length > 0 && (
-
-<div
-  class="client-logos-viewport"
-  data-client-logos
-  data-loop-copies={LOOP_COPIES}
-  style={`--loop-copies: ${LOOP_COPIES}`}
-  aria-label="Client logos"
-  role="region"
->
-  <div class="client-logos-drag">
-    <div class="client-logos-track">
+    <div class="client-logos" aria-label="Client logos" role="region">
       {
-        trackLogos.map((logo, index) => (
-          <div class="client-logo-item" aria-hidden={index >= logos.length ? "true" : undefined}>
-            <img
-              src={logo.src}
-              alt={index < logos.length ? logo.name : ""}
-              width={logo.width}
-              height={logo.height}
-              loading="eager"
-              decoding="async"
-              draggable="false"
-            />
+        reels.map((track, col) => (
+          <div
+            class="client-logos-reel"
+            style={`--reel-duration: ${DURATIONS[col]}s; --reel-delay: ${DELAYS[col]}s; --reel-dir: ${col % 2 === 0 ? "normal" : "reverse"}`}
+          >
+            <div class="client-logos-reel-track">
+              {
+                track.map((logo, index) => (
+                  <div
+                    class="client-logo-item"
+                    aria-hidden={index > 0 ? "true" : undefined}
+                  >
+                    <img
+                      src={logo.src}
+                      alt={index === 0 ? logo.name : ""}
+                      width={logo.width}
+                      height={logo.height}
+                      loading="eager"
+                      decoding="async"
+                      draggable="false"
+                    />
+                  </div>
+                ))
+              }
+            </div>
           </div>
         ))
       }
     </div>
-  </div>
-</div>
   )
 }
 
 <style>
-  .client-logos-viewport {
-    --logo-gap: 34px;
-    position: relative;
+  .client-logos {
+    --slot-h: 52px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 12px;
+    row-gap: 14px;
     width: 100%;
+    max-width: 100%;
+  }
+
+  .client-logos-reel {
+    position: relative;
+    height: var(--slot-h);
     overflow: hidden;
-    cursor: grab;
-    touch-action: pan-y;
-    -webkit-user-select: none;
-    user-select: none;
     -webkit-mask-image: linear-gradient(
-      90deg,
+      180deg,
       transparent 0%,
-      #000 8%,
-      #000 92%,
+      #000 28%,
+      #000 72%,
       transparent 100%
     );
-    mask-image: linear-gradient(90deg, transparent 0%, #000 8%, #000 92%, transparent 100%);
+    mask-image: linear-gradient(
+      180deg,
+      transparent 0%,
+      #000 28%,
+      #000 72%,
+      transparent 100%
+    );
   }
 
-  .client-logos-viewport.is-dragging {
-    cursor: grabbing;
-    touch-action: none;
-  }
-
-  /*
-   * Two stacked transforms that never fight: the drag layer carries the swipe
-   * offset (set from JS), the track carries the autoplay animation. Autoplay is
-   * pure CSS so it survives a busy main thread and any JS hiccup.
-   */
-  .client-logos-drag {
+  .client-logos-reel-track {
     display: flex;
-    width: max-content;
+    flex-direction: column;
+    animation: client-logos-slot var(--reel-duration, 12s) linear infinite;
+    animation-delay: var(--reel-delay, 0s);
+    animation-direction: var(--reel-dir, normal);
     will-change: transform;
   }
 
-  /*
-   * Deliberately not gated on prefers-reduced-motion: that gate froze the strip
-   * outright for anyone with Reduce Motion on, and this is a slow, linear,
-   * decorative drift rather than a vestibular trigger.
-   */
-  .client-logos-track {
-    display: flex;
-    align-items: center;
-    width: max-content;
-    animation: client-logos-scroll var(--marquee-duration, 52s) linear infinite;
-    will-change: transform;
+  .client-logos:hover .client-logos-reel-track {
+    animation-play-state: paused;
   }
 
-  @keyframes client-logos-scroll {
+  @keyframes client-logos-slot {
     from {
       transform: translate3d(0, 0, 0);
     }
     to {
-      transform: translate3d(calc(-100% / var(--loop-copies, 3)), 0, 0);
+      transform: translate3d(0, -50%, 0);
     }
   }
 
   .client-logo-item {
-    flex: 0 0 auto;
-    width: fit-content;
-    max-width: fit-content;
-    display: inline-flex;
+    flex: 0 0 var(--slot-h);
+    height: var(--slot-h);
+    display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px calc(var(--logo-gap) / 2);
     box-sizing: border-box;
-    -webkit-user-select: none;
-    user-select: none;
+    padding: 0 4px;
   }
 
   .client-logo-item img {
-    /*
-     * A definite height (not max-height) plus the intrinsic width/height
-     * attributes' aspect-ratio is what lets the browser derive a width here.
-     * The item is content-sized (flex: 0 0 auto) with height:auto too, so
-     * without a definite height anywhere in the chain, "width: auto" has
-     * nothing to resolve against and the image collapses to 0×0.
-     *
-     * display:block keeps the wrapper flush to the painted logo — inline
-     * replaced elements leave descender strut space that reads as uneven
-     * padding beside square marks (Acura, Porsche, etc.).
-     *
-     * max-width caps very wide-aspect logos (e.g. Johnnie Walker ~10:1) on
-     * narrow viewports so they don't dwarf the rest of the strip. The value
-     * scales with the viewport so it feels proportional at every breakpoint.
-     */
     display: block;
-    height: 34px;
+    height: 28px;
     width: auto;
-    max-width: min(140px, 38vw);
+    max-width: 100%;
+    object-fit: contain;
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
@@ -193,42 +175,26 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     transition: opacity 0.2s ease;
   }
 
-  .client-logos-viewport:hover .client-logo-item img {
+  .client-logos:hover .client-logo-item img {
     opacity: 0.75;
   }
 
-  @media (min-width: 480px) {
-    .client-logos-viewport {
-      --logo-gap: 44px;
-    }
-
-    .client-logo-item img {
-      max-width: min(180px, 32vw);
-    }
-  }
-
   @media (min-width: 640px) {
-    .client-logos-viewport {
-      --logo-gap: 52px;
+    .client-logos {
+      --slot-h: 56px;
+      column-gap: 16px;
     }
 
     .client-logo-item img {
-      max-width: min(200px, 28vw);
+      height: 32px;
     }
   }
 
-  @media (min-width: 768px) {
-    .client-logos-viewport {
-      --logo-gap: 64px;
-    }
-
-    .client-logo-item img {
-      /* Desktop: logos are small decorative elements — no need to cap tightly */
-      max-width: 220px;
+  @media (min-width: 1024px) {
+    .client-logos {
+      --slot-h: 58px;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      column-gap: 18px;
     }
   }
 </style>
-
-<script>
-  import "../lib/clientLogosMarquee";
-</script>

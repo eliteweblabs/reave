@@ -1,6 +1,6 @@
 ---
 /**
- * Homepage "worked with" logo marquee — same strip as /about, sitting under the
+ * Homepage "worked with" logo wall — same reels as /about, sitting under the
  * feature chips. Renders nothing when the install has no client logos configured.
  */
 import ClientLogos from "../ClientLogos.astro";
@@ -19,10 +19,10 @@ const hasLogos = (getSiteContent().clientLogos?.length ?? 0) > 0;
       </header>
 
       {/*
-        Marquee stays out of the fade: an infinite translateX + mask-image inside
+        Reels stay out of the fade: an infinite translateY + mask-image inside
         a view() subject stalls the next section's fade-in (iOS especially).
       */}
-      <div class="home-client-logos-strip" data-no-scroll-fade>
+      <div class="home-client-logos-grid" data-no-scroll-fade>
         <ClientLogos />
       </div>
     </section>
@@ -39,7 +39,6 @@ const hasLogos = (getSiteContent().clientLogos?.length ?? 0) > 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow-x: clip;
   }
 
   .home-client-logos-copy {
@@ -59,10 +58,8 @@ const hasLogos = (getSiteContent().clientLogos?.length ?? 0) > 0;
     color: var(--site-fg-muted, #525252);
   }
 
-  .home-client-logos-strip {
-    width: 100vw;
-    max-width: none;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
+  .home-client-logos-grid {
+    width: 100%;
+    max-width: 920px;
   }
 </style>
