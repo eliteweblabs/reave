@@ -70,6 +70,42 @@ let analyticsRangeDays = 30;
 let analyticsSource = 'plausible';
 let analyticsSiteId = '';
 let analyticsStatus = null;
+let analyticsAccounts = [];
+let analyticsSyncing = false;
+
+function parseAnalyticsSiteFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('site')?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
+function syncAnalyticsSiteUrl(siteId) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'analytics');
+    if (siteId) url.searchParams.set('site', siteId);
+    else url.searchParams.delete('site');
+    const next = url.pathname + url.search + url.hash;
+    const current = location.pathname + location.search + location.hash;
+    if (next !== current) history.replaceState({}, '', next);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function openAnalyticsSite(siteId) {
+  analyticsSiteId = String(siteId || '').trim();
+  if (analyticsSiteId) {
+    try {
+      sessionStorage.setItem(ANALYTICS_SITE_KEY, analyticsSiteId);
+    } catch {
+      /* ignore */
+    }
+  }
+  void loadAnalyticsTab({ siteId: analyticsSiteId, view: analyticsSiteId ? 'detail' : 'accounts' });
+}
 
 function analyticsWiredBadge(wired) {
   if (!wired) return '';
@@ -251,13 +287,72 @@ function analyticsBreakdownTable(title, rows, labelCol = 'Source') {
   );
 }
 
-function bindAnalyticsControls(root) {
+function analyticsKindLabel(kind) {
+  if (kind === 'agency') return 'Agency';
+  if (kind === 'client') return 'Client';
+  return 'Railway';
+}
+
+function analyticsAccountWired(row) {
+  if (row?.registered) return `<span class="ana-wired ana-wired--on">Wired</span>`;
+  return `<span class="ana-wired ana-wired--off">Not in Plausible</span>`;
+}
+
+async function syncAnalyticsRailwaySites() {
+  if (analyticsSyncing) return;
+  analyticsSyncing = true;
+  try {
+    const res = await fetch('/api/admin/analytics/sync', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok && !data?.created && !data?.skipped) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    const created = data.created ?? 0;
+    const skipped = data.skipped ?? 0;
+    const failed = data.failed ?? 0;
+    const manual = Array.isArray(data.manualItems) ? data.manualItems : [];
+    const manualLines = manual
+      .slice(0, 20)
+      .map((item) => {
+        const href = item.addUrl || '#';
+        return (
+          `<li><strong>${escHtml(item.label || item.siteId)}</strong>` +
+          ` <span class="dash-muted-inline">${escHtml(item.siteId)}</span>` +
+          (href !== '#'
+            ? ` <a href="${escHtml(href)}" target="_blank" rel="noopener noreferrer">Add in Plausible ↗</a>`
+            : '') +
+          `</li>`
+        );
+      })
+      .join('');
+    const warn = Array.isArray(data.warnings) && data.warnings.length
+      ? `<p class="soc-empty-hint">${escHtml(data.warnings[0])}</p>`
+      : '';
+    await osAlert({
+      title: manual.length ? 'Plausible — add sites' : 'Plausible sync',
+      bodyHtml:
+        `<p><strong>${created}</strong> created · <strong>${skipped}</strong> already registered · <strong>${failed}</strong> need a manual add</p>` +
+        warn +
+        (manualLines ? `<ul class="meeting-confirm-steps">${manualLines}</ul>` : ''),
+    });
+    void loadAnalyticsTab({ view: analyticsSiteId ? 'detail' : 'accounts' });
+  } catch (e) {
+    await osAlert({
+      title: 'Plausible sync failed',
+      bodyHtml: `<p>${escHtml(e.message || 'Could not sync Railway domains')}</p>`,
+    });
+  } finally {
+    analyticsSyncing = false;
+  }
+}
+
+function bindAnalyticsControls(root, view = 'detail') {
   root.querySelectorAll('[data-analytics-range]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const next = Number(btn.getAttribute('data-analytics-range'));
       if (!next || next === analyticsRangeDays) return;
       analyticsRangeDays = next;
-      void loadAnalyticsTab();
+      void loadAnalyticsTab({ view, siteId: analyticsSiteId });
     });
   });
   root.querySelectorAll('[data-analytics-source]').forEach((btn) => {
@@ -265,20 +360,14 @@ function bindAnalyticsControls(root) {
       const next = btn.getAttribute('data-analytics-source');
       if (!next || next === analyticsSource) return;
       analyticsSource = next;
-      void loadAnalyticsTab();
+      void loadAnalyticsTab({ view: 'detail', siteId: analyticsSiteId });
     });
   });
   root.querySelectorAll('[data-analytics-site]').forEach((sel) => {
     sel.addEventListener('change', () => {
       const next = String(sel.value || '').trim();
       if (!next || next === analyticsSiteId) return;
-      analyticsSiteId = next;
-      try {
-        sessionStorage.setItem(ANALYTICS_SITE_KEY, next);
-      } catch {
-        /* ignore */
-      }
-      void loadAnalyticsTab();
+      openAnalyticsSite(next);
     });
   });
   root.querySelectorAll('[data-analytics-disconnect]').forEach((btn) => {
@@ -288,10 +377,28 @@ function bindAnalyticsControls(root) {
         const res = await fetch('/api/admin/analytic-audit/status', { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        void loadAnalyticsTab();
+        void loadAnalyticsTab({ view: 'detail', siteId: analyticsSiteId });
       } catch (e) {
         alert(e.message || 'Disconnect failed');
       }
+    });
+  });
+  root.querySelectorAll('[data-analytics-back]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      analyticsSiteId = '';
+      syncAnalyticsSiteUrl('');
+      void loadAnalyticsTab({ view: 'accounts' });
+    });
+  });
+  root.querySelectorAll('[data-analytics-sync]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      void syncAnalyticsRailwaySites();
+    });
+  });
+  root.querySelectorAll('[data-analytics-account]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = String(btn.getAttribute('data-analytics-account') || '').trim();
+      if (next) openAnalyticsSite(next);
     });
   });
 }
@@ -320,6 +427,7 @@ function renderAnalyticsDashboard(root, d, status) {
         `</p>` +
       `</div>` +
       `<div class="ana-header-actions">` +
+        `<button type="button" class="prof-btn-secondary" data-analytics-back>All accounts</button>` +
         analyticsWiredBadge(d?.wired) +
         analyticsSitePicker(sites, siteId || analyticsSiteId) +
         analyticsSourceTabs(d?.availableSources) +
@@ -338,7 +446,7 @@ function renderAnalyticsDashboard(root, d, status) {
           `<p class="soc-empty-hint">Set <code>PLAUSIBLE_*</code> env vars, or Connect Google for GA4 / Search Console.</p>` +
         `</div>` +
       `</div>`;
-    bindAnalyticsControls(root);
+    bindAnalyticsControls(root, 'detail');
     return;
   }
 
@@ -351,7 +459,7 @@ function renderAnalyticsDashboard(root, d, status) {
           `<p class="soc-empty-hint">No invented metrics — fix auth/quota and reload.</p>` +
         `</div>` +
       `</div>`;
-    bindAnalyticsControls(root);
+    bindAnalyticsControls(root, 'detail');
     return;
   }
 
@@ -363,7 +471,7 @@ function renderAnalyticsDashboard(root, d, status) {
           `<p class="dash-empty">${source === 'ga4' ? 'GA4' : 'Plausible'} is not configured for this view.</p>` +
         `</div>` +
       `</div>`;
-    bindAnalyticsControls(root);
+    bindAnalyticsControls(root, 'detail');
     return;
   }
 
@@ -387,10 +495,93 @@ function renderAnalyticsDashboard(root, d, status) {
 
   root.innerHTML =
     `<div class="social-scroll">` + header + statsEl + chart + pages + sources + `</div>`;
-  bindAnalyticsControls(root);
+  bindAnalyticsControls(root, 'detail');
 }
 
-async function loadAnalyticsTab() {
+function renderAnalyticsAccounts(root, accounts, meta) {
+  const rows = Array.isArray(accounts) ? accounts : [];
+  analyticsAccounts = rows;
+  const registered = rows.filter((row) => row.registered).length;
+  const live = rows.reduce((sum, row) => sum + (Number(row.realtimeVisitors) || 0), 0);
+  const visitors = rows.reduce((sum, row) => sum + (Number(row.visitors) || 0), 0);
+  const rangeLabel = ANALYTICS_RANGE_LABEL[meta?.rangeDays] || `last ${meta?.rangeDays || 30} days`;
+  const railwayConfigured = meta?.railwayConfigured === true;
+  const header =
+    `<div class="soc-header">` +
+      `<div class="soc-header-titles">` +
+        `<h1 class="soc-title">Analytics</h1>` +
+        `<p class="soc-sub">${escHtml(String(rows.length))} accounts · ${escHtml(String(registered))} wired · ${escHtml(analyticsNumFmt(visitors))} visitors · ` +
+          `<span class="ana-live">${escHtml(analyticsNumFmt(live))} live</span>` +
+          ` · ${escHtml(rangeLabel)}</p>` +
+      `</div>` +
+      `<div class="ana-header-actions">` +
+        analyticsRangeTabs() +
+        (railwayConfigured
+          ? `<button type="button" class="prof-btn-secondary" data-analytics-sync${analyticsSyncing ? ' disabled' : ''}>${analyticsSyncing ? 'Syncing…' : 'Sync Railway sites'}</button>`
+          : '') +
+        analyticsGoogleConnectHtml(analyticsStatus) +
+      `</div>` +
+    `</div>`;
+
+  if (!meta?.configured) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        header +
+        `<div class="prof-card soc-empty-card">` +
+          `<p class="dash-empty">Plausible is not configured.</p>` +
+          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_API_BASE_URL</code> and <code>PLAUSIBLE_API_KEY</code> so live Railway domains can report here.</p>` +
+        `</div>` +
+      `</div>`;
+    bindAnalyticsControls(root, 'accounts');
+    return;
+  }
+
+  if (!rows.length) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        header +
+        `<div class="prof-card soc-empty-card">` +
+          `<p class="dash-empty">No analytics accounts yet.</p>` +
+          `<p class="soc-empty-hint">Live Railway custom domains and client websites will show here once they have a public domain.</p>` +
+        `</div>` +
+      `</div>`;
+    bindAnalyticsControls(root, 'accounts');
+    return;
+  }
+
+  const cards = rows
+    .map((row) => {
+      const liveVal = row.realtimeVisitors != null ? analyticsNumFmt(row.realtimeVisitors) : '—';
+      return (
+        `<button type="button" class="ana-account-card${row.registered ? '' : ' ana-account-card--off'}" data-analytics-account="${escHtml(row.siteId)}">` +
+          `<div class="ana-account-top">` +
+            `<span class="ana-account-name">${escHtml(row.label || row.siteId)}</span>` +
+            analyticsAccountWired(row) +
+          `</div>` +
+          `<p class="ana-account-id">${escHtml(row.siteId)}` +
+            (row.sourceLabel && row.sourceLabel !== row.siteId
+              ? ` · ${escHtml(row.sourceLabel)}`
+              : '') +
+            ` · ${escHtml(analyticsKindLabel(row.kind))}</p>` +
+          `<div class="ana-account-metrics">` +
+            `<span><strong>${escHtml(row.registered ? analyticsNumFmt(row.visitors) : '—')}</strong> visitors</span>` +
+            `<span><strong>${escHtml(row.registered ? analyticsNumFmt(row.pageviews) : '—')}</strong> views</span>` +
+            `<span class="ana-live"><strong>${escHtml(liveVal)}</strong> live</span>` +
+          `</div>` +
+        `</button>`
+      );
+    })
+    .join('');
+
+  root.innerHTML =
+    `<div class="social-scroll">` +
+      header +
+      `<div class="ana-account-grid">${cards}</div>` +
+    `</div>`;
+  bindAnalyticsControls(root, 'accounts');
+}
+
+async function loadAnalyticsTab(opts = {}) {
   const root = document.getElementById('analytics-panel');
   if (!root) return;
   mountPanelSkeleton(root, 'dashboard', 'Loading analytics…', {
@@ -398,15 +589,38 @@ async function loadAnalyticsTab() {
     wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
   });
 
+  const siteFromOpts = String(opts.siteId || '').trim();
+  const siteFromUrl = parseAnalyticsSiteFromUrl();
+  if (opts.view === 'accounts') {
+    analyticsSiteId = '';
+  } else if (siteFromOpts) {
+    analyticsSiteId = siteFromOpts;
+  } else if (siteFromUrl) {
+    analyticsSiteId = siteFromUrl;
+  }
+
+  const view = analyticsSiteId && opts.view !== 'accounts' ? 'detail' : 'accounts';
+  syncAnalyticsSiteUrl(view === 'detail' ? analyticsSiteId : '');
+
   try {
-    const params = new URLSearchParams({ range: String(analyticsRangeDays), source: analyticsSource });
-    if (!analyticsSiteId) {
-      try {
-        analyticsSiteId = sessionStorage.getItem(ANALYTICS_SITE_KEY) || '';
-      } catch {
-        analyticsSiteId = '';
-      }
+    if (view === 'accounts') {
+      const params = new URLSearchParams({
+        view: 'accounts',
+        range: String(analyticsRangeDays),
+      });
+      const [listRes, statusRes] = await Promise.all([
+        fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
+        fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),
+      ]);
+      const data = await listRes.json();
+      const statusData = await statusRes.json().catch(() => ({}));
+      analyticsStatus = statusData?.ok ? statusData : null;
+      if (!listRes.ok || !data.ok) throw new Error(data.error || `HTTP ${listRes.status}`);
+      renderAnalyticsAccounts(root, data.accounts, data);
+      return;
     }
+
+    const params = new URLSearchParams({ range: String(analyticsRangeDays), source: analyticsSource });
     if (analyticsSiteId) params.set('site_id', analyticsSiteId);
     const [dashRes, statusRes] = await Promise.all([
       fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
@@ -724,6 +938,7 @@ async function loadFleetTabQuiet() {
 export {
   loadSocialTab,
   loadAnalyticsTab,
+  openAnalyticsSite,
   loadFleetTab,
   loadFleetTabQuiet,
   initFleetLocationReporter,

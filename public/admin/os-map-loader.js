@@ -263,7 +263,7 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260827a';
+} from './insights-panels.js?v=20260828a';
 import {
   initRulesPanel,
   ruleState,
@@ -935,7 +935,11 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'media') {
     loadMediaTab();
   } else if (MAP.type === 'analytics') {
-    loadAnalyticsTab();
+    loadAnalyticsTab(
+      opts.analyticsSiteId === ''
+        ? { view: 'accounts' }
+        : { siteId: opts.analyticsSiteId },
+    );
   } else if (MAP.type === 'fleet') {
     loadFleetTab();
   } else if (MAP.type === 'modules') {
@@ -2656,6 +2660,15 @@ function formatDashMoney(amount) {
 function formatDashMoneyCount(amount, count) {
   const c = Number.isFinite(Number(count)) ? Math.max(0, Math.round(Number(count))) : 0;
   return `${formatDashMoney(amount)} / ${c}x`;
+}
+
+function formatDashCount(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (abs >= 10_000) return `${Math.round(n / 100) / 10}k`.replace(/\.0k$/, 'k');
+  return String(Math.round(n));
 }
 
 function openFinanceCrater() {
@@ -5311,6 +5324,27 @@ function renderAdminDashboard(data) {
     }));
   }
 
+  const analyticsLive = data?.analyticsConfigured === true;
+  const analyticsPreview = data?.analytics;
+  if (analyticsLive || analyticsPreview) {
+    const visitors = analyticsPreview?.visitors ?? stats.analyticsVisitors ?? 0;
+    const liveCount = analyticsPreview?.realtimeVisitors ?? stats.analyticsRealtime ?? 0;
+    const siteCount = analyticsPreview?.siteCount ?? stats.analyticsSites ?? 0;
+    const unregistered = analyticsPreview?.unregisteredCount ?? stats.analyticsUnregistered ?? 0;
+    statsEl.appendChild(buildDashStat({
+      value: analyticsPreview ? formatDashCount(visitors) : '—',
+      label: 'Visitors',
+      hint: analyticsPreview
+        ? `${liveCount} live · ${siteCount} site${siteCount === 1 ? '' : 's'}${unregistered ? ` · ${unregistered} not wired` : ''}`
+        : analyticsLive
+          ? 'loading Plausible'
+          : 'not configured',
+      tone: unregistered > 0 ? 'stale' : analyticsPreview?.siteCount ? 'live' : 'muted',
+      muted: !analyticsPreview,
+      onClick: () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }),
+    }));
+  }
+
   scroll.appendChild(statsEl);
 
   if (uptimeConfigured) {
@@ -5328,6 +5362,42 @@ function renderAdminDashboard(data) {
       list.appendChild(li);
     }
 
+    scroll.appendChild(list);
+  }
+
+  if (analyticsLive && analyticsPreview) {
+    const list = document.createElement('ul');
+    list.className = 'dash-uptime-grid dash-analytics-grid';
+    const sites = Array.isArray(analyticsPreview.sites) ? analyticsPreview.sites : [];
+    for (const site of sites) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `dash-uptime-tile${site.registered ? '' : ' dash-uptime-tile--down'}`;
+      const live = site.realtimeVisitors != null ? `${formatDashCount(site.realtimeVisitors)} live` : '—';
+      const visitors = site.registered ? `${formatDashCount(site.visitors)} / 30d` : 'not wired';
+      btn.innerHTML =
+        `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
+        `<div class="dash-uptime-name">${escHtml(site.label || site.siteId)}</div>` +
+        `<div class="dash-uptime-meta">${escHtml(visitors)} · ${escHtml(live)}</div>`;
+      btn.addEventListener('click', () => {
+        setActiveMap('analytics', { force: true, analyticsSiteId: site.siteId });
+      });
+      const li = document.createElement('li');
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+    if (sites.length) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'dash-uptime-tile dash-uptime-tile--add';
+      more.innerHTML =
+        `<span class="dash-uptime-add-icon" aria-hidden="true">${navIcon('bar-chart-2', 16)}</span>` +
+        `<div class="dash-uptime-name">All accounts</div>`;
+      more.addEventListener('click', () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }));
+      const moreLi = document.createElement('li');
+      moreLi.appendChild(more);
+      list.appendChild(moreLi);
+    }
     scroll.appendChild(list);
   }
 
@@ -10393,6 +10463,16 @@ function syncAdminTabUrl(key, opts = {}) {
       else url.searchParams.delete('item');
     } else {
       url.searchParams.delete('item');
+    }
+
+    if (key === 'analytics') {
+      if (opts.analyticsSiteId !== undefined) {
+        const siteId = String(opts.analyticsSiteId || '').trim();
+        if (siteId) url.searchParams.set('site', siteId);
+        else url.searchParams.delete('site');
+      }
+    } else {
+      url.searchParams.delete('site');
     }
 
     url.searchParams.delete('copy');

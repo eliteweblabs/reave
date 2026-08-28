@@ -30,6 +30,9 @@ import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { buildAnalyticsDashboardPreview, type AnalyticsFleetPreview } from '../../../lib/analyticsFleet';
+import { isPlausibleConfigured } from '../../../lib/plausibleClient';
+import { getCompanyConfig } from '../../../lib/companyConfig';
 
 export const prerender = false;
 
@@ -75,6 +78,30 @@ async function loadUptimeSlice(): Promise<{
     uptimeMonitors: monitorsView.monitors.map(enrichUptimeMonitorView),
     uptimeAccount,
   };
+}
+
+async function loadAnalyticsSlice(
+  companyDomain: string,
+): Promise<{
+  analytics: AnalyticsFleetPreview | null;
+  analyticsConfigured: boolean;
+}> {
+  const analyticsConfigured = isPlausibleConfigured();
+  if (!analyticsConfigured) {
+    return { analytics: null, analyticsConfigured: false };
+  }
+  try {
+    const preview = await Promise.race([
+      buildAnalyticsDashboardPreview(companyDomain),
+      new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), 8000);
+      }),
+    ]);
+    return { analytics: preview, analyticsConfigured };
+  } catch (e) {
+    console.error('[dashboard] analytics preview failed:', e instanceof Error ? e.message : e);
+    return { analytics: null, analyticsConfigured };
+  }
 }
 
 async function loadBillingSlice(): Promise<{
@@ -160,18 +187,22 @@ export async function GET(context: APIContext): Promise<Response> {
     category: e.category,
   }));
 
-  const [clientsTotal, bookingSlice, todoSlice, uptimeSlice, billingSlice] = await Promise.all([
-    loadClientsTotal(),
-    bookingDashboardSlice(),
-    loadTodoSlice(),
-    loadUptimeSlice(),
-    loadBillingSlice(),
-  ]);
+  const company = await getCompanyConfig(context.request);
+  const [clientsTotal, bookingSlice, todoSlice, uptimeSlice, billingSlice, analyticsSlice] =
+    await Promise.all([
+      loadClientsTotal(),
+      bookingDashboardSlice(),
+      loadTodoSlice(),
+      loadUptimeSlice(),
+      loadBillingSlice(),
+      loadAnalyticsSlice(company.domain),
+    ]);
   const { eventsToday, eventsNext24h, meetingsTotal, configured: schedulingConfigured } =
     bookingSlice;
   const { todosOpen, upcomingTodos } = todoSlice;
   const { uptime, uptimeMonitors, uptimeAccount } = uptimeSlice;
   const { billing, billingError, billingConfigured } = billingSlice;
+  const { analytics, analyticsConfigured } = analyticsSlice;
 
   return json({
     ok: true,
@@ -199,6 +230,10 @@ export async function GET(context: APIContext): Promise<Response> {
       billingOverdue: billing?.overdueCount ?? null,
       billingOverdueDue: billing?.overdueDue ?? null,
       billingRecurring: billing?.recurringActive ?? null,
+      analyticsVisitors: analytics?.visitors ?? null,
+      analyticsRealtime: analytics?.realtimeVisitors ?? null,
+      analyticsSites: analytics?.siteCount ?? null,
+      analyticsUnregistered: analytics?.unregisteredCount ?? null,
     },
     recentEmails,
     automationNotifications,
@@ -208,6 +243,8 @@ export async function GET(context: APIContext): Promise<Response> {
     schedulingConfigured,
     billingConfigured,
     billingError,
+    analyticsConfigured,
+    analytics,
     uptime,
     uptimeMonitors,
     uptimeAccount,
