@@ -2134,19 +2134,22 @@ button.de-placeholder-action:active {
   border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
 }
 .re-chip-col--target {
-  background: color-mix(in srgb, var(--em-notice-active, #3fb950) 8%, transparent);
-  border-color: color-mix(in srgb, var(--em-notice-active, #3fb950) 28%, var(--panel-border, transparent));
+  --chip-accent: var(--em-notice-active, #3fb950);
 }
 .re-chip-col--exempt {
-  background-color: color-mix(in srgb, var(--danger, #dc2626) 6%, transparent);
+  --chip-accent: var(--danger, #dc2626);
+}
+.re-chip-col--target,
+.re-chip-col--exempt {
+  background-color: color-mix(in srgb, var(--chip-accent) 6%, transparent);
   background-image: repeating-linear-gradient(
     -45deg,
     transparent,
     transparent 4px,
-    color-mix(in srgb, var(--danger, #dc2626) 14%, transparent) 4px,
-    color-mix(in srgb, var(--danger, #dc2626) 14%, transparent) 5.5px
+    color-mix(in srgb, var(--chip-accent) 14%, transparent) 4px,
+    color-mix(in srgb, var(--chip-accent) 14%, transparent) 5.5px
   );
-  border-color: color-mix(in srgb, var(--danger, #dc2626) 28%, var(--panel-border, transparent));
+  border-color: color-mix(in srgb, var(--chip-accent) 28%, var(--panel-border, transparent));
 }
 .re-chip-col.is-drop {
   outline: 2px solid color-mix(in srgb, var(--fg, #111) 35%, transparent);
@@ -2164,25 +2167,29 @@ button.de-placeholder-action:active {
   color: var(--danger, #dc2626);
 }
 .re-lab-target-chip--target {
-  color: inherit;
+  --chip-accent: var(--em-notice-active, #3fb950);
 }
 .re-lab-target-chip--exempt {
-  color: var(--danger, #dc2626);
-  border-color: color-mix(in srgb, var(--danger, #dc2626) 40%, transparent);
-  background-color: color-mix(in srgb, var(--danger, #dc2626) 10%, var(--card, transparent));
+  --chip-accent: var(--danger, #dc2626);
+}
+.re-lab-target-chip--target,
+.re-lab-target-chip--exempt {
+  color: var(--chip-accent, inherit);
+  border-color: color-mix(in srgb, var(--chip-accent) 40%, transparent);
+  background-color: color-mix(in srgb, var(--chip-accent) 10%, var(--card, transparent));
   background-image: repeating-linear-gradient(
     -45deg,
     transparent,
     transparent 3px,
-    color-mix(in srgb, var(--danger, #dc2626) 16%, transparent) 3px,
-    color-mix(in srgb, var(--danger, #dc2626) 16%, transparent) 4.5px
+    color-mix(in srgb, var(--chip-accent) 16%, transparent) 3px,
+    color-mix(in srgb, var(--chip-accent) 16%, transparent) 4.5px
   );
 }
 .re-lab-target-chip--add {
   width: 100%;
   max-width: none;
   gap: 0.4rem;
-  padding: 0.15rem 0.25rem 0.15rem 0.45rem;
+  padding: 3px 3px 3px 0.45rem;
   border-style: dashed;
   cursor: text;
   background-image: none;
@@ -2191,17 +2198,17 @@ button.de-placeholder-action:active {
 .re-chip-add-type-wrap {
   position: relative;
   display: inline-flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   flex: none;
-  min-width: 3.4rem;
+  min-width: 0;
   cursor: pointer;
 }
 .re-chip-add-type {
   -webkit-appearance: none;
   appearance: none;
   margin: 0;
-  padding: 0.05rem 0.1rem 0.7rem;
+  padding: 0.2rem 0.95rem 0.2rem 0.1rem;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2210,17 +2217,17 @@ button.de-placeholder-action:active {
   font-size: max(16px, 0.72rem);
   font-weight: 700;
   line-height: 1.15;
-  text-align: center;
+  text-align: left;
   cursor: pointer;
 }
 .re-chip-add-caret {
   position: absolute;
-  left: 50%;
-  bottom: 0.05rem;
+  right: 0;
+  top: 50%;
   display: inline-flex;
   color: var(--muted);
   pointer-events: none;
-  transform: translateX(-50%);
+  transform: translateY(-50%);
 }
 .re-chip-add-caret svg {
   display: block;
@@ -2237,12 +2244,14 @@ button.de-placeholder-action:active {
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
+  align-self: stretch;
+  aspect-ratio: 1;
+  width: auto;
+  height: auto;
   margin: 0;
   padding: 0;
   border: 1px solid var(--panel-border, rgba(0, 0, 0, 0.14));
-  border-radius: 999px;
+  border-radius: inherit;
   background: var(--card, transparent);
   color: var(--fg);
   cursor: pointer;

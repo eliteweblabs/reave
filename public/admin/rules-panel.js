@@ -37,7 +37,6 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-  createAgentBtn,
 } from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
@@ -47,14 +46,14 @@ import {
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260827a';
+} from './email-triage-lab.js?v=20260828a';
 import {
   createChipPair,
   chipsFromRulePhrases,
   phrasesFromChips,
   fieldsFromChips,
   titleFromRulePhrases,
-} from './rule-chip-editor.js?v=20260827i';
+} from './rule-chip-editor.js?v=20260828a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260825c';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
@@ -1056,11 +1055,6 @@ function renderRuleEditPane(pane, opts = {}) {
     return;
   }
 
-  const agentBtn = createAgentBtn({
-    label: 'Agent',
-    onClick: () => shell.askAgentAboutRule?.(rule),
-  });
-
   if (accordion) {
     const actions = document.createElement('div');
     actions.className = 're-lab-rule-actions';
@@ -1068,12 +1062,12 @@ function renderRuleEditPane(pane, opts = {}) {
     hits.className = 're-lab-rule-hits';
     hits.textContent = ruleHitsSubline(rule) || (isCatalogReadOnly(rule) ? 'Catalog rule' : 'Edit rule');
     if (canDeleteRule(rule)) {
-      actions.append(hits, agentBtn, paneDeleteIcon({
+      actions.append(hits, paneDeleteIcon({
         label: 'Delete rule',
         onClick: () => deleteRule(rule.id),
       }));
     } else {
-      actions.append(hits, agentBtn);
+      actions.append(hits);
     }
     pane.appendChild(actions);
   } else {
@@ -1082,7 +1076,6 @@ function renderRuleEditPane(pane, opts = {}) {
       back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
       title: titleFromRulePhrases(rule.phrases, rule.title || rule.status || 'Rule'),
       subtitle: ruleHitsSubline(rule),
-      beforeIcons: [agentBtn],
       icons: inDrawer || !canDeleteRule(rule)
         ? []
         : [

@@ -272,7 +272,7 @@ import {
   openRulesLabWithRule,
   startNewRule,
   showKeywordCollisionAlert,
-} from './rules-panel.js?v=20260827h';
+} from './rules-panel.js?v=20260828a';
 import {
   initNewsletterPanel,
   loadNewsletterTab,

@@ -52,9 +52,11 @@ assert.ok(FEATURE_IDS.includes('hosting_growth'));
 assert.equal(FEATURE_LABELS.social_inbox, 'Agentic Social Media');
 assert.ok(featureShowsDashboard('social_inbox'));
 assert.equal(FEATURE_DASHBOARD.social_inbox?.icon, 'share');
-const dashCards = dashboardCardsForFeatures(['social_inbox', 'online_reviews', 'email_marketing']);
+const dashCards = dashboardCardsForFeatures(['social_inbox', 'online_reviews', 'email_marketing', 'website']);
 assert.ok(dashCards.some((c) => c.id === 'social_inbox' && c.title === FEATURE_LABELS.social_inbox));
 assert.ok(dashCards.some((c) => c.id === 'online_reviews' && c.title === FEATURE_LABELS.online_reviews));
+assert.ok(dashCards.some((c) => c.id === 'media' && c.title === 'Media Library' && c.mapKey === 'media'));
+assert.ok(dashCards.some((c) => c.id === 'website' && c.title === FEATURE_LABELS.website && c.mapKey === 'media'));
 assert.ok(!dashCards.some((c) => c.id === 'client_portal'));
 assert.equal(FEATURE_LABELS.google_workspace, 'Google™ Workspace');
 assert.equal(FEATURE_LABELS.hosting_core_os, 'Core OS Hosting');
@@ -130,6 +132,17 @@ for (const id of FEATURE_SALE_SHEET) {
 const catalog = defaultModuleCatalog();
 assert.deepEqual(catalog.find((row) => row.feature === 'digital_signature')?.requires, ['documents']);
 assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet && /^\d{3}$/.test(row.id)));
+assert.ok(
+  catalog.some(
+    (row) =>
+      row.kind === 'core' &&
+      row.feature === 'media_library' &&
+      row.label === 'Media Library' &&
+      row.group === 'core' &&
+      row.priceLabel === 'Included',
+  ),
+  'Media Library must stay a Core OS baseline module',
+);
 assert.ok(catalog.every((row) => row.id !== '—'));
 assert.ok(catalog.every((row) => !row.feature.includes('-')), 'feature slugs must use underscores');
 for (const group of ['core', 'work', 'google_workspace', 'hosting', 'social', 'e_commerce', 'web_development', 'other', 'internal']) {
