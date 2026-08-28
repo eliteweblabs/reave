@@ -3,6 +3,9 @@ import { BRAND_SVG_MAX_CHARS, sanitizeInlineSvg } from './brandSvg';
 /** Public wordmark — same path on every install. Bytes come from company config. */
 export const BRANDING_LOGO_PATH = '/branding/logo.png';
 
+/** Official wordmark on a dark field (white ink). */
+export const BRANDING_LOGO_ALT_PATH = '/branding/logo.alt.png';
+
 /** Public square mark — same path on every install. */
 export const BRANDING_ICON_FILE_PATH = '/branding/icon.png';
 

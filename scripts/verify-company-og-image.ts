@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import { brandingEtag, buildCompanyOgPng, renderCompanyLogoWordmarkPng } from '../src/lib/brandImageRender.ts';
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from '../src/lib/ogImageSize.ts';
-import { BRANDING_LOGO_PATH, BRANDING_OG_PATH } from '../src/lib/companyLogo.ts';
+import { BRANDING_LOGO_ALT_PATH, BRANDING_LOGO_PATH, BRANDING_OG_PATH } from '../src/lib/companyLogo.ts';
 
 async function solidPng(
   width: number,
@@ -63,6 +63,7 @@ async function sampleCenter(buf: Buffer): Promise<[number, number, number]> {
 
 assert.equal(BRANDING_OG_PATH, '/api/branding/og.png');
 assert.equal(BRANDING_LOGO_PATH, '/branding/logo.png');
+assert.equal(BRANDING_LOGO_ALT_PATH, '/branding/logo.alt.png');
 
 {
   const svg =

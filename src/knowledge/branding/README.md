@@ -3,6 +3,7 @@
 Public URLs are always:
 
 - `/branding/logo.png` — wordmark (invoice email, headers)
+- `/branding/logo.alt.png` — official wordmark on a dark field
 - `/branding/icon.png` — square mark
 - `/branding/logo.svg` / `/branding/icon.svg`
 
