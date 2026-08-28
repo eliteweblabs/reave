@@ -1507,6 +1507,20 @@ button.de-placeholder-action:active {
   min-width: 0;
   width: 100%;
 }
+.re-unmatched-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.15rem 0 0.05rem;
+}
+.re-unmatched-chat .re-toggle-row {
+  padding: 0.15rem 0;
+}
+.re-unmatched-chat .prof-hint {
+  margin: 0;
+  line-height: 1.35;
+}
 .panel-list-subheader--stacked .re-rule-filters,
 .panel-list-subheader--stacked .re-filter-chips {
   margin: 0;

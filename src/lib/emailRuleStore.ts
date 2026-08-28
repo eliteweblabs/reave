@@ -114,11 +114,17 @@ function collisionResult(
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS email_triage_config (
   id                  INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  notify_on_unmatched BOOLEAN NOT NULL DEFAULT true,
+  notify_on_unmatched BOOLEAN NOT NULL DEFAULT false,
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, true)
+INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, false)
   ON CONFLICT (id) DO NOTHING;
+-- Legacy installs defaulted this to true (and the Rules toggle was removed).
+-- One-time flip to off so unmatched mail does not keep opening agent chats.
+ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS unmatched_chat_opt_in_seeded BOOLEAN NOT NULL DEFAULT false;
+UPDATE email_triage_config
+   SET notify_on_unmatched = false, unmatched_chat_opt_in_seeded = true, updated_at = now()
+ WHERE id = 1 AND unmatched_chat_opt_in_seeded = false;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS inbound_since TIMESTAMPTZ;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS rule_hits_seeded BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS rule_scope_seeded BOOLEAN NOT NULL DEFAULT false;
@@ -1349,7 +1355,7 @@ export async function storeSetInboundSince(iso: string): Promise<boolean> {
       if (!pool) return false;
       await pool.query(
         `INSERT INTO email_triage_config (id, notify_on_unmatched, inbound_since, updated_at)
-         VALUES (1, true, $1, now())
+         VALUES (1, false, $1, now())
          ON CONFLICT (id) DO UPDATE SET
            inbound_since = COALESCE(email_triage_config.inbound_since, EXCLUDED.inbound_since),
            updated_at = now()`,
@@ -1404,7 +1410,7 @@ export async function storeSetEmailApiSeen(seen: boolean): Promise<boolean> {
       if (!pool) return false;
       await pool.query(
         `INSERT INTO email_triage_config (id, notify_on_unmatched, email_api_seen, updated_at)
-         VALUES (1, true, $1, now())
+         VALUES (1, false, $1, now())
          ON CONFLICT (id) DO UPDATE SET
            email_api_seen = CASE
              WHEN email_triage_config.email_api_seen IS TRUE THEN TRUE

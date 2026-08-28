@@ -46,7 +46,7 @@ import {
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260828b';
+} from './email-triage-lab.js?v=20260828c';
 import {
   createChipPair,
   chipsFromRulePhrases,
@@ -632,6 +632,48 @@ function renderFilterChipRow({ chips, stateKey, counts, ariaLabel }) {
   return nav;
 }
 
+async function persistNotifyOnUnmatched(next) {
+  const prev = ruleState.notifyOnUnmatched;
+  ruleState.notifyOnUnmatched = next;
+  try {
+    const res = await fetch('/api/email/rules', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notifyOnUnmatched: next }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch (err) {
+    ruleState.notifyOnUnmatched = prev;
+    await osAlert({
+      title: 'Couldn’t save unmatched-chat setting',
+      bodyHtml: err?.message || 'Try again.',
+    });
+    return false;
+  }
+  return true;
+}
+
+function renderUnmatchedChatToggle() {
+  const toggle = createRuleToggle({
+    checked: ruleState.notifyOnUnmatched === true,
+    label: 'Open a chat when no rule matches',
+    onToggle: async (next, btn) => {
+      const ok = await persistNotifyOnUnmatched(next);
+      if (!ok) setToggleSwitch(btn, !next);
+    },
+  });
+  const row = createRuleToggleRow('Open a chat when no rule matches', toggle);
+  row.classList.add('re-unmatched-chat-row');
+  const hint = document.createElement('p');
+  hint.className = 'prof-hint';
+  hint.textContent =
+    'Off by default. Unmatched mail stays in the inbox. Turn on only if you want the agent to handle leftovers.';
+  const wrap = document.createElement('div');
+  wrap.className = 're-unmatched-chat';
+  wrap.append(row, hint);
+  return wrap;
+}
+
 function renderRuleFilters() {
   const wrap = document.createElement('div');
   wrap.className = 're-rule-filters';
@@ -648,6 +690,7 @@ function renderRuleFilters() {
       counts: ruleProcessCounts(),
       ariaLabel: 'Rule type',
     }),
+    renderUnmatchedChatToggle(),
   );
   return wrap;
 }
@@ -916,7 +959,21 @@ function renderRulesFlowShell(root) {
 
   const elseRow = document.createElement('div');
   elseRow.className = 're-flow-else';
-  elseRow.innerHTML = `
+  const unmatchedOn = ruleState.notifyOnUnmatched === true;
+  elseRow.innerHTML = unmatchedOn
+    ? `
+    <span class="re-flow-node re-flow-node--when re-flow-node--else">
+      <span class="re-flow-badge">Else</span>
+      <span class="re-flow-title">Agent</span>
+      <span class="re-flow-sub">No match → open a chat</span>
+    </span>
+    <span class="re-flow-arrow" aria-hidden="true">→</span>
+    <span class="re-flow-node re-flow-node--then re-flow-node--alert">
+      <span class="re-flow-badge">Then</span>
+      <span class="re-flow-title">Classify / notify</span>
+      <span class="re-flow-sub">Explicit unmatched-chat opt-in</span>
+    </span>`
+    : `
     <span class="re-flow-node re-flow-node--when re-flow-node--else">
       <span class="re-flow-badge">Else</span>
       <span class="re-flow-title">Inbox</span>

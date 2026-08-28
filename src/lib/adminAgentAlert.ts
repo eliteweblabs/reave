@@ -41,12 +41,14 @@ export function shouldAgentAlertForInboundEmail(opts: {
   category: string;
   status: string;
   isUptimeRobot?: boolean;
+  /** Explicit Rules toggle — unmatched mail opens a chat only when this is on. */
+  notifyOnUnmatched?: boolean;
 }): boolean {
   if (!agentAlertUserId()) return false;
   // First-match silent rules must not open System alerts / push.
   if (isSilentTriageStatus(opts.status)) return false;
-  // Unmatched mail is inbox-only — do not open an agentic chat for the leftover.
-  if (opts.status.toUpperCase() === 'UNMATCHED') return false;
+  // Unmatched leftover — inbox only unless the owner opted in.
+  if (opts.status.toUpperCase() === 'UNMATCHED') return opts.notifyOnUnmatched === true;
   if (opts.category === 'junk') return false;
   if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return false;
   if (opts.isUptimeRobot && hasFeature('uptime_monitoring')) return false;
@@ -670,8 +672,17 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
   summary: string;
   category: string;
   emailId?: string;
+  notifyOnUnmatched?: boolean;
 }): Promise<void> {
-  if (!shouldAgentAlertForInboundEmail({ category: opts.category, status: opts.status })) return;
+  if (
+    !shouldAgentAlertForInboundEmail({
+      category: opts.category,
+      status: opts.status,
+      notifyOnUnmatched: opts.notifyOnUnmatched,
+    })
+  ) {
+    return;
+  }
 
   const isRailway = isRailwayAlertStatus(opts.status);
 

@@ -209,7 +209,7 @@ export function formatRuleLabMeta(rule) {
 export const PIPELINE_FUNCTIONS = [
   { id: 'normalize', label: 'Normalize message', sub: 'Body · attachments · OTP extract' },
   { id: 'rules', label: 'Keyword rules', sub: 'First match wins · sort order' },
-  { id: 'agent_else', label: 'Inbox (else)', sub: 'No match → stay in inbox' },
+  { id: 'agent_else', label: 'Inbox (else)', sub: 'No match → inbox, unless unmatched-chat is on' },
   { id: 'contact', label: 'Resolve sender', sub: 'Contacts · client kind · open jobs' },
   { id: 'ai', label: 'AI classify / triage', sub: 'Agent-first or rules-first' },
   { id: 'override', label: 'Receipt / OTP overrides', sub: 'Money heuristics · auth links' },

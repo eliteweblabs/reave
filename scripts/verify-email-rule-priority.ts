@@ -529,4 +529,19 @@ assert.equal(
   assert.match(msg, /shipment tracked/);
 }
 
+{
+  const leftover = {
+    from: 'pat@example.com',
+    subject: 'Thinking of a small site tweak',
+    text: 'Hi — no rush, just a thought for later.',
+  };
+  const off = classifyEmail(leftover, DEFAULT_RULES, false);
+  assert.equal(off.status, 'UNMATCHED');
+  assert.equal(off.notify, false);
+  const on = classifyEmail(leftover, DEFAULT_RULES, true);
+  assert.equal(on.status, 'UNMATCHED');
+  assert.equal(on.notify, true);
+
+}
+
 console.log('verify-email-rule-priority: ok');

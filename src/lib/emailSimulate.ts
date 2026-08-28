@@ -264,6 +264,8 @@ function stepsFromAuditAndResult(
         (!e.rule.notify || isSilentTriageStatus(e.rule.status)),
     ) ?? false;
 
+  const unmatched = !result.ruleEvaluations?.some((e) => e.outcome === 'matched');
+
   if (silent) {
     steps.push({
       id: 'fn-ai',
@@ -272,6 +274,15 @@ function stepsFromAuditAndResult(
       kind: 'function',
       status: 'skipped',
       decision: 'Skipped — silent rule short-circuit',
+    });
+  } else if (unmatched && !result.wouldAgentAlert && !result.aiClassify) {
+    steps.push({
+      id: 'fn-ai',
+      stage: 'ai',
+      label: 'Agent-first AI',
+      kind: 'function',
+      status: 'skipped',
+      decision: 'Skipped — no keyword rule (open chat on unmatched is off)',
     });
   } else if (agentFirst) {
     const ai = result.aiClassify;
@@ -311,16 +322,20 @@ function stepsFromAuditAndResult(
     });
   }
 
-  if (!result.ruleEvaluations?.some((e) => e.outcome === 'matched')) {
+  if (unmatched) {
+    const chatOn = Boolean(result.wouldAgentAlert);
     steps.push({
       id: 'fn-agent-else',
       stage: 'agent_else',
-      label: 'Inbox (else)',
+      label: chatOn ? 'Agent (else)' : 'Inbox (else)',
       kind: 'function',
       status: 'ran',
-      decision: 'No keyword rule — filed in inbox (no notice or agent chat)',
-      detail:
-        'Teach/correct from the dashboard only if this should become a permanent rule.',
+      decision: chatOn
+        ? 'No keyword rule — unmatched chat is on'
+        : 'No keyword rule — filed in inbox (no notice or agent chat)',
+      detail: chatOn
+        ? 'Explicit opt-in: classify and open an agent chat for this leftover.'
+        : 'Teach/correct from the dashboard only if this should become a permanent rule.',
     });
   }
 

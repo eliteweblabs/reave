@@ -681,10 +681,10 @@ async function markEmailApiUnset(pool: pg.Pool): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS email_triage_config (
       id                  INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-      notify_on_unmatched BOOLEAN NOT NULL DEFAULT true,
+      notify_on_unmatched BOOLEAN NOT NULL DEFAULT false,
       updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-    INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, true)
+    INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, false)
       ON CONFLICT (id) DO NOTHING;
     ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS email_api_seen BOOLEAN;
     UPDATE email_triage_config

@@ -529,8 +529,15 @@ export function shouldSendInboxPush(opts: {
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
 
-  // No keyword rule → inbox only. Do not also ping dashboard / agent.
-  if (status === 'UNMATCHED' && !opts.isProjectReply && !opts.automationKind) return false;
+  // No keyword rule → inbox only unless the owner opted in (ruleNotify).
+  if (
+    status === 'UNMATCHED' &&
+    !opts.ruleNotify &&
+    !opts.isProjectReply &&
+    !opts.automationKind
+  ) {
+    return false;
+  }
   if (action === 'needs_explain') return true;
   if (opts.category === 'receipt') return false;
   if (opts.action === 'verification_code' || opts.action === 'activation_link') return false;
@@ -645,6 +652,8 @@ export async function processInboundEmail(
   const ruleWalk = evaluateEmailRules(email, rules, notifyOnUnmatched, { knownContact });
   const ruleResult = ruleWalk.classification;
   const noKeywordRule = ruleResult.matched == null;
+  // Unmatched leftover: no Claude, no automation chat, unless explicitly opted in.
+  const allowUnmatchedAgent = !noKeywordRule || notifyOnUnmatched;
   const matchedId = (ruleResult.matched as EmailRuleRecord | null)?.id;
   if (matchedId && !dryRun) {
     void incrementEmailRuleHit(matchedId).catch((e) => {
@@ -745,9 +754,15 @@ export async function processInboundEmail(
       'notify:false / DELETE — skip agent-first AI override',
       matchedRuleLink,
     );
+  } else if (noKeywordRule && !notifyOnUnmatched) {
+    pushAudit(
+      'rules',
+      'Unmatched — skip AI and agent chat',
+      'Open a chat when no rule matches is off. File in inbox only.',
+    );
   }
 
-  if (agentFirst && aiEnabled()) {
+  if (agentFirst && aiEnabled() && allowUnmatchedAgent) {
     aiClassify = await runAiClassify(email, jobs, contactName, clientKind, receivedAt);
     if (aiClassify && aiClassify.label === 'junk') {
       pushAudit(
@@ -1074,7 +1089,8 @@ export async function processInboundEmail(
       category !== 'auto_deleted' &&
       category !== 'receipt' &&
       aiEnabled() &&
-      !agentFirst
+      !agentFirst &&
+      allowUnmatchedAgent
     ) {
       // Known professional/personal contacts: legacy AI triage (no confidence gate).
       const ai = await runAiTriage(email, jobs, contactName, receivedAt);
@@ -1399,6 +1415,7 @@ export async function processInboundEmail(
   }
 
   if (
+    allowUnmatchedAgent &&
     !automationKind &&
     isSuggestedProjectMatch({ action, jobSlug, category, automationKind: null })
   ) {
@@ -1410,6 +1427,7 @@ export async function processInboundEmail(
   // Uncertain classification → triage Explain only. Do not also emit meeting
   // automation / Confirm banners for the same inbound message.
   if (
+    allowUnmatchedAgent &&
     !needsExplain &&
     !suppressedAsJunk &&
     hasFeature('scheduling') &&
@@ -1440,6 +1458,7 @@ export async function processInboundEmail(
   }
 
   if (
+    allowUnmatchedAgent &&
     !needsExplain &&
     !skipAutoBook &&
     !suppressedAsJunk &&
@@ -1527,6 +1546,7 @@ export async function processInboundEmail(
       }
     }
   } else if (
+    allowUnmatchedAgent &&
     !needsExplain &&
     !skipAutoBook &&
     !suppressedAsJunk &&
@@ -1568,13 +1588,12 @@ export async function processInboundEmail(
     isVerificationCode || isAuthLink ? await verificationCodeDeleteAfterAt() : null;
 
   // Hard rule: if we will fire a dashboard/push notification, the stored message is not junk.
-  const agentWillAlertPreview =
-    !noKeywordRule &&
-    shouldAgentAlertForInboundEmail({
-      category,
-      status: ruleResult.status,
-      isUptimeRobot: isUptimeRobotEmail(email),
-    });
+  const agentWillAlertPreview = shouldAgentAlertForInboundEmail({
+    category,
+    status: ruleResult.status,
+    isUptimeRobot: isUptimeRobotEmail(email),
+    notifyOnUnmatched,
+  });
   const willNotifyPreview =
     !isJunkClassification({ category, action, status: inboxStatus }) &&
     (isProjectReply ||
@@ -1607,15 +1626,20 @@ export async function processInboundEmail(
 
   let inboxRecord: EmailInboxRecord | null = null;
 
-  // No keyword rule → inbox only. Notices / agent chats are reserved for a
-  // matched rule (or OTP / auth / meeting / project automations).
-  if (noKeywordRule) {
+  // No keyword rule → inbox only unless the owner opted in to unmatched chats.
+  if (noKeywordRule && !notifyOnUnmatched) {
     const agentHay = `${routeNote} ${summary}`;
     pushAudit(
       'persist',
       'No keyword rule — filed in inbox',
-      'No notice or agent chat. Teach/correct from the dashboard if this should become a permanent rule',
+      'No notice or agent chat. Turn on “Open a chat when no rule matches” to handle leftovers.',
       /shipment|shipping notice|auto-archiv/i.test(agentHay) ? shipmentRuleLink : undefined,
+    );
+  } else if (noKeywordRule && notifyOnUnmatched) {
+    pushAudit(
+      'agent',
+      'No keyword rule — unmatched chat is on',
+      'Explicit opt-in: classify and open an agent chat for this leftover.',
     );
   }
 
@@ -1720,7 +1744,13 @@ export async function processInboundEmail(
       automationKind = null;
     }
 
-    if (inboxRecord?.id && bookingUid && !jobSlug && ruleAllowsAutoProject(ruleResult.matched)) {
+    if (
+      inboxRecord?.id &&
+      bookingUid &&
+      !jobSlug &&
+      allowUnmatchedAgent &&
+      ruleAllowsAutoProject(ruleResult.matched)
+    ) {
       const meetingProject = await ensureProjectForMeetingEmail({
         emailId: inboxRecord.id,
         from,
@@ -1824,14 +1854,20 @@ export async function processInboundEmail(
         'Skip auto-create project',
         `Rule forwards to ${forwardTo} — createProject is off by default`,
       );
-    } else if (!automationKind && !jobSlug && !blockAutoProject) {
+    } else if (allowUnmatchedAgent && !automationKind && !jobSlug && !blockAutoProject) {
       pushAudit(
         'project',
         'Would evaluate auto-create project',
         'Dry-run — project create + ack email skipped',
       );
     }
-  } else if (inboxRecord?.id && !automationKind && !jobSlug && !blockAutoProject) {
+  } else if (
+    inboxRecord?.id &&
+    allowUnmatchedAgent &&
+    !automationKind &&
+    !jobSlug &&
+    !blockAutoProject
+  ) {
     const autoProject = await tryAutoCreateProjectFromInboundEmail({
       from,
       subject: email.subject ?? '',
@@ -1920,13 +1956,12 @@ export async function processInboundEmail(
     automationKind,
   });
 
-  const agentWillAlert =
-    !noKeywordRule &&
-    shouldAgentAlertForInboundEmail({
-      category,
-      status: ruleResult.status,
-      isUptimeRobot: isUptimeRobotEmail(email),
-    });
+  const agentWillAlert = shouldAgentAlertForInboundEmail({
+    category,
+    status: ruleResult.status,
+    isUptimeRobot: isUptimeRobotEmail(email),
+    notifyOnUnmatched,
+  });
 
   const wouldNotify =
     (notify && channelsEffective.notify) ||
@@ -1953,7 +1988,7 @@ export async function processInboundEmail(
     if (notifyActions.length) {
       pushAudit('push', `Actions: ${notifyActions.join(', ')}`);
     }
-    if (automationKind) {
+    if (automationKind && allowUnmatchedAgent) {
       pushAudit('agent', `Would alert agent for automation: ${automationKind}`);
     } else if (isProjectReply) {
       pushAudit('agent', 'Would alert agent for project reply');
@@ -2086,7 +2121,7 @@ export async function processInboundEmail(
       });
     }
 
-    if (inboxRecord && automationKind) {
+    if (inboxRecord && automationKind && allowUnmatchedAgent) {
       const whenLabel =
         bookingStart || proposedMeetingStart
           ? formatMeetingWhenLabel(bookingStart || proposedMeetingStart!)
@@ -2119,6 +2154,7 @@ export async function processInboundEmail(
         summary,
         category,
         emailId: inboxRecord?.id,
+        notifyOnUnmatched,
       }).catch((e) => console.warn('[email] agent alert failed', e));
     }
   }

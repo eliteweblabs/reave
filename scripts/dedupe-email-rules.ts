@@ -133,7 +133,7 @@ async function loadRawRules(): Promise<{ notifyOnUnmatched: boolean; rules: Emai
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`,
     );
     return {
-      notifyOnUnmatched: cfg.rows[0]?.notify_on_unmatched ?? true,
+      notifyOnUnmatched: cfg.rows[0]?.notify_on_unmatched ?? false,
       rules: rows.map(rowToRecord),
     };
   } finally {

@@ -462,9 +462,9 @@ export const DEFAULT_RULES: EmailRule[] = [
 ];
 
 /**
- * Unmatched mail stays in the inbox only — no dashboard notice and no agent
- * chat. The stored `notify_on_unmatched` flag is ignored so one message is not
- * handled three times (inbox + notice + agentic chat).
+ * Unmatched mail stays in the inbox only unless the owner explicitly turns
+ * `notify_on_unmatched` on (Rules → Open a chat when no rule matches).
+ * Default off — leftover mail must not burn Claude or open an agent chat.
  */
 export const NOTIFY_ON_UNMATCHED = false;
 
@@ -738,11 +738,10 @@ export type RuleEvaluationResult = {
 export function evaluateEmailRules(
   email: InboundEmail,
   rules: EmailRule[] = DEFAULT_RULES,
-  /** Kept for call-site compatibility; unmatched mail never notifies. */
+  /** When true, unmatched mail may notify and open an agent chat. Default off. */
   notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED,
   options?: EvaluateEmailRulesOptions,
 ): RuleEvaluationResult {
-  void notifyOnUnmatched;
   const evaluations: RuleEvaluation[] = [];
   let order = 0;
   let matched: EmailRule | null = null;
@@ -819,7 +818,7 @@ export function evaluateEmailRules(
         matched,
         notify: resolveRuleNotifyChannels(matched).notify,
       }
-    : { status: 'UNMATCHED', matched: null, notify: false };
+    : { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
 
   return { classification, evaluations };
 }
