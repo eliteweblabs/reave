@@ -131,7 +131,7 @@ const supportMail = companyPublicEmail(company, "support");
   /* Dark background/text default now lives in Layout.astro. */
 
   .page {
-    padding: 0 24px calc(48px + env(safe-area-inset-bottom, 0px));
+    padding: 0 var(--site-doc-gutter, 24px) calc(48px + env(safe-area-inset-bottom, 0px));
     display: flex;
     justify-content: center;
   }
