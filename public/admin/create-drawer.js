@@ -171,6 +171,28 @@ async function runCreateDrawerSubmit() {
 
 let createDrawerDismissBound = false;
 
+/** Enter in a single-line field should Add — these fields are not in a <form>. */
+function shouldSubmitCreateDrawerOnEnter(ev) {
+  if (ev.defaultPrevented || ev.isComposing || ev.keyCode === 229) return false;
+  if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.shiftKey) return false;
+  const pane = getCreateDrawerPane();
+  const btn = createDrawer?.submitBtn;
+  if (!pane || btn?.disabled) return false;
+  const target = ev.target;
+  if (!(target instanceof HTMLElement) || !pane.contains(target)) return false;
+  if (target instanceof HTMLTextAreaElement) return false;
+  if (target.isContentEditable) return false;
+  if (target instanceof HTMLButtonElement || target.closest('button')) return false;
+  if (target instanceof HTMLSelectElement) return false;
+  if (target instanceof HTMLInputElement) {
+    const type = (target.type || 'text').toLowerCase();
+    if (['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'hidden', 'color', 'range'].includes(type)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function bindCreateDrawerDismissControls() {
   if (createDrawerDismissBound) return;
   createDrawerDismissBound = true;
@@ -178,9 +200,16 @@ function bindCreateDrawerDismissControls() {
     dismissCreateDrawer({ confirmEdits: true });
   });
   document.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Escape' || !isCreateDrawerOpen()) return;
+    if (!isCreateDrawerOpen()) return;
+    if (ev.key === 'Escape') {
+      ev.stopPropagation();
+      dismissCreateDrawer();
+      return;
+    }
+    if (ev.key !== 'Enter' || !shouldSubmitCreateDrawerOnEnter(ev)) return;
+    ev.preventDefault();
     ev.stopPropagation();
-    dismissCreateDrawer();
+    void runCreateDrawerSubmit();
   });
 }
 

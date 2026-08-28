@@ -272,7 +272,7 @@ import {
   openRulesLabWithRule,
   startNewRule,
   showKeywordCollisionAlert,
-} from './rules-panel.js?v=20260827h';
+} from './rules-panel.js?v=20260828b';
 import {
   initNewsletterPanel,
   loadNewsletterTab,
@@ -11073,6 +11073,33 @@ function formatEmailCategoryLabel(ev) {
   return ev.category || 'review';
 }
 
+function emailForwardedTo(ev) {
+  const direct = String(ev?.forwardedTo || '').trim();
+  if (direct) return direct;
+  const steps = Array.isArray(ev?.classificationAudit) ? ev.classificationAudit : [];
+  for (const step of steps) {
+    if (String(step?.step || '').toLowerCase() !== 'forward') continue;
+    const hay = `${step.decision || ''} ${step.detail || ''}`;
+    if (/\bfail/i.test(hay)) continue;
+    const match = hay.match(/forward(?:ed)? to\s+(\S+@\S+)/i);
+    const addr = match?.[1]?.replace(/[.,;:)>]+$/, '').trim();
+    if (addr) return addr;
+  }
+  const ruleId = String(ev?.matchedRuleId || '').trim();
+  if (ruleId) {
+    const rule = (ruleState.rules || []).find((r) => String(r.id) === ruleId);
+    const dest = String(rule?.forwardTo || '').trim();
+    if (dest) return dest;
+  }
+  return '';
+}
+
+function emailForwardedChipHtml(ev) {
+  const to = emailForwardedTo(ev);
+  if (!to) return '';
+  return `<span class="em-status em-forwarded">forwarded: ${escHtml(to)}</span>`;
+}
+
 function emailMonetaryAmount(ev) {
   const n = Number(ev.monetaryAmount);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -11744,6 +11771,7 @@ initRulesPanel({
   finishCreateDrawer,
   companyBrand,
   setActiveMap,
+  navigateToEmail,
   askAgentAboutRule,
 });
 
@@ -13731,7 +13759,30 @@ async function loadEmailTab(quiet) {
     ]);
     const data = await readAdminJson(inboxRes, 'Inbox');
     if (!inboxRes.ok) throw new Error(data.error || `HTTP ${inboxRes.status}`);
-    emailState.allEvents = filterHiddenUntilCommit(data.events || [], (e) => `email:${e.id}`);
+    const prevInbox = emailState.allEvents || [];
+    emailState.allEvents = filterHiddenUntilCommit(data.events || [], (e) => `email:${e.id}`).map(
+      (ev) => {
+        const old = prevInbox.find((p) => p.id === ev.id);
+        if (!old?._fullLoaded) return ev;
+        return {
+          ...ev,
+          bodyHtml: old.bodyHtml,
+          bodyText: old.bodyText,
+          headers: old.headers,
+          to: old.to,
+          toDisplay: old.toDisplay,
+          cc: old.cc,
+          bcc: old.bcc,
+          replyTo: old.replyTo,
+          matchedRuleId: old.matchedRuleId,
+          matchedRuleTitle: old.matchedRuleTitle,
+          forwardedTo: old.forwardedTo,
+          classificationAudit: old.classificationAudit,
+          unsubscribe: old.unsubscribe,
+          _fullLoaded: true,
+        };
+      },
+    );
     for (const id of pendingSeenIds) {
       const ev = emailState.allEvents.find((e) => e.id === id);
       if (ev && !ev.seenAt) ev.seenAt = new Date().toISOString();
@@ -16920,7 +16971,7 @@ async function createRuleFromEmailLab() {
       return;
     }
     exitEmailLabMode({ silent: true });
-    await openRulesLabWithRule(rule.id);
+    await openRulesLabWithRule(rule.id, { fromEmailId: ev.id });
   } catch (e) {
     emailState.labCreating = false;
     refreshEmailLabBar();
@@ -17110,6 +17161,7 @@ function renderEmailPane() {
   let detailHtml =
     `<div class="em-item-row">` +
     `<span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
+    emailForwardedChipHtml(ev) +
     (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))
       ? emailProjectContextHtml(ev)
       : '') +

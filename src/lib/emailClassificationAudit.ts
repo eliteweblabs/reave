@@ -150,7 +150,38 @@ export type ClassificationRuleRef = {
   phrases?: string[];
   description?: string;
   title?: string;
+  forwardTo?: string | null;
 };
+
+const FORWARD_ADDR_RE = /forward(?:ed)? to\s+([^\s,;<>]+@[^\s,;<>]+)/i;
+
+/** Address a classification actually relayed (or would relay) to. */
+export function extractForwardedToFromAudit(steps: ClassificationAuditStep[]): string | null {
+  for (const step of steps || []) {
+    if (String(step?.step || '').toLowerCase() !== 'forward') continue;
+    const hay = `${step.decision || ''} ${step.detail || ''}`;
+    if (/\bfail/i.test(hay)) continue;
+    const match = FORWARD_ADDR_RE.exec(hay);
+    const addr = match?.[1]?.replace(/[.)\]]+$/, '').trim();
+    if (addr) return addr;
+  }
+  return null;
+}
+
+/** Prefer the persisted forward audit; fall back to the matched rule's current destination. */
+export function resolveForwardedTo(opts: {
+  steps?: ClassificationAuditStep[];
+  rules?: ClassificationRuleRef[];
+  matchedRuleId?: string | null;
+}): string | null {
+  const fromAudit = extractForwardedToFromAudit(opts.steps || []);
+  if (fromAudit) return fromAudit;
+  const ruleId = String(opts.matchedRuleId || '').trim();
+  if (!ruleId || !opts.rules?.length) return null;
+  const rule = opts.rules.find((r) => String(r.id || '') === ruleId);
+  const dest = String(rule?.forwardTo || '').trim();
+  return dest || null;
+}
 
 export function findShipmentArchiveRule<T extends ClassificationRuleRef>(rules: T[]): T | null {
   return (

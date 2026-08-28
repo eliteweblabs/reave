@@ -1,0 +1,369 @@
+---
+/**
+ * PARKED — graph-paper grid + morphing rainbow backlight, lifted out of
+ * HomeHeroSection.astro on 2026-08-28. Pulled from the homepage hero because
+ * it was too much going on behind the mark; kept intact here because the
+ * effect itself works and may suit a quieter section later.
+ *
+ * Rename to `.astro` to use it. Drop it inside any `position: relative`
+ * (or absolute/fixed) box — it fills the parent's padding box and paints
+ * behind everything else in it:
+ *
+ *   <div class="whatever" style="position: relative">
+ *     <HeroIconGridGlow />
+ *     …your content, which needs z-index: 1…
+ *   </div>
+ *
+ * Self-contained: only `--site-fg` (from brand.css) comes from outside, and
+ * `--home-hero-glow-ink` lives on the root element here rather than on the
+ * hero's icon wrap, which is where it sat originally.
+ *
+ * How it works, and the two traps that cost the most time getting here:
+ *
+ *  - The graph is etched TWICE over the same 1px stroke pattern. `veil` is the
+ *    unlit graph, faint, behind a feather whose tail dies out well inside the
+ *    box so it has no readable edge. `lit` is the same strokes with the moving
+ *    colour behind them and no aperture of its own. A mask clips descendants,
+ *    so the blobs can only ever paint inside the strokes.
+ *  - Therefore the visible extent of the field is the LIGHT's extent, which is
+ *    always moving: the grid reveals and hides as blobs arrive and leave.
+ *
+ *  Trap 1 — do not put an aperture mask on the shared parent. A radial mask
+ *  there gives the field the same outline every frame, and the whole thing
+ *  reads as a fixed porthole no matter how hard the blobs move underneath.
+ *
+ *  Trap 2 — do not add a full-box "wash" layer. An element sized to its parent
+ *  with `border-radius: 50%` is the same ellipse on every frame, so its
+ *  silhouette never changes even while its fill animates. Piling several such
+ *  layers over the centre also sums to near-white. Every blob here is smaller
+ *  than the field, ramps to transparent across its own radius, and runs on its
+ *  own period, so the union keeps changing shape and never builds a core.
+ *
+ * Tuning knobs: `--home-hero-grid-ink` (unlit graph), blob `opacity` +
+ * `--home-hero-glow-ink` (colour strength), and the veil's `mask-size` (how
+ * far the faint field spreads).
+ */
+---
+
+<span class="home-hero-icon-grid" aria-hidden="true">
+  <span class="home-hero-icon-grid-veil">
+    <span class="home-hero-icon-grid-etch home-hero-icon-grid-lines"></span>
+  </span>
+  <span class="home-hero-icon-grid-etch home-hero-icon-grid-lit">
+    <span class="home-hero-icon-glow">
+      <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--a"></span>
+      <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--b"></span>
+      <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--c"></span>
+      <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--d"></span>
+      <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--e"></span>
+    </span>
+  </span>
+</span>
+
+<style>
+  .home-hero-icon-grid {
+    --home-hero-grid-minor: 16px;
+    --home-hero-grid-major: 64px;
+    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 12%, transparent);
+    /*
+     * The halo only ever shows through 1px strokes, so on the light canvas it
+     * has to be pigment rather than light: saturated and pushed dark enough to
+     * read against white.
+     */
+    --home-hero-glow-ink: saturate(2.4) brightness(0.52);
+    position: absolute;
+    /* Oversized: a feather this long needs room to die out inside the box. */
+    inset: -34%;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Dark canvas: keep brightness at/under 1 so the colour is present in the
+   * strokes without reading as a lit lamp behind the mark. */
+  :global(html[data-theme="dark"]) .home-hero-icon-grid {
+    --home-hero-glow-ink: saturate(1.9) brightness(1);
+    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 16%, transparent);
+  }
+
+  .home-hero-icon-grid-veil {
+    --home-hero-grid-veil:
+      radial-gradient(
+        ellipse closest-side,
+        rgba(0, 0, 0, 0.85) 0%,
+        rgba(0, 0, 0, 0.6) 20%,
+        rgba(0, 0, 0, 0.36) 38%,
+        rgba(0, 0, 0, 0.18) 56%,
+        rgba(0, 0, 0, 0.07) 74%,
+        rgba(0, 0, 0, 0.02) 88%,
+        transparent 100%
+      ),
+      radial-gradient(
+        ellipse closest-side,
+        rgba(0, 0, 0, 0.28) 0%,
+        rgba(0, 0, 0, 0.17) 34%,
+        rgba(0, 0, 0, 0.07) 62%,
+        rgba(0, 0, 0, 0.02) 84%,
+        transparent 100%
+      );
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    -webkit-mask-image: var(--home-hero-grid-veil);
+    mask-image: var(--home-hero-grid-veil);
+    -webkit-mask-size: 76% 50%, 94% 32%;
+    mask-size: 76% 50%, 94% 32%;
+    -webkit-mask-position: 47% 44%, 55% 55%;
+    mask-position: 47% 44%, 55% 55%;
+    /* Gradients are sized to their layer; tiling would repeat the field. */
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+
+  /* Four repeating gradients — minor + major, both axes — added together.
+   * Both passes carry this and sit on the same box, so their strokes line up. */
+  .home-hero-icon-grid-etch {
+    position: absolute;
+    inset: 0;
+    -webkit-mask-image:
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      );
+    mask-image:
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to right,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        #000 0 1px,
+        transparent 1px var(--home-hero-grid-major)
+      );
+  }
+
+  .home-hero-icon-grid-lines {
+    background-color: var(--home-hero-grid-ink);
+  }
+
+  .home-hero-icon-glow {
+    position: absolute;
+    inset: 20%;
+    z-index: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .home-hero-icon-glow-blob {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    /* Blur softens the ramp further; the alpha stops do the actual feathering. */
+    filter: blur(18px) var(--home-hero-glow-ink);
+    opacity: 0.9;
+  }
+
+  .home-hero-icon-glow-blob--a {
+    left: -6%;
+    top: 14%;
+    width: 62%;
+    height: 44%;
+    background: radial-gradient(
+      closest-side,
+      rgba(244, 114, 182, 0.95) 0%,
+      rgba(244, 114, 182, 0.6) 30%,
+      rgba(244, 114, 182, 0.28) 54%,
+      rgba(244, 114, 182, 0.09) 76%,
+      rgba(244, 114, 182, 0) 100%
+    );
+    animation: homeHeroBlobA 17s ease-in-out infinite;
+    animation-delay: -6s;
+  }
+
+  .home-hero-icon-glow-blob--b {
+    right: -8%;
+    top: 4%;
+    width: 52%;
+    height: 58%;
+    background: radial-gradient(
+      closest-side,
+      rgba(56, 189, 248, 0.92) 0%,
+      rgba(56, 189, 248, 0.58) 30%,
+      rgba(56, 189, 248, 0.26) 54%,
+      rgba(56, 189, 248, 0.08) 76%,
+      rgba(56, 189, 248, 0) 100%
+    );
+    animation: homeHeroBlobB 23s ease-in-out infinite;
+    animation-delay: -13s;
+  }
+
+  .home-hero-icon-glow-blob--c {
+    left: 10%;
+    bottom: -6%;
+    width: 64%;
+    height: 46%;
+    background: radial-gradient(
+      closest-side,
+      rgba(192, 132, 252, 0.92) 0%,
+      rgba(192, 132, 252, 0.58) 30%,
+      rgba(192, 132, 252, 0.26) 54%,
+      rgba(192, 132, 252, 0.08) 76%,
+      rgba(192, 132, 252, 0) 100%
+    );
+    animation: homeHeroBlobC 19s ease-in-out infinite;
+    animation-delay: -3s;
+  }
+
+  .home-hero-icon-glow-blob--d {
+    left: 28%;
+    top: -10%;
+    width: 42%;
+    height: 40%;
+    opacity: 0.7;
+    background: radial-gradient(
+      closest-side,
+      rgba(251, 191, 36, 0.85) 0%,
+      rgba(251, 191, 36, 0.5) 32%,
+      rgba(251, 191, 36, 0.2) 58%,
+      rgba(251, 191, 36, 0.06) 78%,
+      rgba(251, 191, 36, 0) 100%
+    );
+    animation: homeHeroBlobD 29s ease-in-out infinite;
+    animation-delay: -17s;
+  }
+
+  .home-hero-icon-glow-blob--e {
+    right: 10%;
+    bottom: 6%;
+    width: 46%;
+    height: 38%;
+    opacity: 0.7;
+    background: radial-gradient(
+      closest-side,
+      rgba(52, 211, 153, 0.85) 0%,
+      rgba(52, 211, 153, 0.5) 32%,
+      rgba(52, 211, 153, 0.2) 58%,
+      rgba(52, 211, 153, 0.06) 78%,
+      rgba(52, 211, 153, 0) 100%
+    );
+    animation: homeHeroBlobE 31s ease-in-out infinite;
+    animation-delay: -8s;
+  }
+
+  /*
+   * Four-stop loops on co-prime-ish periods. Travel is large relative to blob
+   * size so the outline of the field genuinely morphs — a blob leaving an area
+   * lets the graph there fall back to the unlit veil.
+   */
+  @keyframes homeHeroBlobA {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    28% {
+      transform: translate(26%, -16%) scale(1.18, 0.86);
+    }
+    54% {
+      transform: translate(38%, 14%) scale(0.9, 1.12);
+    }
+    78% {
+      transform: translate(10%, 22%) scale(1.1, 0.94);
+    }
+  }
+
+  @keyframes homeHeroBlobB {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    30% {
+      transform: translate(-30%, 20%) scale(0.88, 1.16);
+    }
+    58% {
+      transform: translate(-14%, 44%) scale(1.14, 0.9);
+    }
+    82% {
+      transform: translate(-36%, 8%) scale(0.96, 1.06);
+    }
+  }
+
+  @keyframes homeHeroBlobC {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    26% {
+      transform: translate(18%, -28%) scale(1.12, 0.9);
+    }
+    52% {
+      transform: translate(-22%, -14%) scale(0.92, 1.14);
+    }
+    76% {
+      transform: translate(-8%, -34%) scale(1.06, 0.96);
+    }
+  }
+
+  @keyframes homeHeroBlobD {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    34% {
+      transform: translate(-34%, 40%) scale(1.2, 1.05);
+    }
+    62% {
+      transform: translate(22%, 62%) scale(0.9, 1.2);
+    }
+    86% {
+      transform: translate(40%, 26%) scale(1.08, 0.92);
+    }
+  }
+
+  @keyframes homeHeroBlobE {
+    0%,
+    100% {
+      transform: translate(0%, 0%) scale(1, 1);
+    }
+    32% {
+      transform: translate(24%, -34%) scale(0.9, 1.18);
+    }
+    60% {
+      transform: translate(-28%, -52%) scale(1.16, 0.92);
+    }
+    84% {
+      transform: translate(-40%, -12%) scale(1.02, 1.08);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-hero-icon-glow-blob {
+      animation: none;
+    }
+  }
+</style>

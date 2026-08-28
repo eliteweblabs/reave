@@ -16,6 +16,17 @@ const toggle = readFileSync('src/components/OverlayMenuToggle.astro', 'utf8');
 const index = readFileSync('src/pages/admin/index.astro', 'utf8');
 const sales = readFileSync('src/pages/admin/sales-sheet.astro', 'utf8');
 
+assert.match(
+  overlayCss,
+  /html\.overlay-menu-open:not\(\.account-menu-docked\) \.app-header > \.app-header-scrim/,
+  'Header scrim must hide while the overlay is open or its backdrop-filter blurs the drawer',
+);
+assert.match(
+  overlayCss,
+  /top: var\(--app-header-offset\)/,
+  'Desktop overlay must start below the fixed header so the backdrop cannot paint through chrome',
+);
+
 assert.equal(
   header.includes('if (document.getElementById("admin-footer-nav")) return;'),
   false,

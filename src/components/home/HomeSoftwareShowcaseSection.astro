@@ -2,51 +2,74 @@
 /**
  * Scroll-controlled software showcase — Meter-style pin.
  * Left list highlights one feature at a time; the admin window swaps with it.
- * Copy is a working stand-in; swap FEATURES / heading after the motion is locked.
  */
 import {
-  Settings,
-  Shield,
-  Eye,
-  Layers,
-  LayoutDashboard,
-  Home,
-  Wifi,
+  Sparkles,
   Users,
-  Server,
-  Radio,
+  Eye,
+  Palette,
+  LayoutDashboard,
   Inbox,
-  Lock,
+  Briefcase,
+  MessageSquare,
+  Calendar,
+  CheckSquare,
+  BookOpen,
+  Wallet,
+  Settings,
 } from "lucide-astro";
 
 const FEATURES = [
   {
-    id: "configurability",
-    title: "Configurability",
-    body: "Enable complex configuration changes fast with just a click or with natural language.",
-    icon: Settings,
+    id: "command",
+    title: "Command",
+    body: "Describe the work in plain English. The agent invoices, books, texts, and files it — the same tools you'd click, including Siri.",
+    icon: Sparkles,
+    crumb: "Chat",
+    pills: ["Agent", "/invoice"],
+    rail: 4,
   },
   {
-    id: "security",
-    title: "Security",
-    body: "Protect your enterprise-ready network with WPA2/WPA3/802.1X, secure tunnels, and zero trust principles.",
-    icon: Shield,
+    id: "continuity",
+    title: "Continuity",
+    body: "Add a contact once. Inbox, jobs, billing, and their portal all share the same record — no second CRM.",
+    icon: Users,
+    crumb: "Contacts",
+    pills: ["Sarah Chen", "Portal live"],
+    rail: 2,
   },
   {
     id: "visibility",
     title: "Visibility",
-    body: "Gain comprehensive observability from the ISP, to the hardware, all the way to individual clients.",
+    body: "Open jobs, unpaid invoices, and the inbox on one screen. The status your client sees is the same one you do.",
     icon: Eye,
+    crumb: "Dashboard",
+    pills: ["This week"],
+    rail: 0,
   },
   {
-    id: "resiliency",
-    title: "Resiliency",
-    body: "Leverage MultiWAN, fast failover, and LTE enabled by default—all connected to multiple Meter hubs for high reliability.",
-    icon: Layers,
+    id: "presence",
+    title: "Presence",
+    body: "Your name, logo, and domain on the portal, the website, and every email. Clients never see our brand.",
+    icon: Palette,
+    crumb: "Portal",
+    pills: ["Northline", "Your brand"],
+    rail: 2,
   },
 ] as const;
 
-const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shield, Lock, Settings];
+const SIDEBAR = [
+  LayoutDashboard,
+  Inbox,
+  Users,
+  Briefcase,
+  MessageSquare,
+  Calendar,
+  CheckSquare,
+  BookOpen,
+  Wallet,
+  Settings,
+];
 ---
 
 <section
@@ -58,11 +81,11 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
 >
   <div class="sw-intro scroll-fade-in">
     <h2 id="home-software-title" class="sw-title">
-      Intuitive software packed with enterprise controls
+      One OS. One agent. The whole workday.
     </h2>
     <p class="sw-lead">
-      Get deep visibility and control with our dashboard or use Command to generate
-      one for your unique workflow.
+      Click it, type it, or ask Siri. Contacts, jobs, inbox, and billing stay on
+      the same record — and the agent can run them for you.
     </p>
   </div>
 
@@ -83,6 +106,9 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
                   aria-controls={`sw-panel-${feature.id}`}
                   data-sw-item
                   data-sw-index={String(index)}
+                  data-sw-crumb={feature.crumb}
+                  data-sw-pills={feature.pills.join("|")}
+                  data-sw-rail={String(feature.rail)}
                 >
                   <span class="sw-item-icon" aria-hidden="true">
                     <Icon size={16} strokeWidth={1.75} />
@@ -101,8 +127,8 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
       <div class="sw-window" data-sw-window>
         <aside class="sw-rail" aria-hidden="true">
           {
-            SIDEBAR.map((Icon) => (
-              <span class="sw-rail-btn">
+            SIDEBAR.map((Icon, i) => (
+              <span class:list={["sw-rail-btn", i === FEATURES[0].rail && "is-on"]}>
                 <Icon size={15} strokeWidth={1.75} />
               </span>
             ))
@@ -110,86 +136,57 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
         </aside>
         <div class="sw-stage">
           <header class="sw-chrome">
-            <span class="sw-crumb">Custom dashboard</span>
-            <span class="sw-pills">
-              <span class="sw-pill">@ Primary</span>
-              <span class="sw-pill">VLAN:private</span>
+            <span class="sw-crumb" data-sw-crumb>{FEATURES[0].crumb}</span>
+            <span class="sw-pills" data-sw-pills>
+              {FEATURES[0].pills.map((pill) => (
+                <span class="sw-pill">{pill}</span>
+              ))}
             </span>
           </header>
           <div class="sw-panels">
             <div
               class="sw-panel is-active"
-              id="sw-panel-configurability"
+              id="sw-panel-command"
               role="tabpanel"
-              aria-labelledby="sw-tab-configurability"
+              aria-labelledby="sw-tab-command"
               data-sw-panel
               aria-hidden="false"
             >
               <div class="sw-split">
                 <div class="sw-col">
-                  <div class="sw-prompt">
-                    <p>
-                      Create an SSID named Globex. Assign it to @VLAN: private, enable
-                      WPA2 auth, and limit bandwidth to 100 Mbps on the @Primary network.
-                    </p>
-                  </div>
-                  <div class="sw-card">
-                    <div class="sw-card-head">
-                      <strong>{`{ }`} Generated UI</strong>
-                      <span class="sw-badge">Auto-filled</span>
+                  <div class="sw-chat">
+                    <div class="sw-bubble sw-bubble--user">
+                      Invoice Sarah Chen $2,400 for the Henderson kitchen remodel.
                     </div>
-                    <label class="sw-field">
-                      <span>SSID</span>
-                      <span class="sw-input">Globex</span>
-                    </label>
-                    <label class="sw-field">
-                      <span>Authentication</span>
-                      <span class="sw-input">WPA2</span>
-                    </label>
-                    <label class="sw-field sw-field--split">
-                      <span>Download limit</span>
-                      <span class="sw-input">100 Mbps</span>
-                    </label>
-                    <span class="sw-confirm">Confirm</span>
+                    <div class="sw-bubble sw-bubble--agent">
+                      Drafted <b>INV-1842</b> — $2,400 due on receipt, tied to
+                      Henderson kitchen. Ready to send?
+                    </div>
+                    <div class="sw-actions">
+                      <span class="sw-confirm">Send invoice</span>
+                      <span class="sw-ghost">Edit draft</span>
+                    </div>
                   </div>
                 </div>
-                <div class="sw-col sw-col--stats">
-                  <div class="sw-stats">
-                    <div class="sw-stat">
-                      <span class="sw-stat-k">Firewalls</span>
-                      <span class="sw-stat-v">2/2 online</span>
+                <div class="sw-col">
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>INV-1842</strong>
+                      <span class="sw-badge">Draft</span>
                     </div>
-                    <div class="sw-stat">
-                      <span class="sw-stat-k">Switches</span>
-                      <span class="sw-stat-v">71/72 online</span>
-                    </div>
-                    <div class="sw-stat">
-                      <span class="sw-stat-k">Access points</span>
-                      <span class="sw-stat-v">121/121 online</span>
-                    </div>
-                  </div>
-                  <div class="sw-card sw-card--chart">
-                    <span class="sw-chart-label">ISP throughput</span>
-                    <svg class="sw-spark" viewBox="0 0 240 72" preserveAspectRatio="none" aria-hidden="true">
-                      <path d="M0 48 C 20 46, 36 40, 50 42 S 80 28, 100 32 130 18, 150 22 180 12, 200 16 220 8, 240 10" fill="none" stroke="#6366f1" stroke-width="2" />
-                      <path d="M0 58 C 24 56, 40 52, 60 54 S 90 44, 110 46 150 38, 170 40 200 34, 240 36" fill="none" stroke="#22c55e" stroke-width="2" />
-                    </svg>
-                  </div>
-                  <div class="sw-wan">
-                    {
-                      [
-                        ["1.0.0.1 WAN0 (AT&T)", "2.50ms"],
-                        ["1.1.1.1 WAN0 (AT&T)", "2.31ms"],
-                        ["8.8.8.8 WAN1 (Zayo)", "3.02ms"],
-                        ["9.9.9.9 WAN1 (Zayo)", "2.88ms"],
-                      ].map(([name, ms]) => (
-                        <div class="sw-wan-row">
-                          <span>{name}</span>
-                          <span class="sw-wan-ms">{ms}</span>
-                          <span class="sw-wan-bars" aria-hidden="true" />
-                        </div>
-                      ))
-                    }
+                    <label class="sw-field">
+                      <span>To</span>
+                      <span class="sw-input">Sarah Chen · Henderson Kitchen</span>
+                    </label>
+                    <label class="sw-field">
+                      <span>Project</span>
+                      <span class="sw-input">Henderson kitchen remodel</span>
+                    </label>
+                    <label class="sw-field sw-field--split">
+                      <span>Amount</span>
+                      <span class="sw-input">$2,400.00</span>
+                    </label>
+                    <p class="sw-note">Lands on her portal Billing tab the moment you send.</p>
                   </div>
                 </div>
               </div>
@@ -197,57 +194,51 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
 
             <div
               class="sw-panel"
-              id="sw-panel-security"
+              id="sw-panel-continuity"
               role="tabpanel"
-              aria-labelledby="sw-tab-security"
+              aria-labelledby="sw-tab-continuity"
               data-sw-panel
               aria-hidden="true"
             >
               <div class="sw-split">
                 <div class="sw-col">
-                  <div class="sw-card">
-                    <div class="sw-card-head">
-                      <strong>Access policy</strong>
-                      <span class="sw-badge sw-badge--ok">Enforced</span>
+                  <div class="sw-card sw-contact">
+                    <div class="sw-contact-head">
+                      <span class="sw-avatar" aria-hidden="true">SC</span>
+                      <div>
+                        <strong>Sarah Chen</strong>
+                        <em>Henderson Kitchen</em>
+                      </div>
                     </div>
-                    {
-                      [
-                        ["WPA3-Enterprise", "802.1X", true],
-                        ["Client VPN", "WireGuard", true],
-                        ["IPsec tunnel", "HQ ↔ Site B", true],
-                        ["Guest isolation", "VLAN 40", true],
-                      ].map(([name, detail, on]) => (
-                        <div class="sw-rule">
-                          <span class="sw-dot" data-on={String(on)} />
-                          <span>
-                            <b>{name}</b>
-                            <em>{detail}</em>
-                          </span>
-                        </div>
-                      ))
-                    }
+                    <div class="sw-meta">
+                      <span>sarah@henderson.demo</span>
+                      <span>(415) 555-0142</span>
+                    </div>
+                    <div class="sw-tags">
+                      <span>Client</span>
+                      <span>Kitchen</span>
+                      <span>Portal</span>
+                    </div>
                   </div>
                 </div>
                 <div class="sw-col">
                   <div class="sw-card">
                     <div class="sw-card-head">
-                      <strong>Zero trust</strong>
+                      <strong>Same record everywhere</strong>
                     </div>
-                    <div class="sw-zt">
-                      <div>
-                        <span>Denied</span>
-                        <strong>12</strong>
-                      </div>
-                      <div>
-                        <span>Quarantined</span>
-                        <strong>3</strong>
-                      </div>
-                      <div>
-                        <span>Allowed</span>
-                        <strong>1,408</strong>
-                      </div>
-                    </div>
-                    <p class="sw-note">New devices stay in quarantine until a rule or Command approves them.</p>
+                    {
+                      [
+                        ["Henderson kitchen", "Active job"],
+                        ["INV-1842 · $2,400", "Sent"],
+                        ["“See you Thursday”", "Last text"],
+                        ["northline.demo/c/sarah", "Portal · 2 viewed"],
+                      ].map(([name, detail]) => (
+                        <div class="sw-row">
+                          <span>{name}</span>
+                          <em>{detail}</em>
+                        </div>
+                      ))
+                    }
                   </div>
                 </div>
               </div>
@@ -263,43 +254,54 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
             >
               <div class="sw-split">
                 <div class="sw-col">
-                  <div class="sw-card sw-card--chart">
-                    <span class="sw-chart-label">Client throughput</span>
-                    <svg class="sw-spark" viewBox="0 0 240 72" preserveAspectRatio="none" aria-hidden="true">
-                      <path d="M0 40 C 30 38, 50 20, 80 28 S 120 8, 150 18 190 6, 240 12" fill="none" stroke="#6366f1" stroke-width="2" />
-                      <path d="M0 60 C 40 58, 70 50, 110 52 S 160 44, 200 46 220 40, 240 42" fill="none" stroke="#a3a3a3" stroke-width="2" />
-                    </svg>
-                  </div>
                   <div class="sw-stats">
                     <div class="sw-stat">
-                      <span class="sw-stat-k">Clients</span>
-                      <span class="sw-stat-v">842 seen</span>
+                      <span class="sw-stat-k">Active jobs</span>
+                      <span class="sw-stat-v">4</span>
                     </div>
                     <div class="sw-stat">
-                      <span class="sw-stat-k">APs</span>
-                      <span class="sw-stat-v">121 / 121</span>
+                      <span class="sw-stat-k">Outstanding</span>
+                      <span class="sw-stat-v">$4,280</span>
                     </div>
                     <div class="sw-stat">
-                      <span class="sw-stat-k">Loss</span>
-                      <span class="sw-stat-v">0.02%</span>
+                      <span class="sw-stat-k">Unread</span>
+                      <span class="sw-stat-v">3</span>
                     </div>
+                  </div>
+                  <div class="sw-card">
+                    <div class="sw-card-head">
+                      <strong>Work</strong>
+                      <span class="sw-badge sw-badge--ok">Live on portal</span>
+                    </div>
+                    {
+                      [
+                        ["Henderson kitchen", "Active", "Fri"],
+                        ["Alvarez deck", "Quote", "Tue"],
+                        ["Chen bathroom", "Review", "Today"],
+                      ].map(([name, status, due]) => (
+                        <div class="sw-job">
+                          <span>{name}</span>
+                          <span class="sw-status">{status}</span>
+                          <span class="sw-due">{due}</span>
+                        </div>
+                      ))
+                    }
                   </div>
                 </div>
                 <div class="sw-col">
                   <div class="sw-card">
                     <div class="sw-card-head">
-                      <strong>Top talkers</strong>
+                      <strong>Inbox</strong>
                     </div>
                     {
                       [
-                        ["conf-room-ap-12", "4.2 Gbps"],
-                        ["lab-sw-core", "1.8 Gbps"],
-                        ["lobby-kiosk-3", "420 Mbps"],
-                        ["cam-dock-07", "88 Mbps"],
-                      ].map(([name, rate]) => (
-                        <div class="sw-talker">
-                          <span>{name}</span>
-                          <span>{rate}</span>
+                        ["Sarah Chen", "Signed the proposal"],
+                        ["Pete Alvarez", "Running 20 min late"],
+                        ["Payments", "INV-1842 paid · $2,400"],
+                      ].map(([from, preview]) => (
+                        <div class="sw-row">
+                          <span>{from}</span>
+                          <em>{preview}</em>
                         </div>
                       ))
                     }
@@ -310,57 +312,43 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
 
             <div
               class="sw-panel"
-              id="sw-panel-resiliency"
+              id="sw-panel-presence"
               role="tabpanel"
-              aria-labelledby="sw-tab-resiliency"
+              aria-labelledby="sw-tab-presence"
               data-sw-panel
               aria-hidden="true"
             >
               <div class="sw-split">
                 <div class="sw-col">
-                  <div class="sw-card">
-                    <div class="sw-card-head">
-                      <strong>MultiWAN</strong>
-                      <span class="sw-badge sw-badge--ok">Failover ready</span>
+                  <div class="sw-portal">
+                    <div class="sw-portal-bar">
+                      <span class="sw-portal-mark" aria-hidden="true">N</span>
+                      <strong>Northline</strong>
+                      <em>Client portal</em>
                     </div>
-                    {
-                      [
-                        ["WAN0 · AT&T", "Primary", "2.4 ms"],
-                        ["WAN1 · Zayo", "Standby", "3.1 ms"],
-                        ["LTE · Meter", "Backup", "28 ms"],
-                      ].map(([name, role, ms]) => (
-                        <div class="sw-wan-row">
-                          <span>
-                            {name}
-                            <em class="sw-role">{role}</em>
-                          </span>
-                          <span class="sw-wan-ms">{ms}</span>
-                          <span class="sw-wan-bars" aria-hidden="true" />
-                        </div>
-                      ))
-                    }
+                    <div class="sw-portal-body">
+                      <span class="sw-portal-kicker">Henderson kitchen</span>
+                      <p>Remodel is <b>active</b> — same status as the job on your dashboard.</p>
+                      <div class="sw-portal-pay">
+                        <span>INV-1842</span>
+                        <span class="sw-confirm">Pay $2,400</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="sw-col">
+                  <div class="sw-prompt">
+                    <p>Change the homepage headline to Summer specials are live.</p>
+                  </div>
                   <div class="sw-card">
                     <div class="sw-card-head">
-                      <strong>Hubs</strong>
+                      <strong>Website</strong>
+                      <span class="sw-badge sw-badge--ok">Published</span>
                     </div>
-                    <div class="sw-zt">
-                      <div>
-                        <span>West</span>
-                        <strong>Online</strong>
-                      </div>
-                      <div>
-                        <span>East</span>
-                        <strong>Online</strong>
-                      </div>
-                      <div>
-                        <span>Last fail</span>
-                        <strong>0</strong>
-                      </div>
-                    </div>
-                    <p class="sw-note">LTE is on by default. Traffic steers to the next hub before users notice.</p>
+                    <p class="sw-site-line">Summer specials are live.</p>
+                    <p class="sw-note">
+                      The agent commits the copy. Your host publishes it — no CMS login.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -388,6 +376,9 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
     const pin = root.querySelector<HTMLElement>("[data-sw-pin]");
     const items = [...root.querySelectorAll<HTMLButtonElement>("[data-sw-item]")];
     const panels = [...root.querySelectorAll<HTMLElement>("[data-sw-panel]")];
+    const crumb = root.querySelector<HTMLElement>("[data-sw-crumb]");
+    const pills = root.querySelector<HTMLElement>("[data-sw-pills]");
+    const railBtns = [...root.querySelectorAll<HTMLElement>(".sw-rail-btn")];
     if (!track || !pin || items.length === 0) return;
 
     const count = items.length;
@@ -399,6 +390,24 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
       const styles = getComputedStyle(document.documentElement);
       return Number.parseFloat(styles.scrollPaddingTop) || 0;
     };
+
+    function setChrome(index: number) {
+      const item = items[index];
+      if (!item) return;
+      if (crumb && item.dataset.swCrumb) crumb.textContent = item.dataset.swCrumb;
+      if (pills && item.dataset.swPills) {
+        pills.replaceChildren(
+          ...item.dataset.swPills.split("|").map((label) => {
+            const span = document.createElement("span");
+            span.className = "sw-pill";
+            span.textContent = label;
+            return span;
+          }),
+        );
+      }
+      const railIdx = Number.parseInt(item.dataset.swRail ?? "0", 10);
+      railBtns.forEach((btn, i) => btn.classList.toggle("is-on", i === railIdx));
+    }
 
     function setActive(next: number) {
       if (next === active) return;
@@ -414,6 +423,7 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
         panel.classList.toggle("is-active", on);
         panel.setAttribute("aria-hidden", on ? "false" : "true");
       });
+      setChrome(next);
     }
 
     function progressToIndex() {
@@ -459,6 +469,7 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll, { passive: true });
+    setChrome(0);
     setActive(progressToIndex());
   }
 
@@ -650,7 +661,7 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
     border-radius: 8px;
   }
 
-  .sw-rail-btn:first-child {
+  .sw-rail-btn.is-on {
     color: var(--sw-accent);
     background: var(--sw-accent-soft);
   }
@@ -735,7 +746,9 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
   }
 
   .sw-prompt,
-  .sw-card {
+  .sw-card,
+  .sw-chat,
+  .sw-portal {
     background: var(--sw-paper);
     border: 1px solid var(--sw-line);
     border-radius: 12px;
@@ -800,15 +813,152 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
     font-weight: 600;
   }
 
-  .sw-confirm {
+  .sw-confirm,
+  .sw-ghost {
     display: inline-flex;
-    margin-top: 4px;
+    align-items: center;
     padding: 8px 14px;
     border-radius: 8px;
-    background: #4f46e5;
-    color: #fff;
     font-size: 0.78rem;
     font-weight: 650;
+  }
+
+  .sw-confirm {
+    background: #4f46e5;
+    color: #fff;
+  }
+
+  .sw-ghost {
+    background: #f3f3f6;
+    color: var(--sw-ink);
+  }
+
+  .sw-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sw-chat {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+  }
+
+  .sw-bubble {
+    max-width: 92%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-family: var(--font-content);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--sw-ink);
+  }
+
+  .sw-bubble--user {
+    align-self: flex-end;
+    background: var(--sw-accent-soft);
+    color: #3d2f9e;
+  }
+
+  .sw-bubble--agent {
+    align-self: flex-start;
+    background: #f3f3f6;
+  }
+
+  .sw-contact-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .sw-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: var(--sw-accent-soft);
+    color: var(--sw-accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .sw-contact-head strong,
+  .sw-portal-bar strong {
+    display: block;
+    font-family: var(--font-primary);
+    font-size: 0.92rem;
+    font-weight: 650;
+  }
+
+  .sw-contact-head em,
+  .sw-portal-bar em {
+    display: block;
+    font-style: normal;
+    font-size: 0.72rem;
+    color: var(--sw-muted);
+  }
+
+  .sw-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: var(--sw-ink);
+    margin-bottom: 10px;
+  }
+
+  .sw-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .sw-tags span {
+    font-size: 0.65rem;
+    font-weight: 650;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #f3f3f6;
+    color: var(--sw-muted);
+  }
+
+  .sw-row,
+  .sw-job {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--sw-line);
+    font-size: 0.8rem;
+    font-family: var(--font-primary);
+  }
+
+  .sw-row em,
+  .sw-due {
+    font-style: normal;
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--sw-muted);
+    text-align: right;
+  }
+
+  .sw-job {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+  }
+
+  .sw-status {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--sw-accent);
   }
 
   .sw-stats {
@@ -833,117 +983,9 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
   }
 
   .sw-stat-v {
-    font-size: 0.78rem;
-    font-weight: 650;
-    color: var(--sw-ink);
-  }
-
-  .sw-chart-label {
-    display: block;
-    font-size: 0.68rem;
-    color: var(--sw-muted);
-    margin-bottom: 8px;
-  }
-
-  .sw-spark {
-    display: block;
-    width: 100%;
-    height: 72px;
-  }
-
-  .sw-wan,
-  .sw-rule,
-  .sw-talker {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .sw-wan {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    background: var(--sw-paper);
-    border: 1px solid var(--sw-line);
-    border-radius: 12px;
-    padding: 10px 12px;
-  }
-
-  .sw-wan-row {
-    display: grid;
-    grid-template-columns: 1fr auto 72px;
-    gap: 8px;
-    align-items: center;
-    font-size: 0.68rem;
-    color: var(--sw-muted);
-  }
-
-  .sw-wan-ms {
-    font-variant-numeric: tabular-nums;
-    color: var(--sw-ink);
-    font-weight: 650;
-  }
-
-  .sw-wan-bars {
-    height: 14px;
-    border-radius: 2px;
-    background: repeating-linear-gradient(
-      90deg,
-      #22c55e 0 4px,
-      transparent 4px 6px
-    );
-  }
-
-  .sw-rule {
-    padding: 8px 0;
-    border-top: 1px solid var(--sw-line);
-    font-size: 0.8rem;
-  }
-
-  .sw-rule b,
-  .sw-talker {
-    font-family: var(--font-primary);
-  }
-
-  .sw-rule em,
-  .sw-role {
-    display: block;
-    font-style: normal;
-    color: var(--sw-muted);
-    font-size: 0.72rem;
-    font-weight: 400;
-  }
-
-  .sw-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #22c55e;
-    flex: 0 0 8px;
-  }
-
-  .sw-zt {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .sw-zt div {
-    background: #f7f7f9;
-    border-radius: 10px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .sw-zt span {
-    font-size: 0.68rem;
-    color: var(--sw-muted);
-  }
-
-  .sw-zt strong {
     font-size: 0.95rem;
+    font-weight: 650;
+    color: var(--sw-ink);
   }
 
   .sw-note {
@@ -953,11 +995,81 @@ const SIDEBAR = [Home, Inbox, LayoutDashboard, Wifi, Radio, Users, Server, Shiel
     color: var(--sw-muted);
   }
 
-  .sw-talker {
+  .sw-portal {
+    padding: 0;
+    overflow: hidden;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sw-portal-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--sw-line);
+    background: #fafafb;
+  }
+
+  .sw-portal-mark {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    background: var(--sw-accent);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+  }
+
+  .sw-portal-bar em {
+    margin-left: auto;
+  }
+
+  .sw-portal-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .sw-portal-kicker {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sw-muted);
+  }
+
+  .sw-portal-body p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    color: var(--sw-ink);
+  }
+
+  .sw-portal-pay {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    padding: 8px 0;
-    border-top: 1px solid var(--sw-line);
-    font-size: 0.8rem;
+    gap: 8px;
+    padding-top: 10px;
+    font-size: 0.78rem;
+    color: var(--sw-muted);
+  }
+
+  .sw-site-line {
+    margin: 0;
+    font-family: var(--font-primary);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+    color: var(--sw-ink);
   }
 
   @media (max-width: 900px) {

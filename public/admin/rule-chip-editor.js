@@ -25,8 +25,8 @@ export function normalizeChipField(raw) {
 }
 
 export function chipFieldLabel(field) {
-  if (field === 'from') return 'email';
-  return String(field || 'body').trim() || 'body';
+  const f = normalizeChipField(field);
+  return CHIP_FIELD_OPTIONS.find((o) => o.value === f)?.label || 'Body';
 }
 
 export function chipPhraseKey(text) {
@@ -223,7 +223,7 @@ export function createChipComposer(opts = {}) {
   const caret = document.createElement('span');
   caret.className = 're-chip-add-caret';
   caret.setAttribute('aria-hidden', 'true');
-  caret.innerHTML = iosIcon('chevron-down', 10);
+  caret.innerHTML = iosIcon('chevron-down', 12);
   typeWrap.append(typeSel, caret);
 
   const rule = document.createElement('span');

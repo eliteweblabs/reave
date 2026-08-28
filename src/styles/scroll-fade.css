@@ -5,13 +5,13 @@
  * repeating cards/tiles. Opt-in anywhere with `.scroll-fade-in`.
  *
  * Excluded: homepage / landing heroes (already on-screen), chrome, site
- * footer (never reaches cover 28% at the bottom of the page), and
- * horizontal marquees (they have their own motion — and their overflow
+ * footer (never finishes its range at the bottom of the page), wrappers
+ * whose own children fade (stacked opacity leaves the block washed out),
+ * and horizontal marquees (they have their own motion — and their overflow
  * poisons view() progress for later siblings if they stay fade subjects).
  * Feature chips and the tall .fx-list wrapper are also out: a
  * masked/transforming marquee inside a view() section stalls the next
- * block’s fade on iOS, and fading a huge section × each card stacks
- * opacity near 0.
+ * block’s fade on iOS.
  */
 @keyframes scroll-fade-in {
   from {
@@ -24,11 +24,29 @@
   }
 }
 
+:root {
+  /*
+   * Where the fade finishes. On phones the scrollport that drives view()
+   * is the layout viewport, which runs behind Safari’s toolbar under
+   * viewport-fit=cover — a viewport-fraction end leaves the bottom band of
+   * the screen you can actually see permanently mid-fade. Finish as soon as
+   * the block is fully inside instead, so every page fills the viewport the
+   * way the homepage hero does.
+   */
+  --scroll-fade-end: cover 28%;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --scroll-fade-end: entry min(100%, 140px);
+  }
+}
+
 @supports (animation-timeline: view()) {
   :is(
     .scroll-fade-in,
-    main#main-content section:not(:has(.scroll-fade-in)),
-    main#main-content article:not(:has(.scroll-fade-in)),
+    main#main-content section:not(:has(.scroll-fade-in)):not(:has(article)):not(:has(section)),
+    main#main-content article:not(:has(.scroll-fade-in)):not(:has(article)),
     main#main-content form,
     main#main-content > * > header,
     main#main-content .acc-item,
@@ -50,15 +68,15 @@
     animation: scroll-fade-in linear both;
     animation-timeline: view();
     animation-timeline: view(block);
-    animation-range: entry 0% cover 28%;
+    animation-range: entry 0% var(--scroll-fade-end);
   }
 }
 
 /* IntersectionObserver fallback — activated by ScrollFadeIn.astro */
 html.scroll-fade-io :is(
   .scroll-fade-in,
-  main#main-content section:not(:has(.scroll-fade-in)),
-  main#main-content article:not(:has(.scroll-fade-in)),
+  main#main-content section:not(:has(.scroll-fade-in)):not(:has(article)):not(:has(section)),
+  main#main-content article:not(:has(.scroll-fade-in)):not(:has(article)),
   main#main-content form,
   main#main-content > * > header,
   main#main-content .acc-item,

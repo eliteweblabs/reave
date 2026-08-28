@@ -31,12 +31,10 @@ import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
 const reaveSite = JSON.parse(readFileSync('config/sites/reave-config.json', 'utf8')) as {
   homepage?: { template?: string; heroHeadlineHtml?: string };
   pages?: string[];
-  rainbowThemeColor?: boolean;
 };
 assert.notEqual(reaveSite.homepage?.template, 'login');
 assert.match(String(reaveSite.homepage?.heroHeadlineHtml || ''), /Small Business/);
 assert.equal(reaveSite.pages?.includes('/features'), true);
-assert.equal(reaveSite.rainbowThemeColor, true);
 
 const reaveInstall = JSON.parse(readFileSync('config/config-reave.json', 'utf8')) as {
   homepageTemplate?: string;
