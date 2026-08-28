@@ -347,9 +347,16 @@ html.account-menu-open:not(.account-menu-docked) .admin-setup-alerts {
   pointer-events: none;
 }
 
+/*
+ * The marketing drawer renders inside .app-header-row, so header chrome only
+ * stays visible while it is open if it is raised above the overlay's 2050.
+ * The avatar has to be on this list too — otherwise opening the hamburger
+ * paints the drawer over it and the account control vanishes from the bar.
+ */
 html.overlay-menu-open .app-header-logo,
 html.overlay-menu-open .marketing-nav,
 html.overlay-menu-open .topbar-marketing-controls,
+html.overlay-menu-open .topbar-profile-cluster,
 html.overlay-menu-open .overlay-menu-toggle,
 html.account-menu-open .topbar-end {
   position: relative;

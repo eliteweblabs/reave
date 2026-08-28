@@ -233,6 +233,9 @@ const appHandler = async (
       !normalizedPath.startsWith("/go/") &&
       !normalizedPath.startsWith("/__clerk") &&
       !normalizedPath.startsWith("/video/") &&
+      normalizedPath !== "/card" &&
+      normalizedPath !== "/nfc" &&
+      normalizedPath !== "/contact.vcf" &&
       normalizedPath !== "/dealer-map" &&
       normalizedPath !== "/test";
     if (isMarketingLike) {
