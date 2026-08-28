@@ -96,7 +96,13 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 const fullBleed = fullBleedProp ?? isIndexPage;
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
-const userId = Astro.locals.auth()?.userId ?? null;
+/** Middleware serves without auth hydration when Clerk keys are absent. */
+let userId: string | null = null;
+try {
+  userId = Astro.locals.auth?.()?.userId ?? null;
+} catch {
+  userId = null;
+}
 ---
 
 <!doctype html>
