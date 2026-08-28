@@ -210,10 +210,10 @@
   function renderSuccess() {
     root.innerHTML =
       `<div class="dl-panel dl-panel--success" role="status">` +
-      `<h2 class="dl-success-title">Request received</h2>` +
+      `<h2 class="dl-success-title">You’re all set</h2>` +
       `<p class="dl-success-body">Thanks${visitorName.trim() ? `, ${esc(visitorName.trim().split(/\s+/)[0])}` : ''}. ` +
-      `We’ll notify you as soon as your custom demo environment is ready.</p>` +
-      `<p class="dl-success-meta">A confirmation will go to <strong>${esc(visitorEmail.trim())}</strong> when the sandbox is live.</p>` +
+      `We’ll contact you as soon as it’s ready.</p>` +
+      `<p class="dl-success-meta">We’ll reach out at <strong>${esc(visitorEmail.trim())}</strong>.</p>` +
       `<p class="dl-footnote"><a href="/demo">Back to demo</a></p>` +
       `</div>`;
   }
@@ -259,14 +259,14 @@
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all deployed</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${ready ? '' : ' disabled'}>` +
-      (launching ? 'Submitting…' : 'Request custom demo') +
+      (launching ? 'Submitting…' : 'Build my demo') +
       `</button>` +
       `</div>` +
       (launchError ? `<p class="dl-launch-error" role="alert">${esc(launchError)}</p>` : '') +
       `<p class="dl-meta">${included.length} included · ${selectedCount} optional selected · ${modules.length} add-ons available</p>` +
       `</div>` +
       renderLegend() +
-      `<p class="dl-footnote">Tell us which modules you need and we’ll prepare a personalized demo. You’ll hear from us as soon as it’s ready.</p>`
+      `<p class="dl-footnote">Core OS ships with every demo. Switch on the add-ons you want alongside it.</p>`
     );
   }
 
