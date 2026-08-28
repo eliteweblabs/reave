@@ -5,7 +5,9 @@
  * it, because isolation:isolate would trap position:fixed.
  */
 import BrandIconInline from "../../components/BrandIconInline.astro";
-import { getCompanyConfig } from "../../lib/companyConfig";
+import InlineBrandSvg from "../../components/InlineBrandSvg.astro";
+import { companyHeroIconSvg, getCompanyConfig } from "../../lib/companyConfig";
+import { prepareInlineBrandSvg, svgHasExternalRasterRefs, withSvgFill } from "../../lib/brandSvg";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { getSiteContent, type SiteContentConfig } from "../../lib/siteContent";
 import { siteMediaSrc } from "../../lib/siteMedia";
@@ -28,6 +30,41 @@ const homepage = siteContent.homepage;
 const showHeroDemo = homepage.showHeroDemo === true && demoScenes.length > 0;
 const showHeroCtas = (homepage.ctas?.length ?? 0) > 0;
 const mapboxToken = getPublicMapboxAccessToken() || "";
+
+/**
+ * Etched mark: the glyph is hollowed out to a 2px outset stroke over a frosted
+ * interior, with patterned dashes crawling around the outline.
+ *
+ * Both halves need the mark's silhouette — the interior as a mask for the
+ * backdrop blur, the outline as a hole punched out of the ring so only the
+ * outer half of a 4px stroke survives. The pasted artwork doubles as that
+ * silhouette unmodified: mask-mode is alpha, so whatever colour the paths
+ * carry, an opaque glyph gives an exact silhouette. It has to be a real vector
+ * with a viewBox to work as a CSS image, and stroking an <image> sidecar
+ * paints nothing — installs failing either test keep the solid mark.
+ */
+const heroIconSvg = companyHeroIconSvg(company);
+/* Marks pasted without a fill rely on the Illustrator default; as a mask that
+ * would read as an empty silhouette, so pin one the way the favicon does. */
+const heroMaskSvg = heroIconSvg
+  ? prepareInlineBrandSvg(withSvgFill(heroIconSvg, "#000"), { idPrefix: "hero-mark-mask" })
+  : null;
+const heroMaskUsable = Boolean(
+  heroMaskSvg && /xmlns\s*=/i.test(heroMaskSvg) && /viewBox\s*=/i.test(heroMaskSvg),
+);
+const etchedMark = heroMaskUsable && !svgHasExternalRasterRefs(heroIconSvg);
+/*
+ * Percent-encode the parens and apostrophes encodeURIComponent leaves alone,
+ * then wrap in single quotes: this value travels through a style attribute and
+ * then a url() token, and an unescaped quote or paren silently kills the mask —
+ * which does not fail loudly, it just makes the masked layer disappear.
+ */
+const heroMarkSilhouette = etchedMark
+  ? `url('data:image/svg+xml,${encodeURIComponent(heroMaskSvg as string)
+      .replace(/\(/g, "%28")
+      .replace(/\)/g, "%29")
+      .replace(/'/g, "%27")}')`
+  : "";
 ---
 
 <section
@@ -38,21 +75,62 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 >
   <div class="home-hero-brand" data-hero-brand>
     <div class="home-hero-icon-wrap" data-hero-icon>
-      <span class="home-hero-icon-grid" aria-hidden="true">
-        <span class="home-hero-icon-grid-veil">
-          <span class="home-hero-icon-grid-etch home-hero-icon-grid-lines"></span>
-        </span>
-        <span class="home-hero-icon-grid-etch home-hero-icon-grid-lit">
-          <span class="home-hero-icon-glow">
-            <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--a"></span>
-            <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--b"></span>
-            <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--c"></span>
-            <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--d"></span>
-            <span class="home-hero-icon-glow-blob home-hero-icon-glow-blob--e"></span>
+      {etchedMark ? (
+        <span
+          class="home-hero-mark"
+          aria-hidden="true"
+          style={`--home-hero-mark-silhouette: ${heroMarkSilhouette};`}
+        >
+          <span class="home-hero-mark-glass"></span>
+          <span class="home-hero-mark-ring">
+            <InlineBrandSvg
+              svg={heroIconSvg}
+              class="home-hero-mark-outline home-hero-mark-outline--base"
+              idPrefix="hero-outline-base"
+            />
+            <InlineBrandSvg
+              svg={heroIconSvg}
+              class="home-hero-mark-outline home-hero-mark-outline--weave"
+              idPrefix="hero-outline-weave"
+            />
+            <InlineBrandSvg
+              svg={heroIconSvg}
+              class="home-hero-mark-outline home-hero-mark-outline--circuit"
+              idPrefix="hero-outline-circuit"
+            />
           </span>
+          <!--
+            Paint servers for the strokes above. SVG paint references resolve by
+            id anywhere in the document, so the patterns can live in their own
+            zero-size <svg> instead of being injected into the pasted artwork.
+            Tiles are in the mark's user units (a 512² canvas here), so they read
+            as fine texture across a 2px stroke rather than as flat colour.
+          -->
+          <svg class="home-hero-mark-defs" width="0" height="0" aria-hidden="true" focusable="false">
+            <defs>
+              <pattern
+                id="hero-mark-weave"
+                width="34"
+                height="34"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(38)"
+              >
+                <path d="M0 4h34" stroke="#f472b6" stroke-width="8"></path>
+                <path d="M0 12h34" stroke="#38bdf8" stroke-width="8"></path>
+                <path d="M0 20h34" stroke="#c084fc" stroke-width="8"></path>
+                <path d="M0 28h34" stroke="#34d399" stroke-width="8"></path>
+              </pattern>
+              <pattern id="hero-mark-circuit" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M0 10h20" stroke="#a5b4fc" stroke-width="6"></path>
+                <path d="M10 0v20" stroke="#fbbf24" stroke-width="5"></path>
+                <circle cx="0" cy="0" r="4" fill="#f0abfc"></circle>
+              </pattern>
+            </defs>
+          </svg>
         </span>
-      </span>
-      <BrandIconInline company={company} />
+      ) : (
+        <BrandIconInline company={company} />
+      )}
     </div>
     <h1 id="home-hero-title" class="home-hero-title" set:html={homepage.heroHeadlineHtml} />
   </div>
@@ -163,12 +241,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-icon-wrap {
-    /*
-     * The halo only ever shows through 1px strokes, so on the light canvas it
-     * has to be pigment rather than light: saturated and pushed dark enough to
-     * read against white.
-     */
-    --home-hero-glow-ink: saturate(2.4) brightness(0.52);
     position: relative;
     z-index: 1;
     flex: none;
@@ -180,329 +252,144 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     margin-top: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-above) * -1);
     pointer-events: none;
     overflow: visible;
-    isolation: isolate;
+    /*
+     * No isolation here: the frosted interior samples its backdrop up to the
+     * nearest backdrop root, and isolating this box would leave it sampling
+     * nothing but itself. .home-hero is the root instead, which is what puts
+     * the demo chat behind the glyph in the blur.
+     */
   }
 
-  /*
-   * Rainbow backlight. Five independent blobs and deliberately no full-box
-   * wash: a wash is an ellipse the size of its parent, so its silhouette is
-   * the same oval every frame no matter how hard the children move, and four
-   * layers piled on the centre sum to near-white. Each blob here is smaller
-   * than the field, ramps to transparent over its own radius, and runs on its
-   * own period, so the union keeps changing shape and never builds a core.
-   */
-  .home-hero-icon-glow {
-    position: absolute;
-    inset: 20%;
-    z-index: 0;
-    pointer-events: none;
-    overflow: visible;
+  /* ---- Etched mark: 2px outset stroke, frosted interior ---- */
+
+  .home-hero-mark {
+    /* Light canvas: the pattern colours are pastel and vanish on white, so
+     * they get pushed to pigment the same way the old halo was. */
+    --home-hero-mark-ink: saturate(1.5) brightness(0.62);
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    color: var(--site-fg, #171717);
   }
 
-  .home-hero-icon-glow-blob {
-    position: absolute;
-    border-radius: 50%;
-    pointer-events: none;
-    /* Blur softens the ramp further; the alpha stops do the actual feathering. */
-    filter: blur(18px) var(--home-hero-glow-ink);
-    opacity: 0.9;
+  :global(html[data-theme="dark"]) .home-hero-mark {
+    /* Straight pattern colours read as candy stripe at this scale. */
+    --home-hero-mark-ink: saturate(0.85);
   }
 
-  .home-hero-icon-glow-blob--a {
-    left: -6%;
-    top: 14%;
-    width: 62%;
-    height: 44%;
-    background: radial-gradient(
-      closest-side,
-      rgba(244, 114, 182, 0.95) 0%,
-      rgba(244, 114, 182, 0.6) 30%,
-      rgba(244, 114, 182, 0.28) 54%,
-      rgba(244, 114, 182, 0.09) 76%,
-      rgba(244, 114, 182, 0) 100%
-    );
-    animation: homeHeroBlobA 17s ease-in-out infinite;
-    animation-delay: -6s;
-  }
-
-  .home-hero-icon-glow-blob--b {
-    right: -8%;
-    top: 4%;
-    width: 52%;
-    height: 58%;
-    background: radial-gradient(
-      closest-side,
-      rgba(56, 189, 248, 0.92) 0%,
-      rgba(56, 189, 248, 0.58) 30%,
-      rgba(56, 189, 248, 0.26) 54%,
-      rgba(56, 189, 248, 0.08) 76%,
-      rgba(56, 189, 248, 0) 100%
-    );
-    animation: homeHeroBlobB 23s ease-in-out infinite;
-    animation-delay: -13s;
-  }
-
-  .home-hero-icon-glow-blob--c {
-    left: 10%;
-    bottom: -6%;
-    width: 64%;
-    height: 46%;
-    background: radial-gradient(
-      closest-side,
-      rgba(192, 132, 252, 0.92) 0%,
-      rgba(192, 132, 252, 0.58) 30%,
-      rgba(192, 132, 252, 0.26) 54%,
-      rgba(192, 132, 252, 0.08) 76%,
-      rgba(192, 132, 252, 0) 100%
-    );
-    animation: homeHeroBlobC 19s ease-in-out infinite;
-    animation-delay: -3s;
-  }
-
-  .home-hero-icon-glow-blob--d {
-    left: 28%;
-    top: -10%;
-    width: 42%;
-    height: 40%;
-    opacity: 0.7;
-    background: radial-gradient(
-      closest-side,
-      rgba(251, 191, 36, 0.85) 0%,
-      rgba(251, 191, 36, 0.5) 32%,
-      rgba(251, 191, 36, 0.2) 58%,
-      rgba(251, 191, 36, 0.06) 78%,
-      rgba(251, 191, 36, 0) 100%
-    );
-    animation: homeHeroBlobD 29s ease-in-out infinite;
-    animation-delay: -17s;
-  }
-
-  .home-hero-icon-glow-blob--e {
-    right: 10%;
-    bottom: 6%;
-    width: 46%;
-    height: 38%;
-    opacity: 0.7;
-    background: radial-gradient(
-      closest-side,
-      rgba(52, 211, 153, 0.85) 0%,
-      rgba(52, 211, 153, 0.5) 32%,
-      rgba(52, 211, 153, 0.2) 58%,
-      rgba(52, 211, 153, 0.06) 78%,
-      rgba(52, 211, 153, 0) 100%
-    );
-    animation: homeHeroBlobE 31s ease-in-out infinite;
-    animation-delay: -8s;
-  }
-
-  /*
-   * Four-stop loops on co-prime-ish periods. Travel is large relative to blob
-   * size so the outline of the field genuinely morphs — a blob leaving an area
-   * lets the graph there fall back to the unlit veil.
-   */
-  @keyframes homeHeroBlobA {
-    0%,
-    100% {
-      transform: translate(0%, 0%) scale(1, 1);
-    }
-    28% {
-      transform: translate(26%, -16%) scale(1.18, 0.86);
-    }
-    54% {
-      transform: translate(38%, 14%) scale(0.9, 1.12);
-    }
-    78% {
-      transform: translate(10%, 22%) scale(1.1, 0.94);
-    }
-  }
-
-  @keyframes homeHeroBlobB {
-    0%,
-    100% {
-      transform: translate(0%, 0%) scale(1, 1);
-    }
-    30% {
-      transform: translate(-30%, 20%) scale(0.88, 1.16);
-    }
-    58% {
-      transform: translate(-14%, 44%) scale(1.14, 0.9);
-    }
-    82% {
-      transform: translate(-36%, 8%) scale(0.96, 1.06);
-    }
-  }
-
-  @keyframes homeHeroBlobC {
-    0%,
-    100% {
-      transform: translate(0%, 0%) scale(1, 1);
-    }
-    26% {
-      transform: translate(18%, -28%) scale(1.12, 0.9);
-    }
-    52% {
-      transform: translate(-22%, -14%) scale(0.92, 1.14);
-    }
-    76% {
-      transform: translate(-8%, -34%) scale(1.06, 0.96);
-    }
-  }
-
-  @keyframes homeHeroBlobD {
-    0%,
-    100% {
-      transform: translate(0%, 0%) scale(1, 1);
-    }
-    34% {
-      transform: translate(-34%, 40%) scale(1.2, 1.05);
-    }
-    62% {
-      transform: translate(22%, 62%) scale(0.9, 1.2);
-    }
-    86% {
-      transform: translate(40%, 26%) scale(1.08, 0.92);
-    }
-  }
-
-  @keyframes homeHeroBlobE {
-    0%,
-    100% {
-      transform: translate(0%, 0%) scale(1, 1);
-    }
-    32% {
-      transform: translate(24%, -34%) scale(0.9, 1.18);
-    }
-    60% {
-      transform: translate(-28%, -52%) scale(1.16, 0.92);
-    }
-    84% {
-      transform: translate(-40%, -12%) scale(1.02, 1.08);
-    }
-  }
-
-  /* Dark canvas: the halo was reading as a lit lamp behind the mark. Keep it
-   * under 1 so the colour is present in the strokes without glaring. */
-  :global(html[data-theme="dark"]) .home-hero-icon-wrap {
-    --home-hero-glow-ink: saturate(1.9) brightness(1);
-  }
-
-  :global(html[data-theme="dark"]) .home-hero-icon-grid {
-    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 16%, transparent);
-  }
-
-  /*
-   * Graph paper as the only visible surface, in two passes over the same
-   * stroke pattern:
-   *
-   *   veil  → the unlit graph. Faint, and behind a very long feather whose
-   *           tail dies out well inside the box, so it has no readable edge.
-   *   lit   → the same strokes with the moving colour behind them and no
-   *           aperture of its own. Where the light is, the graph reads; where
-   *           it has drifted away, the graph sinks back to the veil.
-   *
-   * The field's outline is therefore the light's outline, which is always
-   * moving. An aperture on the shared parent is what made this look like a
-   * fixed porthole no matter how much the blobs underneath moved.
-   */
-  .home-hero-icon-grid {
-    --home-hero-grid-minor: 16px;
-    --home-hero-grid-major: 64px;
-    --home-hero-grid-ink: color-mix(in srgb, var(--site-fg) 12%, transparent);
-    position: absolute;
-    inset: -34%;
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .home-hero-icon-grid-veil {
-    --home-hero-grid-veil:
-      radial-gradient(
-        ellipse closest-side,
-        rgba(0, 0, 0, 0.85) 0%,
-        rgba(0, 0, 0, 0.6) 20%,
-        rgba(0, 0, 0, 0.36) 38%,
-        rgba(0, 0, 0, 0.18) 56%,
-        rgba(0, 0, 0, 0.07) 74%,
-        rgba(0, 0, 0, 0.02) 88%,
-        transparent 100%
-      ),
-      radial-gradient(
-        ellipse closest-side,
-        rgba(0, 0, 0, 0.28) 0%,
-        rgba(0, 0, 0, 0.17) 34%,
-        rgba(0, 0, 0, 0.07) 62%,
-        rgba(0, 0, 0, 0.02) 84%,
-        transparent 100%
-      );
+  .home-hero-mark-glass {
     position: absolute;
     inset: 0;
-    pointer-events: none;
-    -webkit-mask-image: var(--home-hero-grid-veil);
-    mask-image: var(--home-hero-grid-veil);
-    -webkit-mask-size: 76% 50%, 94% 32%;
-    mask-size: 76% 50%, 94% 32%;
-    -webkit-mask-position: 47% 44%, 55% 55%;
-    mask-position: 47% 44%, 55% 55%;
-    /* Gradients are sized to their layer; tiling would repeat the field. */
+    /* A whisper of tint so the glyph still reads as glass on an empty canvas —
+     * blurring a flat background otherwise returns the flat background. */
+    background: color-mix(in srgb, var(--site-fg, #171717) 5%, transparent);
+    -webkit-backdrop-filter: blur(10px) saturate(1.3);
+    backdrop-filter: blur(10px) saturate(1.3);
+    -webkit-mask-image: var(--home-hero-mark-silhouette);
+    mask-image: var(--home-hero-mark-silhouette);
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-position: center;
+    mask-position: center;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
   }
 
-  /* Four repeating gradients — minor + major, both axes — added together.
-   * Both passes carry this and sit on the same box, so their strokes line up. */
-  .home-hero-icon-grid-etch {
+  /*
+   * Punch the glyph out of the ring so a 4px stroke keeps only its outer half —
+   * a true 2px outset rather than a stroke straddling the edge. Where
+   * mask-composite is not supported the layers union instead, which just leaves
+   * the full 4px outline showing: thicker, not broken.
+   */
+  .home-hero-mark-ring {
     position: absolute;
     inset: 0;
-    -webkit-mask-image:
-      repeating-linear-gradient(
-        to right,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-minor)
-      ),
-      repeating-linear-gradient(
-        to bottom,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-minor)
-      ),
-      repeating-linear-gradient(
-        to right,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-major)
-      ),
-      repeating-linear-gradient(
-        to bottom,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-major)
-      );
-    mask-image:
-      repeating-linear-gradient(
-        to right,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-minor)
-      ),
-      repeating-linear-gradient(
-        to bottom,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-minor)
-      ),
-      repeating-linear-gradient(
-        to right,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-major)
-      ),
-      repeating-linear-gradient(
-        to bottom,
-        #000 0 1px,
-        transparent 1px var(--home-hero-grid-major)
-      );
+    filter: var(--home-hero-mark-ink);
+    -webkit-mask-image: linear-gradient(#000, #000), var(--home-hero-mark-silhouette);
+    mask-image: linear-gradient(#000, #000), var(--home-hero-mark-silhouette);
+    -webkit-mask-size: 100% 100%, 100% 100%;
+    mask-size: 100% 100%, 100% 100%;
+    -webkit-mask-position: center, center;
+    mask-position: center, center;
+    -webkit-mask-repeat: no-repeat, no-repeat;
+    mask-repeat: no-repeat, no-repeat;
+    -webkit-mask-composite: source-out, source-over;
+    mask-composite: subtract, add;
   }
 
-  .home-hero-icon-grid-lines {
-    background-color: var(--home-hero-grid-ink);
+  /* Injected markup carries no scope hash, so the copies are matched globally
+   * from this scoped parent. overflow must be visible or the viewBox clips the
+   * half of the stroke that sits outside the glyph. */
+  .home-hero-mark-ring :global(svg) {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .home-hero-mark-ring :global(svg *) {
+    fill: none !important;
+    stroke-width: 4px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* Keeps the 4px honest at any rendered size — the artwork is a 512² canvas
+     * scaled into a ~200–310px box. */
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Continuous hairline so the glyph always reads as a whole outline; the
+   * patterned passes are highlights travelling over it, not the outline itself. */
+  .home-hero-mark-ring :global(.home-hero-mark-outline--base *) {
+    stroke: currentColor;
+    opacity: 0.34;
+  }
+
+  /*
+   * Dash periods (60 and 32) match the distance each pass travels per loop, so
+   * the crawl is seamless without knowing the path length. Opposite directions
+   * on unrelated durations keep the two textures sliding against each other.
+   */
+  .home-hero-mark-ring :global(.home-hero-mark-outline--weave *) {
+    stroke: url(#hero-mark-weave);
+    stroke-dasharray: 34 96;
+    stroke-dashoffset: 0;
+    opacity: 0.55;
+    animation: homeHeroMarkWeave 13s linear infinite;
+  }
+
+  .home-hero-mark-ring :global(.home-hero-mark-outline--circuit *) {
+    stroke: url(#hero-mark-circuit);
+    stroke-dasharray: 10 70;
+    stroke-dashoffset: 0;
+    opacity: 0.45;
+    animation: homeHeroMarkCircuit 19s linear infinite;
+  }
+
+  @keyframes homeHeroMarkWeave {
+    to {
+      stroke-dashoffset: -130;
+    }
+  }
+
+  @keyframes homeHeroMarkCircuit {
+    to {
+      stroke-dashoffset: 80;
+    }
+  }
+
+  .home-hero-mark-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .home-hero-icon-glow-blob {
+    .home-hero-mark-ring :global(.home-hero-mark-outline--weave *),
+    .home-hero-mark-ring :global(.home-hero-mark-outline--circuit *) {
       animation: none;
     }
   }
