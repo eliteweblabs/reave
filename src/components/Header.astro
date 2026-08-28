@@ -137,6 +137,17 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       <BrandLogoInline company={company} />
     </span>
   </a>
+  {showWebsiteEntry && (
+    <a
+      href="/"
+      class="brand-btn brand-btn-glass app-header-website-entry"
+      aria-label="Website"
+    >
+      Website
+      <!-- IOS_ICONS.arrow-right-fill — keep in sync with public/admin/admin-ui.js -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.14v13.72L19.5 12 8 5.14z"/></svg>
+    </a>
+  )}
   </div>
 
   <!-- Detail pane title/actions: public/admin/pane-header.js (createPaneHeader). Back: #admin-special-back. -->
@@ -197,16 +208,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
           </button>
           <div class="topbar-profile-cluster">
             {showDeployIndicator && <DeployStatusDot publicAccess={deployStatusPublic} />}
-            {showWebsiteEntry && (
-              <a
-                href="/"
-                class="brand-btn brand-btn-glass app-header-admin-cta app-header-website-entry"
-                aria-label="Website"
-              >
-                Website
-                <ArrowRight size={14} strokeWidth={2.25} aria-hidden="true" />
-              </a>
-            )}
             <div class="app-header-menu topbar-menu topbar-profile-menu">
               <button
                 type="button"
@@ -1386,8 +1387,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .app-header-admin-cta,
-  .app-header-admin-entry.brand-btn,
-  .app-header-website-entry.brand-btn {
+  .app-header-admin-entry.brand-btn {
     height: var(--app-header-profile-h);
     padding: 0 0.65rem 0 0.75rem;
     gap: 0.28rem;
@@ -1395,9 +1395,26 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     border-radius: 999px;
   }
 
+  /*
+   * Same size as the public-site admin pill (.marketing-nav-admin) — one step
+   * down from the header-end CTA that matches the avatar height.
+   */
+  .app-header-website-entry.brand-btn {
+    height: auto;
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+    padding: 0.38rem 0.75rem 0.38rem 0.85rem;
+    gap: 0.28rem;
+    font-size: 0.75rem;
+    border-radius: 999px;
+  }
+
+  .app-header-website-entry.brand-btn:hover {
+    transform: none;
+  }
+
   .app-header-admin-cta:not(.brand-btn-glass),
-  .app-header-admin-entry.brand-btn,
-  .app-header-website-entry.brand-btn:not(.brand-btn-glass) {
+  .app-header-admin-entry.brand-btn {
     box-shadow: var(--brand-gradient-shadow);
   }
 
@@ -1408,16 +1425,22 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   .app-header-admin-cta svg,
-  .app-header-admin-entry.brand-btn svg,
-  .app-header-website-entry.brand-btn svg {
+  .app-header-admin-entry.brand-btn svg {
     width: 0.85rem;
     height: 0.85rem;
     pointer-events: none;
     flex-shrink: 0;
   }
 
+  .app-header-website-entry.brand-btn svg {
+    width: 0.5rem;
+    height: 0.5rem;
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
   /*
-   * Phones: the Website pill crowds the sleep toggle + avatar. Keep it in
+   * Phones: the Website pill crowds the logo + back chevron. Keep it in
    * the account drawer instead. Desktop keeps the header CTA.
    */
   .account-menu-website-item {

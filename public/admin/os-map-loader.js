@@ -190,7 +190,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260827a';
+} from './schedule-panel.js?v=20260828a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import {
   initClientsPanel,
@@ -2605,9 +2605,10 @@ function buildDashStat(opts) {
   const el = document.createElement(muted ? 'div' : 'button');
   if (!muted) el.type = 'button';
   el.className = `dash-stat${tone ? ` dash-stat--${tone}` : ''}${muted ? ' dash-stat--muted' : ''}${external ? ' dash-stat--external' : ''}`;
+  const valueClass = String(value).includes(' / ') ? 'dash-stat-value dash-stat-value--mix' : 'dash-stat-value';
   el.innerHTML =
     (external ? `<span class="dash-stat-external" aria-hidden="true">${navIcon('external-link', 14)}</span>` : '') +
-    `<span class="dash-stat-value">${escHtml(String(value))}</span>` +
+    `<span class="${valueClass}">${escHtml(String(value))}</span>` +
     `<span class="dash-stat-label">${escHtml(label)}</span>` +
     (hint ? `<span class="dash-stat-hint">${escHtml(hint)}</span>` : '');
   if (external && !muted) el.setAttribute('aria-label', `${label} (opens in new tab)`);
@@ -2633,11 +2634,28 @@ function deployStatTone(state) {
 function formatDashMoney(amount) {
   const n = Number(amount);
   if (!Number.isFinite(n)) return '—';
+  const abs = Math.abs(n);
+  const neg = n < 0 ? '-' : '';
+  // Tile values can't hold $25,060 — compact once the figure needs a comma+thousands.
+  if (abs >= 1_000_000) {
+    const m = abs / 1_000_000;
+    const rounded = m >= 10 ? String(Math.round(m)) : String(Math.round(m * 10) / 10);
+    return `${neg}~${rounded}M`;
+  }
+  if (abs >= 10_000) {
+    return `${neg}~${Math.round(abs / 1000)}k`;
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(n);
+}
+
+/** Overdue tile: "$0 / 0x" or "~25k / 4x". */
+function formatDashMoneyCount(amount, count) {
+  const c = Number.isFinite(Number(count)) ? Math.max(0, Math.round(Number(count))) : 0;
+  return `${formatDashMoney(amount)} / ${c}x`;
 }
 
 function openFinanceCrater() {
@@ -5226,6 +5244,7 @@ function renderAdminDashboard(data) {
     const totalDue = stats.billingTotalDue ?? 0;
     const outstanding = stats.billingOutstanding ?? 0;
     const overdue = stats.billingOverdue ?? 0;
+    const overdueDue = stats.billingOverdueDue ?? 0;
     const recurring = stats.billingRecurring ?? 0;
 
     statsEl.appendChild(buildDashStat({
@@ -5245,9 +5264,9 @@ function renderAdminDashboard(data) {
     }));
 
     statsEl.appendChild(buildDashStat({
-      value: billingFailed ? '—' : overdue,
+      value: billingFailed ? '—' : formatDashMoneyCount(overdueDue, overdue),
       label: 'Overdue',
-      hint: billingFailed ? 'check CRATER_API_*' : overdue ? 'past due in Crater' : 'none overdue',
+      hint: billingFailed ? 'check CRATER_API_*' : 'past due',
       tone: billingFailed ? 'failed' : overdue > 0 ? 'failed' : 'live',
       muted: billingFailed,
       external: !billingFailed,

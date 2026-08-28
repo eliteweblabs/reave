@@ -9,8 +9,9 @@
  *
  * Uses the public Railway proxy URL from .env.railway.postgres when unset.
  * Generates ~2 months of events around today: 2–3 on weekdays, 1–2 on weekends.
- * --from-contacts reads CONTACT_API_BASE_URL / CONTACT_API_KEY and books real
- * people (titles are prefixed [Sample]; metadata.seeded + metadata.sample).
+ * --from-contacts reads CONTACT_API_BASE_URL / CONTACT_API_KEY and books people
+ * already marked Client (professional) in the book — not Proposed / Service /
+ * Personal. Titles are prefixed [Demo]; metadata.seeded + metadata.demo.
  *
  * Cal.com stores startTime/endTime as UTC in timestamp-without-tz columns. Pass
  * --fresh to delete prior seeded rows before inserting (needed after fixing TZ).
@@ -200,16 +201,61 @@ const FALLBACK_CONTACTS: DemoContact[] = [
 ];
 
 const DEFAULT_CONTACTS = FIXTURE_CONTACTS.length ? FIXTURE_CONTACTS : FALLBACK_CONTACTS;
-const DEFAULT_ADDRESS = 'Five Federal Street, Salem, MA 01970';
-const DEFAULT_LAT = 42.5195;
-const DEFAULT_LNG = -70.8967;
-const SAMPLE_NOTES = [
-  'Sample — rate review',
-  'Sample — pre-approval consult',
-  'Sample — application follow-up',
-  'Sample — closing prep',
-  'Sample — refinance check-in',
+const DEFAULT_ADDRESS = 'Beverly, MA 01915';
+const DEFAULT_LAT = 42.5584;
+const DEFAULT_LNG = -70.8801;
+const DEMO_NOTES = [
+  'Demo — onboarding check-in',
+  'Demo — module walkthrough',
+  'Demo — website review',
+  'Demo — punch list sync',
+  'Demo — deploy recap',
 ];
+const SERVICE_EMAIL_LOCAL = /^(no-?reply|no_reply|mailer-daemon|notifications|donotreply|auto-confirm|workspace-noreply|businessprofile-noreply|appleid)\b/i;
+const SERVICE_EMAIL_DOMAINS = new Set([
+  'ebay.com',
+  'google.com',
+  'apple.com',
+  'github.com',
+  'railway.app',
+  'cursor.com',
+  'redditmail.com',
+  'amazon.com',
+  'upwork.com',
+  'telnyx.com',
+  'uptimerobot.com',
+  'robinhood.com',
+  'kinsta.com',
+  'id.apple.com',
+  'email.apple.com',
+  'accounts.google.com',
+  'information.flexcar.com',
+  'notify.railway.app',
+  'mail.cursor.com',
+  't.upwork.com',
+  'petdesk.com',
+]);
+const JUNK_NAME =
+  /^(©|\(c\)|hi thomas|it's called|what is|show me|call |we're here|zzz |drop count)/i;
+const SERVICE_NAMES = new Set([
+  'flexcar',
+  'ebay',
+  'reddit',
+  'apple',
+  'appleid',
+  'github notifications',
+  'amazon shipping?',
+  'cursor',
+  'uptime robot',
+  'telnyx discover',
+  'telnyx campaigns',
+  'telnyx portal',
+  'upwork',
+  'google',
+  'google workspace',
+  'anthropic',
+  'railway',
+]);
 
 const WEEKDAY_SLOTS = ['09:00:00', '10:30:00', '13:00:00', '14:30:00', '16:00:00'];
 const WEEKEND_SLOTS = ['10:00:00', '11:30:00', '14:00:00'];
@@ -243,14 +289,62 @@ function pickN<T>(items: T[], n: number, rand: () => number): T[] {
   return out;
 }
 
+function emailDomain(email: string): string {
+  const at = email.lastIndexOf('@');
+  return at >= 0 ? email.slice(at + 1).toLowerCase() : '';
+}
+
+function isServiceEmail(email: string): boolean {
+  const e = email.trim().toLowerCase();
+  if (!e) return false;
+  const local = e.split('@')[0] || '';
+  if (SERVICE_EMAIL_LOCAL.test(local)) return true;
+  return SERVICE_EMAIL_DOMAINS.has(emailDomain(e));
+}
+
 function skipAutoContact(name: string, email: string): boolean {
   const n = name.trim().toLowerCase();
   const e = email.trim().toLowerCase();
-  if (!n || !e) return true;
-  if (isDemoContactEmail(e)) return true;
-  if (/^(no-?reply|mailer-daemon|notifications|donotreply)@/i.test(e)) return true;
-  if (n === 'noreply' || n === 'no reply' || n === 'mailer-daemon') return true;
+  if (!n) return true;
+  if (n === 'noreply' || n === 'no reply' || n === 'mailer-daemon' || n === 'thomas senecal') {
+    return true;
+  }
+  if (JUNK_NAME.test(name.trim()) || SERVICE_NAMES.has(n)) return true;
+  if (name.trim().length > 70 || name.trim().split(/\s+/).length > 8) return true;
+  if (e && isDemoContactEmail(e)) return true;
+  if (e && isServiceEmail(e)) return true;
   return false;
+}
+
+async function contactIsBookedClient(
+  base: string,
+  key: string,
+  uid: string,
+): Promise<boolean> {
+  if (!uid.trim()) return false;
+  const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid)}/links`, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${key}`,
+      'X-API-Key': key,
+    },
+  });
+  if (!res.ok) return false;
+  const json = (await res.json()) as { links?: Array<{ system?: string; metadata?: { clientKind?: string; personal?: boolean } }> };
+  const portal = (json.links ?? []).find((l) => l.system === 'portal');
+  const kind = String(portal?.metadata?.clientKind ?? '').trim().toLowerCase();
+  return kind === 'professional';
+}
+
+function demoEmailFor(name: string, email: string): string {
+  const trimmed = email.trim();
+  if (trimmed) return trimmed;
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, 40) || 'client';
+  return `demo.${slug}@demo.reave.app`;
 }
 
 async function fetchContactsFromApi(skipEmails: Set<string>): Promise<DemoContact[]> {
@@ -278,9 +372,12 @@ async function fetchContactsFromApi(skipEmails: Set<string>): Promise<DemoContac
     const batch = json.contacts ?? [];
     for (const raw of batch) {
       const name = String(raw.name ?? '').trim();
-      const email = String(raw.email ?? '').trim();
-      if (skipAutoContact(name, email)) continue;
-      if (skipEmails.has(email.toLowerCase())) continue;
+      const rawEmail = String(raw.email ?? '').trim();
+      const uid = String(raw.uid ?? '').trim();
+      if (skipAutoContact(name, rawEmail)) continue;
+      if (rawEmail && skipEmails.has(rawEmail.toLowerCase())) continue;
+      if (!(await contactIsBookedClient(base, key, uid))) continue;
+      const email = demoEmailFor(name, rawEmail);
       const phone = String(raw.phone ?? '').trim() || undefined;
       const address =
         String(raw.address ?? '').trim() ||
@@ -294,7 +391,7 @@ async function fetchContactsFromApi(skipEmails: Set<string>): Promise<DemoContac
         name,
         email,
         phone,
-        notes: SAMPLE_NOTES[out.length % SAMPLE_NOTES.length],
+        notes: DEMO_NOTES[out.length % DEMO_NOTES.length],
         address,
         lat,
         lng,
@@ -305,7 +402,7 @@ async function fetchContactsFromApi(skipEmails: Set<string>): Promise<DemoContac
     if (offset > 5000) break;
   }
   if (!out.length) {
-    throw new Error('--from-contacts found no usable contacts (after skipping noreply / demo / owner)');
+    throw new Error('--from-contacts found no Client-kind contacts (Proposed / Service / Personal skipped)');
   }
   return out;
 }
@@ -333,7 +430,7 @@ function generateDemoBookings(contacts: DemoContact[]): DemoBooking[] {
       contactIdx += 1;
       bookings.push({
         ...contact,
-        notes: SAMPLE_NOTES[bookings.length % SAMPLE_NOTES.length],
+        notes: DEMO_NOTES[bookings.length % DEMO_NOTES.length],
         startLocal: `${dateKey(d)} ${time}`,
       });
     }
@@ -415,9 +512,10 @@ async function main() {
         ...(demo.phone ? { phoneE164: demo.phone } : {}),
         seeded: true,
         sample: true,
+        demo: true,
       };
-      const sampleTitle = `[Sample] Meeting with ${demo.name}`;
-      const sampleNotes = `[demo-seed] ${demo.notes || 'Sample appointment'}`;
+      const sampleTitle = `[Demo] Meeting with ${demo.name}`;
+      const sampleNotes = `[demo-seed] ${demo.notes || 'Demo appointment'}`;
 
       if (DRY_RUN) {
         if (dryRunSamples < 3) {
