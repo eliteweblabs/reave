@@ -245,9 +245,11 @@ const wayneReply = [
   const header = readFileSync('src/components/Header.astro', 'utf8');
   assert.match(hero, /BrandIconLockup/);
   assert.match(card, /BrandIconLockup/);
-  assert.match(card, /BrandLogoInline/);
+  assert.match(card, /variant="hero"/);
+  assert.match(card, /nfc-title/);
+  assert.doesNotMatch(card, /BrandLogoInline/);
   assert.match(header, /BrandLogoInline/);
-  console.log('ok — homepage and /card share BrandIconLockup; header and /card share BrandLogoInline');
+  console.log('ok — homepage and /card share BrandIconLockup; header keeps BrandLogoInline');
 }
 
 console.log('all audit notification checks passed');
