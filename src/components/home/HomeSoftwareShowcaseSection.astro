@@ -136,8 +136,8 @@ const SIDEBAR = [
         </aside>
         <div class="sw-stage">
           <header class="sw-chrome">
-            <span class="sw-crumb" data-sw-crumb>{FEATURES[0].crumb}</span>
-            <span class="sw-pills" data-sw-pills>
+            <span class="sw-crumb" data-sw-chrome-crumb>{FEATURES[0].crumb}</span>
+            <span class="sw-pills" data-sw-chrome-pills>
               {FEATURES[0].pills.map((pill) => (
                 <span class="sw-pill">{pill}</span>
               ))}
@@ -376,8 +376,8 @@ const SIDEBAR = [
     const pin = root.querySelector<HTMLElement>("[data-sw-pin]");
     const items = [...root.querySelectorAll<HTMLButtonElement>("[data-sw-item]")];
     const panels = [...root.querySelectorAll<HTMLElement>("[data-sw-panel]")];
-    const crumb = root.querySelector<HTMLElement>("[data-sw-crumb]");
-    const pills = root.querySelector<HTMLElement>("[data-sw-pills]");
+    const crumb = root.querySelector<HTMLElement>("[data-sw-chrome-crumb]");
+    const pills = root.querySelector<HTMLElement>("[data-sw-chrome-pills]");
     const railBtns = [...root.querySelectorAll<HTMLElement>(".sw-rail-btn")];
     if (!track || !pin || items.length === 0) return;
 
