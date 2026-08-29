@@ -11883,13 +11883,48 @@ function emailDetailFromHtml(ev) {
   );
 }
 
-function openNewContactFromEmail(ev) {
+async function openNewContactFromEmail(ev) {
   const email = senderAddressForContact(ev);
   if (!email) return;
-  navigateToNewClient({
+  const fromEmailId = ev.id || emailState.activeId || null;
+  let prefill = {
     email,
     name: parseSenderDisplayName(ev.from) || '',
-    fromEmailId: ev.id || emailState.activeId || null,
+    company: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    website: '',
+  };
+  try {
+    const full = ev?._fullLoaded ? ev : ev?.id ? await fetchFullEmailRecord(ev) : ev;
+    const res = await fetch('/api/clients/prefill-from-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: ev.from || email,
+        bodyText: full?.bodyText || ev.bodyText || ev.bodySnippet || '',
+        summary: ev.summary || '',
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.prefill && typeof data.prefill === 'object') {
+      prefill = {
+        email: String(data.prefill.email || email).trim() || email,
+        name: String(data.prefill.name || '').trim(),
+        company: String(data.prefill.company || '').trim(),
+        firstName: String(data.prefill.firstName || '').trim(),
+        lastName: String(data.prefill.lastName || '').trim(),
+        phone: String(data.prefill.phone || '').trim(),
+        website: String(data.prefill.website || '').trim(),
+      };
+    }
+  } catch (e) {
+    console.warn('[email] contact prefill failed', e);
+  }
+  navigateToNewClient({
+    ...prefill,
+    fromEmailId,
   });
 }
 

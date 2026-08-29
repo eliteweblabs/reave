@@ -1,10 +1,11 @@
 /**
- * Extract client contact details from inbound meeting-request emails and ensure
- * they exist in contact-api when a meeting is auto-booked.
+ * Extract client contact details from inbound emails (Add to contacts, meeting
+ * auto-book) and ensure they exist in contact-api when needed.
  */
 
 import { createContact, isContactApiConfigured, resolveContact } from './contactApi';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
+import { looksLikePersonName } from './contactPersonName';
 
 const GENERIC_EMAIL_DOMAINS = new Set([
   'gmail.com',
@@ -124,6 +125,20 @@ export type ExtractedEmailContact = {
   lastName: string;
   displayName: string;
   company: string | null;
+  phone?: string | null;
+  website?: string | null;
+};
+
+/** Shape used to open the New Contact form from an inbox sender. */
+export type ContactFormPrefillFromEmail = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  company: string;
+  phone: string;
+  website: string;
+  /** Combined label for APIs that still take a single name. */
+  name: string;
 };
 
 export function isGenericEmailDomain(domain: string): boolean {
@@ -159,6 +174,9 @@ export function preferredContactName(extracted: ExtractedEmailContact): string {
   if (extracted.company && isGenericMailbox(extracted.email)) {
     return extracted.company;
   }
+  if (extracted.company && !extracted.firstName && !extracted.lastName) {
+    return extracted.company;
+  }
   return extracted.displayName;
 }
 
@@ -169,6 +187,13 @@ function titleCaseWords(text: string): string {
     .filter(Boolean)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
+}
+
+/** Split CamelCase / PascalCase tokens: AppleSupport → Apple Support. */
+function splitCamelCase(text: string): string {
+  return String(text || '')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
 }
 
 function parsePersonName(raw: string): { firstName: string; lastName: string } {
@@ -186,7 +211,9 @@ function parsePersonName(raw: string): { firstName: string; lastName: string } {
 function nameFromEmailLocal(email: string): string {
   const local = email.split('@')[0]?.trim() ?? '';
   if (!local) return '';
-  const cleaned = local.replace(/[._+-]+/g, ' ').trim();
+  const smashed = expandSmashedOrgLocal(local);
+  if (smashed) return smashed;
+  const cleaned = splitCamelCase(local.replace(/[._+-]+/g, ' ')).replace(/\s+/g, ' ').trim();
   if (!cleaned) return '';
   return titleCaseWords(cleaned);
 }
@@ -257,6 +284,10 @@ function extractCompanyFromSignature(body: string): string | null {
     const line = tail[i]!;
     if (line.length < 4 || line.length > 55) continue;
     if (/^(\+?\d|\(\d{3}\)|www\.|https?:)/i.test(line)) continue;
+    if (line.split(/\s+/).length > 5) continue;
+    if (/\b(was|were|used|your|our|this|that|please|thank|thanks|sign\s*in)\b/i.test(line)) {
+      continue;
+    }
     if (/^[A-Z][a-z]+(\s+[A-Z][a-z]+){0,2}$/.test(line) && !/\b(LLC|Inc|Corp|Ltd|Co)\b/.test(line)) {
       continue;
     }
@@ -268,12 +299,123 @@ function extractCompanyFromSignature(body: string): string | null {
   return null;
 }
 
+function extractPhoneFromSignature(body: string): string | null {
+  const trimmed = stripReplyTail(body).trim();
+  if (!trimmed) return null;
+  const labeled = trimmed.match(
+    /(?:(?:tel|phone|mobile|cell|m|direct|office)\.?\s*[:#]?\s*)([+()]?[\d][\d\s()./-]{6,}\d)/i,
+  );
+  if (labeled?.[1]) {
+    const digits = labeled[1].replace(/\D/g, '');
+    if (digits.length >= 7 && digits.length <= 15) return labeled[1].trim();
+  }
+  const bare = trimmed.match(
+    /(?:^|\s)(\+?\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4})(?:\s|$)/m,
+  );
+  if (bare?.[1]) {
+    const digits = bare[1].replace(/\D/g, '');
+    if (digits.length >= 10 && digits.length <= 15) return bare[1].trim();
+  }
+  return null;
+}
+
+function extractWebsiteFromSignature(body: string): string | null {
+  const trimmed = stripReplyTail(body).trim();
+  if (!trimmed) return null;
+  const m = trimmed.match(/\b((?:https?:\/\/|www\.)[^\s<>"']+)/i);
+  if (!m?.[1]) return null;
+  let url = m[1].replace(/[),.]+$/, '');
+  if (url.toLowerCase().startsWith('www.')) url = `https://${url}`;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes('.')) return null;
+    return u.toString().replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
 function companyFromSummary(summary: string): string | null {
   const m = summary.match(/\bfrom\s+(.+?)\s+(?:wants|would like|asked|requested|is asking)\b/i);
   const candidate = m?.[1]?.trim();
   if (!candidate || candidate.length < 4 || candidate.length > 60) return null;
   if (/^(a|the|an)\b/i.test(candidate)) return null;
   return candidate;
+}
+
+/** Prefer the longer label when one contains the other (Apple Support > Apple). */
+function preferRicherLabel(
+  preferred: string | null | undefined,
+  fallback: string | null | undefined,
+): string | null {
+  const x = String(preferred || '').trim();
+  const y = String(fallback || '').trim();
+  if (!x) return y || null;
+  if (!y) return x || null;
+  const xl = x.toLowerCase();
+  const yl = y.toLowerCase();
+  if (xl === yl) return x;
+  if (xl.includes(yl)) return x;
+  if (yl.includes(xl)) return y;
+  // Unrelated strings (display name vs a body sentence) — keep preferred.
+  return x;
+}
+
+const ORG_ROLE_SUFFIXES = [
+  'support',
+  'helpdesk',
+  'help',
+  'billing',
+  'sales',
+  'noreply',
+  'donotreply',
+  'notifications',
+  'notification',
+  'mailer',
+  'newsletter',
+  'service',
+  'services',
+  'team',
+  'care',
+  'info',
+  'admin',
+  'contact',
+];
+
+/**
+ * Expand smashed brand+role locals after lowercasing (applesupport → Apple Support).
+ * CamelCase is handled separately in nameFromEmailLocal.
+ */
+function expandSmashedOrgLocal(local: string): string | null {
+  const raw = String(local || '').trim();
+  if (!raw || /[._+\s-]/.test(raw)) return null;
+  const lower = raw.toLowerCase();
+  for (const role of ORG_ROLE_SUFFIXES) {
+    if (lower.length <= role.length + 2) continue;
+    if (!lower.endsWith(role)) continue;
+    const brand = raw.slice(0, raw.length - role.length);
+    if (brand.length < 2) continue;
+    return titleCaseWords(`${splitCamelCase(brand)} ${role}`);
+  }
+  return null;
+}
+
+/**
+ * True when a From display name / local-part looks like a brand or role desk
+ * (Apple Support, Acme Billing) rather than a person's name.
+ */
+export function looksLikeOrgSenderLabel(label: string, email = ''): boolean {
+  const s = String(label || '').trim();
+  if (!s) return false;
+  if (isGenericMailbox(email)) return true;
+  if (!looksLikePersonName(s)) return true;
+  const local = email.split('@')[0] || '';
+  if (expandSmashedOrgLocal(local)) return true;
+  if (/[a-z][A-Z]/.test(local) && nameFromEmailLocal(email).split(/\s+/).length >= 2) {
+    const fromLocal = nameFromEmailLocal(email).toLowerCase();
+    if (fromLocal === s.toLowerCase()) return true;
+  }
+  return false;
 }
 
 export function extractContactFromInboundEmail(input: {
@@ -283,23 +425,44 @@ export function extractContactFromInboundEmail(input: {
 }): ExtractedEmailContact {
   const email = parseSenderEmail(input.from);
   const fromName = parseSenderName(input.from);
-  const parsed = parsePersonName(fromName || nameFromEmailLocal(email));
-
-  let firstName = parsed.firstName;
-  let lastName = parsed.lastName;
-  if (!firstName && email.includes('@')) {
-    const localName = nameFromEmailLocal(email).split(/\s+/)[0] ?? '';
-    if (localName) firstName = localName;
-  }
-
-  const displayName = [firstName, lastName].filter(Boolean).join(' ').trim() || fromName || nameFromEmailLocal(email) || 'Guest';
+  const localName = nameFromEmailLocal(email);
+  const label = (fromName || localName).trim();
 
   const body = String(input.bodyText ?? '');
   const summary = String(input.summary ?? '');
-  const company =
-    extractCompanyFromSignature(body) ||
-    companyFromSummary(summary) ||
-    companyFromEmailDomain(email);
+  const domainCompany = companyFromEmailDomain(email);
+  const signatureCompany = extractCompanyFromSignature(body);
+  const summaryCompany = companyFromSummary(summary);
+  const phone = extractPhoneFromSignature(body);
+  const website = extractWebsiteFromSignature(body);
+
+  let firstName = '';
+  let lastName = '';
+  let company: string | null = null;
+
+  if (label && !looksLikeOrgSenderLabel(label, email) && looksLikePersonName(label)) {
+    const parsed = parsePersonName(label);
+    firstName = parsed.firstName;
+    lastName = parsed.lastName;
+    company = preferRicherLabel(signatureCompany, preferRicherLabel(summaryCompany, domainCompany));
+  } else {
+    // Brand / role / desk — put the richest label in company, not First/Last.
+    company = preferRicherLabel(
+      label || null,
+      preferRicherLabel(signatureCompany, preferRicherLabel(summaryCompany, domainCompany)),
+    );
+    if (!label && email.includes('@') && !isGenericMailbox(email) && !domainCompany) {
+      const localOnly = localName.split(/\s+/)[0] ?? '';
+      if (localOnly && looksLikePersonName(localOnly)) firstName = localOnly;
+    }
+  }
+
+  const displayName =
+    [firstName, lastName].filter(Boolean).join(' ').trim() ||
+    company ||
+    fromName ||
+    localName ||
+    'Guest';
 
   return {
     email,
@@ -307,6 +470,31 @@ export function extractContactFromInboundEmail(input: {
     lastName,
     displayName,
     company,
+    phone,
+    website,
+  };
+}
+
+/** Prefill fields for the admin New Contact drawer. */
+export function contactFormPrefillFromInboundEmail(input: {
+  from: string;
+  bodyText?: string;
+  summary?: string;
+}): ContactFormPrefillFromEmail {
+  const extracted = extractContactFromInboundEmail(input);
+  const company = String(extracted.company || '').trim();
+  const firstName = String(extracted.firstName || '').trim();
+  const lastName = String(extracted.lastName || '').trim();
+  const name =
+    [firstName, lastName].filter(Boolean).join(' ').trim() || company || extracted.displayName;
+  return {
+    email: extracted.email,
+    firstName,
+    lastName,
+    company,
+    phone: String(extracted.phone || '').trim(),
+    website: String(extracted.website || '').trim(),
+    name,
   };
 }
 
@@ -352,14 +540,15 @@ export async function ensureContactForMeetingEmail(input: {
     return { ok: false, error: 'No sender email' };
   }
 
-  const resolved = await resolveContact({ email: extracted.email, name: extracted.displayName });
+  const displayName = preferredContactName(extracted);
+  const resolved = await resolveContact({ email: extracted.email, name: displayName });
   if (resolved.ok) {
     const hit = contactFromResolve(resolved.data);
     if (hit) {
       return {
         ok: true,
         uid: hit.uid,
-        name: hit.name || extracted.displayName,
+        name: hit.name || displayName,
         company: extracted.company,
         created: false,
       };
@@ -367,7 +556,7 @@ export async function ensureContactForMeetingEmail(input: {
   }
 
   const created = await createContact({
-    name: extracted.displayName,
+    name: displayName,
     email: extracted.email,
     company: extracted.company ?? undefined,
     notes: extracted.company
@@ -379,7 +568,7 @@ export async function ensureContactForMeetingEmail(input: {
   return {
     ok: true,
     uid: created.data.uid,
-    name: created.data.name || extracted.displayName,
+    name: created.data.name || displayName,
     company: extracted.company,
     created: true,
   };

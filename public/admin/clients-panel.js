@@ -625,6 +625,11 @@ function startNewClient(opts = {}) {
   const prefill = {
     name: String(opts.name ?? pendingNewClientPrefill?.name ?? '').trim(),
     email: String(opts.email ?? pendingNewClientPrefill?.email ?? '').trim(),
+    company: String(opts.company ?? pendingNewClientPrefill?.company ?? '').trim(),
+    firstName: String(opts.firstName ?? pendingNewClientPrefill?.firstName ?? '').trim(),
+    lastName: String(opts.lastName ?? pendingNewClientPrefill?.lastName ?? '').trim(),
+    phone: String(opts.phone ?? pendingNewClientPrefill?.phone ?? '').trim(),
+    website: String(opts.website ?? pendingNewClientPrefill?.website ?? '').trim(),
   };
   pendingNewClientPrefill = null;
   armTitleFocus('clients');
@@ -652,12 +657,30 @@ function startNewClient(opts = {}) {
   clientState.activeUid = '__new__';
   clientState.detailTab = 'profile';
   clientState.dirty = false;
+  // Prefer explicit first/last/company. A bare `name` that looks like a person
+  // splits into First/Last; an org label (Apple Support) goes to Company.
+  let firstName = prefill.firstName;
+  let lastName = prefill.lastName;
+  let company = prefill.company;
+  if (!firstName && !lastName && !company && prefill.name) {
+    if (looksLikePersonName(prefill.name)) {
+      const parts = naiveSplitPersonName(prefill.name);
+      firstName = parts.firstName;
+      lastName = parts.lastName;
+    } else {
+      company = prefill.name;
+    }
+  } else if (!company && prefill.name && !looksLikePersonName(prefill.name) && !firstName && !lastName) {
+    company = prefill.name;
+  }
   clientState.draft = {
-    name: prefill.name,
+    name: joinClientFullName(firstName, lastName, company) || prefill.name,
     email: prefill.email,
-    phone: '',
-    company: '',
-    website: '',
+    phone: prefill.phone,
+    company,
+    firstName,
+    lastName,
+    website: prefill.website,
     notes: '',
     personal: false,
     kind: 'professional',
@@ -671,6 +694,11 @@ function navigateToNewClient(opts = {}) {
   pendingNewClientPrefill = {
     name: String(opts.name || '').trim(),
     email: String(opts.email || '').trim(),
+    company: String(opts.company || '').trim(),
+    firstName: String(opts.firstName || '').trim(),
+    lastName: String(opts.lastName || '').trim(),
+    phone: String(opts.phone || '').trim(),
+    website: String(opts.website || '').trim(),
   };
   setClientReturnTargets(opts);
   pendingClientDeepLinkUid = null;
@@ -773,6 +801,11 @@ const NON_PERSON_WORDS = new Set([
   'in', 'at', 'of', 'near', 'from', 'the', 'and', 'or', 'for', 'with', 'on',
   'by', 'to', 'a', 'an', 'they', 'that', 'which', 'who', 'sell', 'sells',
   'located', 'based', 'serving', 'offering',
+  // Org / mailbox role tokens — "Apple Support" is a brand, not a person.
+  'support', 'help', 'helpdesk', 'noreply', 'donotreply', 'no-reply', 'mailer',
+  'newsletter', 'notifications', 'notification', 'alerts', 'alert', 'billing',
+  'sales', 'service', 'services', 'team', 'care', 'desk', 'info', 'admin',
+  'contact', 'hello',
 ]);
 
 const US_STATE_NAMES = new Set([
