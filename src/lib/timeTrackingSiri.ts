@@ -1,5 +1,8 @@
 /**
  * Siri time-tracking helpers — resolve projects from voice and start/stop timers.
+ *
+ * Multi-project voice UX: list choices as "Project one: … Project two: …"
+ * so the user can answer with "one", "two", "three", etc.
  */
 
 import { findClientStrictForSiri, searchClientsEnhanced } from './clientSearch';
@@ -24,6 +27,32 @@ import {
 const YES_RE =
   /^(yes|yeah|yep|yup|sure|ok|okay|correct|that's right|that one|go ahead|start|y)$/i;
 
+/** Cap spoken choice lists — Siri replies stay short. */
+export const TIME_TRACKING_CHOICE_LIMIT = 5;
+
+const ORDINAL_WORDS: Record<string, number> = {
+  one: 1,
+  first: 1,
+  two: 2,
+  second: 2,
+  three: 3,
+  third: 3,
+  four: 4,
+  fourth: 4,
+  five: 5,
+  fifth: 5,
+  six: 6,
+  sixth: 6,
+  seven: 7,
+  seventh: 7,
+  eight: 8,
+  eighth: 8,
+  nine: 9,
+  ninth: 9,
+  ten: 10,
+  tenth: 10,
+};
+
 export function isAffirmativeVoiceReply(query: string): boolean {
   const normalized = query.trim().replace(/[.!?]+$/g, '');
   return YES_RE.test(normalized);
@@ -36,13 +65,102 @@ export function projectVoiceLabel(job: WorkJobSummary): string {
   return job.title;
 }
 
-export async function getMostRecentActiveProject(): Promise<WorkJobSummary | null> {
-  const active = await storeListWork({ status: 'active' });
-  if (active.length) return sortWorkJobsForSidebar(active)[0] ?? null;
+export type TimerJobView = {
+  slug: string;
+  title: string;
+  client: string;
+  label: string;
+};
 
-  const all = await storeListWork();
-  if (!all.length) return null;
-  return sortWorkJobsForSidebar(all)[0] ?? null;
+export function jobChoiceView(job: WorkJobSummary): TimerJobView {
+  return {
+    slug: job.slug,
+    title: job.title,
+    client: job.client,
+    label: projectVoiceLabel(job),
+  };
+}
+
+/**
+ * Parse "3", "three", "project two", "number one", "the third one" → 1-based index.
+ * Returns null when the utterance is not a pure choice (so project-name search can run).
+ */
+export function parseVoiceChoiceIndex(query: string): number | null {
+  const raw = query.trim().replace(/[.!?]+$/g, '').toLowerCase();
+  if (!raw) return null;
+
+  if (/^\d{1,2}$/.test(raw)) {
+    const n = Number(raw);
+    return n >= 1 && n <= 20 ? n : null;
+  }
+
+  const stripped = raw
+    .replace(/^(project|option|number|choice|pick|select|the)\s+/i, '')
+    .replace(/\s+(one|project|option|choice|please)$/i, '')
+    .replace(/\s+one$/i, '')
+    .trim();
+
+  if (/^\d{1,2}$/.test(stripped)) {
+    const n = Number(stripped);
+    return n >= 1 && n <= 20 ? n : null;
+  }
+
+  const word = stripped.split(/\s+/)[0] ?? '';
+  if (ORDINAL_WORDS[word]) return ORDINAL_WORDS[word];
+
+  // "project three" / "the third"
+  const projectMatch = raw.match(
+    /(?:^|\b)(?:project|option|number|choice)?\s*(one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|\d{1,2})\b/i,
+  );
+  if (projectMatch) {
+    const token = projectMatch[1].toLowerCase();
+    if (ORDINAL_WORDS[token]) return ORDINAL_WORDS[token];
+    const n = Number(token);
+    if (Number.isInteger(n) && n >= 1 && n <= 20) return n;
+  }
+
+  return null;
+}
+
+const CARDINAL_WORDS: Record<number, string> = {
+  1: 'one',
+  2: 'two',
+  3: 'three',
+  4: 'four',
+  5: 'five',
+  6: 'six',
+  7: 'seven',
+  8: 'eight',
+  9: 'nine',
+  10: 'ten',
+};
+
+export function formatNumberedProjectChoices(jobs: WorkJobSummary[]): string {
+  const lines = jobs.map((job, i) => {
+    const n = i + 1;
+    const spoken = CARDINAL_WORDS[n] ?? String(n);
+    return `Project ${spoken}: ${projectVoiceLabel(job)}.`;
+  });
+
+  const howTo =
+    jobs.length === 2
+      ? 'Say one or two.'
+      : `Say a number from one to ${CARDINAL_WORDS[jobs.length] ?? jobs.length}.`;
+
+  return `Which project?\n\n${lines.join('\n')}\n\n${howTo}`;
+}
+
+export async function listRecentProjectsForChoices(
+  limit = TIME_TRACKING_CHOICE_LIMIT,
+): Promise<WorkJobSummary[]> {
+  const active = await storeListWork({ status: 'active' });
+  const pool = active.length ? active : await storeListWork();
+  return sortWorkJobsForSidebar(pool).slice(0, Math.max(1, Math.min(limit, 10)));
+}
+
+export async function getMostRecentActiveProject(): Promise<WorkJobSummary | null> {
+  const list = await listRecentProjectsForChoices(1);
+  return list[0] ?? null;
 }
 
 function scoreProjectMatch(job: WorkJobSummary, query: string): number {
@@ -66,29 +184,28 @@ function scoreProjectMatch(job: WorkJobSummary, query: string): number {
   return 0;
 }
 
-async function findProjectByVoiceQuery(query: string): Promise<WorkJobSummary | null> {
+async function findProjectsByVoiceQuery(query: string): Promise<WorkJobSummary[]> {
   const q = query.trim();
-  if (!q) return null;
+  if (!q) return [];
 
   const slugCandidate = q.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
   if (isSafeWorkSlug(slugCandidate)) {
     const bySlug = await storeReadWork(slugCandidate);
-    if (bySlug) return bySlug;
+    if (bySlug) return [bySlug];
   }
 
   const fromSearch = await storeListWork({ q });
   const ranked = [...fromSearch].sort(
     (a, b) => scoreProjectMatch(b, q) - scoreProjectMatch(a, q) || compareWorkByRecency(a, b),
   );
-  if (ranked[0] && scoreProjectMatch(ranked[0], q) >= 50) return ranked[0];
+  const good = ranked.filter((j) => scoreProjectMatch(j, q) >= 50);
+  if (good.length) return good;
 
   const all = await storeListWork();
-  const fallback = [...all].sort(
-    (a, b) => scoreProjectMatch(b, q) - scoreProjectMatch(a, q) || compareWorkByRecency(a, b),
-  );
-  if (fallback[0] && scoreProjectMatch(fallback[0], q) >= 50) return fallback[0];
-
-  return null;
+  const fallback = [...all]
+    .filter((j) => scoreProjectMatch(j, q) >= 50)
+    .sort((a, b) => scoreProjectMatch(b, q) - scoreProjectMatch(a, q) || compareWorkByRecency(a, b));
+  return fallback;
 }
 
 function titleCaseWords(text: string): string {
@@ -102,7 +219,8 @@ function titleCaseWords(text: string): string {
 
 async function resolveClientFromQuery(query: string): Promise<
   | { ok: true; uid: string; name: string }
-  | { ok: false; error: string }
+  | { ok: false; error: string; needs_choice?: false }
+  | { ok: false; needs_choice: true; text: string; contacts: { uid: string; name: string }[] }
 > {
   const q = query.trim();
   if (!q) return { ok: false, error: 'Project name is required' };
@@ -110,6 +228,25 @@ async function resolveClientFromQuery(query: string): Promise<
   const strict = await findClientStrictForSiri(q);
   if (strict.ok && strict.found) {
     return { ok: true, uid: strict.contact.uid, name: strict.contact.name.trim() };
+  }
+
+  if (strict.ok && !strict.found && strict.ambiguous?.length) {
+    const contacts = strict.ambiguous.slice(0, TIME_TRACKING_CHOICE_LIMIT).map((c) => ({
+      uid: c.uid,
+      name: c.name.trim(),
+    }));
+    if (contacts.length > 1) {
+      const lines = contacts.map((c, i) => {
+        const spoken = CARDINAL_WORDS[i + 1] ?? String(i + 1);
+        return `Client ${spoken}: ${c.name}.`;
+      });
+      return {
+        ok: false,
+        needs_choice: true,
+        text: `Which client?\n\n${lines.join('\n')}\n\nSay a number.`,
+        contacts,
+      };
+    }
   }
 
   const words = q.split(/\s+/).filter(Boolean);
@@ -128,8 +265,20 @@ async function resolveClientFromQuery(query: string): Promise<
   }
 
   if (search.ok && search.data.contacts.length > 1) {
-    const names = search.data.contacts.map((c) => c.name).join(', ');
-    return { ok: false, error: `Multiple contacts match "${q}": ${names}. Please be more specific.` };
+    const contacts = search.data.contacts.slice(0, TIME_TRACKING_CHOICE_LIMIT).map((c) => ({
+      uid: c.uid,
+      name: c.name.trim(),
+    }));
+    const lines = contacts.map((c, i) => {
+      const spoken = CARDINAL_WORDS[i + 1] ?? String(i + 1);
+      return `Client ${spoken}: ${c.name}.`;
+    });
+    return {
+      ok: false,
+      needs_choice: true,
+      text: `Which client?\n\n${lines.join('\n')}\n\nSay a number.`,
+      contacts,
+    };
   }
 
   return { ok: false, error: `No client found for "${q}". Add the client first or say the full project name.` };
@@ -138,6 +287,7 @@ async function resolveClientFromQuery(query: string): Promise<
 async function createProjectFromVoiceQuery(query: string): Promise<
   | { ok: true; job: WorkJobSummary; created: boolean }
   | { ok: false; error: string }
+  | { ok: false; needs_choice: true; text: string; contacts: { uid: string; name: string }[] }
 > {
   const client = await resolveClientFromQuery(query);
   if (!client.ok) return client;
@@ -173,13 +323,45 @@ async function createProjectFromVoiceQuery(query: string): Promise<
   return { ok: true, job: result.doc, created: true };
 }
 
+/** Parse comma/space-separated slug list from Shortcuts follow-up. */
+export function parseCandidateSlugs(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw
+      .map((s) => String(s ?? '').trim().toLowerCase())
+      .filter((s) => s && isSafeWorkSlug(s));
+  }
+  const text = String(raw ?? '').trim();
+  if (!text) return [];
+  return text
+    .split(/[,|\s]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s && isSafeWorkSlug(s));
+}
+
+async function jobsFromCandidateSlugs(slugs: string[]): Promise<WorkJobSummary[]> {
+  const out: WorkJobSummary[] = [];
+  for (const slug of slugs.slice(0, 10)) {
+    const job = await storeReadWork(slug);
+    if (job) out.push(job);
+  }
+  return out;
+}
+
+export type ResolveProjectResult =
+  | { ok: true; job: WorkJobSummary; created: boolean }
+  | { ok: false; error: string; text?: string }
+  | {
+      ok: false;
+      needs_choice: true;
+      text: string;
+      candidates: TimerJobView[];
+    };
+
 export async function resolveProjectForTimeTracking(
   query: string,
   suggestedSlug?: string,
-): Promise<
-  | { ok: true; job: WorkJobSummary; created: boolean }
-  | { ok: false; error: string }
-> {
+  candidateSlugs?: string[],
+): Promise<ResolveProjectResult> {
   const q = query.trim();
 
   if (isAffirmativeVoiceReply(q)) {
@@ -188,25 +370,62 @@ export async function resolveProjectForTimeTracking(
       const job = await storeReadWork(slug);
       if (job) return { ok: true, job, created: false };
     }
+    if (candidateSlugs?.length === 1) {
+      const only = await storeReadWork(candidateSlugs[0]);
+      if (only) return { ok: true, job: only, created: false };
+    }
     const recent = await getMostRecentActiveProject();
     if (!recent) return { ok: false, error: 'No recent project to use. Say a project or client name.' };
     return { ok: true, job: recent, created: false };
   }
 
-  const existing = await findProjectByVoiceQuery(q);
-  if (existing) return { ok: true, job: existing, created: false };
+  const choiceIndex = parseVoiceChoiceIndex(q);
+  if (choiceIndex != null) {
+    let pool: WorkJobSummary[] = [];
+    if (candidateSlugs?.length) {
+      pool = await jobsFromCandidateSlugs(candidateSlugs);
+    }
+    if (!pool.length) {
+      pool = await listRecentProjectsForChoices();
+    }
+    const picked = pool[choiceIndex - 1];
+    if (!picked) {
+      return {
+        ok: false,
+        error: `No project ${choiceIndex}. Say a number from the list, or name a project.`,
+        text: `No project ${choiceIndex}. Say a number from the list, or name a project.`,
+      };
+    }
+    return { ok: true, job: picked, created: false };
+  }
+
+  const matches = await findProjectsByVoiceQuery(q);
+  if (matches.length === 1) return { ok: true, job: matches[0], created: false };
+  if (matches.length > 1) {
+    const candidates = matches.slice(0, TIME_TRACKING_CHOICE_LIMIT);
+    return {
+      ok: false,
+      needs_choice: true,
+      text: formatNumberedProjectChoices(candidates),
+      candidates: candidates.map(jobChoiceView),
+    };
+  }
 
   const created = await createProjectFromVoiceQuery(q);
-  if (!created.ok) return created;
+  if (!created.ok) {
+    if ('needs_choice' in created && created.needs_choice) {
+      // Client ambiguity — surface as speakable choice (no project candidates yet).
+      return {
+        ok: false,
+        error: created.text,
+        text: created.text,
+      };
+    }
+    const err = 'error' in created ? created.error : 'Could not resolve project';
+    return { ok: false, error: err, text: err };
+  }
   return { ok: true, job: created.job, created: created.created };
 }
-
-export type TimerJobView = {
-  slug: string;
-  title: string;
-  client: string;
-  label: string;
-};
 
 export type TimerView = {
   running: boolean;
@@ -221,12 +440,7 @@ export type TimerView = {
 };
 
 function jobView(job: WorkJobSummary): TimerJobView {
-  return {
-    slug: job.slug,
-    title: job.title,
-    client: job.client,
-    label: projectVoiceLabel(job),
-  };
+  return jobChoiceView(job);
 }
 
 export async function getTimerStatusView(): Promise<TimerView> {
@@ -311,6 +525,7 @@ export async function startTimeTrackingOnProject(
 export async function getTimeTrackingPrompt(): Promise<{
   text: string;
   suggested: WorkJobSummary | null;
+  candidates: WorkJobSummary[];
   running: Awaited<ReturnType<typeof getActiveTimer>>;
 }> {
   const running = await getActiveTimer();
@@ -319,25 +534,37 @@ export async function getTimeTrackingPrompt(): Promise<{
     const label = job ? projectVoiceLabel(job) : running.jobSlug;
     const elapsed = formatElapsedDuration(running.startedAt);
     return {
-      text: `Already tracking time on ${label} — ${elapsed}. Say stop time tracking to finish, or name a different project.`,
+      text: `Already tracking time on ${label} — ${elapsed}. Say stop timer to finish, or name a different project.`,
       suggested: job,
+      candidates: job ? [job] : [],
       running,
     };
   }
 
-  const recent = await getMostRecentActiveProject();
-  if (!recent) {
+  const candidates = await listRecentProjectsForChoices();
+  if (!candidates.length) {
     return {
       text: 'Which project? No recent projects found. Say a client and project name, like Cooper Website.',
       suggested: null,
+      candidates: [],
       running: null,
     };
   }
 
-  const label = projectVoiceLabel(recent);
+  if (candidates.length === 1) {
+    const label = projectVoiceLabel(candidates[0]);
+    return {
+      text: `Which project? ${label}? Say yes or name a different project.`,
+      suggested: candidates[0],
+      candidates,
+      running: null,
+    };
+  }
+
   return {
-    text: `Which project? ${label}? Say yes or name a different project.`,
-    suggested: recent,
+    text: formatNumberedProjectChoices(candidates),
+    suggested: candidates[0],
+    candidates,
     running: null,
   };
 }

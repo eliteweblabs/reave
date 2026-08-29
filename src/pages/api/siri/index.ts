@@ -26,11 +26,12 @@
  * - update_todo: { action: "update_todo", id? | title?, title?, due_date?, priority?, status? }
  * - complete_todo / done_todo / mark_todo_done: { action: "complete_todo", id? | title? }
  * - delete_todo / clear_todo: { action: "delete_todo", id? | title? }
- * - start_time_tracking: { action: "start_time_tracking", query?, project?, suggested_slug? }
- *   Prompts with the most recent project when query is omitted; accepts "yes" or a project name.
+ * - start_time_tracking / start_timer: { action: "start_timer", query?, project?, suggested_slug?, candidates? }
+ *   With no query: lists recent projects as "Project one / two / three…" (or confirms a single recent job).
+ *   Follow-up: say "three", "yes", or a project name. Pass `candidates` (comma-separated slugs) from the prompt for reliable numbering.
  *   Finds an existing project or searches for a client and creates one, then starts the timer.
- * - stop_time_tracking: { action: "stop_time_tracking" } — stop timer and log hours
- * - time_tracking_status: { action: "time_tracking_status" } — current timer or recent project prompt
+ * - stop_time_tracking / stop_timer: { action: "stop_timer" } — stop timer and log hours
+ * - time_tracking_status / timer_status: { action: "timer_status" } — current timer or project choice prompt
  * - record_payment / add_payment / create_payment: { action: "record_payment", customer_name, amount,
  *   payment_mode?, payment_date?, notes?, invoice_id? } — record an offline payment in Crater.
  *   Amount accepts numerals, $250, and spoken currency (100 bucks / 100 dollars).
@@ -76,6 +77,8 @@ import { hasFeature } from '../../../lib/features';
 import {
   getTimeTrackingPrompt,
   getTimerStatusView,
+  jobChoiceView,
+  parseCandidateSlugs,
   projectVoiceLabel,
   resolveProjectForTimeTracking,
   startTimeTrackingOnProject,
@@ -225,7 +228,10 @@ export async function POST(context: APIContext): Promise<Response> {
 }
 
 async function dispatchSiri(context: APIContext, body: Record<string, unknown>): Promise<Response> {
-  const action = String(body.action ?? '').trim().toLowerCase();
+  const action = String(body.action ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
   const format = String(body.format ?? 'json').trim().toLowerCase();
   const todoTimeZone = isTodoAction(action)
     ? await getDeploymentOwnerTimezone(context).catch(() => DEFAULT_DEPLOYMENT_TIMEZONE)
@@ -290,12 +296,18 @@ async function dispatchSiri(context: APIContext, body: Record<string, unknown>):
         result = await handleStatus();
         break;
       case 'start_time_tracking':
+      case 'start_timer':
+      case 'start_time':
         result = await handleStartTimeTracking(body);
         break;
       case 'stop_time_tracking':
+      case 'stop_timer':
+      case 'stop_time':
         result = await handleStopTimeTracking();
         break;
       case 'time_tracking_status':
+      case 'timer_status':
+      case 'timer':
         result = await handleTimeTrackingStatus();
         break;
       case 'record_payment':
@@ -1184,16 +1196,21 @@ async function handleRecordPayment(params: Record<string, unknown>): Promise<Sir
 async function handleStartTimeTracking(params: Record<string, unknown>): Promise<SiriResponse> {
   if (!hasFeature('time_tracking')) return timeTrackingDisabled();
 
-  const query = String(params.query ?? params.project ?? '').trim();
+  const query = String(params.query ?? params.project ?? params.choice ?? '').trim();
   const suggestedSlug = String(params.suggested_slug ?? params.slug ?? '').trim() || undefined;
+  const candidateSlugs = parseCandidateSlugs(
+    params.candidates ?? params.candidate_slugs ?? params.choice_slugs,
+  );
 
   if (!query) {
     const prompt = await getTimeTrackingPrompt();
+    const candidates = prompt.candidates.map(jobChoiceView);
     return {
       ok: true,
       text: prompt.text,
       data: {
         needs_input: !prompt.running,
+        needs_choice: !prompt.running && candidates.length > 1,
         running: Boolean(prompt.running),
         suggested: prompt.suggested
           ? {
@@ -1203,6 +1220,9 @@ async function handleStartTimeTracking(params: Record<string, unknown>): Promise
               label: projectVoiceLabel(prompt.suggested),
             }
           : null,
+        candidates,
+        /** Comma-separated slugs for the Shortcuts follow-up body. */
+        candidate_slugs: candidates.map((c) => c.slug).join(','),
         timer: prompt.running
           ? {
               job_slug: prompt.running.jobSlug,
@@ -1214,9 +1234,24 @@ async function handleStartTimeTracking(params: Record<string, unknown>): Promise
     };
   }
 
-  const resolved = await resolveProjectForTimeTracking(query, suggestedSlug);
+  const resolved = await resolveProjectForTimeTracking(query, suggestedSlug, candidateSlugs);
   if (!resolved.ok) {
-    return { ok: false, error: resolved.error, text: resolved.error };
+    if ('needs_choice' in resolved && resolved.needs_choice) {
+      return {
+        ok: true,
+        text: resolved.text,
+        data: {
+          needs_input: true,
+          needs_choice: true,
+          candidates: resolved.candidates,
+          candidate_slugs: resolved.candidates.map((c) => c.slug).join(','),
+          suggested: resolved.candidates[0] ?? null,
+        },
+      };
+    }
+    const err = 'error' in resolved ? resolved.error : 'Could not resolve project';
+    const text = 'text' in resolved && resolved.text ? resolved.text : err;
+    return { ok: false, error: err, text };
   }
 
   const started = await startTimeTrackingOnProject(resolved.job);
@@ -1283,11 +1318,13 @@ async function handleTimeTrackingStatus(): Promise<SiriResponse> {
   }
 
   const prompt = await getTimeTrackingPrompt();
+  const candidates = prompt.candidates.map(jobChoiceView);
   return {
     ok: true,
     text: prompt.text,
     data: {
       running: false,
+      needs_choice: candidates.length > 1,
       suggested: prompt.suggested
         ? {
             slug: prompt.suggested.slug,
@@ -1296,6 +1333,8 @@ async function handleTimeTrackingStatus(): Promise<SiriResponse> {
             label: projectVoiceLabel(prompt.suggested),
           }
         : null,
+      candidates,
+      candidate_slugs: candidates.map((c) => c.slug).join(','),
     },
   };
 }

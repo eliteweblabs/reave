@@ -767,9 +767,9 @@ Example actions to add:
 
 **Time tracking** (requires `time_tracking` feature):
 
-- `start_time_tracking`: Prompt with the most recent project, or start on `query` ("yes" or project name). Creates a project when the contact exists but no matching project is found.
-- `stop_time_tracking`: Stop the active timer and append logged hours to the project time log.
-- `time_tracking_status`: Report the running timer or suggest the most recent project.
+- `start_time_tracking` / `start_timer`: With no query, lists recent projects as **Project one / two / three…** (or confirms a single recent job). Follow-up accepts `"three"`, `"yes"`, or a project name. Pass `candidates` (comma-separated slugs from the prompt) so numbering stays stable. Creates a project when the contact exists but no matching project is found.
+- `stop_time_tracking` / `stop_timer`: Stop the active timer and append logged hours to the project time log.
+- `time_tracking_status` / `timer_status`: Report the running timer or the same numbered project prompt.
 
 ## Desktop Alternative
 

@@ -364,20 +364,47 @@ Every Siri shortcut follows this pattern:
 
 **Requires** `time_tracking` in install config `features[]`.
 
-**Prompt** (no query — speaks the most recent project):
+Aliases: `start_timer`, `stop_timer`, `timer_status` (same as the `*_time_tracking` names).
+
+**Prompt** (no query — numbered list when multiple recent projects):
 
 ```json
 {
-  "action": "start_time_tracking",
+  "action": "start_timer",
+  "format": "json"
+}
+```
+
+Spoken reply looks like:
+
+```text
+Which project?
+
+Project one: Cooper Website for Cooper Corp.
+Project two: Levine Landing.
+Project three: Barber Shop Redesign.
+
+Say a number from one to three.
+```
+
+Response `data.candidate_slugs` is a comma-separated slug list for the follow-up.
+
+**Pick by number** (pass `candidates` from the prompt):
+
+```json
+{
+  "action": "start_timer",
+  "query": "three",
+  "candidates": "cooper-website,levine-landing,barber-shop-redesign",
   "format": "text"
 }
 ```
 
-**Confirm recent project** (`suggested_slug` from the prompt response):
+**Confirm single recent project** (`suggested_slug` from the prompt when only one job):
 
 ```json
 {
-  "action": "start_time_tracking",
+  "action": "start_timer",
   "query": "yes",
   "suggested_slug": "cooper-website",
   "format": "text"
@@ -388,7 +415,7 @@ Every Siri shortcut follows this pattern:
 
 ```json
 {
-  "action": "start_time_tracking",
+  "action": "start_timer",
   "query": "cooper website",
   "format": "text"
 }
@@ -398,7 +425,7 @@ Every Siri shortcut follows this pattern:
 
 ```json
 {
-  "action": "stop_time_tracking",
+  "action": "stop_timer",
   "format": "text"
 }
 ```
@@ -407,7 +434,7 @@ Every Siri shortcut follows this pattern:
 
 ```json
 {
-  "action": "time_tracking_status",
+  "action": "timer_status",
   "format": "text"
 }
 ```

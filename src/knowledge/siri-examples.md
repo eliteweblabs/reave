@@ -127,13 +127,13 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 4: "Start Time Tracking"
+## Example 4: "Start Timer"
 
-**What it does**: Asks which project (speaks the most recent), listens for "yes" or a project name like "Cooper Website", then starts a timer. Creates a new project when the contact exists but the project does not.
+**What it does**: Asks which project. With multiple recent jobs, speaks a numbered list ("Project one… Project two… Project three…") so you can answer "three". With one recent job, asks for yes/name. Then starts the timer. Creates a new project when the contact exists but the project does not.
 
 **Requires**: `time_tracking` enabled in install config.
 
-**Siri phrase**: "start time tracking"
+**Siri phrase**: "start timer" or "start time tracking"
 
 **Shortcut steps**:
 
@@ -144,7 +144,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
    - Request Body:
      ```json
      {
-       "action": "start_time_tracking",
+       "action": "start_timer",
        "format": "json"
      }
      ```
@@ -157,16 +157,24 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
    - Prompt: "Which project?"
    - Variable: `ProjectAnswer`
 
-5. **Get Dictionary Value** from step 1 — key `data`, then key `suggested`, then key `slug`
-   - Variable: `SuggestedSlug` (may be empty if no recent project)
+5. **Get Dictionary Value** from step 1 — key `data`, then key `candidate_slugs`
+   - Variable: `CandidateSlugs` (comma-separated; empty if none)
 
-6. **Text** (build JSON — use variable pills for `ProjectAnswer` and `SuggestedSlug`)
+6. **Get Dictionary Value** from step 1 — key `data`, then key `suggested`, then key `slug`
+   - Variable: `SuggestedSlug` (may be empty)
+
+7. **Text** (build JSON — use variable pills for `ProjectAnswer`, `CandidateSlugs`, and `SuggestedSlug`)
    ```json
    {
-     "action": "start_time_tracking",
+     "action": "start_timer",
      "query": 
    ```
    *(ProjectAnswer pill)*
+   ```json
+   ,
+     "candidates": 
+   ```
+   *(CandidateSlugs pill)*
    ```json
    ,
      "suggested_slug": 
@@ -178,15 +186,15 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
    }
    ```
 
-7. **Get Contents of URL** — same headers as step 1, body from step 6
+8. **Get Contents of URL** — same headers as step 1, body from step 7
 
-8. **Speak Text** — response (e.g. "Tracking time on Cooper Website for Cooper Corp.")
+9. **Speak Text** — response (e.g. "Tracking time on Cooper Website for Cooper Corp.")
 
-**Companion shortcut — "Stop Time Tracking"**:
+**Companion shortcut — "Stop Timer"**:
 
 ```json
 {
-  "action": "stop_time_tracking",
+  "action": "stop_timer",
   "format": "text"
 }
 ```
