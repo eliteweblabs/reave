@@ -344,29 +344,69 @@ export function nextCatalogId(group: CatalogGroupId, taken: Iterable<string>): s
   return formatCatalogId(band.end);
 }
 
-/** Known industry slugs from Admin → Industries. Used for shipped demo suggestions. */
+/**
+ * Legacy catalog slugs → current Industries API slugs.
+ * Stored rows may use either; demo loader packages resolve both.
+ */
+export const INDUSTRY_SLUG_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  salon: ['hair-stylists'],
+  marketing: ['marketers'],
+  'real-estate': ['real-estate-agents'],
+  engineer: ['engineers'],
+  law: ['lawyers'],
+  content: ['artists', 'creators', 'designers'],
+  principal: ['entrepreneurs'],
+  plumbing: ['electricians'],
+};
+
+export function expandIndustrySlugs(slugs: readonly string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const slug of slugs) {
+    const key = String(slug || '').trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+    for (const alias of INDUSTRY_SLUG_ALIASES[key] || []) {
+      if (seen.has(alias)) continue;
+      seen.add(alias);
+      out.push(alias);
+    }
+  }
+  return out;
+}
+
 const ALL_INDUSTRIES = [
-  'content',
-  'engineer',
+  'artists',
+  'creators',
+  'designers',
+  'electricians',
+  'engineers',
+  'entrepreneurs',
   'general',
+  'hair-stylists',
   'law',
-  'marketing',
+  'lawyers',
+  'marketers',
   'plumbing',
-  'principal',
-  'real-estate',
-  'salon',
+  'real-estate-agents',
 ] as const;
 
-const TRADE_INDUSTRIES = ['general', 'plumbing'] as const;
+const TRADE_INDUSTRIES = ['general', 'plumbing', 'electricians'] as const;
+const CREATIVE_INDUSTRIES = ['artists', 'creators', 'designers', 'marketers'] as const;
 const WEB_INDUSTRIES = [
-  'content',
-  'marketing',
-  'salon',
+  'artists',
+  'creators',
+  'designers',
+  'entrepreneurs',
   'general',
-  'plumbing',
+  'hair-stylists',
   'law',
-  'real-estate',
-  'principal',
+  'lawyers',
+  'marketers',
+  'plumbing',
+  'electricians',
+  'real-estate-agents',
 ] as const;
 
 /**
@@ -379,37 +419,37 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   website: ALL_INDUSTRIES,
   cookie_notice: ALL_INDUSTRIES,
   hosting_core_os: ALL_INDUSTRIES,
-  hosting_growth: ['content', 'marketing', 'principal', 'engineer'],
-  scheduling: ['salon', 'general', 'plumbing', 'marketing', 'law', 'real-estate'],
-  documents: ['law', 'general', 'plumbing', 'real-estate', 'principal', 'engineer'],
-  digital_signature: ['law', 'real-estate', 'general', 'plumbing'],
-  voice: ['salon', 'general', 'plumbing', 'law', 'marketing', 'real-estate'],
-  vapi: ['salon', 'general', 'plumbing', 'law', 'marketing'],
-  email_marketing: ['marketing', 'content', 'salon', 'real-estate', 'principal'],
-  social_inbox: ['marketing', 'salon', 'content', 'real-estate'],
-  online_reviews: ['salon', 'marketing', 'general', 'plumbing', 'content'],
-  site_audits: ['marketing', 'content', 'salon', 'general', 'plumbing', 'principal'],
-  analytic_audit: ['marketing', 'content', 'principal'],
+  hosting_growth: ['artists', 'creators', 'designers', 'marketers', 'entrepreneurs', 'engineers'],
+  scheduling: ['hair-stylists', 'general', 'plumbing', 'electricians', 'marketers', 'law', 'lawyers', 'real-estate-agents'],
+  documents: ['law', 'lawyers', 'general', 'plumbing', 'electricians', 'real-estate-agents', 'entrepreneurs', 'engineers'],
+  digital_signature: ['law', 'lawyers', 'real-estate-agents', 'general', 'plumbing', 'electricians'],
+  voice: ['hair-stylists', 'general', 'plumbing', 'electricians', 'law', 'lawyers', 'marketers', 'real-estate-agents'],
+  vapi: ['hair-stylists', 'general', 'plumbing', 'electricians', 'law', 'lawyers', 'marketers'],
+  email_marketing: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'real-estate-agents', 'entrepreneurs'],
+  social_inbox: ['marketers', 'hair-stylists', 'artists', 'creators', 'designers', 'real-estate-agents'],
+  online_reviews: ['hair-stylists', 'marketers', 'general', 'plumbing', 'electricians', 'artists', 'creators'],
+  site_audits: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'general', 'plumbing', 'entrepreneurs'],
+  analytic_audit: ['marketers', 'artists', 'creators', 'designers', 'entrepreneurs'],
   site_monitoring: WEB_INDUSTRIES,
   uptime_monitoring: WEB_INDUSTRIES,
   fleet_tracking: TRADE_INDUSTRIES,
-  materials_pricing: ['general', 'plumbing', 'engineer'],
-  time_tracking: ['general', 'plumbing', 'engineer', 'law'],
-  real_estate_data: ['real-estate'],
-  dscr_calculator: ['real-estate'],
-  credit_check: ['real-estate', 'law', 'general'],
-  inventory_sync: ['salon', 'marketing'],
-  stock_photos: ['content', 'marketing', 'real-estate', 'salon'],
-  wordpress_content: ['content', 'marketing'],
-  seo_directory: ['marketing', 'content', 'salon', 'general', 'plumbing'],
-  event_ticketing: ['marketing', 'content', 'salon'],
-  wayback_machine: ['content', 'marketing', 'engineer'],
-  namecom_dns: ['engineer', 'principal', 'content', 'marketing'],
-  carddav: ['engineer', 'principal'],
+  materials_pricing: ['general', 'plumbing', 'electricians', 'engineers'],
+  time_tracking: ['general', 'plumbing', 'electricians', 'engineers', 'law', 'lawyers'],
+  real_estate_data: ['real-estate-agents'],
+  dscr_calculator: ['real-estate-agents'],
+  credit_check: ['real-estate-agents', 'law', 'lawyers', 'general'],
+  inventory_sync: ['hair-stylists', 'marketers'],
+  stock_photos: ['artists', 'creators', 'designers', 'marketers', 'real-estate-agents', 'hair-stylists'],
+  wordpress_content: CREATIVE_INDUSTRIES,
+  seo_directory: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'general', 'plumbing'],
+  event_ticketing: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists'],
+  wayback_machine: ['artists', 'creators', 'designers', 'marketers', 'engineers'],
+  namecom_dns: ['engineers', 'entrepreneurs', 'artists', 'creators', 'designers', 'marketers'],
+  carddav: ['engineers', 'entrepreneurs'],
 };
 
 export function defaultIndustriesForFeature(feature: string): string[] {
-  return [...(DEFAULT_MODULE_INDUSTRIES[feature] ?? [])];
+  return expandIndustrySlugs(DEFAULT_MODULE_INDUSTRIES[feature] ?? []);
 }
 
 function priceFields(feature: FeatureId): Pick<CatalogRow, 'priceAmount' | 'priceLabel'> {

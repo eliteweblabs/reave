@@ -2,7 +2,12 @@
  * Apply the saved module catalog overlay onto public / admin catalogs.
  * Does not import demoLoaderCatalog — callers pass lists in to avoid cycles.
  */
-import { CATALOG_GROUPS, CATALOG_GROUP_TITLES, type CatalogGroupId } from './moduleCatalog';
+import {
+  CATALOG_GROUPS,
+  CATALOG_GROUP_TITLES,
+  expandIndustrySlugs,
+  type CatalogGroupId,
+} from './moduleCatalog';
 import { getModuleCatalogSync, peekCatalogRow } from './moduleCatalogStore';
 import {
   FEATURE_ID_SET,
@@ -66,7 +71,7 @@ export function industryDefaultsFromCatalog(
     if (row.kind === 'core') continue;
     const moduleId = byFeature.get(row.feature) || (/^\d{3}$/.test(row.id) ? row.id : '');
     if (!moduleId) continue;
-    for (const slug of row.industries || []) {
+    for (const slug of expandIndustrySlugs(row.industries || [])) {
       if (!out[slug]) out[slug] = [];
       if (!out[slug].includes(moduleId)) out[slug].push(moduleId);
     }

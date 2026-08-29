@@ -168,7 +168,8 @@
 
   function industryModuleIds(slug) {
     const allowed = new Set(toggleableModules().map((m) => m.moduleId));
-    return (industryDefaults[slug] || [])
+    const ids = industryDefaults[slug] || [];
+    return ids
       .map((id) => String(id).padStart(3, '0'))
       .filter((id) => allowed.has(id));
   }
