@@ -31,10 +31,17 @@ import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
 const reaveSite = JSON.parse(readFileSync('config/sites/reave-config.json', 'utf8')) as {
   homepage?: { template?: string; heroHeadlineHtml?: string };
   pages?: string[];
+  nav?: { groups?: Array<{ id?: string; links?: Array<{ href?: string; label?: string }> }> };
 };
 assert.notEqual(reaveSite.homepage?.template, 'login');
 assert.match(String(reaveSite.homepage?.heroHeadlineHtml || ''), /Small Business/);
 assert.equal(reaveSite.pages?.includes('/features'), true);
+
+const productHrefs = (reaveSite.nav?.groups?.find((g) => g.id === 'product')?.links ?? [])
+  .map((link) => link.href)
+  .filter((href): href is string => Boolean(href));
+assert.equal(new Set(productHrefs).size, productHrefs.length, 'Product nav hrefs must be unique');
+assert.equal(productHrefs.filter((href) => href === '/demo-loader').length, 1);
 
 const reaveInstall = JSON.parse(readFileSync('config/config-reave.json', 'utf8')) as {
   homepageTemplate?: string;

@@ -83,10 +83,6 @@
             "href": "/demo-loader",
             "label": "Demo",
             "primary": true
-          },
-          {
-            "href": "/demo-loader",
-            "label": "Build demo"
           }
         ]
       },
