@@ -107,6 +107,7 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   createCopyIconBtn,
+  initTextareaCopyButtons,
   createToggleSwitch,
   setToggleSwitch,
   bindConfirmDeleteButton,
@@ -17873,6 +17874,7 @@ async function boot() {
   });
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   initSidebarLayout();
+  initTextareaCopyButtons();
   initModelSelector();
   syncCanvasVisibility();
   if (userId) {
