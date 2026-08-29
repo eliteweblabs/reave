@@ -453,6 +453,9 @@
   overflow: auto;
   padding: 0 0.5rem var(--footer-scroll-pad);
 }
+.cal-body.ios-ptr-host > .ios-ptr-content {
+  min-height: 100%;
+}
 .cal-weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

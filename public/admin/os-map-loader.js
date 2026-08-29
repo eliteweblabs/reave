@@ -4046,9 +4046,18 @@ function removeReviewAlertBannerForItem(item) {
   return false;
 }
 
+function dashboardScrollHost() {
+  const root = document.getElementById('dashboard-panel');
+  return root?.querySelector(':scope > .home-dashboard-scroll') || root?.querySelector('.home-dashboard-scroll') || null;
+}
+
+function dashboardScrollContent() {
+  return pullRefreshContentRoot(dashboardScrollHost());
+}
+
 function restoreReviewAlertBanner(item) {
   if (!item) return;
-  const scroll = document.querySelector('#dashboard-panel .home-dashboard-scroll');
+  const scroll = dashboardScrollContent();
   if (!scroll) return;
 
   const key = reviewNotificationUndoKey(item);
@@ -5309,10 +5318,16 @@ function renderAdminDashboard(data, opts = {}) {
   lastDashboardPayload = data;
   const root = document.getElementById('dashboard-panel');
   if (!root) return;
-  root.innerHTML = '';
 
-  const scroll = document.createElement('div');
-  scroll.className = 'home-dashboard-scroll';
+  let scroll = root.querySelector(':scope > .home-dashboard-scroll');
+  if (!scroll) {
+    root.replaceChildren();
+    scroll = document.createElement('div');
+    scroll.className = 'home-dashboard-scroll';
+    root.appendChild(scroll);
+  }
+  const mount = pullRefreshContentRoot(scroll);
+  mount.replaceChildren();
 
   const stats = data?.stats || {};
   const scheduleLive = data?.schedulingConfigured === true;
@@ -5322,7 +5337,7 @@ function renderAdminDashboard(data, opts = {}) {
   );
 
   if (automationNotifications.length) {
-    scroll.appendChild(buildReviewAlertBanners(automationNotifications));
+    mount.appendChild(buildReviewAlertBanners(automationNotifications));
   }
   maybeOpenPendingTriageDialog(automationNotifications);
 
@@ -5368,7 +5383,7 @@ function renderAdminDashboard(data, opts = {}) {
   todayLists.className = 'dash-today-lists';
   renderDashTodayLists(todayLists, data, dashTimeView);
   todaySection.appendChild(todayLists);
-  scroll.appendChild(todaySection);
+  mount.appendChild(todaySection);
 
   const statsEl = document.createElement('div');
   statsEl.className = 'dash-stats';
@@ -5498,7 +5513,7 @@ function renderAdminDashboard(data, opts = {}) {
     }));
   }
 
-  scroll.appendChild(statsEl);
+  mount.appendChild(statsEl);
 
   if (uptimeConfigured) {
     const list = document.createElement('ul');
@@ -5516,7 +5531,7 @@ function renderAdminDashboard(data, opts = {}) {
       list.appendChild(li);
     }
 
-    scroll.appendChild(list);
+    mount.appendChild(list);
   }
 
   if (analyticsLive && analyticsPreview) {
@@ -5552,7 +5567,7 @@ function renderAdminDashboard(data, opts = {}) {
       moreLi.appendChild(more);
       list.appendChild(moreLi);
     }
-    scroll.appendChild(list);
+    mount.appendChild(list);
   }
 
   const inboxRecent = Array.isArray(data?.recentEmails) ? data.recentEmails : [];
@@ -5588,7 +5603,7 @@ function renderAdminDashboard(data, opts = {}) {
     inboxBody.appendChild(list);
   }
   inboxPanel.appendChild(inboxBody);
-  scroll.appendChild(inboxPanel);
+  mount.appendChild(inboxPanel);
 
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
@@ -5605,9 +5620,12 @@ function renderAdminDashboard(data, opts = {}) {
       grid.appendChild(buildHomeMapTile(key, { title: label }, icon));
     }
   }
-  scroll.appendChild(grid);
+  mount.appendChild(grid);
 
-  root.appendChild(scroll);
+  attachIosPullToRefresh(scroll, () => {
+    if (MAP.type !== 'dashboard') return;
+    return loadAdminDashboard({ quiet: true, force: true });
+  });
 
   if (!opts.skipHydrate && analyticsLive && !analyticsPreview && !analyticsError) {
     void hydrateDashboardAnalytics();
@@ -5910,12 +5928,13 @@ const DASHBOARD_MIN_RELOAD_MS = 1500;
 async function loadAdminDashboard(opts = {}) {
   if (!userId) return;
   const quiet = opts.quiet === true;
+  const force = opts.force === true;
   const root = document.getElementById('dashboard-panel');
   if (!root) return;
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
   const hasContent = dashboardPanelHasContent();
-  if (!quiet && hasContent) {
+  if (!quiet && !force && hasContent) {
     const elapsed = Date.now() - homeDashboardLastLoadAt;
     if (elapsed < DASHBOARD_MIN_RELOAD_MS) return;
   }
@@ -5943,6 +5962,10 @@ async function loadAdminDashboard(opts = {}) {
       void initFleetLocationReporter();
     } catch (e) {
       if (e.message === 'Session expired') return;
+      if (quiet && dashboardPanelHasContent()) {
+        console.warn('[dashboard] refresh failed', e);
+        return;
+      }
       root.innerHTML =
         `<div class="home-dashboard-scroll">` +
           `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
@@ -5960,9 +5983,8 @@ async function loadAdminDashboard(opts = {}) {
 /** Update dashboard review banners without wiping the view (badge poll / push). */
 async function refreshDashboardReviewBannersQuiet() {
   if (MAP?.type !== 'dashboard') return;
-  const root = document.getElementById('dashboard-panel');
-  const scroll = root?.querySelector('.home-dashboard-scroll');
-  if (!scroll || scroll.querySelector('.dash-loading, .panel-skeleton')) return;
+  const scroll = dashboardScrollContent();
+  if (!scroll || scroll.querySelector('.dash-loading, .panel-skeleton, .sk-home')) return;
 
   try {
     const res = await adminFetch('/api/admin/dashboard');

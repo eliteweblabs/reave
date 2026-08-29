@@ -582,13 +582,16 @@ function navigateScheduleBooking(delta) {
   shell.syncFooterNav();
 }
 
-async function loadScheduleTab() {
+async function loadScheduleTab(opts = {}) {
   const root = getSchedulePanel();
   if (!root) return;
+  const quiet = opts.quiet === true;
   scheduleEnsureFocusDate();
-  scheduleState.loading = true;
   scheduleState.error = '';
-  renderSchedulePanel();
+  if (!quiet) {
+    scheduleState.loading = true;
+    renderSchedulePanel();
+  }
 
   try {
     const range = scheduleVisibleRange(scheduleState.view, scheduleState.focusDate);
@@ -2357,6 +2360,7 @@ function renderSchedulePanel() {
   }
 
   sidebar.appendChild(body);
+  attachIosPullToRefresh(body, () => loadScheduleTab({ quiet: true }));
   root.appendChild(sidebar);
 
   const pane = document.createElement('div');
