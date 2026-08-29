@@ -21,7 +21,7 @@ import {
 } from "./lib/clerkFrontendProxy";
 import { isClerkRuntimeConfigured, normalizeClerkRuntimeEnv } from "./lib/clerkClient";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
-import { publicHostFromRequest, runWithRequestHost } from "./lib/requestHost";
+import { publicHostFromRequest, runWithRequestHost, stripTrailingFqdnDot } from "./lib/requestHost";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
 // Arm SIGTERM drain as soon as the server handles any request (incl. health).
@@ -123,8 +123,22 @@ const appHandler = async (
   const url = new URL(context.request.url);
   const { pathname } = url;
 
-  // Canonical host: www → apex when COMPANY_DOMAIN / PUBLIC_SITE_DOMAIN is set.
+  // Canonical host: FQDN trailing dot (`reave.app.`) and www → apex.
   const host = (context.request.headers.get("host") || url.host).split(":")[0];
+  const forwardedHost = (context.request.headers.get("x-forwarded-host") || "").split(",")[0].trim().split(":")[0];
+  const dottedHost = host.endsWith(".") ? host : forwardedHost.endsWith(".") ? forwardedHost : "";
+  if (dottedHost) {
+    const target = new URL(url.href);
+    const canonicalHost = stripTrailingFqdnDot(dottedHost);
+    target.hostname = canonicalHost;
+    if (canonicalHost.includes(".")) target.protocol = "https:";
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: target.toString() },
+      }),
+    );
+  }
   const configuredDomain =
     serverEnv("COMPANY_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||
     serverEnv("PUBLIC_SITE_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||

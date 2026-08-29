@@ -27,6 +27,7 @@ import {
 } from '../src/lib/clerkFrontendProxy.ts';
 import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual } from '../src/lib/clerkProxyUrl.ts';
 import { homepageTemplateFromConfig } from '../src/lib/homepageTemplate.ts';
+import { isReaveMarketingHost, normalizePublicHost } from '../src/lib/requestHost.ts';
 
 const reaveSite = JSON.parse(readFileSync('config/sites/reave-config.json', 'utf8')) as {
   homepage?: { template?: string; heroHeadlineHtml?: string };
@@ -203,6 +204,10 @@ assert.equal(
   'default',
   'reave.app stays marketing even when login is configured',
 );
+
+assert.equal(normalizePublicHost('reave.app.'), 'reave.app');
+assert.equal(normalizePublicHost('www.reave.app.'), 'reave.app');
+assert.equal(isReaveMarketingHost('reave.app.'), true);
 
 assert.equal(isClerkRuntimeConfigured(), false, 'unset Clerk keys are not runtime-ready');
 
