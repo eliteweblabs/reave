@@ -650,9 +650,11 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   /*
    * Public header: out-of-flow overlay so the hero can paint the full
-   * viewport. Desktop stays pinned. Mobile scrolls with the page — no
-   * black notch strip. Pad logo/actions below the notch. Admin stays
-   * fixed/transparent.
+   * viewport. Stay position:fixed on every breakpoint — Safari’s rubber-
+   * band paints html/body --site-canvas in the overscroll gap, and an
+   * absolute header rides down into that slab (black in dark, white in
+   * light) until it is covered. Pad logo/actions below the notch. Admin
+   * stays fixed/transparent.
    */
   .app-header {
     position: fixed;
@@ -694,12 +696,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   html.marketing-menu-open .app-header,
   html.overlay-menu-open .app-header {
     z-index: 2100;
-  }
-
-  @media (max-width: 768px) {
-    .app-header:not(.app-header--admin) {
-      position: absolute;
-    }
   }
 
   @media (max-width: 639px) {

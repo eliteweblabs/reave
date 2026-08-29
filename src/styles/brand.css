@@ -376,9 +376,12 @@
  */
 @media (max-width: 768px) {
   .site-bg-atmosphere {
-    --site-bg-bleed-top: env(safe-area-inset-top, 0px);
+    /* Keep a top bleed so rubber-band overscroll matches the wallpaper
+     * instead of a hard canvas edge. Bottom stays flush — Safari clips
+     * overflow there into a hairline under hero CTAs. */
+    --site-bg-bleed-top: calc(env(safe-area-inset-top, 0px) + 80px);
     --site-bg-bleed-bottom: env(safe-area-inset-bottom, 0px);
-    top: 0;
+    top: calc(-1 * var(--site-bg-bleed-top));
     bottom: 0;
   }
 }
