@@ -2,6 +2,7 @@
 // Constrained 4/8-column logo wall. Each column is a vertical reel that
 // translateY-cycles like a slot machine — no more full-bleed horizontal slide.
 import { getSiteContent } from "../lib/siteContent";
+import { CLIENT_LOGO_COLS, dealClientLogoReels } from "../lib/clientLogoReels";
 
 interface ClientLogo {
   name: string;
@@ -19,8 +20,6 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
-const COLS = 8;
-const PER_REEL = 5;
 const LOOP_COPIES = 2;
 
 const configured = getSiteContent().clientLogos ?? [];
@@ -33,45 +32,47 @@ const logos: ClientLogo[] = shuffle(
   })),
 );
 
-/** Each column starts on a different logo and walks the list by 3s so neighbors don't share a reel. */
-function dealReels(items: ClientLogo[]): ClientLogo[][] {
-  if (items.length === 0) return [];
-  const size = Math.min(PER_REEL, items.length);
-  return Array.from({ length: COLS }, (_, col) => {
-    const reel: ClientLogo[] = [];
-    const seen = new Set<string>();
-    for (let i = 0; i < items.length * 2 && reel.length < size; i++) {
-      const logo = items[(col + i * 3) % items.length];
-      if (seen.has(logo.name) && reel.length < items.length) continue;
-      seen.add(logo.name);
-      reel.push(logo);
-    }
-    return reel;
-  });
-}
+const dealt = dealClientLogoReels(logos);
+const cols = dealt.length || CLIENT_LOGO_COLS;
 
 /** One column advances, then the wall waits 3.5s before the next column moves. */
 const STEP_S = 3.5;
-const DURATION_S = PER_REEL * COLS * STEP_S;
-const DELAYS = Array.from({ length: COLS }, (_, col) => col * STEP_S);
 
-const reels = dealReels(logos).map((reel) =>
-  Array.from({ length: LOOP_COPIES }, () => reel).flat(),
-);
+function slotSteps(count: number): 0 | 2 | 3 | 4 | 5 {
+  if (count <= 1) return 0;
+  if (count === 2) return 2;
+  if (count === 3) return 3;
+  if (count === 4) return 4;
+  return 5;
+}
+
+const reels = dealt.map((reel, col) => {
+  const steps = slotSteps(reel.length);
+  const animate = steps > 0;
+  return {
+    track: Array.from({ length: animate ? LOOP_COPIES : 1 }, () =>
+      steps === 5 ? reel.slice(0, 5) : reel,
+    ).flat(),
+    steps,
+    animate,
+    duration: Math.max(steps, 1) * cols * STEP_S,
+    delay: col * STEP_S,
+  };
+});
 ---
 
 {
   logos.length > 0 && (
-    <div class="client-logos" aria-label="Client logos" role="region">
+    <div class="client-logos" aria-label="Client logos" role="region" style={`--cols: ${cols}`}>
       {
-        reels.map((track, col) => (
+        reels.map((reel) => (
           <div
-            class="client-logos-reel"
-            style={`--reel-duration: ${DURATION_S}s; --reel-delay: ${DELAYS[col]}s`}
+            class={`client-logos-reel${reel.animate ? ` is-steps-${reel.steps}` : " is-static"}`}
+            style={`--reel-duration: ${reel.duration}s; --reel-delay: ${reel.delay}s`}
           >
             <div class="client-logos-reel-track">
               {
-                track.map((logo, index) => (
+                reel.track.map((logo, index) => (
                   <div
                     class="client-logo-item"
                     aria-hidden={index > 0 ? "true" : undefined}
@@ -99,6 +100,7 @@ const reels = dealReels(logos).map((reel) =>
 <style>
   .client-logos {
     --slot-h: 52px;
+    --cols: 8;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     column-gap: 28px;
@@ -130,7 +132,9 @@ const reels = dealReels(logos).map((reel) =>
   .client-logos-reel-track {
     display: flex;
     flex-direction: column;
-    animation: client-logos-slot var(--reel-duration, 140s) ease-in-out infinite;
+    animation-duration: var(--reel-duration, 56s);
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
     animation-delay: var(--reel-delay, 0s);
     will-change: transform;
   }
@@ -139,34 +143,105 @@ const reels = dealReels(logos).map((reel) =>
     animation-play-state: paused;
   }
 
+  .client-logos-reel.is-static .client-logos-reel-track {
+    animation: none;
+  }
+
+  .client-logos-reel.is-steps-2 .client-logos-reel-track {
+    animation-name: client-logos-slot-2;
+  }
+
+  .client-logos-reel.is-steps-3 .client-logos-reel-track {
+    animation-name: client-logos-slot-3;
+  }
+
+  .client-logos-reel.is-steps-4 .client-logos-reel-track {
+    animation-name: client-logos-slot-4;
+  }
+
+  .client-logos-reel.is-steps-5 .client-logos-reel-track {
+    animation-name: client-logos-slot-5;
+  }
+
   /*
-   * Five logos per reel (duplicated for a seamless loop). Duration is
-   * 5 × 8 × 3.5s = 140s. Each reel holds, eases ~0.7s to the next mark,
-   * then waits out the rest of the 28s round while the other columns take
-   * their turn — only one logo on the wall moves at a time.
+   * Each reel holds its own unique marks (duplicated for a seamless loop).
+   * Duration is steps × columns × 3.5s so only one column eases at a time.
    */
-  @keyframes client-logos-slot {
+  @keyframes client-logos-slot-2 {
     0%,
-    2.5% {
+    47.5% {
       transform: translate3d(0, 0, 0);
     }
-    3%,
-    22.5% {
+    50%,
+    97.5% {
       transform: translate3d(0, calc(var(--slot-h) * -1), 0);
     }
-    23%,
-    42.5% {
+    100% {
       transform: translate3d(0, calc(var(--slot-h) * -2), 0);
     }
-    43%,
-    62.5% {
+  }
+
+  @keyframes client-logos-slot-3 {
+    0%,
+    31% {
+      transform: translate3d(0, 0, 0);
+    }
+    33.3%,
+    64.3% {
+      transform: translate3d(0, calc(var(--slot-h) * -1), 0);
+    }
+    66.6%,
+    97.6% {
+      transform: translate3d(0, calc(var(--slot-h) * -2), 0);
+    }
+    100% {
       transform: translate3d(0, calc(var(--slot-h) * -3), 0);
     }
-    63%,
-    82.5% {
+  }
+
+  @keyframes client-logos-slot-4 {
+    0%,
+    22.5% {
+      transform: translate3d(0, 0, 0);
+    }
+    25%,
+    47.5% {
+      transform: translate3d(0, calc(var(--slot-h) * -1), 0);
+    }
+    50%,
+    72.5% {
+      transform: translate3d(0, calc(var(--slot-h) * -2), 0);
+    }
+    75%,
+    97.5% {
+      transform: translate3d(0, calc(var(--slot-h) * -3), 0);
+    }
+    100% {
       transform: translate3d(0, calc(var(--slot-h) * -4), 0);
     }
-    83%,
+  }
+
+  @keyframes client-logos-slot-5 {
+    0%,
+    17.5% {
+      transform: translate3d(0, 0, 0);
+    }
+    20%,
+    37.5% {
+      transform: translate3d(0, calc(var(--slot-h) * -1), 0);
+    }
+    40%,
+    57.5% {
+      transform: translate3d(0, calc(var(--slot-h) * -2), 0);
+    }
+    60%,
+    77.5% {
+      transform: translate3d(0, calc(var(--slot-h) * -3), 0);
+    }
+    80%,
+    97.5% {
+      transform: translate3d(0, calc(var(--slot-h) * -4), 0);
+    }
     100% {
       transform: translate3d(0, calc(var(--slot-h) * -5), 0);
     }
@@ -215,7 +290,7 @@ const reels = dealReels(logos).map((reel) =>
   @media (min-width: 1024px) {
     .client-logos {
       --slot-h: 58px;
-      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-columns: repeat(var(--cols, 8), minmax(0, 1fr));
       column-gap: 48px;
     }
   }
