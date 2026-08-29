@@ -217,13 +217,18 @@ const appHandler = async (
     // App routes that are not marketing pages — keep them out of the site-content
     // allowlist gate. /go/:token is especially important: share links land here and
     // redirect to the portal; blocking them yields a bare-domain iMessage preview.
-    // /favicon.ico and /apple-touch-icon.png are auto-requested by browsers; a
-    // 404 here makes tabs/favorites fall back to a generated letter mark.
+    // Well-known icon paths are auto-requested by browsers; a 404 here makes
+    // tabs/favorites fall back to a generated letter mark.
+    const isBrowserIconPath =
+      normalizedPath === "/favicon.ico" ||
+      normalizedPath === "/favicon.svg" ||
+      normalizedPath === "/favicon-16x16.png" ||
+      normalizedPath === "/favicon-32x32.png" ||
+      normalizedPath === "/apple-touch-icon.png" ||
+      normalizedPath === "/apple-touch-icon-precomposed.png";
     const isMarketingLike =
       normalizedPath !== "/admin" &&
-      normalizedPath !== "/favicon.ico" &&
-      normalizedPath !== "/apple-touch-icon.png" &&
-      normalizedPath !== "/apple-touch-icon-precomposed.png" &&
+      !isBrowserIconPath &&
       !normalizedPath.startsWith("/admin/") &&
       !normalizedPath.startsWith("/api/") &&
       !normalizedPath.startsWith("/branding/") &&

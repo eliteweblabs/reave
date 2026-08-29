@@ -15,6 +15,12 @@ export const BRANDING_LOGO_SVG_PATH = '/branding/logo.svg';
 /** Public square SVG. */
 export const BRANDING_ICON_SVG_PATH = '/branding/icon.svg';
 
+/** Safari / Home Screen icon — new path so a cached letter tile is dropped. */
+export const BRANDING_APPLE_TOUCH_PATH = '/branding/apple-touch-icon.png';
+
+/** SVG favicon — preferred tab icon when admin has an icon mark. */
+export const FAVICON_SVG_PATH = '/favicon.svg';
+
 /** Legacy API path — same PNG as BRANDING_LOGO_PATH. */
 export const BRANDING_LOGO_API_PATH = '/api/branding/logo';
 

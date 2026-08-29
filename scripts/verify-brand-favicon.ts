@@ -9,8 +9,10 @@ import { BRAND_ICON_RENDER } from '../src/lib/brandIconRaster.ts';
 import {
   brandMarkInk,
   brandingEtag,
+  companyFaviconSvgMarkup,
   isSolidNeutralField,
   renderCompanyBrandIconPng,
+  wrapFaviconSvg,
 } from '../src/lib/brandImageRender.ts';
 import { svgSpecifiesFill, withSvgFill } from '../src/lib/brandSvg.ts';
 import { analyzeLogoContrast } from '../src/lib/logoContrastAdapt.ts';
@@ -72,6 +74,17 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
   const png = await renderCompanyBrandIconPng({ name: 'reΛVe.app' }, 32);
   const analysis = await analyzeLogoContrast(png);
   assert.equal(isSolidNeutralField(analysis, 32 * 32), false, 'letter fallback must not be a solid tile');
+}
+
+{
+  const wrapped = wrapFaviconSvg(UNFILLED_AV, '#ffffff');
+  assert.ok(wrapped, 'wrapFaviconSvg must return markup');
+  assert.match(wrapped!, /<rect\b[^>]*fill="#09090b"/);
+  assert.match(wrapped!, /<g fill="#ffffff">/);
+  assert.match(wrapped!, /M80\.43,366\.111/);
+  const fromAdmin = companyFaviconSvgMarkup({ name: 'reΛVe.app', iconSvg: UNFILLED_AV, brandPrimary: '#000000' });
+  assert.ok(fromAdmin);
+  assert.match(fromAdmin!, /<g fill="#ffffff">/);
 }
 
 console.log('verify-brand-favicon: ok');

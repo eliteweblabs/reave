@@ -173,6 +173,35 @@ export function companyIconSvgMarkup(stored: StoredCompanyConfig | null): string
   return disk ? disk.data.toString('utf8') : null;
 }
 
+/**
+ * Tab/favorite SVG: admin mark on a dark tile with inherited ink.
+ * Browsers that cache /favicon.ico still pick this up as a new URL.
+ */
+export function wrapFaviconSvg(svg: string, ink: string): string | null {
+  const sanitized = sanitizeInlineSvg(resolveSvgAssetUrls(svg.trim()));
+  if (!sanitized) return null;
+  const open = sanitized.match(/<svg\b[^>]*>/i)?.[0];
+  if (!open) return null;
+  const inner = sanitized.slice(sanitized.indexOf(open) + open.length).replace(/<\/svg>\s*$/i, '');
+  const viewBox = open.match(/viewBox\s*=\s*["']([^"']+)["']/i)?.[1] ?? '0 0 512 512';
+  const nums = viewBox.trim().split(/[\s,]+/).map(Number);
+  const x = Number.isFinite(nums[0]) ? nums[0]! : 0;
+  const y = Number.isFinite(nums[1]) ? nums[1]! : 0;
+  const w = Number.isFinite(nums[2]) && nums[2]! > 0 ? nums[2]! : 512;
+  const h = Number.isFinite(nums[3]) && nums[3]! > 0 ? nums[3]! : 512;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="32" height="32">
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#09090b"/>
+  <g fill="${ink}">${inner}</g>
+</svg>`;
+}
+
+/** Favicon SVG from the admin icon (no wordmark — those read as a tab title). */
+export function companyFaviconSvgMarkup(stored: StoredCompanyConfig | null): string | null {
+  const raw = companyIconSvgMarkup(stored);
+  if (!raw) return null;
+  return wrapFaviconSvg(raw, brandMarkInk(stored, 'dark').from);
+}
+
 /** Solid black/white tile — the mark was lost (unfilled SVG on a black canvas). */
 export function isSolidNeutralField(analysis: LogoContrastAnalysis, pixelCount: number): boolean {
   if (pixelCount <= 0) return true;

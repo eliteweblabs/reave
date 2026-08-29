@@ -10,7 +10,7 @@ const company = await getCompanyConfig(Astro.request);
 const favicons = companyFaviconUrls(company);
 ---
 
-<link rel="icon" href={favicons.ico} sizes="any" />
+{favicons.svg && <link rel="icon" href={favicons.svg} type="image/svg+xml" />}
 <link rel="icon" type="image/png" sizes="32x32" href={favicons.png32} />
 <link rel="icon" type="image/png" sizes="16x16" href={favicons.png16} />
 <link rel="apple-touch-icon" type="image/png" sizes="180x180" href={favicons.appleTouchIcon} />

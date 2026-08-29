@@ -8,6 +8,8 @@ import {
   BRANDING_LOGO_PATH,
   BRANDING_ICON_PATH,
   BRANDING_OG_PATH,
+  BRANDING_APPLE_TOUCH_PATH,
+  FAVICON_SVG_PATH,
   normalizePublicLogoPath,
 } from './companyLogo';
 import { prepareInlineBrandSvg } from './brandSvg';
@@ -345,6 +347,7 @@ export function brandIconUrl(size: number, version?: string | null, opts?: { tra
 
 export type CompanyFaviconUrls = {
   ico: string;
+  svg: string;
   png32: string;
   png16: string;
   appleTouchIcon: string;
@@ -365,9 +368,10 @@ export function companyFaviconUrls(company: CompanyConfig): CompanyFaviconUrls {
   const version = companyBrandingVersion(company);
   return {
     ico: versionedRootIcon(SITE.favicons.ico, version),
-    png32: brandIconUrl(BRAND_ICON_SIZES.png32, version),
-    png16: brandIconUrl(BRAND_ICON_SIZES.png16, version),
-    appleTouchIcon: versionedRootIcon(SITE.favicons.appleTouchIcon, version),
+    svg: trim(company.iconSvg) ? versionedRootIcon(FAVICON_SVG_PATH, version) : '',
+    png32: versionedRootIcon('/favicon-32x32.png', version),
+    png16: versionedRootIcon('/favicon-16x16.png', version),
+    appleTouchIcon: versionedRootIcon(BRANDING_APPLE_TOUCH_PATH, version),
     png192: brandIconUrl(BRAND_ICON_SIZES.png192, version),
     png512: brandIconUrl(BRAND_ICON_SIZES.png512, version),
   };
