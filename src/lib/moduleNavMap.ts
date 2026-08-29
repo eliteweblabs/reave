@@ -81,6 +81,7 @@ export const FOOTER_NAV_LABELS: Partial<Record<FooterNavKey, string>> = {
   catalog: 'Catalog',
   vapi: 'Vapi',
   'lead-scanner': 'Lead Scanner',
+  'ai-services': 'AI Services',
   dscr: 'DSCR Calculator',
   modules: 'Modules',
   deploy: 'Deploy wizard',

@@ -71,6 +71,7 @@ export const PROFILE_MENU_KEYS = [
   'settings',
   'socials',
   'addons',
+  'ai-services',
   'industries', // reΛVe.app-only; stripped from client payload on other installs
   'catalog', // legacy; catalog editor now lives in dashboard → Modules
   'vapi',
@@ -105,6 +106,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'settings',
   'socials',
   'addons',
+  'ai-services',
   'industries',
   'catalog',
   'vapi',
@@ -202,6 +204,7 @@ export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   settings: 'Settings',
   socials: 'Socials',
   addons: 'Add-ons',
+  'ai-services': 'AI Services',
   industries: 'Industries',
   catalog: 'Catalog',
   vapi: 'Vapi',
@@ -512,6 +515,20 @@ function ensureProfileMenuAddons(menu: ProfileMenuKey[]): ProfileMenuKey[] {
   return [...menu, 'addons'];
 }
 
+/** Inject AI Services for every install — after Add-ons when present. */
+function ensureProfileMenuAiServices(menu: ProfileMenuKey[]): ProfileMenuKey[] {
+  if (menu.includes('ai-services')) return menu;
+  const addonsAt = menu.indexOf('addons');
+  if (addonsAt >= 0) {
+    return [...menu.slice(0, addonsAt + 1), 'ai-services', ...menu.slice(addonsAt + 1)];
+  }
+  const settingsAt = menu.indexOf('settings');
+  if (settingsAt >= 0) {
+    return [...menu.slice(0, settingsAt + 1), 'ai-services', ...menu.slice(settingsAt + 1)];
+  }
+  return [...menu, 'ai-services'];
+}
+
 function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   let menu = config.profileMenu;
   if (!isCanonicalReaveInstall()) {
@@ -520,7 +537,9 @@ function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   // Catalog editor lives in dashboard → Modules, not a separate account page.
   menu = menu.filter((key) => key !== 'catalog');
   // End users buy/request modules from account → Add-ons. Always show it.
-  return ensureProfileMenuAddons(menu);
+  menu = ensureProfileMenuAddons(menu);
+  // AI inventory + model defaults — available on every install.
+  return ensureProfileMenuAiServices(menu);
 }
 
 export function getInstallConfigClient(): InstallConfigClient {

@@ -193,6 +193,7 @@ import {
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260828a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
+import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';
 import {
   initClientsPanel,
@@ -374,6 +375,8 @@ const MAP_ICON_KEYS = {
   company: 'building-2',
   settings: 'settings',
   socials: 'link-2',
+  addons: 'puzzle',
+  'ai-services': 'sparkles',
   industries: 'target',
   vapi: 'mic',
   'lead-scanner': 'radar',
@@ -389,6 +392,7 @@ const SETTINGS_MAP_TYPES = new Set([
   'settings',
   'socials',
   'addons',
+  'ai-services',
   'industries',
   'vapi',
   'lead-scanner',
@@ -928,6 +932,12 @@ function activateMapPanel(opts = {}) {
     });
   } else if (MAP.type === 'addons') {
     loadAddonsTab();
+  } else if (MAP.type === 'ai-services') {
+    loadAiServicesTab({
+      prependSettingsBackHeader,
+      flushSettingsAutosave,
+      setActiveMap,
+    });
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {

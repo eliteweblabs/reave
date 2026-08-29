@@ -480,6 +480,7 @@ export const MAPS = {
   'lead-scanner': { id: 'lead-scanner', title: 'Lead Scanner', icon: '📍', type: 'lead-scanner', nodes: [], edges: [], groups: [] },
   dscr: { id: 'dscr', title: 'DSCR Calculator', icon: '🧮', type: 'dscr', nodes: [], edges: [], groups: [] },
   addons:    { id: 'addons',    title: 'Add-ons',    icon: '🧩',  type: 'addons',        nodes: [],             edges: [],             groups: [] },
+  'ai-services': { id: 'ai-services', title: 'AI Services', icon: '✨', type: 'ai-services', nodes: [], edges: [], groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰' },
 };
 
@@ -487,7 +488,7 @@ export const MAPS = {
 export const ADMIN_PRIMARY_PAGE_KEYS = ['dashboard', 'chats', 'email', 'work', 'schedule', 'clients', 'todo', 'punchlist'];
 
 /** Account pages keep the wordmark + their own pane back. Keep in sync with src/lib/adminSpecialPages.ts. */
-export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'company', 'settings', 'socials', 'addons', 'industries', 'vapi', 'lead-scanner'];
+export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'company', 'settings', 'socials', 'addons', 'ai-services', 'industries', 'vapi', 'lead-scanner'];
 
 const ADMIN_PRIMARY_PAGE_SET = new Set(ADMIN_PRIMARY_PAGE_KEYS);
 const ADMIN_SETTINGS_PAGE_SET = new Set(ADMIN_SETTINGS_PAGE_KEYS);

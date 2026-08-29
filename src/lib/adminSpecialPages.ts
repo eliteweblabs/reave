@@ -28,6 +28,7 @@ export const ADMIN_SETTINGS_PAGE_KEYS = [
   'settings',
   'socials',
   'addons',
+  'ai-services',
   'industries',
   'vapi',
   'lead-scanner',
