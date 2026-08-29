@@ -487,6 +487,19 @@ export function isEmailInboxRouted(
   return action === 'filed' || action === 'matched';
 }
 
+/**
+ * The patch the admin Archive button sends: file the message and leave the
+ * triage buckets behind so it lands in Archive instead of lingering in Review.
+ */
+export function archiveEmailInboxPatch(category?: string | null): EmailInboxPatch {
+  const cur = String(category || '').toLowerCase();
+  return {
+    action: 'filed',
+    status: 'FILED',
+    ...(cur === 'review' || cur === 'junk' ? { category: 'internal' } : {}),
+  };
+}
+
 /** Junk + DELETE-rule review queue — hidden from All / dashboard / badges. */
 export function isHiddenInboxCategory(category: string | null | undefined): boolean {
   const c = String(category || '').toLowerCase();
