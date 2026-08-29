@@ -16,6 +16,7 @@ import {
 } from '../../../../../lib/bookingClient';
 import { getCompanyConfig } from '../../../../../lib/companyConfig';
 import {
+  archiveEmailInboxPatch,
   storeGetEmailInbox,
   storeUpdateEmailInbox,
   type EmailInboxRecord,
@@ -90,6 +91,21 @@ async function attachMeetingProject(
   return updated ?? event;
 }
 
+/**
+ * Once the owner has decided (confirmed, notified, or sent a link) the message
+ * has no work left in it — archive it in the same write that clears the review.
+ */
+async function archiveAfterMeetingDecision(
+  id: string,
+  event: EmailInboxRecord,
+): Promise<EmailInboxRecord | null> {
+  return storeUpdateEmailInbox(id, {
+    ...archiveEmailInboxPatch(event.category),
+    acceptAutomationDecision: true,
+    markAutomationAck: true,
+  });
+}
+
 type LoadedEmail = {
   event: EmailInboxRecord;
   proposedStart: string;
@@ -162,12 +178,7 @@ async function handleNotifyScheduleLink(
   if (!sent.ok) {
     return jsonResponse({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
   }
-  const updated = await storeUpdateEmailInbox(id, {
-    action: 'filed',
-    status: 'FILED',
-    acceptAutomationDecision: true,
-    markAutomationAck: true,
-  });
+  const updated = await archiveAfterMeetingDecision(id, event);
   return jsonResponse({
     ok: true,
     notified: true,
@@ -326,12 +337,7 @@ export async function POST(context: APIContext): Promise<Response> {
     // Client already requested this meeting (often via a no-reply third-party
     // address) — confirm locally without emailing them back.
     const withProject = await attachMeetingProject(id, event, event.bookingUid, whenIso);
-    const updated = await storeUpdateEmailInbox(id, {
-      action: 'filed',
-      status: 'FILED',
-      acceptAutomationDecision: true,
-      markAutomationAck: true,
-    });
+    const updated = await archiveAfterMeetingDecision(id, withProject);
     const whenLabel = formatWhenLabel(whenIso);
     return jsonResponse({
       ok: true,
@@ -406,12 +412,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) return jsonResponse({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
 
-    const updated = await storeUpdateEmailInbox(id, {
-      action: 'filed',
-      status: 'FILED',
-      acceptAutomationDecision: true,
-      markAutomationAck: true,
-    });
+    const updated = await archiveAfterMeetingDecision(id, event);
     return jsonResponse({
       ok: true,
       notified: true,
@@ -469,12 +470,7 @@ export async function POST(context: APIContext): Promise<Response> {
       event.bookingUid,
       event.bookingStart || start.toISOString(),
     );
-    const updated = await storeUpdateEmailInbox(id, {
-      action: 'filed',
-      status: 'FILED',
-      acceptAutomationDecision: true,
-      markAutomationAck: true,
-    });
+    const updated = await archiveAfterMeetingDecision(id, withProject);
     return jsonResponse({
       ok: true,
       alreadyBooked: true,
@@ -550,12 +546,7 @@ export async function POST(context: APIContext): Promise<Response> {
   if (action === 'accept-notify') {
     // Book + clear the review item. Do not email the requester — they initiated
     // via inbound mail (often a no-reply scheduling service).
-    const filed = await storeUpdateEmailInbox(id, {
-      action: 'filed',
-      status: 'FILED',
-      acceptAutomationDecision: true,
-      markAutomationAck: true,
-    });
+    const filed = await archiveAfterMeetingDecision(id, updated);
     return jsonResponse({
       ok: true,
       booked: true,

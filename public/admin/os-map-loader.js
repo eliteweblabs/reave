@@ -4287,7 +4287,10 @@ async function confirmScheduledMeeting(item, btn) {
     updateInboxBadgesFromState();
     removeReviewAlertBanner(item.emailId);
     syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-    if (emailState.activeId === item.emailId) renderEmailPanel();
+    if (emailState.activeId === item.emailId) {
+      dropArchivedEmailFromView(item.emailId);
+      renderEmailPanel();
+    }
     if (MAP.type === 'dashboard') await loadAdminDashboard();
   } catch (e) {
     if (btn) {
@@ -12748,7 +12751,10 @@ async function runEmailScheduleAction(ev, action, btn) {
         updateInboxBadgesFromState();
         syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
       }
+      // Confirming archives the message — drop it out of the open list.
+      dropArchivedEmailFromView(ev.id);
       renderEmailPanel();
+      syncInboxAppBadge(emailState.allEvents);
       return;
     }
 
@@ -12756,6 +12762,7 @@ async function runEmailScheduleAction(ev, action, btn) {
       removeReviewAlertBanner(ev.id);
       updateInboxBadgesFromState();
     }
+    dropArchivedEmailFromView(ev.id);
     renderEmailPanel();
     await osAlert({
       title: 'Notification sent',
@@ -12875,6 +12882,13 @@ async function mountEmailScheduleActions(container, ev) {
       return;
     }
 
+    // Rows ingested before the time was stored show "Meeting time pending" —
+    // fill in the time the availability check just resolved from the message.
+    if (!ev.bookingStart && !ev.proposedMeetingStart && data.check.proposedLabel) {
+      const whenEl = container.closest('.em-detail')?.querySelector('.em-book-card-when');
+      if (whenEl) whenEl.textContent = data.check.proposedLabel;
+    }
+
     if (primaryBtn) {
       primaryBtn.hidden = false;
       primaryBtn.disabled = false;
@@ -12892,6 +12906,13 @@ async function mountEmailScheduleActions(container, ev) {
 
 function shouldShowEmailProjectActions(ev) {
   return !ev.jobSlug;
+}
+
+/** A confirmed / archived message left the open filter — close its detail view. */
+function dropArchivedEmailFromView(emailId) {
+  if (!emailId || emailState.activeId !== emailId) return;
+  if (filteredInboxEvents().some((e) => e.id === emailId)) return;
+  emailState.activeId = null;
 }
 
 function applyEmailEventUpdate(event) {
