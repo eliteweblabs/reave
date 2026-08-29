@@ -90,10 +90,10 @@ const MENTION_PICKER_ARROW_MS = 320;
 const MENTION_PICKER_SELECT_HOLD_MS = 560;
 const MENTION_PICKER_OPEN_MS = 220;
 const USER_COMPOSE_MS = 520;
-const USER_CHAR_MS = 42;
-const USER_CHAR_MS_FAST = 14;
-const SLASH_CHAR_MS = 38;
-const MENTION_CHAR_MS = 36;
+const USER_CHAR_MS = 32;
+const USER_CHAR_MS_FAST = 11;
+const SLASH_CHAR_MS = 29;
+const MENTION_CHAR_MS = 27;
 /** Beat after the user finishes before the agent starts responding. */
 const ASSISTANT_RESPONSE_DELAY_MS = 420;
 /** Short generic typing dots — not the full "thinking" duration. */
