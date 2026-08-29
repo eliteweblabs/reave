@@ -419,13 +419,13 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 <script>
   /**
    * Probe env(safe-area-inset-*). Admin must — iOS reports 0 on :root while
-   * body is position:fixed. Public pages also probe and freeze the first
-   * non-zero top so a pixel --safe-top can win over live env() mid-scroll.
-   * Never write these from visualViewport — chasing the toolbar is worse.
+   * body is position:fixed. Public pages freeze the first non-zero top so live
+   * env() cannot resize the bar mid-scroll. Never write these from
+   * visualViewport — chasing the toolbar is worse.
    *
-   * Safari can resolve env() inside a custom property to 0 while the same
-   * env() at the property still works. Public padding therefore uses env()
-   * at the use site until this probe freezes a pixel value.
+   * Light pages (demo, modules) can probe before Safari has a real inset and
+   * used to bail forever; homepage often won the race because it is heavier.
+   * Retry a few frames / pageshow so every public page gets the same freeze.
    */
   function overlayMenuTouchGuard(e: TouchEvent) {
     const open = document.querySelector(".overlay-menu:not([hidden])");
@@ -474,26 +474,13 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   let publicSafeAreaAttempts = 0;
   const PUBLIC_SAFE_AREA_MAX_ATTEMPTS = 16;
 
-  function applySafeTopPx(insetTop: number) {
-    const root = document.documentElement;
-    root.style.setProperty("--safe-top", `${insetTop}px`);
-    root.style.setProperty(
-      "--app-header-offset",
-      `calc(var(--app-header-h) + ${insetTop}px)`,
-    );
-    root.style.setProperty(
-      "--app-header-scrim-h",
-      `calc(${insetTop}px + var(--app-header-h) + 3.75rem)`,
-    );
-  }
-
   function syncAppHeaderSafeArea() {
     const isAdmin = Boolean(document.querySelector(".app-header--admin"));
     if (!isAdmin && document.documentElement.dataset.safeTopFrozen === "1") return;
     if (isAdmin && document.documentElement.dataset.safeInsetsFrozen === "1") return;
     const insetTop = probeSafeAreaInset("top");
     if (!isAdmin && insetTop <= 0) {
-      // First paint on iOS often reports 0 — retry a few frames, do not freeze.
+      // Do not freeze on 0 — retry so demo/modules match the homepage path.
       if (publicSafeAreaAttempts < PUBLIC_SAFE_AREA_MAX_ATTEMPTS) {
         publicSafeAreaAttempts += 1;
         requestAnimationFrame(() => syncAppHeaderSafeArea());
@@ -501,7 +488,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       return;
     }
     if (insetTop > 0) {
-      applySafeTopPx(insetTop);
+      document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
     }
     if (isAdmin) {
       const insetBottom = probeSafeAreaInset("bottom");
@@ -642,15 +629,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 <style is:global>
   :root {
     --app-header-h: 3.25rem;
-    /*
-     * Prefer env() at the use site for public chrome. Keeping --safe-top as
-     * an env() alias is fine for calc fallbacks; JS replaces it with a pixel
-     * value once the probe lands (and sets data-safe-top-frozen).
-     */
     --safe-top: env(safe-area-inset-top, 0px);
-    --app-header-offset: calc(var(--app-header-h) + env(safe-area-inset-top, 0px));
+    --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
     /* Chrome band plus the tail the scrim fades out over, below the bar. */
-    --app-header-scrim-h: calc(env(safe-area-inset-top, 0px) + var(--app-header-h) + 3.75rem);
+    --app-header-scrim-h: calc(var(--safe-top) + var(--app-header-h) + 3.75rem);
     /* Safari overlay chrome is not in safe-area-inset-top — same extra as .site-bg-atmosphere. */
     --app-header-scrim-bleed: 80px;
     --app-header-chrome-scale: 1.333;
@@ -714,14 +696,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     background-color: transparent;
     color: var(--site-fg, #171717);
     --app-header-inline-pad: max(1rem, env(safe-area-inset-left, 0px));
-    /*
-     * Use env()/constant() directly — do not layer var(--safe-top) on top.
-     * Safari can resolve env() inside a custom property to 0px while the
-     * same env() here still reports the notch. Frozen pixel --safe-top is
-     * applied only after data-safe-top-frozen / admin probe (below).
-     */
     padding-top: constant(safe-area-inset-top);
     padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--safe-top);
     padding-right: var(--app-header-inline-pad);
     padding-bottom: 0;
     padding-left: var(--app-header-inline-pad);
@@ -738,11 +715,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
    */
   .app-header:not(.app-header--admin) {
     top: calc(-1 * var(--app-header-scrim-bleed));
-    padding-top: calc(constant(safe-area-inset-top) + var(--app-header-scrim-bleed));
-    padding-top: calc(env(safe-area-inset-top, 0px) + var(--app-header-scrim-bleed));
-  }
-
-  html[data-safe-top-frozen="1"] .app-header:not(.app-header--admin) {
     padding-top: calc(var(--safe-top) + var(--app-header-scrim-bleed));
   }
 
@@ -767,9 +739,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     margin-bottom: 0;
     background: transparent;
     border-bottom: none;
-    /* Admin shell: body is position:fixed so :root env() is often 0 — JS probe. */
-    padding-top: constant(safe-area-inset-top);
-    padding-top: env(safe-area-inset-top, 0px);
     padding-top: var(--safe-top);
   }
 
