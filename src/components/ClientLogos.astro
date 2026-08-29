@@ -82,7 +82,7 @@ const reels = dealt.map((reel, col) => {
                       alt={index === 0 ? logo.name : ""}
                       width={logo.width}
                       height={logo.height}
-                      loading={index === 0 ? "eager" : "lazy"}
+                      loading="eager"
                       decoding="async"
                       draggable="false"
                     />
@@ -166,16 +166,21 @@ const reels = dealt.map((reel, col) => {
   /*
    * Each reel holds its own unique marks (duplicated for a seamless loop).
    * Duration is steps × columns × 3.5s so only one column eases at a time.
+   *
+   * Keyframes must ease near the START of each 1/steps slice (≈ STEP_S into
+   * the cycle when cols=8), then hold while the other columns take their turn.
+   * Holding until ~50% made the wall look frozen for half a minute.
    */
   @keyframes client-logos-slot-2 {
     0%,
-    47.5% {
+    6.25% {
       transform: translate3d(0, 0, 0);
     }
-    50%,
-    97.5% {
+    6.75%,
+    56.25% {
       transform: translate3d(0, calc(var(--slot-h) * -1), 0);
     }
+    56.75%,
     100% {
       transform: translate3d(0, calc(var(--slot-h) * -2), 0);
     }
@@ -183,17 +188,18 @@ const reels = dealt.map((reel, col) => {
 
   @keyframes client-logos-slot-3 {
     0%,
-    31% {
+    4.17% {
       transform: translate3d(0, 0, 0);
     }
-    33.3%,
-    64.3% {
+    4.67%,
+    37.5% {
       transform: translate3d(0, calc(var(--slot-h) * -1), 0);
     }
-    66.6%,
-    97.6% {
+    38%,
+    70.83% {
       transform: translate3d(0, calc(var(--slot-h) * -2), 0);
     }
+    71.33%,
     100% {
       transform: translate3d(0, calc(var(--slot-h) * -3), 0);
     }
@@ -201,21 +207,22 @@ const reels = dealt.map((reel, col) => {
 
   @keyframes client-logos-slot-4 {
     0%,
-    22.5% {
+    3.125% {
       transform: translate3d(0, 0, 0);
     }
-    25%,
-    47.5% {
+    3.625%,
+    28.125% {
       transform: translate3d(0, calc(var(--slot-h) * -1), 0);
     }
-    50%,
-    72.5% {
+    28.625%,
+    53.125% {
       transform: translate3d(0, calc(var(--slot-h) * -2), 0);
     }
-    75%,
-    97.5% {
+    53.625%,
+    78.125% {
       transform: translate3d(0, calc(var(--slot-h) * -3), 0);
     }
+    78.625%,
     100% {
       transform: translate3d(0, calc(var(--slot-h) * -4), 0);
     }
@@ -223,25 +230,26 @@ const reels = dealt.map((reel, col) => {
 
   @keyframes client-logos-slot-5 {
     0%,
-    17.5% {
+    2.5% {
       transform: translate3d(0, 0, 0);
     }
-    20%,
-    37.5% {
+    3%,
+    22.5% {
       transform: translate3d(0, calc(var(--slot-h) * -1), 0);
     }
-    40%,
-    57.5% {
+    23%,
+    42.5% {
       transform: translate3d(0, calc(var(--slot-h) * -2), 0);
     }
-    60%,
-    77.5% {
+    43%,
+    62.5% {
       transform: translate3d(0, calc(var(--slot-h) * -3), 0);
     }
-    80%,
-    97.5% {
+    63%,
+    82.5% {
       transform: translate3d(0, calc(var(--slot-h) * -4), 0);
     }
+    83%,
     100% {
       transform: translate3d(0, calc(var(--slot-h) * -5), 0);
     }
