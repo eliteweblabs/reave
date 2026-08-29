@@ -4,7 +4,6 @@
  * Homepage CTAs sit in the sticky track beside this section — not inside
  * it, because isolation:isolate would trap position:fixed.
  */
-import BrandIconInline from "../../components/BrandIconInline.astro";
 import BrandIconLockup from "../../components/BrandIconLockup.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
@@ -53,12 +52,8 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
         aria-atomic="false"
       >
         <template id="hero-demo-agent-avatar">
-          <span class="home-hero-demo-avatar home-hero-demo-avatar--agent" aria-hidden="true">
-            <BrandIconInline
-              company={company}
-              class="home-hero-demo-avatar-icon"
-              idPrefix="hero-demo-agent"
-            />
+          <span class="home-hero-demo-avatar home-hero-demo-avatar--agent home-hero-demo-avatar--mark" aria-hidden="true">
+            <BrandIconLockup company={company} variant="chat" idPrefix="hero-demo-agent" />
           </span>
         </template>
         <template id="hero-demo-user-avatar">
@@ -221,6 +216,11 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   /* Chat column — viewport stack + CTAs as siblings; recedes under the brand block */
   .home-hero-demo {
+    /* Keep in sync with BrandIconLockup.astro `.home-hero-mark` — bubble bloom uses the same field. */
+    --home-hero-mark-spectrum:
+      radial-gradient(120% 90% at 12% 82%, #ff2d6f 0%, transparent 58%),
+      radial-gradient(95% 110% at 86% 18%, #4b6bff 0%, transparent 52%),
+      radial-gradient(80% 70% at 48% 46%, #34ff9b 0%, #00e0ff 38%, #ff8a00 72%, #ffe600 100%);
     --hero-sk-shadow: 0 8px 14px -8px rgba(0, 0, 0, 0.2);
     position: absolute;
     z-index: 8;
@@ -423,29 +423,15 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     background: var(--demo-avatar-bg, var(--site-card));
   }
 
-  .home-hero-demo-avatar-icon {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    color: var(--site-fg, #171717);
-  }
-
-  html[data-theme="dark"] .home-hero-demo-avatar-icon {
-    filter: invert(1);
-  }
-
-  .home-hero-demo-avatar-icon.home-hero-icon-name {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    font-family: var(--font-primary);
-    font-size: 0.55rem;
-    font-weight: 600;
-    letter-spacing: -0.04em;
-    line-height: 1;
-    text-align: center;
+  /*
+   * Neon mark + bloom — same paint as the hero icon. Drop the circular clip
+   * so the halo can sit outside the glyph the way the hero mark does.
+   */
+  .home-hero-demo-avatar--mark {
+    overflow: visible;
+    border: none;
+    background: transparent;
+    padding: 0;
   }
 
   .home-hero-demo-avatar-photo {
@@ -1529,10 +1515,28 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
   }
 
   .home-hero-demo-msg--assistant .home-hero-demo-bubble {
+    position: relative;
+    isolation: isolate;
     color: var(--demo-fg, var(--site-fg));
-    background: var(--demo-bubble-fill, var(--site-card));
+    background: color-mix(in srgb, var(--site-canvas, #fff) 88%, var(--site-fg) 8%);
     border: 1px solid var(--demo-line, var(--site-border));
     border-bottom-left-radius: 0.28rem;
+  }
+
+  .home-hero-demo-msg--assistant .home-hero-demo-bubble::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--home-hero-mark-spectrum);
+    filter: blur(16px);
+    opacity: 0.42;
+    pointer-events: none;
+  }
+
+  html[data-theme="dark"] .home-hero-demo-msg--assistant .home-hero-demo-bubble::before {
+    opacity: 0.62;
   }
 
   .home-hero-demo-bubble--slash {

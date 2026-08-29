@@ -183,25 +183,16 @@ function ensureCanvas(host: HTMLElement): HTMLCanvasElement {
   return canvas;
 }
 
-type MarkRoot = HTMLElement & { __heroMarkCleanup?: () => void };
+/**
+ * One seed and one clock for every mark on the page — hero icon, /card, and
+ * the live-chat avatars all bloom the same colors at the same time.
+ */
+let detachShared: (() => void) | null = null;
 
-function attachMark(root: MarkRoot): () => void {
-  root.__heroMarkCleanup?.();
-
-  const sweeps = Array.from(
-    root.querySelectorAll<HTMLElement>(".home-hero-mark-sweep"),
-  );
-  if (sweeps.length === 0) {
-    return () => {};
-  }
-
-  const canvases = sweeps.map(ensureCanvas);
-  const contexts = canvases
-    .map((c) => c.getContext("2d", { alpha: false }))
-    .filter((ctx): ctx is CanvasRenderingContext2D => Boolean(ctx));
-  if (contexts.length === 0) {
-    return () => {};
-  }
+export function attachHeroMarkFields(): () => void {
+  if (detachShared) return detachShared;
+  const roots = new Map<HTMLElement, HTMLCanvasElement[]>();
+  const contexts = new Set<CanvasRenderingContext2D>();
 
   const offscreen = document.createElement("canvas");
   offscreen.width = FIELD;
@@ -215,32 +206,28 @@ function attachMark(root: MarkRoot): () => void {
   const t0 = Math.random() * 40;
   const reduced = prefersReducedMotion();
 
-  const blit = (t: number) => {
-    paintField(image, seed, t0 + t * TIME_SCALE);
-    offCtx.putImageData(image, 0, 0);
-    for (const ctx of contexts) {
-      ctx.drawImage(offscreen, 0, 0);
-    }
-  };
-
-  blit(0);
-
   let raf = 0;
   let start = 0;
   let lastPaint = 0;
   let running = true;
   let pausedT = 0;
+  let lastFrame: HTMLCanvasElement | null = null;
 
-  const onVisibility = () => {
-    if (document.hidden) {
-      if (start) pausedT += (performance.now() - start) / 1000;
-      cancelAnimationFrame(raf);
-      raf = 0;
-      start = 0;
-      return;
+  const blit = (t: number) => {
+    paintField(image, seed, t0 + t * TIME_SCALE);
+    offCtx.putImageData(image, 0, 0);
+    lastFrame = offscreen;
+    for (const ctx of contexts) {
+      ctx.drawImage(offscreen, 0, 0);
     }
-    raf = requestAnimationFrame(tick);
   };
+
+  const currentT = () => {
+    if (!start) return pausedT;
+    return (performance.now() - start) / 1000 + pausedT;
+  };
+
+  const paintNow = () => blit(currentT());
 
   const tick = (now: number) => {
     if (!running) return;
@@ -252,47 +239,86 @@ function attachMark(root: MarkRoot): () => void {
     raf = requestAnimationFrame(tick);
   };
 
-  const cleanup = () => {
-    running = false;
-    cancelAnimationFrame(raf);
-    document.removeEventListener("visibilitychange", onVisibility);
-    if (root.__heroMarkCleanup === cleanup) delete root.__heroMarkCleanup;
-    for (const canvas of canvases) canvas.remove();
+  const onVisibility = () => {
+    if (document.hidden) {
+      if (start) pausedT += (performance.now() - start) / 1000;
+      cancelAnimationFrame(raf);
+      raf = 0;
+      start = 0;
+      return;
+    }
+    if (!reduced) raf = requestAnimationFrame(tick);
   };
-  root.__heroMarkCleanup = cleanup;
+
+  const adopt = (root: HTMLElement) => {
+    if (roots.has(root)) return;
+    const sweeps = Array.from(
+      root.querySelectorAll<HTMLElement>(".home-hero-mark-sweep"),
+    );
+    if (sweeps.length === 0) return;
+    const canvases = sweeps.map(ensureCanvas);
+    const adopted: HTMLCanvasElement[] = [];
+    for (const canvas of canvases) {
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (!ctx) continue;
+      contexts.add(ctx);
+      adopted.push(canvas);
+      if (lastFrame) ctx.drawImage(lastFrame, 0, 0);
+    }
+    if (adopted.length === 0) return;
+    roots.set(root, adopted);
+  };
+
+  const drop = (root: HTMLElement) => {
+    const canvases = roots.get(root);
+    if (!canvases) return;
+    for (const canvas of canvases) {
+      const ctx = canvas.getContext("2d", { alpha: false });
+      if (ctx) contexts.delete(ctx);
+      canvas.remove();
+    }
+    roots.delete(root);
+  };
+
+  const sync = () => {
+    const live = new Set<HTMLElement>();
+    document.querySelectorAll<HTMLElement>("[data-hero-mark]").forEach((root) => {
+      live.add(root);
+      adopt(root);
+    });
+    for (const root of roots.keys()) {
+      if (!live.has(root) || !root.isConnected) drop(root);
+    }
+    if (!lastFrame) paintNow();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", sync, { once: true });
+  } else {
+    sync();
+  }
+
+  const observer = new MutationObserver(sync);
+  observer.observe(document.documentElement, { childList: true, subtree: true });
 
   if (!reduced) {
     document.addEventListener("visibilitychange", onVisibility);
     raf = requestAnimationFrame(tick);
   }
 
-  return cleanup;
-}
-
-export function attachHeroMarkFields(): () => void {
-  const cleanups = new Map<HTMLElement, () => void>();
-
-  const boot = () => {
-    document.querySelectorAll<HTMLElement>("[data-hero-mark]").forEach((root) => {
-      cleanups.get(root)?.();
-      cleanups.set(root, attachMark(root));
-    });
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
-  } else {
-    boot();
-  }
-
   const onPageHide = () => {
-    cleanups.forEach((cleanup) => cleanup());
-    cleanups.clear();
+    running = false;
+    cancelAnimationFrame(raf);
+    observer.disconnect();
+    document.removeEventListener("visibilitychange", onVisibility);
+    for (const root of [...roots.keys()]) drop(root);
   };
   window.addEventListener("pagehide", onPageHide);
 
-  return () => {
+  detachShared = () => {
     window.removeEventListener("pagehide", onPageHide);
     onPageHide();
+    detachShared = null;
   };
+  return detachShared;
 }
