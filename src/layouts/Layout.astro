@@ -248,6 +248,12 @@ try {
 		min-height: 100%;
 		position: relative;
 		background-color: var(--site-canvas, #fff);
+		/*
+		 * Marketing chrome is not selectable — accidental highlight on
+		 * tap/drag. Screen readers still announce the text.
+		 */
+		-webkit-user-select: none;
+		user-select: none;
 	}
 
 	h1,
@@ -272,9 +278,22 @@ try {
 	}
 
 	/*
-	 * Interactive chrome — prevent accidental text/emoji selection on tap (esp. iOS).
-	 * Content areas (inputs, textareas, article copy) stay selectable by default.
+	 * Copyable surfaces — fields, legal docs, contact links, assistant
+	 * replies. user-select does not affect screen readers; these stay
+	 * selectable so people can quote terms, copy a number, or share a reply.
 	 */
+	input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]),
+	textarea,
+	[contenteditable="true"],
+	.doc-body,
+	a[href^="mailto:"],
+	a[href^="tel:"],
+	.aw-bubble,
+	.user-select-text {
+		-webkit-user-select: text;
+		user-select: text;
+	}
+
 	button:not(:disabled),
 	input[type="button"],
 	input[type="submit"],

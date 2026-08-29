@@ -112,6 +112,17 @@ const htmlStyle = isEditorial
     -webkit-font-smoothing: antialiased;
     color: #161410;
     background: #fbf8f2;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body.editorial-body :is(
+    input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    a[href^="mailto:"],
+    a[href^="tel:"]
+  ) {
+    -webkit-user-select: text;
+    user-select: text;
   }
   body.editorial-body a { color: inherit; }
 </style>
@@ -129,6 +140,17 @@ const htmlStyle = isEditorial
     -webkit-font-smoothing: antialiased;
     color: #fff;
     background: linear-gradient(180deg, #01061d, #01092b);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body.landing-body :is(
+    input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    a[href^="mailto:"],
+    a[href^="tel:"]
+  ) {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   a {

@@ -219,6 +219,14 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     color: var(--site-fg, #171717);
     background-color: var(--site-canvas, #fff);
     -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .nfc-body a[href^="mailto:"],
+  .nfc-body a[href^="tel:"] {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   .nfc-shell {
@@ -260,6 +268,8 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     color: var(--site-fg, #171717);
     text-align: center;
     text-wrap: balance;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .nfc-title :global(.home-hero-title-break) {
