@@ -5,15 +5,10 @@
 import type { APIContext } from 'astro';
 import { storeMarkEmailInboxSeenMany } from '../../../../lib/emailInboxStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -24,14 +19,14 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const ids = Array.isArray((body as { ids?: unknown })?.ids)
     ? (body as { ids: unknown[] }).ids.map((id) => String(id).trim()).filter(Boolean)
     : [];
-  if (!ids.length) return json({ ok: false, error: 'Missing ids' }, 400);
+  if (!ids.length) return jsonResponse({ ok: false, error: 'Missing ids' }, 400);
 
   const marked = await storeMarkEmailInboxSeenMany(ids);
-  return json({ ok: true, marked });
+  return jsonResponse({ ok: true, marked });
 }

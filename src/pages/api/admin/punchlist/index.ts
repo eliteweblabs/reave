@@ -15,15 +15,10 @@ import {
 } from '../../../../lib/punchlistHub';
 import type { HubPunchlistItem } from '../../../../lib/punchlist';
 import { isTodoDbConfigured } from '../../../../lib/todoStore';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDeploymentOwner(context);
@@ -31,16 +26,16 @@ export async function GET(context: APIContext): Promise<Response> {
 
   if (isPunchlistHubHost()) {
     if (!isTodoDbConfigured()) {
-      return json({ ok: true, configured: false, host: true, items: [] });
+      return jsonResponse({ ok: true, configured: false, host: true, items: [] });
     }
     const items = await listOfficialPunchlistItems();
-    return json({ ok: true, configured: true, host: true, items });
+    return jsonResponse({ ok: true, configured: true, host: true, items });
   }
 
   const identity = await localPunchlistIdentity(context.request);
   const configured = isPunchlistHubClientConfigured();
   if (!configured) {
-    return json({
+    return jsonResponse({
       ok: true,
       configured: false,
       items: [],
@@ -53,8 +48,8 @@ export async function GET(context: APIContext): Promise<Response> {
   const result = await fetchPunchlistHub<{ items?: HubPunchlistItem[]; company?: string; slug?: string }>(
     '/api/hub/punchlist',
   );
-  if (!result.ok) return json({ ok: false, configured: true, error: result.error }, result.status);
-  return json({
+  if (!result.ok) return jsonResponse({ ok: false, configured: true, error: result.error }, result.status);
+  return jsonResponse({
     ok: true,
     configured: true,
     items: result.data.items ?? [],
@@ -68,23 +63,23 @@ export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
   if (isPunchlistHubHost()) {
-    return json({ ok: false, error: 'Add items from Punch list on a client install.' }, 400);
+    return jsonResponse({ ok: false, error: 'Add items from Punch list on a client install.' }, 400);
   }
   if (!isPunchlistHubClientConfigured()) {
-    return json({ ok: false, error: 'Punch list is not connected. Set REAVE_HUB_KEY.' }, 503);
+    return jsonResponse({ ok: false, error: 'Punch list is not connected. Set REAVE_HUB_KEY.' }, 503);
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const result = await fetchPunchlistHub<{ item?: HubPunchlistItem }>('/api/hub/punchlist', {
     method: 'POST',
     body: JSON.stringify({ title: body.title }),
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status);
-  return json({ ok: true, item: result.data.item }, 201);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status);
+  return jsonResponse({ ok: true, item: result.data.item }, 201);
 }

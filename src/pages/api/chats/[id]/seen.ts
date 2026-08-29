@@ -2,15 +2,10 @@ import type { APIContext } from 'astro';
 import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
 import { storeMarkChatSeen } from '../../../../lib/chatStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 /**
  * POST /api/chats/:id/seen — record that the signed-in user has seen this
@@ -24,7 +19,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
   let seenAt: string | undefined;
   try {
@@ -35,12 +30,12 @@ export async function POST(context: APIContext): Promise<Response> {
       if (raw) seenAt = raw;
     }
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
-  if (!ownerUserId) return json({ ok: false, error: 'Session not found' }, 404);
+  if (!ownerUserId) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
 
   const lastSeenAt = await storeMarkChatSeen(ownerUserId, id, seenAt);
-  return json({ ok: true, id, last_seen_at: lastSeenAt });
+  return jsonResponse({ ok: true, id, last_seen_at: lastSeenAt });
 }

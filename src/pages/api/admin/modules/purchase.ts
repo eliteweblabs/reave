@@ -31,55 +31,50 @@ import {
   isFeatureId,
   upsertModuleEntitlement,
 } from '../../../../lib/moduleEntitlements';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   if (isDemoMode()) {
-    return json({ ok: false, error: 'Module purchases are disabled in demo mode.' }, 400);
+    return jsonResponse({ ok: false, error: 'Module purchases are disabled in demo mode.' }, 400);
   }
   if (!moduleStorefrontEnabled()) {
-    return json({ ok: false, error: 'This official install does not sell modules to itself.' }, 400);
+    return jsonResponse({ ok: false, error: 'This official install does not sell modules to itself.' }, 400);
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const action = String(body.action ?? 'purchase').trim();
   const featureRaw = String(body.feature ?? '').trim();
-  if (!isFeatureId(featureRaw)) return json({ ok: false, error: 'Unknown module.' }, 400);
+  if (!isFeatureId(featureRaw)) return jsonResponse({ ok: false, error: 'Unknown module.' }, 400);
   await ensureModuleCatalogLoaded();
   if (isPrivateFeature(featureRaw) || isServiceFeature(featureRaw) || !resolvedIsPaidModule(featureRaw)) {
-    return json({ ok: false, error: 'That module is not for sale in the app.' }, 400);
+    return jsonResponse({ ok: false, error: 'That module is not for sale in the app.' }, 400);
   }
   if (hasFeature(featureRaw)) {
-    return json({ ok: false, error: 'This module is already on for this install.' }, 400);
+    return jsonResponse({ ok: false, error: 'This module is already on for this install.' }, 400);
   }
   const missingRequires = featureRequirements(featureRaw).filter((id) => !hasFeature(id));
   if (missingRequires.length) {
     const needed = missingRequires.map((id) => FEATURE_LABELS[id]).join(', ');
-    return json({
+    return jsonResponse({
       ok: false,
       error: `${FEATURE_LABELS[featureRaw]} requires ${needed}. Turn that module on first — buying this one will not enable it.`,
     }, 400);
   }
 
   const price = resolvedModulePrice(featureRaw);
-  if (!price) return json({ ok: false, error: 'No price on file.' }, 400);
+  if (!price) return jsonResponse({ ok: false, error: 'No price on file.' }, 400);
   const label = catalogLabel(featureRaw, FEATURE_LABELS[featureRaw]);
 
   if (action === 'mark_paid') {
@@ -101,19 +96,19 @@ export async function POST(context: APIContext): Promise<Response> {
         urgent: true,
       },
     }).catch(() => undefined);
-    return json({ ok: true, entitlement, activated: false });
+    return jsonResponse({ ok: true, entitlement, activated: false });
   }
 
   if (action !== 'purchase' && action !== 'request') {
-    return json({ ok: false, error: 'Unknown action' }, 400);
+    return jsonResponse({ ok: false, error: 'Unknown action' }, 400);
   }
 
   const existing = await getModuleEntitlement(featureRaw);
   if (existing?.status === 'paid') {
-    return json({ ok: true, entitlement: existing, alreadyPaid: true });
+    return jsonResponse({ ok: true, entitlement: existing, alreadyPaid: true });
   }
   if (existing?.status === 'invoiced' && existing.invoiceUrl) {
-    return json({ ok: true, entitlement: existing, resume: true });
+    return jsonResponse({ ok: true, entitlement: existing, resume: true });
   }
 
   const company = await getCompanyConfig(context.request);
@@ -178,7 +173,7 @@ export async function POST(context: APIContext): Promise<Response> {
     },
   }).catch(() => undefined);
 
-  return json({
+  return jsonResponse({
     ok: true,
     entitlement,
     checkoutUrl: invoiceUrl,

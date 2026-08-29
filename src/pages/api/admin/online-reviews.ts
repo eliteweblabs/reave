@@ -25,19 +25,14 @@ import {
   isGooglePlacesConfigured,
   syncGoogleReviews,
 } from '../../../lib/onlineReviewsSync';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function featureGate(): Response | null {
   if (!hasFeature('online_reviews')) {
-    return json({ error: 'online_reviews not enabled' }, 404);
+    return jsonResponse({ error: 'online_reviews not enabled' }, 404);
   }
   return null;
 }
@@ -64,8 +59,8 @@ export async function GET(context: APIContext): Promise<Response> {
 
   if (reviewId) {
     const review = await getOnlineReview(reviewId);
-    if (!review) return json({ error: 'Review not found' }, 404);
-    return json({ ok: true, review, config, summary, suggestedPlaceId });
+    if (!review) return jsonResponse({ error: 'Review not found' }, 404);
+    return jsonResponse({ ok: true, review, config, summary, suggestedPlaceId });
   }
 
   const filterStatus =
@@ -80,7 +75,7 @@ export async function GET(context: APIContext): Promise<Response> {
     limit: 200,
   });
 
-  return json({
+  return jsonResponse({
     ok: true,
     reviews,
     config,
@@ -107,7 +102,7 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
 
   const action = String(body.action ?? '').trim();
@@ -118,7 +113,7 @@ export async function POST(context: APIContext): Promise<Response> {
         body.googlePlaceId !== undefined ? String(body.googlePlaceId ?? '') : undefined,
       syncEnabled: body.syncEnabled !== undefined ? !!body.syncEnabled : undefined,
     });
-    return json({ ok: true, config });
+    return jsonResponse({ ok: true, config });
   }
 
   if (action === 'sync') {
@@ -132,12 +127,12 @@ export async function POST(context: APIContext): Promise<Response> {
       onlineReviewsSummary(),
       getOnlineReviewsConfig(),
     ]);
-    return json({ ok: true, syncResult, reviews, summary, config });
+    return jsonResponse({ ok: true, syncResult, reviews, summary, config });
   }
 
   if (action === 'create') {
     const platform = normalizeReviewPlatform(body.platform);
-    if (!platform) return json({ error: 'Invalid platform' }, 400);
+    if (!platform) return jsonResponse({ error: 'Invalid platform' }, 400);
 
     const review = await createManualReview({
       platform,
@@ -149,15 +144,15 @@ export async function POST(context: APIContext): Promise<Response> {
     });
 
     const summary = await onlineReviewsSummary();
-    return json({ ok: true, review, summary });
+    return jsonResponse({ ok: true, review, summary });
   }
 
   if (action === 'update') {
     const id = String(body.id ?? '').trim();
-    if (!id) return json({ error: 'id required' }, 400);
+    if (!id) return jsonResponse({ error: 'id required' }, 400);
 
     const status = body.status !== undefined ? normalizeReviewStatus(body.status) : undefined;
-    if (body.status !== undefined && !status) return json({ error: 'Invalid status' }, 400);
+    if (body.status !== undefined && !status) return jsonResponse({ error: 'Invalid status' }, 400);
 
     const review = await updateOnlineReview(id, {
       status,
@@ -166,20 +161,20 @@ export async function POST(context: APIContext): Promise<Response> {
       notes: body.notes !== undefined ? String(body.notes ?? '') : undefined,
     });
 
-    if (!review) return json({ error: 'Review not found' }, 404);
+    if (!review) return jsonResponse({ error: 'Review not found' }, 404);
 
     const summary = await onlineReviewsSummary();
-    return json({ ok: true, review, summary });
+    return jsonResponse({ ok: true, review, summary });
   }
 
   if (action === 'delete') {
     const id = String(body.id ?? '').trim();
-    if (!id) return json({ error: 'id required' }, 400);
+    if (!id) return jsonResponse({ error: 'id required' }, 400);
     const deleted = await deleteOnlineReview(id);
-    if (!deleted) return json({ error: 'Review not found' }, 404);
+    if (!deleted) return jsonResponse({ error: 'Review not found' }, 404);
     const summary = await onlineReviewsSummary();
-    return json({ ok: true, summary });
+    return jsonResponse({ ok: true, summary });
   }
 
-  return json({ error: 'Unknown action' }, 400);
+  return jsonResponse({ error: 'Unknown action' }, 400);
 }

@@ -27,15 +27,10 @@ import {
 } from '../../../../../lib/workStore';
 import { parseWorkJobInput } from '../../../../../lib/workJobInput';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function markEmailLinked(
   id: string,
@@ -86,10 +81,10 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const emailRecord = await storeGetEmailInbox(id);
-  if (!emailRecord) return json({ ok: false, error: 'Not found' }, 404);
+  if (!emailRecord) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const email = emailToMergeSource(emailRecord);
 
@@ -97,19 +92,19 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const mode = String(body.mode ?? '').trim().toLowerCase();
 
   if (mode === 'link') {
     const slug = String(body.slug ?? '').trim();
-    if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+    if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
     const job = await storeReadWork(slug);
-    if (!job) return json({ ok: false, error: 'Project not found' }, 404);
+    if (!job) return jsonResponse({ ok: false, error: 'Project not found' }, 404);
 
     const { result, usedAi } = await writeMergedBody(slug, job, email, false);
-    if (!result.ok) return json({ ok: false, error: result.error }, 400);
+    if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
 
     await assignEmailToJob(id, slug, job.title);
     const attachments = await importEmailAttachmentsToProject({
@@ -119,14 +114,14 @@ export async function POST(context: APIContext): Promise<Response> {
       uploadedBy: userId,
     });
     const event = await markEmailLinked(id, job.title);
-    if (!event) return json({ ok: false, error: 'Failed to update inbox' }, 500);
+    if (!event) return jsonResponse({ ok: false, error: 'Failed to update inbox' }, 500);
     const acked = await storeUpdateEmailInbox(id, {
       acceptAutomationDecision: true,
       markAutomationAck: true,
       automationKind: null,
     });
 
-    return json({
+    return jsonResponse({
       ok: true,
       mode: 'link',
       slug: job.slug,
@@ -149,7 +144,7 @@ export async function POST(context: APIContext): Promise<Response> {
       bodyText: emailRecord.bodyText,
       summary: emailRecord.summary,
     });
-    if (!contact.ok) return json({ ok: false, error: contact.error }, 400);
+    if (!contact.ok) return jsonResponse({ ok: false, error: contact.error }, 400);
 
     const { body: mergedBody, value: extractedValue, usedAi, suggestedTitle } =
       await mergeEmailIntoProjectBody({
@@ -174,15 +169,15 @@ export async function POST(context: APIContext): Promise<Response> {
       body: '',
       record_origin: 'dashboard',
     });
-    if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
+    if ('error' in parsed) return jsonResponse({ ok: false, error: parsed.error }, 400);
 
     let slug = String(body.slug ?? '')
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9._-]/g, '-');
     if (!slug) slug = slugFromTitle(title);
-    if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-    if (await storeReadWork(slug)) return json({ ok: false, error: 'Slug already exists', slug }, 409);
+    if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
+    if (await storeReadWork(slug)) return jsonResponse({ ok: false, error: 'Slug already exists', slug }, 409);
 
     const mergedValue = pickMergedProjectValue(null, extractedValue);
 
@@ -191,7 +186,7 @@ export async function POST(context: APIContext): Promise<Response> {
       body: mergedBody,
       ...(mergedValue !== undefined ? { value: mergedValue } : {}),
     });
-    if (!result.ok) return json({ ok: false, error: result.error }, 400);
+    if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
 
     await assignEmailToJob(id, slug, result.doc.title);
     const attachments = await importEmailAttachmentsToProject({
@@ -204,9 +199,9 @@ export async function POST(context: APIContext): Promise<Response> {
       uid: contact.uid,
       name: contact.name,
     });
-    if (!event) return json({ ok: false, error: 'Failed to update inbox' }, 500);
+    if (!event) return jsonResponse({ ok: false, error: 'Failed to update inbox' }, 500);
 
-    return json({
+    return jsonResponse({
       ok: true,
       mode: 'create',
       slug: result.doc.slug,
@@ -219,5 +214,5 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  return json({ ok: false, error: 'mode must be create or link' }, 400);
+  return jsonResponse({ ok: false, error: 'mode must be create or link' }, 400);
 }

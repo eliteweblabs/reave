@@ -8,21 +8,16 @@ import { hasFeature } from '../../../lib/features';
 import { isUptimeRobotConfigured } from '../../../lib/uptimerobotClient';
 import { isUptimeDbConfigured } from '../../../lib/pgUptime';
 import { syncUptimeMonitorsFromApi } from '../../../lib/uptimeMonitoring';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
-  return json({
+  return jsonResponse({
     ok: true,
     featureEnabled: hasFeature('uptime_monitoring'),
     configured: isUptimeRobotConfigured(),
@@ -37,7 +32,7 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('uptime_monitoring')) {
-    return json(
+    return jsonResponse(
       { ok: false, error: 'Enable "uptime_monitoring" in the install config features array.' },
       403,
     );
@@ -46,10 +41,10 @@ export async function POST(context: APIContext): Promise<Response> {
   const result = await syncUptimeMonitorsFromApi();
 
   if (!result.ok) {
-    return json({ ok: false, error: result.error }, 502);
+    return jsonResponse({ ok: false, error: result.error }, 502);
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     synced: result.synced,
   });

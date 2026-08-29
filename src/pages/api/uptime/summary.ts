@@ -7,28 +7,23 @@ import { getUptimeSummaryView } from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { uptimeStatusLabel } from '../../../lib/uptimerobotClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('uptime_monitoring')) {
-    return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
   }
 
   ensureUptimePollScheduler();
   const view = await getUptimeSummaryView();
 
-  return json({
+  return jsonResponse({
     ok: true,
     configured: view.configured,
     db: view.db,

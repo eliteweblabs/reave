@@ -9,15 +9,10 @@ import { hasFeature } from '../../../lib/features';
 import { processDueNewsletterSends } from '../../../lib/newsletterEngine';
 import { ensureNewsletterScheduler, newsletterPollSecret } from '../../../lib/newsletterScheduler';
 import { authorizePollOrOwner } from '../../../lib/pollRouteAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const key = context.url.searchParams.get('key')?.trim() ?? null;
@@ -25,12 +20,12 @@ export const GET: APIRoute = async (context) => {
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('email_marketing')) {
-    return json({ ok: false, error: 'email_marketing not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'email_marketing not enabled' }, 404);
   }
   ensureNewsletterScheduler();
   const force = context.url.searchParams.get('force') === '1';
   const result = await processDueNewsletterSends({ limit: 200, ignoreWindow: force });
-  return json(result, result.ok ? 200 : 503);
+  return jsonResponse(result, result.ok ? 200 : 503);
 };
 
 export const POST: APIRoute = GET;

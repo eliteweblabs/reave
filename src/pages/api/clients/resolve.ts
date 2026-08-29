@@ -7,29 +7,24 @@ import type { APIContext } from 'astro';
 import { contactSummary, isContactApiConfigured } from '../../../lib/contactApi';
 import { parseClientKindFilter, resolveContactEnhanced } from '../../../lib/clientSearch';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const name = String(body.name ?? '').trim() || undefined;
@@ -38,9 +33,9 @@ export async function POST(context: APIContext): Promise<Response> {
   const kind = parseClientKindFilter(typeof body.kind === 'string' ? body.kind : undefined);
 
   const result = await resolveContactEnhanced({ name, email, phone, kind });
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
 
-  return json({
+  return jsonResponse({
     ok: true,
     match: result.match,
     score: result.score,

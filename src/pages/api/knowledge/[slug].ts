@@ -12,15 +12,10 @@ import {
   fileWriteKnowledge,
   isSafeKnowledgeSlug,
 } from '../../../lib/fileKnowledge';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -28,11 +23,11 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeKnowledgeSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeKnowledgeSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
   const doc = fileReadKnowledge(slug);
-  if (!doc) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, ...doc });
+  if (!doc) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, ...doc });
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
@@ -41,22 +36,22 @@ export async function PUT(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeKnowledgeSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!fileReadKnowledge(slug)) return json({ ok: false, error: 'Not found' }, 404);
+  if (!slug || !isSafeKnowledgeSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
+  if (!fileReadKnowledge(slug)) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const content = String(body.content ?? '').trim();
-  if (!content) return json({ ok: false, error: 'content is required' }, 400);
+  if (!content) return jsonResponse({ ok: false, error: 'content is required' }, 400);
 
   const doc = fileWriteKnowledge(slug, content);
-  if (!doc) return json({ ok: false, error: 'Failed to save' }, 500);
-  return json({ ok: true, ...doc });
+  if (!doc) return jsonResponse({ ok: false, error: 'Failed to save' }, 500);
+  return jsonResponse({ ok: true, ...doc });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -65,8 +60,8 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug?.trim() ?? '';
-  if (!slug || !isSafeKnowledgeSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!slug || !isSafeKnowledgeSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
 
-  if (!fileDeleteKnowledge(slug)) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, slug, deleted: true });
+  if (!fileDeleteKnowledge(slug)) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, slug, deleted: true });
 }

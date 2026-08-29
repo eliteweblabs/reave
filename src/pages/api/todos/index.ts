@@ -14,22 +14,17 @@ import {
   TODO_PRIORITIES,
   TODO_STATUSES,
 } from '../../../lib/todoStore';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   try {
     const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
-    if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
+    if (!isTodoDbConfigured()) return jsonResponse({ ok: false, error: 'To-do DB not configured' }, 503);
 
     const statusRaw = context.url.searchParams.get('status')?.trim().toLowerCase();
     const priorityRaw = context.url.searchParams.get('priority')?.trim().toLowerCase();
@@ -45,8 +40,8 @@ export async function GET(context: APIContext): Promise<Response> {
     const status = normalizeTodoStatus(statusRaw);
     const priority = normalizeTodoPriority(priorityRaw);
 
-    if (statusRaw && !status) return json({ ok: false, error: 'Invalid status' }, 400);
-    if (priorityRaw && !priority) return json({ ok: false, error: 'Invalid priority' }, 400);
+    if (statusRaw && !status) return jsonResponse({ ok: false, error: 'Invalid status' }, 400);
+    if (priorityRaw && !priority) return jsonResponse({ ok: false, error: 'Invalid priority' }, 400);
 
     const todos = await storeListTodos({
       status,
@@ -59,7 +54,7 @@ export async function GET(context: APIContext): Promise<Response> {
       shared: shared || undefined,
     });
 
-    return json({
+    return jsonResponse({
       ok: true,
       todos,
       count: todos.length,
@@ -68,7 +63,7 @@ export async function GET(context: APIContext): Promise<Response> {
     });
   } catch (e) {
     console.error('[todos] GET error:', e);
-    return json({ ok: false, error: 'Failed to load to-dos' }, 500);
+    return jsonResponse({ ok: false, error: 'Failed to load to-dos' }, 500);
   }
 }
 
@@ -76,21 +71,21 @@ export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
-  if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
+  if (!isTodoDbConfigured()) return jsonResponse({ ok: false, error: 'To-do DB not configured' }, 503);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const title = String(body.title ?? '').trim();
-  if (!title) return json({ ok: false, error: 'title is required' }, 400);
+  if (!title) return jsonResponse({ ok: false, error: 'title is required' }, 400);
 
   const priorityRaw = body.priority != null ? String(body.priority).trim().toLowerCase() : undefined;
   const priority = priorityRaw ? normalizeTodoPriority(priorityRaw) : undefined;
-  if (priorityRaw && !priority) return json({ ok: false, error: 'Invalid priority' }, 400);
+  if (priorityRaw && !priority) return jsonResponse({ ok: false, error: 'Invalid priority' }, 400);
 
   const dueRaw = body.due_date;
   const due_date =
@@ -107,6 +102,6 @@ export async function POST(context: APIContext): Promise<Response> {
     section: body.section != null ? String(body.section).trim() || null : undefined,
     created_by: 'staff',
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, ...result.todo }, 201);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, ...result.todo }, 201);
 }

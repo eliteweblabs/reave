@@ -14,15 +14,10 @@ import {
 import { storeListWork } from '../../../lib/workStore';
 import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -67,7 +62,7 @@ export async function GET(context: APIContext): Promise<Response> {
     (j) => j.status === 'inquiry' || j.status === 'audit' || j.status === 'active',
   ).length;
 
-  return json({
+  return jsonResponse({
     ok: true,
     stats: {
       reviewsPending,

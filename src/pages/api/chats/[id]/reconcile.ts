@@ -23,6 +23,7 @@ import { storeAppendChatMessages, storeGetChatThread } from '../../../../lib/cha
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { getAliveAgentRunLease } from '../../../../lib/pgAgentRunLeases';
 import '../../../../lib/processDrain';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
@@ -31,12 +32,6 @@ const INTERRUPTED_NOTE =
   '(often a deploy restart or dropped connection, not necessarily something you did). ' +
   'Send the message again and I\'ll redo the work.)_';
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -44,35 +39,35 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
   // A live run will write its own reply (the chat endpoint guarantees it), so
   // never insert a note underneath one that is still working — locally or on a
   // draining replica that still holds a fresh lease.
   if (isAgentRunActive(userId, id) || getAgentProgress(userId, id)) {
-    return json({ ok: true, reconciled: false, reason: 'run_active' });
+    return jsonResponse({ ok: true, reconciled: false, reason: 'run_active' });
   }
   if (await getAliveAgentRunLease(userId, id)) {
-    return json({ ok: true, reconciled: false, reason: 'run_lease_active' });
+    return jsonResponse({ ok: true, reconciled: false, reason: 'run_lease_active' });
   }
 
   const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
-  if (!ownerUserId) return json({ ok: false, error: 'Session not found' }, 404);
+  if (!ownerUserId) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
 
   const thread = await storeGetChatThread(ownerUserId, id);
-  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
+  if (!thread) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
 
   const last = thread.messages[thread.messages.length - 1];
   if (!last || last.role !== 'user') {
-    return json({ ok: true, reconciled: false, reason: 'already_answered' });
+    return jsonResponse({ ok: true, reconciled: false, reason: 'already_answered' });
   }
 
   const saved = await storeAppendChatMessages(ownerUserId, id, [
     { role: 'assistant', content: INTERRUPTED_NOTE },
   ]);
-  if (!saved) return json({ ok: false, error: 'Failed to save note' }, 500);
+  if (!saved) return jsonResponse({ ok: false, error: 'Failed to save note' }, 500);
 
-  return json({
+  return jsonResponse({
     ok: true,
     reconciled: true,
     assistantMessage: { role: 'assistant', content: INTERRUPTED_NOTE },

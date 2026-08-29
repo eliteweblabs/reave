@@ -14,15 +14,10 @@ import {
   storeSetNotifyOnUnmatched,
 } from '../../../lib/emailRuleStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -30,7 +25,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const config = await storeListEmailRules();
-  return json({
+  return jsonResponse({
     ok: true,
     ...config,
     storage: emailRulesStorageBackend(),
@@ -50,20 +45,20 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const input = parseEmailRuleInput(body);
-  if (!input) return json({ ok: false, error: 'status is required' }, 400);
+  if (!input) return jsonResponse({ ok: false, error: 'status is required' }, 400);
 
   const result = await storeCreateEmailRule(input);
   if (!result.ok) {
-    return json(
+    return jsonResponse(
       { ok: false, error: result.error, colliding: result.colliding },
       storeEmailRuleWriteHttpStatus(result),
     );
   }
-  return json({ ok: true, rule: result.rule, storage: emailRulesStorageBackend() });
+  return jsonResponse({ ok: true, rule: result.rule, storage: emailRulesStorageBackend() });
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
@@ -75,14 +70,14 @@ export async function PATCH(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   if (typeof body.notifyOnUnmatched !== 'boolean') {
-    return json({ ok: false, error: 'notifyOnUnmatched boolean required' }, 400);
+    return jsonResponse({ ok: false, error: 'notifyOnUnmatched boolean required' }, 400);
   }
 
   const ok = await storeSetNotifyOnUnmatched(body.notifyOnUnmatched);
-  if (!ok) return json({ ok: false, error: 'Failed to save settings' }, 500);
-  return json({ ok: true, notifyOnUnmatched: body.notifyOnUnmatched });
+  if (!ok) return jsonResponse({ ok: false, error: 'Failed to save settings' }, 500);
+  return jsonResponse({ ok: true, notifyOnUnmatched: body.notifyOnUnmatched });
 }

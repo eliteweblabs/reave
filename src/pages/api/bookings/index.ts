@@ -20,15 +20,10 @@ import { checkEmailMeetingSlot } from '../../../lib/emailScheduling';
 import { hasFeature } from '../../../lib/features';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { ensureCalendarReminderScheduler } from '../../../lib/calendarReminderScheduler';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -36,13 +31,13 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   if (!hasFeature('scheduling')) {
-    return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
+    return jsonResponse({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
   }
 
   ensureCalendarReminderScheduler();
 
   if (!isBookingConfigured()) {
-    return json({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
+    return jsonResponse({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
   }
 
   const url = new URL(context.request.url);
@@ -67,8 +62,8 @@ export async function GET(context: APIContext): Promise<Response> {
       bookingList({ upcoming: true, status, limit }),
       bookingList({ upcoming: false, status, limit }),
     ]);
-    if (!upRes.ok) return json({ ok: false, error: upRes.error }, upRes.status ?? 502);
-    if (!pastRes.ok) return json({ ok: false, error: pastRes.error }, pastRes.status ?? 502);
+    if (!upRes.ok) return jsonResponse({ ok: false, error: upRes.error }, upRes.status ?? 502);
+    if (!pastRes.ok) return jsonResponse({ ok: false, error: pastRes.error }, pastRes.status ?? 502);
     const seen = new Set<string>();
     for (const b of [...upRes.data.bookings, ...pastRes.data.bookings]) {
       if (seen.has(b.uid)) continue;
@@ -78,12 +73,12 @@ export async function GET(context: APIContext): Promise<Response> {
     bookings.sort((a, b) => a.startTime.localeCompare(b.startTime));
   } else {
     const result = await bookingList({ upcoming, status, limit });
-    if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+    if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
     bookings = result.data.bookings;
   }
 
   const calcomAdmin = calcomWebappUrl();
-  return json({
+  return jsonResponse({
     ok: true,
     upcoming: rangeQuery ? null : upcoming,
     from: from ?? null,
@@ -104,18 +99,18 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   if (!hasFeature('scheduling')) {
-    return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
+    return jsonResponse({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
   }
 
   if (!isBookingConfigured()) {
-    return json({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
+    return jsonResponse({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
   }
 
   let body: unknown;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
@@ -139,12 +134,12 @@ export async function POST(context: APIContext): Promise<Response> {
         ? Math.round(Number(durationRaw))
         : undefined;
 
-  if (!name) return json({ ok: false, error: 'Guest name is required' }, 400);
-  if (!email.includes('@')) return json({ ok: false, error: 'Valid guest email is required' }, 400);
+  if (!name) return jsonResponse({ ok: false, error: 'Guest name is required' }, 400);
+  if (!email.includes('@')) return jsonResponse({ ok: false, error: 'Valid guest email is required' }, 400);
 
   const start = new Date(startRaw);
   if (Number.isNaN(start.getTime())) {
-    return json({ ok: false, error: 'Invalid start time' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid start time' }, 400);
   }
 
   const checkRes = await checkEmailMeetingSlot({
@@ -153,9 +148,9 @@ export async function POST(context: APIContext): Promise<Response> {
     contactName: name,
     durationMinutes,
   });
-  if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
+  if (!checkRes.ok) return jsonResponse({ ok: false, error: checkRes.error }, 503);
   if (!checkRes.check.available) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: checkRes.check.conflictReason || 'Time slot is not available',
@@ -176,15 +171,15 @@ export async function POST(context: APIContext): Promise<Response> {
     ...(address ? { address } : {}),
   });
   if (!created.ok) {
-    return json({ ok: false, error: created.error }, created.status ?? 502);
+    return jsonResponse({ ok: false, error: created.error }, created.status ?? 502);
   }
 
   const booking = created.data.booking;
   if (!booking?.uid) {
-    return json({ ok: false, error: 'Booking API did not return a booking id' }, 502);
+    return jsonResponse({ ok: false, error: 'Booking API did not return a booking id' }, 502);
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     booking: {
       uid: booking.uid,

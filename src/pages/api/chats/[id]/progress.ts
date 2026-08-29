@@ -7,15 +7,10 @@ import {
   getAliveAgentRunLease,
 } from '../../../../lib/pgAgentRunLeases';
 import '../../../../lib/processDrain';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -23,7 +18,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
   const localProgress = getAgentProgress(userId, id);
   const localRunning = isAgentRunActive(userId, id);
@@ -31,18 +26,18 @@ export async function GET(context: APIContext): Promise<Response> {
   // after the run map is cleared used to keep `running || progress` recovery
   // (and the composer lock) stuck on a finished reply.
   if (localRunning) {
-    return json({ ok: true, progress: localProgress, running: true });
+    return jsonResponse({ ok: true, progress: localProgress, running: true });
   }
 
   // Another replica may still be draining the turn after a deploy cutover.
   const lease = await getAliveAgentRunLease(userId, id);
   if (lease) {
-    return json({
+    return jsonResponse({
       ok: true,
       progress: agentRunLeaseToProgress(lease),
       running: true,
     });
   }
 
-  return json({ ok: true, progress: null, running: false });
+  return jsonResponse({ ok: true, progress: null, running: false });
 }

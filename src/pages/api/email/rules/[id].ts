@@ -16,15 +16,10 @@ import {
 import { isRepoCatalogRule } from '../../../../lib/emailRules';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { isCanonicalReaveInstall } from '../../../../lib/installConfig';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -32,11 +27,11 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const rule = await storeGetEmailRule(id);
-  if (!rule) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, rule });
+  if (!rule) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, rule });
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
@@ -45,19 +40,19 @@ export async function PUT(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const existing = await storeGetEmailRule(id);
-  if (!existing) return json({ ok: false, error: 'Not found' }, 404);
+  if (!existing) return jsonResponse({ ok: false, error: 'Not found' }, 404);
   if (isRepoCatalogRule(existing) && !isCanonicalReaveInstall()) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error:
@@ -68,16 +63,16 @@ export async function PUT(context: APIContext): Promise<Response> {
   }
 
   const input = parseEmailRuleInput(body);
-  if (!input) return json({ ok: false, error: 'status is required' }, 400);
+  if (!input) return jsonResponse({ ok: false, error: 'status is required' }, 400);
 
   const result = await storeUpdateEmailRule(id, input);
   if (!result.ok) {
-    return json(
+    return jsonResponse(
       { ok: false, error: result.error, colliding: result.colliding },
       storeEmailRuleWriteHttpStatus(result),
     );
   }
-  return json({ ok: true, rule: result.rule, storage: emailRulesStorageBackend() });
+  return jsonResponse({ ok: true, rule: result.rule, storage: emailRulesStorageBackend() });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -86,12 +81,12 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const existing = await storeGetEmailRule(id);
-  if (!existing) return json({ ok: false, error: 'Not found' }, 404);
+  if (!existing) return jsonResponse({ ok: false, error: 'Not found' }, 404);
   if (isRepoCatalogRule(existing)) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: 'Catalog rules are defined in the repo and cannot be deleted on this install.',
@@ -101,6 +96,6 @@ export async function DELETE(context: APIContext): Promise<Response> {
   }
 
   const ok = await storeDeleteEmailRule(id);
-  if (!ok) return json({ ok: false, error: 'Not found or delete failed' }, 404);
-  return json({ ok: true });
+  if (!ok) return jsonResponse({ ok: false, error: 'Not found or delete failed' }, 404);
+  return jsonResponse({ ok: true });
 }

@@ -12,40 +12,35 @@ import {
   listHubPunchlistForSlug,
   verifyPunchlistHubAuth,
 } from '../../../../lib/punchlistHub';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async ({ request }) => {
-  if (!isPunchlistHubHost()) return json({ ok: false, error: 'Not found' }, 404);
+  if (!isPunchlistHubHost()) return jsonResponse({ ok: false, error: 'Not found' }, 404);
   const auth = verifyPunchlistHubAuth(request);
-  if (!auth.ok) return json({ ok: false, error: auth.error }, auth.status);
+  if (!auth.ok) return jsonResponse({ ok: false, error: auth.error }, auth.status);
   const items = await listHubPunchlistForSlug(auth.slug);
-  return json({ ok: true, items, company: auth.company, slug: auth.slug });
+  return jsonResponse({ ok: true, items, company: auth.company, slug: auth.slug });
 };
 
 export const POST: APIRoute = async ({ request }) => {
-  if (!isPunchlistHubHost()) return json({ ok: false, error: 'Not found' }, 404);
+  if (!isPunchlistHubHost()) return jsonResponse({ ok: false, error: 'Not found' }, 404);
   const auth = verifyPunchlistHubAuth(request);
-  if (!auth.ok) return json({ ok: false, error: auth.error }, auth.status);
+  if (!auth.ok) return jsonResponse({ ok: false, error: auth.error }, auth.status);
 
   const rate = checkInMemoryRateLimit(`hub-punchlist:${auth.slug}:${clientIp(request)}`, {
     windowMs: 10 * 60 * 1000,
     maxPerWindow: 40,
   });
-  if (!rate.ok) return json({ ok: false, error: 'Too many items. Please try again later.' }, 429);
+  if (!rate.ok) return jsonResponse({ ok: false, error: 'Too many items. Please try again later.' }, 429);
 
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const company =
@@ -55,6 +50,6 @@ export const POST: APIRoute = async ({ request }) => {
     company,
     title: body.title,
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, item: result.item }, 201);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, item: result.item }, 201);
 };

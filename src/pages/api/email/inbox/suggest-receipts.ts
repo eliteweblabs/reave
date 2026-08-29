@@ -12,15 +12,10 @@ import {
 import { suggestReceiptCandidate, formatUsdAmount, extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
 import { auditForManualReceiptMark } from '../../../../lib/emailClassificationAudit';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseDays(raw: string | null): number {
   const n = Number(raw);
@@ -67,7 +62,7 @@ export async function GET(context: APIContext): Promise<Response> {
     .filter((row): row is NonNullable<typeof row> => row != null)
     .sort((a, b) => b.score - a.score || new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
 
-  return json({
+  return jsonResponse({
     ok: true,
     days,
     scanned: rows.length,
@@ -84,15 +79,15 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const raw = body && typeof body === 'object' ? (body as Record<string, unknown>).ids : null;
   if (!Array.isArray(raw) || raw.length === 0) {
-    return json({ ok: false, error: 'ids must be a non-empty array' }, 400);
+    return jsonResponse({ ok: false, error: 'ids must be a non-empty array' }, 400);
   }
   if (raw.length > 100) {
-    return json({ ok: false, error: 'Too many ids (max 100)' }, 400);
+    return jsonResponse({ ok: false, error: 'Too many ids (max 100)' }, 400);
   }
 
   const ids = raw.map((id) => String(id).trim()).filter(Boolean);
@@ -146,5 +141,5 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  return json({ ok: true, filed, skipped, requested: ids.length });
+  return jsonResponse({ ok: true, filed, skipped, requested: ids.length });
 }

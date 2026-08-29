@@ -9,15 +9,10 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
 import { simulateInboundEmail } from '../../../lib/emailSimulate';
 import type { InboundEmail } from '../../../lib/emailRules';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function asStringList(raw: unknown): string[] | undefined {
   if (raw == null) return undefined;
@@ -40,11 +35,11 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const from = String(body.from ?? '').trim();
-  if (!from) return json({ ok: false, error: 'from is required' }, 400);
+  if (!from) return jsonResponse({ ok: false, error: 'from is required' }, 400);
 
   const subject = String(body.subject ?? '');
   const text = String(body.text ?? body.body ?? '');
@@ -82,10 +77,10 @@ export async function POST(context: APIContext): Promise<Response> {
 
   try {
     const result = await simulateInboundEmail({ email, ruleOrder, skipGates, rulesOnly });
-    return json(result);
+    return jsonResponse(result);
   } catch (e) {
     console.error('[email/simulate] failed', e);
-    return json(
+    return jsonResponse(
       { ok: false, error: e instanceof Error ? e.message : 'Simulate failed' },
       500,
     );

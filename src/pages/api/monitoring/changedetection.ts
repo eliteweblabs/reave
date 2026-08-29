@@ -6,15 +6,10 @@ import {
   parseChangeDetectionWebhook,
 } from '../../../lib/siteMonitoring';
 import { secretMatches } from '../../../lib/secretCompare';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 /**
  * ChangeDetection.io → Reave push bridge.
@@ -27,16 +22,16 @@ function json(data: unknown, status = 200): Response {
  */
 export const POST: APIRoute = async ({ request, url }) => {
   if (!hasFeature('site_monitoring')) {
-    return json({ ok: false, error: 'site_monitoring not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'site_monitoring not enabled' }, 404);
   }
 
   const expected = serverEnv('CHANGEDETECTION_WEBHOOK_SECRET')?.trim();
   const key = url.searchParams.get('key')?.trim();
   if (!expected) {
-    return json({ ok: false, error: 'CHANGEDETECTION_WEBHOOK_SECRET not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CHANGEDETECTION_WEBHOOK_SECRET not configured' }, 503);
   }
   if (!secretMatches(key, expected)) {
-    return json({ ok: false, error: 'invalid key' }, 401);
+    return jsonResponse({ ok: false, error: 'invalid key' }, 401);
   }
 
   let body: unknown = null;
@@ -56,7 +51,7 @@ export const POST: APIRoute = async ({ request, url }) => {
   const payload = parseChangeDetectionWebhook(body, queryWatch);
   const result = await handleSiteChangeAlert(payload);
 
-  return json({ ok: true, ...result });
+  return jsonResponse({ ok: true, ...result });
 };
 
 export const GET: APIRoute = async () => new Response('Not found', { status: 404 });

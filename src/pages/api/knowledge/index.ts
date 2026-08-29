@@ -11,21 +11,16 @@ import {
   fileWriteKnowledge,
   isSafeKnowledgeSlug,
 } from '../../../lib/fileKnowledge';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
-  return json({ ok: true, entries: fileListKnowledge() });
+  return jsonResponse({ ok: true, entries: fileListKnowledge() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -37,7 +32,7 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const slug = String(body.slug ?? '')
@@ -47,12 +42,12 @@ export async function POST(context: APIContext): Promise<Response> {
   const content = String(body.content ?? '').trim();
 
   if (!slug || !isSafeKnowledgeSlug(slug)) {
-    return json({ ok: false, error: 'Invalid slug' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
   }
-  if (!content) return json({ ok: false, error: 'content is required' }, 400);
-  if (fileReadKnowledge(slug)) return json({ ok: false, error: 'Slug already exists' }, 409);
+  if (!content) return jsonResponse({ ok: false, error: 'content is required' }, 400);
+  if (fileReadKnowledge(slug)) return jsonResponse({ ok: false, error: 'Slug already exists' }, 409);
 
   const doc = fileWriteKnowledge(slug, content);
-  if (!doc) return json({ ok: false, error: 'Failed to create' }, 500);
-  return json({ ok: true, ...doc });
+  if (!doc) return jsonResponse({ ok: false, error: 'Failed to create' }, 500);
+  return jsonResponse({ ok: true, ...doc });
 }

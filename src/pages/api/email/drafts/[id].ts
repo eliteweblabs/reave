@@ -13,15 +13,10 @@ import {
   normalizeEmailDraftRecipients,
   updateEmailDraft,
 } from '../../../../lib/emailDraftStore';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseId(raw: string | undefined): string | null {
   const id = String(raw ?? '').trim();
@@ -33,11 +28,11 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = parseId(context.params.id);
-  if (!id) return json({ ok: false, error: 'Invalid id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Invalid id' }, 400);
 
   const event = await getEmailDraft(id);
-  if (!event) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, event });
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, event });
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
@@ -45,13 +40,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = parseId(context.params.id);
-  if (!id) return json({ ok: false, error: 'Invalid id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Invalid id' }, 400);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const patch: {
@@ -76,8 +71,8 @@ export async function PATCH(context: APIContext): Promise<Response> {
   }
 
   const event = await updateEmailDraft(id, patch);
-  if (!event) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, event });
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, event });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -85,9 +80,9 @@ export async function DELETE(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = parseId(context.params.id);
-  if (!id) return json({ ok: false, error: 'Invalid id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Invalid id' }, 400);
 
   const deleted = await deleteEmailDraft(id);
-  if (!deleted) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, id, deleted: true });
+  if (!deleted) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, id, deleted: true });
 }

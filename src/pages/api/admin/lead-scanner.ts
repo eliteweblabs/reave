@@ -19,15 +19,10 @@ import {
   saveLeadScannerConfig,
 } from '../../../lib/leadScannerStore';
 import { leadScannerStatusSummary } from '../../../lib/leadScannerScheduler';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function runWithImports(runId: string | null) {
   if (!runId) return null;
@@ -43,7 +38,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!hasFeature('real_estate_data')) {
-    return json({ error: 'real_estate_data not enabled' }, 404);
+    return jsonResponse({ error: 'real_estate_data not enabled' }, 404);
   }
 
   const runId = context.url.searchParams.get('runId')?.trim() || null;
@@ -61,7 +56,7 @@ export async function GET(context: APIContext): Promise<Response> {
     ? await runWithImports(runId)
     : await runWithImports((await getLatestLeadScannerRun(false))?.id ?? null);
 
-  return json({
+  return jsonResponse({
     ok: true,
     config,
     runs,
@@ -81,13 +76,13 @@ export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!hasFeature('real_estate_data')) {
-    return json({ error: 'real_estate_data not enabled' }, 404);
+    return jsonResponse({ error: 'real_estate_data not enabled' }, 404);
   }
 
   const action = context.url.searchParams.get('action')?.trim();
   if (action === 'scan') {
     const result = await runLeadScanner({ source: 'admin', force: true, ignoreWindow: true });
-    return json({ ok: result.ok, result });
+    return jsonResponse({ ok: result.ok, result });
   }
 
   if (action === 'import') {
@@ -95,23 +90,23 @@ export async function POST(context: APIContext): Promise<Response> {
     try {
       body = (await context.request.json()) as Record<string, unknown>;
     } catch {
-      return json({ error: 'Invalid JSON body' }, 400);
+      return jsonResponse({ error: 'Invalid JSON body' }, 400);
     }
 
     const runId = String(body.runId ?? '').trim();
     const propertyIds = Array.isArray(body.propertyIds) ? body.propertyIds.map(String) : [];
-    if (!runId) return json({ error: 'runId is required' }, 400);
-    if (!propertyIds.length) return json({ error: 'propertyIds is required' }, 400);
+    if (!runId) return jsonResponse({ error: 'runId is required' }, 400);
+    if (!propertyIds.length) return jsonResponse({ error: 'propertyIds is required' }, 400);
 
     const result = await importLeadScannerCandidates({ runId, propertyIds });
-    return json({ ok: result.ok, result });
+    return jsonResponse({ ok: result.ok, result });
   }
 
   let body: Record<string, unknown> = {};
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ error: 'Invalid JSON body' }, 400);
   }
 
   const patch: Record<string, unknown> = {};
@@ -124,5 +119,5 @@ export async function POST(context: APIContext): Promise<Response> {
   if (body.scanHourLocal != null) patch.scanHourLocal = Number(body.scanHourLocal);
 
   const config = await saveLeadScannerConfig(patch);
-  return json({ ok: true, config });
+  return jsonResponse({ ok: true, config });
 }

@@ -1,15 +1,10 @@
 import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -20,10 +15,10 @@ export async function GET(context: APIContext): Promise<Response> {
     const user = await clerkClient(context).users.getUser(userId);
     const meta = (user.publicMetadata ?? {}) as Record<string, unknown>;
     const tabOrder = Array.isArray(meta.osMapTabOrder) ? meta.osMapTabOrder : null;
-    return json({ tabOrder });
+    return jsonResponse({ tabOrder });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return json({ error: message }, 500);
+    return jsonResponse({ error: message }, 500);
   }
 }
 
@@ -36,11 +31,11 @@ export async function PUT(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
   if (!Array.isArray(body.tabOrder) || !body.tabOrder.every((k) => typeof k === 'string')) {
-    return json({ error: 'tabOrder must be a string array' }, 400);
+    return jsonResponse({ error: 'tabOrder must be a string array' }, 400);
   }
 
   try {
@@ -55,9 +50,9 @@ export async function PUT(context: APIContext): Promise<Response> {
       },
     });
 
-    return json({ ok: true });
+    return jsonResponse({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return json({ error: message }, 500);
+    return jsonResponse({ error: message }, 500);
   }
 }

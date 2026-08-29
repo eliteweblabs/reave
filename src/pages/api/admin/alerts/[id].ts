@@ -9,15 +9,10 @@ import { scheduleReviewsBadgePush } from '../../../../lib/pushBadgeSync';
 import { storeAckPushAlert } from '../../../../lib/pushAlertStore';
 import { getReviewsPendingCount } from '../../../../lib/reviewsPendingCount';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function emailIdFromAlertUrl(url?: string | null): string | null {
   const raw = url?.trim();
@@ -34,10 +29,10 @@ async function ackAlert(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = context.params.id?.trim() ?? '';
-  if (!id) return json({ ok: false, error: 'Invalid alert id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Invalid alert id' }, 400);
 
   const result = await storeAckPushAlert(id);
-  if (!result.ok) return json({ ok: false, error: result.error }, 404);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 404);
 
   // Archiving a triage/inbox push must also clear any sibling automation banner
   // for the same email (otherwise dismissing "Uncertain" can unmask "Confirm").
@@ -52,7 +47,7 @@ async function ackAlert(context: APIContext): Promise<Response> {
 
   scheduleReviewsBadgePush();
   const badgeCount = await getReviewsPendingCount().catch(() => undefined);
-  return json({
+  return jsonResponse({
     ok: true,
     alertId: result.id,
     ...(badgeCount != null ? { badgeCount } : {}),

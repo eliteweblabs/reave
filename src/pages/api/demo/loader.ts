@@ -21,28 +21,18 @@ import { DEMO_BASELINE_MODULE_IDS, demoModuleIdForFeature, mergeDemoModuleIds } 
 import { getPublicDemoSiteUrl } from '../../../lib/publicDemo';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
 import { isStaffSession } from '../../../lib/staffSession';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      ...(extraHeaders || {}),
-    },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   try {
     const rate = checkDemoLoaderCatalogRateLimit(context.request);
     if (!rate.ok) {
-      return json(
+      return jsonResponse(
         { ok: false, error: 'Too many requests. Please try again shortly.' },
         429,
-        { 'Retry-After': String(rate.retryAfterSeconds) },
+        { headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
       );
     }
 
@@ -55,7 +45,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
     const demoSiteUrl = getPublicDemoSiteUrl();
 
-    return json({
+    return jsonResponse({
       ok: true,
       canEditCatalog: isCanonicalReaveInstall() && isStaffSession(context.locals),
       modules,
@@ -83,7 +73,7 @@ export async function GET(context: APIContext): Promise<Response> {
     });
   } catch (e) {
     console.error('[demo/loader]', e);
-    return json(
+    return jsonResponse(
       { ok: false, error: e instanceof Error ? e.message : 'Failed to load demo catalog' },
       500,
     );

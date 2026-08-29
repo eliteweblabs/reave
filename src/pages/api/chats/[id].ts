@@ -70,15 +70,10 @@ import {
 import { getAliveAgentRunLease } from '../../../lib/pgAgentRunLeases';
 import { isProcessDraining } from '../../../lib/processDrain';
 import '../../../lib/processDrain';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 // serverEnv, not import.meta.env — the latter is inlined at build time and so is
 // always empty for values set on the Railway service.
@@ -276,13 +271,13 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
   const thread = await storeGetChatThreadForOwner(userId, id);
-  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
+  if (!thread) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
   const linked_jobs = await listJobsForItem('chat', id);
   const [withAuthor] = await enrichChatThreadsWithAuthors([{ ...thread, linked_jobs }]);
-  return json({ ok: true, thread: withAuthor });
+  return jsonResponse({ ok: true, thread: withAuthor });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -291,20 +286,20 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const message = String(body.message ?? '').trim();
   const images = parseChatImages(body);
   const docs = parseChatDocs(body);
   if (!message && !images.length && !docs.length) {
-    return json({ ok: false, error: 'message, images, or docs required' }, 400);
+    return jsonResponse({ ok: false, error: 'message, images, or docs required' }, 400);
   }
   const modelOverride =
     body.model == null || body.model === '' ? undefined : String(body.model);
@@ -314,11 +309,11 @@ export async function POST(context: APIContext): Promise<Response> {
   );
 
   const loaded = await loadOwnerChatThread(userId, id);
-  if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
+  if (!loaded) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
   const { ownerUserId, thread } = loaded;
 
   if (isProcessDraining()) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         draining: true,
@@ -331,7 +326,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const deployStatus = await getDeployStatus();
   if (isChatLockedForDeploy(deployStatus)) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         deploy_locked: true,
@@ -345,7 +340,7 @@ export async function POST(context: APIContext): Promise<Response> {
   // A draining replica may still own this turn — don't start a second run on
   // the new container while the first is finishing and writing its reply.
   if (!isAgentRunActive(userId, id) && (await getAliveAgentRunLease(userId, id))) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         run_in_progress: true,
@@ -403,7 +398,7 @@ export async function POST(context: APIContext): Promise<Response> {
     userMessage = persistedUser.userMessage;
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to save message';
-    return json({ ok: false, error: msg }, 500);
+    return jsonResponse({ ok: false, error: msg }, 500);
   }
 
   clearAgentProgress(userId, id);
@@ -617,7 +612,7 @@ export async function POST(context: APIContext): Promise<Response> {
     /* title is cosmetic */
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     title,
     userMessage,
@@ -635,13 +630,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const title = body.title == null ? '' : String(body.title).trim();
@@ -650,18 +645,18 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const linkJobSlug = String(body.linkJobSlug ?? body.link_job_slug ?? '').trim() || null;
 
   if (!title && !hasArchived && !hasFinalizeTitle && !linkJobSlug) {
-    return json({ ok: false, error: 'title, archived, linkJobSlug, or finalizeTitle is required' }, 400);
+    return jsonResponse({ ok: false, error: 'title, archived, linkJobSlug, or finalizeTitle is required' }, 400);
   }
 
   const loaded = await loadOwnerChatThread(userId, id);
-  if (!loaded) return json({ ok: false, error: 'Session not found' }, 404);
+  if (!loaded) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
   const { ownerUserId, thread } = loaded;
 
   if (linkJobSlug) {
     const linked = await linkProjectItem(linkJobSlug, 'chat', id);
-    if (!linked) return json({ ok: false, error: 'Failed to link project' }, 500);
+    if (!linked) return jsonResponse({ ok: false, error: 'Failed to link project' }, 500);
     const linked_jobs = await listJobsForItem('chat', id);
-    return json({ ok: true, id, linked_jobs });
+    return jsonResponse({ ok: true, id, linked_jobs });
   }
 
   let currentTitle = thread.title;
@@ -673,17 +668,17 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   if (hasArchived) {
     const updated = await storeSetChatArchived(ownerUserId, id, body.archived as boolean);
-    if (!updated) return json({ ok: false, error: 'Failed to update chat' }, 500);
-    return json({ ok: true, id, archived: body.archived, title: currentTitle });
+    if (!updated) return jsonResponse({ ok: false, error: 'Failed to update chat' }, 500);
+    return jsonResponse({ ok: true, id, archived: body.archived, title: currentTitle });
   }
 
   if (title) {
     const updated = await storeUpdateChatTitle(ownerUserId, id, title);
-    if (!updated) return json({ ok: false, error: 'Failed to update title' }, 500);
-    return json({ ok: true, id, title });
+    if (!updated) return jsonResponse({ ok: false, error: 'Failed to update title' }, 500);
+    return jsonResponse({ ok: true, id, title });
   }
 
-  return json({ ok: true, id, title: currentTitle });
+  return jsonResponse({ ok: true, id, title: currentTitle });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -692,12 +687,12 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
   const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
-  if (!ownerUserId) return json({ ok: false, error: 'Session not found' }, 404);
+  if (!ownerUserId) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
 
   const deleted = await storeDeleteChatThread(ownerUserId, id);
-  if (!deleted) return json({ ok: false, error: 'Session not found' }, 404);
-  return json({ ok: true, id });
+  if (!deleted) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
+  return jsonResponse({ ok: true, id });
 }

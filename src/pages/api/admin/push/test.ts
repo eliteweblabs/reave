@@ -9,15 +9,10 @@ import type { APIContext } from 'astro';
 import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { listPushSubscriptions } from '../../../../lib/pushSubscriptionStore';
 import { isPushConfigured, sendPushNotification } from '../../../../lib/webPush';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDeploymentOwner(context);
@@ -25,7 +20,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const configured = isPushConfigured();
   const subs = configured ? await listPushSubscriptions() : [];
-  return json({
+  return jsonResponse({
     ok: true,
     configured,
     subscriptions: subs.length,
@@ -41,12 +36,12 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   if (!isPushConfigured()) {
-    return json({ ok: false, error: 'Push not configured (set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)' }, 503);
+    return jsonResponse({ ok: false, error: 'Push not configured (set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)' }, 503);
   }
 
   const subs = await listPushSubscriptions();
   if (!subs.length) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: 'No push subscriptions yet. Enable notifications on your phone first.',
@@ -61,7 +56,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const text = await context.request.text();
     if (text.trim()) body = JSON.parse(text) as typeof body;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const title = body.title?.trim() || 'Demo notification';
@@ -79,7 +74,7 @@ export async function POST(context: APIContext): Promise<Response> {
     bypassQuietHours: true,
   });
 
-  return json({
+  return jsonResponse({
     ok: true,
     sent: true,
     subscriptions: subs.length,

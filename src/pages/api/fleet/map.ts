@@ -5,15 +5,10 @@ import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../lib/features';
 import { fleetLatestLocations, isFleetApiConfigured } from '../../../lib/fleetClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
@@ -21,16 +16,16 @@ export const GET: APIRoute = async (context) => {
   const { userId } = auth;
 
   if (!hasFeature('fleet_tracking')) {
-    return json({ ok: false, error: 'fleet_tracking not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'fleet_tracking not enabled' }, 404);
   }
   if (!isFleetApiConfigured()) {
-    return json({ ok: false, error: 'FLEET_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'FLEET_API_BASE_URL is not configured' }, 503);
   }
 
   const result = await fleetLatestLocations();
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
 
-  return json({
+  return jsonResponse({
     ok: true,
     configured: true,
     summary: {

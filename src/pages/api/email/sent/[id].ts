@@ -11,25 +11,20 @@ import {
   updateOutboundEmailBodies,
 } from '../../../../lib/projectOutboundEmail';
 import { fetchResendSentEmail, hydrateSentHtmlCidImages } from '../../../../lib/resendSentEmail';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const event = await getOutboundEmail(id);
-  if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let bodyText = event.bodyText ?? '';
   let bodyHtml = event.bodyHtml ?? '';
@@ -56,7 +51,7 @@ export async function GET(context: APIContext): Promise<Response> {
     void updateOutboundEmailBodies(event.id, { bodyText, bodyHtml });
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     event: {
       ...event,

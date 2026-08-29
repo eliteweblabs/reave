@@ -18,6 +18,7 @@ import { isPushConfigured } from '../../../lib/webPush';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
@@ -33,12 +34,6 @@ function enrichEmailEvent(event: EmailInboxRecord) {
   };
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -56,7 +51,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const brand = await getCompanyBrandContext(context.request);
   const reviewsPending = await getReviewsPendingCount();
 
-  return json({
+  return jsonResponse({
     ok: true,
     events: events.map((e) => enrichEmailEvent(e)),
     digest: {

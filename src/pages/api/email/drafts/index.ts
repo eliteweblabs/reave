@@ -11,15 +11,10 @@ import {
   listEmailDrafts,
   normalizeEmailDraftRecipients,
 } from '../../../../lib/emailDraftStore';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -29,7 +24,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const limit = Math.min(Math.max(Number(limitRaw) || 200, 1), 500);
   const events = await listEmailDrafts(limit);
 
-  return json({ ok: true, events });
+  return jsonResponse({ ok: true, events });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -41,7 +36,7 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const draft = await createEmailDraft({
@@ -59,5 +54,5 @@ export async function POST(context: APIContext): Promise<Response> {
     createdBy: userId,
   });
 
-  return json({ ok: true, event: draft }, 201);
+  return jsonResponse({ ok: true, event: draft }, 201);
 }

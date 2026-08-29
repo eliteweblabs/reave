@@ -12,15 +12,10 @@ import {
 } from '../../../../lib/mediaLibrary';
 import { mediaDropFolderInfo } from '../../../../lib/mediaWebdav/auth';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -29,7 +24,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const limitRaw = context.url.searchParams.get('limit');
   const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 200;
   const items = await storeListMedia(Number.isFinite(limit) ? limit : 200);
-  return json({
+  return jsonResponse({
     ok: true,
     items,
     count: items.length,
@@ -46,20 +41,20 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     form = await context.request.formData();
   } catch {
-    return json({ ok: false, error: 'Expected multipart form data' }, 400);
+    return jsonResponse({ ok: false, error: 'Expected multipart form data' }, 400);
   }
 
   const file = form.get('file');
   if (!(file instanceof File) || !file.size) {
-    return json({ ok: false, error: 'Missing file' }, 400);
+    return jsonResponse({ ok: false, error: 'Missing file' }, 400);
   }
 
   const mediaType = inferMediaLibraryType(file);
   if (!mediaType) {
-    return json({ ok: false, error: 'File must be an image (JPEG, PNG, GIF, WebP, SVG) or PDF' }, 400);
+    return jsonResponse({ ok: false, error: 'File must be an image (JPEG, PNG, GIF, WebP, SVG) or PDF' }, 400);
   }
   if (file.size > MEDIA_LIBRARY_MAX_BYTES) {
-    return json(
+    return jsonResponse(
       { ok: false, error: `File too large (max ${MEDIA_LIBRARY_MAX_BYTES / (1024 * 1024)} MB)` },
       400,
     );
@@ -76,6 +71,6 @@ export async function POST(context: APIContext): Promise<Response> {
     uploadedBy: userId,
     slug: typeof slugField === 'string' ? slugField : null,
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, item: result.item });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, item: result.item });
 }

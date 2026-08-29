@@ -18,25 +18,17 @@ import type { APIContext } from 'astro';
 import { isPexelsConfigured, pexelsSearchPhotos } from '../../../lib/pexelsClient';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasStockPhotoSearch } from '../../../lib/features';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-    },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   if (!hasStockPhotoSearch()) {
-    return json(
+    return jsonResponse(
       {
         error: 'Stock photos module is not enabled',
         hint: 'Add website or stock_photos to this install’s features[] in config/config-{slug}.json',
@@ -46,7 +38,7 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   if (!isPexelsConfigured()) {
-    return json(
+    return jsonResponse(
       {
         error: 'Pexels is not configured',
         hint: 'Set PEXELS_API_KEY in Railway → reΛVe.app App service → Variables',
@@ -57,7 +49,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const url = new URL(context.request.url);
   const q = url.searchParams.get('q')?.trim() ?? '';
-  if (!q) return json({ error: 'q (search query) is required' }, 400);
+  if (!q) return jsonResponse({ error: 'q (search query) is required' }, 400);
 
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
   const perPage = Math.max(
@@ -76,8 +68,8 @@ export async function GET(context: APIContext): Promise<Response> {
 
   if (!result.ok) {
     const status = result.status === 429 ? 429 : 502;
-    return json({ error: result.error }, status);
+    return jsonResponse({ error: result.error }, status);
   }
 
-  return json(result);
+  return jsonResponse(result);
 }

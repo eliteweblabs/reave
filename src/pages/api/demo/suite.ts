@@ -14,19 +14,9 @@ import {
   parseDemoSuiteFromSearchParams,
   serializeDemoSuite,
 } from '../../../lib/demoSuite';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      ...(extraHeaders || {}),
-    },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const url = new URL(context.request.url);
@@ -34,7 +24,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
 
   if (!parsed) {
-    return json({
+    return jsonResponse({
       ok: true,
       catalog: demoModuleCatalog(),
       suite: cookieSuite,
@@ -52,18 +42,20 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   if (!parsed.ok) {
-    return json({ ok: false, error: parsed.error, catalog: demoModuleCatalog() }, 400);
+    return jsonResponse({ ok: false, error: parsed.error, catalog: demoModuleCatalog() }, 400);
   }
 
-  return json({ ok: true, suite: parsed.suite, catalog: demoModuleCatalog() });
+  return jsonResponse({ ok: true, suite: parsed.suite, catalog: demoModuleCatalog() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
   const rate = checkDemoLoaderCatalogRateLimit(context.request);
   if (!rate.ok) {
-    return json({ error: 'Too many requests' }, 429, {
-      'Retry-After': String(rate.retryAfterSeconds),
-    });
+    return jsonResponse(
+      { error: 'Too many requests' },
+      429,
+      { headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
+    );
   }
 
   const url = new URL(context.request.url);
@@ -81,12 +73,15 @@ export async function POST(context: APIContext): Promise<Response> {
         parsed = parseDemoSuiteFromSearchParams(params);
       }
     } catch {
-      return json({ error: 'Invalid JSON' }, 400);
+      return jsonResponse({ error: 'Invalid JSON' }, 400);
     }
   }
 
   if (!parsed || !parsed.ok) {
-    return json({ error: parsed && !parsed.ok ? parsed.error : 'Missing demo suite params' }, 400);
+    return jsonResponse(
+      { error: parsed && !parsed.ok ? parsed.error : 'Missing demo suite params' },
+      400,
+    );
   }
 
   context.cookies.set(DEMO_SUITE_COOKIE, serializeDemoSuite(parsed.suite), {
@@ -97,7 +92,7 @@ export async function POST(context: APIContext): Promise<Response> {
     httpOnly: false,
   });
 
-  return json({
+  return jsonResponse({
     ok: true,
     suite: parsed.suite,
     redirect: '/admin/?demoSuite=1',

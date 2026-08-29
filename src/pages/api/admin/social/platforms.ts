@@ -8,22 +8,17 @@ import {
   DEFAULT_VISIBLE_SOCIAL_PLATFORMS,
   socialPlatformCatalogForUi,
 } from '../../../../lib/social/platforms.ts';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
-  return json({
+  return jsonResponse({
     ok: true,
     platforms: socialPlatformCatalogForUi(),
     defaultVisible: DEFAULT_VISIBLE_SOCIAL_PLATFORMS,

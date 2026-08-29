@@ -12,6 +12,7 @@ import {
 } from '../../../../lib/notificationTriage';
 import type { EmailTriageFeedbackAction } from '../../../../lib/emailTriage';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
@@ -22,12 +23,6 @@ const VALID_FEEDBACK = new Set<EmailTriageFeedbackAction>([
   'teach',
 ]);
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -41,12 +36,12 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const action = body.action?.trim() as EmailTriageFeedbackAction;
   if (!action || !VALID_FEEDBACK.has(action)) {
-    return json({ ok: false, error: 'Invalid triage action' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid triage action' }, 400);
   }
 
   const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : '';
@@ -75,14 +70,14 @@ export async function POST(context: APIContext): Promise<Response> {
     input.detail ||
     parseEmailIdFromNotificationUrl(input.url);
   if (!hasTarget) {
-    return json({ ok: false, error: 'Notification context required' }, 400);
+    return jsonResponse({ ok: false, error: 'Notification context required' }, 400);
   }
 
   const result = await triageNotification(input);
   const event = result.event;
   const monetaryAmount = event ? extractMonetaryAmountFromEmail(event) : null;
 
-  return json({
+  return jsonResponse({
     ok: true,
     emailId: result.emailId,
     ruleId: result.ruleId,

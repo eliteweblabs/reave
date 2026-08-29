@@ -24,6 +24,7 @@ import {
   setContactKind,
   type ContactRecord,
 } from '../../../lib/contactApi';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 function clientListEntry(c: ContactRecord) {
   const portal = extractPortal(c);
@@ -40,19 +41,13 @@ async function clientsWithPortalLinks(contacts: ContactRecord[]): Promise<Contac
 }
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   const url = new URL(context.request.url);
@@ -63,12 +58,12 @@ export async function GET(context: APIContext): Promise<Response> {
 
   if (!q) {
     const result = await listContacts({ limit });
-    if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+    if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
     const withLinks = await clientsWithPortalLinks(result.data.contacts);
     const clients = filterClientsByKind(withLinks.map(clientListEntry), kind).sort(
       compareClientsForList,
     );
-    return json({
+    return jsonResponse({
       ok: true,
       total: clients.length,
       clients,
@@ -76,7 +71,7 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   const result = await searchClientsEnhanced(q, limit, { kind });
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
 
   // searchClientsEnhanced already attaches slim portal links for branding/personal.
   const clients = result.data.contacts.map((c) => ({
@@ -84,7 +79,7 @@ export async function GET(context: APIContext): Promise<Response> {
     matchReason: c._matchReason,
   }));
 
-  return json({
+  return jsonResponse({
     ok: true,
     total: clients.length,
     clients,
@@ -96,18 +91,18 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
   const { userId } = auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const name = String(body.name ?? '').trim();
-  if (!name) return json({ ok: false, error: 'name is required' }, 400);
+  if (!name) return jsonResponse({ ok: false, error: 'name is required' }, 400);
 
   const result = await createContact({
     name,
@@ -117,12 +112,12 @@ export async function POST(context: APIContext): Promise<Response> {
     notes: String(body.notes ?? '').trim() || undefined,
   });
 
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
 
   const kind = parseClientKindInput(body.kind, body.personal === true ? true : undefined);
   if (kind !== 'professional') {
     const flagged = await setContactKind(result.data.uid, kind);
-    if (!flagged.ok) return json({ ok: false, error: flagged.error }, 502);
+    if (!flagged.ok) return jsonResponse({ ok: false, error: flagged.error }, 502);
   }
 
   // Best-effort address from Google Places (company or contact name).
@@ -140,7 +135,7 @@ export async function POST(context: APIContext): Promise<Response> {
       .catch((e) => console.warn('[contactPortalEnrich] trigger failed', e));
   }
 
-  return json(
+  return jsonResponse(
     {
       ok: true,
       ...contactSummary(result.data),

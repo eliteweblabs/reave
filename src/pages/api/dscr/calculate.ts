@@ -9,18 +9,13 @@ import {
   serializeDscrResult,
 } from '../../../lib/dscrCalculator';
 import { hasFeature } from '../../../lib/features';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function notEnabled(): Response {
-  return json({ ok: false, error: 'dscr_calculator not enabled' }, 404);
+  return jsonResponse({ ok: false, error: 'dscr_calculator not enabled' }, 404);
 }
 
 function fromParams(params: URLSearchParams): Record<string, unknown> {
@@ -31,9 +26,9 @@ function fromParams(params: URLSearchParams): Record<string, unknown> {
 
 function run(raw: Record<string, unknown>): Response {
   const parsed = parseDscrInput(raw);
-  if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
+  if ('error' in parsed) return jsonResponse({ ok: false, error: parsed.error }, 400);
   const result = calculateDscr(parsed);
-  return json({ ok: true, result: serializeDscrResult(result) });
+  return jsonResponse({ ok: true, result: serializeDscrResult(result) });
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -48,7 +43,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const parsed = await context.request.json();
     if (parsed && typeof parsed === 'object') body = parsed as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
   return run(body);
 }

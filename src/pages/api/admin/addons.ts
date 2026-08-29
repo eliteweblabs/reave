@@ -37,22 +37,17 @@ import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
 import { formatModulePrice } from '../../../lib/moduleStorefront';
 import { setFeatureOverride } from '../../../lib/featureOverridesStore';
 import { purgePluginKnowledgeForFeature } from '../../../lib/knowledgeStore';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   if (isDemoMode()) {
-    return json({ ok: false, error: 'Add-ons are disabled in demo mode.' }, 400);
+    return jsonResponse({ ok: false, error: 'Add-ons are disabled in demo mode.' }, 400);
   }
 
   await ensureFeatureOverridesLoaded();
@@ -62,7 +57,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const entitlementByFeature = new Map(entitlements.map((e) => [e.feature, e]));
   const catalog = buildAddonsCatalog({ owner, entitlements: entitlementByFeature });
 
-  return json({
+  return jsonResponse({
     ok: true,
     owner,
     opsInstall: isOpsInstall(),
@@ -76,19 +71,19 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   if (isDemoMode()) {
-    return json({ ok: false, error: 'Add-ons are disabled in demo mode.' }, 400);
+    return jsonResponse({ ok: false, error: 'Add-ons are disabled in demo mode.' }, 400);
   }
 
   let body: Record<string, unknown>;
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const action = String(body.action ?? '').trim();
   const featureRaw = String(body.feature ?? '').trim();
-  if (!isFeatureId(featureRaw)) return json({ ok: false, error: 'Unknown module.' }, 400);
+  if (!isFeatureId(featureRaw)) return jsonResponse({ ok: false, error: 'Unknown module.' }, 400);
   const feature = featureRaw as FeatureId;
 
   await ensureFeatureOverridesLoaded();
@@ -129,7 +124,7 @@ export async function POST(context: APIContext): Promise<Response> {
       bypassQuietHours: true,
     }).catch(() => undefined);
 
-    return json({
+    return jsonResponse({
       ok: true,
       feature,
       enabled,
@@ -141,18 +136,18 @@ export async function POST(context: APIContext): Promise<Response> {
   if (action === 'request') {
     const owner = await requireDeploymentOwner(context);
     if (!(owner instanceof Response)) {
-      return json({ ok: false, error: 'Owners toggle add-ons directly — use action toggle.' }, 400);
+      return jsonResponse({ ok: false, error: 'Owners toggle add-ons directly — use action toggle.' }, 400);
     }
 
     if (isPrivateFeature(feature) || isServiceFeature(feature) || !resolvedIsPaidModule(feature)) {
-      return json({ ok: false, error: 'That add-on is not available for self-serve request.' }, 400);
+      return jsonResponse({ ok: false, error: 'That add-on is not available for self-serve request.' }, 400);
     }
     if (hasFeature(feature)) {
-      return json({ ok: false, error: 'This add-on is already active on your install.' }, 400);
+      return jsonResponse({ ok: false, error: 'This add-on is already active on your install.' }, 400);
     }
 
     const price = resolvedModulePrice(feature);
-    if (!price) return json({ ok: false, error: 'No price on file.' }, 400);
+    if (!price) return jsonResponse({ ok: false, error: 'No price on file.' }, 400);
     const label = catalogLabel(feature, FEATURE_LABELS[feature]);
     const company = await getCompanyConfig(context.request);
     const user = await getAuthUser(context);
@@ -183,8 +178,8 @@ export async function POST(context: APIContext): Promise<Response> {
       },
     }).catch(() => undefined);
 
-    return json({ ok: true, entitlement, requested: true });
+    return jsonResponse({ ok: true, entitlement, requested: true });
   }
 
-  return json({ ok: false, error: 'Unknown action' }, 400);
+  return jsonResponse({ ok: false, error: 'Unknown action' }, 400);
 }

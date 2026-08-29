@@ -8,15 +8,10 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { getNewsletterTemplate, type NewsletterTemplateId } from '../../../lib/newsletterTemplates';
 import { queueBroadcast, processDueNewsletterSends } from '../../../lib/newsletterEngine';
 import { ensureNewsletterScheduler } from '../../../lib/newsletterScheduler';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function toParagraphs(raw: unknown): string[] | undefined {
   if (Array.isArray(raw)) return raw.map((p) => String(p)).filter(Boolean);
@@ -34,18 +29,18 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const templateId = String(body.templateId ?? '').trim();
-  if (!getNewsletterTemplate(templateId)) return json({ ok: false, error: 'Unknown template' }, 400);
+  if (!getNewsletterTemplate(templateId)) return jsonResponse({ ok: false, error: 'Unknown template' }, 400);
 
   let audience: 'all' | string[] = 'all';
   if (Array.isArray(body.audience)) {
     audience = body.audience.map((u) => String(u).trim()).filter(Boolean);
-    if (!audience.length) return json({ ok: false, error: 'audience is empty' }, 400);
+    if (!audience.length) return jsonResponse({ ok: false, error: 'audience is empty' }, 400);
   } else if (body.audience && body.audience !== 'all') {
-    return json({ ok: false, error: "audience must be 'all' or an array of uids" }, 400);
+    return jsonResponse({ ok: false, error: "audience must be 'all' or an array of uids" }, 400);
   }
 
   const result = await queueBroadcast({
@@ -57,7 +52,7 @@ export async function POST(context: APIContext): Promise<Response> {
     ctaUrl: body.ctaUrl ? String(body.ctaUrl) : undefined,
     ctaLabel: body.ctaLabel ? String(body.ctaLabel) : undefined,
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
 
   ensureNewsletterScheduler();
 
@@ -68,7 +63,7 @@ export async function POST(context: APIContext): Promise<Response> {
     dispatch = { sent: proc.sent, failed: proc.failed };
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     queued: result.queued,
     skippedUnsubscribed: result.skippedUnsub,

@@ -11,15 +11,10 @@ import {
   type NewsletterTemplateContext,
   type NewsletterTemplateId,
 } from '../../../lib/newsletterTemplates';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function toParagraphs(raw: unknown): string[] | undefined {
   if (Array.isArray(raw)) return raw.map((p) => String(p)).filter(Boolean);
@@ -38,11 +33,11 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const templateId = String(body.templateId ?? '').trim();
-  if (!getNewsletterTemplate(templateId)) return json({ ok: false, error: 'Unknown template' }, 400);
+  if (!getNewsletterTemplate(templateId)) return jsonResponse({ ok: false, error: 'Unknown template' }, 400);
 
   const company = await getCompanyConfig();
   const context_: NewsletterTemplateContext = {
@@ -63,7 +58,7 @@ export async function POST(context: APIContext): Promise<Response> {
     unsubscribeUrl: '#preview-unsubscribe',
     subjectOverride: context_.subject,
   });
-  if ('error' in rendered) return json({ ok: false, error: rendered.error }, 400);
+  if ('error' in rendered) return jsonResponse({ ok: false, error: rendered.error }, 400);
 
-  return json({ ok: true, subject: rendered.subject, html: rendered.html });
+  return jsonResponse({ ok: true, subject: rendered.subject, html: rendered.html });
 }

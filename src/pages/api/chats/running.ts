@@ -3,15 +3,10 @@ import { listActiveRunThreadIds } from '../../../lib/agentRunControl';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { listAliveAgentRunThreadIds } from '../../../lib/pgAgentRunLeases';
 import '../../../lib/processDrain';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 /**
  * GET /api/chats/running — thread ids with an in-flight agent run for the
@@ -27,5 +22,5 @@ export async function GET(context: APIContext): Promise<Response> {
   const local = listActiveRunThreadIds(userId);
   const leased = await listAliveAgentRunThreadIds(userId);
   const running = Array.from(new Set([...local, ...leased]));
-  return json({ ok: true, running });
+  return jsonResponse({ ok: true, running });
 }

@@ -20,15 +20,10 @@ import {
   storeListMemories,
   storeUpsertMemory,
 } from '../../../lib/agentMemoryStore';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -38,7 +33,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const query = context.url.searchParams.get('q')?.trim() || undefined;
   const kind = kindRaw ? normalizeMemoryKind(kindRaw) : undefined;
   const memories = await storeListMemories({ userId, kind, query, limit: 80 });
-  return json({ ok: true, count: memories.length, memories, kinds: MEMORY_KINDS });
+  return jsonResponse({ ok: true, count: memories.length, memories, kinds: MEMORY_KINDS });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -49,11 +44,11 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
   const content = normalizeMemoryContent(body.content);
   if (!isUsableMemoryContent(content)) {
-    return json({ ok: false, error: 'content is required and must not look like a secret' }, 400);
+    return jsonResponse({ ok: false, error: 'content is required and must not look like a secret' }, 400);
   }
   const kind = normalizeMemoryKind(body.kind);
   const scope = body.scope
@@ -67,8 +62,8 @@ export async function POST(context: APIContext): Promise<Response> {
     content,
     source: 'owner',
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 500);
-  return json({ ok: true, created: result.created, memory: result.memory });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 500);
+  return jsonResponse({ ok: true, created: result.created, memory: result.memory });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -91,6 +86,6 @@ export async function DELETE(context: APIContext): Promise<Response> {
     id: Number.isFinite(id) && id > 0 ? id : undefined,
     key,
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, deleted: result.deleted });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, deleted: result.deleted });
 }

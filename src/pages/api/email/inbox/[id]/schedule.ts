@@ -44,15 +44,10 @@ import { scheduleFormUrl } from '../../../../../lib/inboundEmailReply';
 import { storeListWork } from '../../../../../lib/workStore';
 import { isEmailSendConfigured } from '../../../../../lib/outbound';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function schedulingEnabled(): boolean {
   return hasFeature('scheduling');
@@ -165,7 +160,7 @@ async function handleNotifyScheduleLink(
   });
   const sent = await sendSchedulingReply(event, mail, 'notify_schedule_link');
   if (!sent.ok) {
-    return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
+    return jsonResponse({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
   }
   const updated = await storeUpdateEmailInbox(id, {
     action: 'filed',
@@ -173,7 +168,7 @@ async function handleNotifyScheduleLink(
     acceptAutomationDecision: true,
     markAutomationAck: true,
   });
-  return json({
+  return jsonResponse({
     ok: true,
     notified: true,
     action: 'notify-schedule-link',
@@ -189,14 +184,14 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   if (!schedulingEnabled()) {
-    return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
+    return jsonResponse({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
   }
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const loaded = await loadEmail(id);
-  if ('error' in loaded) return json({ ok: false, error: loaded.error }, loaded.status);
+  if ('error' in loaded) return jsonResponse({ ok: false, error: loaded.error }, loaded.status);
 
   const { event, proposedStart } = loaded;
   const checkRes = await checkEmailMeetingSlot({
@@ -204,9 +199,9 @@ export async function GET(context: APIContext): Promise<Response> {
     from: event.from,
     contactName: event.contactName,
   });
-  if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
+  if (!checkRes.ok) return jsonResponse({ ok: false, error: checkRes.error }, 503);
 
-  return json({
+  return jsonResponse({
     ok: true,
     alreadyBooked: Boolean(event.bookingUid),
     bookingUid: event.bookingUid,
@@ -222,14 +217,14 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   if (!schedulingEnabled()) {
-    return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
+    return jsonResponse({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
   }
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const event = await storeGetEmailInbox(id);
-  if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: unknown;
   try {
@@ -265,12 +260,12 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (action === 'prepare-project') {
     if (!event.bookingUid) {
-      return json({ ok: false, error: 'No booking on this message' }, 400);
+      return jsonResponse({ ok: false, error: 'No booking on this message' }, 400);
     }
     const bookingStart = event.bookingStart || proposedStart;
     const suggestions = await openProjectSuggestions(event.contactUid);
     if (event.jobSlug) {
-      return json({
+      return jsonResponse({
         ok: true,
         action: 'prepare-project',
         linked: true,
@@ -287,7 +282,7 @@ export async function POST(context: APIContext): Promise<Response> {
       from: event.from,
       bookingStart,
     });
-    return json({
+    return jsonResponse({
       ok: true,
       action: 'prepare-project',
       linked: false,
@@ -301,17 +296,17 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (action === 'attach-project') {
     if (!event.bookingUid) {
-      return json({ ok: false, error: 'No booking on this message' }, 400);
+      return jsonResponse({ ok: false, error: 'No booking on this message' }, 400);
     }
     const bookingStart = event.bookingStart || proposedStart;
     if (!bookingStart) {
-      return json({ ok: false, error: 'No booking time on this message' }, 400);
+      return jsonResponse({ ok: false, error: 'No booking time on this message' }, 400);
     }
     const withProject = await attachMeetingProject(id, event, event.bookingUid, bookingStart);
     if (!withProject.jobSlug) {
-      return json({ ok: false, error: 'Could not create or link a project' }, 502);
+      return jsonResponse({ ok: false, error: 'Could not create or link a project' }, 502);
     }
-    return json({
+    return jsonResponse({
       ok: true,
       action: 'attach-project',
       jobSlug: withProject.jobSlug,
@@ -322,11 +317,11 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (action === 'confirm') {
     if (!event.bookingUid) {
-      return json({ ok: false, error: 'No booking on this message' }, 400);
+      return jsonResponse({ ok: false, error: 'No booking on this message' }, 400);
     }
     const whenIso = event.bookingStart || proposedStart;
     if (!whenIso) {
-      return json({ ok: false, error: 'No booking time on this message' }, 400);
+      return jsonResponse({ ok: false, error: 'No booking time on this message' }, 400);
     }
     // Client already requested this meeting (often via a no-reply third-party
     // address) — confirm locally without emailing them back.
@@ -338,7 +333,7 @@ export async function POST(context: APIContext): Promise<Response> {
       markAutomationAck: true,
     });
     const whenLabel = formatWhenLabel(whenIso);
-    return json({
+    return jsonResponse({
       ok: true,
       confirmed: true,
       notified: false,
@@ -355,13 +350,13 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (!proposedStart) {
-    return json({ ok: false, error: 'No proposed meeting time on this message' }, 400);
+    return jsonResponse({ ok: false, error: 'No proposed meeting time on this message' }, 400);
   }
 
   const startRaw = rec.start != null ? String(rec.start).trim() : proposedStart;
   const start = new Date(startRaw);
   if (Number.isNaN(start.getTime())) {
-    return json({ ok: false, error: 'Invalid start time' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid start time' }, 400);
   }
 
   const durationRaw = rec.durationMinutes ?? rec.duration_minutes;
@@ -393,11 +388,11 @@ export async function POST(context: APIContext): Promise<Response> {
     contactName: event.contactName,
     durationMinutes: bookingLength.durationMinutes,
   });
-  if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
+  if (!checkRes.ok) return jsonResponse({ ok: false, error: checkRes.error }, 503);
 
   if (action === 'notify-conflict') {
     if (checkRes.check.available) {
-      return json(
+      return jsonResponse(
         { ok: false, error: 'That time appears to be open — use Confirm instead', check: checkRes.check },
         409,
       );
@@ -409,7 +404,7 @@ export async function POST(context: APIContext): Promise<Response> {
       bookingUrl: publicBookingPageUrl(),
     });
     const sent = await sendSchedulingReply(event, mail);
-    if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
+    if (!sent.ok) return jsonResponse({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
 
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
@@ -417,7 +412,7 @@ export async function POST(context: APIContext): Promise<Response> {
       acceptAutomationDecision: true,
       markAutomationAck: true,
     });
-    return json({
+    return jsonResponse({
       ok: true,
       notified: true,
       action: 'notify-conflict',
@@ -432,7 +427,7 @@ export async function POST(context: APIContext): Promise<Response> {
       event.bookingUid,
       event.bookingStart || proposedStart,
     );
-    return json({
+    return jsonResponse({
       ok: true,
       alreadyBooked: true,
       bookingUid: withProject.bookingUid,
@@ -444,7 +439,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (!checkRes.check.available && action === 'accept-notify') {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: checkRes.check.conflictReason || 'Time slot is not available',
@@ -455,7 +450,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (!checkRes.check.available && action === 'book') {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: checkRes.check.conflictReason || 'Time slot is not available',
@@ -480,7 +475,7 @@ export async function POST(context: APIContext): Promise<Response> {
       acceptAutomationDecision: true,
       markAutomationAck: true,
     });
-    return json({
+    return jsonResponse({
       ok: true,
       alreadyBooked: true,
       notified: false,
@@ -494,7 +489,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (!attendee.email.includes('@')) {
-    return json({ ok: false, error: 'Could not determine attendee email from sender' }, 400);
+    return jsonResponse({ ok: false, error: 'Could not determine attendee email from sender' }, 400);
   }
 
   const address = resolveBookingAddress(rec.address);
@@ -532,7 +527,7 @@ export async function POST(context: APIContext): Promise<Response> {
     ...(confirmContactUid ? { confirmContactUid } : {}),
   });
   if (!created.ok) {
-    return json({ ok: false, error: created.error }, created.status ?? 502);
+    return jsonResponse({ ok: false, error: created.error }, created.status ?? 502);
   }
 
   const bookingUid = created.data.booking?.uid ?? null;
@@ -540,7 +535,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const durationMinutes =
     created.data.durationMinutes ?? bookingLength.durationMinutes ?? DEFAULT_MEETING_MINUTES;
   if (!bookingUid) {
-    return json({ ok: false, error: 'Booking API did not return a booking id' }, 502);
+    return jsonResponse({ ok: false, error: 'Booking API did not return a booking id' }, 502);
   }
 
   let updated = await storeUpdateEmailInbox(id, {
@@ -548,7 +543,7 @@ export async function POST(context: APIContext): Promise<Response> {
     bookingUid,
     bookingStart,
   });
-  if (!updated) return json({ ok: false, error: 'Booked but failed to update inbox record' }, 500);
+  if (!updated) return jsonResponse({ ok: false, error: 'Booked but failed to update inbox record' }, 500);
 
   updated = await attachMeetingProject(id, updated, bookingUid, bookingStart);
 
@@ -561,7 +556,7 @@ export async function POST(context: APIContext): Promise<Response> {
       acceptAutomationDecision: true,
       markAutomationAck: true,
     });
-    return json({
+    return jsonResponse({
       ok: true,
       booked: true,
       notified: false,
@@ -574,7 +569,7 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     bookingUid,
     bookingStart,

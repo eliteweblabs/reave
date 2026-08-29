@@ -8,15 +8,10 @@ import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../lib/features';
 import { runUptimePoll, uptimePollSecret, ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { authorizePollOrOwner } from '../../../lib/pollRouteAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const key = context.url.searchParams.get('key')?.trim() ?? null;
@@ -24,12 +19,12 @@ export const GET: APIRoute = async (context) => {
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('uptime_monitoring')) {
-    return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
   }
   ensureUptimePollScheduler();
   const result = await runUptimePoll();
-  if (!result.ok) return json({ ...result, ok: false }, result.error ? 503 : 500);
-  return json({ ok: true, synced: result.synced });
+  if (!result.ok) return jsonResponse({ ...result, ok: false }, result.error ? 503 : 500);
+  return jsonResponse({ ok: true, synced: result.synced });
 };
 
 export const POST: APIRoute = GET;

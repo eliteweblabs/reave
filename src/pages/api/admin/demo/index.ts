@@ -15,22 +15,17 @@ import {
 } from '../../../../lib/demoSuite';
 import { DEMO_SUITE_COOKIE, DEMO_SUITE_COOKIE_MAX_AGE } from '../../../../lib/demoSuite';
 import { shouldSeedOnBoot } from '../../../../lib/installSeed';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('demo')) {
-    return json({
+    return jsonResponse({
       ok: true,
       enabled: false,
       note: 'Demo plugin not enabled — set INSTALL_CONFIG=demo or add "demo" to install features',
@@ -39,7 +34,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const status = await getDemoSetupStatus();
   const cookieSuite = parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value);
-  return json({ ok: true, enabled: true, ...status, suite: cookieSuite });
+  return jsonResponse({ ok: true, enabled: true, ...status, suite: cookieSuite });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -47,10 +42,10 @@ export async function POST(context: APIContext): Promise<Response> {
   if (owner instanceof Response) return owner;
 
   if (!hasFeature('demo') && !shouldSeedOnBoot()) {
-    return json({ error: 'Demo plugin not enabled on this install' }, 403);
+    return jsonResponse({ error: 'Demo plugin not enabled on this install' }, 403);
   }
   if (!isDemoMode() && !shouldSeedOnBoot()) {
-    return json(
+    return jsonResponse(
       { error: 'Demo mode is not active (set DEMO_MODE=1 or INSTALL_CONFIG=demo)' },
       403,
     );
@@ -61,14 +56,14 @@ export async function POST(context: APIContext): Promise<Response> {
     const text = await context.request.text();
     if (text.trim()) body = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
   const dryRun = body.dryRun === true || body.dry_run === true;
   if (!dryRun) {
     const status = await getDemoSetupStatus();
     if (!status.readyToSeed) {
-      return json(
+      return jsonResponse(
         {
           error: 'Demo seed prerequisites not met',
           checks: status.checks.filter((c) => !c.ok),
@@ -95,7 +90,7 @@ export async function POST(context: APIContext): Promise<Response> {
   });
 
   if (!result.ok) {
-    return json(
+    return jsonResponse(
       {
         error: result.error,
         stdout: result.stdout?.slice(-2000),
@@ -106,7 +101,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const statusAfter = dryRun ? null : await getDemoSetupStatus();
-  return json({
+  return jsonResponse({
     ok: true,
     dryRun,
     stdout: result.stdout.slice(-4000),

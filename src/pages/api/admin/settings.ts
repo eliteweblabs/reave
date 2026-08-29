@@ -10,15 +10,10 @@ import {
   saveAppSettings,
 } from '../../../lib/appSettingsStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 function parseOptionalBool(raw: unknown): boolean | undefined {
   if (raw === undefined) return undefined;
@@ -34,10 +29,10 @@ export async function GET(context: APIContext): Promise<Response> {
 
   try {
     const settings = await getAppSettings();
-    return json({ ok: true, settings });
+    return jsonResponse({ ok: true, settings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return json({ ok: false, error: message }, 500);
+    return jsonResponse({ ok: false, error: message }, 500);
   }
 }
 
@@ -49,7 +44,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const patch: {
@@ -60,36 +55,36 @@ export async function PATCH(context: APIContext): Promise<Response> {
   if (body.otpTtlMinutes !== undefined) {
     const n = Number(body.otpTtlMinutes);
     if (!Number.isFinite(n)) {
-      return json({ ok: false, error: 'otpTtlMinutes must be a number (0–1440).' }, 400);
+      return jsonResponse({ ok: false, error: 'otpTtlMinutes must be a number (0–1440).' }, 400);
     }
     patch.otpTtlMinutes = clampOtpTtlMinutes(n, 5);
   }
   if (body.recentlyViewedDays !== undefined) {
     const n = Number(body.recentlyViewedDays);
     if (!Number.isFinite(n)) {
-      return json({ ok: false, error: 'recentlyViewedDays must be a number (1–365).' }, 400);
+      return jsonResponse({ ok: false, error: 'recentlyViewedDays must be a number (1–365).' }, 400);
     }
     patch.recentlyViewedDays = clampRecentlyViewedDays(n, 7);
   }
   if (body.shareOpenChatAlerts !== undefined) {
     const parsed = parseOptionalBool(body.shareOpenChatAlerts);
     if (parsed === undefined) {
-      return json({ ok: false, error: 'shareOpenChatAlerts must be a boolean.' }, 400);
+      return jsonResponse({ ok: false, error: 'shareOpenChatAlerts must be a boolean.' }, 400);
     }
     patch.shareOpenChatAlerts = coerceShareOpenChatAlerts(parsed, false);
   }
 
   if (Object.keys(patch).length === 0) {
-    return json({ ok: false, error: 'No settings to update.' }, 400);
+    return jsonResponse({ ok: false, error: 'No settings to update.' }, 400);
   }
 
   try {
     const settings = await saveAppSettings(patch);
-    if (!settings) return json({ ok: false, error: 'Failed to save settings.' }, 500);
-    return json({ ok: true, settings });
+    if (!settings) return jsonResponse({ ok: false, error: 'Failed to save settings.' }, 500);
+    return jsonResponse({ ok: true, settings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return json({ ok: false, error: message }, 500);
+    return jsonResponse({ ok: false, error: message }, 500);
   }
 }
 

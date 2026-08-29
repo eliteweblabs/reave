@@ -10,6 +10,7 @@ import { recordDeckViewEngagement } from '../../../lib/engagementNotifications';
 import { isOwnerPreviewRequest, isStaffSession } from '../../../lib/staffSession';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
@@ -17,12 +18,6 @@ export const prerender = false;
 const BOT_UA_RE =
   /bot|crawl|spider|slurp|preview|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|google-inspection|bingpreview|embedly|quora link preview|pinterest|redditbot|applebot|duckduckbot|baiduspider|yandex|semrush|ahrefs|petalbot|bytespider/i;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function dayBucket(): string {
   return new Date().toISOString().slice(0, 10);
@@ -31,7 +26,7 @@ function dayBucket(): string {
 export const POST: APIRoute = async ({ request, locals }) => {
   // Owner previewing the deck while signed in should not create engagement noise.
   if (isStaffSession(locals) || isOwnerPreviewRequest(request)) {
-    return json({ ok: true, skipped: 'signed_in' });
+    return jsonResponse({ ok: true, skipped: 'signed_in' });
   }
 
   const rate = checkInMemoryRateLimit(`deck:${clientIp(request)}`, {
@@ -39,12 +34,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
     maxPerWindow: 30,
   });
   if (!rate.ok) {
-    return json({ ok: false, error: 'Too many requests' }, 429);
+    return jsonResponse({ ok: false, error: 'Too many requests' }, 429);
   }
 
   const ua = request.headers.get('user-agent') || '';
   if (!ua.trim() || BOT_UA_RE.test(ua)) {
-    return json({ ok: true, skipped: 'bot' });
+    return jsonResponse({ ok: true, skipped: 'bot' });
   }
 
   let body: unknown;
@@ -56,7 +51,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const raw = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
 
   if (raw.preview === true || raw.preview === '1') {
-    return json({ ok: true, skipped: 'preview' });
+    return jsonResponse({ ok: true, skipped: 'preview' });
   }
 
   const contactUid =
@@ -95,5 +90,5 @@ export const POST: APIRoute = async ({ request, locals }) => {
     sessionKey,
   });
 
-  return json({ ok: true, recorded: !!event });
+  return jsonResponse({ ok: true, recorded: !!event });
 };
