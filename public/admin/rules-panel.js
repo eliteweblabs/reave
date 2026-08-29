@@ -40,20 +40,20 @@ import {
 } from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
+import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
 import {
   formatRuleWhenClause,
   formatRuleLabMeta,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260828c';
+} from './email-triage-lab.js?v=20260829a';
 import {
   createChipPair,
   chipsFromRulePhrases,
   phrasesFromChips,
   fieldsFromChips,
   titleFromRulePhrases,
-} from './rule-chip-editor.js?v=20260828a';
+} from './rule-chip-editor.js?v=20260829a';
 import { NOTICE_ACTION_ICONS } from './admin-notice.js?v=20260828a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
@@ -1442,6 +1442,176 @@ function renderRuleEditPane(pane, opts = {}) {
   );
   form.appendChild(expiresWrap);
   syncProcessUi({ fromStatus: true });
+
+  const testBlock = document.createElement('div');
+  testBlock.className = 're-rule-test';
+  const testActions = document.createElement('div');
+  testActions.className = 're-rule-test-actions';
+  const testBtn = document.createElement('button');
+  testBtn.type = 'button';
+  testBtn.className = 'de-btn de-btn-secondary';
+  testBtn.textContent = 'Test rule';
+  const applyBtn = document.createElement('button');
+  applyBtn.type = 'button';
+  applyBtn.className = 'de-btn de-btn-primary';
+  applyBtn.textContent = 'Apply rule';
+  applyBtn.hidden = true;
+  const testStatus = document.createElement('p');
+  testStatus.className = 're-rule-test-status';
+  testStatus.hidden = true;
+  const testList = document.createElement('ul');
+  testList.className = 're-rule-test-list';
+  testList.hidden = true;
+  testActions.append(testBtn, applyBtn);
+  testBlock.append(testActions, testStatus, testList);
+  form.appendChild(testBlock);
+
+  let lastTestMatches = [];
+
+  const renderTestMatches = (matches, { applied = false } = {}) => {
+    lastTestMatches = Array.isArray(matches) ? matches : [];
+    testList.replaceChildren();
+    if (!lastTestMatches.length) {
+      testList.hidden = true;
+      applyBtn.hidden = true;
+      return;
+    }
+    testList.hidden = false;
+    for (const m of lastTestMatches) {
+      const li = document.createElement('li');
+      li.className = 're-rule-test-item';
+      const when = m.receivedAt
+        ? new Date(m.receivedAt).toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          })
+        : '';
+      li.innerHTML =
+        `<span class="re-rule-test-from">${escHtml(m.from || '(unknown)')}</span>` +
+        `<span class="re-rule-test-subject">${escHtml(m.subject || '(no subject)')}</span>` +
+        (when ? `<span class="re-rule-test-when">${escHtml(when)}</span>` : '');
+      testList.appendChild(li);
+    }
+    const process = processSel.value;
+    applyBtn.hidden = applied || process === 'classify' || !lastTestMatches.length;
+    applyBtn.textContent =
+      process === 'delete'
+        ? `Apply rule (${lastTestMatches.length})`
+        : process === 'archive'
+          ? `Archive ${lastTestMatches.length}`
+          : process === 'receipt'
+            ? `File ${lastTestMatches.length} as receipts`
+            : `Apply rule (${lastTestMatches.length})`;
+  };
+
+  testBtn.addEventListener('click', async () => {
+    if (typeof ruleAutosaveFlush === 'function') {
+      await ruleAutosaveFlush();
+    }
+    const payload = collectRulePayload(ruleInputs);
+    if (!payload.phrases.length) {
+      testStatus.hidden = false;
+      testStatus.textContent = 'Add at least one Target phrase to test.';
+      renderTestMatches([]);
+      return;
+    }
+    testBtn.disabled = true;
+    testBtn.textContent = 'Testing…';
+    testStatus.hidden = false;
+    testStatus.textContent = 'Scanning inbox…';
+    applyBtn.hidden = true;
+    try {
+      const res = await fetch('/api/email/rules/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phrases: payload.phrases,
+          exceptPhrases: payload.exceptPhrases,
+          fields: payload.fields,
+          matchMode: payload.matchMode,
+          status: payload.status,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const matches = Array.isArray(data.matches) ? data.matches : [];
+      renderTestMatches(matches);
+      if (!matches.length) {
+        testStatus.textContent = `No matches in the last ${data.scanned || 0} inbox messages.`;
+      } else {
+        testStatus.textContent = `${matches.length} match${matches.length === 1 ? '' : 'es'} in the last ${data.scanned || 0} inbox messages.`;
+      }
+    } catch (e) {
+      renderTestMatches([]);
+      testStatus.textContent = e instanceof Error ? e.message : 'Test failed.';
+    } finally {
+      testBtn.disabled = false;
+      testBtn.textContent = 'Test rule';
+    }
+  });
+
+  applyBtn.addEventListener('click', async () => {
+    if (!lastTestMatches.length) return;
+    const payload = collectRulePayload(ruleInputs);
+    const process = processSel.value;
+    if (process === 'classify') {
+      testStatus.hidden = false;
+      testStatus.textContent = 'Keep leaves mail in the inbox — nothing to apply.';
+      return;
+    }
+    const n = lastTestMatches.length;
+    const verb =
+      process === 'delete'
+        ? 'Auto-delete'
+        : process === 'archive'
+          ? 'Archive'
+          : process === 'receipt'
+            ? 'File as receipts'
+            : 'Apply';
+    const ok = await osConfirm({
+      title: 'Apply rule',
+      bodyHtml: `${escHtml(verb)} ${n} matching email${n === 1 ? '' : 's'}?`,
+      confirmLabel: verb,
+    });
+    if (!ok) return;
+    applyBtn.disabled = true;
+    applyBtn.textContent = 'Applying…';
+    try {
+      const res = await fetch('/api/email/rules/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ruleId: rule.id,
+          status: payload.status,
+          ids: lastTestMatches.map((m) => m.id),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const applied = Number(data.applied) || 0;
+      const skipped = Array.isArray(data.skipped) ? data.skipped.length : 0;
+      testStatus.hidden = false;
+      testStatus.textContent =
+        skipped > 0
+          ? `Applied to ${applied}. Skipped ${skipped}.`
+          : `Applied to ${applied} email${applied === 1 ? '' : 's'}.`;
+      renderTestMatches([], { applied: true });
+      const local = ruleState.rules.find((r) => r.id === rule.id);
+      if (local && applied > 0) {
+        local.hitCount = (Number(local.hitCount) || 0) + applied;
+        local.lastMatchedAt = new Date().toISOString();
+        syncRuleListItem(rule.id, {}, local);
+      }
+    } catch (e) {
+      testStatus.hidden = false;
+      testStatus.textContent = e instanceof Error ? e.message : 'Apply failed.';
+    } finally {
+      applyBtn.disabled = false;
+    }
+  });
+
   pane.appendChild(form);
 
   const ruleInputs = {
@@ -1473,6 +1643,9 @@ function renderRuleEditPane(pane, opts = {}) {
     form.querySelectorAll('input, textarea, select, button').forEach((el) => {
       el.disabled = true;
     });
+    // Test / Apply still run against the inbox — catalog rules are read-only edits only.
+    testBtn.disabled = false;
+    applyBtn.disabled = false;
   } else {
     bindRuleAutosave(rule, ruleInputs, { defer: inDrawer });
     if (!(rule.phrases || []).length) matchChips.focusDraft();

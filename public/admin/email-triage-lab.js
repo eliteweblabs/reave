@@ -371,11 +371,22 @@ export function createEmailTriageLab(deps) {
   }
 
   /** Same field-aware match production uses (phrases in the rule's Search-in fields). */
+  function fromMatchHay(from) {
+    const raw = String(from || '').toLowerCase();
+    if (!raw) return '';
+    const slug = raw
+      .replace(/@/g, '_at_')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .replace(/_+/g, '_');
+    return slug && slug !== raw ? `${raw}\n${slug}` : raw;
+  }
+
   function ruleMatchesComposedEmail(rule) {
     const fields = rule?.fields?.length ? rule.fields : ['subject', 'body'];
     const hay = fields
       .map((f) => {
-        if (f === 'from') return String(state.from || '').toLowerCase();
+        if (f === 'from') return fromMatchHay(state.from);
         if (f === 'subject') return String(state.subject || '').toLowerCase();
         return String(state.text || '').toLowerCase();
       })

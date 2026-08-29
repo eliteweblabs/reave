@@ -38,7 +38,7 @@ function newChipId() {
 }
 
 function chipPlaceholderFor(field) {
-  if (field === 'from') return 'company@company.com';
+  if (field === 'from') return 'redditmail or company.com';
   if (field === 'subject') return 'Subject phrase';
   return 'Term or phrase';
 }

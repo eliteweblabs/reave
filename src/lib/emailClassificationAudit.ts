@@ -12,7 +12,12 @@ import {
   looksLikeShipmentNotice,
   shouldAutoFileAsReceipt,
 } from './emailMoney';
-import { DEFAULT_RULES, type EmailRule, type InboundEmail } from './emailRules';
+import {
+  DEFAULT_RULES,
+  fromMatchHaystack,
+  type EmailRule,
+  type InboundEmail,
+} from './emailRules';
 import type { EmailInboxRecord } from './emailInboxStore';
 
 export type ClassificationAuditStep = {
@@ -86,20 +91,18 @@ export function serializeClassificationAudit(steps: ClassificationAuditStep[]): 
 export function matchedRulePhrases(rule: EmailRule, email: InboundEmail): string[] {
   if (!rule.phrases.length) return [];
   const fieldMap: Record<string, string> = {
-    subject: email.subject ?? '',
-    body: email.text ?? '',
-    from: email.from ?? '',
+    subject: (email.subject ?? '').toLowerCase(),
+    body: (email.text ?? '').toLowerCase(),
+    from: fromMatchHaystack(email.from ?? ''),
   };
-  const haystack = rule.fields
-    .map((f) => String(fieldMap[f] ?? '').toLowerCase())
-    .join('\n');
+  const haystack = rule.fields.map((f) => String(fieldMap[f] ?? '')).join('\n');
   return rule.phrases.filter((p) => haystack.includes(p.toLowerCase()));
 }
 
 function fieldHitLabel(phrase: string, email: Pick<InboundEmail, 'subject' | 'text' | 'from'>): string {
   const p = phrase.toLowerCase();
   if ((email.subject ?? '').toLowerCase().includes(p)) return `subject`;
-  if ((email.from ?? '').toLowerCase().includes(p)) return `from`;
+  if (fromMatchHaystack(email.from ?? '').includes(p)) return `from`;
   if ((email.text ?? '').toLowerCase().includes(p)) return `body`;
   return 'message';
 }

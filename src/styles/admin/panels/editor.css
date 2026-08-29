@@ -1414,6 +1414,61 @@ button.de-placeholder-action:active {
 .re-expires-field[hidden] {
   display: none !important;
 }
+.re-rule-test {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--os-border, #333) 80%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.re-rule-test-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.re-rule-test-status {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--os-muted, #9a9a9a);
+  line-height: 1.35;
+}
+.re-rule-test-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+.re-rule-test-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--os-surface-2, #1c1c1e) 88%, transparent);
+}
+.re-rule-test-from {
+  font-size: 0.78rem;
+  color: var(--os-muted, #9a9a9a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.re-rule-test-subject {
+  font-size: 0.88rem;
+  color: var(--os-fg, #f2f2f2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.re-rule-test-when {
+  font-size: 0.72rem;
+  color: var(--os-muted, #9a9a9a);
+}
 .re-expire-in-secs {
   width: 5.5rem;
   max-width: 5.5rem;

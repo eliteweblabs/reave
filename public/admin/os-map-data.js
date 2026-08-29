@@ -359,7 +359,7 @@ const EMAIL_TRIAGE_NODES = [
 
   // Classify
   { id: 'et_contact', title: 'Resolve sender', sub: 'known contact skips marketing junk only', icon: '🧩', hue: 30, status: true, group: 'et_classify', x: 600, y: 120 },
-  { id: 'et_rules', title: 'Keyword rules', sub: 'Flow · universal/personal · else inbox', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
+  { id: 'et_rules', title: 'Keyword rules', sub: 'Flow · test/apply · universal/personal', icon: '⚡', hue: 45, status: true, group: 'et_classify', x: 600, y: 260 },
   { id: 'et_lab', title: 'Try email (Flow)', sub: 'Compose · live test · first match', icon: '🧪', hue: 70, status: true, group: 'et_classify', x: 600, y: 330 },
   { id: 'et_agent', title: 'Agent-first AI', sub: 'Unknown / service · rule match or unmatched-chat on', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'et_classify', x: 600, y: 400 },
   { id: 'et_legacy', title: 'Rules + AI triage', sub: 'Known client · rule match or unmatched-chat on', icon: '🧠', brand: 'anthropic', hue: 280, status: true, group: 'et_classify', x: 600, y: 540 },

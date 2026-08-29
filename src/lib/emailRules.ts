@@ -640,6 +640,28 @@ function fieldValue(email: InboundEmail, field: RuleField): string {
   }
 }
 
+/**
+ * From-field haystack: raw address plus a slug form so fragments and
+ * underscore titles both match hashed / vendor From lines.
+ * e.g. `noreply@redditmail.com` also yields `noreply_at_redditmail_com`,
+ * so phrases like `redditmail` or `noreply_at_redditmail_com` hit.
+ */
+export function fromMatchHaystack(from: string): string {
+  const raw = String(from || '').toLowerCase();
+  if (!raw) return '';
+  const slug = raw
+    .replace(/@/g, '_at_')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_+/g, '_');
+  return slug && slug !== raw ? `${raw}\n${slug}` : raw;
+}
+
+function fieldMatchValue(email: InboundEmail, field: RuleField): string {
+  if (field === 'from') return fromMatchHaystack(email.from);
+  return fieldValue(email, field).toLowerCase();
+}
+
 function matchesVerificationCodeRule(rule: EmailRule, email: InboundEmail): boolean {
   if (!rule.enabled || !isVerificationCodeRuleStatus(rule.status)) return false;
   return isVerificationCodeEmail({
@@ -661,7 +683,7 @@ function matchesAuthLinkRule(rule: EmailRule, email: InboundEmail): boolean {
 }
 
 function ruleHaystack(rule: EmailRule, email: InboundEmail): string {
-  return rule.fields.map((f) => fieldValue(email, f).toLowerCase()).join('\n');
+  return rule.fields.map((f) => fieldMatchValue(email, f)).join('\n');
 }
 
 function normalizePhraseList(raw: unknown): string[] {
@@ -693,6 +715,18 @@ function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
   const positive = rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
   if (!positive) return false;
   return blockedByExceptPhrases(rule, email).length === 0;
+}
+
+/**
+ * Whether this rule's Targets / Exemptions would match the email.
+ * Forces `enabled: true` so draft / Test-rule checks ignore the Off toggle.
+ */
+export function emailMatchesRule(
+  rule: Pick<EmailRule, 'phrases' | 'exceptPhrases' | 'fields' | 'matchMode' | 'status'> &
+    Partial<Pick<EmailRule, 'enabled'>>,
+  email: InboundEmail,
+): boolean {
+  return ruleMatches({ ...rule, enabled: true }, email);
 }
 
 /** Whether inbound mail is a UptimeRobot notification (email path — webhooks are preferred). */
