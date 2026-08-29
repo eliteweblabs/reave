@@ -41,6 +41,8 @@ import { detectMeetingFollowUp } from './emailMeetingFollowup';
 import { attendeeFromEmail, buildNewProjectAckEmail, formatMeetingWhenLabel, tryAutoBookInboundMeeting } from './emailScheduling';
 import {
   MEETING_SKIP_CATEGORIES,
+  inboundMeetingEvidence,
+  inboundStatesMeetingDate,
   parseProposedMeetingStart,
   sanitizeInboundMeetingProposal,
 } from './emailMeetingParse';
@@ -60,7 +62,9 @@ import {
   displayProjectTitle,
   isLikelyClientThreadReply,
 } from './emailProjectReply';
-import { isSuggestedProjectMatch, projectMatchSuggestedReviewCopy } from './emailAutomation';
+import { projectMatchSuggestedReviewCopy } from './emailAutomation';
+import { isMeetingAutomationKind, isSuggestedProjectMatch } from './emailReviewPending';
+import { shouldSendInboxPush } from './emailNotifyPolicy';
 import {
   looksLikeFailedOrDuePayment,
   looksLikeIncomingPayment,
@@ -491,66 +495,6 @@ function pickJobSlug(
   );
   if (active.length === 1) return active[0]!;
   return null;
-}
-
-/** Whether this triage outcome needs a phone push (skip junk, silent rules, auto-routed). */
-export function shouldSendInboxPush(opts: {
-  category: EmailCategory;
-  action: string;
-  ruleNotify: boolean;
-  ruleStatus: string;
-  isProjectReply?: boolean;
-  automationKind?: string | null;
-}): boolean {
-  // Hard rule: junk / DELETE / auto-archive never notify — not even when a
-  // later meeting/project automation flag is set. Dashboard + push stay empty.
-  if (
-    isJunkClassification({
-      category: opts.category,
-      action: opts.action,
-      status: opts.ruleStatus,
-    })
-  ) {
-    return false;
-  }
-
-  if (opts.isProjectReply) return true;
-  if (
-    opts.automationKind === 'meeting_booked' ||
-    opts.automationKind === 'project_created' ||
-    opts.automationKind === 'project_match_suggested' ||
-    opts.automationKind === 'meeting_followup' ||
-    opts.automationKind === 'meeting_request' ||
-    opts.automationKind === 'meeting_conflict'
-  ) {
-    return true;
-  }
-
-  const action = opts.action.toLowerCase();
-  const status = opts.ruleStatus.toUpperCase();
-
-  // No keyword rule → inbox only unless the owner opted in (ruleNotify).
-  if (
-    status === 'UNMATCHED' &&
-    !opts.ruleNotify &&
-    !opts.isProjectReply &&
-    !opts.automationKind
-  ) {
-    return false;
-  }
-  if (action === 'needs_explain') return true;
-  if (opts.category === 'receipt') return false;
-  if (opts.action === 'verification_code' || opts.action === 'activation_link') return false;
-  if (opts.category === 'otp' || opts.category === 'auth_link') return false;
-  if (isVerificationCodeRuleStatus(opts.ruleStatus) || isAuthLinkRuleStatus(opts.ruleStatus)) return false;
-  if (!opts.ruleNotify) return false;
-  if (status === 'DELETE' || status === 'AUTO_ARCHIVED') return false;
-  // Auto-sorted to a job — visible under Routed, no ping needed (except urgent project replies).
-  if (action === 'filed' || action === 'matched') return false;
-  // Auto-booked meeting — owner should review and confirm with the sender.
-  if (action === 'booked') return true;
-
-  return true;
 }
 
 /** Branded acknowledgment to the client after auto-creating a project from their email. */
@@ -1424,6 +1368,37 @@ export async function processInboundEmail(
 
   let skipAutoBook = false;
 
+  // The AI branches are skipped for unmatched mail, agent-first low confidence,
+  // and when Claude is off — but the inbox card and /schedule still read a real
+  // appointment out of the body. Recover it here so every path stores the same
+  // meeting, and the owner gets one notification instead of a silent inbox row.
+  // Stricter than the AI paths: the sender has to name the day too.
+  if (
+    !proposedMeetingStart &&
+    !schedulingNote &&
+    !suppressedAsJunk &&
+    !MEETING_SKIP_CATEGORIES.has(category) &&
+    inboundStatesMeetingDate(inboundMeetingEvidence({ subject: email.subject, bodyText }))
+  ) {
+    const recovered = applyMeetingProposal({
+      category,
+      proposedMeetingStart: null,
+      schedulingNote: '',
+      subject: email.subject ?? '',
+      bodyText,
+      receivedAt,
+    });
+    if (recovered.proposedMeetingStart) {
+      proposedMeetingStart = recovered.proposedMeetingStart;
+      schedulingNote = recovered.schedulingNote;
+      pushAudit(
+        'meeting',
+        'Meeting time read from the email',
+        `${proposedMeetingStart} — appointment language plus a clock time in the message`,
+      );
+    }
+  }
+
   // Uncertain classification → triage Explain only. Do not also emit meeting
   // automation / Confirm banners for the same inbound message.
   if (
@@ -1558,6 +1533,32 @@ export async function processInboundEmail(
     automationKind = 'meeting_request';
     routeNote = routeNote || 'Meeting request needs your review (scheduling module off)';
     if (action !== 'filed' && action !== 'matched') action = 'review';
+  }
+
+  // Auto-book can be skipped for reasons that have nothing to do with the
+  // meeting being real (no keyword rule matched, Cal.com refused, module off).
+  // A missed appointment is worse than an extra card, so raise the review
+  // anyway — dashboard banner plus phone push, owner confirms or reschedules.
+  if (
+    !automationKind &&
+    !bookingUid &&
+    !needsExplain &&
+    !skipAutoBook &&
+    !suppressedAsJunk &&
+    proposedMeetingStart &&
+    !MEETING_SKIP_CATEGORIES.has(category) &&
+    action !== 'project_reply' &&
+    action !== 'filed' &&
+    action !== 'matched'
+  ) {
+    automationKind = 'meeting_request';
+    action = 'review';
+    routeNote = routeNote || 'Meeting request needs your review';
+    pushAudit(
+      'meeting',
+      'Meeting raised for review',
+      'Auto-book did not run — notify the dashboard and phone so the appointment is not missed',
+    );
   }
 
   let suppressDuplicateMeetingAlert = false;
@@ -1926,11 +1927,15 @@ export async function processInboundEmail(
     matchedRule,
     !junkSilent && (ruleResult.notify || explainNotify),
   );
-  // OTP / auth / explain still want an alert path unless the matched rule
-  // explicitly turns both channels off — never when the row is junk/DELETE.
+  // OTP / auth / explain / meeting still want an alert path unless the matched
+  // rule explicitly turns both channels off — never when the row is junk/DELETE.
   const forceKindNotify =
     !junkSilent &&
-    (Boolean(verificationCode) || isVerificationCode || isAuthLink || explainNotify);
+    (Boolean(verificationCode) ||
+      isVerificationCode ||
+      isAuthLink ||
+      explainNotify ||
+      isMeetingAutomationKind(automationKind));
   const channelsEffective = junkSilent
     ? { push: false, dashboard: false, notify: false }
     : forceKindNotify
@@ -1945,6 +1950,8 @@ export async function processInboundEmail(
     if (isVerificationCode || verificationCode) notifyActions = ['copy', 'delete'];
     else if (isAuthLink) notifyActions = ['activate', 'delete'];
     else if (explainNotify) notifyActions = ['explain', 'view', 'archive'];
+    // Confirming a meeting has to happen on the card, not in the tray.
+    else if (isMeetingAutomationKind(automationKind)) notifyActions = ['view'];
   }
 
   const notify = shouldSendInboxPush({

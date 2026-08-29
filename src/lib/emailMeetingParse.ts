@@ -114,6 +114,26 @@ export function inboundHasClockTime(text: string): boolean {
   return parseAllClockTimes(text).length > 0;
 }
 
+const NAMED_MONTH_DATE_RE =
+  /\b(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.?\s+\d{1,2}(?:st|nd|rd|th)?\b/i;
+const NUMERIC_DATE_RE = /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/;
+const WEEKDAY_NAME_RE = new RegExp(`\\b(?:${WEEKDAYS.join('|')})\\b`, 'i');
+
+/**
+ * The sender named the day, not just a time of day. "2pm" alone lands on
+ * whatever day the mail arrived, which is how promo blasts ("join our Zoom at
+ * 2pm") turn into fake appointments.
+ */
+export function inboundStatesMeetingDate(text: string): boolean {
+  const source = String(text || '');
+  if (!source.trim()) return false;
+  return (
+    NAMED_MONTH_DATE_RE.test(source) ||
+    NUMERIC_DATE_RE.test(source) ||
+    WEEKDAY_NAME_RE.test(source)
+  );
+}
+
 function clockPartsInTimeZone(
   iso: string,
   timeZone: string,
