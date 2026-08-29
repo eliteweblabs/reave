@@ -36,7 +36,6 @@ const SEED: SeedItem[] = [
   { slug: 'client-johnnie-walker', file: 'public/logos/clients/johnnie-walker.svg', alt: 'Johnnie Walker' },
   { slug: 'client-wpi', file: 'public/logos/clients/wpi.svg', alt: 'Worcester Polytechnic Institute' },
   { slug: 'client-kingdom-trails', file: 'public/logos/clients/kingdom-trails.png', alt: 'Kingdom Trails' },
-  { slug: 'client-uc-law-sf', file: 'public/logos/clients/uc-law-sf.svg', alt: 'UC Law San Francisco', replace: true },
   { slug: 'client-mohegan-sun', file: 'public/logos/clients/mohegan-sun.svg', alt: 'Mohegan Sun' },
   { slug: 'client-sharpie', file: 'public/logos/clients/sharpie.svg', alt: 'Sharpie' },
   { slug: 'client-overlook', file: 'public/logos/clients/overlook.png', alt: 'The Overlook' },
