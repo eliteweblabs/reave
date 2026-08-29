@@ -6029,8 +6029,37 @@ function setFormFieldState(el, state) {
   if (state === 'invalid') el.setAttribute('aria-invalid', 'true');
 }
 
+function formFieldLabel(el) {
+  const host = el?.closest?.('.prof-field, .prof-branding-upload-item');
+  const label = host?.querySelector('label');
+  return (label?.textContent || el?.getAttribute?.('name') || 'field').trim();
+}
+
+/**
+ * Autosave has no Save button, so a rejected field must explain itself where the
+ * user is looking. The panel-level alert sits at the top of a long form and is
+ * off-screen on a phone.
+ */
+function setFormFieldMessage(el, msg) {
+  const host = el?.closest?.('.prof-field') || el?.parentElement;
+  if (!host) return;
+  let node = host.querySelector(':scope > .prof-field-error');
+  if (!msg) {
+    node?.remove();
+    return;
+  }
+  if (!node) {
+    node = document.createElement('span');
+    node.className = 'prof-field-error';
+    node.setAttribute('role', 'status');
+    host.appendChild(node);
+  }
+  node.textContent = msg;
+}
+
 function flashFormFieldSaved(el) {
   if (!el) return;
+  setFormFieldMessage(el, '');
   setFormFieldState(el, 'saved');
   const prev = el.dataset.savedTimerId;
   if (prev) clearTimeout(Number(prev));
@@ -6094,17 +6123,13 @@ function bindAutosaveForm(scope, opts) {
   let pendingFlush = false;
 
   const validateField = opts.validateField || defaultFieldValidator;
+  const fieldError = (el) => opts.fieldError?.(el) || 'Fix this to save the form.';
 
-  const canSave = () => {
-    let ok = true;
+  const blockingField = () => {
     for (const el of getFormEditableFields(form)) {
-      const valid = validateField(el, form);
-      if (!valid) {
-        ok = false;
-        if (el === activeEl) setFormFieldState(el, 'invalid');
-      }
+      if (!validateField(el, form)) return el;
     }
-    return ok;
+    return null;
   };
 
   const flush = async () => {
@@ -6118,7 +6143,18 @@ function bindAutosaveForm(scope, opts) {
 
     const current = serializeFormData(form);
     if (current === baseline) return;
-    if (!canSave()) return;
+
+    const blocking = blockingField();
+    if (blocking) {
+      setFormFieldState(blocking, 'invalid');
+      setFormFieldMessage(blocking, fieldError(blocking));
+      // The alert scrolls the panel, so only pull the user away for a blocker
+      // somewhere else in the form — the field they are in explains itself.
+      if (opts.alertEl && blocking !== activeEl) {
+        showProfileAlert(opts.alertEl, `Nothing saved — check ${formFieldLabel(blocking)}.`, 'error');
+      }
+      return;
+    }
 
     saving = true;
     if (activeEl) setFormFieldState(activeEl, 'saving');
@@ -6131,11 +6167,17 @@ function bindAutosaveForm(scope, opts) {
         if (activeEl) flashFormFieldSaved(activeEl);
         else if (opts.alertEl) showProfileAlert(opts.alertEl, 'Saved.', 'success');
       } else {
-        if (activeEl) setFormFieldState(activeEl, 'invalid');
+        if (activeEl) {
+          setFormFieldState(activeEl, 'invalid');
+          setFormFieldMessage(activeEl, result.error || 'Not saved.');
+        }
         if (opts.alertEl && result.error) showProfileAlert(opts.alertEl, result.error, 'error');
       }
     } catch {
-      if (activeEl) setFormFieldState(activeEl, 'invalid');
+      if (activeEl) {
+        setFormFieldState(activeEl, 'invalid');
+        setFormFieldMessage(activeEl, 'Not saved — network error.');
+      }
       if (opts.alertEl) showProfileAlert(opts.alertEl, 'Network error — please try again.', 'error');
     } finally {
       saving = false;
@@ -6155,6 +6197,7 @@ function bindAutosaveForm(scope, opts) {
 
   const schedule = (el) => {
     activeEl = el;
+    setFormFieldMessage(el, '');
     if (!el.classList.contains(FORM_FIELD_INVALID) && !el.classList.contains(FORM_FIELD_SAVED)) {
       setFormFieldState(el, null);
     }
@@ -6169,7 +6212,10 @@ function bindAutosaveForm(scope, opts) {
     el.addEventListener('blur', () => {
       activeEl = el;
       const valid = validateField(el, form);
-      if (!valid) setFormFieldState(el, 'invalid');
+      if (!valid) {
+        setFormFieldState(el, 'invalid');
+        setFormFieldMessage(el, fieldError(el));
+      }
       clearTimeout(debounceTimer);
       void flush();
     });
@@ -6196,6 +6242,15 @@ async function flushSettingsAutosave() {
   destroyCompanyMap();
 }
 
+/**
+ * Send a debounced settings edit before the tab is suspended. Pasting on a phone
+ * and immediately switching apps (or locking it) otherwise drops the pending
+ * save, and the panel reloads from the server with the paste gone.
+ */
+function flushSettingsAutosaveKeepBound() {
+  if (typeof settingsAutosaveFlush === 'function') void settingsAutosaveFlush();
+}
+
 function showProfileAlert(el, msg, type) {
   if (!el) return;
   el.textContent = msg;
@@ -6213,6 +6268,15 @@ function svgPreviewDataUri(svg) {
   const trimmed = String(svg || '').trim();
   if (!trimmed || !/<svg[\s>]/i.test(trimmed)) return '';
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trimmed)}`;
+}
+
+const COMPANY_SVG_FIELD_IDS = new Set(['company-logoSvg', 'company-iconSvg']);
+
+/** Same gate the API applies, so a bad paste fails at the field, not at the top. */
+function isPastedSvgMarkup(value) {
+  const v = String(value || '').trim();
+  if (!v) return true;
+  return /<svg[\s>]/i.test(v) && /<\/svg\s*>/i.test(v);
 }
 
 function companyLogoPreviewUrl(company) {
@@ -6336,13 +6400,22 @@ function syncSvgFieldPreview(root, fieldId, svg) {
   if (wrap instanceof HTMLElement) wrap.hidden = !url;
 }
 
+/**
+ * Company saves echo the stored branding back into these textareas. A paste that
+ * lands while a save is in flight must not be overwritten by the older server
+ * copy, so leave the field alone while it is being edited.
+ */
 function syncCompanySvgFields(root, company) {
-  const logoTa = root.querySelector('#company-logoSvg');
-  const iconTa = root.querySelector('#company-iconSvg');
-  if (logoTa instanceof HTMLTextAreaElement) logoTa.value = company?.logoSvg || '';
-  if (iconTa instanceof HTMLTextAreaElement) iconTa.value = company?.iconSvg || '';
-  syncSvgFieldPreview(root, 'company-logoSvg', company?.logoSvg);
-  syncSvgFieldPreview(root, 'company-iconSvg', company?.iconSvg);
+  const fields = [
+    ['company-logoSvg', company?.logoSvg],
+    ['company-iconSvg', company?.iconSvg],
+  ];
+  for (const [id, svg] of fields) {
+    const ta = root.querySelector(`#${id}`);
+    const editing = ta instanceof HTMLTextAreaElement && document.activeElement === ta;
+    if (ta instanceof HTMLTextAreaElement && !editing) ta.value = svg || '';
+    if (!editing) syncSvgFieldPreview(root, id, svg);
+  }
 }
 
 function usesLogoAsIconFallback(company) {
@@ -6832,6 +6905,16 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   const companyAutosave = bindAutosaveForm(root, {
     formSelector: '#company-form',
     alertEl: companyAlert,
+    validateField(el, form) {
+      if (COMPANY_SVG_FIELD_IDS.has(el.id)) return isPastedSvgMarkup(el.value);
+      return defaultFieldValidator(el, form);
+    },
+    fieldError(el) {
+      if (COMPANY_SVG_FIELD_IDS.has(el.id)) {
+        return 'Paste the whole file — it has to start with <svg and end with </svg>.';
+      }
+      return '';
+    },
     async save(payload) {
       if (payload.supportPhone != null) payload.supportPhone = phoneToStorage(payload.supportPhone);
       if (companyPendingGeo) payload.geo = companyPendingGeo;
@@ -7960,7 +8043,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                   `<img id="company-logoSvg-preview" class="prof-logo-preview" src="${escHtml(svgPreviewDataUri(c.logoSvg))}" alt="" />` +
                 `</div>` +
                 `<textarea id="company-logoSvg" name="logoSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.logoSvg || '')}</textarea>` +
-                `<span class="prof-hint">Wordmark for the site header. Clear the field to fall back to the logo image above, then the display name.</span></div>` +
+                `<span class="prof-hint">Wordmark for the site header. Pasting a long file on a phone is fiddly — the Logo picker above also accepts an <code>.svg</code> file. Clear the field to fall back to the logo image above, then the display name.</span></div>` +
               `</div>` +
               `<div class="prof-branding-upload-item">` +
                 `<div class="prof-field"><label for="company-iconSvg">Icon SVG</label>` +
@@ -7968,7 +8051,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                   `<img id="company-iconSvg-preview" class="prof-icon-preview" src="${escHtml(svgPreviewDataUri(c.iconSvg))}" alt="" />` +
                 `</div>` +
                 `<textarea id="company-iconSvg" name="iconSvg" class="prof-svg-input" rows="8" spellcheck="false" autocapitalize="off" autocomplete="off">${escHtml(c.iconSvg || '')}</textarea>` +
-                `<span class="prof-hint">Square mark for the homepage hero. Clear the field to fall back to the icon image above, then the display name.</span></div>` +
+                `<span class="prof-hint">Square mark for the homepage hero. The Icon picker above also accepts an <code>.svg</code> file. Clear the field to fall back to the icon image above, then the display name.</span></div>` +
               `</div>` +
             `</div>`,
           ) +
@@ -17911,6 +17994,7 @@ queueTriageEmailFromUrl();
 
 window.addEventListener('pagehide', () => {
   persistEmailDraftKeepAlive();
+  flushSettingsAutosaveKeepBound();
 });
 
 window.addEventListener('pageshow', (ev) => {
@@ -17945,6 +18029,7 @@ if ('serviceWorker' in navigator) {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     if (emailState.composing) void saveActiveEmailDraft(true);
+    flushSettingsAutosaveKeepBound();
     stopHealth();
     stopEmailPoll();
     stopInboxBadgePoll();
