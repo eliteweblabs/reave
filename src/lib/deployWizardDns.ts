@@ -8,6 +8,7 @@ import {
   cloudflareListDnsRecords,
   cloudflareUpsertDnsRecord,
   cloudflareZoneName,
+  ensureFqdnTrailingDotRedirect,
   isCloudflareConfigured,
 } from './cloudflareClient';
 import {
@@ -344,6 +345,11 @@ export async function applyDeployWizardDns(opts: {
         services: resolved.services,
       }),
     );
+  }
+
+  const fqdnRedirect = await ensureFqdnTrailingDotRedirect(zone.data.id);
+  if (!fqdnRedirect.ok) {
+    leftover.push(`FQDN trailing-dot redirect: ${fqdnRedirect.error}`);
   }
 
   const errors = rows.filter((r) => r.action === 'error');
