@@ -6113,11 +6113,19 @@ function isValidUrlField(value) {
   }
 }
 
+function isEmailAddressField(el) {
+  const type = (el.getAttribute('type') || '').toLowerCase();
+  if (type === 'email') return true;
+  const name = (el.getAttribute('name') || '').toLowerCase();
+  // supportEmail / fromEmail — not emailFont or emailSignature
+  return name === 'email' || name.endsWith('email');
+}
+
 function defaultFieldValidator(el) {
   if (el.disabled) return true;
   const type = (el.getAttribute('type') || '').toLowerCase();
   const name = (el.getAttribute('name') || '').toLowerCase();
-  if (type === 'email' || name.includes('email')) return isValidEmailField(el.value);
+  if (isEmailAddressField(el)) return isValidEmailField(el.value);
   if (type === 'tel' || name.includes('phone')) return isValidPhoneField(el.value);
   if (type === 'url') return isValidUrlField(el.value);
   if (el.required && !String(el.value || '').trim()) return false;

@@ -38,6 +38,18 @@ assert.equal(emailSafeFontById('times').category, 'serif');
 
 const admin = emailSafeFontCatalogForAdmin();
 assert.equal(admin.length, EMAIL_SAFE_FONT_CATALOG.length);
+assert.ok(admin.some((entry) => entry.id === 'arial' && entry.label === 'Arial'));
+
+/** Company form `name="emailFont"` is not an email address — keep this in lockstep with `isEmailAddressField` in os-map-loader.js. */
+function isEmailAddressFieldName(name: string): boolean {
+  const n = name.toLowerCase();
+  return n === 'email' || n.endsWith('email');
+}
+assert.equal(isEmailAddressFieldName('emailFont'), false);
+assert.equal(isEmailAddressFieldName('emailSignature'), false);
+assert.equal(isEmailAddressFieldName('supportEmail'), true);
+assert.equal(isEmailAddressFieldName('fromEmail'), true);
+assert.equal(isEmailAddressFieldName('email'), true);
 assert.ok(admin.every((entry) => entry.categoryLabel));
 assert.ok(!admin.some((entry) => 'stack' in entry));
 
