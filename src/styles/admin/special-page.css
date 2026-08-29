@@ -15,6 +15,17 @@
   margin-right: -0.15rem;
   text-decoration: none;
   color: var(--nav-chevron);
+  /*
+   * Wordmark renders ~20–25px tall (logo.png 383×76 at --app-header-logo-w).
+   * Lucide chevron-left path spans only ~½ the 24 viewBox, so the glyph box
+   * needs ~2× the target height for the arms to match the type.
+   */
+  --icon-btn-box: 2.75rem;
+  --icon-btn-glyph: 2.5rem;
+}
+
+.app-header-back.ios-icon-btn svg {
+  stroke-width: 3.5;
 }
 
 html.admin-special-page .app-header-back.ios-icon-btn,
