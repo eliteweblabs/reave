@@ -2,7 +2,7 @@
  * Owner deploy wizard — demo-loader tile grid, then Railway reference plan.
  */
 (function () {
-  const { MODULE_STATUS: STATUS, escHtml: esc } = window.ModuleLoaderShared;
+  const { MODULE_STATUS: STATUS, escHtml: esc, renderStatusLegend } = window.ModuleLoaderShared;
 
   const STEPS = [
     { id: 'modules', label: 'Modules' },
@@ -488,7 +488,7 @@
       `</div>` +
       `<div class="dw-identity-block">` +
       `<h2 class="dl-section-title">Owner account</h2>` +
-      `<p class="dl-footnote">Optional — same fields as Admin → Profile. Applied on first sign-in, used for Web Push mailto, and added to owner match.</p>` +
+      `<p class="dl-callout">Optional — same fields as Admin → Profile. Applied on first sign-in, used for Web Push mailto, and added to owner match.</p>` +
       `<div class="dl-toolbar dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">First name</span>` +
@@ -526,6 +526,7 @@
       `</div>` +
       renderSeed() +
       `<p class="dl-meta">${included.length} core · ${selectedCount} modules selected</p>` +
+      renderStatusLegend({ deployedLabel: 'Deployed' }) +
       `<div class="dl-sections">` +
       `<section class="dl-section" data-section="included">` +
       `<h2 class="dl-section-title">Core OS</h2>` +
@@ -540,7 +541,7 @@
     if (!plan) return `<p class="dl-loading">Building service list…</p>`;
     const extras = visibleExtras();
     return (
-      `<p class="dl-footnote">Apply creates the Railway project (if you picked <strong>New project</strong>) and any missing services with <strong>these exact names</strong>. Postgres is the official Railway image + volume. GitHub repos connect when this host’s Railway token can see them.</p>` +
+      `<p class="dl-callout">Apply creates the Railway project (if you picked <strong>New project</strong>) and any missing services with <strong>these exact names</strong>. Postgres is the official Railway image + volume. GitHub repos connect when this host’s Railway token can see them.</p>` +
       (extras.length
         ? `<div class="dw-extras">` +
           extras
@@ -591,7 +592,7 @@
       `<span class="dl-field-label">Site domain (apex)</span>` +
       `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
       `</label>` +
-      `<p class="dl-footnote">${
+      `<p class="dl-callout">${
         cloudflare.configured
           ? `Apply attaches Railway hosts and writes these on Cloudflare${siteDomain ? ` (${esc(siteDomain)})` : ''}. <code>book</code> is skipped (Railway’s public domain is enough). Clerk CNAMEs still come from Clerk → Domains.`
           : `Set <code>CLOUDFLARE_API_TOKEN</code> on this host to auto-write DNS. Until then, add these on the apex${siteDomain ? ` (${esc(siteDomain)})` : ''} and attach each CNAME on the named Railway service.`
@@ -671,9 +672,9 @@
     return (
       `<section class="dl-section" data-section="seed">` +
       `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-footnote">Industry playbooks come from Admin → Industries — modules, extras, sample data, and notes. <strong>Law firm</strong> still adds court knowledge options; office address uses Google Places.</p>` +
+      `<p class="dl-callout">Industry playbooks come from Admin → Industries — modules, extras, sample data, and notes. <strong>Law firm</strong> still adds court knowledge options; office address uses Google Places.</p>` +
       (currentPlaybookNotes()
-        ? `<p class="dl-footnote dw-playbook-notes">${esc(currentPlaybookNotes())}</p>`
+        ? `<p class="dl-callout dw-playbook-notes">${esc(currentPlaybookNotes())}</p>`
         : '') +
       `<div class="dw-identity">` +
       `<label class="dl-field">` +
@@ -794,7 +795,7 @@
       byService.set(variable.service, list);
     }
     let html =
-      `<p class="dl-footnote">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s reΛVe.app key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is copied from this host on apply, which also creates the inbound domain and webhook. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
+      `<p class="dl-callout">Leave <code>ANTHROPIC_API_KEY</code> blank to use this host’s reΛVe.app key — chat will show a shared-key flag. Paste a client key to use theirs. <code>RESEND_API_KEY</code> is copied from this host on apply, which also creates the inbound domain and webhook. Everything else is copied, rolled, or created on apply. Website module: Apply creates <code>eliteweblabs/{slug}-site</code> and a restricted GitHub App for that repo only.</p>` +
       `<p class="dl-meta">${plan.referenceCount} references · ${plan.hostSecretCount || 0} from this host · ${plan.generatedCount} rolled · ${plan.variables.filter((v) => v.provisionedOnApply).length} created</p>`;
     for (const [service, vars] of byService) {
       html +=
@@ -847,17 +848,17 @@
         ? `<p class="dl-meta">Apply creates the Railway project and missing services, copies host keys, rolls secrets, creates the Resend webhook, and writes variables${cloudflare.configured ? ' plus Cloudflare DNS' : ''}. Website module: GitHub will ask you to create and install a restricted App on <code>{slug}-site</code> only.</p>`
         : `<p class="dl-meta">This host has no RAILWAY_API_TOKEN — copy the CLI and run it against the new project.</p>`) +
       (applied
-        ? `<p class="dl-footnote" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
+        ? `<p class="dl-callout" role="status">Saved ${applied.reduce((n, a) => n + a.updated.length, 0)} variables across ${applied.length} scopes. Redeploy when ready.</p>`
         : '') +
       (appliedDns
-        ? `<p class="dl-footnote" role="status">${esc(appliedDns.summary || '')}${
+        ? `<p class="dl-callout" role="status">${esc(appliedDns.summary || '')}${
             appliedDns.leftover?.length
               ? ` Left for you: ${esc(appliedDns.leftover.join(' '))}`
               : ''
           }</p>`
         : '') +
       (appliedProvisioned.length
-        ? `<p class="dl-footnote" role="status">${esc(appliedProvisioned.join(' '))}</p>`
+        ? `<p class="dl-callout" role="status">${esc(appliedProvisioned.join(' '))}</p>`
         : '') +
       (applying || applyLog.length
         ? `<ol class="dw-apply-log" id="dw-apply-log" aria-live="polite">${applyLog
@@ -888,7 +889,7 @@
       (error ? `<p class="dl-launch-error" role="alert">${esc(error)}</p>` : '') +
       (githubBanner || githubSiteUrl
         ? `<div class="dw-github-done">` +
-          (githubBanner ? `<p class="dl-footnote" role="status">${esc(githubBanner)}</p>` : '') +
+          (githubBanner ? `<p class="dl-callout" role="status">${esc(githubBanner)}</p>` : '') +
           (githubSiteUrl
             ? `<p><a class="dl-btn dl-btn--primary" href="${esc(githubSiteUrl)}/">Open ${esc(
                 githubSiteUrl.replace(/^https:\/\//, ''),

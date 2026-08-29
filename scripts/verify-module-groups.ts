@@ -135,6 +135,9 @@ for (const id of FEATURE_SALE_SHEET) {
 
 const catalog = defaultModuleCatalog();
 assert.deepEqual(catalog.find((row) => row.feature === 'digital_signature')?.requires, ['documents']);
+assert.deepEqual(catalog.find((row) => row.feature === 'dscr_calculator')?.industries, ['real-estate']);
+assert.ok(catalog.find((row) => row.feature === 'billing')?.industries?.includes('salon'));
+assert.deepEqual(catalog.find((row) => row.kind === 'core')?.industries, []);
 assert.ok(catalog.some((row) => row.kind === 'core' && row.saleSheet && /^\d{3}$/.test(row.id)));
 assert.ok(
   catalog.some(

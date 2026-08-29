@@ -6,12 +6,14 @@
  *   data-toggles="false" — browse-only catalog; no switches, no launch form
  */
 (function () {
-  const { MODULE_STATUS: STATUS, escHtml: esc } = window.ModuleLoaderShared;
+  const { MODULE_STATUS: STATUS, escHtml: esc, renderCallout, renderStatusLegend } =
+    window.ModuleLoaderShared;
 
   /** Browse catalog only — never render switches or the demo request form. */
   let sections = [];
   let included = [];
   let industries = [];
+  let industryDefaults = {};
   let baselineModuleIds = [];
   let selectedIds = new Set();
   let industry = 'general';
@@ -42,20 +44,24 @@
         data.sections
       : [{ id: 'optional', title: 'Optional Modules', modules }];
     industries = data.industries || [];
+    industryDefaults =
+      data.industryDefaults && typeof data.industryDefaults === 'object' ? data.industryDefaults : {};
     baselineModuleIds = data.baselineModuleIds || [];
     const allowed = new Set(toggleableModules().map((m) => m.moduleId));
+    const slugs = new Set(industries.map((item) => item.slug));
     if (data.suite?.moduleIds?.length) {
       selectedIds = new Set(
         data.suite.moduleIds
           .map((id) => String(id).padStart(3, '0'))
           .filter((id) => allowed.has(id)),
       );
-      industry = data.suite.industry || industry;
+      industry = slugs.has(data.suite.industry) ? data.suite.industry : pickDefaultIndustry();
       if (data.suite.visitorName) visitorName = data.suite.visitorName;
       if (data.suite.visitorEmail) visitorEmail = data.suite.visitorEmail;
     } else {
-      selectedIds = new Set(data.defaultModuleIds || [...allowed]);
-      industry = industries[0]?.slug || 'general';
+      industry = pickDefaultIndustry();
+      selectedIds = new Set();
+      for (const id of industryModuleIds(industry)) applyModuleToggle(id, true);
     }
     canEditCatalog = data.canEditCatalog === true;
   }
@@ -154,6 +160,24 @@
     );
   }
 
+  function pickDefaultIndustry() {
+    const slugs = new Set(industries.map((item) => item.slug));
+    if (slugs.has('general')) return 'general';
+    return industries[0]?.slug || 'general';
+  }
+
+  function industryModuleIds(slug) {
+    const allowed = new Set(toggleableModules().map((m) => m.moduleId));
+    return (industryDefaults[slug] || [])
+      .map((id) => String(id).padStart(3, '0'))
+      .filter((id) => allowed.has(id));
+  }
+
+  function applyIndustrySelection(slug) {
+    selectedIds = new Set();
+    for (const id of industryModuleIds(slug)) applyModuleToggle(id, true);
+  }
+
   function renderIndustryOptions() {
     if (!industries.length) {
       return `<option value="general">General</option>`;
@@ -167,17 +191,9 @@
   }
 
   function renderLegend() {
-    const deployedLine = togglesEnabled
-      ? `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--live" aria-hidden="true"></span> Deployed — include in demo</span>`
-      : `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--live" aria-hidden="true"></span> Deployed — ready</span>`;
-    return (
-      `<div class="dl-legend">` +
-      `<span class="dl-legend-item"><span class="dl-badge dl-badge--included">Included</span> always on</span>` +
-      deployedLine +
-      `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--deploying" aria-hidden="true"></span> Development</span>` +
-      `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--alert" aria-hidden="true"></span> Requested / rejected</span>` +
-      `</div>`
-    );
+    return renderStatusLegend({
+      deployedLabel: togglesEnabled ? 'Deployed — include in demo' : 'Deployed — ready',
+    });
   }
 
   function renderSection(section) {
@@ -214,7 +230,7 @@
       `<p class="dl-success-body">Thanks${visitorName.trim() ? `, ${esc(visitorName.trim().split(/\s+/)[0])}` : ''}. ` +
       `We’ll contact you as soon as it’s ready.</p>` +
       `<p class="dl-success-meta">We’ll reach out at <strong>${esc(visitorEmail.trim())}</strong>.</p>` +
-      `<p class="dl-footnote"><a href="/demo">Back to demo</a></p>` +
+      renderCallout(`<a href="/demo">Back to demo</a>`, { tag: 'p' }) +
       `</div>`;
   }
 
@@ -222,9 +238,11 @@
     const deployed = modules.filter((m) => m.status === 'deployed').length;
     return (
       `<p class="dl-meta">${included.length} included · ${deployed} deployed · ${modules.length} add-ons available</p>` +
-      renderLegend() +
-      `<p class="dl-footnote">Browse optional modules by group. To try a custom stack in a sandbox, ` +
-      `<a href="/demo-loader">build your demo</a>.</p>`
+      renderCallout(
+        `Browse optional modules by group. To try a custom stack in a sandbox, ` +
+          `<a href="/demo-loader">build your demo</a>.`,
+        { tag: 'p' },
+      )
     );
   }
 
@@ -264,9 +282,7 @@
       `</div>` +
       (launchError ? `<p class="dl-launch-error" role="alert">${esc(launchError)}</p>` : '') +
       `<p class="dl-meta">${included.length} included · ${selectedCount} optional selected · ${modules.length} add-ons available</p>` +
-      `</div>` +
-      renderLegend() +
-      `<p class="dl-footnote">Core OS ships with every demo. Switch on the add-ons you want alongside it.</p>`
+      `</div>`
     );
   }
 
@@ -278,11 +294,13 @@
 
     root.innerHTML =
       `<div class="dl-panel">` +
+      renderLegend() +
+      (togglesEnabled ? renderLaunchChrome() : '') +
       `<div class="dl-sections">` +
       renderIncludedSection() +
       sections.map(renderSection).join('') +
       `</div>` +
-      (togglesEnabled ? renderLaunchChrome() : renderBrowseChrome()) +
+      (togglesEnabled ? '' : renderBrowseChrome()) +
       `</div>`;
   }
 
@@ -387,7 +405,11 @@
     if (!togglesEnabled || submitted) return;
 
     root.querySelector('#dl-industry')?.addEventListener('change', (e) => {
+      readVisitorFields();
       industry = e.target.value || 'general';
+      applyIndustrySelection(industry);
+      render();
+      bind();
     });
 
     const syncLaunchEnabled = () => {

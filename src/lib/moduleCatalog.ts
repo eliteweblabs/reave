@@ -223,6 +223,8 @@ export type CatalogRow = {
   visibility: 'public' | 'private' | 'service';
   /** Feature slugs that turn on automatically with this module. */
   requires: string[];
+  /** Industry slugs that include this module in a suggested demo / deploy stack. */
+  industries: string[];
 };
 
 export function catalogGroupForFeature(feature: FeatureId): CatalogGroupId {
@@ -342,6 +344,74 @@ export function nextCatalogId(group: CatalogGroupId, taken: Iterable<string>): s
   return formatCatalogId(band.end);
 }
 
+/** Known industry slugs from Admin → Industries. Used for shipped demo suggestions. */
+const ALL_INDUSTRIES = [
+  'content',
+  'engineer',
+  'general',
+  'law',
+  'marketing',
+  'plumbing',
+  'principal',
+  'real-estate',
+  'salon',
+] as const;
+
+const TRADE_INDUSTRIES = ['general', 'plumbing'] as const;
+const WEB_INDUSTRIES = [
+  'content',
+  'marketing',
+  'salon',
+  'general',
+  'plumbing',
+  'law',
+  'real-estate',
+  'principal',
+] as const;
+
+/**
+ * Best-guess industry defaults for optional modules.
+ * Core OS is always on and is not listed here.
+ */
+export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[]>> = {
+  billing: ALL_INDUSTRIES,
+  google_workspace: ALL_INDUSTRIES,
+  website: ALL_INDUSTRIES,
+  cookie_notice: ALL_INDUSTRIES,
+  hosting_core_os: ALL_INDUSTRIES,
+  hosting_growth: ['content', 'marketing', 'principal', 'engineer'],
+  scheduling: ['salon', 'general', 'plumbing', 'marketing', 'law', 'real-estate'],
+  documents: ['law', 'general', 'plumbing', 'real-estate', 'principal', 'engineer'],
+  digital_signature: ['law', 'real-estate', 'general', 'plumbing'],
+  voice: ['salon', 'general', 'plumbing', 'law', 'marketing', 'real-estate'],
+  vapi: ['salon', 'general', 'plumbing', 'law', 'marketing'],
+  email_marketing: ['marketing', 'content', 'salon', 'real-estate', 'principal'],
+  social_inbox: ['marketing', 'salon', 'content', 'real-estate'],
+  online_reviews: ['salon', 'marketing', 'general', 'plumbing', 'content'],
+  site_audits: ['marketing', 'content', 'salon', 'general', 'plumbing', 'principal'],
+  analytic_audit: ['marketing', 'content', 'principal'],
+  site_monitoring: WEB_INDUSTRIES,
+  uptime_monitoring: WEB_INDUSTRIES,
+  fleet_tracking: TRADE_INDUSTRIES,
+  materials_pricing: ['general', 'plumbing', 'engineer'],
+  time_tracking: ['general', 'plumbing', 'engineer', 'law'],
+  real_estate_data: ['real-estate'],
+  dscr_calculator: ['real-estate'],
+  credit_check: ['real-estate', 'law', 'general'],
+  inventory_sync: ['salon', 'marketing'],
+  stock_photos: ['content', 'marketing', 'real-estate', 'salon'],
+  wordpress_content: ['content', 'marketing'],
+  seo_directory: ['marketing', 'content', 'salon', 'general', 'plumbing'],
+  event_ticketing: ['marketing', 'content', 'salon'],
+  wayback_machine: ['content', 'marketing', 'engineer'],
+  namecom_dns: ['engineer', 'principal', 'content', 'marketing'],
+  carddav: ['engineer', 'principal'],
+};
+
+export function defaultIndustriesForFeature(feature: string): string[] {
+  return [...(DEFAULT_MODULE_INDUSTRIES[feature] ?? [])];
+}
+
 function priceFields(feature: FeatureId): Pick<CatalogRow, 'priceAmount' | 'priceLabel'> {
   const price = PAID_MODULE_PRICES[feature];
   if (!price || price.amount <= 0) {
@@ -366,6 +436,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
     saleSheet: true,
     visibility: 'public',
     requires: [],
+    industries: [],
   }));
 
   const modules: CatalogRow[] = FEATURE_IDS.filter((feature) => {
@@ -387,6 +458,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
       saleSheet: FEATURE_SALE_SHEET.has(feature),
       visibility: featureVisibility(feature),
       requires: featureRequirements(feature),
+      industries: defaultIndustriesForFeature(feature),
     };
   });
 

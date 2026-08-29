@@ -23,6 +23,7 @@ import {
 import {
   CATALOG_GROUPS,
   canonicalRowId,
+  defaultIndustriesForFeature,
   defaultModuleCatalog,
   isCatalogGroupId,
   slugifyCatalogFeature,
@@ -94,6 +95,27 @@ function parsePriceAmount(raw: unknown, priceLabel: string): number | null {
 function normalizeKind(raw: unknown): CatalogRowKind {
   if (raw === 'core' || raw === 'module' || raw === 'custom') return raw;
   return 'custom';
+}
+
+function parseIndustries(raw: unknown, feature: string): string[] {
+  if (raw === undefined) return defaultIndustriesForFeature(feature);
+  const list = Array.isArray(raw) ? raw : typeof raw === 'string' && raw.trim() ? [raw] : [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of list) {
+    if (typeof item !== 'string') continue;
+    const slug = item
+      .trim()
+      .toLowerCase()
+      .replace(/['’]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 64);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    out.push(slug);
+  }
+  return out;
 }
 
 function parseRequires(raw: unknown, feature: string): string[] {
@@ -178,6 +200,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
             ? 'private'
             : 'public',
       requires: parseRequires(o.requires, feature),
+      industries: parseIndustries(o.industries, feature),
     });
   });
   const seenFeatures = new Set(out.map((row) => row.feature));

@@ -46,6 +46,34 @@ export function catalogRequiresLabels(feature: string): string[] {
   return catalogRequires(feature).map((id) => catalogLabel(id, FEATURE_LABELS[id] ?? id));
 }
 
+export function catalogIndustries(feature: string): string[] {
+  return peekCatalogRow(feature)?.industries ?? [];
+}
+
+/** Industry slug → optional module ids for the demo loader / deploy playbooks. */
+export function industryDefaultsFromCatalog(
+  industries: readonly { slug: string }[],
+  modules: readonly { moduleId?: string; feature: string }[] = [],
+): Record<string, string[]> {
+  const byFeature = new Map(
+    modules
+      .filter((m) => m.moduleId)
+      .map((m) => [m.feature, String(m.moduleId).padStart(3, '0')]),
+  );
+  const out: Record<string, string[]> = {};
+  for (const industry of industries) out[industry.slug] = [];
+  for (const row of getModuleCatalogSync()) {
+    if (row.kind === 'core') continue;
+    const moduleId = byFeature.get(row.feature) || (/^\d{3}$/.test(row.id) ? row.id : '');
+    if (!moduleId) continue;
+    for (const slug of row.industries || []) {
+      if (!out[slug]) out[slug] = [];
+      if (!out[slug].includes(moduleId)) out[slug].push(moduleId);
+    }
+  }
+  return out;
+}
+
 /** Selected modules plus catalog/code requirements, requirements first. */
 export function expandCatalogRequirements(ids: Iterable<string>): FeatureId[] {
   const out: FeatureId[] = [];

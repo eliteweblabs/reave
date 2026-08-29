@@ -8,7 +8,12 @@
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
+import {
+  applyCatalogIndustriesToPlaybooks,
+  listDeckIndustries,
+} from '../../../lib/deckIndustriesStore';
 import { CATALOG_GROUPS, CATALOG_GROUP_TITLES } from '../../../lib/moduleCatalog';
+import { industryDefaultsFromCatalog } from '../../../lib/moduleCatalogOverlay';
 import {
   listModuleCatalog,
   moduleCatalogStorageBackend,
@@ -16,6 +21,20 @@ import {
   resetModuleCatalog,
 } from '../../../lib/moduleCatalogStore';
 import { jsonResponse } from '../../../lib/apiResponse';
+
+async function syncIndustryPlaybooks(rows: { feature: string; id: string }[]) {
+  try {
+    const industries = await listDeckIndustries();
+    await applyCatalogIndustriesToPlaybooks(
+      industryDefaultsFromCatalog(
+        industries,
+        rows.map((row) => ({ feature: row.feature, moduleId: row.id })),
+      ),
+    );
+  } catch (e) {
+    console.error('[module-catalog] industry playbook sync failed', e);
+  }
+}
 
 export const prerender = false;
 
@@ -33,10 +52,16 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const rows = await listModuleCatalog();
+  const industries = await listDeckIndustries().catch(() => []);
   return jsonResponse({
     ok: true,
     backend: moduleCatalogStorageBackend(),
     rows,
+    industries: industries.map((item) => ({
+      slug: item.slug,
+      label: item.label,
+      enabled: item.enabled,
+    })),
     groups: CATALOG_GROUPS.map((id) => ({ id, title: CATALOG_GROUP_TITLES[id] })),
   });
 }
@@ -62,6 +87,7 @@ export async function PUT(context: APIContext): Promise<Response> {
   const o = body as { reset?: unknown; rows?: unknown };
   const result = o.reset === true ? await resetModuleCatalog() : await replaceModuleCatalog(o.rows);
   if (!result.ok) return jsonResponse({ error: result.error }, 400);
+  await syncIndustryPlaybooks(result.rows);
   return jsonResponse({
     ok: true,
     backend: moduleCatalogStorageBackend(),

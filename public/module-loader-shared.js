@@ -18,5 +18,29 @@
       .replace(/'/g, '&#39;');
   }
 
-  global.ModuleLoaderShared = { MODULE_STATUS, escHtml };
+  function renderCallout(innerHtml, extras = {}) {
+    const tag = extras.tag === 'p' ? 'p' : 'div';
+    const extraClass = extras.className ? ` ${extras.className}` : '';
+    const role = extras.role ? ` role="${escHtml(extras.role)}"` : '';
+    return `<${tag} class="dl-callout${extraClass}"${role}>${innerHtml}</${tag}>`;
+  }
+
+  function renderStatusLegend(options = {}) {
+    const deployed = options.deployedLabel || 'Deployed — include in demo';
+    return renderCallout(
+      `<div class="dl-legend">` +
+      `<span class="dl-legend-item"><span class="dl-badge dl-badge--included">Included</span> always on</span>` +
+      `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--live" aria-hidden="true"></span> ${escHtml(deployed)}</span>` +
+      `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--deploying" aria-hidden="true"></span> Development</span>` +
+      `<span class="dl-legend-item"><span class="dl-status-dot dl-status-dot--alert" aria-hidden="true"></span> Requested / rejected</span>` +
+      `</div>`,
+    );
+  }
+
+  global.ModuleLoaderShared = {
+    MODULE_STATUS,
+    escHtml,
+    renderCallout,
+    renderStatusLegend,
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

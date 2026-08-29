@@ -10,6 +10,7 @@ import {
   listDemoLoaderModules,
 } from '../../../lib/demoLoaderCatalog';
 import {
+  industryDefaultsFromCatalog,
   overlayDemoModule,
   overlayIncludedCard,
   sectionsFromCatalog,
@@ -57,6 +58,7 @@ export async function GET(context: APIContext): Promise<Response> {
       industries: industries
         .map((i) => ({ slug: i.slug, label: i.label }))
         .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })),
+      industryDefaults: industryDefaultsFromCatalog(industries, modules),
       defaultModuleIds: defaultDemoLoaderModuleIds(modules),
       suite: cookieSuite,
       demoSiteUrl,

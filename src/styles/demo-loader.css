@@ -519,17 +519,20 @@
   outline-offset: 2px;
 }
 
+.dl-callout,
 .dl-footnote {
   margin: 0;
-  padding: 0.85rem 1rem;
+  padding: 1.35rem 1rem;
   font-size: 0.82rem;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.02);
+  box-sizing: border-box;
 }
 
+.dl-callout a,
 .dl-footnote a {
   color: rgba(255, 255, 255, 0.88);
 }
@@ -656,6 +659,7 @@
   margin: 0;
 }
 
+.dw-identity-block .dl-callout,
 .dw-identity-block .dl-footnote {
   margin: 0;
 }
@@ -985,6 +989,7 @@ html:not([data-theme="dark"]) .dl-meta,
 html:not([data-theme="dark"]) .dl-legend,
 html:not([data-theme="dark"]) .dl-tile-blurb,
 html:not([data-theme="dark"]) .dl-tile-requires,
+html:not([data-theme="dark"]) .dl-callout,
 html:not([data-theme="dark"]) .dl-footnote,
 html:not([data-theme="dark"]) .dl-footer,
 html:not([data-theme="dark"]) .dw-repo,
@@ -998,6 +1003,7 @@ html:not([data-theme="dark"]) .dl-success-body,
 html:not([data-theme="dark"]) .dl-success-meta,
 html:not([data-theme="dark"]) .dl-section-title,
 html:not([data-theme="dark"]) .dl-tile-label,
+html:not([data-theme="dark"]) .dl-callout a,
 html:not([data-theme="dark"]) .dl-footnote a,
 html:not([data-theme="dark"]) .dl-footer a,
 html:not([data-theme="dark"]) .dw-playbook-notes,
@@ -1012,6 +1018,7 @@ html:not([data-theme="dark"]) .dw-apply-log {
 html:not([data-theme="dark"]) .dl-toolbar,
 html:not([data-theme="dark"]) .dl-section-title,
 html:not([data-theme="dark"]) .dl-tile,
+html:not([data-theme="dark"]) .dl-callout,
 html:not([data-theme="dark"]) .dl-footnote,
 html:not([data-theme="dark"]) .dw-service,
 html:not([data-theme="dark"]) .dw-table-wrap,
@@ -1024,6 +1031,7 @@ html:not([data-theme="dark"]) .dw-apply-log {
 html:not([data-theme="dark"]) .dl-toolbar,
 html:not([data-theme="dark"]) .dl-section-title,
 html:not([data-theme="dark"]) .dl-tile,
+html:not([data-theme="dark"]) .dl-callout,
 html:not([data-theme="dark"]) .dl-footnote,
 html:not([data-theme="dark"]) .dw-service {
   background: var(--site-card, rgba(23, 23, 23, 0.03));

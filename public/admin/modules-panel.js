@@ -20,6 +20,7 @@ import { osAlert } from './os-dialog.js?v=20260826a';
 
 const STATUS_API = '/api/admin/deploy-status';
 const CATALOG_API = '/api/admin/module-catalog';
+const INDUSTRIES_API = '/api/admin/deck-industries';
 const DEFAULT_POLL_MS = 30_000;
 
 const GROUP_META = {
@@ -58,6 +59,7 @@ let search = '';
 let lastPayload = null;
 let catalogRows = [];
 let catalogGroups = [];
+let industryOptions = [];
 let items = [];
 let activeKey = null;
 let pendingFeature = null;
@@ -141,6 +143,7 @@ function newCustomRow(group) {
           ? 'service'
           : 'public',
     requires: [],
+    industries: [],
   };
 }
 
@@ -165,6 +168,7 @@ function mergeItems(catalog, deploy) {
         saleSheet: row.saleSheet === true,
         visibility: row.visibility || 'public',
         requires: Array.isArray(row.requires) ? row.requires : [],
+        industries: Array.isArray(row.industries) ? row.industries : [],
         deploy: deployByFeature.get(row.feature) || null,
       });
     }
@@ -185,6 +189,7 @@ function mergeItems(catalog, deploy) {
       saleSheet: m.saleSheet === true,
       visibility: m.visibility || 'public',
       requires: Array.isArray(m.requires) ? m.requires : [],
+      industries: [],
       deploy: m,
     });
   }
@@ -470,6 +475,10 @@ function readDetailIntoCatalog() {
     .map((el) => el.getAttribute('data-requires'))
     .filter(Boolean);
   item.requires = row.requires;
+  row.industries = [...pane.querySelectorAll('[data-industry]:checked')]
+    .map((el) => el.getAttribute('data-industry'))
+    .filter(Boolean);
+  item.industries = row.industries;
 }
 
 function renderEmptyPane(pane) {
@@ -513,6 +522,35 @@ function requiresOptionsHtml(item) {
       .join('') +
     `</div>`
   );
+}
+
+function industryOptionsHtml(item) {
+  if (!industryOptions.length) {
+    return '<p class="mod-sheet-hint">No industries yet. Add them under Account → Industries.</p>';
+  }
+  const selected = new Set(item.industries || []);
+  return (
+    `<div class="mod-requires-list">` +
+    industryOptions
+      .map(
+        (industry) =>
+          `<label class="mod-requires-opt">` +
+          `<input type="checkbox" data-industry="${escHtml(industry.slug)}"${selected.has(industry.slug) ? ' checked' : ''}>` +
+          `<span>${escHtml(industry.label)}</span>` +
+          `</label>`,
+      )
+      .join('') +
+    `</div>`
+  );
+}
+
+function industrySummaryHtml(item) {
+  const selected = new Set(item.industries || []);
+  const labels = industryOptions
+    .filter((industry) => selected.has(industry.slug))
+    .map((industry) => industry.label);
+  if (!labels.length) return '';
+  return `<p class="mod-requires-summary">Suggested for ${escHtml(labels.join(', '))}</p>`;
 }
 
 function requiresSummaryHtml(item) {
@@ -598,7 +636,9 @@ function renderDetailPane() {
       (item.kind === 'core'
         ? ''
         : `<div class="de-label mod-requires-field"><span>Requires</span>${requiresOptionsHtml(item)}` +
-          `<span class="mod-sheet-hint">Turned on automatically with this module.</span></div>`) +
+          `<span class="mod-sheet-hint">Turned on automatically with this module.</span></div>` +
+          `<div class="de-label mod-requires-field"><span>Industries</span>${industryOptionsHtml(item)}` +
+          `<span class="mod-sheet-hint">Suggested when this industry is picked on the demo loader or deploy wizard.</span></div>`) +
       `<div class="re-toggle-row mod-sheet-row">` +
       `<span class="de-label">Sale sheet</span>` +
       `<button type="button" class="prof-plugin-toggle" role="switch" data-field="sheet" ` +
@@ -612,8 +652,10 @@ function renderDetailPane() {
     blurb.textContent = item.blurb || deploy?.label || meta.title;
     scroll.appendChild(blurb);
     const req = document.createElement('div');
-    req.innerHTML = requiresSummaryHtml(item);
-    if (req.firstChild) scroll.appendChild(req.firstChild);
+    req.innerHTML = requiresSummaryHtml(item) + industrySummaryHtml(item);
+    if (req.firstChild) {
+      [...req.children].forEach((child) => scroll.appendChild(child));
+    }
   }
 
   const status = document.createElement('section');
@@ -655,7 +697,7 @@ function bindDetailEvents(pane) {
     scheduleSave();
   });
   pane.addEventListener('change', (e) => {
-    if (!e.target?.closest?.('[data-field], [data-requires], [data-catalog-row]')) return;
+    if (!e.target?.closest?.('[data-field], [data-requires], [data-industry], [data-catalog-row]')) return;
     dirty = true;
     scheduleSave();
   });
@@ -886,6 +928,19 @@ async function fetchCatalog() {
   return data;
 }
 
+async function fetchIndustries() {
+  if (!canEditCatalog()) return [];
+  const res = await fetch(INDUSTRIES_API, { cache: 'no-store' });
+  if (res.status === 404) return [];
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) return [];
+  return Array.isArray(data.industries)
+    ? data.industries
+        .filter((item) => item && item.slug && item.label)
+        .sort((a, b) => String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }))
+    : [];
+}
+
 function renderSignedOutGate(title) {
   return (
     `<div class="modules-panel-scroll">` +
@@ -925,12 +980,20 @@ export async function loadModulesTab(opts = {}) {
   }
 
   try {
-    const [status, catalog] = await Promise.all([fetchStatus(), fetchCatalog().catch(() => null)]);
+    const [status, catalog, industries] = await Promise.all([
+      fetchStatus(),
+      fetchCatalog().catch(() => null),
+      fetchIndustries().catch(() => []),
+    ]);
     lastPayload = status;
+    industryOptions = industries;
     if (status.pollMs) pollMs = status.pollMs;
     if (catalog) {
       catalogRows = Array.isArray(catalog.rows) ? catalog.rows : [];
       catalogGroups = Array.isArray(catalog.groups) ? catalog.groups : [];
+      if (!industryOptions.length && Array.isArray(catalog.industries)) {
+        industryOptions = catalog.industries.filter((item) => item && item.slug && item.label);
+      }
     } else if (!canEditCatalog()) {
       catalogRows = [];
       catalogGroups = Array.isArray(status.groups) ? status.groups : [];

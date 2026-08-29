@@ -173,7 +173,7 @@ function renderPanel(data) {
     (data.sections || []).map((s) => renderSection(s, mode)).join('') +
     `</div>` +
     `</div>` +
-    `<p class="dl-footnote">Prices are one-time add-on fees for now. Stripe checkout coming soon — requests alert the team immediately.</p>` +
+    `<p class="dl-callout">Prices are one-time add-on fees for now. Stripe checkout coming soon — requests alert the team immediately.</p>` +
     `</div></div>`
   );
 }

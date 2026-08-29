@@ -352,6 +352,28 @@ export async function getDeckIndustryBySlug(
   return all.find((i) => i.slug === needle) ?? null;
 }
 
+/** Write catalog industry checkboxes onto each playbook's moduleIds. */
+export async function applyCatalogIndustriesToPlaybooks(
+  moduleIdsByIndustry: Record<string, string[]>,
+): Promise<void> {
+  const current = await listDeckIndustries();
+  if (!current.length) return;
+  const inputs: DeckIndustryInput[] = current.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    label: row.label,
+    enabled: row.enabled,
+    playbook: {
+      ...row.playbook,
+      moduleIds: moduleIdsByIndustry[row.slug] ?? [],
+    },
+  }));
+  const result = await replaceDeckIndustries(inputs);
+  if (!result.ok) {
+    console.error('[deck-industries] catalog playbook sync failed', result.error);
+  }
+}
+
 /** Replace the full list (admin editor save). */
 export async function replaceDeckIndustries(
   inputs: DeckIndustryInput[],
