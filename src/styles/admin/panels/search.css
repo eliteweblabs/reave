@@ -19,8 +19,16 @@
 .search-overlay-bar {
   margin-bottom: 0.75rem;
 }
+.search-overlay-field.control-field,
+.panel-list-search-field.control-field {
+  border-radius: var(--radius-search);
+}
 .search-overlay-field.control-field {
   background: var(--panel);
+}
+.search-overlay-field > :is(input, textarea),
+.panel-list-search-field > :is(input, textarea) {
+  width: auto;
 }
 .search-overlay-input {
   flex: 1;
@@ -32,15 +40,22 @@
   font-size: 1rem;
   outline: none;
 }
-.search-overlay-clear {
+.search-overlay-clear,
+.panel-list-search-adornment {
   flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
   border: 1px solid var(--panel-border);
   background: transparent;
   color: var(--search-close);
   cursor: pointer;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-input);
+  border-radius: var(--radius-search);
+}
+.search-overlay-clear svg,
+.panel-list-search-adornment svg {
+  pointer-events: none;
 }
 .panel-list-search-adornment.is-search,
 .search-overlay-clear.is-search {
@@ -52,11 +67,17 @@
 .search-overlay-clear.is-search:hover {
   color: var(--search-icon);
   border-color: transparent;
+  cursor: default;
+}
+.panel-list-search-adornment.is-clear,
+.search-overlay-clear.is-clear {
+  cursor: pointer;
 }
 .panel-list-search-adornment.is-clear:hover,
 .search-overlay-clear.is-clear:hover {
   color: var(--fg);
   border-color: var(--border-strong-hover);
+  cursor: pointer;
 }
 .search-overlay-clear[hidden],
 .panel-list-search-clear[hidden] {

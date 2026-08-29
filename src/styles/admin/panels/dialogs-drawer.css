@@ -269,7 +269,7 @@
   margin: 0;
 }
 .address-picker-search {
-  width: 100%;
+  width: auto;
   box-sizing: border-box;
   margin: 0;
   font: inherit;

@@ -234,7 +234,7 @@ select,
 .control-field > :is(input, textarea) {
   flex: 1;
   min-width: 0;
-  width: 100%;
+  width: auto;
   margin: 0;
   border: none !important;
   background: transparent !important;

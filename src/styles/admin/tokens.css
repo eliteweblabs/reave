@@ -104,6 +104,7 @@
   --create-fab-shadow: var(--brand-gradient-shadow);
   --radius-pill: 999px;
   --radius-input: 8px;
+  --radius-search: var(--radius-pill);
   --radius-button: var(--radius-pill);
   --control-h: 2.75rem;
   /* Icon-only buttons — locked boxes. createIosIconBtn({ size: 'sm'|'md'|'lg' }).

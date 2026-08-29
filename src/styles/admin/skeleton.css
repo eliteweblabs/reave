@@ -112,7 +112,7 @@
 .sk-list-search {
   width: 100%;
   height: var(--control-h, 2.5rem);
-  border-radius: var(--radius-input, 8px);
+  border-radius: var(--radius-search, var(--radius-pill, 999px));
   flex: 0 0 auto;
 }
 

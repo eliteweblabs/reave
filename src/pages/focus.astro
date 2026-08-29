@@ -343,7 +343,7 @@ const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
     width: 100%;
     margin-bottom: 0.65rem;
     padding: 0.65rem 0.85rem;
-    border-radius: 10px;
+    border-radius: var(--radius-search, 999px);
     border: 1px solid var(--card-border);
     background: transparent;
     color: var(--fg);
