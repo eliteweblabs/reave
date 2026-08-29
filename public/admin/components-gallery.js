@@ -29,6 +29,7 @@ import {
   swipeAgentAction,
   deBtnIconSvg,
   setDeBtnLabel,
+  initTextareaCopyButtons,
 } from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260826a';
@@ -182,6 +183,29 @@ function mount() {
       pill.addEventListener('click', () => restartTimingRing(ring));
       r.appendChild(pill);
       restartTimingRing(ring);
+    },
+  );
+
+  section(
+    root,
+    'Textarea copy button',
+    'Every admin textarea gets a corner copy control from <code>initTextareaCopyButtons</code> — it appears once the field has text. Opt a field out with <code>data-copy-button="off"</code>; send composers are already excluded.',
+    (el) => {
+      const field = document.createElement('label');
+      field.className = 'prof-field';
+      field.innerHTML =
+        '<span class="prof-label">Paste something</span>' +
+        '<textarea class="prof-svg-input" rows="4">&lt;svg viewBox="0 0 24 24"&gt;…&lt;/svg&gt;</textarea>' +
+        '<span class="prof-hint">Copy sits over the field, clear of the scrollbar gutter.</span>';
+      el.appendChild(field);
+
+      const optOut = document.createElement('label');
+      optOut.className = 'prof-field';
+      optOut.style.marginTop = '0.75rem';
+      optOut.innerHTML =
+        '<span class="prof-label">Opted out</span>' +
+        '<textarea rows="2" data-copy-button="off">No copy button here.</textarea>';
+      el.appendChild(optOut);
     },
   );
 
@@ -419,6 +443,8 @@ function mount() {
       r.appendChild(sample);
     },
   );
+
+  initTextareaCopyButtons();
 }
 
 if (document.readyState === 'loading') {
