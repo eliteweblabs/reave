@@ -5,6 +5,12 @@
  */
 import { getAgentModelSettings, type AgentModelSettings } from './agentModel';
 import { getAnthropicBalance, type AnthropicBalance } from './anthropicBalance';
+import {
+  isAnthropicGatewayConfigured,
+  resolveAnthropicApiKey,
+  resolveAnthropicBaseUrl,
+  resolveAnthropicEndpoint,
+} from './anthropicEndpoint';
 import { getAnthropicKeySource, type AnthropicKeySource } from './anthropicKeySource';
 import { isBraveConfigured } from './braveClient';
 import { hasFeature } from './features';
@@ -14,6 +20,7 @@ import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from './vapiPlugin';
 
 export const AI_SERVICE_PROVIDERS = [
   'anthropic',
+  'omniroute',
   'openai',
   'google',
   'xai',
@@ -82,6 +89,8 @@ export function labelForProvider(provider: AiServiceProvider): string {
   switch (provider) {
     case 'anthropic':
       return 'Anthropic';
+    case 'omniroute':
+      return 'OmniRoute';
     case 'openai':
       return 'OpenAI';
     case 'google':
@@ -119,7 +128,7 @@ export function labelForPurpose(purpose: AiServicePurpose): string {
 }
 
 function anthropicBuiltin(model: AgentModelSettings, keySource: AnthropicKeySource): BuiltinAiService {
-  if (!serverEnv('ANTHROPIC_API_KEY')?.trim()) {
+  if (!resolveAnthropicApiKey()) {
     return {
       id: 'anthropic',
       kind: 'builtin',
@@ -127,11 +136,15 @@ function anthropicBuiltin(model: AgentModelSettings, keySource: AnthropicKeySour
       provider: 'anthropic',
       purpose: 'chat',
       status: 'missing',
-      detail: 'ANTHROPIC_API_KEY not set',
+      detail: isAnthropicGatewayConfigured()
+        ? 'Gateway key not set (OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN)'
+        : 'ANTHROPIC_API_KEY not set',
     };
   }
+  const endpoint = resolveAnthropicEndpoint();
   const sourceLabel =
     keySource === 'reave' ? 'reΛVe key' : keySource === 'client' ? 'install key' : 'key set';
+  const via = endpoint?.viaGateway ? ` via ${endpoint.host}` : '';
   return {
     id: 'anthropic',
     kind: 'builtin',
@@ -139,7 +152,37 @@ function anthropicBuiltin(model: AgentModelSettings, keySource: AnthropicKeySour
     provider: 'anthropic',
     purpose: 'chat',
     status: 'configured',
-    detail: `Model ${model.model} (${model.source}) · ${sourceLabel}`,
+    detail: `Model ${model.model} (${model.source}) · ${sourceLabel}${via}`,
+  };
+}
+
+function omnirouteBuiltin(): BuiltinAiService {
+  const base = {
+    id: 'omniroute',
+    kind: 'builtin' as const,
+    name: 'OmniRoute gateway',
+    provider: 'omniroute' as const,
+    purpose: 'chat' as const,
+  };
+  if (!isAnthropicGatewayConfigured()) {
+    return {
+      ...base,
+      status: 'missing',
+      detail: 'Set ANTHROPIC_BASE_URL (or OMNIROUTE_BASE_URL) to route Claude through OmniRoute',
+    };
+  }
+  if (!resolveAnthropicApiKey()) {
+    return {
+      ...base,
+      status: 'missing',
+      detail: `Gateway ${resolveAnthropicBaseUrl()} · missing OMNIROUTE_API_KEY`,
+    };
+  }
+  const endpoint = resolveAnthropicEndpoint();
+  return {
+    ...base,
+    status: 'configured',
+    detail: `Routing Messages API via ${endpoint?.host ?? 'gateway'}`,
   };
 }
 
@@ -247,6 +290,7 @@ export async function listBuiltinAiServices(): Promise<{
   const anthropicKeySource = getAnthropicKeySource();
   return {
     builtins: [
+      omnirouteBuiltin(),
       anthropicBuiltin(model, anthropicKeySource),
       vapiBuiltin(),
       telnyxBuiltin(),

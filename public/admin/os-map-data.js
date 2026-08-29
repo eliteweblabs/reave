@@ -72,6 +72,7 @@ const SYSTEM_NODES = [
   { id: 'google_workspace_mod', title: 'Google Workspace', sub: 'Gmail MX · SPF · DKIM · DMARC · domains (FEATURES: google_workspace)', icon: '📧', brand: 'google', hue: 155, status: true, group: 'reave', x: 640, y: 1164 },
 
   // External APIs
+  { id: 'omniroute', title: 'OmniRoute', sub: 'AI gateway · Anthropic Messages · ANTHROPIC_BASE_URL', icon: '🛤️', hue: 250, status: true, group: 'external', x: 980, y: 100 },
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'outbound · projectCreate · domains', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 220 },
   { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · one repair Session per service · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
@@ -114,7 +115,8 @@ const SYSTEM_EDGES = [
   { from: 'focus_chat', to: 'astro', label: '/focus · /api/chats · /api/people', dashed: true },
   { from: 'clerk', to: 'astro', dashed: true },
   { from: 'dev', to: 'contacts_dash', label: 'view DB', dashed: true },
-  { from: 'astro', to: 'anthropic', label: 'Claude tool loop' },
+  { from: 'astro', to: 'omniroute', label: 'Claude Messages (ANTHROPIC_BASE_URL)' },
+  { from: 'omniroute', to: 'anthropic', label: 'route / fallback' },
   { from: 'astro', to: 'contact_api', label: 'resolve · /api/people' },
   { from: 'astro', to: 'clerk', label: '/api/people team roster', dashed: true },
   { from: 'astro', to: 'carddav', label: 'CardDAV' },
@@ -245,7 +247,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
   { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['omniroute', 'anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────

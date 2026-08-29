@@ -2,6 +2,10 @@ import { serverEnv } from './serverEnv';
 import { renderButton } from './chatResponseRenderer';
 import { getAgentContext } from './agentContext';
 import { isSleepModeActive } from './pushQuietHours';
+import {
+  anthropicRequestHeaders,
+  resolveAnthropicEndpoint,
+} from './anthropicEndpoint';
 
 export type AnthropicCacheControl = { type: 'ephemeral'; ttl?: '5m' | '1h' };
 
@@ -92,11 +96,7 @@ function learnOutputCapFromError(
 export const __testables = { learnOutputCapFromError, withLearnedOutputCap };
 
 export function anthropicApiHeaders(apiKey: string): Record<string, string> {
-  return {
-    'x-api-key': apiKey,
-    'anthropic-version': '2023-06-01',
-    'Content-Type': 'application/json',
-  };
+  return anthropicRequestHeaders(apiKey, false);
 }
 
 /** Mark the last tool so the full tools array prefix is cached. */
@@ -138,24 +138,31 @@ function logPromptCacheUsage(usage?: AnthropicUsage): void {
   }
 }
 
+function missingKeyMessage(): string {
+  if (serverEnv('ANTHROPIC_BASE_URL')?.trim() || serverEnv('OMNIROUTE_BASE_URL')?.trim()) {
+    return 'LLM gateway key not set (OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY)';
+  }
+  return 'ANTHROPIC_API_KEY not set';
+}
+
 export async function createAnthropicMessage(
   body: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<
   { ok: true; data: AnthropicMessagesResponse } | { ok: false; status: number; text: string }
 > {
-  const apiKey = serverEnv('ANTHROPIC_API_KEY');
-  if (!apiKey) {
-    return { ok: false, status: 0, text: 'ANTHROPIC_API_KEY not set' };
+  const endpoint = resolveAnthropicEndpoint();
+  if (!endpoint) {
+    return { ok: false, status: 0, text: missingKeyMessage() };
   }
   if ((await isSleepModeActive()) && !getAgentContext().bypassSleepMode) {
     return { ok: false, status: 0, text: 'sleep_mode' };
   }
 
   const send = (payload: Record<string, unknown>) =>
-    fetch('https://api.anthropic.com/v1/messages', {
+    fetch(endpoint.messagesUrl, {
       method: 'POST',
-      headers: anthropicApiHeaders(apiKey),
+      headers: anthropicRequestHeaders(endpoint.apiKey, endpoint.viaGateway),
       body: JSON.stringify(payload),
       signal,
     });
@@ -215,18 +222,18 @@ export async function streamAnthropicMessage(
 ): Promise<
   { ok: true; data: AnthropicStreamResult } | { ok: false; status: number; text: string }
 > {
-  const apiKey = serverEnv('ANTHROPIC_API_KEY');
-  if (!apiKey) {
-    return { ok: false, status: 0, text: 'ANTHROPIC_API_KEY not set' };
+  const endpoint = resolveAnthropicEndpoint();
+  if (!endpoint) {
+    return { ok: false, status: 0, text: missingKeyMessage() };
   }
   if ((await isSleepModeActive()) && !getAgentContext().bypassSleepMode) {
     return { ok: false, status: 0, text: 'sleep_mode' };
   }
 
   const send = (payload: Record<string, unknown>) =>
-    fetch('https://api.anthropic.com/v1/messages', {
+    fetch(endpoint.messagesUrl, {
       method: 'POST',
-      headers: anthropicApiHeaders(apiKey),
+      headers: anthropicRequestHeaders(endpoint.apiKey, endpoint.viaGateway),
       body: JSON.stringify({ ...payload, stream: true }),
       signal: opts.signal,
     });

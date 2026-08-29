@@ -3,6 +3,12 @@
 interface ImportMetaEnv {
   /** Optional: Anthropic (Claude) key for freeform tool-using replies */
   ANTHROPIC_API_KEY?: string;
+  /** Anthropic-compatible gateway root (OmniRoute). No `/v1` suffix. */
+  ANTHROPIC_BASE_URL?: string;
+  OMNIROUTE_BASE_URL?: string;
+  /** OmniRoute / gateway access key (preferred when ANTHROPIC_BASE_URL is set). */
+  OMNIROUTE_API_KEY?: string;
+  ANTHROPIC_AUTH_TOKEN?: string;
   /** `reave` = copied from the official host; `client` = this install’s own key */
   ANTHROPIC_KEY_SOURCE?: string;
   /** Optional: defaults to claude-sonnet-4-6 */

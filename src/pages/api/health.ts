@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
 import type { APIContext } from 'astro';
 import { getAgentModelSettings } from '../../lib/agentModel';
+import {
+  isAnthropicGatewayConfigured,
+  resolveAnthropicEndpoint,
+} from '../../lib/anthropicEndpoint';
 import { enabledFeatures, FEATURE_LABELS, hasFeature, type FeatureId } from '../../lib/features';
 import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from '../../lib/vapiPlugin';
 import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
@@ -181,8 +185,9 @@ export const GET: APIRoute = async (context) => {
   }
 
   const agentModel = await getAgentModelSettings();
-  const anthropicDetail = serverEnv('ANTHROPIC_API_KEY')
-    ? `model ${agentModel.model} (${agentModel.source})`
+  const anthropicEndpoint = resolveAnthropicEndpoint();
+  const anthropicDetail = anthropicEndpoint
+    ? `model ${agentModel.model} (${agentModel.source})${anthropicEndpoint.viaGateway ? ` via ${anthropicEndpoint.host}` : ''}`
     : undefined;
 
   const pushConfigured =
@@ -201,9 +206,14 @@ export const GET: APIRoute = async (context) => {
     fleet_api: fleetProbe,
     paulino_wizard: paulinoWizardProbe,
     crater: craterProbe,
-    anthropic: serverEnv('ANTHROPIC_API_KEY')
-      ? configured(anthropicDetail ?? 'ANTHROPIC_API_KEY set')
-      : unconfigured('ANTHROPIC_API_KEY not set'),
+    anthropic: anthropicEndpoint
+      ? configured(anthropicDetail ?? 'LLM key set')
+      : unconfigured('ANTHROPIC_API_KEY / OMNIROUTE_API_KEY not set'),
+    omniroute: isAnthropicGatewayConfigured()
+      ? anthropicEndpoint
+        ? configured(`Messages via ${anthropicEndpoint.host}`)
+        : unconfigured('ANTHROPIC_BASE_URL set · gateway key missing')
+      : unconfigured('ANTHROPIC_BASE_URL not set'),
     railway_gql: serverEnv('RAILWAY_API_TOKEN')
       ? configured('RAILWAY_API_TOKEN set')
       : unconfigured('RAILWAY_API_TOKEN not set'),
