@@ -370,7 +370,7 @@ const EMAIL_TRIAGE_NODES = [
 
   // Automate outcomes
   { id: 'et_otp', title: 'OTP / auth link', sub: 'Copy · Activate · 5 min TTL', icon: '🔑', hue: 55, status: true, group: 'et_automate', x: 1160, y: 60 },
-  { id: 'et_meeting', title: 'Meeting automation', sub: 'Intent + clock in email · never invent', icon: '📅', hue: 120, status: true, group: 'et_automate', x: 1160, y: 180 },
+  { id: 'et_meeting', title: 'Meeting automation', sub: 'Intent + clock in email · never invent · read on every path · Confirm archives', icon: '📅', hue: 120, status: true, group: 'et_automate', x: 1160, y: 180 },
   { id: 'et_project', title: 'Project automation', sub: 'Match existing · skip if forwarded', icon: '💼', hue: 195, status: true, group: 'et_automate', x: 1160, y: 300 },
   { id: 'et_file', title: 'File to job', sub: 'Append note · attachments', icon: '📎', hue: 210, status: true, group: 'et_automate', x: 1160, y: 420 },
   { id: 'et_sort', title: 'Spam · archive · auto-delete', sub: 'Junk = spam filter only · DELETE → Auto deleted · archive stays Archive', icon: '🗂️', hue: 25, status: true, group: 'et_automate', x: 1160, y: 540 },
@@ -415,6 +415,7 @@ const EMAIL_TRIAGE_EDGES = [
   { from: 'et_otp', to: 'et_inbox' },
   { from: 'et_otp', to: 'et_push' },
   { from: 'et_meeting', to: 'et_inbox' },
+  { from: 'et_meeting', to: 'et_push', label: 'always pings' },
   { from: 'et_project', to: 'et_inbox' },
   { from: 'et_file', to: 'et_inbox' },
   { from: 'et_sort', to: 'et_inbox' },

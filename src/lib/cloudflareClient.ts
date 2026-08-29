@@ -425,18 +425,22 @@ export async function cloudflareUpsertRedirectRule(
 ): Promise<CfResult<{ action: 'created' | 'updated'; ruleset_id: string; rule_id: string }>> {
   const phase = 'http_request_dynamic_redirect';
 
-  // 1. Get or create the ruleset
-  const listOut = await cfFetch<CfRuleset[]>(`/zones/${zoneId}/rulesets?phase=${phase}`);
-  if (!listOut.ok) return listOut;
+  // Phase entrypoint — listing ?phase= can return a stale/non-zone ruleset id.
+  const entryOut = await cfFetch<CfRuleset>(`/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`);
+  let rulesetId: string | undefined;
+  let existingRules: CfRedirectRule[] = [];
 
-  let rulesetId: string | undefined = listOut.data[0]?.id;
-  let existingRules: CfRedirectRule[] = listOut.data[0]?.rules ?? [];
+  if (entryOut.ok) {
+    rulesetId = entryOut.data.id;
+    existingRules = entryOut.data.rules ?? [];
+  } else if (entryOut.status !== 404) {
+    return entryOut;
+  }
 
   if (!rulesetId) {
-    // Create a new empty ruleset for this phase
     const createOut = await cfFetch<CfRuleset>(`/zones/${zoneId}/rulesets`, {
       method: 'POST',
-      body: JSON.stringify({ name: 'Redirect Rules', phase, rules: [] }),
+      body: JSON.stringify({ name: 'Redirect rules ruleset', kind: 'zone', phase, rules: [] }),
     });
     if (!createOut.ok) return createOut;
     rulesetId = createOut.data.id;
@@ -485,6 +489,109 @@ export async function cloudflareUpsertRedirectRule(
       rule_id: savedRule?.id ?? '',
     },
   };
+}
+
+/**
+ * Browsers accept `https://example.com.` (FQDN). Cloudflare strips that trailing
+ * dot from `http.host`, so Single Redirects never match. A Snippet can still
+ * read the raw Host header and 301 — same as google.com. / github.com.
+ */
+export const FQDN_TRAILING_DOT_SNIPPET_NAME = 'fqdn_trailing_dot';
+export const FQDN_TRAILING_DOT_REDIRECT_DESCRIPTION = 'Redirect FQDN trailing-dot host';
+
+const FQDN_TRAILING_DOT_SNIPPET = `export default {
+  async fetch(request) {
+    const host = request.headers.get("host") || "";
+    const hostname = host.split(":")[0];
+    if (!hostname.endsWith(".")) return fetch(request);
+    const url = new URL(request.url);
+    url.hostname = hostname.replace(/\\.+$/, "");
+    url.protocol = "https:";
+    return Response.redirect(url.toString(), 301);
+  }
+};
+`;
+
+type CfSnippetRule = {
+  description?: string;
+  enabled?: boolean;
+  expression: string;
+  snippet_name: string;
+};
+
+async function cfUploadSnippet(
+  zoneId: string,
+  snippetName: string,
+  filename: string,
+  source: string,
+): Promise<CfResult<{ snippet_name: string }>> {
+  const apiToken = token();
+  if (!apiToken) return { ok: false, error: 'CLOUDFLARE_API_TOKEN is not set' };
+
+  const form = new FormData();
+  form.append('files', new Blob([source], { type: 'application/javascript+module' }), filename);
+  form.append('metadata', JSON.stringify({ main_module: filename }));
+
+  const res = await fetch(`${CF_API}/zones/${zoneId}/snippets/${snippetName}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${apiToken}` },
+    body: form,
+  });
+  const raw = await res.text();
+  let body: { success?: boolean; errors?: { message: string }[]; result?: { snippet_name: string } };
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    return { ok: false, error: 'Invalid JSON from Cloudflare', status: res.status };
+  }
+  if (!res.ok || body.success === false) {
+    const msg = body.errors?.map((e) => e.message).join('; ') || `HTTP ${res.status}`;
+    return { ok: false, error: msg, status: res.status };
+  }
+  return { ok: true, data: body.result ?? { snippet_name: snippetName } };
+}
+
+export async function ensureFqdnTrailingDotRedirect(
+  zoneId: string,
+): Promise<CfResult<{ action: 'created' | 'updated'; snippet_name?: string; ruleset_id?: string; rule_id?: string }>> {
+  // Prefer a Snippet (sees the raw Host). Paid-plan / token may reject it.
+  const uploaded = await cfUploadSnippet(zoneId, FQDN_TRAILING_DOT_SNIPPET_NAME, 'main.js', FQDN_TRAILING_DOT_SNIPPET);
+  if (uploaded.ok) {
+    const listed = await cfFetch<{ rules?: CfSnippetRule[] } | CfSnippetRule[]>(
+      `/zones/${zoneId}/snippets/snippet_rules`,
+    );
+    if (listed.ok) {
+      const existing = Array.isArray(listed.data) ? listed.data : listed.data.rules ?? [];
+      const rule: CfSnippetRule = {
+        description: FQDN_TRAILING_DOT_REDIRECT_DESCRIPTION,
+        enabled: true,
+        expression: 'true',
+        snippet_name: FQDN_TRAILING_DOT_SNIPPET_NAME,
+      };
+      const without = existing.filter((r) => r.snippet_name !== FQDN_TRAILING_DOT_SNIPPET_NAME);
+      const wasUpdate = without.length !== existing.length;
+      const putOut = await cfFetch<{ rules?: CfSnippetRule[] }>(`/zones/${zoneId}/snippets/snippet_rules`, {
+        method: 'PUT',
+        body: JSON.stringify({ rules: [...without, rule] }),
+      });
+      if (putOut.ok) {
+        return {
+          ok: true,
+          data: { action: wasUpdate ? 'updated' : 'created', snippet_name: FQDN_TRAILING_DOT_SNIPPET_NAME },
+        };
+      }
+    }
+  }
+
+  // Single Redirects: http.host is normalized, but the raw Host header still has the dot.
+  return cloudflareUpsertRedirectRule(zoneId, {
+    description: FQDN_TRAILING_DOT_REDIRECT_DESCRIPTION,
+    expression: 'ends_with(http.request.headers["host"][0], ".")',
+    target_expression:
+      'concat("https://", wildcard_replace(http.request.headers["host"][0], "*.", "${1}"), http.request.uri.path)',
+    status_code: 301,
+    preserve_query_string: true,
+  });
 }
 
 export async function cloudflareVerifyToken(): Promise<CfResult<{ id: string; status: string }>> {

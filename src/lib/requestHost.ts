@@ -16,8 +16,19 @@ export function normalizePublicHost(raw?: string | null): string {
       .replace(/^https?:\/\//, '')
       .split('/')[0]
       ?.split(':')[0]
+      ?.replace(/\.+$/, '')
       ?.replace(/^www\./, '') || ''
   );
+}
+
+/** Hostname only (no port). FQDN trailing dots are valid DNS but break host matching. */
+export function hostnameFromHostHeader(raw?: string | null): string {
+  return (raw ?? '').trim().split(':')[0] || '';
+}
+
+/** `reave.app.` / `www.example.com.` → hostname without the FQDN terminator. */
+export function stripTrailingFqdnDot(host: string): string {
+  return hostnameFromHostHeader(host).replace(/\.+$/, '');
 }
 
 export function isReaveMarketingHost(host: string): boolean {
