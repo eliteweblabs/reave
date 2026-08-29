@@ -78,10 +78,20 @@ function initStickyCtaBackdrop(el: HTMLElement): void {
     for (const band of bands) observer.observe(band);
   };
 
+  /* A mobile toolbar collapsing fires a burst of resizes — one remeasure will do. */
+  let queued = 0;
+  const remeasure = () => {
+    if (queued) return;
+    queued = requestAnimationFrame(() => {
+      queued = 0;
+      observe();
+    });
+  };
+
   observe();
-  window.addEventListener("resize", observe);
-  window.visualViewport?.addEventListener("resize", observe);
-  document.fonts?.ready?.then(() => observe());
+  window.addEventListener("resize", remeasure);
+  window.visualViewport?.addEventListener("resize", remeasure);
+  document.fonts?.ready?.then(remeasure);
 }
 
 function syncStickyCtaHeight(el: HTMLElement, track: HTMLElement): void {
