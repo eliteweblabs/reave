@@ -24,6 +24,22 @@ export function parseCalendarReminderOffsets(raw?: string | null): number[] {
   return unique.length ? unique : [...DEFAULT_CALENDAR_REMINDER_MINUTES];
 }
 
+/** Canonical storage / display form (e.g. `"60,15"`). */
+export function formatCalendarReminderOffsets(minutes: number[]): string {
+  return parseCalendarReminderOffsets(minutes.join(',')).join(',');
+}
+
+/** Normalize admin/env input to a canonical comma-separated string. */
+export function normalizeCalendarReminderMinutesInput(
+  raw?: string | number | null,
+  fallback = DEFAULT_CALENDAR_REMINDER_MINUTES.join(','),
+): string {
+  if (raw == null || raw === '') {
+    return formatCalendarReminderOffsets(parseCalendarReminderOffsets(fallback));
+  }
+  return formatCalendarReminderOffsets(parseCalendarReminderOffsets(String(raw)));
+}
+
 export function reminderDedupKey(bookingUid: string, offsetMinutes: number): string {
   return `calendar:${bookingUid.trim()}:${offsetMinutes}`;
 }

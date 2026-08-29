@@ -244,6 +244,33 @@ export async function storeCancelCalendarRemindersForBooking(bookingUid: string)
   return rowCount ?? 0;
 }
 
+/**
+ * Cancel pending reminders whose offset is no longer in the configured set
+ * (e.g. admin changed lead time from 15 → 30).
+ */
+export async function storeCancelStaleOffsetCalendarReminders(
+  allowedOffsets: number[],
+): Promise<number> {
+  const pool = await ensureSchema();
+  if (!pool) return 0;
+  const offsets = [
+    ...new Set(
+      allowedOffsets
+        .map((n) => Math.round(Number(n)))
+        .filter((n) => Number.isFinite(n) && n >= 1),
+    ),
+  ];
+  if (!offsets.length) return 0;
+  const { rowCount } = await pool.query(
+    `UPDATE calendar_reminders
+     SET status = 'canceled', updated_at = now()
+     WHERE status IN ('pending', 'sending')
+       AND NOT (offset_minutes = ANY($1::int[]))`,
+    [offsets],
+  );
+  return rowCount ?? 0;
+}
+
 /** Cancel pending reminders whose booking is no longer in the upcoming accepted set. */
 export async function storeCancelOrphanCalendarReminders(activeUids: string[]): Promise<number> {
   const pool = await ensureSchema();

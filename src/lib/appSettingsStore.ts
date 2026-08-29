@@ -6,6 +6,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import {
+  DEFAULT_CALENDAR_REMINDER_MINUTES,
+  normalizeCalendarReminderMinutesInput,
+  parseCalendarReminderOffsets,
+} from './calendarReminderLogic';
 import { serverEnv } from './serverEnv';
 
 export type AppSettings = {
@@ -18,12 +23,18 @@ export type AppSettings = {
    * suggesting follow-up. Default off.
    */
   shareOpenChatAlerts: boolean;
+  /**
+   * Comma-separated minutes-before offsets for calendar booking reminders
+   * (push + dashboard). Default `15`.
+   */
+  calendarReminderMinutes: string;
   updatedAt: string | null;
 };
 
 const DEFAULT_OTP_TTL_MINUTES = 5;
 const DEFAULT_RECENTLY_VIEWED_DAYS = 7;
 const DEFAULT_SHARE_OPEN_CHAT_ALERTS = false;
+const DEFAULT_CALENDAR_REMINDER_MINUTES_STR = DEFAULT_CALENDAR_REMINDER_MINUTES.join(',');
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS app_settings (
@@ -31,10 +42,12 @@ CREATE TABLE IF NOT EXISTS app_settings (
   otp_ttl_minutes        INT NOT NULL DEFAULT 5,
   recently_viewed_days   INT NOT NULL DEFAULT 7,
   share_open_chat_alerts BOOLEAN NOT NULL DEFAULT false,
+  calendar_reminder_minutes TEXT,
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS recently_viewed_days INT NOT NULL DEFAULT 7;
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS share_open_chat_alerts BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS calendar_reminder_minutes TEXT;
 INSERT INTO app_settings (id) VALUES (1)
   ON CONFLICT (id) DO NOTHING;
 `;
@@ -126,15 +139,36 @@ function envDefaultOtpTtl(): number {
   return clampOtpTtlMinutes(raw, DEFAULT_OTP_TTL_MINUTES);
 }
 
+function envDefaultCalendarReminderMinutes(): string {
+  const raw = serverEnv('CALENDAR_REMINDER_MINUTES');
+  if (raw == null || raw === '') return DEFAULT_CALENDAR_REMINDER_MINUTES_STR;
+  return normalizeCalendarReminderMinutesInput(raw, DEFAULT_CALENDAR_REMINDER_MINUTES_STR);
+}
+
+export function clampCalendarReminderMinutes(
+  raw: unknown,
+  fallback = DEFAULT_CALENDAR_REMINDER_MINUTES_STR,
+): string {
+  if (raw == null || raw === '') {
+    return normalizeCalendarReminderMinutesInput(fallback, DEFAULT_CALENDAR_REMINDER_MINUTES_STR);
+  }
+  return normalizeCalendarReminderMinutesInput(String(raw), fallback);
+}
+
 function normalizeSettings(raw: unknown): AppSettings {
   const base: AppSettings = {
     otpTtlMinutes: envDefaultOtpTtl(),
     recentlyViewedDays: DEFAULT_RECENTLY_VIEWED_DAYS,
     shareOpenChatAlerts: DEFAULT_SHARE_OPEN_CHAT_ALERTS,
+    calendarReminderMinutes: envDefaultCalendarReminderMinutes(),
     updatedAt: null,
   };
   if (!raw || typeof raw !== 'object') return base;
   const o = raw as Record<string, unknown>;
+  const hasCalendar =
+    o.calendarReminderMinutes !== undefined &&
+    o.calendarReminderMinutes !== null &&
+    String(o.calendarReminderMinutes).trim() !== '';
   return {
     otpTtlMinutes:
       o.otpTtlMinutes !== undefined
@@ -148,6 +182,9 @@ function normalizeSettings(raw: unknown): AppSettings {
       o.shareOpenChatAlerts !== undefined
         ? coerceShareOpenChatAlerts(o.shareOpenChatAlerts, base.shareOpenChatAlerts)
         : base.shareOpenChatAlerts,
+    calendarReminderMinutes: hasCalendar
+      ? clampCalendarReminderMinutes(o.calendarReminderMinutes, base.calendarReminderMinutes)
+      : base.calendarReminderMinutes,
     updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : null,
   };
 }
@@ -180,7 +217,8 @@ async function readPgSettings(): Promise<AppSettings | null> {
     const pool = await ensureSchema();
     if (!pool) return null;
     const { rows } = await pool.query(
-      `SELECT otp_ttl_minutes, recently_viewed_days, share_open_chat_alerts, updated_at
+      `SELECT otp_ttl_minutes, recently_viewed_days, share_open_chat_alerts,
+              calendar_reminder_minutes, updated_at
        FROM app_settings WHERE id = 1`,
     );
     const row = rows[0] as
@@ -188,6 +226,7 @@ async function readPgSettings(): Promise<AppSettings | null> {
           otp_ttl_minutes?: number;
           recently_viewed_days?: number;
           share_open_chat_alerts?: boolean;
+          calendar_reminder_minutes?: string | null;
           updated_at?: Date | string;
         }
       | undefined;
@@ -196,6 +235,7 @@ async function readPgSettings(): Promise<AppSettings | null> {
       otpTtlMinutes: row.otp_ttl_minutes,
       recentlyViewedDays: row.recently_viewed_days,
       shareOpenChatAlerts: row.share_open_chat_alerts,
+      calendarReminderMinutes: row.calendar_reminder_minutes,
       updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
     });
   } catch (e) {
@@ -209,15 +249,22 @@ async function writePgSettings(settings: AppSettings): Promise<boolean> {
   if (!pool) return false;
   await pool.query(
     `INSERT INTO app_settings (
-       id, otp_ttl_minutes, recently_viewed_days, share_open_chat_alerts, updated_at
+       id, otp_ttl_minutes, recently_viewed_days, share_open_chat_alerts,
+       calendar_reminder_minutes, updated_at
      )
-     VALUES (1, $1, $2, $3, now())
+     VALUES (1, $1, $2, $3, $4, now())
      ON CONFLICT (id) DO UPDATE SET
        otp_ttl_minutes = EXCLUDED.otp_ttl_minutes,
        recently_viewed_days = EXCLUDED.recently_viewed_days,
        share_open_chat_alerts = EXCLUDED.share_open_chat_alerts,
+       calendar_reminder_minutes = EXCLUDED.calendar_reminder_minutes,
        updated_at = now()`,
-    [settings.otpTtlMinutes, settings.recentlyViewedDays, settings.shareOpenChatAlerts],
+    [
+      settings.otpTtlMinutes,
+      settings.recentlyViewedDays,
+      settings.shareOpenChatAlerts,
+      settings.calendarReminderMinutes,
+    ],
   );
   return true;
 }
@@ -255,9 +302,23 @@ export async function getShareOpenChatAlerts(): Promise<boolean> {
   return settings.shareOpenChatAlerts;
 }
 
+/** Minutes-before offsets for calendar booking reminders (canonical string). */
+export async function getCalendarReminderMinutes(): Promise<string> {
+  const settings = await getAppSettings();
+  return settings.calendarReminderMinutes;
+}
+
+/** Parsed minute offsets for calendar booking reminders. */
+export async function getCalendarReminderOffsets(): Promise<number[]> {
+  return parseCalendarReminderOffsets(await getCalendarReminderMinutes());
+}
+
 export async function saveAppSettings(
   patch: Partial<
-    Pick<AppSettings, 'otpTtlMinutes' | 'recentlyViewedDays' | 'shareOpenChatAlerts'>
+    Pick<
+      AppSettings,
+      'otpTtlMinutes' | 'recentlyViewedDays' | 'shareOpenChatAlerts' | 'calendarReminderMinutes'
+    >
   >,
 ): Promise<AppSettings | null> {
   const cur = await getAppSettings();
@@ -274,6 +335,13 @@ export async function saveAppSettings(
       patch.shareOpenChatAlerts !== undefined
         ? coerceShareOpenChatAlerts(patch.shareOpenChatAlerts, cur.shareOpenChatAlerts)
         : cur.shareOpenChatAlerts,
+    calendarReminderMinutes:
+      patch.calendarReminderMinutes !== undefined
+        ? clampCalendarReminderMinutes(
+            patch.calendarReminderMinutes,
+            cur.calendarReminderMinutes,
+          )
+        : cur.calendarReminderMinutes,
     updatedAt: new Date().toISOString(),
   };
   const ok = databaseUrl() ? await writePgSettings(next) : writeFileSettings(next);

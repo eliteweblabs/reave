@@ -3,6 +3,7 @@
  */
 import type { APIContext } from 'astro';
 import {
+  clampCalendarReminderMinutes,
   clampOtpTtlMinutes,
   clampRecentlyViewedDays,
   coerceShareOpenChatAlerts,
@@ -51,6 +52,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     otpTtlMinutes?: number;
     recentlyViewedDays?: number;
     shareOpenChatAlerts?: boolean;
+    calendarReminderMinutes?: string;
   } = {};
   if (body.otpTtlMinutes !== undefined) {
     const n = Number(body.otpTtlMinutes);
@@ -73,6 +75,16 @@ export async function PATCH(context: APIContext): Promise<Response> {
     }
     patch.shareOpenChatAlerts = coerceShareOpenChatAlerts(parsed, false);
   }
+  if (body.calendarReminderMinutes !== undefined) {
+    const raw = String(body.calendarReminderMinutes ?? '').trim();
+    if (!raw) {
+      return jsonResponse(
+        { ok: false, error: 'calendarReminderMinutes must be one or more minutes (e.g. 15 or 60,15).' },
+        400,
+      );
+    }
+    patch.calendarReminderMinutes = clampCalendarReminderMinutes(raw, '15');
+  }
 
   if (Object.keys(patch).length === 0) {
     return jsonResponse({ ok: false, error: 'No settings to update.' }, 400);
@@ -81,6 +93,11 @@ export async function PATCH(context: APIContext): Promise<Response> {
   try {
     const settings = await saveAppSettings(patch);
     if (!settings) return jsonResponse({ ok: false, error: 'Failed to save settings.' }, 500);
+    if (patch.calendarReminderMinutes !== undefined) {
+      void import('../../../lib/calendarReminderEngine')
+        .then(({ runCalendarReminderPoll }) => runCalendarReminderPoll())
+        .catch(() => undefined);
+    }
     return jsonResponse({ ok: true, settings });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';

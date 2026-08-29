@@ -224,7 +224,7 @@ Status: **pending** · Playbook: `plugins/scheduling/DEPLOY.md`
 - `BOOKING_API_KEY` — optional; when calcom-booking-api enforces auth
 - `CALENDAR_REMINDER_POLL_SECRET` — cron auth for `/api/calendar/reminders/poll?key=`
 - `CALENDAR_REMINDER_POLL_MINUTES` — optional; default 1
-- `CALENDAR_REMINDER_MINUTES` — optional comma-separated offsets; default `15`
+- `CALENDAR_REMINDER_MINUTES` — optional comma-separated offsets; seeds Admin → Settings until saved (default `15`)
 
 ## External setup
 

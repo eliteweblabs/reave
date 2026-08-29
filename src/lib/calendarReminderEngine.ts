@@ -1,6 +1,6 @@
 /**
  * Calendar booking reminders — queue upcoming Cal.com meetings, then fire
- * Web Push + dashboard alerts when due (default 15 minutes before start).
+ * Web Push + dashboard alerts when due (Admin → Settings lead time; default 15 minutes).
  */
 
 import { bookingList, bookingTimezone, isBookingConfigured, type BookingSummary } from './bookingClient';
@@ -8,7 +8,6 @@ import {
   calendarReminderTag,
   calendarReminderUrl,
   formatReminderWhen,
-  parseCalendarReminderOffsets,
   reminderDecision,
   reminderDedupKey,
   reminderFireAtMs,
@@ -18,6 +17,7 @@ import {
 import {
   storeCancelCalendarRemindersForBooking,
   storeCancelOrphanCalendarReminders,
+  storeCancelStaleOffsetCalendarReminders,
   storeClaimDueCalendarReminders,
   storeFindCalendarReminderByDedup,
   storeMarkCalendarReminder,
@@ -55,8 +55,14 @@ export type CalendarReminderPollResult = {
   error?: string;
 };
 
-function reminderOffsets(): number[] {
-  return parseCalendarReminderOffsets(serverEnv('CALENDAR_REMINDER_MINUTES'));
+async function reminderOffsets(): Promise<number[]> {
+  try {
+    const { getCalendarReminderOffsets } = await import('./appSettingsStore');
+    return await getCalendarReminderOffsets();
+  } catch {
+    const { parseCalendarReminderOffsets } = await import('./calendarReminderLogic');
+    return parseCalendarReminderOffsets(serverEnv('CALENDAR_REMINDER_MINUTES'));
+  }
 }
 
 export function isCalendarRemindersEnabled(): boolean {
@@ -83,7 +89,8 @@ async function upsertOffsetsForBooking(input: BookingReminderSyncInput): Promise
   let synced = 0;
   const title = bookingTitle({ title: input.title ?? '', attendee: input.attendee ?? '' });
   const attendee = input.attendee?.trim() || '';
-  for (const offsetMinutes of reminderOffsets()) {
+  const offsets = await reminderOffsets();
+  for (const offsetMinutes of offsets) {
     const decision = reminderDecision({ startMs, offsetMinutes });
     if (decision === 'skip_past') continue;
     const dedupKey = reminderDedupKey(input.uid, offsetMinutes);
@@ -147,6 +154,8 @@ async function syncUpcomingFromCalcom(): Promise<{ synced: number; canceled: num
   if (!listed.ok) {
     return { synced: 0, canceled: 0, error: listed.error };
   }
+  const offsets = await reminderOffsets();
+  await storeCancelStaleOffsetCalendarReminders(offsets).catch(() => 0);
   let synced = 0;
   const activeUids: string[] = [];
   for (const b of listed.data.bookings) {

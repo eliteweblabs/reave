@@ -8730,6 +8730,8 @@ function renderAppSettingsPanel(settings, sleepData) {
     ? Number(s.recentlyViewedDays)
     : 7;
   const shareOpenChatAlerts = s.shareOpenChatAlerts === true;
+  const calendarReminderMinutes =
+    String(s.calendarReminderMinutes || '15').trim() || '15';
   const sleepEnabled = sleep.sleepModeEnabled !== false;
   const quietStart = sleep.quietStart || '23:00';
   const quietEnd = sleep.quietEnd || '07:00';
@@ -8780,6 +8782,15 @@ function renderAppSettingsPanel(settings, sleepData) {
               `<span class="prof-hint">Off by default. First opens still count for Recently Viewed; this only controls the chat + push.</span>` +
             `</div>`,
           ) +
+          profSection(
+            'Calendar Reminders',
+            'Push and dashboard alerts before accepted Schedule bookings.',
+            `<div class="prof-field">` +
+              `<label for="settings-calendar-reminder-minutes">Minutes before meeting</label>` +
+              `<input id="settings-calendar-reminder-minutes" name="calendarReminderMinutes" type="text" inputmode="numeric" autocomplete="off" value="${escHtml(calendarReminderMinutes)}" required />` +
+              `<span class="prof-hint">Default is 15. Use a single value (30) or comma-separated offsets (60,15) for day-of plus lead-up alerts.</span>` +
+            `</div>`,
+          ) +
         `</form>` +
         `<form id="sleep-settings-form" class="prof-form">` +
           profSection(
@@ -8824,6 +8835,14 @@ function bindAppSettingsForm(root) {
         if (!Number.isFinite(n) || n < 1 || n > 365) return false;
         return true;
       }
+      if (el.name === 'calendarReminderMinutes') {
+        const parts = String(el.value || '')
+          .split(/[,\s]+/)
+          .map((p) => Number(p))
+          .filter((n) => Number.isFinite(n));
+        if (!parts.length) return false;
+        return parts.every((n) => n >= 1 && n <= 10080);
+      }
       return defaultFieldValidator(el);
     },
     async save(payload) {
@@ -8836,6 +8855,7 @@ function bindAppSettingsForm(root) {
           otpTtlMinutes: Number(payload.otpTtlMinutes),
           recentlyViewedDays: Number(payload.recentlyViewedDays),
           shareOpenChatAlerts,
+          calendarReminderMinutes: String(payload.calendarReminderMinutes || '').trim(),
         }),
       });
       const json = await res.json().catch(() => ({}));

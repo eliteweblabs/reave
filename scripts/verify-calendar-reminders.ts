@@ -6,9 +6,11 @@ import assert from 'node:assert/strict';
 import {
   calendarReminderTag,
   calendarReminderUrl,
+  formatCalendarReminderOffsets,
   formatReminderOffsetLabel,
   inferCalendarReminderStartMs,
   isExpiringMeetingNotice,
+  normalizeCalendarReminderMinutesInput,
   parseCalendarReminderOffsets,
   parseCalendarReminderTag,
   reminderDecision,
@@ -24,6 +26,10 @@ assert.deepEqual(parseCalendarReminderOffsets(''), [15]);
 assert.deepEqual(parseCalendarReminderOffsets('15'), [15]);
 assert.deepEqual(parseCalendarReminderOffsets('1440, 60, 15'), [1440, 60, 15]);
 assert.deepEqual(parseCalendarReminderOffsets('15,15,0,-5'), [15]);
+assert.equal(normalizeCalendarReminderMinutesInput(null), '15');
+assert.equal(normalizeCalendarReminderMinutesInput('30'), '30');
+assert.equal(normalizeCalendarReminderMinutesInput('15, 60'), '60,15');
+assert.equal(formatCalendarReminderOffsets([15, 60, 15]), '60,15');
 
 const start = Date.parse('2026-08-13T16:00:00.000Z');
 assert.equal(reminderFireAtMs(start, 15), Date.parse('2026-08-13T15:45:00.000Z'));
