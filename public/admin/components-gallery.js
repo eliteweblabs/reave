@@ -16,6 +16,7 @@ import {
   createTimingRing,
   restartTimingRing,
   createCopyIconBtn,
+  createOverflowMenuBtn,
   IOS_ICON_BTN_SIZES,
   createSlidingPillSelect,
   createListEmptyState,
@@ -30,7 +31,7 @@ import {
   deBtnIconSvg,
   setDeBtnLabel,
   initTextareaCopyButtons,
-} from './admin-ui.js?v=20260825h';
+} from './admin-ui.js?v=20260829a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260826a';
 import { buildAdminNotice, appendAdminNoticeAction } from './admin-notice.js?v=20260828a';
@@ -93,7 +94,7 @@ function mount() {
   section(
     root,
     'Pane header toolbar',
-    'Canonical header actions via <code>paneDeleteIcon</code>, <code>paneShareIcon</code>, <code>createCopyIconBtn</code>, <code>createIosIconBtn</code>, <code>createAgentBtn</code>, <code>createPanelBackBtn</code>. Tap trash once → confirm (must stay <strong>red</strong>, never white).',
+    'Canonical header actions via <code>paneDeleteIcon</code>, <code>paneShareIcon</code>, <code>createCopyIconBtn</code>, <code>createOverflowMenuBtn</code>, <code>createIosIconBtn</code>, <code>createAgentBtn</code>, <code>createPanelBackBtn</code>. Chat sessions fold Copy / Share / Archive / Delete into ⋯. Tap trash once → confirm (must stay <strong>red</strong>, never white).',
     (el) => {
       const setStatus = statusLine(el);
       const toolbar = document.createElement('div');
@@ -103,6 +104,23 @@ function mount() {
         createPanelBackBtn({
           label: 'Back',
           onClick: () => setStatus('Back'),
+        }),
+      );
+      toolbar.appendChild(
+        createOverflowMenuBtn({
+          label: 'Session actions',
+          getItems: () => [
+            { label: 'Copy', iconKey: 'copy', action: () => setStatus('Copied', 'ok') },
+            { label: 'Share', iconKey: 'share', action: () => setStatus('Share') },
+            { label: 'Archive', iconKey: 'archive', action: () => setStatus('Archived') },
+            {
+              label: 'Delete',
+              iconKey: 'trash',
+              danger: true,
+              confirmDelete: true,
+              action: () => setStatus('Deleted (confirmed)', 'warn'),
+            },
+          ],
         }),
       );
       toolbar.appendChild(

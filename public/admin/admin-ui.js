@@ -34,6 +34,9 @@ export const IOS_ICONS = {
   trash:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
   x: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+  /* IOS_ICONS.ellipsis — Lucide ellipsis; pane-header overflow (⋯) menu */
+  ellipsis:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
   stopwatch:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></svg>',
   send: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
@@ -3044,27 +3047,46 @@ function contextMenuWithinOpenGrace() {
 function normalizeContextMenuItem(item) {
   const label = item.label || 'Action';
   const run = item.action || item.onClick;
+  const iconKey = typeof item.iconKey === 'string' ? item.iconKey : '';
   return {
     label,
+    iconKey: iconKey && IOS_ICONS[iconKey] ? iconKey : '',
+    danger: !!item.danger || iconKey === 'trash',
     run: typeof run === 'function' ? run : null,
     confirmDelete: !!item.confirmDelete,
     confirmTimeout: item.confirmTimeout ?? DELETE_CONFIRM_MS,
   };
 }
 
+function contextMenuItemMarkup(item) {
+  const icon = item.iconKey
+    ? `<span class="ch-context-item-icon" aria-hidden="true">${iosIcon(item.iconKey, 16)}</span>`
+    : '';
+  return `<span class="ch-context-item-label"></span>${icon}`;
+}
+
 function armContextDeleteConfirm(btn, originalLabel, timeout) {
   clearTimeout(btn._confirmTimer);
   btn.dataset.confirmArmed = '1';
-  btn.textContent = 'Confirm delete';
+  const labelEl = btn.querySelector('.ch-context-item-label');
+  if (labelEl) labelEl.textContent = 'Confirm delete';
+  else btn.textContent = 'Confirm delete';
   btn.classList.add('ch-context-item--danger');
   btn._confirmTimer = setTimeout(() => {
     delete btn.dataset.confirmArmed;
-    btn.textContent = originalLabel;
-    btn.classList.remove('ch-context-item--danger');
+    if (labelEl) labelEl.textContent = originalLabel;
+    else btn.textContent = originalLabel;
+    if (!btn.dataset.keepDanger) btn.classList.remove('ch-context-item--danger');
   }, timeout);
 }
 
-/** Fixed-position menu for sidebar rows and other list items (right-click / long-press). */
+/**
+ * Fixed-position iOS-style menu (right-click / long-press / ⋯ overflow).
+ * @param {number} x
+ * @param {number} y
+ * @param {Array<{label?: string, iconKey?: string, danger?: boolean, action?: Function, onClick?: Function, confirmDelete?: boolean}>} items
+ * @param {{ title?: string, align?: 'start' | 'end', anchorEl?: Element }} [opts]
+ */
 export function showContextMenu(x, y, items, opts = {}) {
   const menuItems = (items || [])
     .map(normalizeContextMenuItem)
@@ -3090,8 +3112,12 @@ export function showContextMenu(x, y, items, opts = {}) {
   for (const item of menuItems) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'ch-context-item';
-    btn.textContent = item.label;
+    btn.className = 'ch-context-item' + (item.danger ? ' ch-context-item--danger' : '');
+    if (item.danger) btn.dataset.keepDanger = '1';
+    btn.innerHTML = contextMenuItemMarkup(item);
+    const labelEl = btn.querySelector('.ch-context-item-label');
+    if (labelEl) labelEl.textContent = item.label;
+    else btn.textContent = item.label;
     btn.setAttribute('role', 'menuitem');
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -3113,8 +3139,17 @@ export function showContextMenu(x, y, items, opts = {}) {
   openContextMenu = menu;
 
   const rect = menu.getBoundingClientRect();
-  menu.style.left = `${Math.min(x, window.innerWidth - rect.width - 8)}px`;
-  menu.style.top = `${Math.min(y, window.innerHeight - rect.height - 8)}px`;
+  const alignEnd = opts.align === 'end';
+  let left = alignEnd ? x - rect.width : x;
+  left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
+  let top = y;
+  if (opts.anchorEl && top + rect.height > window.innerHeight - 8) {
+    const a = opts.anchorEl.getBoundingClientRect();
+    top = Math.max(8, a.top - rect.height - 6);
+  }
+  top = Math.max(8, Math.min(top, window.innerHeight - rect.height - 8));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 
   const onKey = (ev) => {
     if (ev.key === 'Escape') close({ target: document.body });
@@ -3122,6 +3157,7 @@ export function showContextMenu(x, y, items, opts = {}) {
   const close = (ev) => {
     if (contextMenuWithinOpenGrace()) return;
     if (menu.contains(ev.target)) return;
+    if (opts.anchorEl && opts.anchorEl.contains?.(ev.target)) return;
     closeContextMenu();
     document.removeEventListener('pointerdown', close, true);
     document.removeEventListener('contextmenu', close, true);
@@ -3132,6 +3168,45 @@ export function showContextMenu(x, y, items, opts = {}) {
     document.addEventListener('contextmenu', close, true);
     document.addEventListener('keydown', onKey, true);
   }, 250);
+}
+
+/**
+ * Pane-header ⋯ control — opens the shared iOS context menu under the button.
+ * Pass `getItems` when labels depend on live state (e.g. Archive / Unarchive).
+ * @param {{
+ *   label?: string,
+ *   className?: string,
+ *   size?: 'sm' | 'md' | 'lg',
+ *   items?: Array<object>,
+ *   getItems?: () => Array<object>,
+ * }} [opts]
+ */
+export function createOverflowMenuBtn(opts = {}) {
+  const {
+    label = 'More',
+    className = '',
+    size = 'md',
+    items = [],
+    getItems,
+  } = opts;
+  return createIosIconBtn({
+    iconKey: 'ellipsis',
+    label,
+    className: ['ios-icon-btn', 'ch-overflow-btn', className].filter(Boolean).join(' '),
+    size,
+    onClick: (btn) => {
+      const list = typeof getItems === 'function' ? getItems(btn) : items;
+      if (openContextMenu) {
+        closeContextMenu();
+        return;
+      }
+      const rect = btn.getBoundingClientRect();
+      showContextMenu(rect.right, rect.bottom + 6, list, {
+        align: 'end',
+        anchorEl: btn,
+      });
+    },
+  });
 }
 
 function bindSwipeRowContextMenu(row, contentEl, actions, opts = {}) {

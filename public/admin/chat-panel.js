@@ -39,7 +39,7 @@ import {
   showCopyButtonFeedback,
   createCopyIconBtn,
   bindConfirmDeleteButton,
-} from './admin-ui.js?v=20260825h';
+} from './admin-ui.js?v=20260829a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260815a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
@@ -1007,11 +1007,11 @@ function bindChatMessageContextMenu(row, message, composeInput, onEdit) {
   row.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     const items = [
-      { label: 'Copy', action: () => copyChatText(message.content) },
-      { label: 'Share', action: () => shareChatText(message.content, message.role) },
+      { label: 'Copy', iconKey: 'copy', action: () => copyChatText(message.content) },
+      { label: 'Share', iconKey: 'share', action: () => shareChatText(message.content, message.role) },
     ];
     if (message.role === 'user' && onEdit) {
-      items.push({ label: 'Edit message', action: onEdit });
+      items.push({ label: 'Edit message', iconKey: 'edit', action: onEdit });
     }
     if (composeInput) {
       items.push({ label: 'Paste into message', action: () => pasteIntoChatInput(composeInput) });

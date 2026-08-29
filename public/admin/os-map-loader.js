@@ -107,12 +107,13 @@ import {
   paneShareIcon,
   showCopyButtonFeedback,
   createCopyIconBtn,
+  createOverflowMenuBtn,
   initTextareaCopyButtons,
   createToggleSwitch,
   setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260826a';
+} from './admin-ui.js?v=20260829a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -248,7 +249,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260827a';
+} from './chat-panel.js?v=20260829a';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -11231,10 +11232,6 @@ export function buildChatPaneHeader() {
     main.appendChild(links);
   }
 
-  const transcript = chatTranscriptText();
-  const thread = activeChatThread();
-  const isArchived = !!thread?.archived;
-
   return createPaneHeader({
     className: 'ch-pane-header',
     back: { label: 'Back to sessions', onClick: () => closeActiveChat() },
@@ -11243,28 +11240,40 @@ export function buildChatPaneHeader() {
     // agent buttons triage/send-to-agent and do not open this picker).
     beforeIcons: [createChatModelSwitcher()],
     icons: [
-      createCopyIconBtn({
-        label: 'Copy entire conversation',
-        className: 'ios-icon-btn ch-copy-chat-btn',
-        getText: () => transcript,
-        onError: () => showChatToast('Copy failed — check browser permissions'),
-      }),
-      paneShareIcon({
-        label: 'Share entire conversation',
-        onClick: (btn) => shareChatText(transcript, 'assistant', btn),
-      }),
-      createIosIconBtn({
-        iconKey: 'archive',
-        label: isArchived ? 'Unarchive session' : 'Archive session',
-        className: 'ios-icon-btn ch-archive-chat-btn',
-        onClick: () => {
+      createOverflowMenuBtn({
+        label: 'Session actions',
+        className: 'ch-session-overflow-btn',
+        getItems: () => {
           const t = activeChatThread();
-          if (t) void archiveChat(t);
+          const archived = !!t?.archived;
+          const text = chatTranscriptText();
+          return [
+            {
+              label: 'Copy',
+              iconKey: 'copy',
+              action: () => copyChatText(text),
+            },
+            {
+              label: 'Share',
+              iconKey: 'share',
+              action: () => shareChatText(text, 'assistant'),
+            },
+            {
+              label: archived ? 'Unarchive' : 'Archive',
+              iconKey: 'archive',
+              action: () => {
+                if (t) void archiveChat(t);
+              },
+            },
+            {
+              label: 'Delete',
+              iconKey: 'trash',
+              danger: true,
+              confirmDelete: true,
+              action: () => deleteChat(chatState.activeId),
+            },
+          ];
         },
-      }),
-      paneDeleteIcon({
-        label: 'Delete session',
-        onClick: () => deleteChat(chatState.activeId),
       }),
     ],
   }).root;
