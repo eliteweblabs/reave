@@ -9,15 +9,10 @@ import { hasFeature } from '../../../../lib/features';
 import { createUptimeMonitor } from '../../../../lib/uptimeMonitoring';
 import { enrichUptimeMonitorView } from '../../../../lib/uptimerobotClient';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 type BatchInput = { url?: unknown; friendlyName?: unknown };
 
@@ -26,18 +21,18 @@ export const POST: APIRoute = async (context) => {
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('uptime_monitoring')) {
-    return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
   }
 
   let body: { monitors?: unknown };
   try {
     body = (await context.request.json()) as { monitors?: unknown };
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   if (!Array.isArray(body.monitors) || body.monitors.length === 0) {
-    return json({ ok: false, error: 'monitors must be a non-empty array' }, 400);
+    return jsonResponse({ ok: false, error: 'monitors must be a non-empty array' }, 400);
   }
 
   const results: Array<
@@ -71,7 +66,7 @@ export const POST: APIRoute = async (context) => {
   const created = results.filter((r) => r.ok).length;
   const failed = results.length - created;
 
-  return json({
+  return jsonResponse({
     ok: failed === 0,
     total: results.length,
     created,

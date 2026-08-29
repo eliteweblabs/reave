@@ -3,15 +3,10 @@ import { getContact, siteBaseUrl } from '../../../../../lib/contactApi';
 import { getTemplate } from '../../../../../lib/documentTemplates';
 import { deliverShare } from '../../../../../lib/shareDelivery';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 /**
  * POST /api/admin/doc/:uid/send  — admin-only.
@@ -25,25 +20,25 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const uid = context.params.uid ?? '';
-  if (!uid) return json({ ok: false, error: 'Missing contact id' }, 400);
+  if (!uid) return jsonResponse({ ok: false, error: 'Missing contact id' }, 400);
 
   let body: { template?: string; channel?: string };
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const template = (body.template ?? '').trim();
   const channel = body.channel === 'sms' ? 'sms' : body.channel === 'email' ? 'email' : null;
-  if (!template) return json({ ok: false, error: 'Missing template' }, 400);
-  if (!channel) return json({ ok: false, error: 'channel must be "email" or "sms"' }, 400);
+  if (!template) return jsonResponse({ ok: false, error: 'Missing template' }, 400);
+  if (!channel) return jsonResponse({ ok: false, error: 'channel must be "email" or "sms"' }, 400);
 
   const tmpl = getTemplate(template);
-  if (!tmpl) return json({ ok: false, error: 'Unknown document template' }, 404);
+  if (!tmpl) return jsonResponse({ ok: false, error: 'Unknown document template' }, 404);
 
   const contactRes = await getContact(uid);
-  if (!contactRes.ok) return json({ ok: false, error: contactRes.error }, 404);
+  if (!contactRes.ok) return jsonResponse({ ok: false, error: contactRes.error }, 404);
 
   const docUrl = `${siteBaseUrl(context.request)}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(template)}`;
   const result = await deliverShare({
@@ -58,6 +53,6 @@ export async function POST(context: APIContext): Promise<Response> {
     source: 'admin_doc_send',
   });
 
-  if (!result.ok) return json(result, 400);
-  return json({ ok: true, channel: result.channel, dest: result.dest });
+  if (!result.ok) return jsonResponse(result, 400);
+  return jsonResponse({ ok: true, channel: result.channel, dest: result.dest });
 }

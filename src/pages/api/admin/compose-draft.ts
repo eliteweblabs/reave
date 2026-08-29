@@ -10,15 +10,10 @@ import {
   isComposeDraftKind,
   type ComposeDraftIncoming,
 } from '../../../lib/composeDraft.ts';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function incomingFromBody(raw: unknown): ComposeDraftIncoming | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
@@ -38,12 +33,12 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const kind = String(body.kind ?? '').trim();
   if (!isComposeDraftKind(kind)) {
-    return json({ ok: false, error: 'kind must be email, social_reply, or social_post' }, 400);
+    return jsonResponse({ ok: false, error: 'kind must be email, social_reply, or social_post' }, 400);
   }
 
   const company = await getCompanyConfig(context.request);
@@ -59,6 +54,6 @@ export async function POST(context: APIContext): Promise<Response> {
     incomingText: typeof body.incomingText === 'string' ? body.incomingText : undefined,
   });
 
-  if (!result.ok) return json({ ok: false, error: result.error }, 502);
-  return json({ ok: true, draft: result.draft });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 502);
+  return jsonResponse({ ok: true, draft: result.draft });
 }

@@ -37,15 +37,10 @@ import {
 } from '../../../lib/analyticsFleet';
 import { isPlausibleConfigured } from '../../../lib/plausibleClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function loadClientsTotal(): Promise<number | null> {
   if (!isContactApiConfigured()) return null;
@@ -202,7 +197,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { billing, billingError, billingConfigured } = billingSlice;
   const { analytics, analyticsConfigured } = analyticsSlice;
 
-  return json({
+  return jsonResponse({
     ok: true,
     generatedAt: new Date().toISOString(),
     stats: {

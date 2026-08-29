@@ -12,15 +12,10 @@ import {
 } from '../../../../lib/calendarReminderScheduler';
 import { hasFeature } from '../../../../lib/features';
 import { authorizePollOrOwner } from '../../../../lib/pollRouteAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const key = context.url.searchParams.get('key')?.trim() ?? null;
@@ -28,12 +23,12 @@ export const GET: APIRoute = async (context) => {
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('scheduling')) {
-    return json({ ok: false, error: 'scheduling not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'scheduling not enabled' }, 404);
   }
 
   ensureCalendarReminderScheduler();
   const result = await runCalendarReminderPoll();
-  return json(result, result.ok ? 200 : result.error === 'already running' ? 200 : 503);
+  return jsonResponse(result, result.ok ? 200 : result.error === 'already running' ? 200 : 503);
 };
 
 export const POST: APIRoute = GET;

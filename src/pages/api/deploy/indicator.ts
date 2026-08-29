@@ -12,15 +12,10 @@ import {
 } from '../../../lib/deployStatus';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { serverEnv } from '../../../lib/serverEnv';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   if (serverEnv('DEPLOY_STATUS_PUBLIC') !== '1') {
@@ -30,12 +25,12 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const deploy = await getDeployStatus().catch(() => null);
   if (!deploy) {
-    return json({ ok: true, deploy: null });
+    return jsonResponse({ ok: true, deploy: null });
   }
 
   const chatLocked = isChatLockedForDeploy(deploy);
 
-  return json({
+  return jsonResponse({
     ok: true,
     deploy: {
       state: deploy.state,

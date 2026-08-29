@@ -12,15 +12,10 @@ import {
 } from '../../../../lib/integrationTokens';
 import { GOOGLE_WEBMASTER_PROVIDER } from '../../../../lib/googleWebmasterAuth';
 import { hasFeature } from '../../../../lib/features';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseRange(raw: string | null): number {
   const n = Number(raw);
@@ -47,16 +42,16 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('analytic_audit') && !hasFeature('client_portal')) {
-    return json({ ok: false, error: 'Analytics not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'Analytics not enabled' }, 404);
   }
 
   const uid = context.params.uid?.trim() || '';
-  if (!uid) return json({ ok: false, error: 'uid required' }, 400);
+  if (!uid) return jsonResponse({ ok: false, error: 'uid required' }, 400);
 
   try {
     const contactRes = await getContact(uid);
     if (!contactRes.ok) {
-      return json(
+      return jsonResponse(
         { ok: false, error: contactRes.error || 'Contact not found' },
         contactRes.status && contactRes.status >= 400 ? contactRes.status : 404,
       );
@@ -99,7 +94,7 @@ export async function GET(context: APIContext): Promise<Response> {
     }
 
     if (!resolvedSiteId && !propertyId && preferredSource !== 'ga4') {
-      return json({
+      return jsonResponse({
         ok: true,
         dashboard: {
           configured: false,
@@ -133,9 +128,9 @@ export async function GET(context: APIContext): Promise<Response> {
       websiteUrl: website || (resolvedSiteId ? `https://${resolvedSiteId}` : ''),
     });
 
-    return json({ ok: true, dashboard, contactUid: uid });
+    return jsonResponse({ ok: true, dashboard, contactUid: uid });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to load client analytics';
-    return json({ ok: false, error: message }, 500);
+    return jsonResponse({ ok: false, error: message }, 500);
   }
 }

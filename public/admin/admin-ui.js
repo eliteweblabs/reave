@@ -523,6 +523,117 @@ export function createCopyIconBtn(opts = {}) {
   });
 }
 
+// ---- Textarea copy button ----
+// Textareas are where the pasted-in payloads live (SVG markup, prompts,
+// notices, drafts), so every eligible admin textarea gets the same corner
+// copy control instead of a per-panel one-off. initTextareaCopyButtons()
+// keeps it applied as panels render; opt a field out with
+// data-copy-button="off" on the textarea or any ancestor.
+
+const TEXTAREA_COPY_INSET = 6;
+
+/**
+ * Skipped: opt-outs, send composers (their corner is the send control), and the
+ * offscreen helpers that are textareas only to hold focus or the clipboard.
+ */
+const TEXTAREA_COPY_SKIP_SEL =
+  '[data-copy-button="off"], [aria-hidden="true"], .aui-input, .aui-compose, .ch-compose';
+
+/** @type {WeakMap<HTMLElement, { ta: HTMLTextAreaElement, sync: () => void }>} */
+const textareaCopyBtnTargets = new WeakMap();
+
+function syncTextareaCopyBtn(ta, btn) {
+  const show = Boolean(ta.value.trim()) && ta.offsetParent !== null;
+  btn.hidden = !show;
+  if (!show) return;
+  // offsetTop/offsetLeft resolve against `.ta-copy-host` (position: relative).
+  // clientWidth keeps the button clear of a vertical scrollbar gutter.
+  const box = btn.offsetWidth || IOS_ICON_BTN_SIZES.md.box;
+  /* Two-row fields are barely taller than the button — center it there instead
+     of letting the inset push it past the bottom border. */
+  const top =
+    ta.clientHeight >= box + TEXTAREA_COPY_INSET * 2
+      ? TEXTAREA_COPY_INSET
+      : Math.max(0, (ta.clientHeight - box) / 2);
+  btn.style.top = `${ta.offsetTop + top}px`;
+  btn.style.left = `${Math.max(0, ta.offsetLeft + ta.clientWidth - box - TEXTAREA_COPY_INSET)}px`;
+}
+
+/**
+ * Dock a copy control in the top-right of one textarea. Returns the button, or
+ * null when the field is skipped or already has one.
+ */
+export function attachTextareaCopyButton(ta) {
+  if (!(ta instanceof HTMLTextAreaElement) || ta.dataset.copyBtn) return null;
+  if (ta.matches(TEXTAREA_COPY_SKIP_SEL) || ta.closest(TEXTAREA_COPY_SKIP_SEL)) {
+    ta.dataset.copyBtn = 'off';
+    return null;
+  }
+  /* A textarea parked directly on <body> is a helper, not a field — and making
+     <body> the positioning host would move every fixed/absolute descendant. */
+  const host = ta.parentElement;
+  if (!host || host === document.body) return null;
+  /* Hidden mirrors (e.g. the signature form field) can be revealed later — leave
+     them unflagged so a later scan picks them up. */
+  if (ta.hidden || ta.disabled) return null;
+
+  ta.dataset.copyBtn = 'on';
+  host.classList.add('ta-copy-host');
+  const btn = createCopyIconBtn({
+    label: 'Copy',
+    className: 'ta-copy-btn',
+    getText: () => ta.value,
+  });
+  btn.hidden = true;
+  host.insertBefore(btn, ta.nextSibling);
+
+  const sync = () => syncTextareaCopyBtn(ta, btn);
+  textareaCopyBtnTargets.set(btn, { ta, sync });
+  ta.addEventListener('input', sync);
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(sync);
+    ro.observe(ta);
+    /* The host grows when a preview/label above the field appears, which moves
+       the textarea without resizing it. */
+    ro.observe(host);
+  }
+  sync();
+  return btn;
+}
+
+/** Attach missing buttons, drop orphans, and re-sync the rest (values can be set in code). */
+export function scanTextareaCopyButtons(root = document) {
+  for (const btn of document.querySelectorAll('.ta-copy-btn')) {
+    const entry = textareaCopyBtnTargets.get(btn);
+    if (!entry || !entry.ta.isConnected) {
+      btn.remove();
+      continue;
+    }
+    entry.sync();
+  }
+  const scope = root instanceof Element || root instanceof Document ? root : document;
+  for (const ta of scope.querySelectorAll('textarea')) attachTextareaCopyButton(ta);
+}
+
+let textareaCopyScanTimer = 0;
+
+function queueTextareaCopyScan() {
+  if (textareaCopyScanTimer) return;
+  textareaCopyScanTimer = window.setTimeout(() => {
+    textareaCopyScanTimer = 0;
+    scanTextareaCopyButtons();
+  }, 120);
+}
+
+/** Call once per admin surface. Panels render late, so watch for new textareas. */
+export function initTextareaCopyButtons() {
+  if (document.documentElement.dataset.textareaCopyBound === '1') return;
+  document.documentElement.dataset.textareaCopyBound = '1';
+  scanTextareaCopyButtons();
+  if (typeof MutationObserver === 'undefined' || !document.body) return;
+  new MutationObserver(queueTextareaCopyScan).observe(document.body, { childList: true, subtree: true });
+}
+
 /** Return a normalized http(s) href when `value` is a valid URL; otherwise null. */
 export function looksLikeHttpUrl(value) {
   const trimmed = String(value || '').trim();

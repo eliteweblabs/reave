@@ -4,25 +4,20 @@
 import type { APIRoute } from 'astro';
 import { resolveAddressCoordinates } from '../../../lib/mapbox';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const address = context.url.searchParams.get('address')?.trim() || '';
-  if (!address) return json({ ok: false, error: 'address is required' }, 400);
+  if (!address) return jsonResponse({ ok: false, error: 'address is required' }, 400);
 
   const geo = await resolveAddressCoordinates(address);
-  if (!geo) return json({ ok: false, error: 'Address not found' }, 404);
+  if (!geo) return jsonResponse({ ok: false, error: 'Address not found' }, 404);
 
-  return json({ ok: true, geo });
+  return jsonResponse({ ok: true, geo });
 };

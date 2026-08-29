@@ -304,6 +304,13 @@
   color: var(--muted);
   line-height: 1.4;
 }
+/* Autosave failure shown at the field — the panel alert scrolls out of reach. */
+.prof-field-error {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #f87171;
+}
 .prof-hint--block {
   display: block;
   margin-top: -0.15rem;

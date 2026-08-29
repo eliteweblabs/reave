@@ -6,15 +6,10 @@ import {
 } from '../../../../lib/clientBranding';
 import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const uid = (context.params.uid ?? '').trim();
@@ -44,26 +39,26 @@ export async function POST(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ error: 'Not found' }, 404);
 
   let form: FormData;
   try {
     form = await context.request.formData();
   } catch {
-    return json({ error: 'Expected multipart form data' }, 400);
+    return jsonResponse({ error: 'Expected multipart form data' }, 400);
   }
 
   const file = form.get('icon');
   if (!(file instanceof File) || !file.size) {
-    return json({ error: 'Missing icon file' }, 400);
+    return jsonResponse({ error: 'Missing icon file' }, 400);
   }
 
   const mediaType = file.type.trim().toLowerCase();
   if (!isLogoUploadMediaType(mediaType)) {
-    return json({ error: 'Icon must be PNG, JPEG, or WebP' }, 400);
+    return jsonResponse({ error: 'Icon must be PNG, JPEG, or WebP' }, 400);
   }
   if (file.size > LOGO_UPLOAD_MAX_BYTES) {
-    return json({ error: 'Icon too large (max 2 MB)' }, 400);
+    return jsonResponse({ error: 'Icon too large (max 2 MB)' }, 400);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -71,9 +66,9 @@ export async function POST(context: APIContext): Promise<Response> {
     dataBase64: buffer.toString('base64'),
     mediaType,
   });
-  if (!saved.ok) return json({ error: saved.error || 'Failed to save icon' }, 500);
+  if (!saved.ok) return jsonResponse({ error: saved.error || 'Failed to save icon' }, 500);
 
-  return json({ ok: true, iconUrl: saved.iconUrl });
+  return jsonResponse({ ok: true, iconUrl: saved.iconUrl });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -82,10 +77,10 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ error: 'Not found' }, 404);
 
   const cleared = await clearClientPortalIcon(uid);
-  if (!cleared.ok) return json({ error: cleared.error || 'Failed to remove icon' }, 500);
+  if (!cleared.ok) return jsonResponse({ error: cleared.error || 'Failed to remove icon' }, 500);
 
-  return json({ ok: true, iconUrl: cleared.iconUrl });
+  return jsonResponse({ ok: true, iconUrl: cleared.iconUrl });
 }

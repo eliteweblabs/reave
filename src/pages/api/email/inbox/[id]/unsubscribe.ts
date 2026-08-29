@@ -7,25 +7,20 @@ import { storeGetEmailInbox } from '../../../../../lib/emailInboxStore';
 import { parseEmailUnsubscribe, performEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../../lib/emailUnsubscribe';
 import { fetchResendInboundEmailHeaders } from '../../../../../lib/resendInboundEmail';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const event = await storeGetEmailInbox(id);
-  if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let headers = event.headers;
   if (!hasListUnsubscribeHeader(headers) && event.resendEmailId) {
@@ -35,7 +30,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const unsubscribe = parseEmailUnsubscribe(headers);
   if (!unsubscribe.available) {
-    return json(
+    return jsonResponse(
       { ok: false, error: 'This message does not include an unsubscribe link.' },
       400,
     );
@@ -43,8 +38,8 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const result = await performEmailUnsubscribe(headers);
   if (!result.ok) {
-    return json({ ok: false, error: result.error || 'Unsubscribe failed.' }, 502);
+    return jsonResponse({ ok: false, error: result.error || 'Unsubscribe failed.' }, 502);
   }
 
-  return json({ ok: true });
+  return jsonResponse({ ok: true });
 }

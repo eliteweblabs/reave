@@ -4114,6 +4114,38 @@ button.de-placeholder-action:active {
   display: block;
   flex-shrink: 0;
 }
+/* Copy control docked in a textarea corner — attachTextareaCopyButton()
+   in public/admin/admin-ui.js positions it against `.ta-copy-host`.
+   Rounded square, not a circle: it sits on the field, not in a toolbar. */
+.ta-copy-host {
+  position: relative;
+}
+.ta-copy-btn.ios-icon-btn {
+  position: absolute;
+  z-index: 2;
+  border-radius: 7px;
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--panel-border);
+  opacity: 0.62;
+}
+.ta-copy-btn.ios-icon-btn:hover,
+.ta-copy-btn.ios-icon-btn:focus-visible,
+.ta-copy-btn.ios-icon-btn.is-copy-success,
+.ta-copy-host:focus-within .ta-copy-btn.ios-icon-btn {
+  background: var(--card);
+  opacity: 1;
+}
+/* Touch has no hover to fade it in. */
+@media (hover: none) {
+  .ta-copy-btn.ios-icon-btn {
+    opacity: 1;
+  }
+}
+/* .ios-icon-btn sets display, which would otherwise beat the UA [hidden] rule. */
+.ta-copy-btn[hidden] {
+  display: none;
+}
+
 /* Back/forward nav chevrons — 80% black, full black on hover */
 .ios-icon-btn.nav-chevron-btn {
   color: var(--nav-chevron);

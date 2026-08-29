@@ -5,26 +5,16 @@
  */
 import type { APIContext } from 'astro';
 import { processDemoLaunch } from '../../../lib/demoLaunch';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
-
-function json(data: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-      ...(extraHeaders || {}),
-    },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   let body: Record<string, unknown> = {};
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const result = await processDemoLaunch(context.request, {
@@ -41,10 +31,10 @@ export async function POST(context: APIContext): Promise<Response> {
       result.status === 429 && result.retryAfterSeconds != null
         ? { 'Retry-After': String(result.retryAfterSeconds) }
         : undefined;
-    return json({ ok: false, error: result.error }, result.status, headers);
+    return jsonResponse({ ok: false, error: result.error }, result.status, { headers });
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     contactUid: result.contactUid,
     jobSlug: result.jobSlug,

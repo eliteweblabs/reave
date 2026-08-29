@@ -17,15 +17,10 @@ import {
   vapiSystemPromptTemplate,
   isVapiSyncConfigured,
 } from '../../../lib/vapiAssistantSync';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function vapiTemplatesFromCompany(company: Awaited<ReturnType<typeof getCompanyConfig>>) {
   return {
@@ -43,7 +38,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const brand = await getCompanyBrandContext(context.request);
   const templates = vapiTemplatesFromCompany(company);
 
-  return json({
+  return jsonResponse({
     ok: true,
     pluginEnabled: isVapiAdminPluginEnabled(),
     configured: isVapiAdminConfigured(company),
@@ -63,7 +58,7 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   if (!isVapiAdminPluginEnabled()) {
-    return json({ ok: false, error: 'Enable "vapi" in the install config features array.' }, 403);
+    return jsonResponse({ ok: false, error: 'Enable "vapi" in the install config features array.' }, 403);
   }
 
   const company = await getCompanyConfig(context.request);
@@ -73,10 +68,10 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (!result.ok) {
     const status = result.skipped ? 400 : 502;
-    return json({ ok: false, error: result.error, skipped: result.skipped ?? false }, status);
+    return jsonResponse({ ok: false, error: result.error, skipped: result.skipped ?? false }, status);
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     assistantId: result.assistantId,
     companyName: result.companyName,

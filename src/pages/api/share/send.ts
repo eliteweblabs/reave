@@ -10,15 +10,10 @@ import {
   type ShareChannel,
   type ShareKind,
 } from '../../../lib/shareDelivery';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 const KINDS = new Set<ShareKind>(['portal', 'work', 'booking', 'document']);
 
@@ -31,17 +26,17 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const kindRaw = String(body.kind ?? '').trim();
   const kind = KINDS.has(kindRaw as ShareKind) ? (kindRaw as ShareKind) : null;
-  if (!kind) return json({ ok: false, error: 'kind must be portal, work, booking, or document' }, 400);
+  if (!kind) return jsonResponse({ ok: false, error: 'kind must be portal, work, booking, or document' }, 400);
 
   const channelRaw = String(body.channel ?? '').trim();
   const channel: ShareChannel | null =
     channelRaw === 'email' ? 'email' : channelRaw === 'sms' ? 'sms' : null;
-  if (!channel) return json({ ok: false, error: 'channel must be "email" or "sms"' }, 400);
+  if (!channel) return jsonResponse({ ok: false, error: 'channel must be "email" or "sms"' }, 400);
 
   const recipientRaw =
     body.recipient && typeof body.recipient === 'object'
@@ -85,6 +80,6 @@ export async function POST(context: APIContext): Promise<Response> {
   };
 
   const result = await deliverShare(input);
-  if (!result.ok) return json(result, 400);
-  return json(result);
+  if (!result.ok) return jsonResponse(result, 400);
+  return jsonResponse(result);
 }

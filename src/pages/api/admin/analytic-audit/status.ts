@@ -22,15 +22,10 @@ import { isIndexNowConfigured } from '../../../../lib/indexNowClient';
 import { isBingWebmasterConfigured } from '../../../../lib/bingWebmasterClient';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { hasFeature } from '../../../../lib/features';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -45,7 +40,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const company = await getCompanyConfig(context.request);
   const sites = await listAnalyticsSites(company.domain);
 
-  return json({
+  return jsonResponse({
     ok: true,
     featureEnabled: hasFeature('analytic_audit'),
     googleOAuthConfigured: isGoogleWebmasterOAuthConfigured(),
@@ -73,5 +68,5 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const contactUid = url.searchParams.get('contact_uid')?.trim() || '';
   const subject = contactUid ? contactSubject(contactUid) : agencySubject();
   await deleteIntegrationToken(subject, GOOGLE_WEBMASTER_PROVIDER);
-  return json({ ok: true, disconnected: true, subject });
+  return jsonResponse({ ok: true, disconnected: true, subject });
 }

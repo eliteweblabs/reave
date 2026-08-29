@@ -4,15 +4,10 @@
 import type { APIContext } from 'astro';
 import { listNewsletterTemplates, newsletterTemplateMeta } from '../../../lib/newsletterTemplates';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -20,5 +15,5 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const templates = listNewsletterTemplates().map(newsletterTemplateMeta);
-  return json({ ok: true, templates });
+  return jsonResponse({ ok: true, templates });
 }

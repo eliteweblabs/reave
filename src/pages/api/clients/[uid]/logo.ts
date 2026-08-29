@@ -10,15 +10,10 @@ import {
   adaptLogoContrast,
   type LogoBackgroundTone,
 } from '../../../../lib/logoContrastAdapt';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseLogoBackground(raw: string | null): LogoBackgroundTone | 'raw' {
   // Default raw so light surfaces (email signatures) keep the original mark.
@@ -68,26 +63,26 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ error: 'Not found' }, 404);
 
   let form: FormData;
   try {
     form = await context.request.formData();
   } catch {
-    return json({ error: 'Expected multipart form data' }, 400);
+    return jsonResponse({ error: 'Expected multipart form data' }, 400);
   }
 
   const file = form.get('logo');
   if (!(file instanceof File) || !file.size) {
-    return json({ error: 'Missing logo file' }, 400);
+    return jsonResponse({ error: 'Missing logo file' }, 400);
   }
 
   const mediaType = file.type.trim().toLowerCase();
   if (!isLogoUploadMediaType(mediaType)) {
-    return json({ error: 'Logo must be PNG, JPEG, or WebP' }, 400);
+    return jsonResponse({ error: 'Logo must be PNG, JPEG, or WebP' }, 400);
   }
   if (file.size > LOGO_UPLOAD_MAX_BYTES) {
-    return json({ error: 'Logo too large (max 2 MB)' }, 400);
+    return jsonResponse({ error: 'Logo too large (max 2 MB)' }, 400);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -95,9 +90,9 @@ export async function POST(context: APIContext): Promise<Response> {
     dataBase64: buffer.toString('base64'),
     mediaType,
   });
-  if (!saved.ok) return json({ error: saved.error || 'Failed to save logo' }, 500);
+  if (!saved.ok) return jsonResponse({ error: saved.error || 'Failed to save logo' }, 500);
 
-  return json({ ok: true, logoUrl: saved.logoUrl });
+  return jsonResponse({ ok: true, logoUrl: saved.logoUrl });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -105,10 +100,10 @@ export async function DELETE(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ error: 'Not found' }, 404);
 
   const cleared = await clearClientPortalLogo(uid);
-  if (!cleared.ok) return json({ error: cleared.error || 'Failed to remove logo' }, 500);
+  if (!cleared.ok) return jsonResponse({ error: cleared.error || 'Failed to remove logo' }, 500);
 
-  return json({ ok: true, logoUrl: cleared.logoUrl });
+  return jsonResponse({ ok: true, logoUrl: cleared.logoUrl });
 }

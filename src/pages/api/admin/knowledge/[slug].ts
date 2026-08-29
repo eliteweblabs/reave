@@ -11,15 +11,10 @@ import {
   storeWriteKnowledge,
   storeDeleteKnowledge,
 } from '../../../../lib/knowledgeStore';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -28,8 +23,8 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const slug = context.params.slug ?? '';
   const doc = await storeReadKnowledge(slug);
-  if (!doc) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, ...doc });
+  if (!doc) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, ...doc });
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
@@ -38,13 +33,13 @@ export async function PUT(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug ?? '';
-  if (!slug) return json({ ok: false, error: 'Missing slug' }, 400);
+  if (!slug) return jsonResponse({ ok: false, error: 'Missing slug' }, 400);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const existing = await storeReadKnowledge(slug);
@@ -53,11 +48,11 @@ export async function PUT(context: APIContext): Promise<Response> {
   const tags = Array.isArray(body.tags) ? (body.tags as unknown[]).map(String) : (existing?.tags ?? []);
   const source = String(body.source ?? existing?.source ?? 'manual');
 
-  if (!title || !content) return json({ ok: false, error: 'title and content are required' }, 400);
+  if (!title || !content) return jsonResponse({ ok: false, error: 'title and content are required' }, 400);
 
   const result = await storeWriteKnowledge({ slug, title, content, tags, source });
-  if (!result.ok) return json({ ok: false, error: result.error }, 503);
-  return json({ ok: true, slug, title });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 503);
+  return jsonResponse({ ok: true, slug, title });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -66,9 +61,9 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const slug = context.params.slug ?? '';
-  if (!slug) return json({ ok: false, error: 'Missing slug' }, 400);
+  if (!slug) return jsonResponse({ ok: false, error: 'Missing slug' }, 400);
 
   const result = await storeDeleteKnowledge(slug);
-  if (!result.ok) return json({ ok: false, error: result.error }, 503);
-  return json({ ok: true, slug, deleted: true });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 503);
+  return jsonResponse({ ok: true, slug, deleted: true });
 }

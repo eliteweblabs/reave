@@ -22,25 +22,20 @@ import {
 } from '../../../../lib/clientBranding';
 import { portalSiteUrl } from '../../../../lib/siteMonitoring';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ ok: false, error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown> = {};
   try {
@@ -51,12 +46,12 @@ export const POST: APIRoute = async (context) => {
 
   const before = await getContact(uid);
   if (!before.ok || before.data.archived) {
-    return json({ ok: false, error: before.ok ? 'Client not found' : before.error }, 404);
+    return jsonResponse({ ok: false, error: before.ok ? 'Client not found' : before.error }, 404);
   }
 
   const beforePortal = extractPortal(before.data);
   if (beforePortal?.logoSource === 'upload') {
-    return json(
+    return jsonResponse(
       { ok: false, error: 'Remove the uploaded logo first to scrape from the website.' },
       400,
     );
@@ -70,7 +65,7 @@ export const POST: APIRoute = async (context) => {
 
   if (websiteInput) {
     const saved = await setClientPortalWebsite(uid, websiteInput);
-    if (!saved.ok) return json({ ok: false, error: saved.error }, 400);
+    if (!saved.ok) return jsonResponse({ ok: false, error: saved.error }, 400);
     website = saved.website;
   } else {
     website =
@@ -80,13 +75,13 @@ export const POST: APIRoute = async (context) => {
       websiteFromNotes(before.data.notes ?? '') ||
       '';
     if (!website) {
-      return json({ ok: false, error: 'Add a website URL for this client first.' }, 400);
+      return jsonResponse({ ok: false, error: 'Add a website URL for this client first.' }, 400);
     }
     await enrichClientPortalBrand(uid, { force: true });
   }
 
   const after = await getContact(uid);
-  if (!after.ok) return json({ ok: false, error: after.error }, 502);
+  if (!after.ok) return jsonResponse({ ok: false, error: after.error }, 502);
 
   const portal = extractPortal(after.data);
   const logoUrl = resolveClientLogoUrl(portal, uid);
@@ -98,7 +93,7 @@ export const POST: APIRoute = async (context) => {
   const foundTagline = !!tagline && tagline !== beforeTagline;
 
   if (!logoUrl && !iconUrl && !foundTagline) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: `Couldn't find a logo on ${website}.`,
@@ -108,7 +103,7 @@ export const POST: APIRoute = async (context) => {
     );
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     website,
     logoUrl,

@@ -6,15 +6,10 @@ import type { APIRoute } from 'astro';
 import { getDrivingDirections, getOfficeCoordinates } from '../../../lib/mapbox';
 import { getMapboxAccessToken } from '../../../lib/mapboxAccessToken';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseCoord(raw: string | null): number | null {
   if (!raw) return null;
@@ -28,7 +23,7 @@ export const GET: APIRoute = async (context) => {
   const { userId } = auth;
 
   if (!getMapboxAccessToken()) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: 'Mapbox access token not configured',
@@ -41,7 +36,7 @@ export const GET: APIRoute = async (context) => {
   const toLat = parseCoord(context.url.searchParams.get('toLat'));
   const toLng = parseCoord(context.url.searchParams.get('toLng'));
   if (toLat == null || toLng == null) {
-    return json({ ok: false, error: 'toLat and toLng are required' }, 400);
+    return jsonResponse({ ok: false, error: 'toLat and toLng are required' }, 400);
   }
 
   const fromLat = parseCoord(context.url.searchParams.get('fromLat'));
@@ -55,7 +50,7 @@ export const GET: APIRoute = async (context) => {
   }
 
   if (!origin) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: 'Directions origin not configured',
@@ -72,7 +67,7 @@ export const GET: APIRoute = async (context) => {
     { origin: origin.label, destination: destinationLabel },
   );
 
-  if (!route) return json({ ok: false, error: 'Could not compute route' }, 502);
+  if (!route) return jsonResponse({ ok: false, error: 'Could not compute route' }, 502);
 
-  return json({ ok: true, route });
+  return jsonResponse({ ok: true, route });
 };

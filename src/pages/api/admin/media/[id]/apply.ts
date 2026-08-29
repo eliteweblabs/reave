@@ -21,17 +21,12 @@ import {
   storeGetMedia,
 } from '../../../../../lib/mediaLibrary';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../../lib/apiResponse';
 
 export const prerender = false;
 
 type ApplyTarget = 'company-logo' | 'company-icon' | 'company-og' | 'client-logo' | 'client-icon';
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseTarget(raw: unknown): ApplyTarget | null {
   const t = typeof raw === 'string' ? raw.trim() : '';
@@ -52,25 +47,25 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = (context.params.id ?? '').trim();
-  if (!id) return json({ ok: false, error: 'Not found' }, 404);
+  if (!id) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: { target?: unknown; uid?: unknown };
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Expected JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Expected JSON body' }, 400);
   }
 
   const target = parseTarget(body.target);
   if (!target) {
-    return json({ ok: false, error: 'Invalid target' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid target' }, 400);
   }
 
   const record = await storeGetMedia(id);
-  if (!record) return json({ ok: false, error: 'Media not found' }, 404);
+  if (!record) return jsonResponse({ ok: false, error: 'Media not found' }, 404);
 
   const blob = brandingBlobFromMedia(record);
-  if (!blob.ok) return json({ ok: false, error: blob.error }, 400);
+  if (!blob.ok) return jsonResponse({ ok: false, error: blob.error }, 400);
 
   if (target === 'company-logo') {
     const ok =
@@ -85,9 +80,9 @@ export async function POST(context: APIContext): Promise<Response> {
             dataBase64: blob.dataBase64,
             mediaType: blob.mediaType,
           });
-    if (!ok) return json({ ok: false, error: 'Failed to apply logo' }, 500);
+    if (!ok) return jsonResponse({ ok: false, error: 'Failed to apply logo' }, 500);
     const company = await getCompanyConfig(context.request);
-    return json({ ok: true, company });
+    return jsonResponse({ ok: true, company });
   }
 
   if (target === 'company-icon') {
@@ -103,44 +98,44 @@ export async function POST(context: APIContext): Promise<Response> {
             dataBase64: blob.dataBase64,
             mediaType: blob.mediaType,
           });
-    if (!ok) return json({ ok: false, error: 'Failed to apply icon' }, 500);
+    if (!ok) return jsonResponse({ ok: false, error: 'Failed to apply icon' }, 500);
     const company = await getCompanyConfig(context.request);
-    return json({ ok: true, company });
+    return jsonResponse({ ok: true, company });
   }
 
   if (target === 'company-og') {
     if (blob.kind === 'svg') {
-      return json({ ok: false, error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' }, 400);
+      return jsonResponse({ ok: false, error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' }, 400);
     }
     const ok = await setStoredCompanyOg({
       dataBase64: blob.dataBase64,
       mediaType: blob.mediaType,
     });
-    if (!ok) return json({ ok: false, error: 'Failed to apply share image' }, 500);
+    if (!ok) return jsonResponse({ ok: false, error: 'Failed to apply share image' }, 500);
     const company = await getCompanyConfig(context.request);
-    return json({ ok: true, company });
+    return jsonResponse({ ok: true, company });
   }
 
   if (blob.kind === 'svg') {
-    return json({ ok: false, error: 'Client branding requires PNG, JPEG, or WebP' }, 400);
+    return jsonResponse({ ok: false, error: 'Client branding requires PNG, JPEG, or WebP' }, 400);
   }
 
   const uid = typeof body.uid === 'string' ? body.uid.trim() : '';
-  if (!uid) return json({ ok: false, error: 'Missing client uid' }, 400);
+  if (!uid) return jsonResponse({ ok: false, error: 'Missing client uid' }, 400);
 
   if (target === 'client-logo') {
     const saved = await setClientPortalLogo(uid, {
       dataBase64: blob.dataBase64,
       mediaType: blob.mediaType,
     });
-    if (!saved.ok) return json({ ok: false, error: saved.error || 'Failed to apply logo' }, 500);
-    return json({ ok: true, logoUrl: saved.logoUrl });
+    if (!saved.ok) return jsonResponse({ ok: false, error: saved.error || 'Failed to apply logo' }, 500);
+    return jsonResponse({ ok: true, logoUrl: saved.logoUrl });
   }
 
   const saved = await setClientPortalIcon(uid, {
     dataBase64: blob.dataBase64,
     mediaType: blob.mediaType,
   });
-  if (!saved.ok) return json({ ok: false, error: saved.error || 'Failed to apply icon' }, 500);
-  return json({ ok: true, iconUrl: saved.iconUrl });
+  if (!saved.ok) return jsonResponse({ ok: false, error: saved.error || 'Failed to apply icon' }, 500);
+  return jsonResponse({ ok: true, iconUrl: saved.iconUrl });
 }

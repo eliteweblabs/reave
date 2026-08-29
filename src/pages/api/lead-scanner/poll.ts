@@ -9,15 +9,10 @@ import { hasFeature } from '../../../lib/features';
 import { runLeadScanner } from '../../../lib/leadScannerEngine';
 import { ensureLeadScannerScheduler, leadScannerPollSecret } from '../../../lib/leadScannerScheduler';
 import { authorizePollOrOwner } from '../../../lib/pollRouteAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async (context) => {
   const key = context.url.searchParams.get('key')?.trim() ?? null;
@@ -25,7 +20,7 @@ export const GET: APIRoute = async (context) => {
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('real_estate_data')) {
-    return json({ ok: false, error: 'real_estate_data not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'real_estate_data not enabled' }, 404);
   }
 
   ensureLeadScannerScheduler();
@@ -36,7 +31,7 @@ export const GET: APIRoute = async (context) => {
     ignoreWindow: force,
   });
 
-  return json({ ...result }, result.ok ? 200 : 200);
+  return jsonResponse({ ...result }, result.ok ? 200 : 200);
 };
 
 export const POST: APIRoute = GET;

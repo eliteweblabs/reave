@@ -6,22 +6,17 @@ import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../../lib/features';
 import { fleetDeleteVehicle, fleetUpdateVehicle, isFleetApiConfigured } from '../../../../lib/fleetClient';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function featureGate(): Response | null {
   if (!hasFeature('fleet_tracking')) {
-    return json({ ok: false, error: 'fleet_tracking not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'fleet_tracking not enabled' }, 404);
   }
   if (!isFleetApiConfigured()) {
-    return json({ ok: false, error: 'FLEET_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'FLEET_API_BASE_URL is not configured' }, 503);
   }
   return null;
 }
@@ -36,13 +31,13 @@ export const PATCH: APIRoute = async (context) => {
   if (blocked) return blocked;
 
   const id = params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Vehicle id required' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Vehicle id required' }, 400);
 
   let body: Record<string, unknown>;
   try {
     body = await request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const result = await fleetUpdateVehicle(id, {
@@ -58,8 +53,8 @@ export const PATCH: APIRoute = async (context) => {
     status: body.status != null ? String(body.status) : undefined,
   });
 
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json({ ok: true, vehicle: result.data.vehicle });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
+  return jsonResponse({ ok: true, vehicle: result.data.vehicle });
 };
 
 export const DELETE: APIRoute = async (context) => {
@@ -72,9 +67,9 @@ export const DELETE: APIRoute = async (context) => {
   if (blocked) return blocked;
 
   const id = params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Vehicle id required' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Vehicle id required' }, 400);
 
   const result = await fleetDeleteVehicle(id);
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json({ ok: true });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
+  return jsonResponse({ ok: true });
 };

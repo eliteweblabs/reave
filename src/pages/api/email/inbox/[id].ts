@@ -41,15 +41,10 @@ import {
   hasOriginalRecipientHeaders,
   isGenericInboundMailbox,
 } from '../../../../lib/emailOriginalRecipient';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 const CATEGORIES = new Set<EmailCategory>([
   'junk',
@@ -112,10 +107,10 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   const event = await storeGetEmailInbox(id);
-  if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let headers = event.headers;
   const envelopeTo = Array.isArray(event.to) ? event.to : [];
@@ -151,7 +146,7 @@ export async function GET(context: APIContext): Promise<Response> {
     matchedRuleId: matchedRule?.ruleId,
   });
   const toDisplay = displayInboxRecipients(envelopeTo, headers);
-  return json({
+  return jsonResponse({
     ok: true,
     event: {
       ...event,
@@ -178,20 +173,20 @@ export async function PATCH(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   let body: unknown;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const patch = parsePatch(body);
-  if (!patch) return json({ ok: false, error: 'Nothing to update' }, 400);
+  if (!patch) return jsonResponse({ ok: false, error: 'Nothing to update' }, 400);
 
   const existing = await storeGetEmailInbox(id);
-  if (!existing) return json({ ok: false, error: 'Not found' }, 404);
+  if (!existing) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   if (patch.rejectProjectMatch) {
     const slug = existing.jobSlug?.trim();
@@ -208,11 +203,11 @@ export async function PATCH(context: APIContext): Promise<Response> {
       acceptAutomationDecision: true,
       markAutomationAck: true,
     });
-    if (!event) return json({ ok: false, error: 'Not found' }, 404);
+    if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
     await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
     const monetaryAmount = extractMonetaryAmountFromEmail(event);
     const badgeCount = await getReviewsPendingCount().catch(() => undefined);
-    return json({
+    return jsonResponse({
       ok: true,
       event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
       ...(badgeCount != null ? { badgeCount } : {}),
@@ -232,7 +227,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     id,
     markingJunk ? { ...storePatch, ...patchForMarkJunk(existing) } : storePatch,
   );
-  if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
   const clearedReviewSurface =
     Boolean(storePatch.markAutomationAck) ||
     isEmailArchivedOrRemoved(storePatch) ||
@@ -247,7 +242,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const badgeCount = clearedReviewSurface
     ? await getReviewsPendingCount().catch(() => undefined)
     : undefined;
-  return json({
+  return jsonResponse({
     ok: true,
     event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
     ...(badgeCount != null ? { badgeCount } : {}),
@@ -259,11 +254,11 @@ export async function DELETE(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const id = context.params.id?.trim();
-  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
   await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
   const deleted = await storeDeleteEmailInbox(id);
-  if (!deleted) return json({ ok: false, error: 'Not found' }, 404);
+  if (!deleted) return jsonResponse({ ok: false, error: 'Not found' }, 404);
   const badgeCount = await getReviewsPendingCount().catch(() => undefined);
-  return json({ ok: true, ...(badgeCount != null ? { badgeCount } : {}) });
+  return jsonResponse({ ok: true, ...(badgeCount != null ? { badgeCount } : {}) });
 }

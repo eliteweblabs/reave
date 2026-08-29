@@ -15,19 +15,14 @@ import {
   replaceModuleCatalog,
   resetModuleCatalog,
 } from '../../../lib/moduleCatalogStore';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function requireReaveCatalogAdmin(): Response | null {
   if (isCanonicalReaveInstall()) return null;
-  return json({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: false, error: 'Not found' }, 404);
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -38,7 +33,7 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const rows = await listModuleCatalog();
-  return json({
+  return jsonResponse({
     ok: true,
     backend: moduleCatalogStorageBackend(),
     rows,
@@ -57,17 +52,17 @@ export async function PUT(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
   if (!body || typeof body !== 'object') {
-    return json({ error: 'Invalid body' }, 400);
+    return jsonResponse({ error: 'Invalid body' }, 400);
   }
 
   const o = body as { reset?: unknown; rows?: unknown };
   const result = o.reset === true ? await resetModuleCatalog() : await replaceModuleCatalog(o.rows);
-  if (!result.ok) return json({ error: result.error }, 400);
-  return json({
+  if (!result.ok) return jsonResponse({ error: result.error }, 400);
+  return jsonResponse({
     ok: true,
     backend: moduleCatalogStorageBackend(),
     rows: result.rows,

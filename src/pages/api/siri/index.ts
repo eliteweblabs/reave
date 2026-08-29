@@ -103,6 +103,7 @@ import {
   formatSiriTodoDue,
   isStructuredTodoDue,
 } from '../../../lib/todoDueFromText';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
@@ -114,15 +115,6 @@ type SiriResponse = {
   code?: string;
 };
 
-function json(body: SiriResponse, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-    },
-  });
-}
 
 function textResponse(text: string, status = 200): Response {
   return new Response(text, {
@@ -194,7 +186,7 @@ function paramsFromUrl(url: URL): Record<string, unknown> {
 
 async function authorizeSiri(context: APIContext): Promise<Response | null> {
   if (!(await isAuthenticated(context))) {
-    return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or sign in as deployment owner.' }, 401);
+    return jsonResponse({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or sign in as deployment owner.' }, 401);
   }
 
   const rate = checkInMemoryRateLimit(`siri:${clientIp(context.request)}`, {
@@ -202,7 +194,7 @@ async function authorizeSiri(context: APIContext): Promise<Response | null> {
     maxPerWindow: 60,
   });
   if (!rate.ok) {
-    return json({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
+    return jsonResponse({ ok: false, error: 'Too many requests. Please try again later.' }, 429);
   }
   return null;
 }
@@ -320,7 +312,7 @@ async function dispatchSiri(context: APIContext, body: Record<string, unknown>):
           maxPerWindow: 12,
         });
         if (!promptRate.ok) {
-          return json({ ok: false, error: 'Too many agent prompts. Please try again later.' }, 429);
+          return jsonResponse({ ok: false, error: 'Too many agent prompts. Please try again later.' }, 429);
         }
         result = await startSiriAgentPrompt(body);
         break;
@@ -334,9 +326,9 @@ async function dispatchSiri(context: APIContext, body: Record<string, unknown>):
       return textResponse(result.text, status);
     }
 
-    return json(result, status);
+    return jsonResponse(result, status);
   } catch (e) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: e instanceof Error ? e.message : String(e),

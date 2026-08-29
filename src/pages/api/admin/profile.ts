@@ -5,15 +5,10 @@ import {
   isHtmlSignature,
   sanitizeSignatureHtml,
 } from '../../../lib/userEmailSignature';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -24,7 +19,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const client = clerkClient(context);
     const user = await client.users.getUser(userId);
     const meta = (user.publicMetadata ?? {}) as Record<string, string>;
-    return json({
+    return jsonResponse({
       ok: true,
       profile: {
         firstName: user.firstName ?? "",
@@ -38,7 +33,7 @@ export async function GET(context: APIContext): Promise<Response> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    return json({ error: message }, 500);
+    return jsonResponse({ error: message }, 500);
   }
 }
 

@@ -12,15 +12,10 @@ import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOr
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
 import { storeGetEmailInbox } from '../../../lib/emailInboxStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function enrichThreadsWithLinks(
   threads: Awaited<ReturnType<typeof storeListChatThreads>>,
@@ -51,7 +46,7 @@ export async function GET(context: APIContext): Promise<Response> {
   );
   const enriched = await enrichThreadsWithLinks(sorted);
   const withAuthors = await enrichChatThreadsWithAuthors(enriched);
-  return json({
+  return jsonResponse({
     ok: true,
     threads: withAuthors,
     storage: chatStorageBackend(),
@@ -69,14 +64,14 @@ export async function POST(context: APIContext): Promise<Response> {
     const text = await context.request.text();
     if (text.trim()) body = JSON.parse(text) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const sourceEmailId = String(body.sourceEmailId ?? body.source_email_id ?? '').trim() || null;
   const sourceJobSlug = String(body.sourceJobSlug ?? body.source_job_slug ?? '').trim() || null;
 
   const thread = await storeCreateChatThread(userId, { sourceEmailId });
-  if (!thread) return json({ ok: false, error: 'Failed to create chat' }, 500);
+  if (!thread) return jsonResponse({ ok: false, error: 'Failed to create chat' }, 500);
 
   if (sourceEmailId) {
     const email = await storeGetEmailInbox(sourceEmailId);
@@ -99,5 +94,5 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const [enriched] = await enrichThreadsWithLinks([thread]);
   const [withAuthor] = await enrichChatThreadsWithAuthors([enriched]);
-  return json({ ok: true, thread: withAuthor, storage: chatStorageBackend() });
+  return jsonResponse({ ok: true, thread: withAuthor, storage: chatStorageBackend() });
 }

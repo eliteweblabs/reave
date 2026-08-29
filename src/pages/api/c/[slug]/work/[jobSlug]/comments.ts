@@ -3,49 +3,44 @@ import { loadPortalJob } from '../../../../../../lib/portalWorkAuth';
 import { storeAddWorkComment, storeListWorkComments } from '../../../../../../lib/workComments';
 import { checkInMemoryRateLimit } from '../../../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../../../lib/clientIp';
+import { jsonResponse } from '../../../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export const GET: APIRoute = async ({ params }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
-  if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
+  if (!contactUid || !jobSlug) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const ctx = await loadPortalJob(contactUid, jobSlug);
-  if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
+  if (!ctx.ok) return jsonResponse({ ok: false, error: ctx.error }, ctx.status);
 
   const comments = await storeListWorkComments(jobSlug);
-  return json({ ok: true, comments });
+  return jsonResponse({ ok: true, comments });
 };
 
 export const POST: APIRoute = async ({ params, request }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
-  if (!contactUid || !jobSlug) return json({ ok: false, error: 'Not found' }, 404);
+  if (!contactUid || !jobSlug) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const rate = checkInMemoryRateLimit(`portal-comment:${contactUid}:${clientIp(request)}`, {
     windowMs: 10 * 60 * 1000,
     maxPerWindow: 20,
   });
   if (!rate.ok) {
-    return json({ ok: false, error: 'Too many comments. Please try again later.' }, 429);
+    return jsonResponse({ ok: false, error: 'Too many comments. Please try again later.' }, 429);
   }
 
   const ctx = await loadPortalJob(contactUid, jobSlug);
-  if (!ctx.ok) return json({ ok: false, error: ctx.error }, ctx.status);
+  if (!ctx.ok) return jsonResponse({ ok: false, error: ctx.error }, ctx.status);
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const text = typeof (body as Record<string, unknown>)?.text === 'string'
@@ -56,6 +51,6 @@ export const POST: APIRoute = async ({ params, request }) => {
     authorName: ctx.contactName,
     text,
   });
-  if (!result.ok) return json({ ok: false, error: result.error }, 400);
-  return json({ ok: true, comment: result.comment });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
+  return jsonResponse({ ok: true, comment: result.comment });
 };

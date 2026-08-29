@@ -20,15 +20,10 @@ import {
   type PeopleSearchResult,
 } from '../../../lib/chatMentions';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function scoreName(name: string, q: string): number {
   const n = name.trim().toLowerCase();
@@ -141,5 +136,5 @@ export async function GET(context: APIContext): Promise<Response> {
   ].sort((a, b) => b.score - a.score || a.p.name.localeCompare(b.p.name));
 
   const people = scored.slice(0, limit).map((s) => s.p);
-  return json({ ok: true, people });
+  return jsonResponse({ ok: true, people });
 }

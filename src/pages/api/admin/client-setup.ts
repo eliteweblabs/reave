@@ -12,20 +12,15 @@ import {
   reopenClientSetup,
   skipClientSetupStep,
 } from '../../../lib/clientSetup';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  return json({ ok: true, ...(await getClientSetupState()) });
+  return jsonResponse({ ok: true, ...(await getClientSetupState()) });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -35,14 +30,14 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
   const action = typeof body.action === 'string' ? body.action : '';
   const stepId = typeof body.stepId === 'string' ? body.stepId : '';
-  if (action === 'complete') return json({ ok: true, ...(await completeClientSetupStep(stepId)) });
-  if (action === 'skip') return json({ ok: true, ...(await skipClientSetupStep(stepId)) });
-  if (action === 'later') return json({ ok: true, ...(await dismissClientSetup(3)) });
-  if (action === 'finish') return json({ ok: true, ...(await finishClientSetup()) });
-  if (action === 'reopen') return json({ ok: true, ...(await reopenClientSetup()) });
-  return json({ ok: false, error: 'Unknown action' }, 400);
+  if (action === 'complete') return jsonResponse({ ok: true, ...(await completeClientSetupStep(stepId)) });
+  if (action === 'skip') return jsonResponse({ ok: true, ...(await skipClientSetupStep(stepId)) });
+  if (action === 'later') return jsonResponse({ ok: true, ...(await dismissClientSetup(3)) });
+  if (action === 'finish') return jsonResponse({ ok: true, ...(await finishClientSetup()) });
+  if (action === 'reopen') return jsonResponse({ ok: true, ...(await reopenClientSetup()) });
+  return jsonResponse({ ok: false, error: 'Unknown action' }, 400);
 }

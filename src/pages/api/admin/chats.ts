@@ -19,15 +19,10 @@ import {
   storeListChatThreadOwners,
   storeReassignChatThreads,
 } from '../../../lib/chatStore';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDeploymentOwner(context);
@@ -35,7 +30,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const backend = chatStorageBackend();
   if (backend !== 'postgres') {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: 'Session recovery requires the Postgres backend (set DATABASE_URL).',
@@ -47,11 +42,11 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const owners = await storeListChatThreadOwners();
   if (owners == null) {
-    return json({ ok: false, error: 'Failed to read session threads.' }, 500);
+    return jsonResponse({ ok: false, error: 'Failed to read session threads.' }, 500);
   }
 
   const currentUserId = auth.userId;
-  return json({
+  return jsonResponse({
     ok: true,
     storage: backend,
     currentUserId,
@@ -71,7 +66,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const backend = chatStorageBackend();
   if (backend !== 'postgres') {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: 'Session recovery requires the Postgres backend (set DATABASE_URL).',
@@ -85,32 +80,32 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const action = String(body.action ?? 'reassign').trim();
   if (action === 'reassign_all') {
     const { storeConsolidateOrphanedChatThreads } = await import('../../../lib/chatStore');
     const moved = await storeConsolidateOrphanedChatThreads(auth.userId);
-    return json({ ok: true, moved, to: auth.userId });
+    return jsonResponse({ ok: true, moved, to: auth.userId });
   }
   if (action !== 'reassign') {
-    return json({ ok: false, error: `Unknown action: ${action}` }, 400);
+    return jsonResponse({ ok: false, error: `Unknown action: ${action}` }, 400);
   }
 
   const from = String(body.from ?? '').trim();
   const to = String(body.to ?? '').trim() || auth.userId;
   if (!from) {
-    return json({ ok: false, error: 'from (old user id) is required' }, 400);
+    return jsonResponse({ ok: false, error: 'from (old user id) is required' }, 400);
   }
   if (from === to) {
-    return json({ ok: false, error: 'from and to must be different user ids' }, 400);
+    return jsonResponse({ ok: false, error: 'from and to must be different user ids' }, 400);
   }
 
   const moved = await storeReassignChatThreads(from, to);
   if (moved == null) {
-    return json({ ok: false, error: 'Failed to reassign session threads.' }, 500);
+    return jsonResponse({ ok: false, error: 'Failed to reassign session threads.' }, 500);
   }
 
-  return json({ ok: true, moved, from, to });
+  return jsonResponse({ ok: true, moved, from, to });
 }

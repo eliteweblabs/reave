@@ -21,15 +21,10 @@ import {
   setIntegrationToken,
 } from '../../../lib/integrationTokens';
 import { GOOGLE_WEBMASTER_PROVIDER } from '../../../lib/googleWebmasterAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseRange(raw: string | null): number {
   const n = Number(raw);
@@ -48,14 +43,14 @@ export async function GET(context: APIContext): Promise<Response> {
     const view = (url.searchParams.get('view') || '').trim();
     if (view === 'preview') {
       const analytics = await buildAnalyticsDashboardPreview(company.domain);
-      return json({ ok: true, view: 'preview', analytics });
+      return jsonResponse({ ok: true, view: 'preview', analytics });
     }
     if (view === 'accounts') {
       const fleet = await listAnalyticsAccounts(company.domain, {
         rangeDays,
         includeRailway: true,
       });
-      return json({
+      return jsonResponse({
         ok: true,
         view: 'accounts',
         configured: fleet.configured,
@@ -72,10 +67,10 @@ export async function GET(context: APIContext): Promise<Response> {
       ga4PropertyId: url.searchParams.get('property_id'),
       contactUid: url.searchParams.get('contact_uid'),
     });
-    return json({ ok: true, dashboard });
+    return jsonResponse({ ok: true, dashboard });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to load analytics';
-    return json({ ok: false, error: message }, 500);
+    return jsonResponse({ ok: false, error: message }, 500);
   }
 }
 
@@ -88,14 +83,14 @@ export async function PATCH(context: APIContext): Promise<Response> {
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const contactUid = typeof body.contact_uid === 'string' ? body.contact_uid.trim() : '';
   const subject = contactUid ? contactSubject(contactUid) : agencySubject();
   const token = await getIntegrationToken(subject, GOOGLE_WEBMASTER_PROVIDER);
   if (!token) {
-    return json({ ok: false, error: 'Google is not connected for this subject' }, 400);
+    return jsonResponse({ ok: false, error: 'Google is not connected for this subject' }, 400);
   }
 
   const meta = { ...(token.meta || {}) };
@@ -120,5 +115,5 @@ export async function PATCH(context: APIContext): Promise<Response> {
     meta,
   });
 
-  return json({ ok: true, meta });
+  return jsonResponse({ ok: true, meta });
 }

@@ -10,27 +10,22 @@ import {
   savePushSubscription,
   removePushSubscriptionByEndpoint,
 } from '../../../lib/pushSubscriptionStore';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const dashAuth = await requireDashboardUser(context);
   if (dashAuth instanceof Response) return dashAuth;
   const { userId } = dashAuth;
-  if (!isPushConfigured()) return json({ ok: false, error: 'Push not configured' }, 503);
+  if (!isPushConfigured()) return jsonResponse({ ok: false, error: 'Push not configured' }, 503);
 
   let body: unknown;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const o = body as {
@@ -40,11 +35,11 @@ export async function POST(context: APIContext): Promise<Response> {
   const p256dh = o.subscription?.keys?.p256dh?.trim();
   const auth = o.subscription?.keys?.auth?.trim();
   if (!endpoint || !p256dh || !auth) {
-    return json({ ok: false, error: 'Missing subscription keys' }, 400);
+    return jsonResponse({ ok: false, error: 'Missing subscription keys' }, 400);
   }
 
   await savePushSubscription({ userId, endpoint, p256dh, auth });
-  return json({ ok: true });
+  return jsonResponse({ ok: true });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -56,11 +51,11 @@ export async function DELETE(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
   const endpoint = (body as { endpoint?: string }).endpoint?.trim();
-  if (!endpoint) return json({ ok: false, error: 'Missing endpoint' }, 400);
+  if (!endpoint) return jsonResponse({ ok: false, error: 'Missing endpoint' }, 400);
 
   await removePushSubscriptionByEndpoint(userId, endpoint);
-  return json({ ok: true });
+  return jsonResponse({ ok: true });
 }

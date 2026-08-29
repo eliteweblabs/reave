@@ -7,6 +7,7 @@ import type { APIContext } from 'astro';
 import { getGoogleMapsApiKey } from '../../../lib/googleMapsApiKey';
 import { resolvePlacesLocationBias, resolvePlacesRegionCodes } from '../../../lib/placesLocationBias';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
@@ -18,15 +19,6 @@ function cleanAddress(address: string | undefined): string {
   return address.replace(/, USA$/i, '').trim();
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-store',
-    },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -42,12 +34,12 @@ export async function GET(context: APIContext): Promise<Response> {
     const maxResults = parseInt(url.searchParams.get('maxResults') || '10', 10);
 
     if (!input) {
-      return json({ error: 'Input parameter is required' }, 400);
+      return jsonResponse({ error: 'Input parameter is required' }, 400);
     }
 
     const apiKey = getGoogleMapsApiKey();
     if (!apiKey) {
-      return json(
+      return jsonResponse(
         {
           error: 'Google Maps API key not configured',
           hint: 'Set GOOGLE_MAPS_API_KEY or GOOGLE_PLACES_API_KEY in your environment',
@@ -109,7 +101,7 @@ export async function GET(context: APIContext): Promise<Response> {
         Number.isInteger(response.status) && response.status >= 400 && response.status < 600
           ? response.status
           : 502;
-      return json(
+      return jsonResponse(
         {
           status: 'REQUEST_DENIED',
           predictions: [],
@@ -134,13 +126,13 @@ export async function GET(context: APIContext): Promise<Response> {
 
     const limitedPredictions = allPredictions.slice(0, maxResults);
 
-    return json({
+    return jsonResponse({
       status: 'OK',
       predictions: limitedPredictions,
       errorMessage: null,
     });
   } catch (error) {
-    return json(
+    return jsonResponse(
       {
         error: 'Internal server error',
         details: error instanceof Error ? error.message : 'Unknown error',

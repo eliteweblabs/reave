@@ -15,15 +15,10 @@ import {
   type PracticeAreaId,
   type PracticeGateMode,
 } from '../../../lib/practiceGate';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function refreshCourtsDoc() {
   const resolved = await resolveCourtGate();
@@ -42,7 +37,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const resolved = await resolveCourtGate();
-  return json({
+  return jsonResponse({
     ok: true,
     industry: knowledgeIndustryId(),
     ...resolved,
@@ -60,7 +55,7 @@ export async function PUT(context: APIContext): Promise<Response> {
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
   const counties = Array.isArray(body.counties) ? body.counties.map(String) : undefined;
   const states = Array.isArray(body.states) ? body.states.map(String) : undefined;
@@ -76,7 +71,7 @@ export async function PUT(context: APIContext): Promise<Response> {
     gateMode: typeof body.gateMode === 'string' ? (body.gateMode as PracticeGateMode) : undefined,
   });
   const resolved = await refreshCourtsDoc();
-  return json({
+  return jsonResponse({
     ok: true,
     industry: knowledgeIndustryId(),
     ...resolved,

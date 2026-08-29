@@ -35,15 +35,10 @@ import { syncContactToCrater } from '../../../lib/contactCraterSync';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { isDeploymentOwner } from '../../../lib/deploymentOwner';
 import { maskVaultSecrets } from '../../../lib/portalVault';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 async function vaultDataForResponse(
   context: APIContext,
@@ -323,20 +318,20 @@ export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ ok: false, error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   if (context.url.searchParams.get('preview') === 'delete') {
     const blockers = await getContactDeleteBlockers(uid);
-    if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
-    return json({ ok: true, ...blockersToJson(blockers.data) });
+    if (!blockers.ok) return jsonResponse({ ok: false, error: blockers.error }, 404);
+    return jsonResponse({ ok: true, ...blockersToJson(blockers.data) });
   }
 
   const res = await getContact(uid);
-  if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 404);
+  if (!res.ok) return jsonResponse({ ok: false, error: res.error }, res.status ?? 404);
 
   let contact = res.data;
   let portal = extractPortal(contact);
@@ -367,7 +362,7 @@ export const GET: APIRoute = async (context) => {
 
   const vaultData = await vaultDataForResponse(context, portal?.data ?? []);
 
-  return json({
+  return jsonResponse({
     ok: true,
     ...contactSummary(contact),
     firstName: contactStringField(contact.firstName),
@@ -397,25 +392,25 @@ export const PATCH: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ ok: false, error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const contactRes = await loadContactForClientPatch(uid, body);
-  if (!contactRes.ok) return json({ ok: false, error: contactRes.error }, contactRes.status ?? 502);
+  if (!contactRes.ok) return jsonResponse({ ok: false, error: contactRes.error }, contactRes.status ?? 502);
   const contact = contactRes.data;
 
   const portalSaved = await saveClientPortalFields(uid, body, contact);
-  if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
+  if (!portalSaved.ok) return jsonResponse({ ok: false, error: portalSaved.error }, 502);
 
   let vaultData: ClientDataEntry[] | undefined;
   if (body.data !== undefined) {
@@ -425,7 +420,7 @@ export const PATCH: APIRoute = async (context) => {
       contact,
       parseVaultKnownIds(body.vaultKnownIds),
     );
-    if (!vaultSaved.ok) return json({ ok: false, error: vaultSaved.error }, 400);
+    if (!vaultSaved.ok) return jsonResponse({ ok: false, error: vaultSaved.error }, 400);
     vaultData = vaultSaved.data;
   }
 
@@ -434,7 +429,7 @@ export const PATCH: APIRoute = async (context) => {
   const portal = refreshed.ok ? extractPortal(refreshed.data) : null;
   const savedContact = refreshed.ok ? refreshed.data : contact;
 
-  return json({
+  return jsonResponse({
     ok: true,
     ...contactSummary(savedContact),
     firstName: contactStringField(contact.firstName),
@@ -461,25 +456,25 @@ export const PUT: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ ok: false, error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const contactRes = await loadContactForClientPatch(uid, body);
-  if (!contactRes.ok) return json({ ok: false, error: contactRes.error }, contactRes.status ?? 502);
+  if (!contactRes.ok) return jsonResponse({ ok: false, error: contactRes.error }, contactRes.status ?? 502);
   const contact = contactRes.data;
 
   const portalSaved = await saveClientPortalFields(uid, body, contact);
-  if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
+  if (!portalSaved.ok) return jsonResponse({ ok: false, error: portalSaved.error }, 502);
 
   let vaultData: ClientDataEntry[] | undefined;
   if (body.data !== undefined) {
@@ -489,7 +484,7 @@ export const PUT: APIRoute = async (context) => {
       contact,
       parseVaultKnownIds(body.vaultKnownIds),
     );
-    if (!vaultSaved.ok) return json({ ok: false, error: vaultSaved.error }, 400);
+    if (!vaultSaved.ok) return jsonResponse({ ok: false, error: vaultSaved.error }, 400);
     vaultData = vaultSaved.data;
   }
 
@@ -498,7 +493,7 @@ export const PUT: APIRoute = async (context) => {
   const portal = refreshed.ok ? extractPortal(refreshed.data) : null;
   const savedContact = refreshed.ok ? refreshed.data : contact;
 
-  return json({
+  return jsonResponse({
     ok: true,
     ...contactSummary(savedContact),
     firstName: contactStringField(contact.firstName),
@@ -525,20 +520,20 @@ export const DELETE: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   const uid = (context.params.uid ?? '').trim();
-  if (!uid) return json({ ok: false, error: 'Not found' }, 404);
+  if (!uid) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const force = context.url.searchParams.get('force') === 'true';
   const result = await executeContactDelete(uid, { force, permanent: force });
   if (!result.ok) {
     const body: Record<string, unknown> = { ok: false, error: result.error };
     if (result.blockers) Object.assign(body, blockersToJson(result.blockers));
-    return json(body, result.status ?? 502);
+    return jsonResponse(body, result.status ?? 502);
   }
-  return json({
+  return jsonResponse({
     ok: true,
     contact_name: result.contact_name,
     deleted_projects: result.deleted_projects,

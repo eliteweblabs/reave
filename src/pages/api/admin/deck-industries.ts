@@ -15,19 +15,14 @@ import { DEPLOY_WIZARD_EXTRAS } from '../../../lib/deployWizardCatalog';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
 import { DEMO_BASELINE_MODULE_IDS } from '../../../lib/demoModuleCatalog';
 import { listIndustryPlaybookModules } from '../../../lib/industryPlaybook';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 function requireReaveIndustriesAdmin(): Response | null {
   if (isCanonicalReaveInstall()) return null;
-  return json({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: false, error: 'Not found' }, 404);
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -38,7 +33,7 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const industries = await listDeckIndustries();
-  return json({
+  return jsonResponse({
     ok: true,
     backend: deckIndustriesStorageBackend(),
     industries,
@@ -63,16 +58,16 @@ export async function PUT(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
   if (!body || typeof body !== 'object') {
-    return json({ error: 'Invalid body' }, 400);
+    return jsonResponse({ error: 'Invalid body' }, 400);
   }
 
   const industriesRaw = (body as { industries?: unknown }).industries;
   if (!Array.isArray(industriesRaw)) {
-    return json({ error: 'industries must be an array' }, 400);
+    return jsonResponse({ error: 'industries must be an array' }, 400);
   }
 
   const inputs: DeckIndustryInput[] = [];
@@ -91,8 +86,8 @@ export async function PUT(context: APIContext): Promise<Response> {
   }
 
   const result = await replaceDeckIndustries(inputs);
-  if (!result.ok) return json({ error: result.error }, 400);
-  return json({
+  if (!result.ok) return jsonResponse({ error: result.error }, 400);
+  return jsonResponse({
     ok: true,
     backend: deckIndustriesStorageBackend(),
     industries: result.industries,

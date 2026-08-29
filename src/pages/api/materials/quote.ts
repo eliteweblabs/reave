@@ -6,32 +6,27 @@ import {
   materialsQuote,
   type MaterialsQuoteItem,
 } from '../../../lib/materialsClient';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
   if (!hasFeature('materials_pricing')) {
-    return json({ ok: false, error: 'materials_pricing not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'materials_pricing not enabled' }, 404);
   }
   if (!isMaterialsApiConfigured()) {
-    return json({ ok: false, error: 'MATERIALS_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'MATERIALS_API_BASE_URL is not configured' }, 503);
   }
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON body' }, 400);
   }
 
   const items = Array.isArray(body.items) ? (body.items as MaterialsQuoteItem[]) : [];
@@ -41,6 +36,6 @@ export async function POST(context: APIContext): Promise<Response> {
     zip: body.zip != null ? String(body.zip) : undefined,
   });
 
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json(result.data);
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
+  return jsonResponse(result.data);
 }

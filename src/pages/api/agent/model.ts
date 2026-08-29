@@ -13,15 +13,10 @@ import { agentModelStorageBackend, setStoredAgentModel } from '../../../lib/agen
 import { getAnthropicBalance, type AnthropicBalance } from '../../../lib/anthropicBalance';
 import { getAnthropicKeySource, type AnthropicKeySource } from '../../../lib/anthropicKeySource';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function payload(
   settings: AgentModelSettings,
@@ -50,7 +45,7 @@ export async function GET(context: APIContext): Promise<Response> {
     getAgentModelSettings(),
     getAnthropicBalance(),
   ]);
-  return json(payload(settings, anthropicBalance));
+  return jsonResponse(payload(settings, anthropicBalance));
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
@@ -62,30 +57,30 @@ export async function PUT(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const raw = body.model;
   if (raw == null || raw === '') {
     const ok = await setStoredAgentModel(null);
-    if (!ok) return json({ ok: false, error: 'Failed to reset model' }, 500);
+    if (!ok) return jsonResponse({ ok: false, error: 'Failed to reset model' }, 500);
     const [settings, anthropicBalance] = await Promise.all([
       getAgentModelSettings(),
       getAnthropicBalance(),
     ]);
-    return json(payload(settings, anthropicBalance));
+    return jsonResponse(payload(settings, anthropicBalance));
   }
 
   const model = normalizeAgentModelInput(String(raw));
   if (!model) {
-    return json({ ok: false, error: 'Unknown model. Try auto, sonnet, opus, or haiku.' }, 400);
+    return jsonResponse({ ok: false, error: 'Unknown model. Try auto, sonnet, opus, or haiku.' }, 400);
   }
 
   const ok = await setStoredAgentModel(model);
-  if (!ok) return json({ ok: false, error: 'Failed to save model' }, 500);
+  if (!ok) return jsonResponse({ ok: false, error: 'Failed to save model' }, 500);
   const [settings, anthropicBalance] = await Promise.all([
     getAgentModelSettings(),
     getAnthropicBalance(),
   ]);
-  return json(payload(settings, anthropicBalance));
+  return jsonResponse(payload(settings, anthropicBalance));
 }

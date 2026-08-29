@@ -7,15 +7,10 @@ import {
 } from '../../../../lib/companyConfigStore';
 import { parseCompanyBrandUpload } from '../../../../lib/companyLogo';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -26,16 +21,16 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     form = await context.request.formData();
   } catch {
-    return json({ error: 'Expected multipart form data' }, 400);
+    return jsonResponse({ error: 'Expected multipart form data' }, 400);
   }
 
   const file = form.get('logo');
   if (!(file instanceof File) || !file.size) {
-    return json({ error: 'Missing logo file' }, 400);
+    return jsonResponse({ error: 'Missing logo file' }, 400);
   }
 
   const parsed = await parseCompanyBrandUpload(file);
-  if (!parsed.ok) return json({ error: parsed.error }, 400);
+  if (!parsed.ok) return jsonResponse({ error: parsed.error }, 400);
 
   const ok =
     parsed.kind === 'svg'
@@ -49,10 +44,10 @@ export async function POST(context: APIContext): Promise<Response> {
           dataBase64: parsed.dataBase64,
           mediaType: parsed.mediaType,
         });
-  if (!ok) return json({ error: 'Failed to save logo' }, 500);
+  if (!ok) return jsonResponse({ error: 'Failed to save logo' }, 500);
 
   const company = await getCompanyConfig(context.request);
-  return json({ ok: true, company });
+  return jsonResponse({ ok: true, company });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -61,8 +56,8 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const ok = await clearStoredCompanyLogo();
-  if (!ok) return json({ error: 'Failed to remove logo' }, 500);
+  if (!ok) return jsonResponse({ error: 'Failed to remove logo' }, 500);
 
   const company = await getCompanyConfig(context.request);
-  return json({ ok: true, company });
+  return jsonResponse({ ok: true, company });
 }

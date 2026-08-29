@@ -14,15 +14,10 @@ import {
   storeReadTodo,
   storeUpdateTodo,
 } from '../../../lib/todoStore';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseId(raw: string | undefined): number | null {
   const n = Number(raw);
@@ -34,30 +29,30 @@ export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
-  if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
+  if (!isTodoDbConfigured()) return jsonResponse({ ok: false, error: 'To-do DB not configured' }, 503);
 
   const id = parseId(context.params.id);
-  if (!id) return json({ ok: false, error: 'Invalid id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Invalid id' }, 400);
 
   const todo = await storeReadTodo(id);
-  if (!todo) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, ...todo });
+  if (!todo) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: true, ...todo });
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
-  if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
+  if (!isTodoDbConfigured()) return jsonResponse({ ok: false, error: 'To-do DB not configured' }, 503);
 
   const id = parseId(context.params.id);
-  if (!id) return json({ ok: false, error: 'Invalid id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Invalid id' }, 400);
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const patch: {
@@ -81,13 +76,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   if (body.priority != null) {
     const priority = normalizeTodoPriority(body.priority);
-    if (!priority) return json({ ok: false, error: 'Invalid priority' }, 400);
+    if (!priority) return jsonResponse({ ok: false, error: 'Invalid priority' }, 400);
     patch.priority = priority;
   }
 
   if (body.status != null) {
     const status = normalizeTodoStatus(body.status);
-    if (!status) return json({ ok: false, error: 'Invalid status' }, 400);
+    if (!status) return jsonResponse({ ok: false, error: 'Invalid status' }, 400);
     patch.status = status;
   }
 
@@ -122,7 +117,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
   if (body.sort_order != null) {
     const sortOrder = Number(body.sort_order);
     if (!Number.isInteger(sortOrder) || sortOrder < 0) {
-      return json({ ok: false, error: 'Invalid sort_order' }, 400);
+      return jsonResponse({ ok: false, error: 'Invalid sort_order' }, 400);
     }
     patch.sort_order = sortOrder;
   }
@@ -130,24 +125,24 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const result = await storeUpdateTodo(id, patch);
   if (!result.ok) {
     const status = result.error === 'Not found' ? 404 : 400;
-    return json({ ok: false, error: result.error }, status);
+    return jsonResponse({ ok: false, error: result.error }, status);
   }
-  return json({ ok: true, ...result.todo });
+  return jsonResponse({ ok: true, ...result.todo });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { userId } = auth;
-  if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
+  if (!isTodoDbConfigured()) return jsonResponse({ ok: false, error: 'To-do DB not configured' }, 503);
 
   const id = parseId(context.params.id);
-  if (!id) return json({ ok: false, error: 'Invalid id' }, 400);
+  if (!id) return jsonResponse({ ok: false, error: 'Invalid id' }, 400);
 
   const result = await storeDeleteTodo(id);
   if (!result.ok) {
     const status = result.error === 'Not found' ? 404 : 400;
-    return json({ ok: false, error: result.error }, status);
+    return jsonResponse({ ok: false, error: result.error }, status);
   }
-  return json({ ok: true, id, deleted: true });
+  return jsonResponse({ ok: true, id, deleted: true });
 }

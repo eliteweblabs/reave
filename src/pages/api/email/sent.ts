@@ -5,15 +5,10 @@
 import type { APIContext } from 'astro';
 import { listOutboundEmails } from '../../../lib/projectOutboundEmail';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -24,5 +19,5 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const events = await listOutboundEmails(limit);
 
-  return json({ ok: true, events });
+  return jsonResponse({ ok: true, events });
 }

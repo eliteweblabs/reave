@@ -51,15 +51,10 @@ import {
 import { requestOrigin } from '../../../lib/requestOrigin';
 import { DIRECTORY_COUNTIES } from '../../../lib/courtDirectory';
 import { PRACTICE_AREAS, PRACTICE_GATE_MODES, US_STATES } from '../../../lib/practiceGate';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseFeatures(body: Record<string, unknown>): FeatureId[] {
   if (Array.isArray(body.features)) {
@@ -92,7 +87,7 @@ function parseValues(body: Record<string, unknown>): Record<string, string> {
 
 function requireCanonicalReaveHost(): Response | null {
   if (isCanonicalReaveInstall() && hasFeature('deploy_wizard')) return null;
-  return json({ ok: false, error: 'Not found' }, 404);
+  return jsonResponse({ ok: false, error: 'Not found' }, 404);
 }
 
 /** Mark which host secrets exist — never put live values on the plan. */
@@ -145,7 +140,7 @@ export async function GET(context: APIContext): Promise<Response> {
   if (probeRaw) {
     const host = normalizeSiteDomain(probeRaw);
     if (!isDeployWizardPublicHost(host)) {
-      return json({ ok: false, error: 'Invalid site host' }, 400);
+      return jsonResponse({ ok: false, error: 'Invalid site host' }, 400);
     }
     const origin = `https://${host}`;
     const live = `${origin}/api/health/live`;
@@ -159,9 +154,9 @@ export async function GET(context: APIContext): Promise<Response> {
         headers: { 'User-Agent': 'reave-deploy-wizard/1.0' },
       });
       clearTimeout(timer);
-      return json({ ok: true, url: origin, reachable: res.ok, status: res.status });
+      return jsonResponse({ ok: true, url: origin, reachable: res.ok, status: res.status });
     } catch {
-      return json({ ok: true, url: origin, reachable: false });
+      return jsonResponse({ ok: true, url: origin, reachable: false });
     }
   }
 
@@ -204,7 +199,7 @@ export async function GET(context: APIContext): Promise<Response> {
     if (listed.ok) projects = listed.projects;
   }
 
-  return json({
+  return jsonResponse({
     ok: true,
     modules: allModules,
     sections,
@@ -251,7 +246,7 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = (await context.request.json()) as Record<string, unknown>;
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const features = parseFeatures(body);
@@ -290,11 +285,11 @@ export async function POST(context: APIContext): Promise<Response> {
   const action = typeof body.action === 'string' ? body.action : 'plan';
 
   if (action !== 'apply') {
-    return json({ ok: true, plan: publicPlan, cli });
+    return jsonResponse({ ok: true, plan: publicPlan, cli });
   }
 
   if (!isRailwayConfigured()) {
-    return json({ ok: false, error: 'RAILWAY_API_TOKEN is not set on this service', plan: publicPlan, cli }, 400);
+    return jsonResponse({ ok: false, error: 'RAILWAY_API_TOKEN is not set on this service', plan: publicPlan, cli }, 400);
   }
 
   const origin = requestOrigin(context.request);
@@ -371,12 +366,12 @@ export async function POST(context: APIContext): Promise<Response> {
       });
     }
     if (!executed.ok) {
-      return json(
+      return jsonResponse(
         { ok: false, error: executed.error, plan: publicPlan, cli, applied: executed.applied },
         executed.applied?.length ? 502 : 400,
       );
     }
-    return json({
+    return jsonResponse({
       ok: true,
       plan: publicPlan,
       cli,

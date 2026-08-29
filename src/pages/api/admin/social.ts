@@ -12,15 +12,10 @@ import { getCompanyConfig } from '../../../lib/companyConfig';
 import { buildSocialDashboard } from '../../../lib/social/index.ts';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function parseRange(raw: string | null): number {
   const n = Number(raw);
@@ -41,7 +36,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!hasFeature('social_inbox')) {
-    return json({ ok: false, error: 'social_inbox not enabled' }, 404);
+    return jsonResponse({ ok: false, error: 'social_inbox not enabled' }, 404);
   }
 
   try {
@@ -52,9 +47,9 @@ export async function GET(context: APIContext): Promise<Response> {
     const company = await getCompanyConfig(context.request);
     const dashboard = await buildSocialDashboard(company, { rangeDays, hashtags });
 
-    return json({ ok: true, dashboard });
+    return jsonResponse({ ok: true, dashboard });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to build social dashboard';
-    return json({ ok: false, error: message }, 500);
+    return jsonResponse({ ok: false, error: message }, 500);
   }
 }

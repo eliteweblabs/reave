@@ -13,15 +13,10 @@ import {
   isKnowledgeDbConfigured,
 } from '../../../../lib/knowledgeStore';
 import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../../lib/sidebarOrderStore';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -39,7 +34,7 @@ export async function GET(context: APIContext): Promise<Response> {
       return bTime - aTime;
     },
   );
-  return json({ ok: true, entries: sorted, db: isKnowledgeDbConfigured() });
+  return jsonResponse({ ok: true, entries: sorted, db: isKnowledgeDbConfigured() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -50,17 +45,17 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (url.searchParams.get('seed') === '1') {
     if (!isKnowledgeDbConfigured()) {
-      return json({ ok: false, error: 'Knowledge DB not configured — set DATABASE_URL on Railway' }, 503);
+      return jsonResponse({ ok: false, error: 'Knowledge DB not configured — set DATABASE_URL on Railway' }, 503);
     }
     const result = await storeSeedBundled();
-    return json({ ok: true, ...result });
+    return jsonResponse({ ok: true, ...result });
   }
 
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
   } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
   const slug = String(body.slug ?? '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '-');
@@ -70,10 +65,10 @@ export async function POST(context: APIContext): Promise<Response> {
   const source = String(body.source ?? 'manual');
 
   if (!slug || !title || !content) {
-    return json({ ok: false, error: 'slug, title, and content are required' }, 400);
+    return jsonResponse({ ok: false, error: 'slug, title, and content are required' }, 400);
   }
 
   const result = await storeWriteKnowledge({ slug, title, content, tags, source });
-  if (!result.ok) return json({ ok: false, error: result.error }, 503);
-  return json({ ok: true, slug, title });
+  if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 503);
+  return jsonResponse({ ok: true, slug, title });
 }

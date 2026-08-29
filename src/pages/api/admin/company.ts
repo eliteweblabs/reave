@@ -13,15 +13,10 @@ import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/com
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
 import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(data: unknown, status = 200): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -30,7 +25,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const company = await getCompanyConfig(context.request);
   const fontCatalog = await brandFontCatalogForAdminAsync();
-  return json({ ok: true, company, fontCatalog, emailFontCatalog: emailSafeFontCatalogForAdmin() });
+  return jsonResponse({ ok: true, company, fontCatalog, emailFontCatalog: emailSafeFontCatalogForAdmin() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -42,26 +37,26 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     body = await context.request.json();
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
   if (body.logoSvg !== undefined) {
     const t = (body.logoSvg ?? '').trim();
     if (t && !sanitizeInlineSvg(t)) {
-      return json({ error: 'Logo SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
+      return jsonResponse({ error: 'Logo SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
     }
   }
   if (body.iconSvg !== undefined) {
     const t = (body.iconSvg ?? '').trim();
     if (t && !sanitizeInlineSvg(t)) {
-      return json({ error: 'Icon SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
+      return jsonResponse({ error: 'Icon SVG must be valid <svg>…</svg> markup (max 200 KB).' }, 400);
     }
   }
   if (body.brandPrimary !== undefined && body.brandPrimary.trim() && !normalizeBrandColorHex(body.brandPrimary)) {
-    return json({ error: 'Primary color must be a valid hex value (e.g. #rrggbb).' }, 400);
+    return jsonResponse({ error: 'Primary color must be a valid hex value (e.g. #rrggbb).' }, 400);
   }
   if (body.brandSecondary !== undefined && body.brandSecondary.trim() && !normalizeBrandColorHex(body.brandSecondary)) {
-    return json({ error: 'Secondary color must be a valid hex value (e.g. #rrggbb).' }, 400);
+    return jsonResponse({ error: 'Secondary color must be a valid hex value (e.g. #rrggbb).' }, 400);
   }
 
   delete body.domain;
@@ -95,12 +90,12 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const ok = await setStoredCompanyConfig(stored);
-  if (!ok) return json({ error: 'Failed to save company details' }, 500);
+  if (!ok) return jsonResponse({ error: 'Failed to save company details' }, 500);
 
   invalidateOfficeCoordsCache();
   void syncCalcomIdentityFromReave({ force: true, request: context.request }).catch(() => undefined);
 
   const company = await getCompanyConfig(context.request);
   const fontCatalog = await brandFontCatalogForAdminAsync();
-  return json({ ok: true, company, fontCatalog, emailFontCatalog: emailSafeFontCatalogForAdmin() });
+  return jsonResponse({ ok: true, company, fontCatalog, emailFontCatalog: emailSafeFontCatalogForAdmin() });
 }

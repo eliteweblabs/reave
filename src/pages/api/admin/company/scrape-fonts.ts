@@ -10,15 +10,10 @@ import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../../lib/
 import { normalizePublicUrl } from '../../../../lib/publicUrl';
 import { detectWebsiteFonts } from '../../../../lib/websiteFonts';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
 
 function websiteFromDomain(domain: string): string | null {
   const trimmed = domain.trim();
@@ -47,7 +42,7 @@ export const POST: APIRoute = async (context) => {
     null;
 
   if (!website) {
-    return json(
+    return jsonResponse(
       { ok: false, error: 'Set PUBLIC_SITE_DOMAIN on this deployment first.' },
       400,
     );
@@ -55,7 +50,7 @@ export const POST: APIRoute = async (context) => {
 
   const detected = await detectWebsiteFonts(website);
   if (!detected) {
-    return json(
+    return jsonResponse(
       {
         ok: false,
         error: `Couldn't read fonts from ${website}. The website may block automated requests.`,
@@ -79,7 +74,7 @@ export const POST: APIRoute = async (context) => {
   });
 
   if (!ok) {
-    return json({ ok: false, error: 'Fonts detected but failed to save company settings.' }, 500);
+    return jsonResponse({ ok: false, error: 'Fonts detected but failed to save company settings.' }, 500);
   }
 
   const updated = await getCompanyConfig(context.request);
@@ -89,7 +84,7 @@ export const POST: APIRoute = async (context) => {
     detected.sources.content && `Content: ${detected.sources.content}`,
   ].filter(Boolean);
 
-  return json({
+  return jsonResponse({
     ok: true,
     website: detected.website,
     company: updated,
