@@ -50,8 +50,10 @@ function dealReels(items: ClientLogo[]): ClientLogo[][] {
   });
 }
 
-const DURATION_S = 20;
-const DELAYS = [0, -3.4, -1.1, -6.8, -2.2, -5.5, -0.7, -8.1];
+/** One column advances, then the wall waits 3.5s before the next column moves. */
+const STEP_S = 3.5;
+const DURATION_S = PER_REEL * COLS * STEP_S;
+const DELAYS = Array.from({ length: COLS }, (_, col) => col * STEP_S);
 
 const reels = dealReels(logos).map((reel) =>
   Array.from({ length: LOOP_COPIES }, () => reel).flat(),
@@ -99,8 +101,8 @@ const reels = dealReels(logos).map((reel) =>
     --slot-h: 52px;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    column-gap: 12px;
-    row-gap: 14px;
+    column-gap: 28px;
+    row-gap: 28px;
     width: 100%;
     max-width: 100%;
   }
@@ -128,7 +130,7 @@ const reels = dealReels(logos).map((reel) =>
   .client-logos-reel-track {
     display: flex;
     flex-direction: column;
-    animation: client-logos-slot var(--reel-duration, 20s) ease-in-out infinite;
+    animation: client-logos-slot var(--reel-duration, 140s) ease-in-out infinite;
     animation-delay: var(--reel-delay, 0s);
     will-change: transform;
   }
@@ -138,30 +140,33 @@ const reels = dealReels(logos).map((reel) =>
   }
 
   /*
-   * Five logos per reel (duplicated for a seamless loop). Each 20% slice
-   * holds ~3.2s on a fully visible mark, then eases 0.8s to the next.
+   * Five logos per reel (duplicated for a seamless loop). Duration is
+   * 5 × 8 × 3.5s = 140s. Each reel holds, eases ~0.7s to the next mark,
+   * then waits out the rest of the 28s round while the other columns take
+   * their turn — only one logo on the wall moves at a time.
    */
   @keyframes client-logos-slot {
     0%,
-    16% {
+    2.5% {
       transform: translate3d(0, 0, 0);
     }
-    20%,
-    36% {
+    3%,
+    22.5% {
       transform: translate3d(0, calc(var(--slot-h) * -1), 0);
     }
-    40%,
-    56% {
+    23%,
+    42.5% {
       transform: translate3d(0, calc(var(--slot-h) * -2), 0);
     }
-    60%,
-    76% {
+    43%,
+    62.5% {
       transform: translate3d(0, calc(var(--slot-h) * -3), 0);
     }
-    80%,
-    96% {
+    63%,
+    82.5% {
       transform: translate3d(0, calc(var(--slot-h) * -4), 0);
     }
+    83%,
     100% {
       transform: translate3d(0, calc(var(--slot-h) * -5), 0);
     }
@@ -174,7 +179,7 @@ const reels = dealReels(logos).map((reel) =>
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    padding: 0 4px;
+    padding: 0 10px;
   }
 
   .client-logo-item img {
@@ -198,7 +203,8 @@ const reels = dealReels(logos).map((reel) =>
   @media (min-width: 640px) {
     .client-logos {
       --slot-h: 56px;
-      column-gap: 16px;
+      column-gap: 40px;
+      row-gap: 32px;
     }
 
     .client-logo-item img {
@@ -210,7 +216,13 @@ const reels = dealReels(logos).map((reel) =>
     .client-logos {
       --slot-h: 58px;
       grid-template-columns: repeat(8, minmax(0, 1fr));
-      column-gap: 18px;
+      column-gap: 48px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .client-logos-reel-track {
+      animation: none;
     }
   }
 </style>
