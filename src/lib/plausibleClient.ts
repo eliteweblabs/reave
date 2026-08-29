@@ -213,7 +213,7 @@ export function isPlausibleSiteMissingError(error: string | undefined): boolean 
   const msg = (error || '').toLowerCase();
   if (!msg) return false;
   return (
-    /invalid site|site (does )?not (exist|found)|unknown site|not found|couldn't find|could not find/.test(
+    /invalid site|site (does )?not (exist|found)|unknown site|not found|couldn't find|could not find|invalid api key or site id/.test(
       msg,
     ) || /\b404\b/.test(msg)
   );

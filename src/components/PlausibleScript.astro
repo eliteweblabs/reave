@@ -4,17 +4,19 @@
  * ---------------------
  * Injects the self-hosted Plausible Analytics tracking script into every page.
  *
- * Reads PLAUSIBLE_API_BASE_URL from env and the apex domain from company config.
+ * Reads PLAUSIBLE_API_BASE_URL at runtime (Railway service vars are not
+ * inlined at build time) and the apex domain from company config.
  * Renders nothing when either value is missing — safe on installs without Plausible.
  *
  * NOT an admin-editable setting — purely behind-the-scenes.
- * Every reΛVe.app installation gets tracking automatically when the env var is set.
  */
-import { getStoredCompanyConfig } from "../lib/companyConfigStore";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { hostnameFromWebsite } from "../lib/plausibleClient";
+import { serverEnv } from "../lib/serverEnv";
 
-const plausibleBase = (import.meta.env.PLAUSIBLE_API_BASE_URL ?? "").replace(/\/+$/, "");
-const company = await getStoredCompanyConfig();
-const domain = company?.domain ?? "";
+const plausibleBase = (serverEnv("PLAUSIBLE_API_BASE_URL") ?? "").replace(/\/+$/, "");
+const company = await getCompanyConfig(Astro.request);
+const domain = hostnameFromWebsite(company.domain);
 const enabled = !!(plausibleBase && domain);
 ---
 

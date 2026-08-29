@@ -32,6 +32,12 @@ assert.equal(
 assert.equal(isPlausibleSiteMissingError('Plausible 404: Site not found'), true);
 assert.equal(isPlausibleSiteMissingError('Invalid site ID'), true);
 assert.equal(isPlausibleSiteMissingError('Plausible 401: unauthorized'), false);
+assert.equal(
+  isPlausibleSiteMissingError(
+    'Invalid API key or site ID. Please make sure you\'re using a valid API key with access to the site you\'ve requested.',
+  ),
+  true,
+);
 assert.equal(isPlausibleSiteExistsError('domain has already been taken'), true);
 
 const merged = mergeAnalyticsSites([

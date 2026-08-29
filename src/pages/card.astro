@@ -10,6 +10,7 @@ import PwaDocumentTitle from '../components/PwaDocumentTitle.astro';
 import SiteBackground from '../components/SiteBackground.astro';
 import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
+import PlausibleScript from '../components/PlausibleScript.astro';
 import {
   appleMapsDirectionsUrl,
   mapsDirectionsUrl,
@@ -121,6 +122,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     <meta name="twitter:image" content={ogImageSafe} />
     <Favicon />
     <BrandFontHead fonts={company.fonts} />
+    <PlausibleScript />
   </head>
   <body class="nfc-body">
     <SiteBackground />

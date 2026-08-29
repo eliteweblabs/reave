@@ -1635,6 +1635,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   v({
     name: 'PLAUSIBLE_API_BASE_URL',
     service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: 'https://plausible-analytics-ce-production-6fd8.up.railway.app',
+    required: false,
+    description: 'Shared self-hosted Plausible CE. Overridden when Plausible on Railway is selected.',
+  }),
+  v({
+    name: 'PLAUSIBLE_API_BASE_URL',
+    service: DEPLOY_APP_SERVICE,
     kind: 'reference',
     value: railwayPublicUrl('plausible'),
     description: 'Self-hosted Plausible public URL.',
@@ -2017,7 +2025,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     ) {
       continue;
     }
-    if (raw.name === 'PLAUSIBLE_API_BASE_URL' && raw.kind === 'secret' && extraSet.has('plausible_railway')) {
+    if (raw.name === 'PLAUSIBLE_API_BASE_URL' && raw.kind !== 'reference' && extraSet.has('plausible_railway')) {
       continue;
     }
 

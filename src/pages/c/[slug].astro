@@ -53,6 +53,7 @@ import PwaDocumentTitle from '../../components/PwaDocumentTitle.astro';
 import ViewportMeta from '../../components/ViewportMeta.astro';
 import SiteBackground from '../../components/SiteBackground.astro';
 import ThemeInit from '../../components/ThemeInit.astro';
+import PlausibleScript from '../../components/PlausibleScript.astro';
 import { companyHtmlStyleAttr } from '../../lib/companyBrandColors';
 import '../../styles/brand.css';
 import '../../styles/mobile-touch.css';
@@ -477,6 +478,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <PlausibleScript />
   </head>
   <body>
     <SiteBackground />

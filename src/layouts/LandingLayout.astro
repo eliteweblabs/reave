@@ -11,6 +11,7 @@ import CookieNotice from "../components/CookieNotice.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { formatPwaAppTitle } from "../lib/pageTitle";
+import PlausibleScript from "../components/PlausibleScript.astro";
 import "../styles/scroll-fade.css";
 
 export interface Props {
@@ -79,6 +80,7 @@ const htmlStyle = isEditorial
     <meta name="twitter:title" content={shareTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageSafe} />
+    <PlausibleScript />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     {isEditorial ? (

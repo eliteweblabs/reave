@@ -3,6 +3,7 @@ import Favicon from "../components/Favicon.astro";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { BARBERS_EDGE } from "../lib/barbersEdge";
+import PlausibleScript from "../components/PlausibleScript.astro";
 import "../styles/scroll-fade.css";
 
 interface Props {
@@ -31,6 +32,7 @@ const canonical = Astro.url.pathname;
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Outfit:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <PlausibleScript />
   </head>
   <body class="be-body">
     <header class="be-header">

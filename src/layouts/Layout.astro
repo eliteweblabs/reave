@@ -19,6 +19,7 @@ import ViewportMeta from "../components/ViewportMeta.astro";
 import CookieNotice from "../components/CookieNotice.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ThemeInit from "../components/ThemeInit.astro";
+import PlausibleScript from "../components/PlausibleScript.astro";
 import "../styles/brand.css";
 
 export interface Props {
@@ -154,6 +155,7 @@ try {
 		<meta name="twitter:title" content={shareTitle} />
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={ogImageSafe} />
+		<PlausibleScript />
 	</head>
 	<body data-user-id={userId ?? ""}>
 		<SiteBackground />

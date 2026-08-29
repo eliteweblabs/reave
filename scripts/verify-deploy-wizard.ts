@@ -574,4 +574,15 @@ assert.ok(core.services.find((s) => s.id === 'reave-postgres')?.image);
 assert.ok(core.services.find((s) => s.id === 'reave-postgres')?.volumeMount);
 assert.ok(core.services.find((s) => s.id === 'reave')?.repo);
 
+const sharedPlausible = core.variables.find((v) => v.name === 'PLAUSIBLE_API_BASE_URL');
+assert.equal(sharedPlausible?.kind, 'literal');
+assert.match(sharedPlausible?.filled || '', /plausible-analytics-ce-production-6fd8\.up\.railway\.app/);
+const ownPlausible = buildDeployWizardPlan({
+  features: ['analytic_audit'],
+  extras: ['plausible_railway'],
+});
+const ownUrl = ownPlausible.variables.find((v) => v.name === 'PLAUSIBLE_API_BASE_URL');
+assert.equal(ownUrl?.kind, 'reference');
+assert.ok(!ownPlausible.variables.some((v) => v.name === 'PLAUSIBLE_API_BASE_URL' && v.kind === 'literal'));
+
 console.log('verify-deploy-wizard: ok');
