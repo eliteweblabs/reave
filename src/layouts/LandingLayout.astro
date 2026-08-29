@@ -19,6 +19,7 @@ export interface Props {
   /** Overrides the Company default share image (admin → Company → Social sharing). */
   ogImage?: string;
   themeColor?: string;
+  noIndex?: boolean;
 }
 
 const {
@@ -26,6 +27,7 @@ const {
   description: descriptionProp,
   ogImage: ogImageProp,
   themeColor: themeColorProp,
+  noIndex = false,
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -64,6 +66,7 @@ const htmlStyle = isEditorial
     <title>{title}</title>
     <PwaDocumentTitle pwaTitle={pwaTitle} />
     <meta name="description" content={description} />
+    {noIndex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={shareTitle} />
     <meta property="og:description" content={description} />

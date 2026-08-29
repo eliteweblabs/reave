@@ -1,0 +1,406 @@
+---
+/**
+ * Hidden calculator demo for Tony’s site (config/sites/tonybarlettajr-config.json).
+ * Not in nav. noindex. 404 on every other install.
+ */
+import LandingLayout from '../layouts/LandingLayout.astro';
+import { US_STATES } from '../lib/dscrCalculator';
+import { getSiteContent } from '../lib/siteContent';
+
+export const prerender = false;
+
+const site = getSiteContent();
+if (site.key !== 'tonybarlettajr') {
+  return new Response('Not found', { status: 404 });
+}
+
+const landing = site.landing;
+const signature = landing?.signature || landing?.name || 'Tony Barletta Jr.';
+const phone = landing?.contact?.phone || '781-223-0845';
+const phoneHref = landing?.contact?.phoneHref || 'tel:+17812230845';
+const today = new Date().toISOString().slice(0, 10);
+
+const tabs = [
+  { id: 'deal', label: 'Deal analyzer' },
+  { id: 'dscr', label: 'DSCR' },
+  { id: 'mortgage', label: 'Payment' },
+  { id: 'afford', label: 'Affordability' },
+  { id: 'refi', label: 'Refinance' },
+  { id: 'rentbuy', label: 'Rent vs buy' },
+  { id: 'flip', label: 'Fix & flip' },
+  { id: 'brrrr', label: 'BRRRR' },
+  { id: 'exchange', label: '1031' },
+] as const;
+---
+
+<LandingLayout
+  title="Mortgage & investment calculators"
+  description="Hidden demo suite — DSCR, cap rate, cash-on-cash, payment, refinance, and more."
+  noIndex
+>
+  <header class="tc-top">
+    <a class="tc-sig" href="/">{signature}</a>
+    <a class="tc-phone" href={phoneHref}>{phone}</a>
+  </header>
+
+  <main class="tc">
+    <p class="tc-kicker">Private demo · not in the site menu</p>
+    <h1>Run the numbers before the conversation.</h1>
+    <p class="tc-lead">
+      Same formulas investors and loan officers use together: NOI, cap rate, cash-on-cash, DSCR,
+      payment, and the deal screens. Live as you type. Nothing is saved.
+    </p>
+
+    <div class="tc-suite" id="tc-suite">
+      <div class="tc-tabs" role="tablist" aria-label="Calculators">
+        {tabs.map((tab, i) => (
+          <button
+            type="button"
+            role="tab"
+            data-tab={tab.id}
+            aria-selected={i === 0 ? 'true' : 'false'}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <section class="tc-panel" data-panel="deal" role="tabpanel">
+        <form class="tc-form">
+          <label>Purchase price <input name="purchasePrice" inputmode="decimal" value="650,000" /></label>
+          <label>Loan amount <input name="loanAmount" inputmode="decimal" value="520,000" /></label>
+          <label>Rate % <input name="ratePct" inputmode="decimal" value="6.75" /></label>
+          <label>Term (years) <input name="termYears" inputmode="numeric" value="30" /></label>
+          <label>Monthly rent <input name="monthlyRent" inputmode="decimal" value="3,800" /></label>
+          <label>Vacancy % <input name="vacancyPct" inputmode="decimal" value="5" /></label>
+          <label>Monthly taxes <input name="monthlyTaxes" inputmode="decimal" value="550" /></label>
+          <label>Monthly insurance <input name="monthlyInsurance" inputmode="decimal" value="150" /></label>
+          <label>Monthly HOA <input name="monthlyHoa" inputmode="decimal" value="0" /></label>
+          <label>Other monthly opex <input name="monthlyOtherOpex" inputmode="decimal" value="400" /></label>
+          <label>Closing costs <input name="closingCosts" inputmode="decimal" value="12,000" /></label>
+          <label>Rehab <input name="rehabCosts" inputmode="decimal" value="0" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div class="is-hero"><dt>NOI</dt><dd data-out="noi">—</dd></div>
+          <div><dt>Cap rate</dt><dd data-out="cap">—</dd></div>
+          <div><dt>Cash-on-cash</dt><dd data-out="coc">—</dd></div>
+          <div><dt>Investor DSCR</dt><dd data-out="dscr">—</dd></div>
+          <div><dt>GRM</dt><dd data-out="grm">—</dd></div>
+          <div><dt>1% rule</dt><dd data-out="one">—</dd></div>
+          <div><dt>Monthly cash flow</dt><dd data-out="cashflow">—</dd></div>
+          <div><dt>P&amp;I</dt><dd data-out="pi">—</dd></div>
+          <div><dt>Effective gross income</dt><dd data-out="egi">—</dd></div>
+          <div><dt>Operating expenses</dt><dd data-out="opex">—</dd></div>
+          <div><dt>Cash invested</dt><dd data-out="invested">—</dd></div>
+          <div><dt>Break-even occupancy</dt><dd data-out="be">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="dscr" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>
+            State
+            <select name="state">
+              {US_STATES.map((state) => (
+                <option value={state} selected={state === 'Massachusetts'}>{state}</option>
+              ))}
+            </select>
+          </label>
+          <label>FICO <input name="fico" type="number" min="300" max="850" value="760" /></label>
+          <label>
+            Units
+            <select name="units">
+              <option value="1-4" selected>1–4</option>
+              <option value="5-8">5–8</option>
+            </select>
+          </label>
+          <label>
+            Purpose
+            <select name="purpose">
+              <option value="Purchase">Purchase</option>
+              <option value="RateAndTerm" selected>Rate &amp; term</option>
+              <option value="Cashout">Cash-out</option>
+            </select>
+          </label>
+          <label>Property value <input name="propertyValue" inputmode="decimal" value="1,000,000" /></label>
+          <label>Loan amount <input name="loanAmount" inputmode="decimal" value="450,000" /></label>
+          <label>Monthly rent <input name="monthlyRent" inputmode="decimal" value="5,000" /></label>
+          <label>Monthly insurance <input name="monthlyInsurance" inputmode="decimal" value="250" /></label>
+          <label>Monthly taxes <input name="monthlyTaxes" inputmode="decimal" value="1,200" /></label>
+          <label>Monthly HOA <input name="monthlyHoa" inputmode="decimal" value="0" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div class="is-hero"><dt>Lender DSCR</dt><dd data-out="dscr">—</dd></div>
+          <div><dt>Status</dt><dd data-out="status">—</dd></div>
+          <div><dt>LTV</dt><dd data-out="ltv">—</dd></div>
+          <div><dt>Estimated rate</dt><dd data-out="rate">—</dd></div>
+          <div><dt>P&amp;I</dt><dd data-out="pi">—</dd></div>
+          <div><dt>PITIA</dt><dd data-out="piti">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="mortgage" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>Loan amount <input name="loanAmount" inputmode="decimal" value="520,000" /></label>
+          <label>Rate % <input name="ratePct" inputmode="decimal" value="6.75" /></label>
+          <label>Term (years) <input name="termYears" inputmode="numeric" value="30" /></label>
+          <label>Monthly taxes <input name="monthlyTaxes" inputmode="decimal" value="550" /></label>
+          <label>Monthly insurance <input name="monthlyInsurance" inputmode="decimal" value="150" /></label>
+          <label>Monthly HOA <input name="monthlyHoa" inputmode="decimal" value="0" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div class="is-hero"><dt>P&amp;I</dt><dd data-out="pi">—</dd></div>
+          <div><dt>PITI</dt><dd data-out="piti">—</dd></div>
+          <div><dt>Total interest</dt><dd data-out="interest">—</dd></div>
+          <div><dt>Year-1 principal</dt><dd data-out="y1p">—</dd></div>
+          <div><dt>Year-1 interest</dt><dd data-out="y1i">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="afford" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>Monthly income <input name="monthlyIncome" inputmode="decimal" value="12,000" /></label>
+          <label>Max DTI % <input name="dtiPct" inputmode="decimal" value="43" /></label>
+          <label>Other monthly debts <input name="monthlyDebts" inputmode="decimal" value="400" /></label>
+          <label>Rate % <input name="ratePct" inputmode="decimal" value="6.75" /></label>
+          <label>Term (years) <input name="termYears" inputmode="numeric" value="30" /></label>
+          <label>Monthly taxes <input name="monthlyTaxes" inputmode="decimal" value="500" /></label>
+          <label>Monthly insurance <input name="monthlyInsurance" inputmode="decimal" value="150" /></label>
+          <label>Down payment <input name="downPayment" inputmode="decimal" value="80,000" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div class="is-hero"><dt>Max price</dt><dd data-out="price">—</dd></div>
+          <div><dt>Max loan</dt><dd data-out="loan">—</dd></div>
+          <div><dt>Max PITI</dt><dd data-out="piti">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="refi" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>Current balance <input name="currentBalance" inputmode="decimal" value="400,000" /></label>
+          <label>Current rate % <input name="currentRatePct" inputmode="decimal" value="7.25" /></label>
+          <label>Years left <input name="currentTermYears" inputmode="numeric" value="28" /></label>
+          <label>New rate % <input name="newRatePct" inputmode="decimal" value="6.25" /></label>
+          <label>New term (years) <input name="newTermYears" inputmode="numeric" value="30" /></label>
+          <label>Closing costs <input name="closingCosts" inputmode="decimal" value="6,000" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div><dt>Current P&amp;I</dt><dd data-out="now">—</dd></div>
+          <div><dt>New P&amp;I</dt><dd data-out="next">—</dd></div>
+          <div class="is-hero"><dt>Monthly savings</dt><dd data-out="save">—</dd></div>
+          <div><dt>Break-even</dt><dd data-out="be">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="rentbuy" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>Home price <input name="homePrice" inputmode="decimal" value="650,000" /></label>
+          <label>Down payment <input name="downPayment" inputmode="decimal" value="130,000" /></label>
+          <label>Rate % <input name="ratePct" inputmode="decimal" value="6.75" /></label>
+          <label>Term (years) <input name="termYears" inputmode="numeric" value="30" /></label>
+          <label>Monthly taxes <input name="monthlyTaxes" inputmode="decimal" value="550" /></label>
+          <label>Monthly insurance <input name="monthlyInsurance" inputmode="decimal" value="150" /></label>
+          <label>Monthly HOA <input name="monthlyHoa" inputmode="decimal" value="0" /></label>
+          <label>Monthly rent <input name="monthlyRent" inputmode="decimal" value="3,200" /></label>
+          <label>Hold (years) <input name="years" inputmode="numeric" value="5" /></label>
+          <label>Appreciation % / yr <input name="appreciationPct" inputmode="decimal" value="3" /></label>
+          <label>Rent growth % / yr <input name="rentGrowthPct" inputmode="decimal" value="3" /></label>
+          <label>Invest return % / yr <input name="investmentReturnPct" inputmode="decimal" value="7" /></label>
+          <label>Selling cost % <input name="sellingCostPct" inputmode="decimal" value="6" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div class="is-hero"><dt>After hold</dt><dd data-out="winner">—</dd></div>
+          <div><dt>Buy monthly</dt><dd data-out="buyMo">—</dd></div>
+          <div><dt>Buy net worth</dt><dd data-out="buyNw">—</dd></div>
+          <div><dt>Rent net worth</dt><dd data-out="rentNw">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="flip" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>Purchase <input name="purchasePrice" inputmode="decimal" value="280,000" /></label>
+          <label>Rehab <input name="rehab" inputmode="decimal" value="60,000" /></label>
+          <label>ARV <input name="arv" inputmode="decimal" value="420,000" /></label>
+          <label>Hold (months) <input name="holdingMonths" inputmode="numeric" value="6" /></label>
+          <label>Monthly hold cost <input name="holdingMonthly" inputmode="decimal" value="2,000" /></label>
+          <label>Selling cost % <input name="sellingCostPct" inputmode="decimal" value="8" /></label>
+          <label>Closing costs <input name="closingCosts" inputmode="decimal" value="8,000" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div class="is-hero"><dt>Profit</dt><dd data-out="profit">—</dd></div>
+          <div><dt>ROI</dt><dd data-out="roi">—</dd></div>
+          <div><dt>All-in</dt><dd data-out="allin">—</dd></div>
+          <div><dt>70% rule max offer</dt><dd data-out="seventy">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="brrrr" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>Purchase <input name="purchasePrice" inputmode="decimal" value="220,000" /></label>
+          <label>Rehab <input name="rehab" inputmode="decimal" value="40,000" /></label>
+          <label>Closing costs <input name="closingCosts" inputmode="decimal" value="8,000" /></label>
+          <label>ARV <input name="arv" inputmode="decimal" value="340,000" /></label>
+          <label>Refi LTV % <input name="refinanceLtvPct" inputmode="decimal" value="75" /></label>
+          <label>Refi costs <input name="refinanceCosts" inputmode="decimal" value="5,000" /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div><dt>Cash in</dt><dd data-out="cashin">—</dd></div>
+          <div><dt>Refi loan</dt><dd data-out="refi">—</dd></div>
+          <div class="is-hero"><dt>Cash out</dt><dd data-out="out">—</dd></div>
+          <div><dt>Cash left in</dt><dd data-out="left">—</dd></div>
+          <div><dt>Recycled</dt><dd data-out="recycle">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="tc-panel" data-panel="exchange" role="tabpanel" hidden>
+        <form class="tc-form">
+          <label>Sale / relinquished close <input name="saleDate" type="date" value={today} /></label>
+        </form>
+        <dl class="tc-out" data-results>
+          <div class="is-hero"><dt>Identify replacement by</dt><dd data-out="id">—</dd></div>
+          <div><dt>Close replacement by</dt><dd data-out="close">—</dd></div>
+        </dl>
+        <p class="tc-note">IRS 1031 clocks: 45 days to identify, 180 days to close. Not legal advice.</p>
+      </section>
+    </div>
+  </main>
+</LandingLayout>
+
+<script>
+  import { mountTonyCalculatorSuite } from '../scripts/tony-calculator-suite';
+  const root = document.getElementById('tc-suite');
+  if (root) mountTonyCalculatorSuite(root);
+</script>
+
+<style>
+  .tc-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 1.1rem 1.4rem;
+    border-bottom: 1px solid #e6dfd2;
+  }
+  .tc-sig {
+    font-family: "Great Vibes", cursive;
+    font-size: 1.85rem;
+    text-decoration: none;
+    color: #161410;
+  }
+  .tc-phone {
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    color: #5b5346;
+  }
+  .tc {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 2.4rem 1.25rem 4.5rem;
+  }
+  .tc-kicker {
+    margin: 0 0 0.7rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a7d68;
+  }
+  .tc h1 {
+    margin: 0 0 0.7rem;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(2.1rem, 5vw, 3.2rem);
+    font-weight: 500;
+    line-height: 1.1;
+  }
+  .tc-lead {
+    max-width: 38rem;
+    margin: 0 0 1.8rem;
+    color: #5b5346;
+    line-height: 1.55;
+  }
+  .tc-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.2rem;
+  }
+  .tc-tabs button {
+    border: 1px solid #d9d0c0;
+    background: #fff;
+    color: #161410;
+    border-radius: 999px;
+    padding: 0.42rem 0.8rem;
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .tc-tabs button[aria-selected="true"] {
+    background: #161410;
+    border-color: #161410;
+    color: #fbf8f2;
+  }
+  .tc-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 1.1rem;
+    align-items: start;
+  }
+  .tc-form, .tc-out {
+    background: #fff;
+    border: 1px solid #e6dfd2;
+    border-radius: 16px;
+    padding: 1.15rem 1.15rem 1.25rem;
+  }
+  .tc-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 0.85rem;
+  }
+  .tc-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #5b5346;
+  }
+  .tc-form input, .tc-form select {
+    min-height: 42px;
+    border: 1px solid #d9d0c0;
+    border-radius: 8px;
+    padding: 0.45rem 0.65rem;
+    font: inherit;
+    color: #161410;
+    background: #fbf8f2;
+  }
+  .tc-out { margin: 0; }
+  .tc-out > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid #efe8dc;
+  }
+  .tc-out dt { color: #8a7d68; }
+  .tc-out dd {
+    margin: 0;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+  .tc-out .is-hero dd {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.45rem;
+    font-weight: 600;
+  }
+  .tc-out.is-fail .is-hero dd { color: #9a3412; }
+  .tc-out.is-pass .is-hero dd { color: #3f6212; }
+  .tc-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.8rem;
+    color: #8a7d68;
+  }
+  @media (max-width: 820px) {
+    .tc-panel, .tc-form { grid-template-columns: 1fr; }
+    .tc-top { padding: 1rem; }
+  }
+</style>
