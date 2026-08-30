@@ -60,6 +60,7 @@ import '../../styles/mobile-touch.css';
 import PortalOutreachSheet from '../../components/PortalOutreachSheet.astro';
 import { contactGreetingName, splitClientNameParts } from '../../lib/contactPersonName';
 import { escapeHtml } from '../../lib/htmlEscape';
+import { portalRichText } from '../../lib/portalRichText';
 
 const org = await getCompanyConfig(Astro.request);
 
@@ -184,7 +185,7 @@ const clientTagline = contactStringField(portal?.tagline);
 const brandTitle = company || displayName;
 const headline = contactStringField(portal?.headline);
 const bodyRaw = contactStringField(portal?.body);
-const bodyHtml = bodyRaw ? richText(bodyRaw) : '';
+const bodyHtml = bodyRaw ? portalRichText(bodyRaw) : '';
 const fields = (portal?.fields ?? []).filter((f) => f && f.label && f.value);
 
 const dataEntries = hasFeature('web_handoff')
@@ -363,7 +364,7 @@ const hasWork = portalWorkJobs.length > 0;
 const hasAudit = Boolean(portalAuditJob);
 const postAlias = getPostAlias();
 const tabs: Array<{ id: string; label: string }> = [];
-tabs.push({ id: 'overview', label: 'Overview' });
+tabs.push({ id: 'overview', label: 'Visibility' });
 if (hasAudit) tabs.push({ id: 'audit', label: 'Audit' });
 if (hasWork) tabs.push({ id: 'work', label: postAlias.pluralTitle });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
@@ -627,6 +628,16 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                     ))}
                   </ul>
                 )}
+              </div>
+            )}
+            {(clientWebsite || company || displayName) && uid && (
+              <div
+                class="portal-dirs-slot"
+                id="portal-dirs-slot"
+                data-dirs-url={`/api/c/${encodeURIComponent(uid)}/directories`}
+                aria-busy="true"
+              >
+                <p class="portal-dirs-pending muted">Checking directory coverage…</p>
               </div>
             )}
           </section>
@@ -930,8 +941,49 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           document
             .querySelectorAll('[data-tab-panel]')
             .forEach((p) => p.classList.toggle('active', p.getAttribute('data-tab-panel') === id));
+          if (id === 'overview') loadPortalDirectories();
         });
       });
+
+      /** Sales-sheet directories iPhone — deferred so Overview first paint stays light. */
+      let dirsLoadState = 'idle';
+      function loadPortalDirectories() {
+        const slot = document.getElementById('portal-dirs-slot');
+        if (!slot || dirsLoadState === 'loading' || dirsLoadState === 'done') return;
+        const url = slot.getAttribute('data-dirs-url');
+        if (!url) return;
+        dirsLoadState = 'loading';
+        slot.setAttribute('aria-busy', 'true');
+        fetch(url, { credentials: 'same-origin' })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data && data.ok && data.html) {
+              slot.innerHTML = data.html;
+              dirsLoadState = 'done';
+            } else {
+              slot.innerHTML = '';
+              dirsLoadState = 'error';
+            }
+          })
+          .catch(() => {
+            slot.innerHTML = '';
+            dirsLoadState = 'error';
+          })
+          .finally(() => slot.setAttribute('aria-busy', 'false'));
+      }
+      function schedulePortalDirectories() {
+        const overviewActive = document
+          .querySelector('[data-tab-panel="overview"]')
+          ?.classList.contains('active');
+        if (!overviewActive) return;
+        const run = () => loadPortalDirectories();
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(run, { timeout: 2500 });
+        } else {
+          window.setTimeout(run, 600);
+        }
+      }
+      schedulePortalDirectories();
       document.querySelectorAll('[data-reveal]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const code = btn.parentElement?.querySelector('code');
@@ -1145,6 +1197,14 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         margin: 8px 0 0;
         color: var(--site-fg-faint, #a3a3a3);
         font-size: 14px;
+      }
+      .portal-dirs-slot {
+        min-height: 0;
+      }
+      .portal-dirs-pending {
+        margin: 1rem 0 0;
+        text-align: center;
+        font-size: 13px;
       }
       .company { margin: 0; color: var(--site-fg-muted, #525252); font-size: 15px; }
 

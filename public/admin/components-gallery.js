@@ -94,7 +94,7 @@ function mount() {
   section(
     root,
     'Pane header toolbar',
-    'Canonical header actions via <code>paneDeleteIcon</code>, <code>paneShareIcon</code>, <code>createCopyIconBtn</code>, <code>createOverflowMenuBtn</code>, <code>createIosIconBtn</code>, <code>createAgentBtn</code>, <code>createPanelBackBtn</code>. Chat sessions fold Copy / Share / Archive / Delete into ⋯. Tap trash once → confirm (must stay <strong>red</strong>, never white).',
+    'Canonical header actions via <code>paneDeleteIcon</code>, <code>paneShareIcon</code>, <code>createCopyIconBtn</code>, <code>createOverflowMenuBtn</code>, <code>createIosIconBtn</code>, <code>createAgentBtn</code>, <code>createPanelBackBtn</code>. Detail panes fold secondary header actions (Copy / Share / Archive / Delete) into ⋯ — Agent and primary tools stay visible. Tap trash once → confirm (must stay <strong>red</strong>, never white).',
     (el) => {
       const setStatus = statusLine(el);
       const toolbar = document.createElement('div');

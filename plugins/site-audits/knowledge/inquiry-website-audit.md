@@ -132,7 +132,7 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 ### UX & UI (Playwright)
 - Source: Playwright (headless Chromium) — desktop 1440×900 + mobile 375×812
 - {Nav menu, JS console errors, overflow, tap targets, CTA/form issues from playwright_audit}
-- {Note if Playwright unavailable in environment}
+- **Ordering / vendor fragmentation:** When `playwright_audit.vendorFragmentation` is present, paste its bullets under Lead Capture (and a one-line note here). Flag DoorDash / Uber Eats / Grubhub / restaurantsignin / Shopify / SpotHopper careers as separate vendors. If `fragmentedOrdering` is true, write Problem → Solution pitching a single owned ordering platform.
 
 ### Technology Stack
 - {CMS, hosting, analytics from detect_tech_stack}
@@ -152,9 +152,11 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Content & Messaging
 - {Empty pages, outdated copy, hours conflicts, placeholder pages, unclear offer/CTA}
+- Note duplicated nav items (e.g. Party and Catering both → same FAQ) and orphan top-level items that belong in the menu
 
 ### Lead Capture
 - {Contact form / click-to-call / chat — present, broken, or missing}
+- **Restaurant / multi-vendor order flows:** If Playwright reports vendor fragmentation (or `fetch_url` shows Order → DoorDash + Uber Eats + Grubhub plus a separate pickup vendor), document it here as a Fail with plain-language bullets. Call out cookie/consent friction on third-party checkout when observed.
 
 ### Analytics & Conversion Tracking
 - **Client-facing.** Report only what is installed on the website (from `detect_tech_stack` and `fetch_url` HTML: `gtag(`, `G-` / `UA-` ids, `GTM-`, `plausible.io`, `fbq(`, Hotjar, Fathom).

@@ -5,11 +5,13 @@
 import { NO_LOGO_FOUND_HTML } from './clientLogoCopy';
 import { escapeHtml } from './htmlEscape';
 import {
+  DIRECTORY_COVERAGE_FINDING,
   directoryIconSrc,
   directoryShortLabel,
   directorySlugsForGroup,
   isDirectoryCoverageFinding,
   listedDirectorySlugs,
+  summarizeDirectoryChecks,
   verdictsFromListed,
   type DirectoryCheck,
   type DirectoryVerdict,
@@ -1306,6 +1308,77 @@ export function renderFindingPhoneHtml(finding: SalesSheetFinding, opts: SalesSh
     alt: `${finding.categoryLabel} on ${host}`,
     kind,
   });
+}
+
+/**
+ * Client-portal Overview: the sticky sales-sheet directories iPhone
+ * (28 icons, A–Z) plus legend and coverage summary.
+ */
+export function renderPortalDirectoriesExhibitHtml(opts: {
+  directoryChecks: DirectoryCheck[];
+  website?: string;
+  businessName?: string;
+  frameSrc?: string;
+  directoryIconGroup?: string | null;
+}): string {
+  const finding: SalesSheetFinding = {
+    id: DIRECTORY_COVERAGE_FINDING.id,
+    categoryLabel: DIRECTORY_COVERAGE_FINDING.categoryLabel,
+    problem: summarizeDirectoryChecks(opts.directoryChecks),
+    solution: DIRECTORY_COVERAGE_FINDING.solution,
+  };
+  const phone = renderFindingPhoneHtml(finding, {
+    website: opts.website,
+    businessName: opts.businessName,
+    frameSrc: opts.frameSrc,
+    directoryChecks: opts.directoryChecks,
+    directoryIconGroup: opts.directoryIconGroup,
+  });
+  return `
+<style>
+${iphoneCss()}
+.portal-dirs-exhibit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0 0.5rem;
+  padding: 1rem 0.75rem 1.1rem;
+  border-radius: 16px;
+  background: rgba(127, 127, 127, 0.08);
+}
+.portal-dirs-exhibit .ss-phone {
+  width: min(220px, 58vw);
+  margin: 0 auto;
+}
+.portal-dirs-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #6b6b6b);
+}
+.portal-dirs-exhibit .ss-exhibit-legend {
+  width: 100%;
+  max-width: 280px;
+}
+.portal-dirs-summary {
+  margin: 0;
+  max-width: 320px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text, inherit);
+  opacity: 0.85;
+}
+</style>
+<div class="portal-dirs-exhibit">
+  ${phone}
+  <p class="portal-dirs-kicker">${escapeHtml(finding.categoryLabel)}</p>
+  ${directoryLegendHtml()}
+  <p class="portal-dirs-summary">${escapeHtml(finding.problem)}</p>
+</div>`.trim();
 }
 
 function gradeClass(grade: LetterGrade | null | undefined): string {

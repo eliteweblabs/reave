@@ -26,8 +26,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-  paneDeleteIcon,
-  paneShareIcon,
+  createOverflowMenuBtn,
   createAgentBtn,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
@@ -54,11 +53,11 @@ import {
   mountClientVaultSection,
   mountClientAnalyticsSection,
   flushClientVaultSave,
-} from './work-panel.js?v=20260826d';
+} from './work-panel.js?v=20260830a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260828a';
-import { createPortalShareBtn } from './chat-panel.js?v=20260824a';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260830a';
+import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 
 /** Injected by os-map-loader via initClientsPanel(). */
@@ -1833,15 +1832,39 @@ function renderEditClientForm(pane) {
         onClick: () => askAgentAboutClient(uid),
       });
 
-      const shareBtn = clientKindFromRecord(clientState.draft) === 'personal'
-        ? null
-        : createPortalShareBtn(uid, {
-        title: `${clientDisplayLabel(clientState.draft)} — portal`,
-        recipient: {
-          contactUid: uid,
-          name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Contact',
-          email: clientState.draft.email,
-          phone: clientState.draft.phone,
+      const overflowBtn = createOverflowMenuBtn({
+        label: 'Contact actions',
+        className: 'cl-detail-overflow-btn',
+        getItems: () => {
+          const items = [];
+          if (clientKindFromRecord(clientState.draft) !== 'personal') {
+            const name =
+              joinClientFullName(firstName, lastName, clientState.draft.company) || 'Contact';
+            items.push({
+              label: 'Share',
+              iconKey: 'share',
+              action: () =>
+                openReaveShareSheet({
+                  kind: 'portal',
+                  contactUid: uid,
+                  recipient: {
+                    contactUid: uid,
+                    name,
+                    email: clientState.draft.email,
+                    phone: clientState.draft.phone,
+                  },
+                  shareTitle: `${clientDisplayLabel(clientState.draft)} — portal`,
+                }),
+            });
+          }
+          items.push({
+            label: 'Delete',
+            iconKey: 'trash',
+            danger: true,
+            confirmDelete: true,
+            action: () => deleteClient(uid),
+          });
+          return items;
         },
       });
 
@@ -1857,11 +1880,7 @@ function renderEditClientForm(pane) {
         },
         icons: [
           agentBtn,
-          shareBtn,
-          paneDeleteIcon({
-            label: 'Delete contact',
-            onClick: () => deleteClient(uid),
-          }),
+          overflowBtn,
         ].filter(Boolean),
       });
       header.classList.add('pane-header');

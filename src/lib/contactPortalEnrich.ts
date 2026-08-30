@@ -97,16 +97,29 @@ function overviewAlreadyPopulated(portal: ClientPortal | null): boolean {
   );
 }
 
+function scrubBioText(raw: string): string {
+  return raw
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#x27;|&apos;|&#39;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function buildBioParagraph(
   searchSnippets: string,
   metaDescription: string,
   siteText: string,
 ): string {
-  const meta = metaDescription.trim();
+  const meta = scrubBioText(metaDescription);
   if (meta.length > 40 && meta.length < 600) return meta.endsWith('.') ? meta : `${meta}.`;
 
   if (searchSnippets.length > 60) {
-    const sentences = searchSnippets
+    const sentences = scrubBioText(searchSnippets)
       .split(/[.!?]/)
       .map((s) => s.trim())
       .filter((s) => s.length > 40 && s.length < 300);
@@ -118,7 +131,7 @@ function buildBioParagraph(
   }
 
   if (siteText.length > 80) {
-    const sentences = siteText
+    const sentences = scrubBioText(siteText)
       .split(/[.!?]/)
       .map((s) => s.trim())
       .filter((s) => s.length > 40 && s.length < 300);

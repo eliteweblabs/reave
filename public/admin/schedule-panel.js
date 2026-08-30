@@ -25,8 +25,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-  paneDeleteIcon,
-  paneShareIcon,
+  createOverflowMenuBtn,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
@@ -48,8 +47,8 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260826a';
-import { navigateToWork, workClientSubline } from './work-panel.js?v=20260826d';
-import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260826a';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260830a';
+import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260830a';
 import { createClientMap } from './client-map.js?v=20260821c';
 import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
 
@@ -1743,33 +1742,44 @@ function renderScheduleDetail(pane, booking) {
   const who = scheduleBookingWho(booking);
   const statusNorm = String(booking.status || '').toLowerCase();
   const icons = [
-    paneShareIcon({
-      label: 'Share with guest',
-      onClick: () =>
-        openReaveShareSheet({
-          kind: 'booking',
-          recipient: { name: who, email: booking.email || undefined },
-          booking: {
-            uid: booking.uid,
-            title: booking.title,
-            startTime: booking.startTime,
-            endTime: booking.endTime,
-            location: booking.location,
-            description: booking.description,
+    createOverflowMenuBtn({
+      label: 'Booking actions',
+      className: 'sch-detail-overflow-btn',
+      getItems: () => {
+        const items = [
+          {
+            label: 'Share',
+            iconKey: 'share',
+            action: () =>
+              openReaveShareSheet({
+                kind: 'booking',
+                recipient: { name: who, email: booking.email || undefined },
+                booking: {
+                  uid: booking.uid,
+                  title: booking.title,
+                  startTime: booking.startTime,
+                  endTime: booking.endTime,
+                  location: booking.location,
+                  description: booking.description,
+                },
+                url: scheduleShareBookingUrl(booking),
+                shareTitle: booking.title || 'Meeting',
+              }),
           },
-          url: scheduleShareBookingUrl(booking),
-          shareTitle: booking.title || 'Meeting',
-        }),
+        ];
+        if (statusNorm === 'accepted' || statusNorm === 'pending') {
+          items.push({
+            label: 'Cancel booking',
+            iconKey: 'trash',
+            danger: true,
+            confirmDelete: true,
+            action: () => cancelScheduleBooking(booking.uid),
+          });
+        }
+        return items;
+      },
     }),
   ];
-  if (statusNorm === 'accepted' || statusNorm === 'pending') {
-    icons.push(
-      paneDeleteIcon({
-        label: 'Cancel booking',
-        onClick: () => cancelScheduleBooking(booking.uid),
-      }),
-    );
-  }
 
   pane.appendChild(
     createPaneHeader({

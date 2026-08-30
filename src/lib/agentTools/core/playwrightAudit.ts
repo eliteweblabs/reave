@@ -63,7 +63,7 @@ const definition: AgentToolDef = {
   function: {
     name: 'playwright_audit',
     description:
-      'Run a real headless Chromium browser against a public URL to audit UX/UI issues on both desktop (1440px) and mobile (375px) viewports. Checks: hamburger/nav menu open/close, all nav link resolution, JS console errors, off-screen overflow elements, sticky header behavior, CTA button clickability, contact form fields and submit buttons, small tap targets (<44px on mobile), and captures full-page + nav-state screenshots. Use after lighthouse_audit and check_links for a complete website audit.',
+      'Run a real headless Chromium browser against a public URL to audit UX/UI issues on both desktop (1440px) and mobile (375px) viewports. Checks: hamburger/nav menu open/close, all nav link resolution, JS console errors, off-screen overflow elements, sticky header behavior, CTA button clickability, contact form fields and submit buttons, small tap targets (<44px on mobile), ordering/vendor fragmentation (DoorDash, Uber Eats, Grubhub, restaurantsignin, Shopify, etc.), and captures full-page + nav-state screenshots. Use after lighthouse_audit and check_links for a complete website audit. When vendorFragmentation.fragmentedOrdering is true, copy those bullets into Lead Capture + Opportunities.',
     parameters: {
       type: 'object',
       properties: {
