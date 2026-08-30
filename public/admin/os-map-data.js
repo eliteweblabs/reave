@@ -68,7 +68,7 @@ const SYSTEM_NODES = [
   { id: 'visit_planner', title: 'Inquiry visit planner', sub: '/admin/visit-plan · geo clusters + opening hours · /api/work/visit-plan', icon: '🗺️', hue: 82, status: true, group: 'reave', x: 400, y: 720 },
   { id: 'client_map', title: 'Contact geo map', sub: '/admin/client-map · SSR data · noindex · Mapbox pins', icon: '📍', hue: 205, status: true, group: 'reave', x: 400, y: 760 },
   { id: 'dealer_map', title: 'Used-car dealer map', sub: '/dealer-map · public demo · Places search-on-zoom · inventory toggles · /api/dealer-map/places', icon: '🚗', hue: 28, status: true, group: 'reave', x: 400, y: 840 },
-  { id: 'sales_sheet', title: 'Audit sales sheet', sub: '/admin/sales-sheet · custom client front · static reΛVe.app back (gate welcome + Q&A, builds + full stack, cover) · Places SERP in iPhone frame', icon: '🧾', hue: 168, status: true, group: 'reave', x: 220, y: 720 },
+  { id: 'sales_sheet', title: 'Audit sales sheet', sub: '/admin/sales-sheet · custom client front · static reave.app back (gate welcome + Q&A, builds + full stack, cover) · Places SERP in iPhone frame', icon: '🧾', hue: 168, status: true, group: 'reave', x: 220, y: 720 },
   { id: 'google_workspace_mod', title: 'Google Workspace', sub: 'Gmail MX · SPF · DKIM · DMARC · domains (FEATURES: google_workspace)', icon: '📧', brand: 'google', hue: 155, status: true, group: 'reave', x: 640, y: 1164 },
 
   // External APIs
@@ -93,7 +93,7 @@ const SYSTEM_NODES = [
   { id: 'google_places', title: 'Google Places', sub: 'review sync · address autocomplete · Place Details · audit not-listed flag · /dealer-map search · GOOGLE_MAPS_API_KEY', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'external', x: 1160, y: 1540 },
   { id: 'pexels', title: 'Pexels', sub: 'royalty-free stock photos · search_stock_photos · /api/pexels/search (FEATURES: stock_photos)', icon: '📷', brand: 'pexels', hue: 160, status: true, group: 'external', x: 1160, y: 1660 },
   { id: 'ipwhois', title: 'ipwho.is', sub: 'IP → ASN/org hosting lookup · dns_check (FEATURES: site_audits)', icon: '🌐', hue: 190, status: true, group: 'external', x: 1400, y: 1900 },
-  { id: 'brightlocal', title: 'BrightLocal', sub: 'Citation Builder · Locations API · reΛVe.app agency account (FEATURES: seo_directory)', icon: '📍', hue: 12, status: true, ghost: true, group: 'external', x: 1400, y: 2020 },
+  { id: 'brightlocal', title: 'BrightLocal', sub: 'Citation Builder · Locations API · reave.app agency account (FEATURES: seo_directory)', icon: '📍', hue: 12, status: true, ghost: true, group: 'external', x: 1400, y: 2020 },
   { id: 'instagram_oauth', title: 'Instagram Login', sub: 'OAuth · INSTAGRAM_APP_ID · /api/admin/social/connect/instagram (FEATURES: social_inbox)', icon: '📸', brand: 'instagram', hue: 330, status: true, group: 'external', x: 1400, y: 2140 },
   { id: 'namecom', title: 'Name.com', sub: 'registrar DNS · zone records + nameservers · namecom_dns (FEATURES: namecom_dns)', icon: '🌐', hue: 210, status: true, group: 'external', x: 1160, y: 1780 },
   { id: 'cloudflare', title: 'Cloudflare', sub: 'DNS · SSL · cloudflare_dns · setup_google_workspace · CLOUDFLARE_API_TOKEN', icon: '☁️', brand: 'cloudflare', hue: 22, status: true, group: 'external', x: 1160, y: 1900 },

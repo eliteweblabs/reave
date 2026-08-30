@@ -189,18 +189,18 @@ const wayneReply = [
 
 {
   assert.equal(
-    formatPwaPushTitle('reΛVe.app', 'Verification code'),
-    'reΛVe.app - Verification code',
+    formatPwaPushTitle('reave.app', 'Verification code'),
+    'reave.app - Verification code',
   );
   assert.equal(
-    formatPwaPushTitle('reΛVe.app', 'reΛVe.app - Verification code'),
-    'reΛVe.app - Verification code',
+    formatPwaPushTitle('reave.app', 'reave.app - Verification code'),
+    'reave.app - Verification code',
   );
   assert.equal(formatPwaPushTitle('', 'Verification code'), 'Verification code');
   const phone = formatNotificationPayload('Verification code', 'Code 95014 — tap to copy', {
-    pwaTitle: 'reΛVe.app',
+    pwaTitle: 'reave.app',
   });
-  assert.equal(phone.title, 'reΛVe.app - Verification code');
+  assert.equal(phone.title, 'reave.app - Verification code');
   assert.equal(phone.detail, 'Code 95014 — tap to copy');
   const otp = formatOtpPushNotification({ purpose: 'Verification code', code: '95014' });
   assert.equal(otp.title, 'Verification code');
@@ -211,29 +211,29 @@ const wayneReply = [
 {
   assert.equal(
     formatHtmlPageTitle({
-      siteName: 'reΛVe.app',
+      siteName: 'reave.app',
       tagline: 'Small Business, Smaller Workday',
     }),
-    'reΛVe.app | Small Business, Smaller Workday',
+    'reave.app | Small Business, Smaller Workday',
   );
   assert.equal(
-    formatHtmlPageTitle({ page: 'Features', siteName: 'reΛVe.app' }),
-    'Features | reΛVe.app',
+    formatHtmlPageTitle({ page: 'Features', siteName: 'reave.app' }),
+    'Features | reave.app',
   );
   assert.equal(
-    formatHtmlPageTitle({ page: 'Sign in — reΛVe.app', siteName: 'reΛVe.app' }),
-    'Sign in — reΛVe.app',
+    formatHtmlPageTitle({ page: 'Sign in — reave.app', siteName: 'reave.app' }),
+    'Sign in — reave.app',
   );
-  assert.equal(formatPwaAppTitle('reΛVe.app'), 'reΛVe.app');
+  assert.equal(formatPwaAppTitle('reave.app'), 'reave.app');
   assert.notEqual(
     formatHtmlPageTitle({
-      siteName: 'reΛVe.app',
+      siteName: 'reave.app',
       tagline: 'Small Business, Smaller Workday',
     }),
-    formatPwaAppTitle('reΛVe.app'),
+    formatPwaAppTitle('reave.app'),
   );
   const phone = formatNotificationPayload('Verification code', 'Code 95014 — tap to copy', {
-    pwaTitle: formatPwaAppTitle('reΛVe.app'),
+    pwaTitle: formatPwaAppTitle('reave.app'),
   });
   assert.equal(phone.title.includes('Smaller Workday'), false);
   console.log('ok — HTML page titles keep the tagline; push uses the PWA name only');

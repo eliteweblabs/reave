@@ -48,7 +48,7 @@ async function samplePixel(
 {
   assert.equal(brandMarkInitials('Acme Corp'), 'AC');
   assert.equal(brandMarkInitials('Business OS'), 'BO');
-  assert.equal(brandMarkInitials('reΛVe.app'), 'RA');
+  assert.equal(brandMarkInitials('reave.app'), 'RA');
   assert.equal(brandMarkInitials('Acme'), 'AC');
   assert.equal(brandMarkInitials('A'), 'A');
   assert.equal(brandMarkLetter('Acme Corp'), 'A');

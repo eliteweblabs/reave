@@ -16,7 +16,7 @@ stage: 3
 - `BOOKING_API_URL` — private URL, e.g. `http://${{ calcom-booking-api.RAILWAY_PRIVATE_DOMAIN }}:8080`
 - `PUBLIC_BOOKING_API_URL` — public URL for client embeds
 - `CALCOM_WEBAPP_URL` — Cal.com host (e.g. `https://cal.reave.app`)
-- `CALCOM_USERNAME` — filled from the install slug (company / domain). Do not type this on calcom-web-app; the reΛVe.app node publishes it and pushes icon / username / email into the Cal.com user.
+- `CALCOM_USERNAME` — filled from the install slug (company / domain). Do not type this on calcom-web-app; the reave.app node publishes it and pushes icon / username / email into the Cal.com user.
 - `BOOKING_API_KEY` — optional; when calcom-booking-api enforces auth
 - `CALENDAR_REMINDER_POLL_SECRET` — cron auth for `/api/calendar/reminders/poll?key=`
 - `CALENDAR_REMINDER_POLL_MINUTES` — optional; default 1

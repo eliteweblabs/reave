@@ -1,5 +1,5 @@
 /**
- * Keep Crater customers in sync when reΛVe.app contacts are edited.
+ * Keep Crater customers in sync when reave.app contacts are edited.
  *
  * Matches the linked Crater customer using the contact's *previous* identity
  * (before the PATCH) so renames and email changes still find the right record.
@@ -27,7 +27,7 @@ function contactToMatch(contact: Pick<ContactRecord, 'name' | 'email' | 'phone' 
   };
 }
 
-/** Map a reΛVe.app contact to Crater customer fields. */
+/** Map a reave.app contact to Crater customer fields. */
 export function craterCustomerPayloadFromContact(
   contact: Pick<ContactRecord, 'name' | 'email' | 'phone' | 'company'>,
 ): { name: string; contact_name: string; email?: string; phone?: string } {

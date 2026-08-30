@@ -26,7 +26,7 @@ export const GET: APIRoute = async ({ request }) => {
     tested:       '6.7',
     requires_php: '7.4',
     last_updated: '2026-08-24',
-    description:  'WordPress™ companion for reΛVe.app — posts, pages, media, menus, redirects, plus indexing, plugins, cache, and options.',
+    description:  'WordPress™ companion for reave.app — posts, pages, media, menus, redirects, plus indexing, plugins, cache, and options.',
     download_url: `${origin}/api/wp-update/reave-connect/download`,
     homepage:     'https://reave.app/',
     sections: {

@@ -62,7 +62,7 @@ Separate Railway project — **not** production. Do not point `npm run sync:env`
 
 | | Reave App (production) | Reave Demo (sandbox) |
 |---|---|---|
-| Project | **reΛVe.app Automation** `af65eb9a-b11c-4c1c-8030-66b4347dcf71` | **reΛVe.app App Demo** `350f3d35-6afc-47a4-bcf5-d9753abb78f2` |
+| Project | **reave.app Automation** `af65eb9a-b11c-4c1c-8030-66b4347dcf71` | **reave.app App Demo** `350f3d35-6afc-47a4-bcf5-d9753abb78f2` |
 | Service | `reave` `0ef02496-5250-4314-a079-34a4c399f430` | `reave` `38902411-adf1-48ca-bff9-8346390897f9` |
 | Public URL | `https://reave.app` | `https://demo.reave.app` (custom) · `https://reave-production-e6ab.up.railway.app` (Railway) |
 | Config | `INSTALL_CONFIG=production` | `INSTALL_CONFIG=demo`, `DEMO_MODE=1` |
@@ -75,7 +75,7 @@ railway domain demo.reave.app --service reave \
   --environment production
 ```
 
-Custom domain `demo.reave.app` needs **both** a CNAME and a Railway TXT verification record in Cloudflare (`reave.app` zone). Copy exact values from Railway → reΛVe.app App Demo → `reave` → Settings → Networking → `demo.reave.app`. Until the TXT record verifies, the custom domain returns 404 even if the CNAME resolves.
+Custom domain `demo.reave.app` needs **both** a CNAME and a Railway TXT verification record in Cloudflare (`reave.app` zone). Copy exact values from Railway → reave.app App Demo → `reave` → Settings → Networking → `demo.reave.app`. Until the TXT record verifies, the custom domain returns 404 even if the CNAME resolves.
 
 ## Backups (pre-production / contingency)
 

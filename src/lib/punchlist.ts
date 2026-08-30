@@ -2,7 +2,7 @@
  * Install-owner punch list — feature requests from other Reave installs.
  *
  * Both sides open the same Punch list admin section. Client-install admins
- * send items to official reΛVe.app. Those rows also live on the official
+ * send items to official reave.app. Those rows also live on the official
  * to-do list as `contact_uid = install:<slug>`.
  */
 

@@ -79,7 +79,7 @@ const pageTitle = formatHtmlPageTitle({
   siteName: company.name,
   tagline: isIndexPage ? company.description : undefined,
 });
-/** Link-preview title — page name on inner pages, company name on homepage. ASCII-folded so iMessage does not render reΛVe as re/\Ve. */
+/** Link-preview title — page name on inner pages, company name on homepage. ASCII-folded for iMessage / Slack previews. */
 const shareTitle = shareSafeText(title?.trim() || company.name);
 /** Omit on homepage: og:site_name + og:title with the same value renders as "Name · Name" in iMessage/Slack. */
 const shareSiteName = title?.trim() ? shareSafeText(company.name) : undefined;

@@ -6,7 +6,7 @@ import { getCompanyConfig } from "../../lib/companyConfig";
 
 const { slug } = Astro.params;
 const company = await getCompanyConfig(Astro.request);
-const brandName = company.name || "reΛVe.app";
+const brandName = company.name || "reave.app";
 const isSmsOptIn = slug === "sms-opt-in";
 ---
 

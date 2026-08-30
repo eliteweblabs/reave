@@ -2,7 +2,7 @@
 /**
  * Paste into eliteweblabs/crater → routes/api-custom.php
  *
- * reΛVe.app calls POST /api/custom/create-expense when a tax receipt email is
+ * reave.app calls POST /api/custom/create-expense when a tax receipt email is
  * logged as a Crater expense from the admin dashboard.
  */
 

@@ -1,4 +1,4 @@
-# Integrating Real Estate Data into reΛVe.app
+# Integrating Real Estate Data into reave.app
 
 ## Install the plugin
 

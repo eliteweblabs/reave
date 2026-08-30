@@ -1,5 +1,5 @@
 /**
- * Official public mailbox for reΛVe.app (reave.app).
+ * Official public mailbox for reave.app (reave.app).
  *
  * Retired brand locals (hello@, support@, …) rewrite here so the website,
  * outbound From, VAPID subject, and company config stay on one address.
@@ -28,7 +28,7 @@ export function isReaveAppHost(host: string): boolean {
   return h === REAVE_PUBLIC_HOST;
 }
 
-/** True when the address is a retired reΛVe.app public mailbox (hello@, support@, …). */
+/** True when the address is a retired reave.app public mailbox (hello@, support@, …). */
 export function isLegacyReavePublicEmail(email: string): boolean {
   const trimmed = email.trim();
   if (!trimmed) return false;
@@ -36,7 +36,7 @@ export function isLegacyReavePublicEmail(email: string): boolean {
 }
 
 /**
- * Patch to write into Admin → Company (`company_config`) on the official reΛVe.app install.
+ * Patch to write into Admin → Company (`company_config`) on the official reave.app install.
  * Empty or retired public support mail becomes get@reave.app. Outbound From is only
  * rewritten when it is itself a retired public mailbox — noreply@ and personal stay.
  */
@@ -55,7 +55,7 @@ export function officialReavePublicEmailPatch(
   return Object.keys(patch).length ? patch : null;
 }
 
-/** Rewrite retired reΛVe.app public mailboxes (hello@, support@, …) to get@reave.app. */
+/** Rewrite retired reave.app public mailboxes (hello@, support@, …) to get@reave.app. */
 export function canonicalizeReaveBrandEmail(email: string): string {
   const trimmed = email.trim();
   if (!trimmed) return '';

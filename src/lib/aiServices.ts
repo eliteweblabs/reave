@@ -143,7 +143,7 @@ function anthropicBuiltin(model: AgentModelSettings, keySource: AnthropicKeySour
   }
   const endpoint = resolveAnthropicEndpoint();
   const sourceLabel =
-    keySource === 'reave' ? 'reΛVe key' : keySource === 'client' ? 'install key' : 'key set';
+    keySource === 'reave' ? 'reave key' : keySource === 'client' ? 'install key' : 'key set';
   const via = endpoint?.viaGateway ? ` via ${endpoint.host}` : '';
   return {
     id: 'anthropic',

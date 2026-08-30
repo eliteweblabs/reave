@@ -11,7 +11,7 @@ Those four are handled by audits, social URL fields, and (where enabled) online 
 
 ## Who it is for
 
-- **reΛVe.app** operating one BrightLocal agency account for many clients (no per-site vendor accounts)
+- **reave.app** operating one BrightLocal agency account for many clients (no per-site vendor accounts)
 - Mostly **local-reach** businesses; some **national / e-commerce** clients (US or worldwide)
 
 ## Packages (one module, two modes)
@@ -27,7 +27,7 @@ Do **not** force national clients through local citation aggregators.
 
 BrightLocal, Synup, Advice Local, and Whitespark largely feed the **same aggregator backbone** (Data Axle, Foursquare, Localeze). Submitting the same NAP through multiple of those platforms is wasted spend and risks duplicate / conflicting listings.
 
-Pick **one**. reΛVe.app uses **BrightLocal** because:
+Pick **one**. reave.app uses **BrightLocal** because:
 
 - Citation Builder matches **one-time ownership** campaigns (credits per submission; listings are not a pure “rent to stay live” product the way some sync APIs are)
 - Documented **Locations + Citation Building APIs** for an agency multi-client account

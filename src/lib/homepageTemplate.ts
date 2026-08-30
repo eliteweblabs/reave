@@ -2,7 +2,7 @@
  * Homepage chrome — marketing, client landing, or Clerk login.
  *
  * New / standalone installs have no public site yet — `/` stays a quiet
- * public page. Sign-in is `/admin/login` only. Official reΛVe.app never
+ * public page. Sign-in is `/admin/login` only. Official reave.app never
  * becomes a login wall.
  */
 

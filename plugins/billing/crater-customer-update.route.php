@@ -3,11 +3,11 @@
  * Paste into eliteweblabs/crater → routes/api-custom.php
  * immediately after the GET /api/custom/customers route.
  *
- * reΛVe.app calls PUT /api/custom/customer/{id} when a contact's company, name,
+ * reave.app calls PUT /api/custom/customer/{id} when a contact's company, name,
  * email, or phone is edited in the admin clients panel.
  */
 
-// Update customer profile (sync from reΛVe.app contact edits).
+// Update customer profile (sync from reave.app contact edits).
 // PUT /api/custom/customer/{id}
 Route::put('/custom/customer/{id}', function (Illuminate\Http\Request $request, $id) {
     if ($request->header('X-Crater-Api-Token') !== env('CRATER_API_TOKEN')) {

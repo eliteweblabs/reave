@@ -4,8 +4,8 @@ import { projectRoot } from './projectRoot';
  *
  * Company name, logo, and copy come from admin Company settings (Postgres) or
  * that install’s own `config/sites/{key}-config.json`. A new install without a
- * site file is unbranded (Clerk login on `/`) — it must not inherit reΛVe.app
- * marketing. Official reΛVe.app still uses `reave-config.json`.
+ * site file is unbranded (Clerk login on `/`) — it must not inherit reave.app
+ * marketing. Official reave.app still uses `reave-config.json`.
  *
  * Demo installs: demo-{industry}-config.json (from ?industry= cookie)
  */
@@ -255,7 +255,7 @@ export type SiteContentConfig = {
     /**
      * `landing` = config-driven client site (no Reave marketing sections).
      * `login` = Clerk sign-in on `/` for standalone admin installs.
-     * Official reΛVe.app (`reave.app`) never honors `login`.
+     * Official reave.app (`reave.app`) never honors `login`.
      */
     template?: HomepageTemplate;
     heroHeadlineHtml: string;
@@ -541,7 +541,7 @@ export function resolveSiteContentKey(industryOverride?: string | null): string 
   const slug = installConfigSlug();
   const host = getRequestPublicHost() || publicHostFromEnv();
 
-  // Client domain + leaked reΛVe.app site key → unbranded standalone chrome.
+  // Client domain + leaked reave.app site key → unbranded standalone chrome.
   if (host && !isReaveMarketingHost(host) && (explicit === 'reave' || slug === 'reave')) {
     return slug !== 'reave' && slug !== 'default' ? slug : 'default';
   }

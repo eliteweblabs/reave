@@ -127,7 +127,7 @@ function leadProjectBody(candidate: StoredScanCandidate): string {
     '## Reasons',
     ...candidate.leadReasons.map((r) => `- ${r}`),
     '',
-    '_Imported from reΛVe.app Lead Scanner after review. Informational — verify before outreach._',
+    '_Imported from reave.app Lead Scanner after review. Informational — verify before outreach._',
   ];
   return lines.join('\n');
 }

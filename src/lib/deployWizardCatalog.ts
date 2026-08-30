@@ -386,7 +386,7 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     id: 'calcom-web-app',
     label: 'calcom-web-app',
     kind: 'api',
-    description: 'Cal.com admin UI (same Docker image as reΛVe.app — not the GitHub fork).',
+    description: 'Cal.com admin UI (same Docker image as reave.app — not the GitHub fork).',
     image: 'calcom/cal.com@sha256:ace3bb1219fb7306585ab9f4d94d41af7ee064c343db0498173436bbe857bd49',
     features: ['scheduling'],
   },
@@ -557,7 +557,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'literal',
     value: 'https://reave.app',
     required: false,
-    description: 'Official reΛVe hub for install-owner punch lists / feature requests.',
+    description: 'Official reave hub for install-owner punch lists / feature requests.',
   }),
   v({
     name: 'REAVE_HUB_KEY',
@@ -565,7 +565,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'secret',
     required: false,
     description:
-      'Shared key the install owner uses to send punch-list items to official reΛVe. Copied from this host when set.',
+      'Shared key the install owner uses to send punch-list items to official reave. Copied from this host when set.',
   }),
   v({
     name: 'FEATURES',
@@ -685,7 +685,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
     description:
-      'Claude API key for the admin agent. Leave blank to use this host’s reΛVe.app key (chat shows a shared-key flag). Paste the client’s key to use theirs.',
+      'Claude API key for the admin agent. Leave blank to use this host’s reave.app key (chat shows a shared-key flag). Paste the client’s key to use theirs.',
   }),
   v({
     name: 'RESEND_API_KEY',
@@ -1206,7 +1206,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: 'calcom-web-app',
     kind: 'literal',
     value: 'true',
-    description: 'Public signup off — owner is provisioned from reΛVe.app identity.',
+    description: 'Public signup off — owner is provisioned from reave.app identity.',
     features: ['scheduling'],
   }),
 
@@ -1700,10 +1700,10 @@ export type DeployWizardPlanInput = {
 /** Secrets filled from identity (not copied from this host). */
 export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM_NAME']);
 
-/** Secrets that must not be copied from the reΛVe.app host (client-scoped tokens). */
+/** Secrets that must not be copied from the reave.app host (client-scoped tokens). */
 export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
 
-/** Secrets that show a paste field (Anthropic is optional — blank copies the reΛVe.app host key). */
+/** Secrets that show a paste field (Anthropic is optional — blank copies the reave.app host key). */
 export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY']);
 
 /** Operator secrets that block Apply when empty. Resend is copied from this host on apply. */

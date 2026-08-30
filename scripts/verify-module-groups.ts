@@ -342,7 +342,7 @@ assert.match(addonsApi, /purgePluginKnowledgeForFeature/, 'Add-ons toggle-off mu
 assert.equal(existsSync('src/knowledge/clerk-auth.md'), false, 'clerk-auth must not ship in core knowledge');
 assert.ok(
   existsSync('plugins/clerk-auth/knowledge/installs/reave/clerk-auth.md'),
-  'clerk-auth setup playbook is reΛVe.app-only',
+  'clerk-auth setup playbook is reave.app-only',
 );
 assert.match(
   registrySrc,

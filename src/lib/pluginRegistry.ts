@@ -127,7 +127,7 @@ export function isPluginOwnedKnowledgeSlug(slug: string): boolean {
 }
 
 /**
- * Setup playbooks for the official reΛVe.app install only.
+ * Setup playbooks for the official reave.app install only.
  * A completed client install already has these wired — do not list or keep DB rows.
  */
 export const OPS_ONLY_KNOWLEDGE_SLUGS: ReadonlySet<string> = new Set(['clerk-auth']);

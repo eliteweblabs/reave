@@ -47,11 +47,11 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |
 | `social-inbox/` | `social_inbox` | `social-inbox.md` | — **paid add-on**; buy from admin → Modules |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
-| `deploy-wizard/` | `deploy_wizard` | `deploy-wizard.md` | — **reΛVe.app install only** (`config-reave.json`) |
+| `deploy-wizard/` | `deploy_wizard` | `deploy-wizard.md` | — **reave.app install only** (`config-reave.json`) |
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
 
-Clerk (`plugins/clerk-auth/`) is **core** — every package includes sign-in. It has no `features[]` flag; admin tools load when `CLERK_SECRET_KEY` is set. Clerk setup knowledge is install-scoped to official reΛVe.app (`knowledge/installs/reave/`) — completed client installs do not get it. Clerk does not allow system-level access.
+Clerk (`plugins/clerk-auth/`) is **core** — every package includes sign-in. It has no `features[]` flag; admin tools load when `CLERK_SECRET_KEY` is set. Clerk setup knowledge is install-scoped to official reave.app (`knowledge/installs/reave/`) — completed client installs do not get it. Clerk does not allow system-level access.
 
 ## How Reave loads plugins
 

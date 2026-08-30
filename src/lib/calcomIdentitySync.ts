@@ -1,5 +1,5 @@
 /**
- * Push reΛVe.app install identity (icon, username, email, name) onto Cal.com.
+ * Push reave.app install identity (icon, username, email, name) onto Cal.com.
  *
  * Two paths, both sourced from the always-on `reave` node:
  *  1. Railway references on calcom-web-app (`${{ reave.EMAIL_FROM }}`, …)
@@ -190,7 +190,7 @@ async function syncCalcomUserProfile(
 
     const users = await pool.query<UserRow>(`SELECT id, username, email, name FROM ${table} ORDER BY id ASC LIMIT 20`);
     if (!users.rows.length) {
-      return { updated: false, reason: 'no Cal.com user yet — finish signup once, then reΛVe.app fills the profile' };
+      return { updated: false, reason: 'no Cal.com user yet — finish signup once, then reave.app fills the profile' };
     }
 
     const emailLc = identity.email.toLowerCase();

@@ -652,7 +652,7 @@ await test('static back is gate + builds + cover with curated stack and no clien
   assert.match(back, /data-ss-col="cover"/);
   assert.match(back, /data-ss-col="stack"/);
   assert.match(back, /1fr 1fr 1fr/);
-  assert.doesNotMatch(back, /reΛVe.app builds with/);
+  assert.doesNotMatch(back, /reave.app builds with/);
   assert.doesNotMatch(back, /Managed hosting/);
   assert.doesNotMatch(back, /We host it/);
   assert.doesNotMatch(back, /This is not spam/);
@@ -1247,12 +1247,12 @@ await test('header hero third line is prepared-for attribution', () => {
   const at = new Date('2026-08-27T21:04:00.000Z');
   const stat = salesSheetPreparedStat({
     preparedFor: 'CALA RENEE Salon',
-    preparedBy: 'reΛVe',
+    preparedBy: 'reave',
     at,
   });
   assert.equal(
     stat.label,
-    'Prepared for CALA RENEE Salon, by reΛVe, on August 27, 2026 at 5:04 PM. Confidential.',
+    'Prepared for CALA RENEE Salon, by reave, on August 27, 2026 at 5:04 PM. Confidential.',
   );
   assert.equal(stat.tone, 'meta');
   const hero = renderSalesSheetHeaderHeroHtml({
@@ -1261,13 +1261,13 @@ await test('header hero third line is prepared-for attribution', () => {
     headline: DUMMY_SALES_SHEET.headline,
     heroStats: DUMMY_SALES_SHEET.heroStats,
     preparedFor: 'CALA RENEE Salon',
-    preparedBy: 'reΛVe',
+    preparedBy: 'reave',
     preparedAt: at,
   });
   assert.match(hero, /ss-hero-stat--meta/);
   assert.match(
     hero,
-    /Prepared for CALA RENEE Salon, by reΛVe, on August 27, 2026 at 5:04 PM\. Confidential\./,
+    /Prepared for CALA RENEE Salon, by reave, on August 27, 2026 at 5:04 PM\. Confidential\./,
   );
   assert.match(hero, /Every finding sourced from independent platforms/i);
 });

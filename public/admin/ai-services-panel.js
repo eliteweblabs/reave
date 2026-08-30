@@ -138,7 +138,7 @@ export function renderAiServicesPanel(data) {
   const keySource = data.anthropicKeySource;
   const keyHint =
     keySource === 'reave'
-      ? 'Using the reΛVe-provided Anthropic key.'
+      ? 'Using the reave-provided Anthropic key.'
       : keySource === 'client'
         ? 'Using this install’s Anthropic key.'
         : 'No Anthropic key configured.';

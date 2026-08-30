@@ -1,6 +1,6 @@
 /**
  * Guard: Clerk login chrome is config-driven (public `/`, auth at `/admin`)
- * and never applies to official reΛVe.app.
+ * and never applies to official reave.app.
  * Run: npm run check:homepage-login
  */
 import assert from 'node:assert/strict';
@@ -95,7 +95,7 @@ assert.equal(
     isDemo: false,
   }),
   'default',
-  'canonical reΛVe.app ignores login template',
+  'canonical reave.app ignores login template',
 );
 
 assert.equal(
@@ -190,7 +190,7 @@ assert.equal(
     requestHost: 'app.levineslaw.com',
   }),
   'login',
-  'client host must not inherit reΛVe.app marketing when INSTALL_CONFIG=reave',
+  'client host must not inherit reave.app marketing when INSTALL_CONFIG=reave',
 );
 
 assert.equal(

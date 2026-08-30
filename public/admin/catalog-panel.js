@@ -1,6 +1,6 @@
 /**
  * Catalog editor now lives in Modules (inbox list).
- * Official reΛVe.app host only — client installs never open this tab.
+ * Official reave.app host only — client installs never open this tab.
  */
 let shell = {};
 

@@ -1,6 +1,6 @@
-# Real Estate Data — reΛVe.app plugin
+# Real Estate Data — reave.app plugin
 
-Property intelligence tools for the reΛVe.app admin agent. Answers factual questions about U.S. properties — square footage, year built, zoning, tax/assessed values, ownership, sale history, flood zone, and comparable sales.
+Property intelligence tools for the reave.app admin agent. Answers factual questions about U.S. properties — square footage, year built, zoning, tax/assessed values, ownership, sale history, flood zone, and comparable sales.
 
 **Target users:** real estate agents, contractors, developers, attorneys, electricians, plumbers, inspectors, and property managers working a specific address.
 
@@ -69,7 +69,7 @@ County assessor records almost always report **total building square footage**, 
 
 Future phases may add building permit APIs, MLS/listing feeds, or uploaded floor plans for true per-floor data.
 
-## Integrate with reΛVe.app
+## Integrate with reave.app
 
 This repo is designed to install into the main app as a git submodule or npm package:
 
@@ -113,4 +113,4 @@ See [docs/INTEGRATION.md](./docs/INTEGRATION.md) for step-by-step wiring.
 
 ## License
 
-Proprietary — reΛVe.app ecosystem. Adjust as needed for your org.
+Proprietary — reave.app ecosystem. Adjust as needed for your org.

@@ -2,10 +2,10 @@
 
 ## Overview
 
-Contacts can now flow both directions between reΛVe.app and external devices. This enables:
+Contacts can now flow both directions between reave.app and external devices. This enables:
 
 1. **Manual import** from CSV/vCard files (iPhone exports, Mac Contacts, etc.)
-2. **Bidirectional CardDAV sync** (contacts created on iPhone automatically sync to reΛVe.app)
+2. **Bidirectional CardDAV sync** (contacts created on iPhone automatically sync to reave.app)
 3. **Bulk import** from exported contact databases
 
 ## Manual Import
@@ -56,14 +56,14 @@ Jane Smith,jane@example.com,555-5678,Tech Corp,Designer contact
 
 CardDAV sync is **already bidirectional** at the protocol level:
 
-- **Outbound** (reΛVe.app → iPhone): New/updated contacts in reΛVe.app sync to your device
-- **Inbound** (iPhone → reΛVe.app): New/updated contacts on your device sync to reΛVe.app
+- **Outbound** (reave.app → iPhone): New/updated contacts in reave.app sync to your device
+- **Inbound** (iPhone → reave.app): New/updated contacts on your device sync to reave.app
 
 ### Setup
 
 1. Configure CardDAV on your iPhone (see `/knowledge/carddav.md`)
-2. Any contact you create or edit on your iPhone will automatically sync to reΛVe.app
-3. Changes made in reΛVe.app will sync back to your iPhone
+2. Any contact you create or edit on your iPhone will automatically sync to reave.app
+3. Changes made in reave.app will sync back to your iPhone
 
 ### Known Limitations
 
@@ -124,14 +124,14 @@ Upload a CSV or vCard file to bulk-import contacts.
 ### Client Handoff
 
 1. Freelancer exports contacts to `.vcf`
-2. Agency uploads the file to their reΛVe.app workspace
+2. Agency uploads the file to their reave.app workspace
 3. All client contacts are instantly available to the team
 
-### iPhone → reΛVe.app Migration
+### iPhone → reave.app Migration
 
 **Option A: CardDAV Sync** (automatic, ongoing)
 - Set up CardDAV on iPhone
-- Any new contact on iPhone syncs to reΛVe.app automatically
+- Any new contact on iPhone syncs to reave.app automatically
 
 **Option B: One-Time Import** (bulk, manual)
 - Export vCard from iCloud.com

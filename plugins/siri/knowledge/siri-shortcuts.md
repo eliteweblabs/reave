@@ -760,7 +760,7 @@ Example actions to add:
 **Personal to-dos** (requires `DATABASE_URL`):
 
 - `add_todo` / `create_todo`: Create a quick to-do item (spoken dates/times in the title are applied automatically).
-- `list_todos`: List open (or filtered) to-dos. On the official reΛVe install, install-owner feature requests appear as regular to-dos tagged with the company name.
+- `list_todos`: List open (or filtered) to-dos. On the official reave install, install-owner feature requests appear as regular to-dos tagged with the company name.
 - `update_todo`: Change title, due date, priority, or status
 - `complete_todo` / `done_todo` / `mark_todo_done`: Mark a to-do done
 - `delete_todo` / `clear_todo`: Permanently remove a to-do

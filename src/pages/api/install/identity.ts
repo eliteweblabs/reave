@@ -1,5 +1,5 @@
 /**
- * GET /api/install/identity — public install defaults from the reΛVe.app node
+ * GET /api/install/identity — public install defaults from the reave.app node
  * (name, username, email, icon). Siblings and the Cal.com pickup use this
  * instead of re-typing onboarding fields.
  */

@@ -128,7 +128,7 @@ export async function POST(context: APIContext): Promise<Response> {
       items: [
         {
           name: `${label} (first month)`,
-          description: `reΛVe.app add-on · ${featureRaw} · ${formatModulePrice(price)}`,
+          description: `reave.app add-on · ${featureRaw} · ${formatModulePrice(price)}`,
           quantity: 1,
           price: price.amount,
         },

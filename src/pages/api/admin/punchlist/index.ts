@@ -1,6 +1,6 @@
 /**
  * GET  /api/admin/punchlist — shared Punch list (official local, client hub)
- * POST /api/admin/punchlist — client install adds a request for official reΛVe
+ * POST /api/admin/punchlist — client install adds a request for official reave
  */
 
 import type { APIContext } from 'astro';

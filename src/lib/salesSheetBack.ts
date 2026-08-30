@@ -1,5 +1,5 @@
 /**
- * Static duplex back for `/admin/sales-sheet` — the reΛVe.app trifold, not the client audit.
+ * Static duplex back for `/admin/sales-sheet` — the reave.app trifold, not the client audit.
  *
  * Letter landscape reads left → right as the unfolded brochure:
  * inner gate (sale-sheet module tiles), back cover (custom builds +
@@ -202,7 +202,7 @@ export function salesSheetClientLogos(): SalesSheetBackLogo[] {
 export const SALES_SHEET_PRINT_INSET = '0.2in';
 export const SALES_SHEET_PRINT_INSET_TOP = '0.25in';
 
-/** Nearby shops named on the reΛVe.app back — matches /about + /#portfolio. */
+/** Nearby shops named on the reave.app back — matches /about + /#portfolio. */
 export const SALES_SHEET_LOCAL_CLIENTS = [
   "Barber's Edge",
   'The Law Office of Barry Levine',
