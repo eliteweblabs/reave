@@ -1,7 +1,11 @@
 ---
 /**
  * /demo-loader — public page to pick modules + industry and request a custom demo.
- * Uses Layout directly so sticky Clear / Build CTAs own the bottom corner.
+ * Uses Layout (not MarketingLayout) so the help chat never mounts — Clear / Build
+ * own the bottom corner like the homepage sticky CTAs.
+ *
+ * Sticky track wraps hero + app from the page top (homepage pattern). A mid-page
+ * track cannot park CTAs above its own top, so they used to sit on "Core OS".
  */
 import Layout from "../layouts/Layout.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
@@ -17,22 +21,26 @@ const company = await getCompanyConfig(Astro.request);
   description={`Request a custom ${company.name} demo — pick the modules your business needs and an industry preset.`}
 >
   <div class="demo-loader-page">
-    <header class="dl-hero">
-      <h1 class="dl-h1">Spec'd to your needs,<br />not maximum profit</h1>
-      <p class="dl-lead">
-        Pick the optional modules you want or select from pre-configured
-        packages. No credit card necessary. Check your inbox in ~five
-        minutes.
-      </p>
-    </header>
+    <div class="dl-sticky-cta-track" data-dl-sticky-ctas-track>
+      <div class="dl-sticky-cta-track__body">
+        <header class="dl-hero">
+          <h1 class="dl-h1">Spec'd to your needs,<br />not maximum profit</h1>
+          <p class="dl-lead">
+            Pick the optional modules you want or select from pre-configured
+            packages. No credit card necessary. Check your inbox in ~five
+            minutes.
+          </p>
+        </header>
 
-    <div
-      id="demo-loader-app"
-      class="dl-app"
-      data-toggles="true"
-      aria-live="polite"
-    >
-      <p class="dl-loading">Loading modules…</p>
+        <div
+          id="demo-loader-app"
+          class="dl-app"
+          data-toggles="true"
+          aria-live="polite"
+        >
+          <p class="dl-loading">Loading modules…</p>
+        </div>
+      </div>
     </div>
   </div>
 

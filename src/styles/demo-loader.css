@@ -182,15 +182,56 @@
 }
 
 /*
- * Homepage-style sticky CTAs: Clear + Build stick near the viewport bottom
- * while the module list scrolls, then leave with the track end.
+ * Homepage sticky CTAs (HomeStickyCtas.astro): fixed by default, sticky inside
+ * a page-top track. The track must start at the page top — a mid-page track
+ * cannot park pills above its own top, so they used to sit on "Core OS".
  */
+.dl-sticky-ctas {
+  --dl-sticky-cta-h: 2.75rem;
+  --dl-sticky-cta-bottom: 5px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  width: fit-content;
+  max-width: calc(100vw - 40px);
+  margin-inline: auto;
+  padding:
+    10px
+    max(28px, env(safe-area-inset-right, 0px))
+    calc(var(--dl-sticky-cta-bottom) + env(safe-area-inset-bottom, 0px))
+    max(28px, env(safe-area-inset-left, 0px));
+  overflow: visible;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .dl-sticky-ctas {
+    --dl-sticky-cta-bottom: 20px;
+  }
+}
+
 .dl-sticky-cta-track {
+  --dl-sticky-cta-h: 2.75rem;
+  --dl-sticky-cta-bottom: 5px;
   display: grid;
   width: 100%;
   overflow: clip;
+  /* Glow sits in the padding so overflow:clip cannot shave the Build pill. */
   padding-bottom: 20px;
   box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .dl-sticky-cta-track {
+    --dl-sticky-cta-bottom: 20px;
+  }
 }
 
 .dl-sticky-cta-track__body,
@@ -203,19 +244,20 @@
   width: 100%;
 }
 
-.dl-sticky-ctas {
-  --dl-sticky-cta-h: 2.75rem;
-  --dl-sticky-cta-bottom: 5px;
+.dl-sticky-cta-track > .dl-sticky-ctas {
   position: sticky;
+  left: auto;
+  right: auto;
+  bottom: auto;
   top: calc(
-    100vh - var(--dl-sticky-cta-h) - var(--dl-sticky-cta-bottom) -
+    100vh - var(--dl-sticky-cta-h, 2.75rem) - var(--dl-sticky-cta-bottom) -
       env(safe-area-inset-bottom, 0px)
   );
   top: calc(
-    100dvh - var(--dl-sticky-cta-h) - var(--dl-sticky-cta-bottom) -
+    100dvh - var(--dl-sticky-cta-h, 2.75rem) - var(--dl-sticky-cta-bottom) -
       env(safe-area-inset-bottom, 0px)
   );
-  z-index: 40;
+  z-index: 100;
   align-self: start;
   justify-self: center;
   width: fit-content;
@@ -223,13 +265,6 @@
   max-width: calc(100vw - 40px);
   margin-inline: auto;
   padding: 0;
-  pointer-events: none;
-}
-
-@media (min-width: 640px) {
-  .dl-sticky-ctas {
-    --dl-sticky-cta-bottom: 20px;
-  }
 }
 
 .dl-sticky-ctas__row {
@@ -238,6 +273,9 @@
   justify-content: center;
   align-items: center;
   gap: 12px;
+}
+
+.dl-sticky-ctas :is(a, button) {
   pointer-events: auto;
 }
 
@@ -247,13 +285,37 @@
   box-shadow: var(--brand-gradient-shadow, none);
 }
 
-.dl-sticky-ctas .dl-btn--ghost {
-  box-shadow: none;
+.dl-sticky-ctas .dl-btn--ghost.brand-btn-glass {
+  color: var(--fg, var(--site-fg, #171717));
+  -webkit-text-fill-color: var(--fg, var(--site-fg, #171717));
+  background: var(--brand-glass-bg);
+  border-color: var(--brand-glass-border-color);
+  backdrop-filter: var(--brand-glass-blur);
+  -webkit-backdrop-filter: var(--brand-glass-blur);
+  box-shadow: var(--brand-glass-shadow, none);
 }
 
 .dl-sticky-ctas .dl-btn--primary {
   color: var(--brand-on-gradient, #fff);
   -webkit-text-fill-color: var(--brand-on-gradient, #fff);
+}
+
+/* Closing dock — reserve the pill row when sticky CTAs land at track end. */
+.dl-sticky-ctas-dock {
+  min-height: var(--dl-sticky-cta-h, 2.75rem);
+}
+
+/*
+ * After the form — same job as .home-sticky-ctas-spacer: keep the first
+ * section title out of the parked Clear / Build strip on short phones.
+ */
+.dl-sticky-ctas-spacer {
+  flex-shrink: 0;
+  height: calc(
+    var(--dl-sticky-cta-h, 2.75rem) + var(--dl-sticky-cta-bottom, 5px) +
+      env(safe-area-inset-bottom, 0px) + 12px
+  );
+  pointer-events: none;
 }
 
 .dl-btn {
@@ -626,7 +688,8 @@
     width: 100%;
   }
 
-  .dl-sticky-ctas {
+  .dl-sticky-ctas,
+  .dl-sticky-cta-track > .dl-sticky-ctas {
     max-width: calc(100vw - 24px);
   }
 }
@@ -1090,7 +1153,7 @@ html:not([data-theme="dark"]) .dl-input::placeholder {
   color: var(--site-fg-faint, #a3a3a3);
 }
 
-html:not([data-theme="dark"]) .dl-btn--ghost {
+html:not([data-theme="dark"]) .dl-btn--ghost:not(.brand-btn-glass) {
   color: var(--site-fg, #171717);
   background: var(--site-card, rgba(23, 23, 23, 0.04));
   border-color: var(--site-card-border, rgba(23, 23, 23, 0.12));
