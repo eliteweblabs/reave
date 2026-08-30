@@ -183,7 +183,6 @@ const logoSrc = (landing.heroLogo || "").trim()
     }
     <div class="svc-foot__meta">
       <p>&copy; {year} {landing.footer || landing.name || company.name}</p>
-      <a class="svc-staff" href="/sign-in">Login</a>
     </div>
   </footer>
 
@@ -211,7 +210,8 @@ const logoSrc = (landing.heroLogo || "").trim()
     --svc-call-ink: #ffffff;
     --svc-accent: #0c4a6e;
     --svc-sky: #fefefe;
-    --svc-water: #6998a9;
+    /* Sampled from footer.png water band so the safe-area matches the art. */
+    --svc-water: #629cb4;
     min-height: 100dvh;
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
     color: var(--svc-ink);
@@ -531,7 +531,7 @@ const logoSrc = (landing.heroLogo || "").trim()
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 0.75rem;
     width: 100%;
     max-width: none;
@@ -548,12 +548,6 @@ const logoSrc = (landing.heroLogo || "").trim()
 
   .svc-foot__meta p {
     margin: 0;
-  }
-
-  .svc-staff {
-    color: inherit;
-    text-decoration: none;
-    opacity: 0.85;
   }
 
   .svc:not(:has(.svc-foot--art)) .svc-foot {
