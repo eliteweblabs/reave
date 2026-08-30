@@ -95,6 +95,27 @@ assert.ok(FEATURE_SALE_SHEET.has('digital_signature'));
 assert.equal(moduleDisplayGroupId('digital_signature'), 'work');
 assert.deepEqual(FEATURE_REQUIRES.digital_signature, ['documents']);
 assert.deepEqual(expandFeatureRequirements(['digital_signature']), ['documents', 'digital_signature']);
+assert.deepEqual(FEATURE_REQUIRES.analytic_audit, ['uptime_monitoring']);
+assert.deepEqual(FEATURE_REQUIRES.uptime_monitoring, ['analytic_audit']);
+assert.deepEqual(expandFeatureRequirements(['analytic_audit']).sort(), [
+  'analytic_audit',
+  'uptime_monitoring',
+]);
+assert.deepEqual(expandFeatureRequirements(['uptime_monitoring']).sort(), [
+  'analytic_audit',
+  'uptime_monitoring',
+]);
+assert.equal(FEATURE_LABELS.analytic_audit, 'Sites');
+assert.equal(isPublicFeature('analytic_audit'), true);
+assert.equal(isPublicFeature('uptime_monitoring'), false);
+assert.equal(moduleDisplayGroupId('analytic_audit'), 'web_development');
+assert.ok(featureShowsDashboard('analytic_audit'));
+assert.ok(!featureShowsDashboard('uptime_monitoring'));
+assert.ok(!configFeatures('reave').includes('uptime_monitoring'));
+assert.ok(configFeatures('reave').includes('analytic_audit'));
+const sitesDash = dashboardCardsForFeatures(['analytic_audit', 'uptime_monitoring']);
+assert.equal(sitesDash.filter((c) => c.mapKey === 'analytics').length, 1);
+assert.ok(sitesDash.some((c) => c.id === 'analytic_audit' && c.title === 'Sites'));
 assert.doesNotMatch(
   FEATURE_BLURBS.documents,
   /\bsign/i,

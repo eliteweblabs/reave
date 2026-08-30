@@ -34,7 +34,6 @@ export const FEATURE_DASHBOARD: Partial<Record<FeatureId, FeatureDashboardDef>> 
   documents: { dashboard: true, icon: 'file-text' },
   billing: { dashboard: true, icon: 'wallet' },
   analytic_audit: { dashboard: true, icon: 'bar-chart-2' },
-  uptime_monitoring: { dashboard: true, icon: 'bar-chart-2' },
   content_management: { dashboard: true, icon: 'image' },
   website: { dashboard: true, icon: 'image' },
   deploy_wizard: { dashboard: true, icon: 'sparkles' },

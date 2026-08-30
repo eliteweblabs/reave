@@ -75,7 +75,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
       'code_dev',
       'namecom_dns',
       'site_monitoring',
-      'uptime_monitoring',
+      'analytic_audit',
       'wayback_machine',
       'seo_directory',
     ],
