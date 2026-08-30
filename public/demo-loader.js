@@ -272,40 +272,99 @@
   }
 
   function renderStickyActions() {
-    const selectedCount = selectedToggleableCount();
-    const ready = canLaunch();
     return (
       `<div class="dl-sticky-ctas" data-dl-sticky-ctas>` +
       `<div class="dl-sticky-ctas__row">` +
-      `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
-      `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${ready ? '' : ' disabled'}>` +
-      (launching ? 'Submitting…' : 'Build my demo') +
-      `</button>` +
+      `<button type="button" class="dl-btn dl-btn--ghost brand-btn-glass" id="dl-clear">Clear</button>` +
+      `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch">Build my demo</button>` +
       `</div>` +
       `</div>`
     );
   }
 
+  function syncStickyActions() {
+    const clear = root.querySelector('#dl-clear');
+    const launch = root.querySelector('#dl-launch');
+    if (clear) clear.disabled = selectedToggleableCount() === 0;
+    if (launch) {
+      launch.disabled = !canLaunch();
+      launch.textContent = launching ? 'Submitting…' : 'Build my demo';
+    }
+  }
+
+  function syncLaunchError() {
+    const toolbar = root.querySelector('.dl-toolbar');
+    if (!toolbar) return;
+    let err = toolbar.querySelector('.dl-launch-error');
+    if (!launchError) {
+      err?.remove();
+      return;
+    }
+    if (!err) {
+      err = document.createElement('p');
+      err.className = 'dl-launch-error';
+      err.setAttribute('role', 'alert');
+      toolbar.appendChild(err);
+    }
+    err.textContent = launchError;
+  }
+
+  function syncTiles() {
+    root.querySelectorAll('.dl-tile .dl-switch[data-module-id]').forEach((sw) => {
+      const id = sw.getAttribute('data-module-id');
+      if (!id) return;
+      const on = selectedIds.has(id);
+      sw.setAttribute('aria-checked', on ? 'true' : 'false');
+      sw.closest('.dl-tile')?.classList.toggle('dl-tile--selected', on);
+    });
+  }
+
+  function measureStickyCtas() {
+    const ctas = root.querySelector('[data-dl-sticky-ctas]');
+    const track = root.querySelector('[data-dl-sticky-cta-track]');
+    const row = ctas?.querySelector('.dl-sticky-ctas__row');
+    if (!ctas || !track || !row) return;
+    const height = Math.round(row.getBoundingClientRect().height);
+    if (height > 0) track.style.setProperty('--dl-sticky-cta-h', `${height}px`);
+  }
+
+  /** Mount the launch shell once so sticky CTAs are not destroyed on every toggle. */
+  function mountLaunchShell() {
+    root.innerHTML =
+      `<div class="dl-panel">` +
+      renderLaunchFields() +
+      `<div class="dl-sticky-cta-track" data-dl-sticky-cta-track>` +
+      `<div class="dl-sticky-cta-track__body">` +
+      `<div class="dl-sections" data-dl-sections></div>` +
+      `</div>` +
+      renderStickyActions() +
+      `</div>` +
+      `</div>`;
+    const sectionsEl = root.querySelector('[data-dl-sections]');
+    if (sectionsEl) {
+      sectionsEl.innerHTML =
+        renderIncludedSection() + sections.map(renderSection).join('');
+    }
+    syncStickyActions();
+    requestAnimationFrame(measureStickyCtas);
+  }
+
   function render() {
     if (togglesEnabled && submitted) {
+      listenersBound = false;
       renderSuccess();
       return;
     }
 
     if (togglesEnabled) {
-      root.innerHTML =
-        `<div class="dl-panel">` +
-        renderLaunchFields() +
-        `<div class="dl-sticky-cta-track">` +
-        `<div class="dl-sticky-cta-track__body">` +
-        `<div class="dl-sections">` +
-        renderIncludedSection() +
-        sections.map(renderSection).join('') +
-        `</div>` +
-        `</div>` +
-        renderStickyActions() +
-        `</div>` +
-        `</div>`;
+      if (!root.querySelector('[data-dl-sticky-ctas]')) {
+        mountLaunchShell();
+        bindOnce();
+      } else {
+        syncLaunchError();
+        syncTiles();
+        syncStickyActions();
+      }
       return;
     }
 
@@ -360,32 +419,32 @@
     readVisitorFields();
     if (!toggleableModules().some((m) => m.moduleId === id)) return;
     applyModuleToggle(id, !selectedIds.has(id));
-    render();
-    bind();
+    syncTiles();
+    syncStickyActions();
   }
 
   async function launch() {
     if (!togglesEnabled || launching || submitted) return;
     readVisitorFields();
     launchError = '';
+    syncLaunchError();
     if (visitorName.trim().length < 2) {
       launchError = 'Please enter your name.';
-      render();
-      bind();
+      syncLaunchError();
+      syncStickyActions();
       root.querySelector('#dl-name')?.focus();
       return;
     }
     if (!visitorEmail.trim().includes('@')) {
       launchError = 'Please enter a valid email.';
-      render();
-      bind();
+      syncLaunchError();
+      syncStickyActions();
       root.querySelector('#dl-email')?.focus();
       return;
     }
 
     launching = true;
-    render();
-    bind();
+    syncStickyActions();
 
     try {
       const website = root.querySelector('#dl-website')?.value || '';
@@ -411,56 +470,70 @@
     } catch (e) {
       launching = false;
       launchError = e.message || 'Could not submit request.';
-      render();
-      bind();
+      syncLaunchError();
+      syncStickyActions();
     }
   }
 
-  function bind() {
-    if (!togglesEnabled || submitted) return;
+  let listenersBound = false;
 
-    root.querySelector('#dl-industry')?.addEventListener('change', (e) => {
+  function bindOnce() {
+    if (!togglesEnabled || listenersBound || submitted) return;
+    listenersBound = true;
+
+    root.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLSelectElement) || t.id !== 'dl-industry') return;
       readVisitorFields();
-      industry = e.target.value || 'general';
+      industry = t.value || 'general';
       applyIndustrySelection(industry);
-      render();
-      bind();
+      syncTiles();
+      syncStickyActions();
     });
 
-    const syncLaunchEnabled = () => {
+    root.addEventListener('input', (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement)) return;
+      if (t.id !== 'dl-name' && t.id !== 'dl-email') return;
       readVisitorFields();
-      const btn = root.querySelector('#dl-launch');
-      if (btn) btn.disabled = !canLaunch();
-    };
-    root.querySelector('#dl-name')?.addEventListener('input', syncLaunchEnabled);
-    root.querySelector('#dl-email')?.addEventListener('input', syncLaunchEnabled);
-
-    root.querySelector('#dl-clear')?.addEventListener('click', () => {
-      readVisitorFields();
-      selectedIds = new Set();
-      render();
-      bind();
+      syncStickyActions();
     });
 
-    root.querySelectorAll('.dl-switch').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
+    root.addEventListener('click', (e) => {
+      const t = e.target;
+      if (!(t instanceof Element)) return;
+
+      if (t.closest('#dl-clear')) {
+        readVisitorFields();
+        selectedIds = new Set();
+        syncTiles();
+        syncStickyActions();
+        return;
+      }
+
+      if (t.closest('#dl-launch')) {
+        void launch();
+        return;
+      }
+
+      const sw = t.closest('.dl-switch');
+      if (sw) {
         e.stopPropagation();
-        const id = btn.getAttribute('data-module-id');
+        const id = sw.getAttribute('data-module-id');
         if (id) toggleModule(id);
-      });
-    });
+        return;
+      }
 
-    root.querySelectorAll('.dl-tile:not(.dl-tile--readonly):not(.dl-tile--included)').forEach((tile) => {
-      tile.addEventListener('click', (e) => {
-        if (e.target.closest('.dl-tile-edit')) return;
+      const tile = t.closest('.dl-tile:not(.dl-tile--readonly):not(.dl-tile--included)');
+      if (tile) {
+        if (t.closest('.dl-tile-edit')) return;
         const id = tile.querySelector('.dl-switch')?.getAttribute('data-module-id');
         if (id) toggleModule(id);
-      });
+      }
     });
 
-    root.querySelector('#dl-launch')?.addEventListener('click', () => {
-      void launch();
-    });
+    window.addEventListener('resize', measureStickyCtas, { passive: true });
+    window.visualViewport?.addEventListener('resize', measureStickyCtas, { passive: true });
   }
 
   async function init() {
@@ -477,7 +550,6 @@
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDefaults(data);
       render();
-      bind();
     } catch (e) {
       root.innerHTML = `<p class="dl-error">Could not load modules: ${esc(e.message)}</p>`;
     }

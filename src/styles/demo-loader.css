@@ -186,6 +186,7 @@
  * while the module list scrolls, then leave with the track end.
  */
 .dl-sticky-cta-track {
+  --dl-sticky-cta-h: 2.75rem;
   display: grid;
   width: 100%;
   overflow: clip;
@@ -204,15 +205,14 @@
 }
 
 .dl-sticky-ctas {
-  --dl-sticky-cta-h: 2.75rem;
   --dl-sticky-cta-bottom: 5px;
   position: sticky;
   top: calc(
-    100vh - var(--dl-sticky-cta-h) - var(--dl-sticky-cta-bottom) -
+    100vh - var(--dl-sticky-cta-h, 2.75rem) - var(--dl-sticky-cta-bottom) -
       env(safe-area-inset-bottom, 0px)
   );
   top: calc(
-    100dvh - var(--dl-sticky-cta-h) - var(--dl-sticky-cta-bottom) -
+    100dvh - var(--dl-sticky-cta-h, 2.75rem) - var(--dl-sticky-cta-bottom) -
       env(safe-area-inset-bottom, 0px)
   );
   z-index: 40;
