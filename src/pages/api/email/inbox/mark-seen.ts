@@ -1,5 +1,5 @@
 /**
- * POST /api/email/inbox/mark-seen — mark messages seen after scroll-into-view in the inbox list.
+ * POST /api/email/inbox/mark-seen — mark messages seen after the detail pane was opened.
  */
 
 import type { APIContext } from 'astro';

@@ -147,6 +147,8 @@ export interface EmailInboxDigest {
   filed: number;
   review: number;
   alert: number;
+  /** Active (All-tab) messages not yet opened in the detail pane. */
+  unread: number;
 }
 
 const MAX_FILE_EVENTS = 500;
@@ -527,6 +529,7 @@ export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean
   let filed = 0;
   let review = 0;
   let alert = 0;
+  let unread = 0;
   for (const e of events) {
     total++;
     if (isHiddenInboxCategory(e.category)) {
@@ -538,8 +541,9 @@ export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean
     else if (e.category === 'review' || e.category === 'otp' || e.category === 'auth_link') review++;
     else if (e.category === 'alert') alert++;
     if (e.action === 'filed') filed++;
+    if (isEmailInboxActive(e) && !e.seenAt) unread++;
   }
-  return { total, visible, junkHidden, client, filed, review, alert };
+  return { total, visible, junkHidden, client, filed, review, alert, unread };
 }
 
 async function digestFromPg(hideJunk: boolean): Promise<EmailInboxDigest | null> {
@@ -554,6 +558,7 @@ async function digestFromPg(hideJunk: boolean): Promise<EmailInboxDigest | null>
       filed: string;
       review: string;
       alert: string;
+      unread: string;
     }>(
       `SELECT
          COUNT(*)::text AS total,
@@ -562,7 +567,19 @@ async function digestFromPg(hideJunk: boolean): Promise<EmailInboxDigest | null>
          COUNT(*) FILTER (WHERE category = 'client')::text AS client,
          COUNT(*) FILTER (WHERE action = 'filed')::text AS filed,
          COUNT(*) FILTER (WHERE category IN ('review', 'otp', 'auth_link'))::text AS review,
-         COUNT(*) FILTER (WHERE category = 'alert')::text AS alert
+         COUNT(*) FILTER (WHERE category = 'alert')::text AS alert,
+         COUNT(*) FILTER (
+           WHERE category NOT IN ('junk', 'auto_deleted', 'receipt')
+             AND NOT (
+               LOWER(COALESCE(category, '')) = 'project'
+               OR (
+                 job_slug IS NOT NULL AND BTRIM(job_slug) <> ''
+                 AND LOWER(COALESCE(action, '')) = 'matched'
+               )
+             )
+             AND LOWER(COALESCE(action, '')) NOT IN ('filed', 'matched')
+             AND seen_at IS NULL
+         )::text AS unread
        FROM email_inbox`,
     );
     const row = rows[0];
@@ -575,6 +592,7 @@ async function digestFromPg(hideJunk: boolean): Promise<EmailInboxDigest | null>
       filed: Number(row.filed),
       review: Number(row.review),
       alert: Number(row.alert),
+      unread: Number(row.unread),
     };
     if (!hideJunk) digest.visible = digest.total;
     return digest;
@@ -1612,7 +1630,7 @@ async function markSeenManyInPg(ids: string[]): Promise<number> {
   }
 }
 
-/** Mark inbox rows as seen (scroll-into-view). Idempotent per message. */
+/** Mark inbox rows as seen after the detail pane has been opened. Idempotent per message. */
 export async function storeMarkEmailInboxSeenMany(ids: string[]): Promise<number> {
   const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
   if (!unique.length) return 0;

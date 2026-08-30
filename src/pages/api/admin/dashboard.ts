@@ -203,6 +203,7 @@ export async function GET(context: APIContext): Promise<Response> {
     stats: {
       emails: reviewsPending,
       emailsTotal,
+      emailsUnread: inboxDigest.unread ?? digest.unread,
       emailsReview: digest.review,
       reviewsPending,
       automationPending: reviewsPending,

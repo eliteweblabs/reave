@@ -70,6 +70,7 @@ export async function GET(context: APIContext): Promise<Response> {
       chats: threads.filter((t) => !t.archived).length,
       emailsTotal: inboxDigest.visible,
       emails: inboxDigest.visible,
+      emailsUnread: inboxDigest.unread,
       meetingsTotal,
       projectsTotal: jobs.length,
       projectsPending,

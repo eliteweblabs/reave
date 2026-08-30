@@ -3186,7 +3186,7 @@ async function purgeExpiredOtpsQuietly() {
         el.closest('.admin-setup-alert--otp, .em-otp-card, [data-review-email-id]')?.remove();
       });
       if (MAP?.type === 'email') renderEmailPanel();
-      syncInboxAppBadge(emailState.allEvents);
+      syncEmailTabBadges();
       if (MAP?.type === 'dashboard') void refreshDashboardReviewBannersQuiet();
     }
     return deleted;
@@ -10198,6 +10198,7 @@ function initKeyboardShortcuts() {
 }
 
 let reviewsPendingCount = 0;
+let emailsUnreadCount = 0;
 
 const footerNavCounts = {
   reviews: null,
@@ -10257,6 +10258,9 @@ function syncFooterNavCountTooltips() {
 function syncReviewBadge(count) {
   reviewsPendingCount = Math.max(0, Number(count) || 0);
   footerNavCounts.reviews = reviewsPendingCount;
+  if (emailState.digest && typeof emailState.digest === 'object') {
+    emailState.digest.reviewsPending = reviewsPendingCount;
+  }
   renderFooterNavBadges();
   syncFooterNavCountTooltips();
   void setAppIconBadge(reviewsPendingCount);
@@ -10281,6 +10285,28 @@ function renderFooterNavBadges() {
     badge.textContent = '0';
     btn.setAttribute('aria-label', footerNavCollapsed ? 'Show navigation' : 'Dashboard');
   }
+  renderFooterInboxBadge();
+}
+
+function renderFooterInboxBadge() {
+  const badge = document.getElementById('footer-inbox-badge');
+  const btn = document.getElementById('footer-nav-inbox');
+  if (!badge || !btn) return;
+
+  const n = emailsUnreadCount;
+  if (n > 0) {
+    badge.hidden = false;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    if (!btn.classList.contains('footer-nav-btn--create') && !btn.classList.contains('footer-nav-btn--save')) {
+      btn.setAttribute('aria-label', `Inbox (${n} unread)`);
+    }
+  } else {
+    badge.hidden = true;
+    badge.textContent = '0';
+    if (!btn.classList.contains('footer-nav-btn--create') && !btn.classList.contains('footer-nav-btn--save')) {
+      btn.setAttribute('aria-label', 'Inbox');
+    }
+  }
 }
 
 function syncDashboardFooterBadges(stats) {
@@ -10292,6 +10318,7 @@ function syncDashboardFooterBadges(stats) {
   footerNavCounts.projects = stats.projectsTotal ?? stats.projectsPending ?? 0;
   footerNavCounts.todos = stats.todosOpen ?? 0;
   footerNavCounts.clients = stats.clients ?? null;
+  if (stats.emailsUnread != null) syncUnreadEmailBadge(stats.emailsUnread);
   syncFooterNavCountTooltips();
 }
 
@@ -10304,6 +10331,7 @@ function syncDashboardFooterBadgesWithoutReview(stats) {
   footerNavCounts.projects = stats.projectsTotal ?? stats.projectsPending ?? 0;
   footerNavCounts.todos = stats.todosOpen ?? 0;
   footerNavCounts.clients = stats.clients ?? null;
+  if (stats.emailsUnread != null) syncUnreadEmailBadge(stats.emailsUnread);
   syncFooterNavCountTooltips();
 }
 
@@ -11390,17 +11418,32 @@ function reviewNotificationItemFromEmail(ev) {
   };
 }
 
-function pendingReviewCount(events) {
-  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
-  return (events || []).filter((ev) => {
-    if (!isPendingReviewNotification(ev)) return false;
-    const t = new Date(ev.receivedAt).getTime();
-    return Number.isFinite(t) && t >= cutoff;
-  }).length;
+/** Unread = All-tab (active) messages not yet opened in the detail pane. */
+function countUnreadEmails(events) {
+  return (events || []).filter(
+    (e) =>
+      !isHiddenInboxEmail(e) &&
+      e.category !== 'receipt' &&
+      !isEmailProject(e) &&
+      !isEmailRouted(e) &&
+      !e.seenAt,
+  ).length;
+}
+
+function syncUnreadEmailBadge(count) {
+  emailsUnreadCount =
+    count != null ? Math.max(0, Number(count) || 0) : countUnreadEmails(emailState.allEvents);
+  if (emailState.digest && typeof emailState.digest === 'object') {
+    emailState.digest.unread = emailsUnreadCount;
+  }
+  renderFooterInboxBadge();
+  syncFooterNavCountTooltips();
 }
 
 function updateInboxBadgesFromState() {
-  syncReviewBadge(pendingReviewCount(emailState.allEvents));
+  // Unread only — never invent the dashboard review badge from inbox heuristics
+  // (that caused a phantom count when toggling Email ↔ Dashboard).
+  syncUnreadEmailBadge();
 }
 
 async function clearCachedBadgeCount() {
@@ -11461,12 +11504,27 @@ function applyServerBadgeCount(data) {
   return true;
 }
 
-async function syncInboxAppBadge(events, reviewsPending) {
+/**
+ * Dashboard review badge — prefer the server reviewsPending (same as banners).
+ * Do not fall back to a client heuristic over inbox rows.
+ */
+async function syncInboxAppBadge(_events, reviewsPending) {
+  const fromDigest =
+    emailState.digest?.reviewsPending ?? emailState.digest?.automationPending;
   const n =
     reviewsPending != null
       ? Math.max(0, Number(reviewsPending) || 0)
-      : pendingReviewCount(events);
+      : fromDigest != null
+        ? Math.max(0, Number(fromDigest) || 0)
+        : null;
+  if (n == null) return;
   syncReviewBadge(n);
+}
+
+/** After inbox mutations / reloads — keep review + unread footer badges in sync. */
+function syncEmailTabBadges() {
+  void syncInboxAppBadge(emailState.allEvents, emailState.digest?.reviewsPending);
+  syncUnreadEmailBadge();
 }
 
 async function refreshFooterBadgesQuiet() {
@@ -11498,11 +11556,18 @@ async function refreshFooterBadgesQuiet() {
         dashStats?.automationPending ??
         inboxData.digest?.reviewsPending;
       await syncInboxAppBadge(events, badgeCount);
+      const unread =
+        dashStats?.emailsUnread ??
+        inboxData.digest?.unread ??
+        countUnreadEmails(MAP.type === 'email' ? emailState.allEvents : events);
+      syncUnreadEmailBadge(unread);
       return;
     }
 
-    if (dashStats) syncReviewBadge(dashStats.reviewsPending ?? dashStats.automationPending ?? 0);
-    else await setAppIconBadge(reviewsPendingCount);
+    if (dashStats) {
+      syncReviewBadge(dashStats.reviewsPending ?? dashStats.automationPending ?? 0);
+      if (dashStats.emailsUnread != null) syncUnreadEmailBadge(dashStats.emailsUnread);
+    } else await setAppIconBadge(reviewsPendingCount);
   } catch {}
 }
 
@@ -12828,7 +12893,7 @@ async function runEmailScheduleAction(ev, action, btn) {
       // Confirming archives the message — drop it out of the open list.
       dropArchivedEmailFromView(ev.id);
       renderEmailPanel();
-      syncInboxAppBadge(emailState.allEvents);
+      syncEmailTabBadges();
       return;
     }
 
@@ -12997,7 +13062,7 @@ function applyEmailEventUpdate(event) {
     emailState.activeId = null;
   }
   renderEmailPanel();
-  syncInboxAppBadge(emailState.allEvents);
+  syncEmailTabBadges();
 }
 
 async function postEmailProject(ev, payload, opts = {}) {
@@ -13257,13 +13322,21 @@ async function fetchFullEmailRecord(ev) {
   try {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, { cache: 'no-store' });
     const data = await readApiJson(res);
-    if (!data.event) return ev;
+    if (!data.event) {
+      const failed = { ...ev, _fullLoaded: true, _bodyLoadFailed: true };
+      const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+      if (idx !== -1) emailState.allEvents[idx] = { ...emailState.allEvents[idx], ...failed };
+      return failed;
+    }
     const full = { ...data.event, _fullLoaded: true };
     const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
     if (idx !== -1) emailState.allEvents[idx] = full;
     return full;
   } catch {
-    return ev;
+    const failed = { ...ev, _fullLoaded: true, _bodyLoadFailed: true };
+    const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+    if (idx !== -1) emailState.allEvents[idx] = { ...emailState.allEvents[idx], ...failed };
+    return failed;
   }
 }
 
@@ -13534,13 +13607,12 @@ function removeEmailsLocally(events, { pickAdjacent = false } = {}) {
   if (wasActive) {
     if (nextId && emailState.allEvents.some((e) => e.id === nextId)) {
       emailState.activeId = nextId;
-      queueEmailSeen(nextId);
     } else {
       emailState.activeId = null;
     }
   }
   renderEmailPanel();
-  syncInboxAppBadge(emailState.allEvents);
+  syncEmailTabBadges();
 }
 
 function restoreEmailsLocally(snapshots, { restoreActiveId = null } = {}) {
@@ -13556,7 +13628,7 @@ function restoreEmailsLocally(snapshots, { restoreActiveId = null } = {}) {
     emailState.activeId = restoreActiveId;
   }
   renderEmailPanel();
-  syncInboxAppBadge(emailState.allEvents);
+  syncEmailTabBadges();
 }
 
 async function bulkDeleteEmails(ids) {
@@ -13614,7 +13686,7 @@ async function bulkArchiveEmails(ids) {
     emailState.activeId = null;
   }
   renderEmailPanel();
-  syncInboxAppBadge(emailState.allEvents);
+  syncEmailTabBadges();
 }
 
 async function archiveEmail(ev) {
@@ -13683,7 +13755,7 @@ function applyEmailPatchResult(id, event) {
     removeEmailRelatedAlertBanners(id);
   }
   renderEmailPanel();
-  syncInboxAppBadge(emailState.allEvents);
+  syncEmailTabBadges();
 }
 
 async function markEmailReceipt(ev) {
@@ -13931,7 +14003,6 @@ function isEmailUnseen(ev) {
 
 /** Dot ids for the current inbox visit — cleared when leaving the email tab. */
 let inboxSessionDotIds = new Set();
-let emailSeenObserver = null;
 let pendingSeenIds = new Set();
 let flushSeenTimer = null;
 
@@ -13948,8 +14019,6 @@ function showEmailNewDot(ev) {
 function clearInboxSessionDots() {
   void flushPendingEmailSeen();
   inboxSessionDotIds.clear();
-  emailSeenObserver?.disconnect();
-  emailSeenObserver = null;
 }
 
 function mergeEmailSeenFromServer(serverEvents) {
@@ -13964,6 +14033,7 @@ function markEmailSeenLocal(id) {
   const ev = emailState.allEvents.find((e) => e.id === id);
   if (!ev || !isEmailUnseen(ev)) return false;
   ev.seenAt = new Date().toISOString();
+  inboxSessionDotIds.delete(id);
   return true;
 }
 
@@ -13981,29 +14051,24 @@ async function flushPendingEmailSeen() {
   } catch {}
 }
 
+/** Mark seen only after the detail pane shows the full message (not list scroll / tab visit). */
 function queueEmailSeen(id) {
   if (!id || !markEmailSeenLocal(id)) return;
   pendingSeenIds.add(id);
-  updateInboxBadgesFromState();
+  syncUnreadEmailBadge();
+  const root = getEmailPanel();
+  const row = root?.querySelector(`.em-list-item[data-id="${String(id).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`);
+  row?.querySelector('.em-unseen-dot')?.remove();
   clearTimeout(flushSeenTimer);
   flushSeenTimer = setTimeout(() => { void flushPendingEmailSeen(); }, 400);
 }
 
-function bindEmailListSeenObserver(listEl) {
-  emailSeenObserver?.disconnect();
-  emailSeenObserver = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        const id = entry.target.dataset.id;
-        if (id) queueEmailSeen(id);
-      }
-    },
-    { root: listEl, threshold: 0.55 },
-  );
-  listEl.querySelectorAll('.em-list-item').forEach((el) => {
-    if (el.querySelector('.em-unseen-dot')) emailSeenObserver.observe(el);
-  });
+function maybeMarkActiveEmailSeen(ev) {
+  if (!ev?.id) return;
+  if (emailState.inboxFilter === 'sent' || emailState.inboxFilter === 'draft' || emailState.inboxFilter === 'scheduled') {
+    return;
+  }
+  if (ev._fullLoaded || ev._bodyLoadFailed) queueEmailSeen(ev.id);
 }
 
 function createEmailListItem(ev) {
@@ -14348,7 +14413,7 @@ async function loadEmailTab(quiet) {
     pendingEmailDeepLinkId = null;
     await startNewEmail({ to });
     ensureEmailMobilePaneOpen();
-    syncInboxAppBadge(emailState.allEvents);
+    syncEmailTabBadges();
     return;
   }
   const explicitDeepLink = pendingEmailDeepLinkId;
@@ -14373,7 +14438,7 @@ async function loadEmailTab(quiet) {
     refreshEmailSidebarList();
     if (emailState.composing) {
       ensureEmailMobilePaneOpen();
-      syncInboxAppBadge(emailState.allEvents);
+      syncEmailTabBadges();
       return;
     }
     const stillVisible =
@@ -14389,7 +14454,7 @@ async function loadEmailTab(quiet) {
     renderEmailPanel();
   }
   ensureEmailMobilePaneOpen();
-  syncInboxAppBadge(emailState.allEvents);
+  syncEmailTabBadges();
 }
 
 function renderEmailFilterTabs(savedScrollLeft = 0) {
@@ -14506,7 +14571,6 @@ function fillEmailSidebarList(list) {
   if (events.length === 0) {
     target.appendChild(createCenteredListEmpty({ innerHtml: emailSidebarEmptyInnerHtml() }));
   }
-  if (!isSent && !isDraft && !isScheduled) bindEmailListSeenObserver(list);
   resyncListMultiSelect(list);
 }
 
@@ -17034,7 +17098,6 @@ function openEmailEvent(id) {
     });
     return;
   }
-  queueEmailSeen(id);
   emailState.activeId = id;
   emailState.composing = false;
   emailState.activeDraftId = null;
@@ -17924,6 +17987,8 @@ function renderEmailPane() {
     void fetchFullEmailRecord(ev).then((full) => {
       if (emailState.activeId === full.id) renderEmailPane();
     });
+  } else {
+    maybeMarkActiveEmailSeen(ev);
   }
   void mountEmailScheduleActions(detail.querySelector('.em-schedule-actions'), ev);
   detail.querySelectorAll('.em-project-link').forEach((btn) => {
