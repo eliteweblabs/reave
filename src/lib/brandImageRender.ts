@@ -18,6 +18,9 @@ import {
 } from './logoContrastAdapt';
 import { readPublicBrandingFile } from './publicBranding';
 
+/** Default Home Screen / favicon tile — keep in sync with companyBrandColors.DEFAULT_ICON_BACKGROUND. */
+export const DEFAULT_ICON_BACKGROUND = '#09090b';
+
 export type BrandMarkSource =
   | { kind: 'raster'; buffer: Buffer }
   | { kind: 'svg'; svg: string };
@@ -174,10 +177,10 @@ export function companyIconSvgMarkup(stored: StoredCompanyConfig | null): string
 }
 
 /**
- * Tab/favorite SVG: admin mark on a dark tile with inherited ink.
+ * Tab/favorite SVG: admin mark on a brand tile with inherited ink.
  * Browsers that cache /favicon.ico still pick this up as a new URL.
  */
-export function wrapFaviconSvg(svg: string, ink: string): string | null {
+export function wrapFaviconSvg(svg: string, ink: string, background = DEFAULT_ICON_BACKGROUND): string | null {
   const sanitized = sanitizeInlineSvg(resolveSvgAssetUrls(svg.trim()));
   if (!sanitized) return null;
   const open = sanitized.match(/<svg\b[^>]*>/i)?.[0];
@@ -189,8 +192,9 @@ export function wrapFaviconSvg(svg: string, ink: string): string | null {
   const y = Number.isFinite(nums[1]) ? nums[1]! : 0;
   const w = Number.isFinite(nums[2]) && nums[2]! > 0 ? nums[2]! : 512;
   const h = Number.isFinite(nums[3]) && nums[3]! > 0 ? nums[3]! : 512;
+  const bg = brandHex(background) ?? DEFAULT_ICON_BACKGROUND;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="32" height="32">
-  <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#09090b"/>
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${bg}"/>
   <g fill="${ink}">${inner}</g>
 </svg>`;
 }
@@ -199,7 +203,9 @@ export function wrapFaviconSvg(svg: string, ink: string): string | null {
 export function companyFaviconSvgMarkup(stored: StoredCompanyConfig | null): string | null {
   const raw = companyIconSvgMarkup(stored);
   if (!raw) return null;
-  return wrapFaviconSvg(raw, brandMarkInk(stored, 'dark').from);
+  const bg = resolveIconBackground(stored?.iconBackground);
+  const surface = iconBackgroundSurface(bg);
+  return wrapFaviconSvg(raw, brandMarkInk(stored, surface).from, bg);
 }
 
 /** Solid black/white tile — the mark was lost (unfilled SVG on a black canvas). */
@@ -209,13 +215,29 @@ export function isSolidNeutralField(analysis: LogoContrastAnalysis, pixelCount: 
   return Math.max(analysis.blackRatio, analysis.whiteRatio) > 0.96;
 }
 
-async function compositeOnBlack(png: Buffer, size: number): Promise<Buffer> {
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const n = brandHex(hex) ?? DEFAULT_ICON_BACKGROUND;
+  return {
+    r: parseInt(n.slice(1, 3), 16),
+    g: parseInt(n.slice(3, 5), 16),
+    b: parseInt(n.slice(5, 7), 16),
+  };
+}
+
+/** Dark tile → light ink; light tile → dark ink. */
+export function iconBackgroundSurface(background: string): 'dark' | 'light' {
+  const hex = brandHex(background) ?? DEFAULT_ICON_BACKGROUND;
+  return hexLuminance(hex) < 0.45 ? 'dark' : 'light';
+}
+
+async function compositeOnBackground(png: Buffer, size: number, background: string): Promise<Buffer> {
+  const bg = hexToRgb(background);
   return sharp({
     create: {
       width: size,
       height: size,
       channels: 3,
-      background: { r: 0, g: 0, b: 0 },
+      background: bg,
     },
   })
     .composite([{ input: png, gravity: 'centre' }])
@@ -223,12 +245,18 @@ async function compositeOnBlack(png: Buffer, size: number): Promise<Buffer> {
     .toBuffer();
 }
 
-async function prepareFaviconMark(png: Buffer, size: number, transparent: boolean): Promise<Buffer | null> {
+async function prepareFaviconMark(
+  png: Buffer,
+  size: number,
+  transparent: boolean,
+  background: string,
+): Promise<Buffer | null> {
   const analysis = await analyzeLogoContrast(png);
   if (isSolidNeutralField(analysis, size * size)) return null;
 
   let mark = png;
   const inkOnClearField = analysis.visible < size * size * 0.85;
+  const surface = iconBackgroundSurface(background);
 
   if (transparent) {
     // Header / email / print sit on a light theme canvas — keep dark ink.
@@ -240,12 +268,13 @@ async function prepareFaviconMark(png: Buffer, size: number, transparent: boolea
     return punchSolidNeutralBackground(mark);
   }
 
-  // Black ink on a clear field — flip for dark favicons. Skip when the
-  // canvas is already a dark tile (flipping would wash out the background).
-  if (analysis.mostlyBlack && inkOnClearField) {
+  // Flip ink when it would vanish on the configured tile color.
+  if (surface === 'dark' && analysis.mostlyBlack && inkOnClearField) {
     mark = (await adaptLogoContrast(mark, 'dark')).buffer;
+  } else if (surface === 'light' && analysis.mostlyWhite && inkOnClearField) {
+    mark = (await adaptLogoContrast(mark, 'light')).buffer;
   }
-  return compositeOnBlack(mark, size);
+  return compositeOnBackground(mark, size, background);
 }
 
 async function rasterizeSvgSource(
@@ -312,6 +341,10 @@ function brandHex(raw?: string | null): string | null {
   return `#${hex}`.toLowerCase();
 }
 
+function resolveIconBackground(raw?: string | null): string {
+  return brandHex(raw) ?? DEFAULT_ICON_BACKGROUND;
+}
+
 function hexLuminance(hex: string): number {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -337,16 +370,17 @@ export function brandMarkInk(stored: StoredCompanyConfig | null, surface: 'dark'
     : { from: '#09090b', to: '#3f3f46' };
 }
 
-function buildLetterSvg(letter: string, size: number, transparent: boolean, ink: BrandMarkInk): string {
+function buildLetterSvg(letter: string, size: number, transparent: boolean, ink: BrandMarkInk, background: string): string {
   const safe = escapeXml(letter);
   const two = [...letter].length > 1;
   const fontSize = Math.round(size * (two ? 0.4 : 0.52));
   const tracking = two ? ' letter-spacing="-0.06em"' : '';
-  const background = transparent
+  const bg = brandHex(background) ?? DEFAULT_ICON_BACKGROUND;
+  const backgroundRect = transparent
     ? ''
-    : `<rect width="${size}" height="${size}" fill="#09090b"/>`;
+    : `<rect width="${size}" height="${size}" fill="${bg}"/>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  ${background}
+  ${backgroundRect}
   <defs>
     <linearGradient id="brand-letter" x1="0" y1="${size}" x2="${size}" y2="0" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="${ink.from}"/>
@@ -409,7 +443,9 @@ export async function renderBrandMarkSquarePng(
 ): Promise<Buffer> {
   const fit = opts?.fit ?? 'cover';
   const transparent = opts?.transparent ?? false;
-  const ink = brandMarkInk(opts?.stored ?? null, transparent ? 'light' : 'dark');
+  const background = resolveIconBackground(opts?.stored?.iconBackground);
+  const surface = transparent ? 'light' : iconBackgroundSurface(background);
+  const ink = brandMarkInk(opts?.stored ?? null, surface);
   for (const source of sources) {
     const prepared =
       source.kind === 'svg' && !transparent
@@ -417,10 +453,10 @@ export async function renderBrandMarkSquarePng(
         : source;
     const png = await rasterizeSource(prepared, size, fit);
     if (!png) continue;
-    const usable = await prepareFaviconMark(png, size, transparent);
+    const usable = await prepareFaviconMark(png, size, transparent, background);
     if (usable) return usable;
   }
-  const svg = buildLetterSvg(letter, size, transparent, ink);
+  const svg = buildLetterSvg(letter, size, transparent, ink, background);
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
@@ -505,6 +541,10 @@ export function brandingEtag(
     opts?.transparent ? 't' : '',
   ].join('');
   const nameTag = brandingNameTag(stored?.name ?? '');
-  const colors = [brandHex(stored?.brandPrimary) ?? '', brandHex(stored?.brandSecondary) ?? ''].join(':');
+  const colors = [
+    brandHex(stored?.brandPrimary) ?? '',
+    brandHex(stored?.brandSecondary) ?? '',
+    resolveIconBackground(stored?.iconBackground),
+  ].join(':');
   return `${updated}:${flags}:${nameTag}:${kind}:${size}:${BRAND_ICON_RENDER}:${colors}`;
 }

@@ -85,6 +85,16 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
   const fromAdmin = companyFaviconSvgMarkup({ name: 'reave.app', iconSvg: UNFILLED_AV, brandPrimary: '#000000' });
   assert.ok(fromAdmin);
   assert.match(fromAdmin!, /<g fill="#ffffff">/);
+  const customBg = wrapFaviconSvg(UNFILLED_AV, '#ffffff', '#1e3a5f');
+  assert.match(customBg!, /<rect\b[^>]*fill="#1e3a5f"/);
+  const lightTile = await renderCompanyBrandIconPng(
+    { name: 'reave.app', iconSvg: UNFILLED_AV, iconBackground: '#f5f5f5', brandPrimary: '#111111' },
+    32,
+  );
+  const lightMeta = await sharp(lightTile).metadata();
+  assert.equal(lightMeta.width, 32);
+  const lightAnalysis = await analyzeLogoContrast(lightTile);
+  assert.ok(lightAnalysis.whiteRatio > 0.5, `light tile should be mostly white bg, whiteRatio=${lightAnalysis.whiteRatio}`);
 }
 
 console.log('verify-brand-favicon: ok');

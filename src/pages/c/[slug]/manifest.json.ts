@@ -1,11 +1,7 @@
-/**
- * Per-client web app manifest for the portal page (/c/<uid>).
- * Enables "Add to Home Screen" with the client's name as the app title.
- */
 import type { APIRoute } from 'astro';
+import { getCompanyConfig, companyFaviconUrls } from '../../../lib/companyConfig';
 import { getContact, extractPortal, contactStringField } from '../../../lib/contactApi';
 import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
-import { getCompanyConfig, companyFaviconUrls } from '../../../lib/companyConfig';
 
 export const prerender = false;
 
@@ -25,6 +21,7 @@ export const GET: APIRoute = async ({ params, request }) => {
   let name = 'Contact';
   const company = await getCompanyConfig(request);
   const defaultIcons = companyDefaultIcons(company);
+  const tileBg = company.iconBackground || '#0a0a0a';
 
   if (uid) {
     const res = await getContact(uid);
@@ -54,8 +51,8 @@ export const GET: APIRoute = async ({ params, request }) => {
           scope: startUrl,
           display: 'standalone',
           display_override: ['standalone', 'minimal-ui'],
-          background_color: '#0a0a0a',
-          theme_color: '#0a0a0a',
+          background_color: tileBg,
+          theme_color: tileBg,
           icons,
         };
 
@@ -78,8 +75,8 @@ export const GET: APIRoute = async ({ params, request }) => {
     scope: startUrl,
     display: 'standalone',
     display_override: ['standalone', 'minimal-ui'],
-    background_color: '#0a0a0a',
-    theme_color: '#0a0a0a',
+    background_color: tileBg,
+    theme_color: tileBg,
     icons: defaultIcons,
   };
 
