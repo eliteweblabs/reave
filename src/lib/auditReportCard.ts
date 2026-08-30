@@ -1946,7 +1946,10 @@ export function buildAuditReportCard(input: {
     body,
     /Broken Links(?:\s*&\s*Crawl Health)?(?:\s+Summary)?|Crawl Health/,
   );
-  const leadSection = extractSection(body, /Lead Capture|Contact Forms?|Forms?/);
+  const leadSection = extractSection(
+    body,
+    /Lead Capture|Contact Forms?|Forms?|Ordering(?:\s*&\s*Vendor)?\s*Fragmentation|Vendor Fragmentation/,
+  );
   const schemaSection = extractSection(
     body,
     /Structured Data|Schema|Rich Results|Search Rich Results/,
@@ -2482,10 +2485,15 @@ export function buildAuditReportCard(input: {
     }),
     (() => {
       const cat = heuristicSection('lead_capture', leadSection || contentSection, {
-        bad: /no form|broken form|form (?:fails|error)|no chat|no contact|lead(?:s)? (?:lost|untracked)/i,
-        good: /form works|contact form|click.to.call|chat (?:is )?available|lead capture/i,
-        present: /form|lead capture|contact form|chat widget|click.to.call/i,
+        bad: /no form|broken form|form (?:fails|error)|no chat|no contact|lead(?:s)? (?:lost|untracked)|fragmented ordering|multi-vendor|doordash|uber eats|grubhub|restaurantsignin|separate (?:shopify|checkout)|no clear default path/i,
+        good: /form works|contact form|click.to.call|chat (?:is )?available|lead capture|single (?:owned )?ordering|chownow|unified (?:order|checkout)/i,
+        present: /form|lead capture|contact form|chat widget|click.to.call|order|doordash|pickup|shopify|fragment/i,
         emptySummary: 'Not scored in this audit',
+        badGrade: /fragmented ordering|multi-vendor|doordash.*uber|grubhub.*pickup/i.test(
+          `${leadSection}\n${contentSection}`,
+        )
+          ? 'F'
+          : 'D',
       });
       if (leadSourceOverride) cat.source = leadSourceOverride;
       return cat;

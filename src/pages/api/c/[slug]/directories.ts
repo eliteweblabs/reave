@@ -1,0 +1,84 @@
+/**
+ * GET /api/c/:slug/directories — lazy directories iPhone for portal Overview.
+ *
+ * Public (unguessable /c/<uid>). Runs live site-link + Brave name search —
+ * deliberately not on the SSR path so Overview first paint stays fast.
+ */
+import type { APIRoute } from 'astro';
+import { jsonResponse } from '../../../../lib/apiResponse';
+import {
+  contactStringField,
+  extractPortal,
+  getContact,
+} from '../../../../lib/contactApi';
+import { hasFeature } from '../../../../lib/features';
+import { clientIp } from '../../../../lib/clientIp';
+import { checkDirectoryCoverage } from '../../../../lib/salesSheetDirectoryCheck';
+import { renderPortalDirectoriesExhibitHtml } from '../../../../lib/salesSheetExhibits';
+import { IPHONE_FRAME_SRC } from '../../../../lib/salesSheetPlacesView';
+
+export const prerender = false;
+
+const hits = new Map<string, { n: number; t: number }>();
+
+function rateLimited(key: string): boolean {
+  const now = Date.now();
+  const row = hits.get(key);
+  if (!row || now - row.t > 60_000) {
+    hits.set(key, { n: 1, t: now });
+    return false;
+  }
+  row.n += 1;
+  return row.n > 12;
+}
+
+export const GET: APIRoute = async ({ params, request }) => {
+  if (!hasFeature('client_portal')) {
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  }
+
+  const uid = (params.slug ?? '').trim();
+  if (!uid) return jsonResponse({ ok: false, error: 'Missing contact id' }, 400);
+
+  if (rateLimited(`${uid}:${clientIp(request)}`)) {
+    return jsonResponse({ ok: false, error: 'Too many requests' }, 429);
+  }
+
+  const contactRes = await getContact(uid);
+  if (!contactRes.ok || contactRes.data.archived) {
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  }
+  const portal = extractPortal(contactRes.data) ?? {};
+  if (portal.enabled === false) {
+    return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  }
+
+  const website = contactStringField(portal.website) || '';
+  const businessName =
+    contactStringField(contactRes.data.company) ||
+    contactStringField(contactRes.data.name) ||
+    '';
+
+  if (!website && !businessName) {
+    return jsonResponse({ ok: false, error: 'No website or business name' }, 400);
+  }
+
+  const directoryChecks = await checkDirectoryCoverage({
+    website,
+    businessName,
+  });
+
+  const html = renderPortalDirectoriesExhibitHtml({
+    directoryChecks,
+    website,
+    businessName,
+    frameSrc: IPHONE_FRAME_SRC,
+  });
+
+  return jsonResponse({
+    ok: true,
+    html,
+    summary: directoryChecks.filter((c) => c.verdict === 'pass').length,
+    total: directoryChecks.length,
+  });
+};

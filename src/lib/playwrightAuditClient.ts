@@ -17,6 +17,7 @@
  */
 
 import { serverEnv } from './serverEnv';
+import { analyzeVendorFragmentation, type VendorFragmentationReport } from './vendorFragmentation';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -82,6 +83,8 @@ export type PlaywrightAuditResponse =
         formsFound: number;
         ctaButtons: number;
       };
+      /** Multi-vendor order / shop / careers fragmentation from nav + CTAs. */
+      vendorFragmentation?: VendorFragmentationReport;
     }
   | { ok: false; error: string };
 
@@ -236,18 +239,20 @@ async function auditViewport(
   // -------------------------------------------------------------------------
   const navLinks: NavLink[] = await page.evaluate(() => {
     const anchors = Array.from(
-      document.querySelectorAll<HTMLAnchorElement>('nav a, [role="navigation"] a, header a'),
+      document.querySelectorAll<HTMLAnchorElement>(
+        'nav a, [role="navigation"] a, header a, .dropdown a, [class*="order"] a, a[href*="doordash"], a[href*="ubereats"], a[href*="grubhub"], a[href*="restaurantsignin"], a[href*="myshopify"], a[href*="order.online"]',
+      ),
     );
     const seen = new Set<string>();
     return anchors
       .filter((a) => {
         const href = a.getAttribute('href') ?? '';
         const text = a.textContent?.trim() ?? '';
-        if (!text || seen.has(href + text)) return false;
+        if (!href || seen.has(href + text)) return false;
         seen.add(href + text);
         return true;
       })
-      .slice(0, 30)
+      .slice(0, 40)
       .map((a) => ({
         text: (a.textContent?.trim() ?? '').slice(0, 60),
         href: a.getAttribute('href') ?? '',
@@ -509,6 +514,10 @@ export async function playwrightAudit(opts: {
 
     // Aggregate summary
     const allNavLinks = results.flatMap((r) => r.navLinks);
+    const vendorFragmentation = analyzeVendorFragmentation(
+      allNavLinks.map((l) => ({ text: l.text, href: l.href })),
+      url,
+    );
     const summary = {
       totalNavLinks: allNavLinks.length,
       brokenNavLinks: allNavLinks.filter((l) => !l.resolves).length,
@@ -525,6 +534,7 @@ export async function playwrightAudit(opts: {
       audited_at: new Date().toISOString(),
       results,
       summary,
+      vendorFragmentation,
     };
   } finally {
     await browser.close();
@@ -550,6 +560,15 @@ export function formatPlaywrightResults(
     `  Forms found: ${s.formsFound}`,
     `  CTA buttons: ${s.ctaButtons}`,
   );
+
+  if (data.vendorFragmentation?.vendors.length) {
+    const vf = data.vendorFragmentation;
+    lines.push(
+      `\nORDERING / VENDOR FRAGMENTATION — ${vf.score.toUpperCase()}`,
+      `  ${vf.summary}`,
+      ...vf.bullets.map((b) => `  • ${b}`),
+    );
+  }
 
   for (const r of data.results) {
     lines.push(`\n${r.viewport.toUpperCase()} (${r.width}×${r.height})`);
