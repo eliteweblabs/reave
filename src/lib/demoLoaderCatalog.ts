@@ -76,6 +76,13 @@ export const DEMO_LOADER_INCLUDED_CARDS: readonly DemoLoaderIncludedCardDef[] = 
  */
 export const DEMO_LOADER_SECTION_GROUPS = MODULE_DISPLAY_GROUPS;
 
+/**
+ * Deployed on production but not exercisable in a Railway demo suite
+ * (live Telnyx number / Apple Shortcuts + SIRI_API_KEY).
+ * Still listed with a green status; switches stay off.
+ */
+const DEMO_NON_SELECTABLE = new Set<string>(['sms', 'siri']);
+
 /** Full module list for the public demo loader UI (baseline modules excluded). */
 export function listDemoLoaderModules(): DemoLoaderModule[] {
   const productionFeatures = getProductionInstallFeatures();
@@ -85,6 +92,7 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
       const moduleId = demoModuleIdForFeature(m.feature);
       const deployed = m.status === 'deployed';
       const inProduction = productionFeatures.has(m.feature);
+      const selectable = !DEMO_NON_SELECTABLE.has(m.feature);
       return {
         moduleId,
         feature: m.feature,
@@ -92,7 +100,7 @@ export function listDemoLoaderModules(): DemoLoaderModule[] {
         blurb: FEATURE_BLURBS[m.feature] ?? '',
         status: m.status,
         inProduction,
-        toggleable: deployed && inProduction && Boolean(moduleId),
+        toggleable: deployed && inProduction && selectable && Boolean(moduleId),
         features: listMarketingFeaturesForModule(m.feature)
           .filter((f) => f.id !== m.feature)
           .map((f) => ({

@@ -32,6 +32,8 @@ const FEATURE_IDS_LIST = [
   'digital_signature',
   'voice',
   'vapi',
+  'sms',
+  'siri',
   'carddav',
   'scheduling',
   'dev_infra',

@@ -45,6 +45,23 @@ function configFeatures(slug: string): string[] {
   return Array.isArray(raw.features) ? raw.features : [];
 }
 
+assert.ok(FEATURE_IDS.includes('sms'));
+assert.ok(FEATURE_IDS.includes('siri'));
+assert.equal(FEATURE_LABELS.sms, 'Two-Way SMS');
+assert.equal(FEATURE_LABELS.siri, 'Siri Shortcuts');
+assert.match(FEATURE_BLURBS.sms, /cannot be tested in a demo environment/i);
+assert.match(FEATURE_BLURBS.siri, /cannot be tested in a demo environment/i);
+assert.equal(moduleDisplayGroupId('sms'), 'work');
+assert.equal(moduleDisplayGroupId('siri'), 'work');
+assert.equal(isPublicFeature('sms'), true);
+assert.equal(isPublicFeature('siri'), true);
+assert.ok(configFeatures('reave').includes('sms'));
+assert.ok(configFeatures('reave').includes('siri'));
+const smsId = Number(demoModuleIdForFeature('sms'));
+const siriId = Number(demoModuleIdForFeature('siri'));
+assert.ok(smsId >= 101 && smsId <= 200, 'sms should be in the Work 101–200 band');
+assert.ok(siriId >= 101 && siriId <= 200, 'siri should be in the Work 101–200 band');
+
 assert.ok(FEATURE_IDS.includes('dscr_calculator'));
 assert.equal(FEATURE_LABELS.dscr_calculator, 'DSCR Calculator');
 assert.ok(featureShowsDashboard('dscr_calculator'));
@@ -284,6 +301,10 @@ const pluginOwnedRefs = [
   ['inventory', 'inventory-api-reference'],
   ['materials', 'materials-api-reference'],
   ['fleet', 'fleet-api-reference'],
+  ['siri', 'siri-shortcuts'],
+  ['siri', 'siri-quick-reference'],
+  ['siri', 'siri-examples'],
+  ['sms', 'sms'],
 ] as const;
 for (const [pluginId, slug] of pluginOwnedRefs) {
   assert.equal(

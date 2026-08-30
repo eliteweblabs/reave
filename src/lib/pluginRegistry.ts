@@ -22,6 +22,8 @@ import { analyticAuditPlugin } from '../../plugins/analytic-audit/manifest';
 import { siteMonitoringPlugin } from '../../plugins/site-monitoring/manifest';
 import { uptimeMonitoringPlugin } from '../../plugins/uptime-monitoring/manifest';
 import { vapiPlugin } from '../../plugins/vapi/manifest';
+import { smsPlugin } from '../../plugins/sms/manifest';
+import { siriPlugin } from '../../plugins/siri/manifest';
 import { fleetPlugin } from '../../plugins/fleet/manifest';
 import { paulinoWizardPlugin } from '../../plugins/paulino-wizard/manifest';
 import { demoPlugin } from '../../plugins/demo/manifest';
@@ -56,6 +58,8 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   siteMonitoringPlugin,
   uptimeMonitoringPlugin,
   vapiPlugin,
+  smsPlugin,
+  siriPlugin,
   fleetPlugin,
   paulinoWizardPlugin,
   demoPlugin,
@@ -159,9 +163,6 @@ export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'git-workflow',
   'contact-import',
   'email-rules',
-  'siri-examples',
-  'siri-quick-reference',
-  'siri-shortcuts',
   'media-drop-folder',
   'agent-recall',
 ]);
@@ -179,6 +180,10 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['crater-billing'];
     case 'carddav':
       return ['carddav'];
+    case 'sms':
+      return ['sms'];
+    case 'siri':
+      return ['siri-examples', 'siri-quick-reference', 'siri-shortcuts'];
     case 'client-portal':
       return ['client-portal'];
     case 'dev-infra':

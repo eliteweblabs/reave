@@ -21,6 +21,8 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   digital_signature: { amount: 175, interval: 'once', currency: 'usd' },
   voice: { amount: 250, interval: 'once', currency: 'usd' },
   vapi: { amount: 250, interval: 'once', currency: 'usd' },
+  sms: { amount: 200, interval: 'once', currency: 'usd' },
+  siri: { amount: 150, interval: 'once', currency: 'usd' },
   carddav: { amount: 150, interval: 'once', currency: 'usd' },
   scheduling: { amount: 175, interval: 'once', currency: 'usd' },
   email_marketing: { amount: 200, interval: 'once', currency: 'usd' },

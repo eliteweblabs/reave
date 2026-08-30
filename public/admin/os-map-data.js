@@ -25,7 +25,7 @@ const SYSTEM_NODES = [
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats · @mentions · Settings', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · @mentions · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
   { id: 'vapi', title: 'Vapi', sub: 'Live Speak Agent Widget · disabled on this install', icon: '🎙️', hue: 310, status: false, ghost: true, group: 'clients', x: 60, y: 520 },
-  { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice · agent prompt · audits · payments · time tracking', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
+  { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · FEATURES: siri · Apple Shortcuts · agent prompt · audits · payments · time tracking', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
   { id: 'digital_audit', title: 'Digital Audit', sub: '/digital-audit · /api/digital-audit · site_audits · same Siri pipeline', icon: '🔎', hue: 160, status: true, group: 'clients', x: 60, y: 910 },
 
   // App hub (Railway / hosting)
@@ -79,7 +79,7 @@ const SYSTEM_NODES = [
   { id: 'kinsta_api', title: 'Kinsta API', sub: 'outbound · list_kinsta_sites · clear cache', icon: '🟣', brand: 'kinsta', hue: 280, status: true, group: 'external', x: 1160, y: 460 },
   { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound compose/scheduled/portal · sent CID hydrate', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
   { id: 'github', title: 'GitHub', sub: 'owner/repo · REST · create repo · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
-  { id: 'telnyx', title: 'Telnyx', sub: 'SMS · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
+  { id: 'telnyx', title: 'Telnyx', sub: 'SMS (FEATURES: sms) · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
   { id: 'wayback', title: 'Wayback Machine', sub: 'Internet Archive snapshots (FEATURES: wayback_machine)', icon: '🕰️', brand: 'internetarchive', hue: 42, status: true, group: 'external', x: 1160, y: 880 },
   { id: 'changedetection', title: 'ChangeDetection.io', sub: 'site watches (FEATURES: site_monitoring)', icon: '👁️', hue: 55, status: true, group: 'external', x: 1160, y: 940 },
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },

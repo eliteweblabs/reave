@@ -23,7 +23,16 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
   {
     id: 'work',
     title: 'Work',
-    features: ['billing', 'documents', 'digital_signature', 'scheduling', 'time_tracking', 'email_marketing'],
+    features: [
+      'billing',
+      'documents',
+      'digital_signature',
+      'scheduling',
+      'time_tracking',
+      'email_marketing',
+      'sms',
+      'siri',
+    ],
   },
   {
     id: 'google_workspace',

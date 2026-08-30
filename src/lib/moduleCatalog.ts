@@ -425,6 +425,8 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   digital_signature: ['law', 'lawyers', 'real-estate-agents', 'general', 'plumbing', 'electricians'],
   voice: ['hair-stylists', 'general', 'plumbing', 'electricians', 'law', 'lawyers', 'marketers', 'real-estate-agents'],
   vapi: ['hair-stylists', 'general', 'plumbing', 'electricians', 'law', 'lawyers', 'marketers'],
+  sms: ALL_INDUSTRIES,
+  siri: ALL_INDUSTRIES,
   email_marketing: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'real-estate-agents', 'entrepreneurs'],
   social_inbox: ['marketers', 'hair-stylists', 'artists', 'creators', 'designers', 'real-estate-agents'],
   online_reviews: ['hair-stylists', 'marketers', 'general', 'plumbing', 'electricians', 'artists', 'creators'],

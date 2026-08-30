@@ -19,6 +19,8 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   digital_signature: ['documents'],
   voice: ['__system__'],
   vapi: ['vapi'],
+  sms: ['clients', 'chats'],
+  siri: ['__system__'],
   carddav: ['profile'],
   scheduling: ['schedule'],
   dev_infra: ['__system__'],

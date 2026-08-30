@@ -53,14 +53,6 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
     spotlight: true,
   },
   {
-    id: 'siri',
-    label: 'Siri-Ready',
-    modules: [],
-    kind: 'capability',
-    href: '/features#feature-siri',
-    spotlight: true,
-  },
-  {
     id: 'white-label',
     label: 'White Labeled',
     modules: [],
@@ -123,13 +115,6 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
-    id: 'two-way-sms',
-    label: 'Two-Way SMS',
-    modules: [],
-    kind: 'capability',
-    href: '/features#feature-sms',
-  },
-  {
     id: 'read-receipts',
     label: 'Read Receipts & Engagement',
     modules: [],
@@ -164,6 +149,21 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
   },
 
   // —— Module-dependent ——
+  {
+    id: 'siri',
+    label: 'Siri-Ready',
+    modules: ['siri'],
+    kind: 'capability',
+    href: '/features#feature-siri',
+    spotlight: true,
+  },
+  {
+    id: 'sms',
+    label: 'Two-Way SMS',
+    modules: ['sms'],
+    kind: 'capability',
+    href: '/features#feature-sms',
+  },
   {
     id: 'client-portal',
     label: 'Client Portal',

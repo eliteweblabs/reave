@@ -11,6 +11,8 @@
     "documents",
     "digital_signature",
     "voice",
+    "sms",
+    "siri",
     "carddav",
     "scheduling",
     "dev_infra",
