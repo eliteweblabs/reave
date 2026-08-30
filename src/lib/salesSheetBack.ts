@@ -28,6 +28,8 @@ export type SalesSheetBackLogo = {
   name: string;
   src: string;
   slug?: string;
+  /** Visual scale vs peers (1 = default). */
+  scale?: number;
 };
 
 export type SalesSheetBackModule = {
@@ -167,18 +169,26 @@ function displaySlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-function loadAboutClientLogos(): { name: string; src: string }[] {
+function loadAboutClientLogos(): { name: string; src: string; scale?: number }[] {
   const path = join(projectRoot(), 'config', 'sites', 'reave-config.json');
   if (!existsSync(path)) return [];
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as {
-      clientLogos?: { name?: string; image?: string }[];
+      clientLogos?: { name?: string; image?: string; scale?: number }[];
     };
     return (raw.clientLogos || [])
-      .map((logo) => ({
-        name: String(logo.name || '').trim(),
-        src: clientLogoSrc(logo.image),
-      }))
+      .map((logo) => {
+        const scaleRaw = Number(logo.scale);
+        const scale =
+          Number.isFinite(scaleRaw) && scaleRaw > 0 && scaleRaw !== 1
+            ? Math.min(2, Math.max(0.25, scaleRaw))
+            : undefined;
+        return {
+          name: String(logo.name || '').trim(),
+          src: clientLogoSrc(logo.image),
+          ...(scale != null ? { scale } : {}),
+        };
+      })
       .filter((logo) => logo.name && logo.src);
   } catch {
     return [];
@@ -194,6 +204,7 @@ export function salesSheetClientLogos(): SalesSheetBackLogo[] {
       name: logo.name,
       slug: mediaSlugFromSrc(logo.src) || displaySlug(logo.name),
       src: logo.src,
+      ...(logo.scale != null ? { scale: logo.scale } : {}),
     }];
   });
 }
@@ -263,7 +274,11 @@ function reaveIconPngHtml(src: string): string {
 
 function stackLogoHtml(logo: SalesSheetBackLogo): string {
   const slug = (logo.slug || logo.name).toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  return `<li class="ss-stack-item" data-stack="${esc(slug)}">
+  const scaleStyle =
+    logo.scale != null && logo.scale > 0 && logo.scale !== 1
+      ? ` style="--logo-scale: ${logo.scale}"`
+      : '';
+  return `<li class="ss-stack-item" data-stack="${esc(slug)}"${scaleStyle}>
   <img class="ss-stack-logo" src="${esc(logo.src)}" alt="${esc(logo.name)}" />
 </li>`;
 }
@@ -721,7 +736,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
 }
 .ss-sheet-back .ss-stack-logo {
   display: block;
-  height: clamp(13px, 1.85cqi, 18px);
+  height: calc(clamp(13px, 1.85cqi, 18px) * var(--logo-scale, 1));
   width: auto;
   max-width: 100%;
   object-fit: contain;

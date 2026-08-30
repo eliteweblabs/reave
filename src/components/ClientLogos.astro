@@ -9,6 +9,7 @@ interface ClientLogo {
   src: string;
   width: number;
   height: number;
+  scale?: number;
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -29,6 +30,7 @@ const logos: ClientLogo[] = shuffle(
     src: logo.image,
     width: logo.width,
     height: logo.height,
+    scale: logo.scale,
   })),
 );
 
@@ -76,6 +78,7 @@ const reels = dealt.map((reel, col) => {
                   <div
                     class="client-logo-item"
                     aria-hidden={index > 0 ? "true" : undefined}
+                    style={logo.scale != null ? `--logo-scale: ${logo.scale}` : undefined}
                   >
                     <img
                       src={logo.src}
@@ -267,7 +270,7 @@ const reels = dealt.map((reel, col) => {
 
   .client-logo-item img {
     display: block;
-    height: 28px;
+    height: calc(28px * var(--logo-scale, 1));
     width: auto;
     max-width: 100%;
     object-fit: contain;
@@ -291,7 +294,7 @@ const reels = dealt.map((reel, col) => {
     }
 
     .client-logo-item img {
-      height: 32px;
+      height: calc(32px * var(--logo-scale, 1));
     }
   }
 

@@ -195,7 +195,8 @@
       "name": "Worcester Polytechnic Institute",
       "image": "client-wpi",
       "width": 195.133,
-      "height": 73.07
+      "height": 73.07,
+      "scale": 0.67
     },
     {
       "name": "Kingdom Trails",

@@ -62,6 +62,8 @@ export type SiteClientLogo = {
   image: string;
   width: number;
   height: number;
+  /** Visual scale vs peers (1 = default). Use below 1 when a mark fills its box heavier. */
+  scale?: number;
 };
 
 export type SitePortfolioSize = '1x1' | '2x1' | '3x1' | '1x2' | '2x2' | '3x2' | '4x1';
@@ -327,12 +329,20 @@ function resolveHeroDemoAvatars(
 function resolveClientLogos(raw: SiteClientLogo[] | undefined): SiteClientLogo[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const logos = raw
-    .map((logo) => ({
-      name: String(logo.name || '').trim(),
-      image: siteMediaSrc(logo.image),
-      width: Number(logo.width) || 24,
-      height: Number(logo.height) || 24,
-    }))
+    .map((logo) => {
+      const scaleRaw = Number(logo.scale);
+      const scale =
+        Number.isFinite(scaleRaw) && scaleRaw > 0 && scaleRaw !== 1
+          ? Math.min(2, Math.max(0.25, scaleRaw))
+          : undefined;
+      return {
+        name: String(logo.name || '').trim(),
+        image: siteMediaSrc(logo.image),
+        width: Number(logo.width) || 24,
+        height: Number(logo.height) || 24,
+        ...(scale != null ? { scale } : {}),
+      };
+    })
     .filter((logo) => logo.name && logo.image);
   return logos.length ? logos : undefined;
 }
