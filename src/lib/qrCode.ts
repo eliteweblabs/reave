@@ -1,6 +1,7 @@
 /**
  * QR code generation for project portal / tracked share links.
  * Centers the company icon (SVG → image → initials) on a white quiet zone (high ECC).
+ * Default module style is dots (circular data modules + rounded finder eyes).
  */
 import { readFile } from 'fs/promises';
 import { join } from 'path';
@@ -20,6 +21,13 @@ import { adaptLogoContrast } from './logoContrastAdapt';
 
 const QR_DARK = '#111111';
 const QR_LIGHT = '#ffffff';
+
+/** Module drawing style. `dots` = circular data modules + rounded finder eyes. */
+export type QrModuleStyle = 'square' | 'dots';
+
+export type QrCodeRenderOptions = {
+  style?: QrModuleStyle;
+};
 
 /**
  * Icon footprint as a fraction of QR width.
@@ -135,21 +143,121 @@ async function brandIconOverlay(
   return { input: overlay, left, top };
 }
 
+function isFinderModule(row: number, col: number, n: number): boolean {
+  if (row < 7 && col < 7) return true;
+  if (row < 7 && col >= n - 7) return true;
+  if (row >= n - 7 && col < 7) return true;
+  return false;
+}
+
+function finderOrigins(n: number): Array<{ row: number; col: number }> {
+  return [
+    { row: 0, col: 0 },
+    { row: 0, col: n - 7 },
+    { row: n - 7, col: 0 },
+  ];
+}
+
+/** Escape for SVG attribute text (fill colors are constants; url is never embedded). */
+function escAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+/**
+ * Build an SVG QR. `dots` draws circular data modules and rounded finder eyes;
+ * `square` matches the classic block look from `qrcode` PNG output.
+ */
+export function qrCodeSvg(
+  text: string,
+  size: number,
+  style: QrModuleStyle = 'dots',
+): string {
+  const url = text.trim();
+  const qr = QRCode.create(url, { errorCorrectionLevel: 'H' });
+  const modules = qr.modules;
+  const n = modules.size;
+  const margin = 1;
+  const total = n + margin * 2;
+  const cell = size / total;
+  const dark = escAttr(QR_DARK);
+  const light = escAttr(QR_LIGHT);
+
+  const parts: string[] = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" shape-rendering="geometricPrecision">`,
+    `<rect width="${size}" height="${size}" fill="${light}"/>`,
+  ];
+
+  const modX = (col: number) => (col + margin) * cell;
+  const modY = (row: number) => (row + margin) * cell;
+
+  if (style === 'dots') {
+    for (const { row, col } of finderOrigins(n)) {
+      const x = modX(col);
+      const y = modY(row);
+      const outerR = cell * 1.15;
+      const midR = cell * 0.85;
+      const pupilR = cell * 1.35;
+      parts.push(
+        `<rect x="${x}" y="${y}" width="${7 * cell}" height="${7 * cell}" rx="${outerR}" ry="${outerR}" fill="${dark}"/>`,
+        `<rect x="${x + cell}" y="${y + cell}" width="${5 * cell}" height="${5 * cell}" rx="${midR}" ry="${midR}" fill="${light}"/>`,
+        `<circle cx="${x + 3.5 * cell}" cy="${y + 3.5 * cell}" r="${pupilR}" fill="${dark}"/>`,
+      );
+    }
+
+    const r = cell * 0.42;
+    for (let row = 0; row < n; row++) {
+      for (let col = 0; col < n; col++) {
+        if (!modules.get(row, col) || isFinderModule(row, col, n)) continue;
+        const cx = modX(col) + cell / 2;
+        const cy = modY(row) + cell / 2;
+        parts.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${dark}"/>`);
+      }
+    }
+  } else {
+    for (let row = 0; row < n; row++) {
+      for (let col = 0; col < n; col++) {
+        if (!modules.get(row, col)) continue;
+        parts.push(
+          `<rect x="${modX(col)}" y="${modY(row)}" width="${cell}" height="${cell}" fill="${dark}"/>`,
+        );
+      }
+    }
+  }
+
+  parts.push('</svg>');
+  return parts.join('');
+}
+
+async function qrMatrixPng(
+  text: string,
+  size: number,
+  style: QrModuleStyle,
+): Promise<Buffer> {
+  if (style === 'square') {
+    return QRCode.toBuffer(text.trim(), {
+      width: size,
+      margin: 1,
+      errorCorrectionLevel: 'H',
+      color: { dark: QR_DARK, light: QR_LIGHT },
+      type: 'png',
+    });
+  }
+
+  const svg = qrCodeSvg(text, size, 'dots');
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
 export async function qrCodeDataUrl(
   text: string,
   size = 160,
   stored?: StoredCompanyConfig | null,
+  opts?: QrCodeRenderOptions,
 ): Promise<string> {
   const url = text.trim();
   if (!url) return '';
 
-  const qrBuffer = await QRCode.toBuffer(url, {
-    width: size,
-    margin: 1,
-    errorCorrectionLevel: 'H',
-    color: { dark: QR_DARK, light: QR_LIGHT },
-    type: 'png',
-  });
+  const style: QrModuleStyle = opts?.style ?? 'dots';
+  const qrBuffer = await qrMatrixPng(url, size, style);
 
   const logo = await brandIconOverlay(size, stored);
   const composed = await sharp(qrBuffer)
