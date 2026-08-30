@@ -4687,7 +4687,8 @@ button.de-placeholder-action:active {
   height: 1.65rem;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--card);
+  /* Light pad — transparent dark brand marks vanish on --card / dark rows. */
+  background: #fff;
   border: 1px solid var(--panel-border);
 }
 .sidebar-list-author-icon.list-select-icon {

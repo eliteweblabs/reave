@@ -526,7 +526,13 @@ select,
   width: 2rem;
   height: 2rem;
   border-radius: 8px;
-  object-fit: cover;
+  /* Light pad so transparent dark company marks (SVG → PNG with transparent=1)
+     stay readable on dark notice cards. Google favicons (Apple, etc.) already
+     bake in a white field — same look either way. */
+  background: #fff;
+  object-fit: contain;
+  padding: 2px;
+  box-sizing: border-box;
 }
 .admin-setup-alert--receipt {
   --notice-accent: 52, 211, 153;
