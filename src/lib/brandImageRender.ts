@@ -121,7 +121,7 @@ export function collectLogoWordmarkSources(stored: StoredCompanyConfig | null): 
   return sources;
 }
 
-const LOGO_WORDMARK_MAX_HEIGHT = 256;
+const LOGO_WORDMARK_MAX_HEIGHT = 640;
 
 async function rasterizeWordmark(source: BrandMarkSource, maxHeight: number): Promise<Buffer | null> {
   try {
