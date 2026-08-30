@@ -1458,7 +1458,7 @@ button.de-placeholder-action:active {
   flex-direction: column;
   gap: 0.1rem;
 }
-.re-rule-test-item .ios-switch {
+.re-rule-test-item .prof-plugin-toggle {
   flex-shrink: 0;
 }
 .re-rule-test-from {
