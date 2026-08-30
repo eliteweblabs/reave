@@ -28,6 +28,7 @@
     "tagline": "One licensed plumber. Clear answers. I come to you across Essex County and the Boston area.",
     "heroHeadline": "Burst pipe? Call now.",
     "heroBody": "When water is going where it shouldn’t, you want a real plumber on the phone — not a call center. Sixteen years on the tools. Fully licensed in Massachusetts. Side work and emergencies welcome.",
+    "heroLogo": "/sites/pattheplumber/logo.png",
     "callCta": {
       "label": "Call Pat now",
       "stickyLabel": "Call now"
@@ -50,6 +51,27 @@
         {
           "label": "Side work and same-day help when you need someone now",
           "icon": "/sites/pattheplumber/service-ready.png"
+        }
+      ]
+    },
+    "reviews": {
+      "heading": "What neighbors say",
+      "intro": "Placeholder quotes for now — real reviews coming soon.",
+      "items": [
+        {
+          "stars": "★★★★★",
+          "quote": "Pat showed up the same day our pipe burst and had water off and the fix underway before dinner. Straight talk, fair price.",
+          "cite": "— Winthrop homeowner"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "No call center, no runaround. You talk to Pat, he tells you what it will take, and he does the work. Exactly what we needed.",
+          "cite": "— East Boston"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Sixteen years shows. He diagnosed a leak two other guys missed and left the place cleaner than he found it.",
+          "cite": "— Lynn"
         }
       ]
     },

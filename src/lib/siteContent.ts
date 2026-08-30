@@ -241,6 +241,8 @@ export type SiteLandingConfig = {
   footer?: string;
   /** Full-bleed footer art (e.g. skyline banner). */
   footerImage?: string;
+  /** Static hero logo path — prefers over company branding when set. */
+  heroLogo?: string;
 };
 
 export type SiteContentConfig = {

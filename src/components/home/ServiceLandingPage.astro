@@ -31,48 +31,28 @@ const serviceItems =
   ) ?? [];
 const about = landing.about;
 const contact = landing.contact;
+const reviews = landing.reviews;
 const footerImage = landing.footerImage || "";
 
-const logoSrc =
-  company.logoPath && company.logoSource !== "hidden"
+/** Prefer a static site logo so admin branding reprocessing cannot mangle it. */
+const logoSrc = (landing.heroLogo || "").trim()
+  || (company.logoPath && company.logoSource !== "hidden"
     ? `${company.logoPath}${company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : ""}`
-    : "";
-const iconSrc =
-  company.iconPath && company.iconSource !== "hidden"
-    ? (() => {
-        const u = new URL(company.iconPath, "https://pat-the-plumber.com");
-        if (!u.searchParams.has("size")) u.searchParams.set("size", "192");
-        if (!u.searchParams.has("transparent")) u.searchParams.set("transparent", "1");
-        if (company.iconVersion) u.searchParams.set("v", company.iconVersion);
-        return `${u.pathname}${u.search}`;
-      })()
-    : "";
+    : "");
 ---
 
 <div class={`svc${footerImage ? " svc--skyline" : ""}`} data-has-phone={phoneHref ? "1" : "0"}>
-  <header class="svc-top">
+  <div class="svc-login-bar">
+    <a class="svc-login" href="/sign-in">Login</a>
     {
-      iconSrc ? (
-        <a class="svc-brand" href="/" aria-label={landing.name || company.name}>
-          <img class="svc-brand__mark" src={iconSrc} alt="" width="36" height="36" />
-          <span>{landing.name || company.name}</span>
+      phoneHref ? (
+        <a class="svc-top-call" href={phoneHref} aria-label={callLabel}>
+          <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
         </a>
-      ) : (
-        <p class="svc-brand">{landing.name || company.name}</p>
-      )
+      ) : null
     }
-    <div class="svc-top-actions">
-      <a class="svc-login" href="/sign-in">Login</a>
-      {
-        phoneHref ? (
-          <a class="svc-top-call" href={phoneHref} aria-label={callLabel}>
-            <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
-          </a>
-        ) : null
-      }
-    </div>
-  </header>
+  </div>
 
   <main class="svc-main">
     <section class="svc-hero">
@@ -82,8 +62,8 @@ const iconSrc =
             class="svc-logo"
             src={logoSrc}
             alt={landing.name || company.name}
-            width="320"
-            height="354"
+            width="907"
+            height="1014"
           />
         ) : null
       }
@@ -122,6 +102,24 @@ const iconSrc =
                   <img class="svc-services__icon" src={item.icon} alt="" width="72" height="72" />
                 ) : null}
                 <span>{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null
+    }
+
+    {
+      reviews?.items?.length ? (
+        <section class="svc-section" id="reviews">
+          <h2>{reviews.heading}</h2>
+          {reviews.intro && <p class="svc-copy">{reviews.intro}</p>}
+          <ul class="svc-reviews">
+            {reviews.items.map((item) => (
+              <li>
+                {item.stars && <p class="svc-reviews__stars">{item.stars}</p>}
+                <blockquote>“{item.quote}”</blockquote>
+                <cite>{item.cite}</cite>
               </li>
             ))}
           </ul>
@@ -230,53 +228,12 @@ const iconSrc =
     padding-bottom: 0;
   }
 
-  .svc-top {
-    position: sticky;
-    top: 0;
-    z-index: 30;
+  .svc-login-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding: calc(0.65rem + env(safe-area-inset-top, 0px)) 1rem 0.65rem;
-    background: rgba(244, 247, 251, 0.92);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-  }
-
-  .svc-brand {
-    display: inline-flex;
-    align-items: center;
+    justify-content: flex-end;
     gap: 0.55rem;
-    margin: 0;
-    min-width: 0;
-    color: inherit;
-    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    text-decoration: none;
-  }
-
-  .svc-brand__mark {
-    width: 2.05rem;
-    height: 2.05rem;
-    object-fit: contain;
-    flex-shrink: 0;
-  }
-
-  .svc-brand span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .svc-top-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    flex-shrink: 0;
+    padding: calc(0.65rem + env(safe-area-inset-top, 0px)) 1rem 0.25rem;
   }
 
   .svc-login {
@@ -305,19 +262,19 @@ const iconSrc =
   .svc-main {
     max-width: 34rem;
     margin: 0 auto;
-    padding: 1.25rem 1.15rem 2rem;
+    padding: 0.5rem 1.15rem 2rem;
   }
 
   .svc-hero {
-    padding: 1.25rem 0 1.75rem;
-    text-align: left;
+    padding: 0.5rem 0 1.75rem;
+    text-align: center;
   }
 
   .svc-logo {
     display: block;
-    width: min(13.5rem, 62vw);
+    width: min(20rem, 78vw);
     height: auto;
-    margin: 0 0 1rem;
+    margin: 0 auto 1.15rem;
     image-rendering: auto;
   }
 
@@ -340,7 +297,7 @@ const iconSrc =
   }
 
   .svc-lede {
-    margin: 0.9rem 0 0;
+    margin: 0.9rem auto 0;
     max-width: 28rem;
     color: var(--svc-muted);
     font-size: 1.05rem;
@@ -357,6 +314,7 @@ const iconSrc =
     border-radius: 1rem;
     background: var(--svc-call);
     color: var(--svc-call-ink) !important;
+    text-align: left;
     text-decoration: none !important;
     box-shadow: 0 14px 28px rgba(11, 110, 79, 0.28);
     transition: transform 0.15s ease, filter 0.15s ease;
@@ -394,7 +352,8 @@ const iconSrc =
   }
 
   .svc-tagline {
-    margin: 1rem 0 0;
+    margin: 1rem auto 0;
+    max-width: 28rem;
     color: var(--svc-muted);
     font-size: 0.95rem;
     line-height: 1.45;
@@ -404,6 +363,7 @@ const iconSrc =
     margin-top: 0.35rem;
     padding: 1.35rem 0 0.35rem;
     border-top: 1px solid var(--svc-line);
+    text-align: left;
   }
 
   .svc-section h2 {
@@ -417,7 +377,8 @@ const iconSrc =
   .svc-list,
   .svc-highlights,
   .svc-contact,
-  .svc-services {
+  .svc-services,
+  .svc-reviews {
     margin: 0;
     padding: 0;
     list-style: none;
@@ -471,6 +432,42 @@ const iconSrc =
     width: 4.25rem;
     height: 4.25rem;
     object-fit: contain;
+  }
+
+  .svc-reviews {
+    display: grid;
+    gap: 0.9rem;
+  }
+
+  .svc-reviews li {
+    padding: 1rem 1.05rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.78);
+  }
+
+  .svc-reviews__stars {
+    margin: 0 0 0.45rem;
+    color: #b45309;
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+  }
+
+  .svc-reviews blockquote {
+    margin: 0;
+    color: var(--svc-ink);
+    font-size: 1.02rem;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+
+  .svc-reviews cite {
+    display: block;
+    margin-top: 0.65rem;
+    color: var(--svc-muted);
+    font-size: 0.88rem;
+    font-style: normal;
+    font-weight: 600;
   }
 
   .svc-copy {
@@ -618,8 +615,12 @@ const iconSrc =
       max-width: 40rem;
     }
 
+    .svc-logo {
+      width: min(22rem, 58vw);
+    }
+
     .svc-hero {
-      padding-top: 2rem;
+      padding-top: 1rem;
     }
   }
 </style>
