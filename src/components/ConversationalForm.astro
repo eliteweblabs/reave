@@ -3,6 +3,11 @@ interface Props {
   slug: string;
   /** Inline on marketing pages instead of full-screen /form route. */
   embedded?: boolean;
+  /**
+   * Compact footer dock: input only until the user sends.
+   * Skips the opening robot greeting so a host intro bubble can sit above.
+   */
+  dock?: boolean;
   /** Brand name for SMS consent disclaimer copy. */
   brandName?: string;
   /** Override the first field’s input placeholder (embedded footers, etc.). */
@@ -12,16 +17,21 @@ interface Props {
 const {
   slug,
   embedded = false,
+  dock = false,
   brandName = "reave.app",
   inputPlaceholder = "",
 } = Astro.props;
 const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
-const rootClass = embedded
-  ? "conversational-form-root conversational-form-root--embedded"
-  : "conversational-form-root";
+const rootClass = [
+  "conversational-form-root",
+  embedded || dock ? "conversational-form-root--embedded" : "",
+  dock ? "conversational-form-root--dock" : "",
+]
+  .filter(Boolean)
+  .join(" ");
 ---
 
-<div class={rootClass}>
+<div class={rootClass} data-cf-dock={dock ? "1" : undefined}>
   <form id="conversational-form" class="conversation">
     <div class="conversation-scroll" id="conversation-scroll">
       <div id="questions-container"></div>
@@ -196,6 +206,42 @@ const rootClass = embedded
     max-width: none;
     margin-top: 8px;
     z-index: 1;
+  }
+
+  .conversational-form-root--dock {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .conversational-form-root--dock:not(.is-active) .conversation-scroll,
+  .conversational-form-root--dock:not(.is-active) #success-message,
+  .conversational-form-root--dock:not(.is-active) #error-message {
+    display: none;
+  }
+
+  .conversational-form-root--dock .input-area {
+    position: static;
+    margin-top: 0;
+  }
+
+  .conversational-form-root--dock.is-active {
+    padding: 0.75rem 0.85rem 0.85rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  }
+
+  .conversational-form-root--dock.is-active .conversation-scroll {
+    display: flex;
+    max-height: min(32vh, 14rem);
+  }
+
+  .conversational-form-root--dock.is-active .input-area {
+    margin-top: 0.55rem;
   }
 
   .conversational-form-root .input-pill {
@@ -391,11 +437,12 @@ const rootClass = embedded
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, brandName, embedded, inputPlaceholder }}>
+<script define:vars={{ bookingApiUrl, slug, brandName, embedded, dock, inputPlaceholder }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
   const BRAND_NAME = brandName;
-  const IS_EMBEDDED = Boolean(embedded);
+  const IS_EMBEDDED = Boolean(embedded) || Boolean(dock);
+  const IS_DOCK = Boolean(dock);
   const INPUT_PLACEHOLDER_OVERRIDE = String(inputPlaceholder || "").trim();
   const SMS_USE_CASES = "inquiry updates and appointment reminders";
 
@@ -511,6 +558,43 @@ const rootClass = embedded
     return skipped;
   }
 
+  function activateDock() {
+    const el = root();
+    if (!el || !IS_DOCK || el.classList.contains("is-active")) return;
+    el.classList.add("is-active");
+    el.dispatchEvent(new CustomEvent("cf-dock-expand", { bubbles: true }));
+  }
+
+  async function prepareDockField() {
+    const field = advanceToNextVisibleField();
+    if (!field) {
+      activateDock();
+      await submitForm();
+      return;
+    }
+    if (
+      field.type === "availability" ||
+      (field.type === "select" && field.options) ||
+      field.type === "sms_consent"
+    ) {
+      activateDock();
+      await showQuestion();
+      return;
+    }
+    const questionText = field["cf-questions"] || `What's your ${field.name}?`;
+    const parts = questionText.split("&&").map((s) => s.trim());
+    const promptLine = parts[parts.length - 1];
+    const defaultPlaceholder = placeholderForField(field, promptLine);
+    const placeholder = INPUT_PLACEHOLDER_OVERRIDE || defaultPlaceholder;
+    setInputVisible(true);
+    inputModeForField(field);
+    if (userInput()) {
+      userInput().placeholder = placeholder;
+      userInput().setAttribute("aria-label", promptLine || placeholder);
+      userInput().value = "";
+    }
+  }
+
   async function loadForm() {
     urlPrefill = getPrefillFromUrl();
     try {
@@ -521,13 +605,20 @@ const rootClass = embedded
       if (skipped > 0 && urlPrefill.name) {
         const firstName = firstNameFrom(urlPrefill.name);
         if (firstName) {
+          activateDock();
           await appendTypewriter(`Hi ${firstName}!`);
           await delay(300);
         }
       }
-      await showQuestion();
+      if (IS_DOCK && skipped === 0) {
+        await prepareDockField();
+      } else {
+        if (skipped > 0) activateDock();
+        await showQuestion();
+      }
     } catch (err) {
       console.error(err);
+      activateDock();
       showError("This form could not be loaded. Please try again later.");
     }
   }
@@ -825,6 +916,7 @@ const rootClass = embedded
   }
 
   async function submitForm() {
+    activateDock();
     root()?.querySelector("#conversational-form")?.classList.add("hidden");
 
     if (formDef.submitEndpoint) {
@@ -868,6 +960,7 @@ const rootClass = embedded
   }
 
   function showError(msg) {
+    activateDock();
     root()?.querySelector("#error-message")?.classList.remove("hidden");
     const errorText = root()?.querySelector("#error-text");
     if (errorText) errorText.textContent = msg;
@@ -881,6 +974,7 @@ const rootClass = embedded
     const field = formDef?.fields[currentFieldIndex];
     if (!field) return;
 
+    activateDock();
     appendMessage(value, "user");
     formData[field.name] = value;
     userInput().value = "";

@@ -213,6 +213,8 @@ export type SiteLandingConfig = {
     formSlug?: string | false;
     /** Placeholder on the footer chat input (default “How can I help you?”). */
     dockPlaceholder?: string;
+    /** Short Pat/owner intro lines — one is picked at random after scroll + 3s. */
+    introPhrases?: string[];
   };
   steps?: {
     heading: string;

@@ -53,7 +53,12 @@
     },
     "schedule": {
       "formSlug": "schedule",
-      "dockPlaceholder": "How can I help you?"
+      "dockPlaceholder": "How can I help you?",
+      "introPhrases": [
+        "Hi! this is Pat, what’s up?",
+        "Pat here, anything I can help with?",
+        "Don’t get💩 on your hands. Call a pro"
+      ]
     },
     "services": {
       "heading": "What I handle",
