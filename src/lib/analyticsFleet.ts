@@ -25,8 +25,8 @@ import {
 import { isKinstaConfigured } from './kinstaClient';
 import { isRailwayConfigured } from './railwayClient';
 
-export type { AnalyticsAccountRow, AnalyticsFleetPreview } from './analyticsSiteMerge';
-export { summarizeAnalyticsAccounts } from './analyticsSiteMerge';
+export type { AnalyticsAccountRow, AnalyticsFleetPreview, DashboardSiteCard } from './analyticsSiteMerge';
+export { mergeDashboardSiteCards, summarizeAnalyticsAccounts } from './analyticsSiteMerge';
 
 export type AnalyticsSyncItem = {
   siteId: string;
