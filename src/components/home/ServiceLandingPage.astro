@@ -27,11 +27,35 @@ const stickyLabel = landing.callCta?.stickyLabel || callLabel;
 const services = landing.services;
 const about = landing.about;
 const contact = landing.contact;
+
+const logoSrc =
+  company.logoPath && company.logoSource !== "hidden"
+    ? `${company.logoPath}${company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : ""}`
+    : "";
+const iconSrc =
+  company.iconPath && company.iconSource !== "hidden"
+    ? (() => {
+        const u = new URL(company.iconPath, "https://pat-the-plumber.com");
+        if (!u.searchParams.has("size")) u.searchParams.set("size", "192");
+        if (!u.searchParams.has("transparent")) u.searchParams.set("transparent", "1");
+        if (company.iconVersion) u.searchParams.set("v", company.iconVersion);
+        return `${u.pathname}${u.search}`;
+      })()
+    : "";
 ---
 
 <div class="svc" data-has-phone={phoneHref ? "1" : "0"}>
   <header class="svc-top">
-    <p class="svc-brand">{landing.name || company.name}</p>
+    {
+      iconSrc ? (
+        <a class="svc-brand" href="/" aria-label={landing.name || company.name}>
+          <img class="svc-brand__mark" src={iconSrc} alt="" width="36" height="36" />
+          <span>{landing.name || company.name}</span>
+        </a>
+      ) : (
+        <p class="svc-brand">{landing.name || company.name}</p>
+      )
+    }
     {
       phoneHref ? (
         <a class="svc-top-call" href={phoneHref} aria-label={callLabel}>
@@ -44,6 +68,17 @@ const contact = landing.contact;
 
   <main class="svc-main">
     <section class="svc-hero">
+      {
+        logoSrc ? (
+          <img
+            class="svc-logo"
+            src={logoSrc}
+            alt={landing.name || company.name}
+            width="280"
+            height="310"
+          />
+        ) : null
+      }
       {landing.eyebrow && <p class="svc-eyebrow">{landing.eyebrow}</p>}
       <h1>{landing.heroHeadline || landing.name || company.name}</h1>
       {
@@ -173,12 +208,31 @@ const contact = landing.contact;
   }
 
   .svc-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
     margin: 0;
+    min-width: 0;
+    color: inherit;
     font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
     font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+    text-decoration: none;
+  }
+
+  .svc-brand__mark {
+    width: 2.05rem;
+    height: 2.05rem;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  .svc-brand span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .svc-top-call {
@@ -201,6 +255,13 @@ const contact = landing.contact;
   .svc-hero {
     padding: 1.25rem 0 1.75rem;
     text-align: left;
+  }
+
+  .svc-logo {
+    display: block;
+    width: min(11.5rem, 58vw);
+    height: auto;
+    margin: 0 0 1rem;
   }
 
   .svc-eyebrow {
