@@ -2,6 +2,7 @@
  * Pure merge / summary helpers for the Analytics fleet (no I/O).
  */
 import { hostnameFromWebsite } from './plausibleClient';
+import { isApexPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
 
 export type AnalyticsSiteKind = 'agency' | 'railway' | 'kinsta';
 
@@ -36,6 +37,27 @@ export type AnalyticsFleetPreview = {
   sites: AnalyticsAccountRow[];
 };
 
+/** Minimal uptime monitor fields needed to join with analytics apex sites. */
+export type UptimeMonitorForFleetMerge = {
+  id?: number | string;
+  friendly_name?: string | null;
+  url?: string | null;
+  status?: number;
+  is_paused?: boolean;
+  is_offline?: boolean;
+  is_down?: boolean;
+  tile_label?: string | null;
+  uptime_ratio_7d?: number | null;
+};
+
+/** One home-dashboard card: apex domain with optional uptime + analytics. */
+export type DashboardSiteCard = {
+  siteId: string;
+  label: string;
+  monitor: UptimeMonitorForFleetMerge | null;
+  analytics: AnalyticsAccountRow | null;
+};
+
 export function mergeAnalyticsSites(
   parts: Array<AnalyticsSiteOption | null | undefined>,
 ): AnalyticsSiteOption[] {
@@ -58,13 +80,58 @@ export function mergeAnalyticsSites(
   return out;
 }
 
+/**
+ * Join UptimeRobot apex monitors with Plausible fleet rows into one card per apex.
+ * Friendly monitor names win for labels; analytics-only rows keep sourceLabel / domain.
+ */
+export function mergeDashboardSiteCards(
+  monitors: UptimeMonitorForFleetMerge[],
+  analyticsSites: AnalyticsAccountRow[],
+): DashboardSiteCard[] {
+  const byId = new Map<string, DashboardSiteCard>();
+
+  for (const site of analyticsSites) {
+    const siteId = hostnameFromWebsite(site.siteId) || normalizeMonitorHost(site.siteId);
+    if (!siteId || !isApexPublicWebsiteHost(siteId)) continue;
+    byId.set(siteId, {
+      siteId,
+      label: site.sourceLabel || site.label || siteId,
+      monitor: null,
+      analytics: { ...site, siteId },
+    });
+  }
+
+  for (const monitor of monitors) {
+    const host = normalizeMonitorHost(monitor.url);
+    if (!host || !isApexPublicWebsiteHost(host)) continue;
+    const existing = byId.get(host);
+    const friendly = typeof monitor.friendly_name === 'string' ? monitor.friendly_name.trim() : '';
+    if (existing) {
+      existing.monitor = monitor;
+      if (friendly) existing.label = friendly;
+      continue;
+    }
+    byId.set(host, {
+      siteId: host,
+      label: friendly || host,
+      monitor,
+      analytics: null,
+    });
+  }
+
+  return [...byId.values()].sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
+  );
+}
+
 export function summarizeAnalyticsAccounts(
   accounts: AnalyticsAccountRow[],
   rangeDays: number,
   opts: { configured?: boolean; limit?: number } = {},
 ): AnalyticsFleetPreview {
   const registered = accounts.filter((row) => row.registered);
-  const limit = opts.limit ?? 12;
+  // Home dashboard shows the full apex fleet (typically ~20–30 sites).
+  const limit = opts.limit ?? accounts.length;
   return {
     configured: opts.configured !== false,
     rangeDays,
@@ -74,6 +141,6 @@ export function summarizeAnalyticsAccounts(
     visitors: registered.reduce((sum, row) => sum + (row.visitors ?? 0), 0),
     pageviews: registered.reduce((sum, row) => sum + (row.pageviews ?? 0), 0),
     realtimeVisitors: registered.reduce((sum, row) => sum + (row.realtimeVisitors ?? 0), 0),
-    sites: accounts.slice(0, limit),
+    sites: limit >= accounts.length ? accounts.slice() : accounts.slice(0, limit),
   };
 }

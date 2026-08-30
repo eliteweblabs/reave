@@ -159,6 +159,10 @@
   color: var(--muted);
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dash-uptime-inc-head {
   margin: 0 0 0.35rem;
