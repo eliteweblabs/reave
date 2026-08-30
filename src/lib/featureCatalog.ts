@@ -137,6 +137,26 @@ export type ModuleMarketingCapability = {
 export const FEATURE_MARKETING: Partial<
   Record<FeatureId, readonly ModuleMarketingCapability[]>
 > = {
+  analytic_audit: [
+    {
+      id: 'sites_uptime',
+      label: 'Uptime Monitoring',
+      href: '/features#feature-analytic-audit',
+      blurb: 'UptimeRobot checks & outage alerts on every apex domain.',
+    },
+    {
+      id: 'sites_plausible',
+      label: 'Plausible Fleet',
+      href: '/features#feature-analytic-audit',
+      blurb: 'Visitor stats for Railway & Kinsta apex domains.',
+    },
+    {
+      id: 'sites_search_console',
+      label: 'Search Console',
+      href: '/features#feature-analytic-audit',
+      blurb: 'Google Search Console, GA4, & IndexNow on the same Sites surface.',
+    },
+  ],
   online_reviews: [
     { id: 'google_reviews_triage', label: 'Google™ Reviews Triage', href: '/modules' },
     { id: 'apple_maps_reviews_triage', label: 'Apple Maps Reviews Triage', href: '/modules' },
@@ -207,9 +227,9 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   portal_assistant: 'Client Portal Help Chat',
   billing: 'Crater Billing & Invoices',
   site_audits: 'Website Audit',
-  analytic_audit: 'Search & Analytics Audit',
+  analytic_audit: 'Sites',
   site_monitoring: 'Website Change Monitoring',
-  uptime_monitoring: 'Uptime Monitoring',
+  uptime_monitoring: 'Sites (Uptime)',
   documents: 'Dynamic Documents',
   digital_signature: 'Digital Signature',
   voice: 'Telnyx Voice Agent',
@@ -254,9 +274,10 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   portal_assistant: 'Speed-dial support chat for clients in the portal',
   billing: 'Get paid without leaving the work — send a quote, collect the invoice, or log a payment with Siri*.',
   site_audits: 'Automated website presence & technical audits',
-  analytic_audit: 'Google Search Console, GA4, Plausible, IndexNow',
+  analytic_audit:
+    'One fleet per apex domain — UptimeRobot status, Plausible visitors, Search Console, GA4, & IndexNow',
   site_monitoring: 'Watch pages for changes via ChangeDetection.io',
-  uptime_monitoring: 'UptimeRobot checks & outage alerts',
+  uptime_monitoring: 'Bundled with Sites — UptimeRobot checks & outage alerts',
   documents: 'Spins up pre-filled NDA, 1040, or anything else in a branded template with the client\'s name, company, & contact info — send it as-is, no editing.',
   digital_signature: 'They sign on their phone — legally binding, with a full audit trail of who, when, & from where.',
   voice: 'Phone agent & call routing on Telnyx',
@@ -319,6 +340,8 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
   dev_infra: 'private',
   code_dev: 'private',
   namecom_dns: 'private',
+  /** Bundled into Sites (`analytic_audit`) — not sold alone. */
+  uptime_monitoring: 'private',
   google_workspace: 'service',
   hosting_core_os: 'service',
   hosting_growth: 'service',
@@ -348,6 +371,9 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
  */
 export const FEATURE_REQUIRES: Partial<Record<FeatureId, readonly FeatureId[]>> = {
   digital_signature: ['documents'],
+  /** Sites = analytics fleet + uptime — enabling either turns on both. */
+  analytic_audit: ['uptime_monitoring'],
+  uptime_monitoring: ['analytic_audit'],
 };
 
 export function featureRequirements(id: string): FeatureId[] {

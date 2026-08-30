@@ -4,11 +4,11 @@ defaultStatus: deployed
 stage: 3
 ---
 
-# Uptime monitoring deployment
+# Sites (Uptime) — bundled with analytic_audit
 
-## Sibling services
+Uptime is part of the **Sites** module (`analytic_audit`). Enabling Sites turns on `uptime_monitoring` automatically. Do not sell or list this feature alone.
 
-- None — integrates with UptimeRobot API
+See [../analytic-audit/DEPLOY.md](../analytic-audit/DEPLOY.md) for the full Sites playbook.
 
 ## Required env vars
 
@@ -16,15 +16,8 @@ stage: 3
 - `UPTIMEROBOT_WEBHOOK_SECRET` — long random string for webhook auth
 - `UPTIMEROBOT_POLL_SECRET` — optional; defaults to webhook secret for cron poll
 
-## External setup
-
-- Enable `uptime_monitoring` in install config `features[]`
-- Create UptimeRobot webhook → `/api/uptime/webhook?key=<secret>`
-- Disable UptimeRobot email alerts once webhooks are verified
-
 ## Checklist
 
 - [ ] Set `UPTIMEROBOT_*` on Astro service
-- [ ] Configure webhook integration in UptimeRobot
-- [ ] Verify monitor status in admin dashboard
-- [ ] Set `moduleStatus.uptime_monitoring` → `deployed` in install config
+- [ ] Configure webhook → `/api/uptime/webhook?key=<secret>`
+- [ ] Verify monitor status on the Sites dashboard cards

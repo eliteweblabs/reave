@@ -262,7 +262,7 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
   },
   {
     id: 'analytic-audit',
-    label: 'Search & Analytics Audit',
+    label: 'Sites',
     modules: ['analytic_audit'],
     kind: 'capability',
   },
@@ -270,12 +270,6 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
     id: 'site-monitoring',
     label: 'Website Change Monitoring',
     modules: ['site_monitoring'],
-    kind: 'capability',
-  },
-  {
-    id: 'uptime-monitoring',
-    label: 'Uptime Monitoring',
-    modules: ['uptime_monitoring'],
     kind: 'capability',
   },
   {

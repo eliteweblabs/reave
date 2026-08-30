@@ -216,7 +216,7 @@ function analyticsSourceTabs(available) {
     ? available
     : ['plausible', 'ga4'];
   return (
-    `<div class="soc-range" role="tablist" aria-label="Analytics source">` +
+    `<div class="soc-range" role="tablist" aria-label="Sites source">` +
       sources
         .map(
           (s) =>
@@ -422,7 +422,7 @@ function renderAnalyticsDashboard(root, d, status) {
   const header =
     `<div class="soc-header">` +
       `<div class="soc-header-titles">` +
-        `<h1 class="soc-title">Analytics</h1>` +
+        `<h1 class="soc-title">Sites</h1>` +
         `<p class="soc-sub">${escHtml(siteId || 'Website analytics')} · ${escHtml(source)} · ${escHtml(rangeLabel)}` +
           (realtime != null ? ` · <span class="ana-live">${escHtml(realtime)} live</span>` : '') +
         `</p>` +
@@ -512,7 +512,7 @@ function renderAnalyticsAccounts(root, accounts, meta) {
   const header =
     `<div class="soc-header">` +
       `<div class="soc-header-titles">` +
-        `<h1 class="soc-title">Analytics</h1>` +
+        `<h1 class="soc-title">Sites</h1>` +
         `<p class="soc-sub">${escHtml(String(rows.length))} accounts · ${escHtml(String(registered))} wired · ${escHtml(analyticsNumFmt(visitors))} visitors · ` +
           `<span class="ana-live">${escHtml(analyticsNumFmt(live))} live</span>` +
           ` · ${escHtml(rangeLabel)}</p>` +

@@ -14,9 +14,8 @@ export type ModulePrice = {
 export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   billing: { amount: 200, interval: 'once', currency: 'usd' },
   site_audits: { amount: 200, interval: 'once', currency: 'usd' },
-  analytic_audit: { amount: 200, interval: 'once', currency: 'usd' },
+  analytic_audit: { amount: 275, interval: 'once', currency: 'usd' },
   site_monitoring: { amount: 175, interval: 'once', currency: 'usd' },
-  uptime_monitoring: { amount: 175, interval: 'once', currency: 'usd' },
   documents: { amount: 175, interval: 'once', currency: 'usd' },
   digital_signature: { amount: 175, interval: 'once', currency: 'usd' },
   voice: { amount: 250, interval: 'once', currency: 'usd' },
