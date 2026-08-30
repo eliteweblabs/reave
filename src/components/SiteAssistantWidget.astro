@@ -1,0 +1,73 @@
+---
+/** Public-site wrapper — `/api/site/assistant` + shared AssistantWidget sheet. */
+import AssistantWidget from './AssistantWidget.astro';
+import { siteAssistantGreetingForPath } from '../lib/siteAssistant';
+
+export interface Props {
+  brandTitle: string;
+  supportPhone?: string;
+  supportEmail?: string;
+  /** Current page path — used for a page-aware opening greeting. */
+  pagePath?: string;
+  /** Override the default path-based greeting. */
+  greeting?: string;
+  headerTitle?: string;
+  headerSubtitle?: string;
+  fabLabel?: string;
+  footerPrefix?: string;
+  inputPlaceholder?: string;
+  avatarSrc?: string;
+  /** Hide the FAB when a custom footer dock opens the sheet. */
+  hideFab?: boolean;
+  /** Slide the FAB in horizontally a few seconds after the user engages. */
+  revealFabOnEngagement?: boolean;
+  /** Slide the FAB away while a page hero / contact section is in view. */
+  hideFabForHero?: boolean;
+  heroSelector?: string;
+  contactSelector?: string;
+}
+
+const {
+  brandTitle,
+  supportPhone = '',
+  supportEmail = '',
+  pagePath = '',
+  greeting: greetingProp,
+  headerTitle = 'Help & Support',
+  headerSubtitle,
+  fabLabel,
+  footerPrefix = 'Urgent?',
+  inputPlaceholder,
+  avatarSrc,
+  hideFab = false,
+  revealFabOnEngagement = false,
+  hideFabForHero = false,
+  heroSelector,
+  contactSelector,
+} = Astro.props;
+
+const greeting =
+  (greetingProp || '').trim() ||
+  siteAssistantGreetingForPath(pagePath || Astro.url.pathname);
+---
+
+<AssistantWidget
+  instanceId="site"
+  endpoint="/api/site/assistant"
+  storageKey="sa-chat-site"
+  brandTitle={headerSubtitle || brandTitle}
+  headerTitle={headerTitle}
+  greeting={greeting}
+  fabLabel={fabLabel || `Get help from ${brandTitle}`}
+  footerPrefix={footerPrefix}
+  supportPhone={supportPhone}
+  supportEmail={supportEmail}
+  variant="site"
+  inputPlaceholder={inputPlaceholder}
+  avatarSrc={avatarSrc}
+  hideFab={hideFab}
+  revealFabOnEngagement={revealFabOnEngagement}
+  hideFabForHero={hideFabForHero}
+  heroSelector={heroSelector}
+  contactSelector={contactSelector}
+/>

@@ -204,18 +204,23 @@ export type SiteLandingConfig = {
     }>;
   };
   /**
-   * Fixed footer chat for `service` landings.
-   * Embeds the conversational Cal.com front-end (`/form/schedule`) when `formSlug` is set.
+   * Public site help chat (SiteAssistantWidget sheet via portal_assistant).
+   * Prefer this over hanging chat fields on `schedule`.
+   */
+  chat?: import("./siteChat").SiteChatConfig;
+  /**
+   * Legacy scheduling block. Chat dock fields here are still read as fallbacks
+   * when `chat` is omitted.
    */
   schedule?: {
     /** Optional — unused when the chat is footered (no section chrome). */
     heading?: string;
     intro?: string;
-    /** Conversational form slug (default `schedule`). Set false to skip embed. */
+    /** Legacy conversational form slug (kept for /form/schedule links). */
     formSlug?: string | false;
-    /** Placeholder on the footer chat input (default “How can I help you?”). */
+    /** @deprecated Prefer `chat.dockPlaceholder`. */
     dockPlaceholder?: string;
-    /** Short Pat/owner intro lines — one is picked at random after scroll + 3s. */
+    /** @deprecated Prefer `chat.introPhrases`. */
     introPhrases?: string[];
   };
   steps?: {

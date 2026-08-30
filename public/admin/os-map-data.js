@@ -20,7 +20,7 @@
 // ───────────────────────── SYSTEM (runtime architecture) ─────────────────────────
 const SYSTEM_NODES = [
   // Contacts / entry points
-  { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go · /card · /digital-audit · /dscr · /deploy', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
+  { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go · /card · /digital-audit · /dscr · /deploy · /api/site/assistant', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats · @mentions · Settings', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · @mentions · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
@@ -130,6 +130,7 @@ const SYSTEM_EDGES = [
   { from: 'portal', to: 'crater', label: 'billing', dashed: true },
   { from: 'portal', to: 'changedetection', label: 'site watch sync', dashed: true },
   { from: 'portal', to: 'anthropic', label: 'speed-dial help chat (FEATURES: portal_assistant)', dashed: true },
+  { from: 'web', to: 'anthropic', label: 'site help chat /api/site/assistant (FEATURES: portal_assistant)', dashed: true },
   { from: 'astro', to: 'telnyx', label: 'SMS send · call control', dashed: true },
   { from: 'telnyx', to: 'astro', label: 'SMS · voice webhooks', dashed: true },
   { from: 'telnyx', to: 'anthropic', label: 'voice agent', dashed: true },

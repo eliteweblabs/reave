@@ -3,7 +3,8 @@
     "client_portal",
     "documents",
     "digital_signature",
-    "scheduling"
+    "scheduling",
+    "portal_assistant"
   ],
   "footerNav": [
     "__system__",
@@ -31,6 +32,7 @@
     "client_portal": "deployed",
     "documents": "deployed",
     "digital_signature": "deployed",
-    "scheduling": "request"
+    "scheduling": "request",
+    "portal_assistant": "deployed"
   }
 }

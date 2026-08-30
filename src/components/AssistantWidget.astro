@@ -29,6 +29,12 @@ export interface Props {
   contactSelector?: string;
   /** Visual-only chat — greeting and local replies, no API. */
   mockOnly?: boolean;
+  /** Composer placeholder inside the sheet. */
+  inputPlaceholder?: string;
+  /** Header avatar image (defaults to /assistant-avatar.jpg). */
+  avatarSrc?: string;
+  /** Hide the floating FAB (footer dock / custom trigger opens the sheet). */
+  hideFab?: boolean;
 }
 
 const {
@@ -48,6 +54,9 @@ const {
   heroSelector = '.home-hero, .fx-hero, .demo-hero',
   contactSelector = '#contact, [data-home-section="contact"]',
   mockOnly = false,
+  inputPlaceholder = 'Ask a question…',
+  avatarSrc = '/assistant-avatar.jpg',
+  hideFab = false,
 } = Astro.props;
 
 const sheetId = `aw-sheet-${instanceId}`;
@@ -73,17 +82,26 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
   data-fab-id={fabId}
   data-reveal-fab={revealFabOnEngagement ? 'true' : undefined}
   data-mock-only={mockOnly ? 'true' : undefined}
+  data-hide-fab={hideFab ? 'true' : undefined}
   data-hide-fab-for-hero={hideFabForHero ? 'true' : undefined}
   data-hero-selector={hideFabForHero ? heroSelector : undefined}
   data-contact-selector={hideFabForHero ? contactSelector : undefined}
 >
   <button
     id={fabId}
-    class:list={['aw-fab', `aw-fab--${variant}`, { 'is-visible': variant === 'site' && !revealFabOnEngagement }]}
+    class:list={[
+      'aw-fab',
+      `aw-fab--${variant}`,
+      {
+        'is-visible': variant === 'site' && !revealFabOnEngagement && !hideFab,
+        'aw-fab--hidden': hideFab,
+      },
+    ]}
     type="button"
     aria-haspopup="dialog"
     aria-expanded="false"
     aria-label={fabLabel}
+    hidden={hideFab || undefined}
   >
     <!-- IOS_ICONS.message-square — keep in sync with public/admin/admin-ui.js -->
     <svg class="aw-fab-icon-chat" xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -95,8 +113,9 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     </svg>
   </button>
 
-  <script is:inline define:vars={{ fabId }}>
+  <script is:inline define:vars={{ fabId, hideFab }}>
     (function () {
+      if (hideFab) return;
       var fab = document.getElementById(fabId);
       if (fab && fab.parentElement !== document.body) document.body.appendChild(fab);
     })();
@@ -108,7 +127,7 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
         <div class="aw-header-icon" aria-hidden="true">
           <img
             class="aw-header-avatar"
-            src="/assistant-avatar.jpg"
+            src={avatarSrc}
             alt=""
             width="30"
             height="30"
@@ -138,7 +157,7 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
           <textarea
             class="aw-input"
             rows="1"
-            placeholder="Ask a question…"
+            placeholder={inputPlaceholder}
             autocomplete="off"
             autocorrect="on"
             spellcheck="true"
@@ -203,6 +222,12 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
       0 2px 8px rgba(0, 0, 0, 0.18);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .aw-fab.aw-fab--hidden,
+  .aw-fab[hidden] {
+    display: none !important;
+    pointer-events: none;
   }
 
   html[data-theme="dark"] .aw-fab {
@@ -688,6 +713,7 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     const sheetId = root.dataset.sheetId || '';
     const revealFab = root.dataset.revealFab === 'true';
     const mockOnly = root.dataset.mockOnly === 'true';
+    const hideFab = root.dataset.hideFab === 'true';
     const hideFabForHero = root.dataset.hideFabForHero === 'true';
     const heroSelector = root.dataset.heroSelector || '.home-hero, .fx-hero, .demo-hero';
     const contactSelector = root.dataset.contactSelector || '#contact, [data-home-section="contact"]';
@@ -707,18 +733,24 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
     if (!mockOnly && !endpoint) return;
 
     // Keep the FAB on <body> so no ancestor transform/filter breaks position:fixed.
-    if (fab.parentElement !== document.body) {
+    if (!hideFab && fab.parentElement !== document.body) {
       document.body.appendChild(fab);
     }
     // CSS already uses 0.75rem + safe-area; pin only lifts for the keyboard.
-    initFixedVisualViewportPin(fab, {
-      axis: 'bottom-right',
-      includeSafeArea: true,
-      insetPx: 12,
-    });
-    if (revealFab) initFabReveal(fab);
-    if (hideFabForHero) {
-      initFloatingWidgetSectionHide(fab, 'is-hero-occluding', heroSelector, contactSelector);
+    if (!hideFab) {
+      initFixedVisualViewportPin(fab, {
+        axis: 'bottom-right',
+        includeSafeArea: true,
+        insetPx: 12,
+      });
+      if (revealFab) initFabReveal(fab);
+      if (hideFabForHero) {
+        initFloatingWidgetSectionHide(fab, 'is-hero-occluding', heroSelector, contactSelector);
+      }
+    } else {
+      fab.hidden = true;
+      fab.classList.add('aw-fab--hidden');
+      fab.setAttribute('aria-hidden', 'true');
     }
 
     let history: Turn[] = [];
@@ -874,6 +906,17 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
         void sendMessage(input.value);
       }
     });
+
+    root.addEventListener('aw-open', ((ev: Event) => {
+      const detail = (ev as CustomEvent<{ message?: string }>).detail;
+      openPanel();
+      const msg = typeof detail?.message === 'string' ? detail.message.trim() : '';
+      if (msg) {
+        window.setTimeout(() => {
+          void sendMessage(msg);
+        }, 300);
+      }
+    }) as EventListener);
   }
 
   document.querySelectorAll<HTMLElement>('[data-assistant-widget]').forEach(initAssistantWidget);
