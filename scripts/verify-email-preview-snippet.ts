@@ -55,4 +55,24 @@ assert.equal(subjectFallback, 'Your weekly digest');
 const keepsProse = inboxPreviewSnippet('Please send the signed proposal when you can.');
 assert.equal(keepsProse, 'Please send the signed proposal when you can.');
 
+// Multipart text/plain often pastes img alt mid-body ("Elevate logo") — never visible copy.
+const elevateMidBody = inboxPreviewSnippet(
+  'Your trial has started. Elevate logo (https://link.elevateapp.com/ss/c/u001._abc) Welcome aboard — open the app to finish setup.',
+);
+assert.doesNotMatch(elevateMidBody, /Elevate logo/i);
+assert.doesNotMatch(elevateMidBody, /link\.elevateapp\.com/i);
+assert.match(elevateMidBody, /Your trial has started/);
+assert.match(elevateMidBody, /Welcome aboard/);
+
+const elevateTruncated = inboxPreviewSnippet(
+  'arted. Elevate logo (nk.elevateapp.com/ss/c/u001._',
+);
+assert.doesNotMatch(elevateTruncated, /Elevate logo/i);
+assert.match(elevateTruncated, /arted\./);
+
+const elevateHtml = htmlToPlainText(
+  '<p>Your trial has started.</p><img alt="Elevate logo" src="https://cdn.elevateapp.com/logo.png"><p>Welcome aboard.</p>',
+);
+assert.equal(elevateHtml.replace(/\s+/g, ' ').trim(), 'Your trial has started. Welcome aboard.');
+
 console.log('verify-email-preview-snippet: ok');
