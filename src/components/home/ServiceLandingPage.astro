@@ -7,7 +7,6 @@ import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
 import ConversationalForm from "../ConversationalForm.astro";
-import IosBottomSheet from "../IosBottomSheet.astro";
 import { siApplepay, siVenmo } from "simple-icons";
 import { Banknote, CreditCard } from "lucide-astro";
 
@@ -66,10 +65,9 @@ const scheduleFormSlug =
     : (typeof schedule?.formSlug === "string" && schedule.formSlug.trim()) ||
       (schedule ? "schedule" : "");
 const scheduleUrl = (landing.scheduleUrl || "").trim();
-const chatDockPlaceholder =
+const chatPlaceholder =
   (schedule?.dockPlaceholder || "").trim() || "How can I help you?";
-const scheduleSheetId = "svc-schedule-sheet";
-const showChatDock = Boolean(scheduleFormSlug);
+const showFooterChat = Boolean(scheduleFormSlug);
 const about = landing.about;
 const contact = landing.contact;
 const reviews = landing.reviews;
@@ -83,7 +81,7 @@ const logoSrc = (landing.heroLogo || "").trim()
     : "");
 ---
 
-<div class={`svc${footerImage ? " svc--skyline" : ""}`} data-has-phone={phoneHref ? "1" : "0"} data-has-chat={showChatDock ? "1" : "0"}>
+<div class={`svc${footerImage ? " svc--skyline" : ""}`} data-has-phone={phoneHref ? "1" : "0"} data-has-chat={showFooterChat ? "1" : "0"}>
   <div class="svc-login-bar">
     <a class="svc-login" href="/sign-in">Login</a>
     {
@@ -281,62 +279,22 @@ const logoSrc = (landing.heroLogo || "").trim()
   </footer>
 
   {
-    showChatDock ? (
-      <>
-        <div class="svc-chat-dock" role="region" aria-label="Chat">
-          <button
-            type="button"
-            class="svc-chat-dock__pill"
-            data-ios-sheet-open={scheduleSheetId}
-            aria-haspopup="dialog"
-            aria-controls={scheduleSheetId}
-          >
-            <span class="svc-chat-dock__placeholder">{chatDockPlaceholder}</span>
-            <span class="svc-chat-dock__send">Send</span>
-          </button>
-        </div>
-        <IosBottomSheet
-          id={scheduleSheetId}
-          title={landing.name || company.name || "Chat"}
-          dismissible={true}
-          sheetClass="svc-chat-sheet"
-          bodyClass="svc-chat-sheet__body"
-        >
-          <ConversationalForm
-            slug={scheduleFormSlug}
-            embedded
-            brandName={landing.name || company.name || "Pat the Plumber"}
-          />
-          {
-            scheduleUrl && scheduleUrl !== `/form/${scheduleFormSlug}` ? (
-              <p class="svc-chat-sheet__link">
-                <a href={scheduleUrl}>Open full scheduler</a>
-              </p>
-            ) : null
-          }
-        </IosBottomSheet>
-        <script is:inline src={`/ios-sheet.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
-        <script is:inline define:vars={{ scheduleSheetId }}>
-          document.addEventListener(
-            "click",
-            (ev) => {
-              const trigger = ev.target.closest?.(
-                `[data-ios-sheet-open="${scheduleSheetId}"]`,
-              );
-              if (!trigger) return;
-              window.setTimeout(() => {
-                const input = document.querySelector(
-                  `#${scheduleSheetId} #user-input`,
-                );
-                if (input instanceof HTMLInputElement) {
-                  input.focus({ preventScroll: true });
-                }
-              }, 320);
-            },
-            true,
-          );
-        </script>
-      </>
+    showFooterChat ? (
+      <div class="svc-footer-chat" role="region" aria-label="Chat">
+        <ConversationalForm
+          slug={scheduleFormSlug}
+          embedded
+          brandName={landing.name || company.name || "Pat the Plumber"}
+          inputPlaceholder={chatPlaceholder}
+        />
+        {
+          scheduleUrl && scheduleUrl !== `/form/${scheduleFormSlug}` ? (
+            <p class="svc-footer-chat__link">
+              <a href={scheduleUrl}>Open full scheduler</a>
+            </p>
+          ) : null
+        }
+      </div>
     ) : phoneHref ? (
       <div class="svc-sticky" role="region" aria-label="Call">
         <a class="svc-sticky__btn" href={phoneHref}>
@@ -630,89 +588,49 @@ const logoSrc = (landing.heroLogo || "").trim()
     line-height: 1.4;
   }
 
-  .svc-chat-dock {
+  .svc-footer-chat {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 40;
-    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.96) 35%);
+    padding: 0.65rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.97) 28%);
+    pointer-events: none;
   }
 
-  .svc-chat-dock__pill {
-    display: flex;
-    align-items: stretch;
+  .svc-footer-chat > :global(*) {
+    pointer-events: auto;
+  }
+
+  .svc-footer-chat :global(.conversational-form-root--embedded) {
     width: 100%;
     max-width: 34rem;
     margin: 0 auto;
-    padding: 0;
-    border: 1px solid rgba(15, 23, 42, 0.14);
-    border-radius: 999px;
-    background: #fff;
-    overflow: hidden;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
-    cursor: pointer;
-    text-align: left;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    padding: 0.85rem 0.85rem 0.95rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+    min-height: 0;
   }
 
-  .svc-chat-dock__pill:focus-visible {
-    outline: 2px solid var(--svc-accent);
-    outline-offset: 2px;
+  .svc-footer-chat :global(.conversational-form-root--embedded .conversation-scroll) {
+    max-height: min(28vh, 12rem);
   }
 
-  .svc-chat-dock__placeholder {
-    flex: 1;
-    min-width: 0;
-    padding: 0.85rem 1rem;
-    color: #94a3b8;
-    font-size: 1rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .svc-footer-chat :global(.conversational-form-root--embedded .input-area) {
+    position: static;
+    margin-top: 0.55rem;
   }
 
-  .svc-chat-dock__send {
-    flex-shrink: 0;
-    display: grid;
-    place-items: center;
-    padding: 0.85rem 1.15rem;
-    background: #111;
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 700;
-  }
-
-  .svc-chat-sheet.ios-sheet {
-    --ios-sheet-bg: #f4f7fb;
-    max-height: min(92dvh, 44rem);
-  }
-
-  .svc-chat-sheet__body {
-    padding: 0 0.85rem 1rem;
-  }
-
-  .svc-chat-sheet__body :global(.conversational-form-root--embedded) {
-    margin: 0;
-    padding: 0.35rem 0 0.5rem;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    min-height: min(58dvh, 28rem);
-  }
-
-  .svc-chat-sheet__body :global(.conversational-form-root--embedded .conversation-scroll) {
-    max-height: min(48vh, 22rem);
-  }
-
-  .svc-chat-sheet__link {
-    margin: 0.35rem 0 0;
+  .svc-footer-chat__link {
+    margin: 0.45rem auto 0;
+    max-width: 34rem;
     text-align: center;
   }
 
-  .svc-chat-sheet__link a {
+  .svc-footer-chat__link a {
     color: var(--svc-accent);
     font-weight: 700;
     text-decoration: none;
@@ -844,9 +762,16 @@ const logoSrc = (landing.heroLogo || "").trim()
     background: var(--svc-water);
   }
 
-  .svc--skyline[data-has-phone="1"] .svc-foot__meta,
-  .svc--skyline[data-has-chat="1"] .svc-foot__meta {
+  .svc--skyline[data-has-phone="1"] .svc-foot__meta {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .svc--skyline[data-has-chat="1"] .svc-foot__meta {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .svc[data-has-chat="1"]:not(.svc--skyline) {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px));
   }
 
   .svc-foot__meta p {
@@ -908,7 +833,8 @@ const logoSrc = (landing.heroLogo || "").trim()
       max-width: 40rem;
     }
 
-    .svc-chat-dock__pill {
+    .svc-footer-chat :global(.conversational-form-root--embedded),
+    .svc-footer-chat__link {
       max-width: 40rem;
     }
 
