@@ -1554,7 +1554,7 @@ function deleteSilentDeleteJunkFromFile(): { deleted: number; ids: string[] } {
 }
 
 /**
- * Refile junk rows that were filed by a DELETE rule into Auto deleted.
+ * Refile junk rows that were filed by a DELETE rule into Deleted.
  * Manual Report junk stays category junk / status JUNK.
  */
 export async function storeDeleteSilentDeleteJunkInbox(): Promise<{ deleted: number; ids: string[] }> {

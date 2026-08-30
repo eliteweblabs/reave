@@ -1664,8 +1664,8 @@ export async function processInboundEmail(
     if (hardDelete) {
       pushAudit(
         'persist',
-        'Would file as auto-deleted',
-        'DELETE rule — hidden Auto deleted review queue (not junk, not removed)',
+        'Would file as deleted',
+        'DELETE rule — hidden Deleted review queue (not junk, not removed)',
         matchedRuleLink,
       );
     } else {
@@ -1675,8 +1675,8 @@ export async function processInboundEmail(
     if (hardDelete) {
       pushAudit(
         'persist',
-        'Filed as auto-deleted',
-        'DELETE rule — kept for review in Auto deleted',
+        'Filed as deleted',
+        'DELETE rule — kept for review in Deleted',
         matchedRuleLink,
       );
     }

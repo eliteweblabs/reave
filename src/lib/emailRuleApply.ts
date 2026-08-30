@@ -112,7 +112,7 @@ function patchForRuleStatus(
   const s = status.toUpperCase();
   if (s === 'DELETE' || s === 'JUNK') {
     if (existing.category === 'auto_deleted') {
-      return { patch: null, skipReason: 'already auto-deleted' };
+      return { patch: null, skipReason: 'already deleted' };
     }
     if (existing.category === 'receipt') {
       return { patch: null, skipReason: 'receipt — left alone' };

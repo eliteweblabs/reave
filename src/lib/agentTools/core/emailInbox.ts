@@ -666,7 +666,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create or update a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified. Default without forward_to is DELETE (message is filed in the Auto deleted review queue, not junk; no alert). When forward_to is set, default status is CUSTOM (Keep in inbox) and matched mail is relayed via Resend — do not junk unless the user asked to. Forwarded mail does not auto-create a project unless create_project is true. If an enabled from-rule already exists for that sender, patch it with forward_to / status / create_project instead of skipping. Keywords must be unique across rules — sharing any phrase with an existing rule (catalog or personal) is a collision even if the action differs; edit that rule instead of creating another. Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls). When both sender and phrases are set, matchMode is "all" across from+subject+body. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here.',
+                'Create or update a personal (this-install) triage rule so future mail from a sender or matching phrases is auto-classified. Default without forward_to is DELETE (message is filed in the Deleted review queue, not junk; no alert). When forward_to is set, default status is CUSTOM (Keep in inbox) and matched mail is relayed via Resend — do not junk unless the user asked to. Forwarded mail does not auto-create a project unless create_project is true. If an enabled from-rule already exists for that sender, patch it with forward_to / status / create_project instead of skipping. Keywords must be unique across rules — sharing any phrase with an existing rule (catalog or personal) is a collision even if the action differs; edit that rule instead of creating another. Sender-specific silent rules are inserted at high priority (after OTP/auth, before broad alert catch-alls). When both sender and phrases are set, matchMode is "all" across from+subject+body. Rules are indefinite by default. When the user mentions an expiration, set expires_at (ISO), expires_in_seconds, or expires_in_days. Universal catalog rules live in DEFAULT_RULES in the repo and cannot be created here.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -692,7 +692,7 @@ export const emailInboxModule: AgentToolModule = {
                   },
                   status: {
                     type: 'string',
-                    description: 'Optional status tag (default DELETE — files in Auto deleted). e.g. DELETE, AUTO_ARCHIVED, JUNK',
+                    description: 'Optional status tag (default DELETE — files in Deleted). e.g. DELETE, AUTO_ARCHIVED, JUNK',
                   },
                   scope: {
                     type: 'string',

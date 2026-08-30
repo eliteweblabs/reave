@@ -11556,7 +11556,7 @@ function formatEmailCategoryLabel(ev) {
   if (isEmailProject(ev)) return postTitle(2);
   const cat = String(ev.category || 'review').toLowerCase();
   if (cat === 'project') return postTitle(2);
-  if (cat === 'auto_deleted') return 'Auto deleted';
+  if (cat === 'auto_deleted') return 'Deleted';
   return ev.category || 'review';
 }
 
@@ -12006,7 +12006,7 @@ function formatEmailAction(ev) {
   if (ev.action === 'project_reply' || ev.status === 'PROJECT_REPLY') {
     bits.push('🚨 contact reply');
   }   else if (ev.bookingUid) bits.push('booked');
-  else if (ev.category === 'auto_deleted' || ev.action === 'deleted') bits.push('auto-deleted');
+  else if (ev.category === 'auto_deleted' || ev.action === 'deleted') bits.push('deleted');
   else if (ev.action) bits.push(ev.action);
   if (ev.jobTitle) bits.push(ev.jobTitle);
   return bits.join(' · ');
@@ -13352,9 +13352,9 @@ async function runEmailAutoDelete(ev) {
     await createSenderEmailFilterRule(sender, 'DELETE');
     await clearEmailTriageLimboIfNeeded(ev, 'delete');
     await deleteEmail(ev);
-    showChatToast(`Future mail from ${sender} will auto-delete`);
+    showChatToast(`Future mail from ${sender} will be deleted`);
   } catch (e) {
-    await osAlert({ title: 'Could not auto-delete', bodyHtml: escHtml(e.message) });
+    await osAlert({ title: 'Could not create delete rule', bodyHtml: escHtml(e.message) });
   }
 }
 
@@ -13417,7 +13417,7 @@ async function populateEmailAgentMenu(ev, menu) {
     },
     {
       id: 'auto_delete',
-      label: `Auto Delete messages from ${sender}`,
+      label: `Delete messages from ${sender}`,
       disabled: !senderOk,
     },
     {
@@ -14404,7 +14404,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
       { id: 'routed', label: 'Archive', count: counts.routed },
       { id: 'receipt', label: 'Receipts', count: counts.receipt },
       { id: 'junk', label: 'Junk', count: counts.junk },
-      { id: 'auto_deleted', label: 'Auto deleted', count: counts.auto_deleted },
+      { id: 'auto_deleted', label: 'Deleted', count: counts.auto_deleted },
     ],
     fixedTabs: [
       { id: 'draft', label: 'Draft', count: counts.draft, variant: 'draft' },

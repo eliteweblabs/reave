@@ -239,7 +239,7 @@ function ruleNotifyActions(rule) {
 }
 
 const RULE_PROCESS_OPTIONS = [
-  { value: 'delete', label: 'Auto delete' },
+  { value: 'delete', label: 'Delete' },
   { value: 'archive', label: 'Archive' },
   { value: 'receipt', label: 'Receipt' },
   { value: 'classify', label: 'Keep' },
@@ -274,7 +274,7 @@ function processIsSilentFile(process) {
 function ruleKind(rule) {
   const process = ruleProcessValue(rule);
   if (process === 'delete') {
-    return { id: 'delete', label: 'Auto delete', icon: 'trash', statusClass: 'em-status-delete' };
+    return { id: 'delete', label: 'Delete', icon: 'trash', statusClass: 'em-status-delete' };
   }
   if (process === 'archive') {
     return { id: 'archive', label: 'Archive', icon: 'archive', statusClass: 'em-status-auto_archived' };
@@ -329,7 +329,7 @@ function ruleListItemInnerHtml(rule) {
 
 function processHintText(process) {
   if (process === 'delete') {
-    return 'Matched mail goes to Auto deleted (filtered review). Junk is only for spam. No notification.';
+    return 'Matched mail goes to Deleted (filtered review). Junk is only for spam. No notification.';
   }
   if (process === 'archive') {
     return 'Matched mail is filed to Archive. No notification.';
@@ -549,7 +549,7 @@ const RULE_SCOPE_CHIPS = [
   { id: 'universal', label: 'Universal' },
 ];
 const RULE_PROCESS_CHIPS = [
-  { id: 'delete', label: 'Auto delete' },
+  { id: 'delete', label: 'Delete' },
   { id: 'archive', label: 'Archive' },
   { id: 'receipt', label: 'Receipt' },
   { id: 'classify', label: 'Keep' },
@@ -1607,7 +1607,7 @@ function renderRuleEditPane(pane, opts = {}) {
     const n = ids.length;
     const verb =
       process === 'delete'
-        ? 'Auto-delete'
+        ? 'Delete'
         : process === 'archive'
           ? 'Archive'
           : process === 'receipt'

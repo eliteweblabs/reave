@@ -176,7 +176,7 @@ export function feedbackActionDescription(action: EmailTriageFeedbackAction): st
     case 'important':
       return 'Always push and surface similar mail for review (creates an alert rule).';
     case 'ignore':
-      return 'Auto-delete similar mail on ingest (creates a silent DELETE rule — reviewable in Auto deleted, not junk).';
+      return 'Delete similar mail on ingest (creates a silent DELETE rule — reviewable in Deleted, not junk).';
     case 'teach':
       return 'Save a note to knowledge and create an alert rule for similar cases.';
     default:
