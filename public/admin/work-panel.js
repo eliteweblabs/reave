@@ -28,6 +28,7 @@ import {
   swipeDeleteAction,
   paneDeleteIcon,
   paneShareIcon,
+  createOverflowMenuBtn,
   createAgentBtn,
   setDeBtnLabel,
   getDeBtnLabel,
@@ -37,9 +38,10 @@ import {
   contactAvatarHtml,
   mountContactAvatars,
 } from './admin-ui.js?v=20260825h';
+import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260826c';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
-import { clientState, clientMapController } from './clients-panel.js?v=20260826a';
+import { clientState, clientMapController } from './clients-panel.js?v=20260830a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import {
   createDetailChrome,
@@ -3912,29 +3914,58 @@ function renderEditWorkForm(pane) {
     },
   });
 
-  const isAuditProject = isAuditWorkJob(workState.draft || listJob);
-  const archiveBtn = isAuditProject
-    ? null
-    : createIosIconBtn({
-        iconKey: 'archive',
-        label:
-          (workState.draft?.status || listJob?.status) === 'archived'
-            ? `Unarchive ${postLower(1)}`
-            : `Archive ${postLower(1)}`,
-        className: 'ios-icon-btn wk-archive-btn',
-        onClick: () => void archiveWork(slug),
+  const overflowBtn = createOverflowMenuBtn({
+    label: `${postTitle(1)} actions`,
+    className: 'wk-detail-overflow-btn',
+    getItems: () => {
+      const draft = workState.draft || listJob || {};
+      const items = [];
+      if (draft.contact_uid) {
+        items.push({
+          label: 'Share',
+          iconKey: 'share',
+          action: () =>
+            openReaveShareSheet({
+              kind: 'work',
+              contactUid: draft.contact_uid,
+              recipient: {
+                contactUid: draft.contact_uid,
+                name: draft.contact_name || draft.client || 'Contact',
+                email: draft.contact_email,
+                phone: draft.contact_phone,
+              },
+              tab: isAuditWorkJob(draft) ? 'audit' : 'work',
+              jobSlug: slug,
+              trackEl: linkTrackEl,
+              shareLogEl,
+              shareTitle: `${draft.contact_name || draft.client || 'Contact'} — ${
+                isAuditWorkJob(draft) ? 'Audit' : postTitle(2)
+              }`,
+            }),
+        });
+      }
+      if (!isAuditWorkJob(draft)) {
+        const archived = draft.status === 'archived';
+        items.push({
+          label: archived ? 'Unarchive' : 'Archive',
+          iconKey: 'archive',
+          action: () => void archiveWork(slug),
+        });
+      }
+      items.push({
+        label: 'Delete',
+        iconKey: 'trash',
+        danger: true,
+        confirmDelete: true,
+        action: () => deleteWork(slug),
       });
-
-  const deleteBtn = paneDeleteIcon({
-    label: `Delete ${postLower(1)}`,
-    onClick: () => deleteWork(slug),
+      return items;
+    },
   });
 
   const headerActions = document.createElement('div');
   headerActions.className = 'de-header-actions';
-  headerActions.append(agentBtn);
-  if (archiveBtn) headerActions.appendChild(archiveBtn);
-  headerActions.appendChild(deleteBtn);
+  headerActions.append(agentBtn, overflowBtn);
   header.appendChild(headerActions);
   const chrome = createWorkDetailChrome(pane);
   chrome.appendChild(header);
@@ -3980,37 +4011,6 @@ function renderEditWorkForm(pane) {
       workState.dirty = false;
       titleInput.value = workState.draft?.title || '';
 
-      if (archiveBtn) {
-        archiveBtn.setAttribute(
-          'aria-label',
-          data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`,
-        );
-        archiveBtn.title =
-          data.status === 'archived' ? `Unarchive ${postLower(1)}` : `Archive ${postLower(1)}`;
-      }
-
-      // Share depends on contact_uid — splice in after Agent without rebuilding the row.
-      headerActions?.querySelectorAll('.de-share-btn').forEach((el) => el.remove());
-      const shareBtn = data.contact_uid
-        ? shell.createPortalShareBtn(data.contact_uid, {
-            tab: isAuditWorkJob(data) ? 'audit' : 'work',
-            jobSlug: slug,
-            trackEl: linkTrackEl,
-            shareLogEl,
-            title: `${data.contact_name || data.client || 'Contact'} — ${
-              isAuditWorkJob(data) ? 'Audit' : postTitle(2)
-            }`,
-            recipient: {
-              contactUid: data.contact_uid,
-              name: data.contact_name || data.client || 'Contact',
-              email: data.contact_email,
-              phone: data.contact_phone,
-            },
-          })
-        : null;
-      if (shareBtn && headerActions) {
-        headerActions.insertBefore(shareBtn, archiveBtn || deleteBtn);
-      }
 
       clearWorkDetailScrollBody(scroll);
       const activeTab = workState.detailTab;
@@ -4935,34 +4935,41 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       actions.className = 'wk-file-actions';
 
       actions.appendChild(
-        paneShareIcon({
-          label: `Share ${file.filename || 'file'}`,
+        createOverflowMenuBtn({
+          label: `${file.filename || 'file'} actions`,
+          className: 'wk-file-overflow-btn',
           size: 'sm',
-          onClick: () => shareProjectFile(file),
-        }),
-      );
-      actions.appendChild(
-        paneDeleteIcon({
-          label: `Delete ${file.filename || 'file'}`,
-          size: 'sm',
-          onClick: () => {
-            const snapshot = file;
-            const prev = currentFiles.slice();
-            void queueUndoableDelete({
-              key: `delete:work-file:${snapshot.url}`,
-              ids: [`work-file:${snapshot.url}`],
-              hide: () => renderFiles(currentFiles.filter((f) => f.url !== snapshot.url)),
-              restore: () => renderFiles(prev),
-              commit: async () => {
-                const res = await fetch(snapshot.url, { method: 'DELETE' });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          getItems: () => [
+            {
+              label: 'Share',
+              iconKey: 'share',
+              action: () => shareProjectFile(file),
+            },
+            {
+              label: 'Delete',
+              iconKey: 'trash',
+              danger: true,
+              confirmDelete: true,
+              action: () => {
+                const snapshot = file;
+                const prev = currentFiles.slice();
+                void queueUndoableDelete({
+                  key: `delete:work-file:${snapshot.url}`,
+                  ids: [`work-file:${snapshot.url}`],
+                  hide: () => renderFiles(currentFiles.filter((f) => f.url !== snapshot.url)),
+                  restore: () => renderFiles(prev),
+                  commit: async () => {
+                    const res = await fetch(snapshot.url, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+                  },
+                  onCommitError: (e) => {
+                    alert(`Failed to delete: ${e.message}`);
+                  },
+                });
               },
-              onCommitError: (e) => {
-                alert(`Failed to delete: ${e.message}`);
-              },
-            });
-          },
+            },
+          ],
         }),
       );
       card.appendChild(actions);

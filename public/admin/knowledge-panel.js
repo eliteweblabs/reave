@@ -40,8 +40,8 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
-// import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260826a';
+// import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260830a';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260830a';
 import { destroyCourtsGateMap, mountCourtsGateMap } from './courts-gate-map.js?v=20260820a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 

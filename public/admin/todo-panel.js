@@ -27,8 +27,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-  paneDeleteIcon,
-  paneShareIcon,
+  createOverflowMenuBtn,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
@@ -39,9 +38,9 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
-import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260826d';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260826a';
-import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260824a';
+import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260830a';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260830a';
+import { chatState, openReaveShareSheet, refreshChatSidebarList } from './chat-panel.js?v=20260824a';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260824a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
@@ -781,26 +780,45 @@ function renderTodoEditPane(pane, isNew) {
 
   const linked = todoState.linkedJob;
   const icons = [];
-  const shareBtn = linked?.contact_uid
-    ? createPortalShareBtn(linked.contact_uid, {
-        tab: 'work',
-        jobSlug: linked.slug,
-        trackEl: linkTrackEl,
-        title: `${linked.contact_name || linked.client || 'Contact'} — ${postTitle(2)}`,
-        recipient: {
-          contactUid: linked.contact_uid,
-          name: linked.contact_name || linked.client || 'Contact',
-          email: linked.contact_email,
-          phone: linked.contact_phone,
-        },
-      })
-    : null;
-  if (shareBtn) icons.push(shareBtn);
-  if (!isNew) {
+  if (linked?.contact_uid || !isNew) {
     icons.push(
-      paneDeleteIcon({
-        label: 'Delete to‑do',
-        onClick: () => deleteTodo(todoState.activeId),
+      createOverflowMenuBtn({
+        label: 'To‑do actions',
+        className: 'td-detail-overflow-btn',
+        getItems: () => {
+          const items = [];
+          if (linked?.contact_uid) {
+            items.push({
+              label: 'Share',
+              iconKey: 'share',
+              action: () =>
+                openReaveShareSheet({
+                  kind: 'work',
+                  contactUid: linked.contact_uid,
+                  tab: 'work',
+                  jobSlug: linked.slug,
+                  trackEl: linkTrackEl,
+                  shareTitle: `${linked.contact_name || linked.client || 'Contact'} — ${postTitle(2)}`,
+                  recipient: {
+                    contactUid: linked.contact_uid,
+                    name: linked.contact_name || linked.client || 'Contact',
+                    email: linked.contact_email,
+                    phone: linked.contact_phone,
+                  },
+                }),
+            });
+          }
+          if (!isNew) {
+            items.push({
+              label: 'Delete',
+              iconKey: 'trash',
+              danger: true,
+              confirmDelete: true,
+              action: () => deleteTodo(todoState.activeId),
+            });
+          }
+          return items;
+        },
       }),
     );
   }

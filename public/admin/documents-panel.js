@@ -26,8 +26,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-  paneDeleteIcon,
-  paneShareIcon,
+  createOverflowMenuBtn,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
@@ -39,7 +38,7 @@ import {
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260810a';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260827a';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260826a';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260830a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 
 /** Injected by os-map-loader via initDocumentsPanel(). */
@@ -464,13 +463,23 @@ function renderEditForm(pane) {
           afterTitle: modeTabs,
           icons: [
             createDocScanBtn(),
-            paneShareIcon({
-              label: 'Send to a contact',
-              onClick: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),
-            }),
-            paneDeleteIcon({
-              label: 'Delete document',
-              onClick: () => deleteDocument(slug),
+            createOverflowMenuBtn({
+              label: 'Document actions',
+              className: 'doc-detail-overflow-btn',
+              getItems: () => [
+                {
+                  label: 'Share',
+                  iconKey: 'share',
+                  action: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),
+                },
+                {
+                  label: 'Delete',
+                  iconKey: 'trash',
+                  danger: true,
+                  confirmDelete: true,
+                  action: () => deleteDocument(slug),
+                },
+              ],
             }),
           ],
         }).root,

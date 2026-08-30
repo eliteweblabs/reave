@@ -144,7 +144,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
-} from './work-panel.js?v=20260826d';
+} from './work-panel.js?v=20260830a';
 import {
   initTodoPanel,
   todoState,
@@ -157,7 +157,7 @@ import {
   saveActiveTodoDraft,
   formatTodoDueDate,
   startNewTodo,
-} from './todo-panel.js?v=20260826f';
+} from './todo-panel.js?v=20260830a';
 import {
   initPunchlistPanel,
   loadPunchlistTab,
@@ -168,7 +168,7 @@ import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260827a';
+} from './documents-panel.js?v=20260830a';
 import {
   initKnowledgePanel,
   knowledgeState,
@@ -192,7 +192,7 @@ import {
   scheduleDateKey,
   openScheduleCreateDialog,
   mountAddressAutocomplete,
-} from './schedule-panel.js?v=20260828a';
+} from './schedule-panel.js?v=20260830a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';
@@ -207,7 +207,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260826a';
+} from './clients-panel.js?v=20260830a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -11964,6 +11964,28 @@ async function unsubscribeEmail(ev, btn) {
 }
 
 function buildEmailDetailHeaderIcons(ev) {
+  const closeBtn = () =>
+    createIosIconBtn({
+      iconKey: 'x',
+      label: 'Close',
+      className: 'ios-icon-btn em-close-detail-btn',
+      onClick: () => closeEmailDetail(),
+    });
+  const overflowDelete = () =>
+    createOverflowMenuBtn({
+      label: 'Message actions',
+      className: 'em-message-overflow-btn',
+      getItems: () => [
+        {
+          label: 'Delete',
+          iconKey: 'trash',
+          danger: true,
+          confirmDelete: true,
+          action: () => deleteEmail(ev),
+        },
+      ],
+    });
+
   if (isVerificationCodeEmail(ev)) {
     const icons = [];
     if (ev.verificationCode) {
@@ -11976,18 +11998,7 @@ function buildEmailDetailHeaderIcons(ev) {
         }),
       );
     }
-    icons.push(
-      paneDeleteIcon({
-        label: 'Delete message',
-        onClick: () => deleteEmail(ev),
-      }),
-      createIosIconBtn({
-        iconKey: 'x',
-        label: 'Close',
-        className: 'ios-icon-btn em-close-detail-btn',
-        onClick: () => closeEmailDetail(),
-      }),
-    );
+    icons.push(overflowDelete(), closeBtn());
     return icons;
   }
   if (isAuthLinkEmailRecord(ev)) {
@@ -12012,74 +12023,64 @@ function buildEmailDetailHeaderIcons(ev) {
         }),
       );
     }
-    icons.push(
-      paneDeleteIcon({
-        label: 'Delete message',
-        onClick: () => deleteEmail(ev),
-      }),
-      createIosIconBtn({
-        iconKey: 'x',
-        label: 'Close',
-        className: 'ios-icon-btn em-close-detail-btn',
-        onClick: () => closeEmailDetail(),
-      }),
-    );
+    icons.push(overflowDelete(), closeBtn());
     return icons;
   }
-  const icons = [
-    createIosIconBtn({
-      iconKey: 'reply',
-      label: 'Reply',
-      className: 'ios-icon-btn em-reply-btn',
-      onClick: () => void startReplyEmail(ev, 'reply'),
+
+  // Match chat sessions: fold Reply / Share / Archive / Delete into ⋯.
+  // Lab + Agent / Project stay as beforeIcons on the pane header.
+  return [
+    createOverflowMenuBtn({
+      label: 'Message actions',
+      className: 'em-message-overflow-btn',
+      getItems: () => {
+        const items = [
+          {
+            label: 'Reply',
+            iconKey: 'reply',
+            action: () => void startReplyEmail(ev, 'reply'),
+          },
+        ];
+        if (ev.unsubscribe?.available) {
+          items.push({
+            label: 'Unsubscribe',
+            iconKey: 'bell-off',
+            action: () => void unsubscribeEmail(ev),
+          });
+        }
+        items.push({
+          label: 'Share',
+          iconKey: 'share',
+          action: () => shareChatText(emailShareText(ev), 'assistant'),
+        });
+        if (!isHiddenInboxEmail(ev)) {
+          const routed = isEmailRouted(ev);
+          items.push({
+            label: routed ? 'Unarchive' : 'Archive',
+            iconKey: 'archive',
+            action: () => void (routed ? unarchiveEmail(ev) : archiveEmail(ev)),
+          });
+        }
+        if (isAutoDeletedEmail(ev)) {
+          items.push({
+            label: 'Keep this message',
+            iconKey: 'undo',
+            action: () => void restoreAutoDeletedEmail(ev),
+          });
+        }
+        items.push({
+          label: 'Delete',
+          iconKey: 'trash',
+          danger: true,
+          confirmDelete: true,
+          action: () => deleteEmail(ev),
+        });
+        return items;
+      },
     }),
   ];
-  if (ev.unsubscribe?.available) {
-    icons.push(
-      createIosIconBtn({
-        iconKey: 'bell-off',
-        label: 'Unsubscribe',
-        className: 'ios-icon-btn em-unsubscribe-btn',
-        onClick: (btn) => void unsubscribeEmail(ev, btn),
-      }),
-    );
-  }
-  icons.push(
-    paneShareIcon({
-      label: 'Share message',
-      onClick: (btn) => shareChatText(emailShareText(ev), 'assistant', btn),
-    }),
-  );
-  // Archive sits between share and delete on ≥640px; swipe covers it on small screens.
-  if (!isHiddenInboxEmail(ev)) {
-    const routed = isEmailRouted(ev);
-    icons.push(
-      createIosIconBtn({
-        iconKey: 'archive',
-        label: routed ? 'Unarchive message' : 'Archive message',
-        className: 'ios-icon-btn em-archive-btn',
-        onClick: () => void (routed ? unarchiveEmail(ev) : archiveEmail(ev)),
-      }),
-    );
-  }
-  if (isAutoDeletedEmail(ev)) {
-    icons.push(
-      createIosIconBtn({
-        iconKey: 'undo',
-        label: 'Keep this message',
-        className: 'ios-icon-btn em-keep-btn',
-        onClick: () => void restoreAutoDeletedEmail(ev),
-      }),
-    );
-  }
-  icons.push(
-    paneDeleteIcon({
-      label: 'Delete message',
-      onClick: () => deleteEmail(ev),
-    }),
-  );
-  return icons;
 }
+
 
 function parseSenderEmail(from) {
   const raw = String(from || '').trim();
