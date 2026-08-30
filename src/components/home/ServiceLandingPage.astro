@@ -1,0 +1,427 @@
+---
+/**
+ * Mobile-first call-first landing for travel service businesses.
+ * No map, no address, no directions — phone is the product.
+ */
+import type { SiteLandingConfig } from "../../lib/siteContent";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { contactTelHref } from "../../lib/contactApi";
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+const company = await getCompanyConfig(Astro.request);
+const year = new Date().getFullYear();
+
+const phoneDisplay =
+  (landing.contact?.phone || company.supportPhone || "").trim();
+const digits = contactTelHref(
+  landing.contact?.phoneHref?.replace(/^tel:/i, "") || phoneDisplay,
+);
+const phoneHref = digits ? `tel:${digits}` : "";
+
+const callLabel = landing.callCta?.label || "Call now";
+const stickyLabel = landing.callCta?.stickyLabel || callLabel;
+const services = landing.services;
+const about = landing.about;
+const contact = landing.contact;
+---
+
+<div class="svc" data-has-phone={phoneHref ? "1" : "0"}>
+  <header class="svc-top">
+    <p class="svc-brand">{landing.name || company.name}</p>
+    {
+      phoneHref ? (
+        <a class="svc-top-call" href={phoneHref} aria-label={callLabel}>
+          <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+        </a>
+      ) : null
+    }
+  </header>
+
+  <main class="svc-main">
+    <section class="svc-hero">
+      {landing.eyebrow && <p class="svc-eyebrow">{landing.eyebrow}</p>}
+      <h1>{landing.heroHeadline || landing.name || company.name}</h1>
+      {
+        landing.heroBody && (
+          <p class="svc-lede">{landing.heroBody}</p>
+        )
+      }
+      {
+        phoneHref ? (
+          <a class="svc-call" href={phoneHref}>
+            <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+            <span class="svc-call__label">
+              <strong>{callLabel}</strong>
+              {phoneDisplay && <span class="svc-call__num">{phoneDisplay}</span>}
+            </span>
+          </a>
+        ) : (
+          <p class="svc-call-missing">Phone number coming soon — check back shortly.</p>
+        )
+      }
+      {landing.tagline && <p class="svc-tagline">{landing.tagline}</p>}
+    </section>
+
+    {
+      services?.items?.length ? (
+        <section class="svc-section" id="services">
+          <h2>{services.heading}</h2>
+          <ul class="svc-list">
+            {services.items.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null
+    }
+
+    {
+      about && (
+        <section class="svc-section" id="about">
+          <h2>{about.heading}</h2>
+          {about.body?.map((p) => (
+            <p class="svc-copy">{p}</p>
+          ))}
+          {about.highlights?.length ? (
+            <ul class="svc-highlights">
+              {about.highlights.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      )
+    }
+
+    {
+      contact && (phoneHref || contact.email) && (
+        <section class="svc-section" id="contact">
+          <h2>{contact.heading || "Contact"}</h2>
+          <ul class="svc-contact">
+            {phoneHref && phoneDisplay && (
+              <li>
+                <span>Phone</span>
+                <a href={phoneHref}>{phoneDisplay}</a>
+              </li>
+            )}
+            {contact.email && (
+              <li>
+                <span>Email</span>
+                <a href={`mailto:${contact.email}`}>{contact.email}</a>
+              </li>
+            )}
+          </ul>
+        </section>
+      )
+    }
+  </main>
+
+  <footer class="svc-foot">
+    <p>&copy; {year} {landing.footer || landing.name || company.name}</p>
+    <a class="svc-staff" href="/admin">Staff login</a>
+  </footer>
+
+  {
+    phoneHref && (
+      <div class="svc-sticky" role="region" aria-label="Call">
+        <a class="svc-sticky__btn" href={phoneHref}>
+          <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+          {stickyLabel}
+        </a>
+      </div>
+    )
+  }
+</div>
+
+<style>
+  .svc {
+    --svc-ink: #0f172a;
+    --svc-muted: #475569;
+    --svc-line: #dbe3ef;
+    --svc-bg: #f4f7fb;
+    --svc-panel: #ffffff;
+    --svc-call: #0b6e4f;
+    --svc-call-ink: #ffffff;
+    --svc-accent: #0c4a6e;
+    min-height: 100dvh;
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    color: var(--svc-ink);
+    background:
+      radial-gradient(120% 80% at 50% -10%, #dceaf8 0%, transparent 55%),
+      linear-gradient(180deg, #eef3f8 0%, var(--svc-bg) 40%, #e8eef5 100%);
+  }
+
+  .svc-top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: calc(0.65rem + env(safe-area-inset-top, 0px)) 1rem 0.65rem;
+    background: rgba(244, 247, 251, 0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .svc-brand {
+    margin: 0;
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .svc-top-call {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    background: var(--svc-call);
+    color: var(--svc-call-ink);
+    text-decoration: none;
+  }
+
+  .svc-main {
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 1.25rem 1.15rem 2rem;
+  }
+
+  .svc-hero {
+    padding: 1.25rem 0 1.75rem;
+    text-align: left;
+  }
+
+  .svc-eyebrow {
+    margin: 0 0 0.55rem;
+    color: var(--svc-accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .svc-hero h1 {
+    margin: 0;
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-size: clamp(2.35rem, 11vw, 3.25rem);
+    font-weight: 700;
+    line-height: 0.98;
+    letter-spacing: -0.01em;
+  }
+
+  .svc-lede {
+    margin: 0.9rem 0 0;
+    max-width: 28rem;
+    color: var(--svc-muted);
+    font-size: 1.05rem;
+    line-height: 1.45;
+  }
+
+  .svc-call {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+    margin-top: 1.35rem;
+    padding: 1rem 1.15rem;
+    border-radius: 1rem;
+    background: var(--svc-call);
+    color: var(--svc-call-ink) !important;
+    text-decoration: none !important;
+    box-shadow: 0 14px 28px rgba(11, 110, 79, 0.28);
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+
+  .svc-call:active {
+    transform: scale(0.985);
+  }
+
+  .svc-call__label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+  }
+
+  .svc-call__label strong {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .svc-call__num {
+    font-size: 0.95rem;
+    opacity: 0.92;
+  }
+
+  .svc-call-missing {
+    margin: 1.25rem 0 0;
+    padding: 1rem;
+    border: 1px dashed rgba(15, 23, 42, 0.25);
+    border-radius: 0.85rem;
+    color: var(--svc-muted);
+    background: rgba(255, 255, 255, 0.65);
+  }
+
+  .svc-tagline {
+    margin: 1rem 0 0;
+    color: var(--svc-muted);
+    font-size: 0.95rem;
+    line-height: 1.45;
+  }
+
+  .svc-section {
+    margin-top: 0.35rem;
+    padding: 1.35rem 0 0.35rem;
+    border-top: 1px solid var(--svc-line);
+  }
+
+  .svc-section h2 {
+    margin: 0 0 0.85rem;
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .svc-list,
+  .svc-highlights,
+  .svc-contact {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .svc-list li,
+  .svc-highlights li {
+    position: relative;
+    padding: 0.7rem 0 0.7rem 1.15rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    color: var(--svc-ink);
+    line-height: 1.4;
+  }
+
+  .svc-list li:last-child,
+  .svc-highlights li:last-child {
+    border-bottom: 0;
+  }
+
+  .svc-list li::before,
+  .svc-highlights li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 1.05rem;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: var(--svc-accent);
+  }
+
+  .svc-copy {
+    margin: 0 0 0.85rem;
+    color: var(--svc-muted);
+    line-height: 1.55;
+  }
+
+  .svc-contact li {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .svc-contact li:last-child {
+    border-bottom: 0;
+  }
+
+  .svc-contact span {
+    color: var(--svc-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .svc-contact a {
+    color: var(--svc-ink);
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .svc-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 1.25rem 1.15rem 0.5rem;
+    color: var(--svc-muted);
+    font-size: 0.8rem;
+  }
+
+  .svc-foot p {
+    margin: 0;
+  }
+
+  .svc-staff {
+    color: var(--svc-muted);
+    text-decoration: none;
+    opacity: 0.75;
+  }
+
+  .svc-sticky {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.96) 35%);
+  }
+
+  .svc-sticky__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    width: 100%;
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 0.95rem 1rem;
+    border-radius: 999px;
+    background: var(--svc-call);
+    color: var(--svc-call-ink) !important;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-decoration: none !important;
+    box-shadow: 0 10px 24px rgba(11, 110, 79, 0.3);
+  }
+
+  @media (min-width: 720px) {
+    .svc-main,
+    .svc-foot {
+      max-width: 40rem;
+    }
+
+    .svc-hero {
+      padding-top: 2rem;
+    }
+  }
+</style>

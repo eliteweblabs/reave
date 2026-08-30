@@ -1,6 +1,7 @@
 ---
 import type { SiteLandingConfig } from "../../lib/siteContent";
 import EditorialLandingPage from "./EditorialLandingPage.astro";
+import ServiceLandingPage from "./ServiceLandingPage.astro";
 
 interface Props {
   landing: SiteLandingConfig;
@@ -14,11 +15,14 @@ const contact = landing.contact;
 const licensed = landing.licensedStates;
 const year = new Date().getFullYear();
 const isEditorial = landing.variant === "editorial";
+const isService = landing.variant === "service";
 ---
 
 {
   isEditorial ? (
     <EditorialLandingPage landing={landing} />
+  ) : isService ? (
+    <ServiceLandingPage landing={landing} />
   ) : (
     <>
 <main class="page">

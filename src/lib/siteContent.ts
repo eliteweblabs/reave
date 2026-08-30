@@ -150,8 +150,12 @@ export type SiteLandingConfig = {
   /** Per-page share image. Overrides admin → Company → Social sharing. */
   ogImage?: string;
   themeColor?: string;
-  /** "editorial" = Campion-style scrolling site. Default keeps the original navy landing. */
-  variant?: "default" | "editorial";
+  /**
+   * `editorial` = Campion-style scrolling site.
+   * `service` = mobile call-first single page (trades / emergency).
+   * Default keeps the original navy landing.
+   */
+  variant?: "default" | "editorial" | "service";
   photo?: {
     src: string;
     alt: string;
@@ -168,6 +172,16 @@ export type SiteLandingConfig = {
   heroBody?: string;
   scheduleUrl?: string;
   vcfHref?: string;
+  /** Sticky / hero call labels for `service` landings. */
+  callCta?: {
+    label?: string;
+    stickyLabel?: string;
+  };
+  /** Plain service list for `service` landings (no map / directions). */
+  services?: {
+    heading: string;
+    items: string[];
+  };
   steps?: {
     heading: string;
     items: string[];

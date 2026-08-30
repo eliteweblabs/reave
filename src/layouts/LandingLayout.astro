@@ -35,13 +35,17 @@ const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const landing = siteContent.landing ?? {};
 const isEditorial = landing.variant === "editorial";
+const isService = landing.variant === "service";
 const title = (titleProp ?? landing.title ?? company.name).trim();
 const pwaTitle = formatPwaAppTitle(company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
 const shareTitle = shareSafeText(landing.name ?? company.name);
 const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);
 const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
-const themeColor = themeColorProp ?? landing.themeColor ?? (isEditorial ? "#f4efe6" : "#01061d");
+const themeColor =
+  themeColorProp ??
+  landing.themeColor ??
+  (isEditorial ? "#f4efe6" : isService ? "#f4f7fb" : "#01061d");
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
@@ -49,9 +53,10 @@ const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${origin}${ogIma
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${LOGO_ICON_OG_PATH}`
   : ogImageAbsolute;
-const htmlStyle = isEditorial
-  ? undefined
-  : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary);
+const htmlStyle =
+  isEditorial || isService
+    ? undefined
+    : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary);
 ---
 
 <!doctype html>
@@ -88,6 +93,11 @@ const htmlStyle = isEditorial
         href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Great+Vibes&family=Outfit:wght@400;500;600&display=swap"
         rel="stylesheet"
       />
+    ) : isService ? (
+      <link
+        href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap"
+        rel="stylesheet"
+      />
     ) : (
       <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
@@ -95,7 +105,7 @@ const htmlStyle = isEditorial
       />
     )}
   </head>
-  <body class={isEditorial ? "editorial-body" : "landing-body"}>
+  <body class={isEditorial ? "editorial-body" : isService ? "service-body" : "landing-body"}>
     <slot />
     <ScrollFadeIn />
     <CookieNotice />
@@ -125,6 +135,30 @@ const htmlStyle = isEditorial
     user-select: text;
   }
   body.editorial-body a { color: inherit; }
+</style>
+) : isService ? (
+<style is:global>
+  * { box-sizing: border-box; }
+  html, body.service-body {
+    margin: 0;
+    min-height: 100%;
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #0f172a;
+    background: #f4f7fb;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body.service-body :is(
+    input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    a[href^="mailto:"],
+    a[href^="tel:"]
+  ) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  body.service-body a { color: inherit; }
 </style>
 ) : (
 <style is:global>

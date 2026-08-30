@@ -1,21 +1,63 @@
 {
   "key": "pattheplumber",
-  "pages": ["/", "/card", "/privacy", "/terms", "/cookies"],
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [],
     "groups": [],
     "showDemoCta": false,
-    "showSignIn": true
+    "showSignIn": false
   },
   "homepage": {
-    "template": "login",
-    "heroHeadlineHtml": "",
-    "subtitle": "Coming soon",
+    "template": "landing",
+    "heroHeadlineHtml": "Burst pipe? Call now.",
     "showHeroDemo": false,
     "showDialogue": false,
     "showIntegrations": false,
     "showFeatures": false,
     "showContact": false,
-    "showLegalLinks": false
+    "showLegalLinks": true
+  },
+  "landing": {
+    "variant": "service",
+    "title": "Pat the Plumber | Emergency Plumbing · Essex County & Boston",
+    "description": "Licensed Massachusetts plumber for emergencies — burst pipes, leaks, clogs. Serving Essex County and the Boston area. Based in Winthrop. Call now.",
+    "themeColor": "#f4f7fb",
+    "eyebrow": "Licensed · Massachusetts",
+    "name": "Pat the Plumber",
+    "role": "Emergency plumbing",
+    "tagline": "Mobile service across Essex County and the Boston area. Based in Winthrop — I come to you.",
+    "heroHeadline": "Burst pipe? Call now.",
+    "heroBody": "Solo licensed plumber for emergencies and side work. Sixteen years on the tools. No shop visit — I come to you.",
+    "callCta": {
+      "label": "Call Pat now",
+      "stickyLabel": "Call now"
+    },
+    "services": {
+      "heading": "When you need a plumber now",
+      "items": [
+        "Burst pipes and active leaks",
+        "Emergency shutoffs and water damage stops",
+        "Clogged drains and toilets",
+        "Water heater failures",
+        "Fixture repairs and replacements",
+        "General residential plumbing"
+      ]
+    },
+    "about": {
+      "heading": "Local. Licensed. Mobile.",
+      "body": [
+        "Pat is a fully licensed Massachusetts plumber with sixteen years of experience. He takes on emergency and side work across Essex County and the greater Boston area."
+      ],
+      "highlights": [
+        "Licensed in Massachusetts",
+        "16 years of experience",
+        "Essex County & Boston area",
+        "Based in Winthrop — travel service only"
+      ]
+    },
+    "contact": {
+      "heading": "Call"
+    },
+    "footer": "Pat the Plumber · Licensed Massachusetts"
   }
 }

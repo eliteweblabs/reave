@@ -25,7 +25,7 @@
   ],
   "homepageVoice": false,
   "chatFocusSkin": true,
-  "homepageTemplate": "login",
+  "homepageTemplate": "landing",
   "siteContentKey": "pattheplumber",
   "moduleStatus": {
     "client_portal": "deployed",
