@@ -406,14 +406,18 @@ html.site-marketing[data-theme="dark"] :is(
   .brand-btn,
   .marketing-nav-cta,
   [class*="btn--primary"],
-  .aw-fab
+  .aw-fab,
+  .aw-send,
+  .aw-root--site .aw-msg-user .aw-bubble
 ) {
   color: var(--brand-on-gradient);
   -webkit-text-fill-color: var(--brand-on-gradient);
 }
 
 html.site-marketing[data-theme="dark"] .aw-fab svg,
-html.site-marketing[data-theme="dark"] .aw-fab svg path {
+html.site-marketing[data-theme="dark"] .aw-fab svg path,
+html.site-marketing[data-theme="dark"] .aw-send svg,
+html.site-marketing[data-theme="dark"] .aw-send svg path {
   stroke: var(--brand-on-gradient);
 }
 
