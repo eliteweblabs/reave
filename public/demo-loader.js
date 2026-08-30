@@ -277,7 +277,7 @@
     return (
       `<div class="dl-sticky-ctas" data-dl-sticky-ctas>` +
       `<div class="dl-sticky-ctas__row">` +
-      `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
+      `<button type="button" class="dl-btn dl-btn--ghost brand-btn-glass" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${ready ? '' : ' disabled'}>` +
       (launching ? 'Submitting…' : 'Build my demo') +
       `</button>` +
@@ -286,8 +286,45 @@
     );
   }
 
+  function stickyTrack() {
+    return document.querySelector('[data-dl-sticky-ctas-track]');
+  }
+
+  /** Size the parked `top` like homepage homeStickyCtas — must match the pill. */
+  function syncStickyCtaHeight() {
+    const track = stickyTrack();
+    const el = track?.querySelector(':scope > [data-dl-sticky-ctas]');
+    if (!track || !el) return;
+    const row = el.querySelector('.dl-sticky-ctas__row') || el;
+    const dock = track.querySelector('[data-dl-sticky-ctas-dock]');
+    const height = Math.round(row.getBoundingClientRect().height);
+    if (height > 0) {
+      track.style.setProperty('--dl-sticky-cta-h', `${height}px`);
+      if (dock) dock.style.minHeight = `${height}px`;
+    }
+  }
+
+  /**
+   * Homepage pattern: CTAs are a direct grid sibling of the track body, not
+   * nested inside the module list (that parked them on "Core OS").
+   */
+  function mountStickyActions() {
+    const track = stickyTrack();
+    if (!track) return;
+    const existing = track.querySelector(':scope > [data-dl-sticky-ctas]');
+    if (!togglesEnabled || submitted) {
+      existing?.remove();
+      return;
+    }
+    const html = renderStickyActions();
+    if (existing) existing.outerHTML = html;
+    else track.insertAdjacentHTML('beforeend', html);
+    syncStickyCtaHeight();
+  }
+
   function render() {
     if (togglesEnabled && submitted) {
+      mountStickyActions();
       renderSuccess();
       return;
     }
@@ -296,19 +333,19 @@
       root.innerHTML =
         `<div class="dl-panel">` +
         renderLaunchFields() +
-        `<div class="dl-sticky-cta-track">` +
-        `<div class="dl-sticky-cta-track__body">` +
+        /* Reserve the sticky strip so Core OS never loads under Clear / Build. */
+        `<div class="dl-sticky-ctas-spacer" aria-hidden="true"></div>` +
         `<div class="dl-sections">` +
         renderIncludedSection() +
         sections.map(renderSection).join('') +
         `</div>` +
-        `</div>` +
-        renderStickyActions() +
-        `</div>` +
+        `<div class="dl-sticky-ctas-dock" data-dl-sticky-ctas-dock aria-hidden="true"></div>` +
         `</div>`;
+      mountStickyActions();
       return;
     }
 
+    mountStickyActions();
     root.innerHTML =
       `<div class="dl-panel">` +
       `<div class="dl-sections">` +
@@ -429,18 +466,11 @@
 
     const syncLaunchEnabled = () => {
       readVisitorFields();
-      const btn = root.querySelector('#dl-launch');
+      const btn = stickyTrack()?.querySelector('#dl-launch');
       if (btn) btn.disabled = !canLaunch();
     };
     root.querySelector('#dl-name')?.addEventListener('input', syncLaunchEnabled);
     root.querySelector('#dl-email')?.addEventListener('input', syncLaunchEnabled);
-
-    root.querySelector('#dl-clear')?.addEventListener('click', () => {
-      readVisitorFields();
-      selectedIds = new Set();
-      render();
-      bind();
-    });
 
     root.querySelectorAll('.dl-switch').forEach((btn) => {
       btn.addEventListener('click', (e) => {
@@ -458,7 +488,15 @@
       });
     });
 
-    root.querySelector('#dl-launch')?.addEventListener('click', () => {
+    /* Clear / Build live on the track sibling (homepage sticky pattern). */
+    const track = stickyTrack();
+    track?.querySelector('#dl-clear')?.addEventListener('click', () => {
+      readVisitorFields();
+      selectedIds = new Set();
+      render();
+      bind();
+    });
+    track?.querySelector('#dl-launch')?.addEventListener('click', () => {
       void launch();
     });
   }
@@ -478,7 +516,11 @@
       syncDefaults(data);
       render();
       bind();
+      window.addEventListener('resize', syncStickyCtaHeight);
+      window.visualViewport?.addEventListener('resize', syncStickyCtaHeight);
+      document.fonts?.ready?.then(() => syncStickyCtaHeight());
     } catch (e) {
+      mountStickyActions();
       root.innerHTML = `<p class="dl-error">Could not load modules: ${esc(e.message)}</p>`;
     }
   }
