@@ -364,7 +364,7 @@ const hasWork = portalWorkJobs.length > 0;
 const hasAudit = Boolean(portalAuditJob);
 const postAlias = getPostAlias();
 const tabs: Array<{ id: string; label: string }> = [];
-tabs.push({ id: 'overview', label: 'Overview' });
+tabs.push({ id: 'overview', label: 'Visibility' });
 if (hasAudit) tabs.push({ id: 'audit', label: 'Audit' });
 if (hasWork) tabs.push({ id: 'work', label: postAlias.pluralTitle });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
