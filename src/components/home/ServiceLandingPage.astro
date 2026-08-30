@@ -310,7 +310,18 @@ const logoSrc = (landing.heroLogo || "").trim()
                   </span>
                 )
               }
-              <p class="svc-footer-chat__bubble" data-svc-intro-text></p>
+              <div class="svc-footer-chat__bubble-wrap">
+                <p class="svc-footer-chat__bubble" data-svc-intro-text></p>
+                <button
+                  type="button"
+                  class="svc-footer-chat__dismiss"
+                  data-svc-intro-dismiss
+                  aria-label="Dismiss message"
+                >
+                  <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
             </div>
           ) : null
         }
@@ -344,59 +355,99 @@ const logoSrc = (landing.heroLogo || "").trim()
   showFooterChat && introPhrases.length ? (
     <script is:inline define:vars={{ introPhrases, chatFaceAlt }}>
       (function () {
+        const DISMISS_KEY = "svc-footer-chat-intro-dismissed";
         const root = document.querySelector("[data-svc-footer-chat]");
         const intro = root?.querySelector("[data-svc-intro]");
         const textEl = intro?.querySelector("[data-svc-intro-text]");
+        const dismissBtn = intro?.querySelector("[data-svc-intro-dismiss]");
         if (!root || !intro || !textEl || !introPhrases.length) return;
+
+        try {
+          if (sessionStorage.getItem(DISMISS_KEY) === "1") {
+            intro.remove();
+            return;
+          }
+        } catch (_) {
+          /* private mode */
+        }
 
         const face = intro.querySelector(".svc-footer-chat__face");
         if (face instanceof HTMLImageElement && chatFaceAlt) {
           face.alt = chatFaceAlt;
         }
 
-        const pick = introPhrases[Math.floor(Math.random() * introPhrases.length)];
+        const pick =
+          introPhrases[Math.floor(Math.random() * introPhrases.length)];
         textEl.textContent = pick;
 
-        const hideIntro = () => {
+        let revealed = false;
+        let timer = null;
+        const reduceMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        const DELAY_MS = reduceMotion ? 0 : 3000;
+        const SCROLL_MIN = 64;
+        const SETTLE_MS = 900;
+        const readyAt = Date.now() + SETTLE_MS;
+        const startY =
+          window.scrollY || document.documentElement.scrollTop || 0;
+
+        const cleanup = () => {
+          window.removeEventListener("scroll", onScroll);
+          if (timer) {
+            clearTimeout(timer);
+            timer = null;
+          }
+        };
+
+        const hideIntro = (persist) => {
+          revealed = true;
+          cleanup();
           intro.hidden = true;
           intro.setAttribute("aria-hidden", "true");
           intro.classList.remove("is-visible");
+          if (persist) {
+            try {
+              sessionStorage.setItem(DISMISS_KEY, "1");
+            } catch (_) {
+              /* ignore */
+            }
+          }
         };
 
-        root.addEventListener("cf-dock-expand", hideIntro);
-
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-          intro.hidden = false;
-          intro.setAttribute("aria-hidden", "false");
-          intro.classList.add("is-visible");
-          return;
-        }
-
-        const DELAY_MS = 3000;
-        let revealed = false;
-        let timer = null;
-        const ENGAGE = ["scroll", "pointerdown", "keydown", "touchstart"];
-
         const reveal = () => {
-          if (revealed || root.querySelector(".conversational-form-root--dock.is-active")) {
+          if (revealed) return;
+          if (root.querySelector(".conversational-form-root--dock.is-active")) {
+            hideIntro(false);
             return;
           }
           revealed = true;
-          if (timer) clearTimeout(timer);
-          ENGAGE.forEach((ev) => window.removeEventListener(ev, onEngage));
+          cleanup();
           intro.hidden = false;
           intro.setAttribute("aria-hidden", "false");
-          requestAnimationFrame(() => intro.classList.add("is-visible"));
+          if (reduceMotion) {
+            intro.classList.add("is-visible");
+          } else {
+            requestAnimationFrame(() => intro.classList.add("is-visible"));
+          }
         };
 
-        const onEngage = () => {
+        const onScroll = () => {
           if (revealed || timer) return;
+          if (Date.now() < readyAt) return;
+          const y =
+            window.scrollY || document.documentElement.scrollTop || 0;
+          if (Math.abs(y - startY) < SCROLL_MIN && y < SCROLL_MIN) return;
           timer = setTimeout(reveal, DELAY_MS);
         };
 
-        ENGAGE.forEach((ev) =>
-          window.addEventListener(ev, onEngage, { passive: true }),
-        );
+        window.addEventListener("scroll", onScroll, { passive: true });
+        root.addEventListener("cf-dock-expand", () => hideIntro(false));
+        dismissBtn?.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          hideIntro(true);
+        });
       })();
     </script>
   ) : null
@@ -720,9 +771,20 @@ const logoSrc = (landing.heroLogo || "").trim()
     transition: opacity 0.35s ease, transform 0.35s ease;
   }
 
+  .svc-footer-chat__intro[hidden] {
+    display: none !important;
+  }
+
   .svc-footer-chat__intro.is-visible {
     opacity: 1;
     transform: translateY(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .svc-footer-chat__intro {
+      transition: none;
+      transform: none;
+    }
   }
 
   .svc-footer-chat__face {
@@ -745,10 +807,14 @@ const logoSrc = (landing.heroLogo || "").trim()
     background: var(--svc-accent);
   }
 
+  .svc-footer-chat__bubble-wrap {
+    position: relative;
+    max-width: min(18.5rem, calc(100% - 3rem));
+  }
+
   .svc-footer-chat__bubble {
     margin: 0;
-    max-width: min(18rem, calc(100% - 3rem));
-    padding: 0.55rem 0.75rem;
+    padding: 0.55rem 1.55rem 0.55rem 0.75rem;
     border-radius: 1rem;
     border-bottom-left-radius: 0.3rem;
     border: 1px solid rgba(15, 23, 42, 0.1);
@@ -758,6 +824,40 @@ const logoSrc = (landing.heroLogo || "").trim()
     font-weight: 600;
     line-height: 1.3;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+  }
+
+  .svc-footer-chat__dismiss {
+    position: absolute;
+    top: -0.15rem;
+    right: -0.15rem;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .svc-footer-chat__dismiss svg {
+    width: 0.7rem;
+    height: 0.7rem;
+    padding: 0.2rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+    box-sizing: content-box;
+  }
+
+  .svc-footer-chat__dismiss:focus-visible {
+    outline: 2px solid var(--svc-accent);
+    outline-offset: 1px;
   }
 
   .svc-footer-chat :global(.conversational-form-root--dock .input-pill) {
