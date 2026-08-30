@@ -869,7 +869,10 @@ const logoSrc = (landing.heroLogo || "").trim()
     right: 0;
     bottom: 0;
     z-index: 40;
+    /* One centered column: dock spans it; intro pins to its left edge. */
     display: grid;
+    grid-template-columns: minmax(0, var(--svc-footer-chat-max));
+    justify-content: center;
     justify-items: stretch;
     gap: 0.55rem;
     padding: 0.55rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
@@ -882,18 +885,20 @@ const logoSrc = (landing.heroLogo || "").trim()
   }
 
   .svc-footer-chat :global(.conversational-form-root--dock),
-  .svc-footer-chat__intro,
   .svc-footer-chat__dock {
     width: 100%;
-    max-width: var(--svc-footer-chat-max);
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0;
   }
 
   .svc-footer-chat__intro {
     display: flex;
     align-items: flex-end;
+    justify-content: flex-start;
+    justify-self: start;
     gap: 0.55rem;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
     opacity: 0;
     transform: translateY(0.55rem);
     transition: opacity 0.35s ease, transform 0.35s ease;
@@ -995,10 +1000,6 @@ const logoSrc = (landing.heroLogo || "").trim()
   .svc-footer-chat__dismiss:focus-visible {
     outline: 2px solid var(--svc-accent);
     outline-offset: 1px;
-  }
-
-  .svc-footer-chat__dock {
-    margin: 0;
   }
 
   .svc-footer-chat__pill {
