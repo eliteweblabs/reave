@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/social/deauthorize/instagram
  *
- * Meta calls this when a user removes the reΛVe.app Instagram app. No Clerk
+ * Meta calls this when a user removes the reave.app Instagram app. No Clerk
  * session — Meta's servers POST a signed_request. Drop the stored token.
  */
 import type { APIContext } from 'astro';

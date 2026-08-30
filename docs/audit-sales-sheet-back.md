@@ -3,7 +3,7 @@
 Print spec for `/admin/sales-sheet`. Two Letter pages, duplex.
 
 - **Front** — custom: client, scores, four cascade findings (iPhone exhibits), QR.
-- **Back (reΛVe.app trifold)** — unfolded Letter landscape, left to right:
+- **Back (reave.app trifold)** — unfolded Letter landscape, left to right:
   inner **gate**, **back** cover, **front** cover. Same HTML for every client
   (`src/lib/salesSheetBack.ts`).
 

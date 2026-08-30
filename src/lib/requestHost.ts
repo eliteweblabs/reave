@@ -1,6 +1,6 @@
 /**
  * Public hostname for the in-flight request.
- * Homepage chrome uses this so a client domain never inherits reΛVe.app marketing
+ * Homepage chrome uses this so a client domain never inherits reave.app marketing
  * just because INSTALL_CONFIG was copied as `reave`.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';

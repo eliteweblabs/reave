@@ -226,7 +226,7 @@ async function handle_create_todo(args: Record<string, unknown>, _ctx: ToolConte
     );
     if (isPunchlistHubHost()) {
       return JSON.stringify({
-        error: 'This is the official reΛVe install — add a local to-do instead.',
+        error: 'This is the official reave install — add a local to-do instead.',
       });
     }
     if (!isPunchlistHubClientConfigured()) {
@@ -340,7 +340,7 @@ export const todosModule: AgentToolModule = {
               function: {
                 name: 'list_todos',
                 description:
-                  'List personal to-do items. Punch list is a shared admin section (dashboard → Punch list). On the official reΛVe install, shared:true lists incoming install-owner feature requests. On a client install, for_reave:true lists this install\'s punch list on reΛVe. Not client jobs — do not use list_work.',
+                  'List personal to-do items. Punch list is a shared admin section (dashboard → Punch list). On the official reave install, shared:true lists incoming install-owner feature requests. On a client install, for_reave:true lists this install\'s punch list on reave. Not client jobs — do not use list_work.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -370,7 +370,7 @@ export const todosModule: AgentToolModule = {
                     for_reave: {
                       type: 'boolean',
                       description:
-                        'Optional — on a client install, list this owner\'s punch list on reΛVe',
+                        'Optional — on a client install, list this owner\'s punch list on reave',
                     },
                   },
                   additionalProperties: false,
@@ -382,7 +382,7 @@ export const todosModule: AgentToolModule = {
               function: {
                 name: 'create_todo',
                 description:
-                  'Add a personal to-do (not a client job). On a client install, set for_reave:true to add a feature request to the shared Punch list (and the official reΛVe owner\'s to-do). Never use create_work for personal or punch-list tasks.',
+                  'Add a personal to-do (not a client job). On a client install, set for_reave:true to add a feature request to the shared Punch list (and the official reave owner\'s to-do). Never use create_work for personal or punch-list tasks.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -399,7 +399,7 @@ export const todosModule: AgentToolModule = {
                     for_reave: {
                       type: 'boolean',
                       description:
-                        'On a client install, send this item to the official reΛVe owner punch list',
+                        'On a client install, send this item to the official reave owner punch list',
                     },
                   },
                   required: ['title'],

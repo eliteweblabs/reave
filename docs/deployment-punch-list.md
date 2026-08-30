@@ -1,6 +1,6 @@
 # Deployment punch list
 
-Master playbook for standing up a Reave install on Railway. On the official reΛVe.app Railway app the `deploy_wizard` module (`config/config-reave.json`) adds a **Deploy wizard** dashboard tile to **[/deploy](/deploy)** — pick modules (same toggles as `/demo-loader`), list the **subdomains** that suite needs (`ap`, `cal`, `inbound`, …), and fill Railway **reference variables** from canonical service names. Do not add this module to client configs. Or generate a trimmed markdown checklist:
+Master playbook for standing up a Reave install on Railway. On the official reave.app Railway app the `deploy_wizard` module (`config/config-reave.json`) adds a **Deploy wizard** dashboard tile to **[/deploy](/deploy)** — pick modules (same toggles as `/demo-loader`), list the **subdomains** that suite needs (`ap`, `cal`, `inbound`, …), and fill Railway **reference variables** from canonical service names. Do not add this module to client configs. Or generate a trimmed markdown checklist:
 
 ```bash
 npm run deploy:checklist -- --install demo --modules scheduling,vapi,billing

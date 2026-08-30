@@ -11,7 +11,7 @@ enable from the client install — turn it on in `features[]` after payment.
 
 ## Sibling services
 
-- None for the inbox shell. Live network APIs need reΛVe.app-owned OAuth apps
+- None for the inbox shell. Live network APIs need reave.app-owned OAuth apps
   (one per network) plus App Review before clients besides testers can
   connect. Tokens stay on the client install after they click Connect.
 

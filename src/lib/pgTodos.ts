@@ -415,7 +415,7 @@ async function isMarkdownSeedDone(pool: pg.Pool): Promise<boolean> {
   return !!meta.rows[0]?.markdown_seed_done;
 }
 
-/** Customer installs: drop the bundled reΛVe.app markdown seed once, then leave the list alone. */
+/** Customer installs: drop the bundled reave.app markdown seed once, then leave the list alone. */
 export async function dbPurgeBundledMarkdownTodosOnce(): Promise<number> {
   try {
     const pool = await ensureSchema();
@@ -428,7 +428,7 @@ export async function dbPurgeBundledMarkdownTodosOnce(): Promise<number> {
     );
     await markMarkdownSeedDone(pool);
     if ((rowCount ?? 0) > 0) {
-      console.log(`[todos:pg] purged ${rowCount} bundled reΛVe.app seed to-dos`);
+      console.log(`[todos:pg] purged ${rowCount} bundled reave.app seed to-dos`);
     }
     return rowCount ?? 0;
   } catch (e) {

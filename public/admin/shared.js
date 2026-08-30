@@ -433,7 +433,7 @@ export function prefetchContactAuthorIcons() {
   return contactAuthorIconPrefetchPromise;
 }
 
-/** Wait for client branding icons before rendering sidebar rows (avoids reΛVe.app fallback flash). */
+/** Wait for client branding icons before rendering sidebar rows (avoids reave.app fallback flash). */
 export async function ensureContactAuthorIconsReady() {
   await prefetchContactAuthorIcons();
 }

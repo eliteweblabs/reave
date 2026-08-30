@@ -225,7 +225,7 @@ export async function ensureDeployWizardStack(opts: {
     } else {
       say(`Creating Railway project ${named}…`);
       const created = await createRailwayEmptyProject(named, {
-        description: `${named} — reΛVe.app install ${opts.plan.installSlug} (via deploy wizard)`,
+        description: `${named} — reave.app install ${opts.plan.installSlug} (via deploy wizard)`,
       });
       if (!created.ok) return { ok: false, error: created.message };
       projectId = created.id;

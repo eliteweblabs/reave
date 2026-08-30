@@ -31,7 +31,7 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
 }
 
 {
-  const png = await renderCompanyBrandIconPng({ name: 'reΛVe.app', iconSvg: UNFILLED_AV }, 32);
+  const png = await renderCompanyBrandIconPng({ name: 'reave.app', iconSvg: UNFILLED_AV }, 32);
   const meta = await sharp(png).metadata();
   assert.equal(meta.width, 32);
   assert.equal(meta.height, 32);
@@ -42,7 +42,7 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
 
 {
   const png = await renderCompanyBrandIconPng(
-    { name: 'reΛVe.app', iconSvg: UNFILLED_AV },
+    { name: 'reave.app', iconSvg: UNFILLED_AV },
     32,
     { transparent: true },
   );
@@ -53,10 +53,10 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
 }
 
 {
-  const etag = brandingEtag({ name: 'reΛVe.app', iconSvg: UNFILLED_AV, brandPrimary: '#000000' }, 32);
+  const etag = brandingEtag({ name: 'reave.app', iconSvg: UNFILLED_AV, brandPrimary: '#000000' }, 32);
   assert.match(etag, new RegExp(`:${BRAND_ICON_RENDER}:`));
   assert.match(etag, /#000000/);
-  const other = brandingEtag({ name: 'reΛVe.app', iconSvg: UNFILLED_AV }, 32);
+  const other = brandingEtag({ name: 'reave.app', iconSvg: UNFILLED_AV }, 32);
   assert.notEqual(etag, other);
 }
 
@@ -65,13 +65,13 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
   assert.equal(admin.from, '#22c55e');
   const darkAdmin = brandMarkInk({ brandPrimary: '#000000', brandSecondary: '#505050' }, 'dark');
   assert.equal(darkAdmin.from, '#ffffff');
-  const unset = brandMarkInk({ name: 'reΛVe.app' }, 'dark');
+  const unset = brandMarkInk({ name: 'reave.app' }, 'dark');
   assert.equal(unset.from, '#ffffff');
   assert.doesNotMatch(unset.from + unset.to, /#f472b6|#c026d3|#6366f1|#a855f7/i);
 }
 
 {
-  const png = await renderCompanyBrandIconPng({ name: 'reΛVe.app' }, 32);
+  const png = await renderCompanyBrandIconPng({ name: 'reave.app' }, 32);
   const analysis = await analyzeLogoContrast(png);
   assert.equal(isSolidNeutralField(analysis, 32 * 32), false, 'letter fallback must not be a solid tile');
 }
@@ -82,7 +82,7 @@ const UNFILLED_AV = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 51
   assert.match(wrapped!, /<rect\b[^>]*fill="#09090b"/);
   assert.match(wrapped!, /<g fill="#ffffff">/);
   assert.match(wrapped!, /M80\.43,366\.111/);
-  const fromAdmin = companyFaviconSvgMarkup({ name: 'reΛVe.app', iconSvg: UNFILLED_AV, brandPrimary: '#000000' });
+  const fromAdmin = companyFaviconSvgMarkup({ name: 'reave.app', iconSvg: UNFILLED_AV, brandPrimary: '#000000' });
   assert.ok(fromAdmin);
   assert.match(fromAdmin!, /<g fill="#ffffff">/);
 }

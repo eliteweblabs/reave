@@ -452,7 +452,7 @@ function resolvePortalOutreachNotice(stored: StoredCompanyConfig | null): string
   if (stored?.portalOutreachNotice === '') return '';
   const custom = stored?.portalOutreachNotice?.trim();
   const officialDefault = DEFAULT_PORTAL_OUTREACH_NOTICE.trim();
-  // Client clones must not inherit the official reΛVe.app welcome (code default or
+  // Client clones must not inherit the official reave.app welcome (code default or
   // a copy that landed in company_config). Empty = sheet hidden.
   if (!isCanonicalReaveInstall()) {
     if (!custom || custom === officialDefault) return '';

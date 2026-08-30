@@ -3,7 +3,7 @@
  *
  * Called by the inbound pipeline when a matched triage rule has `forwardTo` set.
  * The forwarded message preserves the original From/Subject and prepends a one-line
- * "Forwarded by reΛVe.app" banner so the recipient understands the context.
+ * "Forwarded by reave.app" banner so the recipient understands the context.
  */
 
 import { sendEmail } from './outbound';

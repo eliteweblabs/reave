@@ -1,5 +1,5 @@
 /**
- * Shared Punch list — same admin section on official reΛVe and client installs.
+ * Shared Punch list — same admin section on official reave and client installs.
  */
 import {
   createCenteredListEmpty,
@@ -73,7 +73,7 @@ function itemSubline(item) {
   if (item.company) bits.push(item.company);
   else if (item.install_slug) bits.push(item.install_slug);
   else if (isCanonicalReave()) bits.push('Install request');
-  else bits.push(punchlistState.company || 'Shared with reΛVe');
+  else bits.push(punchlistState.company || 'Shared with reave');
   return bits.join(' · ');
 }
 
@@ -97,7 +97,7 @@ function searchPlaceholder() {
 }
 
 function sharedBannerText() {
-  return isCanonicalReave() ? 'Shared with install owners' : 'Shared with reΛVe';
+  return isCanonicalReave() ? 'Shared with install owners' : 'Shared with reave';
 }
 
 export async function loadPunchlistTab(opts = {}) {
@@ -249,10 +249,10 @@ function emptyListText() {
   if (punchlistState.search.trim()) return 'No matches.';
   if (punchlistState.filter === 'done') return 'No completed requests yet.';
   if (!punchlistState.configured) {
-    return punchlistState.error || 'Punch list isn’t connected. Set REAVE_HUB_KEY to share requests with reΛVe.';
+    return punchlistState.error || 'Punch list isn’t connected. Set REAVE_HUB_KEY to share requests with reave.';
   }
   if (isCanonicalReave()) return 'No install requests yet.';
-  return 'No requests yet. Add one to share it with reΛVe.';
+  return 'No requests yet. Add one to share it with reave.';
 }
 
 function fillPunchlistSidebarList(list) {
@@ -410,7 +410,7 @@ function renderPunchlistPane() {
       shell.appendEmptyDetailPane(pane, {
         mapKey: 'punchlist',
         iconName: 'list-checks',
-        bodyHtml: '<p>Select a request, or add one to share it with reΛVe.</p>',
+        bodyHtml: '<p>Select a request, or add one to share it with reave.</p>',
         btnLabel: 'New request',
         onCreate: () => startNewPunchlistItem(),
       });
@@ -467,7 +467,7 @@ function renderPunchlistEditPane(pane, isNew) {
   const note = document.createElement('p');
   note.className = 'de-item-slug';
   note.textContent = isNew
-    ? 'This is added to Punch list on official reΛVe and their to-do.'
+    ? 'This is added to Punch list on official reave and their to-do.'
     : itemSubline({
         company: punchlistState.items.find((row) => row.id === punchlistState.activeId)?.company,
         install_slug: punchlistState.items.find((row) => row.id === punchlistState.activeId)?.install_slug,

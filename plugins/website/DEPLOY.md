@@ -28,7 +28,7 @@ Enabling `website` also turns on the Agentic Website Editor tools and Pexels sea
 - Enable `website` in install config `features[]`
 - Prefer deploy wizard Apply (creates `{slug}-site` and a restricted GitHub App for that repo)
 - Do **not** enable `dev_infra` on a client install
-- Do **not** copy the reΛVe.app host `GITHUB_TOKEN`
+- Do **not** copy the reave.app host `GITHUB_TOKEN`
 
 ## Checklist
 

@@ -1,7 +1,7 @@
 /**
  * Cross-install punch-list hub.
  *
- * Official reΛVe.app verifies incoming items with REAVE_HUB_SECRET (or
+ * Official reave.app verifies incoming items with REAVE_HUB_SECRET (or
  * REAVE_HUB_KEY). Client installs send that same key plus their install slug.
  * Both sides open the same Punch list admin section; items also land on the
  * official to-do list.
@@ -272,6 +272,6 @@ export async function fetchPunchlistHub<T>(
     return { ok: true, status: res.status, data };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { ok: false, status: 502, error: `Could not reach reΛVe hub: ${msg}` };
+    return { ok: false, status: 502, error: `Could not reach reave hub: ${msg}` };
   }
 }

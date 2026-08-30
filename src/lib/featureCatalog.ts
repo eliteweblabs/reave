@@ -280,7 +280,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   online_reviews:
     'Google™, Apple Maps, Yelp, Facebook, Tripadvisor, Trustpilot, & Glassdoor — queue replies in one place',
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
-  content_management: 'Edit the install’s own front-end repo through the agent — not the reΛVe.app',
+  content_management: 'Edit the install’s own front-end repo through the agent — not the reave.app',
   stock_photos: 'Royalty-free search for pages, decks, & newsletters',
   wordpress_content:
     'Agent updates posts, pages, media, menus, & redirects on a WordPress™ site via Reave Connect',
@@ -312,7 +312,7 @@ export type FeatureVisibility = 'public' | 'private' | 'service';
  * (demo loader, /modules, /features, marketing chips). Private modules are
  * super-admin / ops-only and are not sold as add-ons. Service modules are
  * not deployable app features — they stay on the official catalog / sales
- * sheet as work reΛVe.app offers outside the install.
+ * sheet as work reave.app offers outside the install.
  */
 export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> = {
   deploy_wizard: 'private',
@@ -440,7 +440,7 @@ export function formatClientWebsiteToolInventory(opts: {
   const lines = ['Client website tools on this install (not hosting or registrar APIs):'];
   if (opts.editor) {
     lines.push(
-      '- Website editor: this install’s front-end repo only (not reΛVe.app). Commit every edit in the same turn; “undo that” reverts the last commit.',
+      '- Website editor: this install’s front-end repo only (not reave.app). Commit every edit in the same turn; “undo that” reverts the last commit.',
     );
   }
   if (opts.stockPhotos) {

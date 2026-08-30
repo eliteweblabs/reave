@@ -30,7 +30,7 @@ When `RAILWAY_API_TOKEN` is set on the Reave service, the admin agent has full R
 | `railway_whoami` / `list_railway_workspaces` | Token identity / workspace list |
 | `search_railway_docs` | Quick docs.railway.com lookup |
 
-Defaults: install project label (e.g. "reΛVe.app App Demo") and `production` environment unless the user specifies otherwise.
+Defaults: install project label (e.g. "reave.app App Demo") and `production` environment unless the user specifies otherwise.
 
 ## Common workflows
 

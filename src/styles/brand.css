@@ -441,7 +441,7 @@ html.site-marketing .client-logo-item img {
 /*
  * Header wordmark is black ink. Marketing used to set filter:none on it to
  * undo a grayscale pass, which also killed the dark-mode invert and left
- * reΛve.app invisible on the dark canvas.
+ * reave.app invisible on the dark canvas.
  */
 html[data-theme="dark"] .app-header-logo-svg,
 html[data-theme="dark"] .app-header-logo-img {

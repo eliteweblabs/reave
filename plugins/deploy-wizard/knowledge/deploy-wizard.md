@@ -1,6 +1,6 @@
 # Deploy wizard
 
-Super-admin module on the official reΛVe.app Railway install only (`visibility: private` — not a purchasable storefront add-on). Enable with `deploy_wizard` in `config/config-reave.json` `features[]` and `deploy` in `footerNav`. Page: **`/deploy`**. Client installs 404 the page and `/api/deploy/wizard`.
+Super-admin module on the official reave.app Railway install only (`visibility: private` — not a purchasable storefront add-on). Enable with `deploy_wizard` in `config/config-reave.json` `features[]` and `deploy` in `footerNav`. Page: **`/deploy`**. Client installs 404 the page and `/api/deploy/wizard`.
 
 Same module-toggle UI as `/demo-loader`, then a Railway variable plan that prefers **reference variables** over pasted URLs. Tiles only switch on when the module is **deployed** and enabled on production Reave — requested or in-development cards stay visible but cannot be included.
 
@@ -75,7 +75,7 @@ Put third-party secrets on the Astro service once. Siblings **reference** them �
 | `RESEND_API_KEY` | Cal.com `RESEND_API_KEY` + `EMAIL_SERVER_PASSWORD`; Crater `MAIL_PASSWORD` |
 | `PUBLIC_SITE_URL` | `contact-api` / fleet / inventory / materials `ALLOWED_ORIGINS` |
 
-Cal.com’s onboarding form (avatar, username, email) is a user row, not an env var. After apply — or when `calcom-web-app` shows up later — the reΛVe.app node writes those fields from company config / `GET /api/install/identity`. Refresh the Cal.com onboarding page if it was already open.
+Cal.com’s onboarding form (avatar, username, email) is a user row, not an env var. After apply — or when `calcom-web-app` shows up later — the reave.app node writes those fields from company config / `GET /api/install/identity`. Refresh the Cal.com onboarding page if it was already open.
 
 Cal.com also gets Resend SMTP literals (`smtp.resend.com` / `465` / `resend`) so it never falls back to local `sendmail` when `EMAIL_FROM` is unset.
 
@@ -110,7 +110,7 @@ This wizard is owner-only. The Variables step is read-only. Apply:
 - **Derives** `RESEND_FROM` as `noreply@inbound.{apex}` (the inbound domain Apply already adds in Resend) and `EMAIL_FROM_NAME` from the company name.
 - **Website editor:** GitHub cannot create PATs via API. Apply creates `eliteweblabs/{slug}-site`, then POSTs the App manifest to GitHub (`/organizations/eliteweblabs/settings/apps/new`). CSP `form-action` must include `https://github.com` or the browser blocks that step. After you install the App on `{slug}-site` (not `eliteweblabs/reave`), Apply writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO` onto the client. The client mints a Contents token scoped to that repo on each write. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create the repo and attach it. If this host already has `GITHUB_APP_*`, Apply reuses them instead of opening GitHub. The Review step streams a live Apply log (Railway project, each service, repo, then the GitHub handoff).
 
-Apply copies **Resend** from this host and creates the inbound domain plus `email.received` webhook. Anthropic is optional (blank uses the reΛVe.app host key). Clerk keys (`PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`) are copied onto **shared** and the app service so the process that serves the custom domain always sees them. Other host keys are copied when present and skipped when missing.
+Apply copies **Resend** from this host and creates the inbound domain plus `email.received` webhook. Anthropic is optional (blank uses the reave.app host key). Clerk keys (`PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`) are copied onto **shared** and the app service so the process that serves the custom domain always sees them. Other host keys are copied when present and skipped when missing.
 
 **Sample data / playbooks:** Admin → Industries is the deploy recipe list (`GET`/`PUT /api/admin/deck-industries`). Opening that page backfills **Law firm**, **Plumbing**, and **General contractor** with the recipes the wizard already used (sample inbox/todos/schedule; law uses work name `matter` and court-knowledge notes). A leftover “Plumbers” row is renamed to Plumbing when that slug is free. The Modules step picker loads that catalog and applies the playbook. Disabled rows stay hidden. Apply writes `SEED_ON_BOOT` + `DEMO_INDUSTRY`. The first owner visit to `/admin` seeds inbox, todos, and schedule so the dashboard is not empty before live email is connected. When `RESEND_API_KEY` is later set for the first time (it was blank/null), seeded inbox rows are wiped so they do not mix with live mail — rotating an existing key does not wipe. Law firm still adds court-knowledge options.
 

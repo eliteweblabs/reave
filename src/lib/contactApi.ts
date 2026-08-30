@@ -526,7 +526,7 @@ export async function setContactKind(
   kind: ClientKind,
 ): Promise<{ ok: true; kind: ClientKind } | { ok: false; error: string }> {
   if (kind === 'personal' && !isCanonicalReaveInstall()) {
-    return { ok: false, error: 'Personal contacts are only available on the reΛVe.app install.' };
+    return { ok: false, error: 'Personal contacts are only available on the reave.app install.' };
   }
   const res = await getContact(uid);
   if (!res.ok) return { ok: false, error: res.error };

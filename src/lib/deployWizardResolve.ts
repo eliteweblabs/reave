@@ -116,7 +116,7 @@ export async function resolveDeployWizardApply(
   return { ok: true, byService, notes };
 }
 
-/** Typed client key wins; otherwise the copied reΛVe.app host key. */
+/** Typed client key wins; otherwise the copied reave.app host key. */
 export function anthropicKeySourceForApply(typedValue: string, inheritedValue: string): 'client' | 'reave' | '' {
   if (typedValue.trim()) return 'client';
   if (inheritedValue.trim()) return 'reave';

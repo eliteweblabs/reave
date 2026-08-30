@@ -1,6 +1,6 @@
 # Multi-channel inventory sync
 
-Connect **Shopify**, **WooCommerce**, **Square**, and future platforms (BigCommerce, Amazon, eBay, Etsy) into one normalized stock view inside reΛVe.app.
+Connect **Shopify**, **WooCommerce**, **Square**, and future platforms (BigCommerce, Amazon, eBay, Etsy) into one normalized stock view inside reave.app.
 
 ## Status
 

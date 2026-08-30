@@ -26,7 +26,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 
 | Method | Path | Tool name |
 |--------|------|-----------|
-| GET | `/api/custom/branding` | _(company colors from reΛVe `company_config`)_ |
+| GET | `/api/custom/branding` | _(company colors from reave `company_config`)_ |
 | POST | `/api/custom/create-invoice` | `create_invoice` |
 | GET | `/api/custom/invoices` | `list_recent_invoices` |
 | GET | `/api/custom/payments` | _(client portal payment history)_ |
@@ -36,7 +36,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | POST | `/api/custom/invoice/{id}/items` | `add_invoice_items` |
 | PUT | `/api/custom/invoice/{invoiceId}/items/{itemId}` | _(edit one line: name / description / qty / price)_ |
 | GET | `/api/custom/customers?q=` | `search_customers` |
-| PUT | `/api/custom/customer/{id}` | _(reΛVe.app contact → Crater sync on client edit)_ |
+| PUT | `/api/custom/customer/{id}` | _(reave.app contact → Crater sync on client edit)_ |
 | GET | `/api/custom/line-items?q=` | `search_line_items` |
 | POST | `/api/custom/record-payment` | `record_payment` |
 | POST | `/api/custom/create-expense` | _(dashboard receipt → expense; paste `crater-create-expense.route.php`)_ |

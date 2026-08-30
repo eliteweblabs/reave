@@ -1,6 +1,6 @@
 /**
  * A wordmark pasted into admin → Company → Logo SVG must survive validation and
- * the config store byte for byte. The reAVe.app wordmark is ~7 KB of path data,
+ * the config store byte for byte. The reave.app wordmark is ~7 KB of path data,
  * which is the shape of paste that people report "not saving".
  * Run: npm run check:brand-svg-paste
  */

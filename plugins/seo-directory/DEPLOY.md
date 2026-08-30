@@ -10,7 +10,7 @@ Second-tier citation & directory campaigns beyond the defaults (Google Business 
 
 ## Product decisions
 
-- **Vendor:** BrightLocal (Citation Builder + Locations APIs) — one reΛVe.app agency account, not per-client accounts
+- **Vendor:** BrightLocal (Citation Builder + Locations APIs) — one reave.app agency account, not per-client accounts
 - **Pricing model for clients:** one-time citation projects (ownership), not ongoing rental sync
 - **Modes:** `local` | `national_ecommerce` (one module, two packages)
 - **Directory scope:** configurable per-client checklist (not a hard-coded submit-everywhere list)
@@ -23,11 +23,11 @@ Second-tier citation & directory campaigns beyond the defaults (Google Business 
 
 ## Required env vars
 
-- `BRIGHTLOCAL_API_KEY` — reΛVe.app agency API key (server-only; never `PUBLIC_`)
+- `BRIGHTLOCAL_API_KEY` — reave.app agency API key (server-only; never `PUBLIC_`)
 
 ## External setup
 
-1. Create / confirm reΛVe.app BrightLocal agency account with API + Citation Builder access
+1. Create / confirm reave.app BrightLocal agency account with API + Citation Builder access
 2. Add `BRIGHTLOCAL_API_KEY` on the Railway service (and local `.env` for dev)
 3. Enable `seo_directory` in install config `features[]`
 4. On client installs only: set `moduleStatus.seo_directory` → `development` while wiring, then `deployed` (omit on config-reave — playbook defaultStatus covers product WIP)

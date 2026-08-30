@@ -3,7 +3,7 @@
  * GET  — list rows + group titles
  * PUT  — replace { rows: [...] } or { reset: true }
  *
- * Official reΛVe.app host only. Client installs 404.
+ * Official reave.app host only. Client installs 404.
  */
 import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';

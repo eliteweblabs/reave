@@ -325,7 +325,7 @@ const websitePlan = buildDeployWizardPlan({
 const websiteRepoVar = websitePlan.variables.find((v) => v.name === 'GITHUB_WEBSITE_REPO');
 assert.equal(websiteRepoVar?.filled, 'eliteweblabs/tonybarlettajr-site');
 const websiteToken = websitePlan.variables.find((v) => v.name === 'GITHUB_TOKEN');
-assert.equal(websiteToken?.inheritFromHost, false, 'client GITHUB_TOKEN must not copy the reΛVe.app host PAT');
+assert.equal(websiteToken?.inheritFromHost, false, 'client GITHUB_TOKEN must not copy the reave.app host PAT');
 assert.equal(websiteToken?.required, false);
 assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_PRIVATE_KEY')?.inheritFromHost, false);
 assert.equal(websitePlan.variables.find((v) => v.name === 'GITHUB_APP_ID')?.inheritFromHost, false);

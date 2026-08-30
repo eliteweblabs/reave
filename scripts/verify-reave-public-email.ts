@@ -1,5 +1,5 @@
 /**
- * Official reΛVe.app public mailbox is get@reave.app.
+ * Official reave.app public mailbox is get@reave.app.
  * Run: npm run check:reave-public-email
  */
 import assert from 'node:assert/strict';
@@ -21,7 +21,7 @@ assert.equal(isReaveAppHost('tonybarlettajr.com'), false);
 
 assert.equal(canonicalizeReaveBrandEmail('hello@reave.app'), 'get@reave.app');
 assert.equal(canonicalizeReaveBrandEmail('Support@reave.app'), 'get@reave.app');
-assert.equal(canonicalizeReaveBrandEmail('reΛVe.app <info@reave.app>'), 'reΛVe.app <get@reave.app>');
+assert.equal(canonicalizeReaveBrandEmail('reave.app <info@reave.app>'), 'reave.app <get@reave.app>');
 assert.equal(canonicalizeReaveBrandEmail('mailto:contact@reave.app'), 'mailto:get@reave.app');
 assert.equal(canonicalizeReaveBrandEmail('hi@reave.app'), 'get@reave.app');
 assert.equal(canonicalizeReaveBrandEmail('team@reave.app'), 'get@reave.app');

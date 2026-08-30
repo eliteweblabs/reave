@@ -203,7 +203,7 @@ ${modulePicker}
 - [ ] \`INSTALL_CONFIG=${install}\`
 - [ ] \`CONTACT_API_BASE_URL\` + \`CONTACT_API_KEY\`
 - [ ] Resend inbound + \`RESEND_*\`
-- [ ] \`ANTHROPIC_API_KEY\` (blank copies the reΛVe.app host key) + \`AGENT_ALERT_USER_ID\`
+- [ ] \`ANTHROPIC_API_KEY\` (blank copies the reave.app host key) + \`AGENT_ALERT_USER_ID\`
 
 ## Step 2 — Client baseline
 
