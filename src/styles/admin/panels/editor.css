@@ -1445,11 +1445,21 @@ button.de-placeholder-action:active {
 }
 .re-rule-test-item {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
+  align-items: center;
+  gap: 0.65rem;
   padding: 0.45rem 0.55rem;
   border-radius: 8px;
   background: color-mix(in srgb, var(--os-surface-2, #1c1c1e) 88%, transparent);
+}
+.re-rule-test-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.re-rule-test-item .ios-switch {
+  flex-shrink: 0;
 }
 .re-rule-test-from {
   font-size: 0.78rem;
@@ -1468,6 +1478,14 @@ button.de-placeholder-action:active {
 .re-rule-test-when {
   font-size: 0.72rem;
   color: var(--os-muted, #9a9a9a);
+}
+.re-rule-test-apply {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.re-rule-test-apply[hidden] {
+  display: none !important;
 }
 .re-expire-in-secs {
   width: 5.5rem;

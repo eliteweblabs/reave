@@ -1462,24 +1462,63 @@ function renderRuleEditPane(pane, opts = {}) {
   const testList = document.createElement('ul');
   testList.className = 're-rule-test-list';
   testList.hidden = true;
-  testActions.append(testBtn, applyBtn);
-  testBlock.append(testActions, testStatus, testList);
+  const applyWrap = document.createElement('div');
+  applyWrap.className = 're-rule-test-apply';
+  applyWrap.hidden = true;
+  applyWrap.appendChild(applyBtn);
+  testActions.appendChild(testBtn);
+  testBlock.append(testActions, testStatus, testList, applyWrap);
   form.appendChild(testBlock);
 
   let lastTestMatches = [];
+  /** @type {Map<string, HTMLButtonElement>} */
+  const matchToggles = new Map();
+
+  const selectedMatchIds = () =>
+    lastTestMatches
+      .map((m) => m.id)
+      .filter((id) => {
+        const toggle = matchToggles.get(id);
+        return toggle ? ruleToggleOn(toggle) : true;
+      });
+
+  const syncApplyButton = ({ applied = false } = {}) => {
+    const process = processSel.value;
+    const ids = selectedMatchIds();
+    const show =
+      !applied &&
+      process !== 'classify' &&
+      lastTestMatches.length > 0 &&
+      ids.length > 0;
+    applyWrap.hidden = !show;
+    applyBtn.hidden = !show;
+    if (!show) return;
+    const n = ids.length;
+    applyBtn.textContent =
+      process === 'delete'
+        ? `Apply rule (${n})`
+        : process === 'archive'
+          ? `Archive ${n}`
+          : process === 'receipt'
+            ? `File ${n} as receipts`
+            : `Apply rule (${n})`;
+  };
 
   const renderTestMatches = (matches, { applied = false } = {}) => {
     lastTestMatches = Array.isArray(matches) ? matches : [];
+    matchToggles.clear();
     testList.replaceChildren();
     if (!lastTestMatches.length) {
       testList.hidden = true;
-      applyBtn.hidden = true;
+      syncApplyButton({ applied: true });
       return;
     }
     testList.hidden = false;
     for (const m of lastTestMatches) {
       const li = document.createElement('li');
       li.className = 're-rule-test-item';
+      const copy = document.createElement('div');
+      copy.className = 're-rule-test-copy';
       const when = m.receivedAt
         ? new Date(m.receivedAt).toLocaleString(undefined, {
             month: 'short',
@@ -1488,23 +1527,25 @@ function renderRuleEditPane(pane, opts = {}) {
             minute: '2-digit',
           })
         : '';
-      li.innerHTML =
+      copy.innerHTML =
         `<span class="re-rule-test-from">${escHtml(m.from || '(unknown)')}</span>` +
         `<span class="re-rule-test-subject">${escHtml(m.subject || '(no subject)')}</span>` +
         (when ? `<span class="re-rule-test-when">${escHtml(when)}</span>` : '');
+      const toggle = createRuleToggle({
+        checked: true,
+        label: `Include ${m.subject || m.from || 'email'}`,
+        onToggle: () => syncApplyButton({ applied: false }),
+      });
+      matchToggles.set(m.id, toggle);
+      li.append(copy, toggle);
       testList.appendChild(li);
     }
-    const process = processSel.value;
-    applyBtn.hidden = applied || process === 'classify' || !lastTestMatches.length;
-    applyBtn.textContent =
-      process === 'delete'
-        ? `Apply rule (${lastTestMatches.length})`
-        : process === 'archive'
-          ? `Archive ${lastTestMatches.length}`
-          : process === 'receipt'
-            ? `File ${lastTestMatches.length} as receipts`
-            : `Apply rule (${lastTestMatches.length})`;
+    syncApplyButton({ applied });
   };
+
+  processSel.addEventListener('change', () => {
+    if (lastTestMatches.length) syncApplyButton();
+  });
 
   testBtn.addEventListener('click', async () => {
     if (typeof ruleAutosaveFlush === 'function') {
@@ -1521,6 +1562,7 @@ function renderRuleEditPane(pane, opts = {}) {
     testBtn.textContent = 'Testing…';
     testStatus.hidden = false;
     testStatus.textContent = 'Scanning inbox…';
+    applyWrap.hidden = true;
     applyBtn.hidden = true;
     try {
       const res = await fetch('/api/email/rules/test', {
@@ -1553,7 +1595,8 @@ function renderRuleEditPane(pane, opts = {}) {
   });
 
   applyBtn.addEventListener('click', async () => {
-    if (!lastTestMatches.length) return;
+    const ids = selectedMatchIds();
+    if (!ids.length) return;
     const payload = collectRulePayload(ruleInputs);
     const process = processSel.value;
     if (process === 'classify') {
@@ -1561,7 +1604,7 @@ function renderRuleEditPane(pane, opts = {}) {
       testStatus.textContent = 'Keep leaves mail in the inbox — nothing to apply.';
       return;
     }
-    const n = lastTestMatches.length;
+    const n = ids.length;
     const verb =
       process === 'delete'
         ? 'Auto-delete'
@@ -1585,7 +1628,7 @@ function renderRuleEditPane(pane, opts = {}) {
         body: JSON.stringify({
           ruleId: rule.id,
           status: payload.status,
-          ids: lastTestMatches.map((m) => m.id),
+          ids,
         }),
       });
       const data = await res.json();
@@ -1607,6 +1650,7 @@ function renderRuleEditPane(pane, opts = {}) {
     } catch (e) {
       testStatus.hidden = false;
       testStatus.textContent = e instanceof Error ? e.message : 'Apply failed.';
+      syncApplyButton();
     } finally {
       applyBtn.disabled = false;
     }
