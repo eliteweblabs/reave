@@ -1,8 +1,7 @@
 ---
 /**
  * /demo-loader — public page to pick modules + industry and request a custom demo.
- * Uses Layout (not MarketingLayout) so the help chat is never loaded here —
- * sticky Clear / Build CTAs need the bottom corner.
+ * Uses Layout directly so sticky Clear / Build CTAs own the bottom corner.
  */
 import Layout from "../layouts/Layout.astro";
 import { getCompanyConfig } from "../lib/companyConfig";

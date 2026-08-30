@@ -1,6 +1,6 @@
 /**
  * Shared request parsing + rate limiting for public assistant chat endpoints
- * (`/api/site/assistant`, `/api/c/:slug/assistant`).
+ * (`/api/c/:slug/assistant` portal help chat).
  */
 import { parseAssistantHistory, type AssistantHistoryTurn } from './assistantHistory';
 import { jsonResponse, readJsonBody } from './apiResponse';
