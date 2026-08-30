@@ -175,8 +175,8 @@ const logoSrc = (landing.heroLogo || "").trim()
           class="svc-foot__art"
           src={footerImage}
           alt=""
-          width="1024"
-          height="655"
+          width="8192"
+          height="5269"
           decoding="async"
         />
       ) : null
@@ -209,22 +209,15 @@ const logoSrc = (landing.heroLogo || "").trim()
     --svc-call: #0b6e4f;
     --svc-call-ink: #ffffff;
     --svc-accent: #0c4a6e;
-    --svc-sky: #fefefe;
-    /* Sampled from footer.png water band so the safe-area matches the art. */
-    --svc-water: #629cb4;
+    /* Exact water fill from footer.svg (.st for harbor blue). */
+    --svc-water: #589bb5;
     min-height: 100dvh;
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
     color: var(--svc-ink);
-    background:
-      radial-gradient(120% 80% at 50% -10%, #dceaf8 0%, transparent 55%),
-      linear-gradient(180deg, #eef3f8 0%, var(--svc-bg) 40%, #e8eef5 100%);
+    background: transparent;
   }
 
-  /* Match the skyline art sky so the footer doesn’t read as a pasted image. */
   .svc--skyline {
-    background:
-      radial-gradient(120% 70% at 50% -8%, #e7f3fb 0%, transparent 52%),
-      linear-gradient(180deg, #eef3f8 0%, #f4f7fb 38%, #fafcfd 72%, var(--svc-sky) 100%);
     padding-bottom: 0;
   }
 
@@ -513,7 +506,7 @@ const logoSrc = (landing.heroLogo || "").trim()
     max-width: 100vw;
     margin: 0 0 0 -50vw;
     padding: 0;
-    background: var(--svc-water);
+    background: transparent;
     overflow: hidden;
   }
 
@@ -574,10 +567,6 @@ const logoSrc = (landing.heroLogo || "").trim()
     bottom: 0;
     z-index: 40;
     padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(180deg, rgba(105, 152, 169, 0), rgba(105, 152, 169, 0.92) 40%);
-  }
-
-  .svc:not(.svc--skyline) .svc-sticky {
     background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.96) 35%);
   }
 
