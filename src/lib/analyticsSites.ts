@@ -1,135 +1,109 @@
 /**
- * Agency, client, and live Railway websites that can appear in Analytics.
+ * Analytics fleet = Railway + Kinsta websites with an apex domain.
+ * Not contacts — contacts may link to a site, but discovery is host platforms only.
  */
-import {
-  attachPortalLinksForList,
-  contactIsPersonal,
-  extractPortal,
-  isContactApiConfigured,
-  listContacts,
-} from './contactApi';
-import {
-  hostnameFromWebsite,
-  isPlausibleSitesApiUnavailableError,
-  plausibleListSites,
-  plausibleSiteId,
-} from './plausibleClient';
-import { isPublicWebsiteHost } from './publicUrl';
+import { hostnameFromWebsite, plausibleSiteId } from './plausibleClient';
+import { isApexPublicWebsiteHost } from './publicUrl';
+import { isKinstaConfigured, kinstaCollectMonitorUrls } from './kinstaClient';
 import { isRailwayConfigured, railwayCollectMonitorUrls } from './railwayClient';
 import { mergeAnalyticsSites, type AnalyticsSiteOption } from './analyticsSiteMerge';
 
 export type { AnalyticsSiteKind, AnalyticsSiteOption } from './analyticsSiteMerge';
 export { mergeAnalyticsSites } from './analyticsSiteMerge';
 
-const RAILWAY_SITES_TTL_MS = 5 * 60_000;
+const HOSTED_SITES_TTL_MS = 5 * 60_000;
 
-let railwaySitesCache: {
+let hostedSitesCache: {
   at: number;
   sites: AnalyticsSiteOption[];
   warnings: string[];
 } | null = null;
 
-export async function listRailwayAnalyticsSites(opts: {
-  fresh?: boolean;
-} = {}): Promise<{ sites: AnalyticsSiteOption[]; warnings: string[] }> {
-  if (!opts.fresh && railwaySitesCache && Date.now() - railwaySitesCache.at < RAILWAY_SITES_TTL_MS) {
-    return { sites: railwaySitesCache.sites, warnings: railwaySitesCache.warnings };
-  }
-  if (!isRailwayConfigured()) {
-    return { sites: [], warnings: [] };
-  }
-
-  const collected = await railwayCollectMonitorUrls();
-  if (!collected.ok) {
-    return { sites: [], warnings: [collected.error] };
-  }
-
-  const sites = mergeAnalyticsSites(
-    collected.urls.map((item) => {
+function mapHostedUrls(
+  urls: Array<{ url: string; friendlyName: string }>,
+  kind: 'railway' | 'kinsta',
+): AnalyticsSiteOption[] {
+  return mergeAnalyticsSites(
+    urls.map((item) => {
       const siteId = hostnameFromWebsite(item.url);
-      if (!siteId || !isPublicWebsiteHost(siteId)) return null;
+      if (!siteId || !isApexPublicWebsiteHost(siteId)) return null;
       return {
         siteId,
         label: siteId,
-        kind: 'railway' as const,
-        website: item.url,
+        kind,
+        website: item.url.startsWith('http') ? item.url : `https://${siteId}`,
         sourceLabel: item.friendlyName,
       };
     }),
   );
-  railwaySitesCache = { at: Date.now(), sites, warnings: collected.warnings };
-  return { sites, warnings: collected.warnings };
 }
 
-async function listContactAnalyticsSites(): Promise<AnalyticsSiteOption[]> {
-  if (!isContactApiConfigured()) return [];
-  const listed = await listContacts({ limit: 100 });
-  if (!listed.ok) return [];
-
-  const contacts = await attachPortalLinksForList(
-    listed.data.contacts.filter((c) => !c.archived),
-  );
-  const out: AnalyticsSiteOption[] = [];
-  for (const contact of contacts) {
-    if (contactIsPersonal(contact)) continue;
-    const portal = extractPortal(contact);
-    const website = (portal?.website || '').trim();
-    const siteId = hostnameFromWebsite(website);
-    if (!siteId || !isPublicWebsiteHost(siteId)) continue;
-    out.push({
-      siteId,
-      label: (contact.company || contact.name || siteId).trim(),
-      kind: 'client',
-      contactUid: contact.uid,
-      website,
-    });
-  }
-  return out;
+export async function listRailwayAnalyticsSites(opts: {
+  fresh?: boolean;
+} = {}): Promise<{ sites: AnalyticsSiteOption[]; warnings: string[] }> {
+  const all = await listHostedAnalyticsSites(opts);
+  return {
+    sites: all.sites.filter((s) => s.kind === 'railway'),
+    warnings: all.warnings,
+  };
 }
 
-let sitesApiKnownMissing = false;
-
-async function listPlausibleRegisteredSites(): Promise<AnalyticsSiteOption[]> {
-  if (sitesApiKnownMissing) return [];
-  const listed = await plausibleListSites();
-  if (!listed.ok) {
-    if (isPlausibleSitesApiUnavailableError(listed.error)) sitesApiKnownMissing = true;
-    return [];
+/** Apex custom domains on Railway + Kinsta — the Analytics fleet source of truth. */
+export async function listHostedAnalyticsSites(opts: {
+  fresh?: boolean;
+} = {}): Promise<{ sites: AnalyticsSiteOption[]; warnings: string[] }> {
+  if (!opts.fresh && hostedSitesCache && Date.now() - hostedSitesCache.at < HOSTED_SITES_TTL_MS) {
+    return { sites: hostedSitesCache.sites, warnings: hostedSitesCache.warnings };
   }
-  return listed.data.sites
-    .filter((row) => isPublicWebsiteHost(row.domain))
-    .map((row) => ({
-      siteId: row.domain,
-      label: row.domain,
-      kind: 'railway' as const,
-      website: `https://${row.domain}`,
-      sourceLabel: 'Plausible',
-    }));
+
+  const warnings: string[] = [];
+  const parts: AnalyticsSiteOption[] = [];
+
+  if (isRailwayConfigured()) {
+    const collected = await railwayCollectMonitorUrls();
+    if (!collected.ok) {
+      warnings.push(collected.error);
+    } else {
+      warnings.push(...collected.warnings);
+      parts.push(...mapHostedUrls(collected.urls, 'railway'));
+    }
+  }
+
+  if (isKinstaConfigured()) {
+    const collected = await kinstaCollectMonitorUrls();
+    if (!collected.ok) {
+      warnings.push(collected.error);
+    } else {
+      parts.push(...mapHostedUrls(collected.urls, 'kinsta'));
+    }
+  }
+
+  const sites = mergeAnalyticsSites(parts);
+  hostedSitesCache = { at: Date.now(), sites, warnings };
+  return { sites, warnings };
 }
 
 export async function listAnalyticsSites(
   companyDomain: string,
-  opts: { includeRailway?: boolean; freshRailway?: boolean } = {},
+  opts: { includeHosted?: boolean; freshHosted?: boolean } = {},
 ): Promise<AnalyticsSiteOption[]> {
-  const includeRailway = opts.includeRailway !== false;
+  const includeHosted = opts.includeHosted !== false;
   const agencyHost =
     hostnameFromWebsite(companyDomain) || hostnameFromWebsite(plausibleSiteId(companyDomain));
-  const agency: AnalyticsSiteOption | null = agencyHost
-    ? {
-        siteId: agencyHost,
-        label: agencyHost,
-        kind: 'agency',
-        website: `https://${agencyHost}`,
-      }
-    : null;
+  const agency: AnalyticsSiteOption | null =
+    agencyHost && isApexPublicWebsiteHost(agencyHost)
+      ? {
+          siteId: agencyHost,
+          label: agencyHost,
+          kind: 'agency',
+          website: `https://${agencyHost}`,
+        }
+      : null;
 
-  const [contacts, railway, registered] = await Promise.all([
-    listContactAnalyticsSites(),
-    includeRailway
-      ? listRailwayAnalyticsSites({ fresh: opts.freshRailway })
-      : Promise.resolve({ sites: [], warnings: [] }),
-    includeRailway ? listPlausibleRegisteredSites() : Promise.resolve([]),
-  ]);
+  if (!includeHosted) {
+    return mergeAnalyticsSites([agency]);
+  }
 
-  return mergeAnalyticsSites([agency, ...contacts, ...railway.sites, ...registered]);
+  const hosted = await listHostedAnalyticsSites({ fresh: opts.freshHosted });
+  return mergeAnalyticsSites([agency, ...hosted.sites]);
 }

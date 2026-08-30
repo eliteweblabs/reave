@@ -130,9 +130,10 @@ function analyticsSitePicker(sites, current) {
         sites
           .map((s) => {
             const id = String(s.siteId || '');
-            const label = s.kind === 'client' && s.label && s.label !== id
-              ? `${s.label} (${id})`
-              : s.label || id;
+            const label =
+              (s.kind === 'railway' || s.kind === 'kinsta') && s.sourceLabel && s.sourceLabel !== id
+                ? `${id} (${s.sourceLabel})`
+                : s.label || id;
             return `<option value="${escHtml(id)}"${id === current ? ' selected' : ''}>${escHtml(label)}</option>`;
           })
           .join('') +
@@ -289,7 +290,7 @@ function analyticsBreakdownTable(title, rows, labelCol = 'Source') {
 
 function analyticsKindLabel(kind) {
   if (kind === 'agency') return 'Agency';
-  if (kind === 'client') return 'Client';
+  if (kind === 'kinsta') return 'Kinsta';
   return 'Railway';
 }
 
@@ -339,7 +340,7 @@ async function syncAnalyticsRailwaySites() {
   } catch (e) {
     await osAlert({
       title: 'Plausible sync failed',
-      bodyHtml: `<p>${escHtml(e.message || 'Could not sync Railway domains')}</p>`,
+      bodyHtml: `<p>${escHtml(e.message || 'Could not sync hosted apex domains')}</p>`,
     });
   } finally {
     analyticsSyncing = false;
@@ -506,6 +507,8 @@ function renderAnalyticsAccounts(root, accounts, meta) {
   const visitors = rows.reduce((sum, row) => sum + (Number(row.visitors) || 0), 0);
   const rangeLabel = ANALYTICS_RANGE_LABEL[meta?.rangeDays] || `last ${meta?.rangeDays || 30} days`;
   const railwayConfigured = meta?.railwayConfigured === true;
+  const kinstaConfigured = meta?.kinstaConfigured === true;
+  const hostedConfigured = railwayConfigured || kinstaConfigured;
   const header =
     `<div class="soc-header">` +
       `<div class="soc-header-titles">` +
@@ -516,8 +519,8 @@ function renderAnalyticsAccounts(root, accounts, meta) {
       `</div>` +
       `<div class="ana-header-actions">` +
         analyticsRangeTabs() +
-        (railwayConfigured
-          ? `<button type="button" class="prof-btn-secondary" data-analytics-sync${analyticsSyncing ? ' disabled' : ''}>${analyticsSyncing ? 'Syncing…' : 'Sync Railway sites'}</button>`
+        (hostedConfigured
+          ? `<button type="button" class="prof-btn-secondary" data-analytics-sync${analyticsSyncing ? ' disabled' : ''}>${analyticsSyncing ? 'Syncing…' : 'Sync hosted sites'}</button>`
           : '') +
         analyticsGoogleConnectHtml(analyticsStatus) +
       `</div>` +
@@ -529,7 +532,7 @@ function renderAnalyticsAccounts(root, accounts, meta) {
         header +
         `<div class="prof-card soc-empty-card">` +
           `<p class="dash-empty">Plausible is not configured.</p>` +
-          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_API_BASE_URL</code> and <code>PLAUSIBLE_API_KEY</code> so live Railway domains can report here.</p>` +
+          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_API_BASE_URL</code> and <code>PLAUSIBLE_API_KEY</code> so Railway and Kinsta apex domains can report here.</p>` +
         `</div>` +
       `</div>`;
     bindAnalyticsControls(root, 'accounts');
@@ -542,7 +545,7 @@ function renderAnalyticsAccounts(root, accounts, meta) {
         header +
         `<div class="prof-card soc-empty-card">` +
           `<p class="dash-empty">No analytics accounts yet.</p>` +
-          `<p class="soc-empty-hint">Live Railway custom domains and client websites will show here once they have a public domain.</p>` +
+          `<p class="soc-empty-hint">Railway and Kinsta apex domains will show here once they have a public custom domain.</p>` +
         `</div>` +
       `</div>`;
     bindAnalyticsControls(root, 'accounts');

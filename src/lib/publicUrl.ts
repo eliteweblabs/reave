@@ -114,7 +114,49 @@ export function isPublicWebsiteHost(host: string | null | undefined): boolean {
   if (!key) return false;
   if (isPrivateHost(key.split(':')[0] ?? key)) return false;
   if (key.endsWith('.up.railway.app') || key.endsWith('.railway.app')) return false;
+  if (
+    key.endsWith('.kinsta.cloud') ||
+    key.endsWith('.kinstawp.com') ||
+    key.endsWith('.kinstacdn.com')
+  ) {
+    return false;
+  }
   return true;
+}
+
+/**
+ * Multi-part public suffixes we care about for apex checks (www already stripped).
+ * Analytics / Plausible / Search Console attach to apex only — not cal./clerk./inbound.
+ */
+const MULTI_PART_PUBLIC_SUFFIXES = new Set([
+  'co.uk',
+  'org.uk',
+  'me.uk',
+  'ac.uk',
+  'gov.uk',
+  'com.au',
+  'net.au',
+  'org.au',
+  'co.nz',
+  'co.za',
+  'com.br',
+  'co.jp',
+]);
+
+/**
+ * True for a registrable apex hostname (`example.com`, `example.co.uk`).
+ * `www.` is stripped first. Subdomains (`cal.example.com`) return false.
+ */
+export function isApexPublicWebsiteHost(host: string | null | undefined): boolean {
+  const key = normalizeMonitorHost(host);
+  if (!key || !isPublicWebsiteHost(key)) return false;
+  const parts = key.split('.').filter(Boolean);
+  if (parts.length < 2) return false;
+  const lastTwo = parts.slice(-2).join('.');
+  if (MULTI_PART_PUBLIC_SUFFIXES.has(lastTwo)) {
+    return parts.length === 3;
+  }
+  return parts.length === 2;
 }
 
 /** Hostname key for comparing monitor URLs across Kinsta, Railway, and UptimeRobot. */

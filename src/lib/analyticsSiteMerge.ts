@@ -3,7 +3,7 @@
  */
 import { hostnameFromWebsite } from './plausibleClient';
 
-export type AnalyticsSiteKind = 'agency' | 'client' | 'railway';
+export type AnalyticsSiteKind = 'agency' | 'railway' | 'kinsta';
 
 export type AnalyticsSiteOption = {
   siteId: string;
@@ -50,7 +50,7 @@ export function mergeAnalyticsSites(
   }
   out.sort((a, b) => {
     const rank = (kind: AnalyticsSiteKind) =>
-      kind === 'agency' ? 0 : kind === 'client' ? 1 : 2;
+      kind === 'agency' ? 0 : kind === 'railway' ? 1 : 2;
     const byKind = rank(a.kind) - rank(b.kind);
     if (byKind) return byKind;
     return a.label.localeCompare(b.label, undefined, { sensitivity: 'base' });

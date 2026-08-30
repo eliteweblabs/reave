@@ -8,7 +8,7 @@ import {
 } from './analyticsSiteMerge';
 import {
   listAnalyticsSites,
-  listRailwayAnalyticsSites,
+  listHostedAnalyticsSites,
   type AnalyticsSiteOption,
 } from './analyticsSites';
 import {
@@ -22,6 +22,7 @@ import {
   plausibleRealtimeVisitors,
   plausibleSitesNewUrl,
 } from './plausibleClient';
+import { isKinstaConfigured } from './kinstaClient';
 import { isRailwayConfigured } from './railwayClient';
 
 export type { AnalyticsAccountRow, AnalyticsFleetPreview } from './analyticsSiteMerge';
@@ -112,19 +113,20 @@ export async function loadAnalyticsAccountRow(
 
 export async function listAnalyticsAccounts(
   companyDomain: string,
-  opts: { rangeDays?: number; includeRailway?: boolean; freshRailway?: boolean } = {},
+  opts: { rangeDays?: number; includeHosted?: boolean; freshHosted?: boolean } = {},
 ): Promise<{
   configured: boolean;
   rangeDays: number;
   railwayConfigured: boolean;
+  kinstaConfigured: boolean;
   accounts: AnalyticsAccountRow[];
   warnings: string[];
 }> {
   const rangeDays = opts.rangeDays === 7 || opts.rangeDays === 90 ? opts.rangeDays : 30;
-  const includeRailway = opts.includeRailway !== false;
+  const includeHosted = opts.includeHosted !== false;
   const sites = await listAnalyticsSites(companyDomain, {
-    includeRailway,
-    freshRailway: opts.freshRailway,
+    includeHosted,
+    freshHosted: opts.freshHosted,
   });
 
   const accounts = await mapPool(sites, ANALYTICS_ACCOUNT_CONCURRENCY, (site) =>
@@ -134,6 +136,7 @@ export async function listAnalyticsAccounts(
     configured: isPlausibleConfigured(),
     rangeDays,
     railwayConfigured: isRailwayConfigured(),
+    kinstaConfigured: isKinstaConfigured(),
     accounts,
     warnings: [],
   };
@@ -198,7 +201,7 @@ export async function buildAnalyticsDashboardPreview(
   const pending = (async () => {
     const { accounts } = await listAnalyticsAccounts(companyDomain, {
       rangeDays: 30,
-      includeRailway: true,
+      includeHosted: true,
     });
     const preview = summarizeAnalyticsAccounts(accounts, 30, { configured: true });
     previewCache = { at: Date.now(), domain, preview };
@@ -217,7 +220,8 @@ export async function buildAnalyticsDashboardPreview(
   }
 }
 
-export async function syncPlausibleSitesFromRailway(): Promise<AnalyticsSyncResult> {
+/** Register Plausible sites for every Railway + Kinsta apex domain. */
+export async function syncPlausibleSitesFromHosted(): Promise<AnalyticsSyncResult> {
   const empty: AnalyticsSyncResult = {
     ok: false,
     discovered: 0,
@@ -235,20 +239,23 @@ export async function syncPlausibleSitesFromRailway(): Promise<AnalyticsSyncResu
   if (!isPlausibleConfigured()) {
     return { ...empty, errors: ['Plausible is not configured (PLAUSIBLE_API_BASE_URL / PLAUSIBLE_API_KEY)'] };
   }
-  if (!isRailwayConfigured()) {
-    return { ...empty, errors: ['RAILWAY_API_TOKEN is not set'] };
+  if (!isRailwayConfigured() && !isKinstaConfigured()) {
+    return {
+      ...empty,
+      errors: ['Neither RAILWAY_API_TOKEN nor Kinsta API credentials are set'],
+    };
   }
 
-  const railway = await listRailwayAnalyticsSites({ fresh: true });
+  const hosted = await listHostedAnalyticsSites({ fresh: true });
   const addUrl = plausibleSitesNewUrl() || '';
   const result: AnalyticsSyncResult = {
     ...empty,
     ok: true,
-    discovered: railway.sites.length,
-    warnings: [...railway.warnings],
+    discovered: hosted.sites.length,
+    warnings: [...hosted.warnings],
   };
 
-  for (const site of railway.sites) {
+  for (const site of hosted.sites) {
     const item: AnalyticsSyncItem = {
       siteId: site.siteId,
       label: site.label,
@@ -301,3 +308,6 @@ export async function syncPlausibleSitesFromRailway(): Promise<AnalyticsSyncResu
   result.ok = result.errors.length === 0 || result.created > 0 || result.skipped > 0;
   return result;
 }
+
+/** @deprecated Use syncPlausibleSitesFromHosted — Railway + Kinsta apex domains. */
+export const syncPlausibleSitesFromRailway = syncPlausibleSitesFromHosted;

@@ -1,0 +1,26 @@
+---
+description: Analytics / Plausible / Search Console scope — Railway + Kinsta apex only
+alwaysApply: true
+---
+
+# Analytics fleet scope
+
+**Plausible, Google Search Console / Webmaster Tools, and the admin Analytics fleet** attach to **websites hosted on Railway or Kinsta that have an apex domain** — not to every contact or client record.
+
+## Include
+
+- Custom domains on Railway services (production), after filtering to **apex** (`example.com`, not `cal.example.com`)
+- Kinsta production primary domains that are **apex**
+- The install’s own company apex when it qualifies
+
+## Do not
+
+- Discover or register analytics from the contacts/clients list
+- Treat “every client has a website field” as a reason to create a Plausible site or GSC property
+- Register subdomains used for app extras (`cal.`, `clerk.`, `inbound.`, `stats.`, `www.` is normalized to apex)
+
+## Source of truth
+
+`listHostedAnalyticsSites` / `syncPlausibleSitesFromHosted` in `src/lib/analyticsSites.ts` and `src/lib/analyticsFleet.ts`. Apex check: `isApexPublicWebsiteHost` in `src/lib/publicUrl.ts`.
+
+Per-contact analytics UI (vault `site_id` / GA4 property) may still *display* stats for a linked domain — that is not fleet discovery.

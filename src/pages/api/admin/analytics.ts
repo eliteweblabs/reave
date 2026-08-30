@@ -48,7 +48,7 @@ export async function GET(context: APIContext): Promise<Response> {
     if (view === 'accounts') {
       const fleet = await listAnalyticsAccounts(company.domain, {
         rangeDays,
-        includeRailway: true,
+        includeHosted: true,
       });
       return jsonResponse({
         ok: true,
@@ -56,6 +56,7 @@ export async function GET(context: APIContext): Promise<Response> {
         configured: fleet.configured,
         rangeDays: fleet.rangeDays,
         railwayConfigured: fleet.railwayConfigured,
+        kinstaConfigured: fleet.kinstaConfigured,
         accounts: fleet.accounts,
         warnings: fleet.warnings,
       });

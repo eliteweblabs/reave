@@ -1,8 +1,8 @@
 /**
- * POST /api/admin/analytics/sync — register live Railway custom domains in Plausible.
+ * POST /api/admin/analytics/sync — register Railway + Kinsta apex domains in Plausible.
  */
 import type { APIContext } from 'astro';
-import { syncPlausibleSitesFromRailway } from '../../../../lib/analyticsFleet';
+import { syncPlausibleSitesFromHosted } from '../../../../lib/analyticsFleet';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
@@ -14,7 +14,7 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   try {
-    const result = await syncPlausibleSitesFromRailway();
+    const result = await syncPlausibleSitesFromHosted();
     const ok = result.ok || result.created > 0 || result.skipped > 0;
     return jsonResponse({ ...result, ok });
   } catch (e) {

@@ -1,5 +1,5 @@
 /**
- * Guard: Plausible site hostname + tracker HTML detection + fleet merge.
+ * Guard: Plausible site hostname + tracker HTML detection + fleet merge + apex filter.
  * Run: node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-analytics-sites.ts
  */
 import assert from 'node:assert/strict';
@@ -10,11 +10,23 @@ import {
   isPlausibleSiteExistsError,
   isPlausibleSiteMissingError,
 } from '../src/lib/plausibleClient.ts';
+import { isApexPublicWebsiteHost, isPublicWebsiteHost } from '../src/lib/publicUrl.ts';
 
 assert.equal(hostnameFromWebsite('https://www.thebarbersedge.com/barbers'), 'thebarbersedge.com');
 assert.equal(hostnameFromWebsite('thebarbersedge.com'), 'thebarbersedge.com');
 assert.equal(hostnameFromWebsite('https://reave.app'), 'reave.app');
 assert.equal(hostnameFromWebsite(''), '');
+
+assert.equal(isPublicWebsiteHost('thebarbersedge.com'), true);
+assert.equal(isPublicWebsiteHost('foo.up.railway.app'), false);
+assert.equal(isPublicWebsiteHost('example.kinsta.cloud'), false);
+assert.equal(isApexPublicWebsiteHost('thebarbersedge.com'), true);
+assert.equal(isApexPublicWebsiteHost('www.thebarbersedge.com'), true);
+assert.equal(isApexPublicWebsiteHost('cal.thebarbersedge.com'), false);
+assert.equal(isApexPublicWebsiteHost('inbound.reave.app'), false);
+assert.equal(isApexPublicWebsiteHost('example.co.uk'), true);
+assert.equal(isApexPublicWebsiteHost('shop.example.co.uk'), false);
+assert.equal(isApexPublicWebsiteHost('foo.up.railway.app'), false);
 
 const beScript =
   '<script defer data-domain="thebarbersedge.com" src="https://plausible-analytics-ce-production-6fd8.up.railway.app/js/script.file-downloads.hash.outbound-links.js"></script>';
@@ -42,7 +54,7 @@ assert.equal(isPlausibleSiteExistsError('domain has already been taken'), true);
 
 const merged = mergeAnalyticsSites([
   { siteId: 'https://www.reave.app', label: 'reave.app', kind: 'agency' },
-  { siteId: 'thebarbersedge.com', label: "Barber's Edge", kind: 'client', contactUid: 'c1' },
+  { siteId: 'thebarbersedge.com', label: "Barber's Edge", kind: 'kinsta', sourceLabel: "Barber's Edge" },
   { siteId: 'reave.app', label: 'dup', kind: 'railway' },
   { siteId: 'tonybarlettajr.com', label: 'tonybarlettajr.com', kind: 'railway', sourceLabel: 'Tony / app' },
   null,
@@ -50,9 +62,10 @@ const merged = mergeAnalyticsSites([
 assert.equal(merged.length, 3);
 assert.equal(merged[0].kind, 'agency');
 assert.equal(merged[0].siteId, 'reave.app');
-assert.equal(merged[1].kind, 'client');
-assert.equal(merged[2].kind, 'railway');
-assert.equal(merged[2].siteId, 'tonybarlettajr.com');
+assert.equal(merged[1].kind, 'railway');
+assert.equal(merged[1].siteId, 'tonybarlettajr.com');
+assert.equal(merged[2].kind, 'kinsta');
+assert.equal(merged[2].siteId, 'thebarbersedge.com');
 
 const preview = summarizeAnalyticsAccounts(
   [
