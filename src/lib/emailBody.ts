@@ -43,12 +43,29 @@ export function plainTextForDisplay(text: string): string {
   return looksLikeHtml(trimmed) ? htmlToPlainText(trimmed) : trimmed;
 }
 
+/**
+ * Multipart text/plain often pastes img alt text ("Acme logo") that never appears as
+ * visible copy in the HTML. When HTML is available and the plain part is mostly that
+ * chrome, prefer HTML→text (which drops &lt;img&gt; entirely).
+ */
+function textLooksLikeImageChrome(text: string): boolean {
+  const original = text.replace(/\s+/g, ' ').trim();
+  if (!original) return true;
+  if (!/\b(?:logo|wordmark|profile\s+photo|\[image:)/i.test(original)) return false;
+  const cleaned = stripImageChrome(original);
+  if (!cleaned) return true;
+  return cleaned.length < original.length * 0.55;
+}
+
 export function normalizeEmailBody(text?: string, html?: string, max = MAX_STORED_EMAIL_BODY): string {
   let body = (text ?? '').trim();
-  if (!body && html?.trim()) {
-    body = htmlToPlainText(html);
+  const htmlPlain = html?.trim() ? htmlToPlainText(html) : '';
+  if (!body && htmlPlain) {
+    body = htmlPlain;
   } else if (body && looksLikeHtml(body)) {
     body = htmlToPlainText(body);
+  } else if (body && htmlPlain && textLooksLikeImageChrome(body)) {
+    body = htmlPlain;
   }
   if (!body) return '';
   if (body.length > max) return `${body.slice(0, max)}\n…[truncated at ${max} chars]`;
@@ -162,11 +179,29 @@ function isImageChromeLine(line: string): boolean {
   return false;
 }
 
-/** Leading chrome tokens in an already-flattened snippet (stored rows). */
-const LEADING_IMAGE_CHROME =
-  /^(?:(?:your\s+)?(?:profile|user|account)\s+(?:photo|picture|image|avatar|headshot)|(?:the\s+)?(?:[\w.&'’+-]+\s+){0,2}(?:logo|wordmark|icon|badge|banner|hero(?:\s+image)?|header(?:\s+image)?|spacer|pixel)|\[(?:image:\s*)[^\]]+\]|\[[^\]]*\b(?:logo|icon|photo|picture|banner|spacer|pixel)[^\]]*\]|\(?https?:\/\/[^\s)]+\)?)[\s,;:–—-]*/i;
+/**
+ * Brand tokens before "logo" — no `.` so "started. Elevate logo" does not swallow
+ * the preceding sentence (`.` would make "started." one token).
+ */
+const BRAND_TOKEN = String.raw`[\w&'’+-]+`;
 
-function stripLeadingImageChrome(text: string): string {
+/** Leading chrome tokens in an already-flattened snippet (stored rows). */
+const LEADING_IMAGE_CHROME = new RegExp(
+  String.raw`^(?:(?:your\s+)?(?:profile|user|account)\s+(?:photo|picture|image|avatar|headshot)|(?:the\s+)?(?:${BRAND_TOKEN}\s+){0,2}(?:logo|wordmark|icon|badge|banner|hero(?:\s+image)?|header(?:\s+image)?|spacer|pixel)|\[(?:image:\s*)[^\]]+\]|\[[^\]]*\b(?:logo|icon|photo|picture|banner|spacer|pixel)[^\]]*\]|\(?https?:\/\/[^\s)]+\)?)[\s,;:–—-]*`,
+  'i',
+);
+
+/**
+ * Img alt / screen-reader chrome that text/plain injects mid-body
+ * (e.g. "…started. Elevate logo (https://link…) Welcome").
+ * Also eats a following parenthetical or bare URL attached to that chrome.
+ */
+const INLINE_IMAGE_CHROME = new RegExp(
+  String.raw`(?:^|[\s([{])((?:the\s+)?(?:${BRAND_TOKEN}\s+){0,3}(?:logo|wordmark)|(?:your\s+)?(?:profile|user|account)\s+(?:photo|picture|image|avatar|headshot)|\[(?:image:\s*)[^\]]*\]|\[[^\]]*\b(?:logo|icon|photo|picture|avatar|banner|spacer|pixel)[^\]]*\])(?:\s*\([^)]*\)?)?(?:\s*\(?https?:\/\/[^\s)]+\)?)?`,
+  'gi',
+);
+
+function stripImageChrome(text: string): string {
   const lines = text.split(/\r?\n/);
   let i = 0;
   while (i < lines.length && isImageChromeLine(lines[i])) i += 1;
@@ -177,12 +212,21 @@ function stripLeadingImageChrome(text: string): string {
     prev = rest;
     rest = rest.replace(LEADING_IMAGE_CHROME, '').trim();
   }
+  prev = '';
+  while (rest && rest !== prev) {
+    prev = rest;
+    rest = rest
+      .replace(INLINE_IMAGE_CHROME, (match) => (/^[\s([{]/.test(match) ? match[0]! : ' '))
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([.,;:!?])/g, '$1')
+      .trim();
+  }
   return rest;
 }
 
 export function inboxPreviewSnippet(text: string, max = 500): string {
   const source = plainTextForDisplay(text);
-  const clean = stripLeadingImageChrome(source).replace(/\s+/g, ' ').trim();
+  const clean = stripImageChrome(source).replace(/\s+/g, ' ').trim();
   return clean.length > max ? `${clean.slice(0, max)}…` : clean;
 }
 
