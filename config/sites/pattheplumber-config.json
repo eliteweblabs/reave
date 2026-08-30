@@ -52,9 +52,8 @@
       ]
     },
     "schedule": {
-      "heading": "Book a time",
-      "intro": "Not an emergency? Pick a slot online — same calendar Pat uses for side work and scheduled visits.",
-      "formSlug": "schedule"
+      "formSlug": "schedule",
+      "dockPlaceholder": "How can I help you?"
     },
     "services": {
       "heading": "What I handle",
