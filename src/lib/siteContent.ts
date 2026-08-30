@@ -188,7 +188,18 @@ export type SiteLandingConfig = {
     intro?: string;
     /** Call out simple online payment (in addition to logos). */
     onlineNote?: string;
-    methods: Array<{ label: string; icon: string }>;
+    /**
+     * Brand marks: Simple Icons slug (`applepay`, `venmo`).
+     * Generic UI: Lucide name (`banknote`, `credit-card`).
+     * Never invent SVG — use those kits.
+     */
+    methods: Array<{
+      label: string;
+      /** Simple Icons slug (brand logos). */
+      simpleIcon?: string;
+      /** Lucide icon name (cash / card / etc.). */
+      lucide?: string;
+    }>;
   };
   /**
    * Inline scheduling block for `service` landings.

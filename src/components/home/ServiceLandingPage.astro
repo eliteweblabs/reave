@@ -7,10 +7,23 @@ import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
 import ConversationalForm from "../ConversationalForm.astro";
+import { siApplepay, siVenmo } from "simple-icons";
+import { Banknote, CreditCard } from "lucide-astro";
 
 interface Props {
   landing: SiteLandingConfig;
 }
+
+/** Brand marks from the `simple-icons` package — never hand-draw these. */
+const SIMPLE_ICON_BY_SLUG = {
+  applepay: siApplepay,
+  venmo: siVenmo,
+} as const;
+
+const LUCIDE_BY_NAME = {
+  banknote: Banknote,
+  "credit-card": CreditCard,
+} as const;
 
 const { landing } = Astro.props;
 const company = await getCompanyConfig(Astro.request);
@@ -31,6 +44,20 @@ const serviceItems =
     typeof item === "string" ? { label: item, icon: undefined as string | undefined } : item,
   ) ?? [];
 const payments = landing.payments;
+const paymentMethods =
+  payments?.methods?.map((method) => {
+    const slug = method.simpleIcon?.trim().toLowerCase() || "";
+    const brand =
+      slug && slug in SIMPLE_ICON_BY_SLUG
+        ? SIMPLE_ICON_BY_SLUG[slug as keyof typeof SIMPLE_ICON_BY_SLUG]
+        : null;
+    const lucideKey = method.lucide?.trim().toLowerCase() || "";
+    const LucideIcon =
+      lucideKey && lucideKey in LUCIDE_BY_NAME
+        ? LUCIDE_BY_NAME[lucideKey as keyof typeof LUCIDE_BY_NAME]
+        : null;
+    return { label: method.label, brand, LucideIcon };
+  }) ?? [];
 const schedule = landing.schedule;
 const scheduleFormSlug =
   schedule?.formSlug === false
@@ -120,14 +147,33 @@ const logoSrc = (landing.heroLogo || "").trim()
     }
 
     {
-      payments?.methods?.length ? (
+      payments && paymentMethods.length ? (
         <section class="svc-section" id="payments">
           <h2>{payments.heading}</h2>
           {payments.intro && <p class="svc-copy">{payments.intro}</p>}
           <ul class="svc-pay">
-            {payments.methods.map((method) => (
+            {paymentMethods.map((method) => (
               <li>
-                <img class="svc-pay__logo" src={method.icon} alt="" width="96" height="56" />
+                {method.brand ? (
+                  <span
+                    class="svc-pay__mark"
+                    style={`--pay-brand:#${method.brand.hex}`}
+                    aria-hidden="true"
+                  >
+                    <svg viewBox="0 0 24 24" width="28" height="28" role="img">
+                      <title>{method.brand.title}</title>
+                      <path fill="currentColor" d={method.brand.path} />
+                    </svg>
+                  </span>
+                ) : method.LucideIcon === Banknote ? (
+                  <span class="svc-pay__mark svc-pay__mark--stroke" aria-hidden="true">
+                    <Banknote size={28} strokeWidth={1.75} />
+                  </span>
+                ) : method.LucideIcon === CreditCard ? (
+                  <span class="svc-pay__mark svc-pay__mark--stroke" aria-hidden="true">
+                    <CreditCard size={28} strokeWidth={1.75} />
+                  </span>
+                ) : null}
                 <span>{method.label}</span>
               </li>
             ))}
@@ -519,9 +565,22 @@ const logoSrc = (landing.heroLogo || "").trim()
     font-weight: 700;
   }
 
-  .svc-pay__logo {
-    width: 3.75rem;
-    height: auto;
+  .svc-pay__mark {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 0.7rem;
+    color: #fff;
+    background: var(--pay-brand, #0f172a);
+  }
+
+  .svc-pay__mark--stroke {
+    color: var(--svc-accent);
+    background: rgba(12, 74, 110, 0.08);
+  }
+
+  .svc-pay__mark svg {
     display: block;
   }
 

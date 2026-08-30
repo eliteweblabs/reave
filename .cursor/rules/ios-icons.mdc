@@ -33,5 +33,6 @@ These cannot import the admin client module. When an icon must appear in Astro o
 - Introduce a second icon library (Heroicons, Phosphor, Material, emoji-as-UI) for chrome that `IOS_ICONS` covers.
 - Use filled solid variants that break visual consistency with the stroke set.
 - Keep a private `const FOO_ICON = '<svg…>'` next to code that already imports `admin-ui.js` — use the pack.
+- **Never invent brand / payment / product marks** (Apple Pay, Venmo, Visa, Cal.com, etc.). Use the **`simple-icons`** package (or `SIMPLE_ICONS_CDN` / existing `/stack/*` assets). For generic money UI (cash, credit card), use **`lucide-astro`** (`Banknote`, `CreditCard`, …) — not freestyled SVGs.
 
-Brand logos (Simple Icons / company SVG) and photographic assets are separate — this rule is for UI chrome icons. OS map node path tables in `os-map-loader.js` are map-specific and out of scope for the toolbar pack.
+Brand logos come from Simple Icons (or company-supplied files). Photographic assets are separate. OS map node path tables in `os-map-loader.js` are map-specific and out of scope for the toolbar pack.

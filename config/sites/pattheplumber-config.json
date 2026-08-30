@@ -45,10 +45,10 @@
       "intro": "Apple Pay, Venmo, cash, and credit card on site — plus simple online payment when that works better.",
       "onlineNote": "Simple online payment available after the job.",
       "methods": [
-        { "label": "Apple Pay", "icon": "/sites/pattheplumber/pay/apple-pay.svg" },
-        { "label": "Venmo", "icon": "/sites/pattheplumber/pay/venmo.svg" },
-        { "label": "Cash", "icon": "/sites/pattheplumber/pay/cash.svg" },
-        { "label": "Credit card", "icon": "/sites/pattheplumber/pay/card.svg" }
+        { "label": "Apple Pay", "simpleIcon": "applepay" },
+        { "label": "Venmo", "simpleIcon": "venmo" },
+        { "label": "Cash", "lucide": "banknote" },
+        { "label": "Credit card", "lucide": "credit-card" }
       ]
     },
     "schedule": {
