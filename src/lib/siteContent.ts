@@ -202,14 +202,17 @@ export type SiteLandingConfig = {
     }>;
   };
   /**
-   * Inline scheduling block for `service` landings.
-   * Embeds the conversational Cal.com front-end (`/form/schedule`) when `formSlug` is set.
+   * Footer chat dock for `service` landings.
+   * Opens the conversational Cal.com front-end (`/form/schedule`) in a sheet.
    */
   schedule?: {
-    heading: string;
+    /** Optional — unused when docked in the footer. */
+    heading?: string;
     intro?: string;
     /** Conversational form slug (default `schedule`). Set false to skip embed. */
     formSlug?: string | false;
+    /** Placeholder on the footer chat dock (default “How can I help you?”). */
+    dockPlaceholder?: string;
   };
   steps?: {
     heading: string;
