@@ -91,7 +91,7 @@
 .dl-field {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.15rem;
   min-width: 10.5rem;
   flex: 1 1 10.5rem;
 }
@@ -179,6 +179,81 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/*
+ * Homepage-style sticky CTAs: Clear + Build stick near the viewport bottom
+ * while the module list scrolls, then leave with the track end.
+ */
+.dl-sticky-cta-track {
+  display: grid;
+  width: 100%;
+  overflow: clip;
+  padding-bottom: 20px;
+  box-sizing: border-box;
+}
+
+.dl-sticky-cta-track__body,
+.dl-sticky-cta-track > .dl-sticky-ctas {
+  grid-area: 1 / 1;
+}
+
+.dl-sticky-cta-track__body {
+  min-width: 0;
+  width: 100%;
+}
+
+.dl-sticky-ctas {
+  --dl-sticky-cta-h: 2.75rem;
+  --dl-sticky-cta-bottom: 5px;
+  position: sticky;
+  top: calc(
+    100vh - var(--dl-sticky-cta-h) - var(--dl-sticky-cta-bottom) -
+      env(safe-area-inset-bottom, 0px)
+  );
+  top: calc(
+    100dvh - var(--dl-sticky-cta-h) - var(--dl-sticky-cta-bottom) -
+      env(safe-area-inset-bottom, 0px)
+  );
+  z-index: 40;
+  align-self: start;
+  justify-self: center;
+  width: fit-content;
+  height: max-content;
+  max-width: calc(100vw - 40px);
+  margin-inline: auto;
+  padding: 0;
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .dl-sticky-ctas {
+    --dl-sticky-cta-bottom: 20px;
+  }
+}
+
+.dl-sticky-ctas__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.dl-sticky-ctas .dl-btn {
+  font-size: 0.92rem;
+  padding: 0.78rem 1.4rem;
+  box-shadow: var(--brand-gradient-shadow, none);
+}
+
+.dl-sticky-ctas .dl-btn--ghost {
+  box-shadow: none;
+}
+
+.dl-sticky-ctas .dl-btn--primary {
+  color: var(--brand-on-gradient, #fff);
+  -webkit-text-fill-color: var(--brand-on-gradient, #fff);
 }
 
 .dl-btn {
@@ -317,6 +392,7 @@
   border-radius: 50%;
   background: #6b7280;
   box-shadow: 0 0 3px 1px rgba(107, 114, 128, 0.35);
+  cursor: help;
 }
 
 .dl-status-dot--live {
@@ -548,6 +624,10 @@
 
   .dl-toolbar-actions {
     width: 100%;
+  }
+
+  .dl-sticky-ctas {
+    max-width: calc(100vw - 24px);
   }
 }
 

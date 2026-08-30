@@ -6,7 +6,7 @@
  *   data-toggles="false" — browse-only catalog; no switches, no launch form
  */
 (function () {
-  const { MODULE_STATUS: STATUS, escHtml: esc, renderCallout, renderStatusLegend } =
+  const { MODULE_STATUS: STATUS, escHtml: esc, renderCallout } =
     window.ModuleLoaderShared;
 
   /** Browse catalog only — never render switches or the demo request form. */
@@ -101,9 +101,15 @@
 
   function renderStatusDot(m) {
     const meta = statusMeta(m);
+    let tip = meta.label;
+    if (m.status === 'deployed') {
+      tip = togglesEnabled ? 'Deployed — include in demo' : 'Deployed — ready';
+    } else if (m.status === 'request' || m.status === 'rejected') {
+      tip = m.status === 'rejected' ? 'Rejected' : 'Requested';
+    }
     return (
       `<span class="dl-status-dot dl-status-dot--${meta.tone}" ` +
-      `title="${esc(meta.label)}" role="img" aria-label="${esc(meta.label)}"></span>`
+      `title="${esc(tip)}" role="img" aria-label="${esc(tip)}"></span>`
     );
   }
 
@@ -120,7 +126,7 @@
     return (
       `<article class="dl-tile dl-tile--included" data-included="${esc(card.id)}"${edit ? '' : ' aria-disabled="true"'}>` +
       `<div class="dl-tile-body">` +
-      `<span class="dl-badge dl-badge--included">Included</span>` +
+      `<span class="dl-badge dl-badge--included" title="Always on">Included</span>` +
       `<h3 class="dl-tile-label">${esc(card.label)}</h3>` +
       (card.blurb ? `<p class="dl-tile-blurb">${esc(card.blurb)}</p>` : '') +
       `</div>` +
@@ -191,12 +197,6 @@
       .join('');
   }
 
-  function renderLegend() {
-    return renderStatusLegend({
-      deployedLabel: togglesEnabled ? 'Deployed — include in demo' : 'Deployed — ready',
-    });
-  }
-
   function renderSection(section) {
     const title =
       section.title ?
@@ -236,22 +236,14 @@
   }
 
   function renderBrowseChrome() {
-    const deployed = modules.filter((m) => m.status === 'deployed').length;
-    return (
-      `<p class="dl-meta">${included.length} included · ${deployed} deployed · ${modules.length} add-ons available</p>` +
-      renderCallout(
-        `Browse optional modules by group. To try a custom stack in a sandbox, ` +
-          `<a href="/demo-loader">build your demo</a>.`,
-        { tag: 'p' },
-      )
+    return renderCallout(
+      `Browse optional modules by group. To try a custom stack in a sandbox, ` +
+        `<a href="/demo-loader">build your demo</a>.`,
+      { tag: 'p' },
     );
   }
 
-  function renderLaunchChrome() {
-    const toggleCount = toggleableModules().length;
-    const selectedCount = selectedToggleableCount();
-    const ready = canLaunch();
-
+  function renderLaunchFields() {
     return (
       `<div class="dl-toolbar">` +
       `<div class="dl-visitor">` +
@@ -274,15 +266,22 @@
       `<select id="dl-industry" class="dl-select">${renderIndustryOptions()}</select>` +
       `</label>` +
       `</div>` +
-      `<div class="dl-toolbar-actions">` +
-      `<button type="button" class="dl-btn dl-btn--ghost" id="dl-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all deployed</button>` +
+      (launchError ? `<p class="dl-launch-error" role="alert">${esc(launchError)}</p>` : '') +
+      `</div>`
+    );
+  }
+
+  function renderStickyActions() {
+    const selectedCount = selectedToggleableCount();
+    const ready = canLaunch();
+    return (
+      `<div class="dl-sticky-ctas" data-dl-sticky-ctas>` +
+      `<div class="dl-sticky-ctas__row">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dl-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dl-launch"${ready ? '' : ' disabled'}>` +
       (launching ? 'Submitting…' : 'Build my demo') +
       `</button>` +
       `</div>` +
-      (launchError ? `<p class="dl-launch-error" role="alert">${esc(launchError)}</p>` : '') +
-      `<p class="dl-meta">${included.length} included · ${selectedCount} optional selected · ${modules.length} add-ons available</p>` +
       `</div>`
     );
   }
@@ -293,15 +292,30 @@
       return;
     }
 
+    if (togglesEnabled) {
+      root.innerHTML =
+        `<div class="dl-panel">` +
+        renderLaunchFields() +
+        `<div class="dl-sticky-cta-track">` +
+        `<div class="dl-sticky-cta-track__body">` +
+        `<div class="dl-sections">` +
+        renderIncludedSection() +
+        sections.map(renderSection).join('') +
+        `</div>` +
+        `</div>` +
+        renderStickyActions() +
+        `</div>` +
+        `</div>`;
+      return;
+    }
+
     root.innerHTML =
       `<div class="dl-panel">` +
-      renderLegend() +
-      (togglesEnabled ? renderLaunchChrome() : '') +
       `<div class="dl-sections">` +
       renderIncludedSection() +
       sections.map(renderSection).join('') +
       `</div>` +
-      (togglesEnabled ? '' : renderBrowseChrome()) +
+      renderBrowseChrome() +
       `</div>`;
   }
 
@@ -420,13 +434,6 @@
     };
     root.querySelector('#dl-name')?.addEventListener('input', syncLaunchEnabled);
     root.querySelector('#dl-email')?.addEventListener('input', syncLaunchEnabled);
-
-    root.querySelector('#dl-select-all')?.addEventListener('click', () => {
-      readVisitorFields();
-      selectedIds = new Set(toggleableModules().map((m) => m.moduleId));
-      render();
-      bind();
-    });
 
     root.querySelector('#dl-clear')?.addEventListener('click', () => {
       readVisitorFields();
