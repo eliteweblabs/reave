@@ -182,6 +182,24 @@ export type SiteLandingConfig = {
     heading: string;
     items: Array<string | { label: string; icon?: string }>;
   };
+  /** Accepted payment methods + logos for `service` landings. */
+  payments?: {
+    heading: string;
+    intro?: string;
+    /** Call out simple online payment (in addition to logos). */
+    onlineNote?: string;
+    methods: Array<{ label: string; icon: string }>;
+  };
+  /**
+   * Inline scheduling block for `service` landings.
+   * Embeds the conversational Cal.com front-end (`/form/schedule`) when `formSlug` is set.
+   */
+  schedule?: {
+    heading: string;
+    intro?: string;
+    /** Conversational form slug (default `schedule`). Set false to skip embed. */
+    formSlug?: string | false;
+  };
   steps?: {
     heading: string;
     items: string[];
