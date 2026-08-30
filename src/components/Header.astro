@@ -418,14 +418,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
 <script>
   /**
-   * Probe env(safe-area-inset-*). Admin must — iOS reports 0 on :root while
-   * body is position:fixed. Public pages freeze the first non-zero top so live
-   * env() cannot resize the bar mid-scroll. Never write these from
-   * visualViewport — chasing the toolbar is worse.
-   *
-   * Light pages (demo, modules) can probe before Safari has a real inset and
-   * used to bail forever; homepage often won the race because it is heavier.
-   * Retry a few frames / pageshow so every public page gets the same freeze.
+   * Probe env(safe-area-inset-*) once. Admin must do this because iOS reports
+   * 0 on :root while body is position:fixed. Public pages freeze the first
+   * non-zero top value so live env() cannot resize the bar mid-scroll.
+   * Never write these from visualViewport — chasing the toolbar is worse.
    */
   function overlayMenuTouchGuard(e: TouchEvent) {
     const open = document.querySelector(".overlay-menu:not([hidden])");
@@ -471,22 +467,12 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     return value;
   }
 
-  let publicSafeAreaAttempts = 0;
-  const PUBLIC_SAFE_AREA_MAX_ATTEMPTS = 16;
-
   function syncAppHeaderSafeArea() {
     const isAdmin = Boolean(document.querySelector(".app-header--admin"));
     if (!isAdmin && document.documentElement.dataset.safeTopFrozen === "1") return;
     if (isAdmin && document.documentElement.dataset.safeInsetsFrozen === "1") return;
     const insetTop = probeSafeAreaInset("top");
-    if (!isAdmin && insetTop <= 0) {
-      // Do not freeze on 0 — retry so demo/modules match the homepage path.
-      if (publicSafeAreaAttempts < PUBLIC_SAFE_AREA_MAX_ATTEMPTS) {
-        publicSafeAreaAttempts += 1;
-        requestAnimationFrame(() => syncAppHeaderSafeArea());
-      }
-      return;
-    }
+    if (!isAdmin && insetTop <= 0) return;
     if (insetTop > 0) {
       document.documentElement.style.setProperty("--safe-top", `${insetTop}px`);
     }
@@ -588,10 +574,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     window.visualViewport?.addEventListener(
       "resize",
       () => {
-        const root = document.documentElement;
         if (
-          (isAdminShell() && root.dataset.safeInsetsFrozen !== "1") ||
-          (!isAdminShell() && root.dataset.safeTopFrozen !== "1")
+          isAdminShell() &&
+          document.documentElement.dataset.safeInsetsFrozen !== "1"
         ) {
           syncAppHeaderSafeArea();
         }
@@ -609,17 +594,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   syncAppHeaderSafeArea();
   bindTopbarHeightObserver();
-  window.addEventListener(
-    "pageshow",
-    () => {
-      if (document.documentElement.dataset.safeTopFrozen === "1") return;
-      publicSafeAreaAttempts = 0;
-      syncAppHeaderSafeArea();
-    },
-    { passive: true },
-  );
   document.addEventListener("astro:page-load", () => {
-    publicSafeAreaAttempts = 0;
     syncAppHeaderSafeArea();
     bindTopbarHeightObserver();
     scheduleAdminChromeLayout();
