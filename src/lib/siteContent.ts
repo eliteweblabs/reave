@@ -180,7 +180,7 @@ export type SiteLandingConfig = {
   /** Plain service list for `service` landings (no map / directions). */
   services?: {
     heading: string;
-    items: string[];
+    items: Array<string | { label: string; icon?: string }>;
   };
   steps?: {
     heading: string;
@@ -239,6 +239,8 @@ export type SiteLandingConfig = {
     nmlsHref?: string;
   };
   footer?: string;
+  /** Full-bleed footer art (e.g. skyline banner). */
+  footerImage?: string;
 };
 
 export type SiteContentConfig = {

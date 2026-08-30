@@ -35,12 +35,22 @@
     "services": {
       "heading": "What I handle",
       "items": [
-        "Burst pipes and active leaks",
-        "Emergency shutoffs and water damage stops",
-        "Clogged drains, tubs, showers, and toilets",
-        "Water heater failures and replacements",
-        "Fixture repairs — faucets, toilets, disposals",
-        "Everyday residential plumbing fixes"
+        {
+          "label": "Burst pipes, active leaks, and emergency shutoffs",
+          "icon": "/sites/pattheplumber/service-leaks.png"
+        },
+        {
+          "label": "Clogs, fixture repairs, and everyday residential plumbing",
+          "icon": "/sites/pattheplumber/service-tools.png"
+        },
+        {
+          "label": "Clear pricing — talk through the job before I roll",
+          "icon": "/sites/pattheplumber/service-quote.png"
+        },
+        {
+          "label": "Side work and same-day help when you need someone now",
+          "icon": "/sites/pattheplumber/service-ready.png"
+        }
       ]
     },
     "about": {
@@ -61,6 +71,7 @@
     "contact": {
       "heading": "Call"
     },
-    "footer": "Pat the Plumber · Licensed Massachusetts"
+    "footer": "Pat the Plumber · Licensed Massachusetts",
+    "footerImage": "/sites/pattheplumber/footer.png"
   }
 }
