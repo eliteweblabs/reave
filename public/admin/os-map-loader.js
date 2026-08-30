@@ -3676,6 +3676,130 @@ function uptimeMonitorTileMeta(m) {
   return { offline: false, paused: false, label: 'up' };
 }
 
+/** Keep in sync with MULTI_PART_PUBLIC_SUFFIXES / isApexPublicWebsiteHost in publicUrl.ts */
+const DASH_MULTI_PART_PUBLIC_SUFFIXES = new Set([
+  'co.uk',
+  'org.uk',
+  'me.uk',
+  'ac.uk',
+  'gov.uk',
+  'com.au',
+  'net.au',
+  'org.au',
+  'co.nz',
+  'co.za',
+  'com.br',
+  'co.jp',
+]);
+
+function normalizeDashFleetHost(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let host = raw.trim().toLowerCase();
+  host = host.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+  const slash = host.indexOf('/');
+  if (slash >= 0) host = host.slice(0, slash);
+  return host;
+}
+
+function isDashApexPublicHost(host) {
+  const key = normalizeDashFleetHost(host);
+  if (!key) return false;
+  if (key.endsWith('.up.railway.app') || key.endsWith('.railway.app')) return false;
+  if (
+    key.endsWith('.kinsta.cloud') ||
+    key.endsWith('.kinstawp.com') ||
+    key.endsWith('.kinstacdn.com')
+  ) {
+    return false;
+  }
+  const parts = key.split('.').filter(Boolean);
+  if (parts.length < 2) return false;
+  const lastTwo = parts.slice(-2).join('.');
+  if (DASH_MULTI_PART_PUBLIC_SUFFIXES.has(lastTwo)) return parts.length === 3;
+  return parts.length === 2;
+}
+
+/**
+ * One card per apex: join uptime monitors + analytics fleet.
+ * Keep in sync with mergeDashboardSiteCards in analyticsSiteMerge.ts
+ */
+function mergeDashboardSiteCards(monitors, analyticsSites) {
+  const byId = new Map();
+  for (const site of analyticsSites || []) {
+    const siteId = normalizeDashFleetHost(site?.siteId || site?.label || '');
+    if (!siteId || !isDashApexPublicHost(siteId)) continue;
+    byId.set(siteId, {
+      siteId,
+      label: site.sourceLabel || site.label || siteId,
+      monitor: null,
+      analytics: site,
+    });
+  }
+  for (const monitor of monitors || []) {
+    const host = normalizeDashFleetHost(monitor?.url || '');
+    if (!host || !isDashApexPublicHost(host)) continue;
+    const existing = byId.get(host);
+    const friendly =
+      typeof monitor?.friendly_name === 'string' ? monitor.friendly_name.trim() : '';
+    if (existing) {
+      existing.monitor = monitor;
+      if (friendly) existing.label = friendly;
+      continue;
+    }
+    byId.set(host, {
+      siteId: host,
+      label: friendly || host,
+      monitor,
+      analytics: null,
+    });
+  }
+  return [...byId.values()].sort((a, b) =>
+    String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }),
+  );
+}
+
+function dashboardSiteCardMeta(card, opts = {}) {
+  const analyticsLive = opts.analyticsLive === true;
+  const analyticsLoading = opts.analyticsLoading === true;
+  const uptimePart = card.monitor ? uptimeMonitorTileMeta(card.monitor).label : null;
+  let analyticsPart = null;
+  if (card.analytics) {
+    analyticsPart = card.analytics.registered
+      ? `${formatDashCount(card.analytics.visitors)} / 30d`
+      : 'not wired';
+  } else if (analyticsLoading) {
+    analyticsPart = '…';
+  } else if (analyticsLive) {
+    analyticsPart = 'not wired';
+  }
+  const parts = [uptimePart, analyticsPart].filter(Boolean);
+  return parts.length ? parts.join(' · ') : '—';
+}
+
+function dashboardSiteCardTone(card) {
+  if (card.monitor) {
+    const { offline, paused } = uptimeMonitorTileMeta(card.monitor);
+    return { offline, paused };
+  }
+  if (card.analytics && card.analytics.registered === false) {
+    return { offline: true, paused: false };
+  }
+  return { offline: false, paused: false };
+}
+
+function siteHealthForCard(card, siteHealth) {
+  const sites = siteHealth?.sites;
+  if (!sites || typeof sites !== 'object') return null;
+  return sites[card.siteId] || null;
+}
+
+function dashboardSiteHealthIssueLine(health) {
+  if (!health || !Array.isArray(health.issues) || !health.issues.length) return '';
+  const critical = health.issues.find((i) => i.severity === 'critical');
+  const top = critical || health.issues[0];
+  return top?.label || '';
+}
+
 function getUptimeSyncSitesButton() {
   return document.querySelector(UPTIME_SYNC_SITES_BTN_SELECTOR);
 }
@@ -5502,15 +5626,29 @@ function renderAdminDashboard(data, opts = {}) {
   const analyticsLive = data?.analyticsConfigured === true;
   const analyticsPreview = data?.analytics;
   const analyticsError = typeof data?.analyticsError === 'string' ? data.analyticsError : '';
-  if (analyticsLive || analyticsPreview) {
+  const siteHealth = data?.siteHealth || null;
+  const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
+  const analyticsSites = Array.isArray(analyticsPreview?.sites) ? analyticsPreview.sites : [];
+  const siteCards = mergeDashboardSiteCards(monitors, analyticsSites);
+  const fleetUnregistered = siteCards.filter((card) => {
+    if (card.analytics) return card.analytics.registered !== true;
+    return analyticsLive;
+  }).length;
+  if (analyticsLive || analyticsPreview || siteCards.length) {
     const visitors = analyticsPreview?.visitors ?? stats.analyticsVisitors ?? 0;
     const liveCount = analyticsPreview?.realtimeVisitors ?? stats.analyticsRealtime ?? 0;
-    const siteCount = analyticsPreview?.siteCount ?? stats.analyticsSites ?? 0;
-    const unregistered = analyticsPreview?.unregisteredCount ?? stats.analyticsUnregistered ?? 0;
+    const siteCount = Math.max(
+      analyticsPreview?.siteCount ?? stats.analyticsSites ?? 0,
+      siteCards.length,
+    );
+    const unregistered =
+      analyticsPreview != null || siteCards.length
+        ? fleetUnregistered
+        : (stats.analyticsUnregistered ?? 0);
     statsEl.appendChild(buildDashStat({
-      value: analyticsPreview ? formatDashCount(visitors) : '—',
+      value: analyticsPreview ? formatDashCount(visitors) : (analyticsLive ? '—' : formatDashCount(visitors)),
       label: 'Visitors',
-      hint: analyticsPreview
+      hint: analyticsPreview || siteCards.length
         ? `${liveCount} live · ${siteCount} site${siteCount === 1 ? '' : 's'}${unregistered ? ` · ${unregistered} not wired` : ''}`
         : analyticsError
           ? 'couldn’t load'
@@ -5521,57 +5659,77 @@ function renderAdminDashboard(data, opts = {}) {
         ? 'failed'
         : unregistered > 0
           ? 'stale'
-          : analyticsPreview?.siteCount
+          : siteCount
             ? 'live'
             : 'muted',
-      muted: !analyticsPreview,
+      muted: !analyticsPreview && !siteCards.length,
+      onClick: () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }),
+    }));
+  }
+
+  if (siteCards.length && (siteHealth || uptimeConfigured || analyticsLive)) {
+    const critical =
+      siteHealth?.criticalSites ?? stats.siteHealthCritical ?? null;
+    const graded = siteHealth
+      ? Object.values(siteHealth.sites || {}).filter((row) => row && row.grade).length
+      : 0;
+    statsEl.appendChild(buildDashStat({
+      value: siteHealth ? (critical ?? 0) : '—',
+      label: 'Site issues',
+      hint: siteHealth
+        ? `${graded} graded · robots / Search Console / wiring`
+        : 'scanning in background',
+      tone: critical > 0 ? 'failed' : siteHealth ? 'live' : 'muted',
+      muted: !siteHealth,
       onClick: () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }),
     }));
   }
 
   mount.appendChild(statsEl);
 
-  if (uptimeConfigured) {
+  const showFleetGrid =
+    siteCards.length > 0 && (uptimeConfigured || analyticsLive || analyticsPreview);
+  if (showFleetGrid) {
     const list = document.createElement('ul');
-    list.className = 'dash-uptime-grid';
-    const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
-    for (const m of monitors) {
-      const li = document.createElement('li');
-      const { offline, paused, label } = uptimeMonitorTileMeta(m);
-      li.className =
-        `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}`;
-      li.innerHTML =
-        `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
-        `<div class="dash-uptime-name">${escHtml(m.friendly_name || m.url || `Monitor ${m.id}`)}</div>` +
-        `<div class="dash-uptime-meta">${escHtml(label)}</div>`;
-      list.appendChild(li);
-    }
-
-    mount.appendChild(list);
-  }
-
-  if (analyticsLive && analyticsPreview) {
-    const list = document.createElement('ul');
-    list.className = 'dash-uptime-grid dash-analytics-grid';
-    const sites = Array.isArray(analyticsPreview.sites) ? analyticsPreview.sites : [];
-    for (const site of sites) {
+    list.className = 'dash-uptime-grid dash-fleet-grid';
+    const analyticsLoading = analyticsLive && !analyticsPreview && !analyticsError;
+    for (const card of siteCards) {
+      const { offline, paused } = dashboardSiteCardTone(card);
+      const health = siteHealthForCard(card, siteHealth);
+      const meta = dashboardSiteCardMeta(card, {
+        analyticsLive,
+        analyticsLoading,
+      });
+      const issueLine = dashboardSiteHealthIssueLine(health);
+      const grade = health?.grade ? String(health.grade).toUpperCase() : '';
+      const gradeClass = grade
+        ? ` dash-site-grade dash-site-grade--${grade.toLowerCase()}`
+        : '';
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = `dash-uptime-tile${site.registered ? '' : ' dash-uptime-tile--down'}`;
-      const live = site.realtimeVisitors != null ? `${formatDashCount(site.realtimeVisitors)} live` : '—';
-      const visitors = site.registered ? `${formatDashCount(site.visitors)} / 30d` : 'not wired';
+      btn.className =
+        `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}` +
+        (health?.criticalCount > 0 ? ' dash-uptime-tile--health-warn' : '');
+      const issueHint = health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
+      btn.title = [card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — ');
       btn.innerHTML =
         `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
-        `<div class="dash-uptime-name">${escHtml(site.label || site.siteId)}</div>` +
-        `<div class="dash-uptime-meta">${escHtml(visitors)} · ${escHtml(live)}</div>`;
+        `<div class="dash-uptime-name-row">` +
+          `<div class="dash-uptime-name">${escHtml(card.label || card.siteId)}</div>` +
+          (grade ? `<span class="${gradeClass.trim()}" aria-label="Grade ${escHtml(grade)}">${escHtml(grade)}</span>` : '') +
+        `</div>` +
+        `<div class="dash-uptime-meta">${escHtml(meta)}</div>` +
+        (issueLine
+          ? `<div class="dash-uptime-meta dash-uptime-issue">${escHtml(issueLine)}</div>`
+          : '');
       btn.addEventListener('click', () => {
-        setActiveMap('analytics', { force: true, analyticsSiteId: site.siteId });
+        setActiveMap('analytics', { force: true, analyticsSiteId: card.siteId });
       });
       const li = document.createElement('li');
       li.appendChild(btn);
       list.appendChild(li);
     }
-    if (sites.length) {
+    if (analyticsLive) {
       const more = document.createElement('button');
       more.type = 'button';
       more.className = 'dash-uptime-tile dash-uptime-tile--add';
@@ -5645,6 +5803,38 @@ function renderAdminDashboard(data, opts = {}) {
 
   if (!opts.skipHydrate && analyticsLive && !analyticsPreview && !analyticsError) {
     void hydrateDashboardAnalytics();
+  }
+  if (!opts.skipHydrate && siteCards.length && !siteHealth) {
+    void hydrateDashboardSiteHealth();
+  }
+}
+
+let dashboardSiteHealthHydrateGen = 0;
+
+async function hydrateDashboardSiteHealth() {
+  const gen = ++dashboardSiteHealthHydrateGen;
+  try {
+    const res = await adminFetch('/api/admin/sites/health');
+    const payload = await readAdminJson(res, 'site health');
+    if (gen !== dashboardSiteHealthHydrateGen) return;
+    if (MAP?.type !== 'dashboard') return;
+    if (!payload.ok || !payload.siteHealth) {
+      throw new Error(payload.error || `HTTP ${res.status}`);
+    }
+    if (!lastDashboardPayload) return;
+    const health = payload.siteHealth;
+    lastDashboardPayload = {
+      ...lastDashboardPayload,
+      siteHealth: health,
+      stats: {
+        ...(lastDashboardPayload.stats || {}),
+        siteHealthCritical: health.criticalSites ?? null,
+        siteHealthCheckedAt: health.checkedAt ?? null,
+      },
+    };
+    renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+  } catch {
+    /* background grade — leave cards without letters until next load */
   }
 }
 

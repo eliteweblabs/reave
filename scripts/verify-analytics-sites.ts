@@ -3,7 +3,11 @@
  * Run: node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-analytics-sites.ts
  */
 import assert from 'node:assert/strict';
-import { mergeAnalyticsSites, summarizeAnalyticsAccounts } from '../src/lib/analyticsSiteMerge.ts';
+import {
+  mergeAnalyticsSites,
+  mergeDashboardSiteCards,
+  summarizeAnalyticsAccounts,
+} from '../src/lib/analyticsSiteMerge.ts';
 import {
   hostnameFromWebsite,
   htmlHasPlausibleScript,
@@ -99,5 +103,72 @@ assert.equal(preview.registeredCount, 1);
 assert.equal(preview.unregisteredCount, 1);
 assert.equal(preview.visitors, 120);
 assert.equal(preview.realtimeVisitors, 2);
+assert.equal(preview.sites.length, 2);
+
+const fleet = mergeDashboardSiteCards(
+  [
+    {
+      id: 1,
+      friendly_name: "The Barber's Edge",
+      url: 'https://www.thebarbersedge.com',
+      status: 2,
+      uptime_ratio_7d: 100,
+      tile_label: '100.0%',
+    },
+    {
+      id: 2,
+      friendly_name: 'Cal only',
+      url: 'https://cal.thebarbersedge.com',
+      status: 2,
+      uptime_ratio_7d: 99.9,
+      tile_label: '99.9%',
+    },
+    {
+      id: 3,
+      friendly_name: 'Mavsafe',
+      url: 'https://mavsafe.com',
+      status: 9,
+      is_down: true,
+      is_offline: true,
+      tile_label: 'down',
+    },
+  ],
+  [
+    {
+      siteId: 'thebarbersedge.com',
+      label: 'thebarbersedge.com',
+      kind: 'kinsta',
+      sourceLabel: "Barber's Edge",
+      registered: true,
+      visitors: 209,
+      pageviews: 400,
+      realtimeVisitors: 0,
+      change: null,
+      dashboardUrl: null,
+    },
+    {
+      siteId: 'reave.app',
+      label: 'reave.app',
+      kind: 'agency',
+      registered: false,
+      visitors: null,
+      pageviews: null,
+      realtimeVisitors: null,
+      change: null,
+      dashboardUrl: null,
+    },
+  ],
+);
+assert.equal(fleet.length, 3);
+assert.equal(fleet[0].siteId, 'mavsafe.com');
+assert.equal(fleet[0].label, 'Mavsafe');
+assert.equal(fleet[0].monitor?.id, 3);
+assert.equal(fleet[0].analytics, null);
+assert.equal(fleet[1].siteId, 'reave.app');
+assert.equal(fleet[1].monitor, null);
+assert.equal(fleet[1].analytics?.registered, false);
+assert.equal(fleet[2].siteId, 'thebarbersedge.com');
+assert.equal(fleet[2].label, "The Barber's Edge");
+assert.equal(fleet[2].analytics?.visitors, 209);
 
 console.log('verify-analytics-sites: ok');

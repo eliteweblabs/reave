@@ -65,6 +65,9 @@ const scheduleFormSlug =
     : (typeof schedule?.formSlug === "string" && schedule.formSlug.trim()) ||
       (schedule ? "schedule" : "");
 const scheduleUrl = (landing.scheduleUrl || "").trim();
+const chatPlaceholder =
+  (schedule?.dockPlaceholder || "").trim() || "How can I help you?";
+const showFooterChat = Boolean(scheduleFormSlug);
 const about = landing.about;
 const contact = landing.contact;
 const reviews = landing.reviews;
@@ -78,7 +81,7 @@ const logoSrc = (landing.heroLogo || "").trim()
     : "");
 ---
 
-<div class={`svc${footerImage ? " svc--skyline" : ""}`} data-has-phone={phoneHref ? "1" : "0"}>
+<div class={`svc${footerImage ? " svc--skyline" : ""}`} data-has-phone={phoneHref ? "1" : "0"} data-has-chat={showFooterChat ? "1" : "0"}>
   <div class="svc-login-bar">
     <a class="svc-login" href="/sign-in">Login</a>
     {
@@ -186,33 +189,6 @@ const logoSrc = (landing.heroLogo || "").trim()
     }
 
     {
-      schedule ? (
-        <section class="svc-section" id="schedule">
-          <h2>{schedule.heading}</h2>
-          {schedule.intro && <p class="svc-copy">{schedule.intro}</p>}
-          {scheduleFormSlug ? (
-            <div class="svc-schedule">
-              <ConversationalForm
-                slug={scheduleFormSlug}
-                embedded
-                brandName={landing.name || company.name || "Pat the Plumber"}
-              />
-            </div>
-          ) : null}
-          {scheduleUrl && scheduleUrl !== `/form/${scheduleFormSlug}` ? (
-            <p class="svc-schedule__link">
-              <a href={scheduleUrl}>Open full scheduler</a>
-            </p>
-          ) : scheduleUrl && !scheduleFormSlug ? (
-            <p class="svc-schedule__link">
-              <a href={scheduleUrl}>Book online</a>
-            </p>
-          ) : null}
-        </section>
-      ) : null
-    }
-
-    {
       reviews?.items?.length ? (
         <section class="svc-section" id="reviews">
           <h2>{reviews.heading}</h2>
@@ -303,7 +279,23 @@ const logoSrc = (landing.heroLogo || "").trim()
   </footer>
 
   {
-    phoneHref && (
+    showFooterChat ? (
+      <div class="svc-footer-chat" role="region" aria-label="Chat">
+        <ConversationalForm
+          slug={scheduleFormSlug}
+          embedded
+          brandName={landing.name || company.name || "Pat the Plumber"}
+          inputPlaceholder={chatPlaceholder}
+        />
+        {
+          scheduleUrl && scheduleUrl !== `/form/${scheduleFormSlug}` ? (
+            <p class="svc-footer-chat__link">
+              <a href={scheduleUrl}>Open full scheduler</a>
+            </p>
+          ) : null
+        }
+      </div>
+    ) : phoneHref ? (
       <div class="svc-sticky" role="region" aria-label="Call">
         <a class="svc-sticky__btn" href={phoneHref}>
           <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
@@ -311,7 +303,7 @@ const logoSrc = (landing.heroLogo || "").trim()
           {stickyLabel}
         </a>
       </div>
-    )
+    ) : null
   }
 </div>
 
@@ -596,24 +588,49 @@ const logoSrc = (landing.heroLogo || "").trim()
     line-height: 1.4;
   }
 
-  .svc-schedule {
-    margin-top: 0.35rem;
+  .svc-footer-chat {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    padding: 0.65rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.97) 28%);
+    pointer-events: none;
   }
 
-  .svc-schedule :global(.conversational-form-root--embedded) {
-    margin: 0;
-    padding: 1rem 0.85rem 1.1rem;
+  .svc-footer-chat > :global(*) {
+    pointer-events: auto;
+  }
+
+  .svc-footer-chat :global(.conversational-form-root--embedded) {
+    width: 100%;
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 0.85rem 0.85rem 0.95rem;
     border-radius: 1rem;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+    min-height: 0;
   }
 
-  .svc-schedule__link {
-    margin: 0.85rem 0 0;
+  .svc-footer-chat :global(.conversational-form-root--embedded .conversation-scroll) {
+    max-height: min(28vh, 12rem);
+  }
+
+  .svc-footer-chat :global(.conversational-form-root--embedded .input-area) {
+    position: static;
+    margin-top: 0.55rem;
+  }
+
+  .svc-footer-chat__link {
+    margin: 0.45rem auto 0;
+    max-width: 34rem;
     text-align: center;
   }
 
-  .svc-schedule__link a {
+  .svc-footer-chat__link a {
     color: var(--svc-accent);
     font-weight: 700;
     text-decoration: none;
@@ -749,6 +766,14 @@ const logoSrc = (landing.heroLogo || "").trim()
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
   }
 
+  .svc--skyline[data-has-chat="1"] .svc-foot__meta {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .svc[data-has-chat="1"]:not(.svc--skyline) {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .svc-foot__meta p {
     margin: 0;
   }
@@ -805,6 +830,11 @@ const logoSrc = (landing.heroLogo || "").trim()
     }
 
     .svc:not(.svc--skyline) .svc-foot {
+      max-width: 40rem;
+    }
+
+    .svc-footer-chat :global(.conversational-form-root--embedded),
+    .svc-footer-chat__link {
       max-width: 40rem;
     }
 

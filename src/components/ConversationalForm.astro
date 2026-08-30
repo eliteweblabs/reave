@@ -5,12 +5,15 @@ interface Props {
   embedded?: boolean;
   /** Brand name for SMS consent disclaimer copy. */
   brandName?: string;
+  /** Override the first field’s input placeholder (embedded footers, etc.). */
+  inputPlaceholder?: string;
 }
 
 const {
   slug,
   embedded = false,
   brandName = "reave.app",
+  inputPlaceholder = "",
 } = Astro.props;
 const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
 const rootClass = embedded
@@ -26,7 +29,7 @@ const rootClass = embedded
 
     <div class="input-area" id="input-area">
       <div class="input-pill">
-        <input type="text" id="user-input" placeholder="Type your answer…" autocomplete="off" />
+        <input type="text" id="user-input" placeholder={inputPlaceholder || "Type your answer…"} autocomplete="off" />
         <button type="submit">Send</button>
       </div>
     </div>
@@ -388,11 +391,12 @@ const rootClass = embedded
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, brandName, embedded }}>
+<script define:vars={{ bookingApiUrl, slug, brandName, embedded, inputPlaceholder }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
   const BRAND_NAME = brandName;
   const IS_EMBEDDED = Boolean(embedded);
+  const INPUT_PLACEHOLDER_OVERRIDE = String(inputPlaceholder || "").trim();
   const SMS_USE_CASES = "inquiry updates and appointment reminders";
 
   function smsConsentCheckboxLabel() {
@@ -723,9 +727,13 @@ const rootClass = embedded
       });
     } else {
       const promptLine = parts[parts.length - 1];
-      const placeholder = placeholderForField(field, promptLine);
+      const defaultPlaceholder = placeholderForField(field, promptLine);
+      const placeholder =
+        currentFieldIndex === 0 && INPUT_PLACEHOLDER_OVERRIDE
+          ? INPUT_PLACEHOLDER_OVERRIDE
+          : defaultPlaceholder;
       const spokenLines =
-        placeholder === promptLine ? parts.slice(0, -1) : parts;
+        defaultPlaceholder === promptLine ? parts.slice(0, -1) : parts;
       for (let i = 0; i < spokenLines.length; i++) {
         if (i > 0) await delay(500);
         if (i === spokenLines.length - 1) {
