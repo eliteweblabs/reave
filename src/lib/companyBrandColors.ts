@@ -10,6 +10,8 @@ import {
 
 export const DEFAULT_SITE_BRAND_PRIMARY = '#f472b6';
 export const DEFAULT_SITE_BRAND_SECONDARY = '#c026d3';
+/** Default Home Screen / favicon tile background (matches prior hard-coded tile). */
+export const DEFAULT_ICON_BACKGROUND = '#09090b';
 
 const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -23,6 +25,11 @@ export function normalizeBrandColorHex(raw: string | null | undefined): string |
     return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toLowerCase();
   }
   return `#${hex}`.toLowerCase();
+}
+
+/** Resolved icon tile background — admin value or default near-black. */
+export function resolveIconBackground(raw?: string | null): string {
+  return normalizeBrandColorHex(raw) ?? DEFAULT_ICON_BACKGROUND;
 }
 
 function effectiveBrandHex(raw: string | null | undefined, fallback: string): string {

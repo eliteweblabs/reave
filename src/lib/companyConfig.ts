@@ -23,7 +23,7 @@ import {
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 export { DEFAULT_PORTAL_OUTREACH_NOTICE };
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
-import { normalizeBrandColorHex, resolveCompanyBrandColors } from './companyBrandColors';
+import { normalizeBrandColorHex, resolveCompanyBrandColors, resolveIconBackground } from './companyBrandColors';
 import { emailFontStack, normalizeEmailFontId } from './emailSafeFonts';
 import { isCanonicalReaveInstall } from './installConfig';
 import { serverEnv } from './serverEnv';
@@ -217,6 +217,8 @@ export type CompanyConfig = {
   brandPrimary: string;
   /** Admin-selected secondary brand color (hex), empty = site default. */
   brandSecondary: string;
+  /** Home Screen / favicon tile background (hex). */
+  iconBackground: string;
 };
 
 function trim(s: string | null | undefined): string {
@@ -533,6 +535,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     emailFontStack: emailFontStack(emailFont),
     brandPrimary: brandColors.primary,
     brandSecondary: brandColors.secondary,
+    iconBackground: resolveIconBackground(stored?.iconBackground),
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
@@ -632,6 +635,8 @@ export type CompanyConfigInput = {
   emailFont?: string;
   brandPrimary?: string;
   brandSecondary?: string;
+  /** Home Screen / favicon tile background (hex). */
+  iconBackground?: string;
   /** Paste full <svg>…</svg> for animated header wordmark. */
   logoSvg?: string;
   /** Paste full <svg>…</svg> for animated homepage hero icon. */
@@ -712,6 +717,9 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   }
   if (input.brandSecondary !== undefined) {
     out.brandSecondary = normalizeBrandColorHex(input.brandSecondary);
+  }
+  if (input.iconBackground !== undefined) {
+    out.iconBackground = normalizeBrandColorHex(input.iconBackground);
   }
   if (input.logoSvg !== undefined) {
     const t = input.logoSvg.trim();

@@ -88,6 +88,8 @@ export type StoredCompanyConfig = {
   brandPrimary?: string | null;
   /** Admin-selected secondary brand color (hex). */
   brandSecondary?: string | null;
+  /** Admin-selected Home Screen / favicon tile background (hex). */
+  iconBackground?: string | null;
   updatedAt?: string | null;
 };
 
@@ -153,6 +155,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_content TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_google_specs TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS brand_primary TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS brand_secondary TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_background TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS portal_outreach_notice TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_data TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_media_type TEXT;
@@ -289,6 +292,7 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     emailFont: str('emailFont') || str('email_font') || null,
     brandPrimary: str('brandPrimary') || str('brand_primary') || null,
     brandSecondary: str('brandSecondary') || str('brand_secondary') || null,
+    iconBackground: str('iconBackground') || str('icon_background') || null,
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -371,6 +375,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     font_google_specs: string | null;
     brand_primary: string | null;
     brand_secondary: string | null;
+    icon_background: string | null;
     portal_outreach_notice: string | null;
     og_data: string | null;
     og_media_type: string | null;
@@ -387,8 +392,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_telegram, social_whatsapp, social_substack, social_yelp, social_google_business,
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
-            brand_primary, brand_secondary, portal_outreach_notice, og_data, og_media_type,
-            email_font, updated_at
+            brand_primary, brand_secondary, icon_background, portal_outreach_notice,
+            og_data, og_media_type, email_font, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -448,6 +453,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     fontGoogleSpecs: parseFontGoogleSpecs(row.font_google_specs),
     brandPrimary: row.brand_primary,
     brandSecondary: row.brand_secondary,
+    iconBackground: row.icon_background,
     portalOutreachNotice: row.portal_outreach_notice,
     ogData: row.og_data,
     ogMediaType: row.og_media_type,
@@ -512,10 +518,11 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        font_google_specs = $49,
        brand_primary = $50,
        brand_secondary = $51,
-       portal_outreach_notice = $52,
-       og_data = $53,
-       og_media_type = $54,
-       email_font = $55,
+       icon_background = $52,
+       portal_outreach_notice = $53,
+       og_data = $54,
+       og_media_type = $55,
+       email_font = $56,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -572,6 +579,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.fontGoogleSpecs ? JSON.stringify(config.fontGoogleSpecs) : null,
       config.brandPrimary ?? null,
       config.brandSecondary ?? null,
+      config.iconBackground ?? null,
       config.portalOutreachNotice ?? null,
       config.ogData ?? null,
       config.ogMediaType ?? null,

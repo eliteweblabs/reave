@@ -6992,6 +6992,7 @@ function bindCompanyBrandColors(root) {
   const pairs = [
     ['#company-brandPrimary-swatch', '#company-brandPrimary'],
     ['#company-brandSecondary-swatch', '#company-brandSecondary'],
+    ['#company-iconBackground-swatch', '#company-iconBackground'],
   ];
 
   for (const [swatchSel, textSel] of pairs) {
@@ -7016,6 +7017,8 @@ function bindCompanyBrandColors(root) {
     text.addEventListener('change', syncFromText);
     text.addEventListener('blur', syncFromText);
   }
+
+  applyCompanyIconBackgroundPreview(root);
 }
 
 function normalizeHexColor(raw) {
@@ -7031,6 +7034,17 @@ function hexToRgbChannels(hex) {
   const n = normalizeHexColor(hex);
   if (!n) return '';
   return `${parseInt(n.slice(1, 3), 16)}, ${parseInt(n.slice(3, 5), 16)}, ${parseInt(n.slice(5, 7), 16)}`;
+}
+
+function applyCompanyIconBackgroundPreview(root) {
+  const input = root.querySelector('#company-iconBackground');
+  const bg = input instanceof HTMLInputElement
+    ? (normalizeHexColor(input.value) || '#09090b')
+    : '#09090b';
+  for (const sel of ['#company-icon-preview-wrap', '#company-iconSvg-preview-wrap']) {
+    const wrap = root.querySelector(sel);
+    if (wrap instanceof HTMLElement) wrap.style.backgroundColor = bg;
+  }
 }
 
 function applyCompanyBrandPreview(root) {
@@ -7054,6 +7068,7 @@ function applyCompanyBrandPreview(root) {
   rootStyle.setProperty('--create-fab-bg', gradient);
   rootStyle.setProperty('--create-fab-shadow', '0 1px 2px rgba(0, 0, 0, 0.12)');
   rootStyle.setProperty('--brand-glow-filter', 'none');
+  applyCompanyIconBackgroundPreview(root);
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -8141,7 +8156,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
           ) +
           profSection(
             'Colors',
-            'Brand colors map to site-wide CSS variables — <code>--brand-pink</code>, <code>--brand-magenta</code>, gradients, and buttons on marketing pages and admin.',
+            'Brand colors map to site-wide CSS variables — <code>--brand-pink</code>, <code>--brand-magenta</code>, gradients, and buttons on marketing pages and admin. Icon background fills the Home Screen / favicon tile behind the mark.',
             `<div class="prof-field-row prof-field-row--colors">` +
               `<div class="prof-field"><label for="company-brandPrimary">Primary color</label>` +
               `<div class="prof-color-input-row">` +
@@ -8153,6 +8168,12 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                 `<input type="color" id="company-brandSecondary-swatch" value="${escHtml(c.brandSecondary || '#a1a1a1')}" aria-label="Secondary color swatch" />` +
                 `<input id="company-brandSecondary" name="brandSecondary" type="text" value="${escHtml(c.brandSecondary || '')}" placeholder="#a1a1a1" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
               `</div></div>` +
+              `<div class="prof-field"><label for="company-iconBackground">Icon background</label>` +
+              `<div class="prof-color-input-row">` +
+                `<input type="color" id="company-iconBackground-swatch" value="${escHtml(c.iconBackground || '#09090b')}" aria-label="Icon background swatch" />` +
+                `<input id="company-iconBackground" name="iconBackground" type="text" value="${escHtml(c.iconBackground || '')}" placeholder="#09090b" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
+              `</div>` +
+              `<span class="prof-hint">Background behind the mark on Add to Home Screen and browser tab icons.</span></div>` +
             `</div>`,
           ) +
           profSection(

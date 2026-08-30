@@ -58,6 +58,9 @@ export async function POST(context: APIContext): Promise<Response> {
   if (body.brandSecondary !== undefined && body.brandSecondary.trim() && !normalizeBrandColorHex(body.brandSecondary)) {
     return jsonResponse({ error: 'Secondary color must be a valid hex value (e.g. #rrggbb).' }, 400);
   }
+  if (body.iconBackground !== undefined && body.iconBackground.trim() && !normalizeBrandColorHex(body.iconBackground)) {
+    return jsonResponse({ error: 'Icon background must be a valid hex value (e.g. #rrggbb).' }, 400);
+  }
 
   delete body.domain;
   const stored = normalizeCompanyInput(body);
