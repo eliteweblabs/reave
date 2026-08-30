@@ -224,7 +224,7 @@ export function aggregatedGoogleWorkspaceBlurb(): string {
 export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client Portal',
   web_handoff: 'Portal Data Tab',
-  portal_assistant: 'Client Portal Help Chat',
+  portal_assistant: 'Help Chat',
   billing: 'Crater Billing & Invoices',
   site_audits: 'Website Audit',
   analytic_audit: 'Sites',

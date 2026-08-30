@@ -51,14 +51,28 @@
         { "label": "Credit card", "lucide": "credit-card" }
       ]
     },
-    "schedule": {
-      "formSlug": "schedule",
+    "chat": {
       "dockPlaceholder": "How can I help you?",
+      "inputPlaceholder": "How can I help you?",
       "introPhrases": [
         "Hi! this is Pat, what’s up?",
         "Pat here, anything I can help with?",
         "Don’t get💩 on your hands. Call a pro"
-      ]
+      ],
+      "avatarSrc": "/sites/pattheplumber/face.png",
+      "avatarAlt": "Pat the Plumber",
+      "headerTitle": "Pat the Plumber",
+      "footerPrefix": "Emergency?",
+      "hideFab": true,
+      "engagement": {
+        "mode": "scroll",
+        "minScrollPx": 64,
+        "delayMs": 3000,
+        "settleMs": 900
+      }
+    },
+    "schedule": {
+      "formSlug": "schedule"
     },
     "services": {
       "heading": "What I handle",

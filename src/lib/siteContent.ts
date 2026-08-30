@@ -204,9 +204,13 @@ export type SiteLandingConfig = {
     }>;
   };
   /**
-   * Footer chat for `service` landings (SiteAssistantWidget sheet).
-   * `dockPlaceholder` / `introPhrases` style the fixed dock; the live reply
-   * path is `/api/site/assistant` when `portal_assistant` is enabled.
+   * Public site help chat (SiteAssistantWidget sheet via portal_assistant).
+   * Prefer this over hanging chat fields on `schedule`.
+   */
+  chat?: import("./siteChat").SiteChatConfig;
+  /**
+   * Legacy scheduling block. Chat dock fields here are still read as fallbacks
+   * when `chat` is omitted.
    */
   schedule?: {
     /** Optional — unused when the chat is footered (no section chrome). */
@@ -214,9 +218,9 @@ export type SiteLandingConfig = {
     intro?: string;
     /** Legacy conversational form slug (kept for /form/schedule links). */
     formSlug?: string | false;
-    /** Placeholder on the footer chat input (default “How can I help you?”). */
+    /** @deprecated Prefer `chat.dockPlaceholder`. */
     dockPlaceholder?: string;
-    /** Short Pat/owner intro lines — one is picked at random after scroll + 3s. */
+    /** @deprecated Prefer `chat.introPhrases`. */
     introPhrases?: string[];
   };
   steps?: {

@@ -16,15 +16,22 @@ stage: 2
 
 ## External setup
 
-- Enable `portal_assistant` in install config `features[]` (requires `client_portal` for portal pages; site chat only needs the flag + API key)
-- Assistant appears as a help button on `/c/:uid` pages
-- Public site: MarketingLayout FAB, or service landings with a footer dock that opens the same sheet
+- Enable `portal_assistant` in install config `features[]`
+- Portal: help FAB on `/c/:uid`
+- Public site: MarketingLayout FAB, or service landings with a footer dock → same iOS sheet
+- Per-landing options in `config/sites/*-config.json` → `landing.chat`:
+  - `introPhrases[]` — random owner intro bubble
+  - `avatarSrc` / `avatarAlt` — sheet + bubble icon
+  - `dockPlaceholder` / `inputPlaceholder`
+  - `headerTitle` / `headerSubtitle` / `footerPrefix`
+  - `hideFab` — footer dock instead of FAB (default on service landings)
+  - `engagement` — `{ mode: "scroll"|"immediate"|"none", minScrollPx, delayMs, settleMs }`
 
 ## Checklist
 
-- [ ] Confirm `client_portal` is enabled (for portal pages)
 - [ ] Set `ANTHROPIC_API_KEY` on Astro service
 - [ ] Enable `portal_assistant` in install config
 - [ ] Test help chat from a client portal on mobile
 - [ ] On service landings, confirm footer dock opens the sheet and replies
+- [ ] Tune `landing.chat` phrases / avatar / engagement as needed
 - [ ] Set `moduleStatus.portal_assistant` → `deployed` in install config

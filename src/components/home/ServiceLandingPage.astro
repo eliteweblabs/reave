@@ -8,6 +8,7 @@ import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
 import { hasFeature } from "../../lib/features";
 import { isSiteAssistantConfigured } from "../../lib/siteAssistant";
+import { resolveSiteChat } from "../../lib/siteChat";
 import SiteAssistantWidget from "../SiteAssistantWidget.astro";
 import { siApplepay, siVenmo } from "simple-icons";
 import { Banknote, CreditCard } from "lucide-astro";
@@ -61,23 +62,37 @@ const paymentMethods =
     return { label: method.label, brand, LucideIcon };
   }) ?? [];
 const schedule = landing.schedule;
-const chatPlaceholder =
-  (schedule?.dockPlaceholder || "").trim() || "How can I help you?";
-const introPhrases = (schedule?.introPhrases || [])
-  .map((p) => String(p || "").trim())
-  .filter(Boolean);
+const brandName = landing.name || company.name || "Chat";
+const face = landing.photo;
+const siteChat = resolveSiteChat({
+  chat: landing.chat,
+  legacy: schedule,
+  brandName,
+  photoSrc: face?.src,
+  photoAlt: face?.alt,
+  supportEmail: company.supportEmail,
+  domain: company.domain,
+  serviceLanding: true,
+});
 const showFooterChat =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
-const chatGreeting =
-  introPhrases[0] || `Hi! This is ${landing.name || company.name || "us"} — what’s up?`;
+  Boolean(siteChat) &&
+  hasFeature("portal_assistant") &&
+  isSiteAssistantConfigured();
+const chatPlaceholder = siteChat?.dockPlaceholder || "How can I help you?";
+const introPhrases = siteChat?.introPhrases || [];
+const chatGreeting = siteChat?.greeting || `Hi! This is ${brandName} — what’s up?`;
+const chatFaceSrc = siteChat?.avatarSrc || "";
+const chatFaceAlt = siteChat?.avatarAlt || brandName;
+const chatEngagement = siteChat?.engagement || {
+  mode: "scroll" as const,
+  minScrollPx: 64,
+  delayMs: 3000,
+  settleMs: 900,
+};
 const about = landing.about;
 const contact = landing.contact;
 const reviews = landing.reviews;
-const face = landing.photo;
 const footerImage = landing.footerImage || "";
-const chatFaceSrc = (face?.src || "").trim();
-const chatFaceAlt = face?.alt || landing.name || "Pat";
-const brandName = landing.name || company.name || "Chat";
 
 /** Prefer a static site logo so admin branding reprocessing cannot mangle it. */
 const logoSrc = (landing.heroLogo || "").trim()
@@ -288,17 +303,17 @@ const logoSrc = (landing.heroLogo || "").trim()
       <>
         <SiteAssistantWidget
           brandTitle={brandName}
-          headerTitle={brandName}
-          headerSubtitle={company.supportEmail || company.domain || brandName}
+          headerTitle={siteChat?.headerTitle || brandName}
+          headerSubtitle={siteChat?.headerSubtitle}
           greeting={chatGreeting}
           fabLabel={`Chat with ${brandName}`}
-          footerPrefix="Emergency?"
+          footerPrefix={siteChat?.footerPrefix || "Emergency?"}
           supportPhone={phoneDisplay || company.supportPhone}
           supportEmail={company.supportEmail}
           pagePath={Astro.url.pathname}
-          inputPlaceholder={chatPlaceholder}
+          inputPlaceholder={siteChat?.inputPlaceholder || chatPlaceholder}
           avatarSrc={chatFaceSrc || undefined}
-          hideFab
+          hideFab={siteChat?.hideFab !== false}
         />
         <div class="svc-footer-chat" data-svc-footer-chat role="region" aria-label="Chat">
           {
@@ -376,7 +391,14 @@ const logoSrc = (landing.heroLogo || "").trim()
 
 {
   showFooterChat ? (
-    <script is:inline define:vars={{ introPhrases, chatFaceAlt }}>
+    <script
+      is:inline
+      define:vars={{
+        introPhrases,
+        chatFaceAlt,
+        engagement: chatEngagement,
+      }}
+    >
       (function () {
         const DISMISS_KEY = "svc-footer-chat-intro-dismissed";
         const dockRoot = document.querySelector("[data-svc-footer-chat]");
@@ -426,6 +448,11 @@ const logoSrc = (landing.heroLogo || "").trim()
           /* private mode */
         }
 
+        if (engagement?.mode === "none") {
+          intro.remove();
+          return;
+        }
+
         const face = intro.querySelector(".svc-footer-chat__face");
         if (face instanceof HTMLImageElement && chatFaceAlt) {
           face.alt = chatFaceAlt;
@@ -439,9 +466,11 @@ const logoSrc = (landing.heroLogo || "").trim()
         const reduceMotion = window.matchMedia(
           "(prefers-reduced-motion: reduce)",
         ).matches;
-        const DELAY_MS = reduceMotion ? 0 : 3000;
-        const SCROLL_MIN = 64;
-        const SETTLE_MS = 900;
+        const DELAY_MS = reduceMotion
+          ? 0
+          : Math.max(0, Number(engagement?.delayMs) || 3000);
+        const SCROLL_MIN = Math.max(0, Number(engagement?.minScrollPx) || 64);
+        const SETTLE_MS = Math.max(0, Number(engagement?.settleMs) || 900);
         const readyAt = Date.now() + SETTLE_MS;
         const startY =
           window.scrollY || document.documentElement.scrollTop || 0;
@@ -495,7 +524,12 @@ const logoSrc = (landing.heroLogo || "").trim()
           timer = setTimeout(reveal, DELAY_MS);
         };
 
-        window.addEventListener("scroll", onScroll, { passive: true });
+        if (engagement?.mode === "immediate") {
+          timer = setTimeout(reveal, DELAY_MS);
+        } else {
+          window.addEventListener("scroll", onScroll, { passive: true });
+        }
+
         widget.addEventListener("aw-open", () => hideIntro(false));
         openBtn?.addEventListener("click", (ev) => {
           if (ev.target.closest("[data-svc-intro-dismiss]")) return;
