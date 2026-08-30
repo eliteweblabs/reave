@@ -1,0 +1,125 @@
+---
+/**
+ * /demo-five — throwaway chrome test page.
+ * Same MarketingLayout header/footer as the rest of the public site; filler
+ * body only so we can judge safe-area / sticky / scroll without demo-loader.
+ */
+import Layout from "../layouts/MarketingLayout.astro";
+
+export const prerender = false;
+
+const filler = [
+  {
+    title: "Section one — the long scroll starts here",
+    body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vehicula, nisl at malesuada aliquet, nisi nisl aliquam nisi, vitae tincidunt nisl nisl eu nisi. Pellentesque habitant morbi tristique senectus et netus.",
+  },
+  {
+    title: "Section two — more nonsense paragraphs",
+    body: "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit.",
+  },
+  {
+    title: "Section three — keep scrolling past the island",
+    body: "Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio, et feugiat tellus.",
+  },
+  {
+    title: "Section four — still fake content",
+    body: "Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus. Omnis voluptas assumenda est, omnis dolor repellendus.",
+  },
+  {
+    title: "Section five — footer should show below",
+    body: "Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur.",
+  },
+];
+---
+
+<Layout
+  title="Demo five"
+  description="Chrome test page — shared marketing header and footer with filler content."
+  noIndex
+>
+  <div class="demo-five">
+    <header class="demo-five-hero">
+      <p class="demo-five-kicker">Chrome test</p>
+      <h1 class="demo-five-h1">Demo five</h1>
+      <p class="demo-five-lead">
+        Blank-ish page on the same front-end shell as everything else — shared
+        header, shared footer, filler sections so you can scroll. Not wired into
+        the real demo flow.
+      </p>
+    </header>
+
+    {
+      filler.map((block, i) => (
+        <section class="demo-five-section" aria-labelledby={`demo-five-h-${i}`}>
+          <h2 id={`demo-five-h-${i}`}>{block.title}</h2>
+          <p>{block.body}</p>
+          <p>{block.body}</p>
+          <p>{block.body}</p>
+        </section>
+      ))
+    }
+  </div>
+</Layout>
+
+<style>
+  .demo-five {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 var(--site-page-gutter, 20px) calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .demo-five-hero {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .demo-five-kicker {
+    margin: 0 0 12px;
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .demo-five-h1 {
+    margin: 0 0 16px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.85rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: var(--site-fg, #171717);
+  }
+
+  .demo-five-lead {
+    margin: 0 auto;
+    max-width: 34rem;
+    font-family: var(--font-content);
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .demo-five-section {
+    margin-bottom: 3.5rem;
+  }
+
+  .demo-five-section h2 {
+    margin: 0 0 1rem;
+    font-family: var(--font-primary);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--site-fg, #171717);
+  }
+
+  .demo-five-section p {
+    margin: 0 0 1rem;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--site-fg-muted, #525252);
+  }
+</style>
