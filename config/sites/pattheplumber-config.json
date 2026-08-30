@@ -5,7 +5,7 @@
     "links": [],
     "groups": [],
     "showDemoCta": false,
-    "showSignIn": false
+    "showSignIn": true
   },
   "homepage": {
     "template": "landing",
