@@ -67,12 +67,17 @@ const scheduleFormSlug =
 const scheduleUrl = (landing.scheduleUrl || "").trim();
 const chatPlaceholder =
   (schedule?.dockPlaceholder || "").trim() || "How can I help you?";
+const introPhrases = (schedule?.introPhrases || [])
+  .map((p) => String(p || "").trim())
+  .filter(Boolean);
 const showFooterChat = Boolean(scheduleFormSlug);
 const about = landing.about;
 const contact = landing.contact;
 const reviews = landing.reviews;
 const face = landing.photo;
 const footerImage = landing.footerImage || "";
+const chatFaceSrc = (face?.src || "").trim();
+const chatFaceAlt = face?.alt || landing.name || "Pat";
 
 /** Prefer a static site logo so admin branding reprocessing cannot mangle it. */
 const logoSrc = (landing.heroLogo || "").trim()
@@ -280,10 +285,38 @@ const logoSrc = (landing.heroLogo || "").trim()
 
   {
     showFooterChat ? (
-      <div class="svc-footer-chat" role="region" aria-label="Chat">
+      <div class="svc-footer-chat" data-svc-footer-chat role="region" aria-label="Chat">
+        {
+          introPhrases.length ? (
+            <div
+              class="svc-footer-chat__intro"
+              data-svc-intro
+              hidden
+              aria-hidden="true"
+            >
+              {
+                chatFaceSrc ? (
+                  <img
+                    class="svc-footer-chat__face"
+                    src={chatFaceSrc}
+                    alt=""
+                    width="40"
+                    height="40"
+                    decoding="async"
+                  />
+                ) : (
+                  <span class="svc-footer-chat__face svc-footer-chat__face--fallback" aria-hidden="true">
+                    {(landing.name || "P").trim().charAt(0)}
+                  </span>
+                )
+              }
+              <p class="svc-footer-chat__bubble" data-svc-intro-text></p>
+            </div>
+          ) : null
+        }
         <ConversationalForm
           slug={scheduleFormSlug}
-          embedded
+          dock
           brandName={landing.name || company.name || "Pat the Plumber"}
           inputPlaceholder={chatPlaceholder}
         />
@@ -306,6 +339,68 @@ const logoSrc = (landing.heroLogo || "").trim()
     ) : null
   }
 </div>
+
+{
+  showFooterChat && introPhrases.length ? (
+    <script is:inline define:vars={{ introPhrases, chatFaceAlt }}>
+      (function () {
+        const root = document.querySelector("[data-svc-footer-chat]");
+        const intro = root?.querySelector("[data-svc-intro]");
+        const textEl = intro?.querySelector("[data-svc-intro-text]");
+        if (!root || !intro || !textEl || !introPhrases.length) return;
+
+        const face = intro.querySelector(".svc-footer-chat__face");
+        if (face instanceof HTMLImageElement && chatFaceAlt) {
+          face.alt = chatFaceAlt;
+        }
+
+        const pick = introPhrases[Math.floor(Math.random() * introPhrases.length)];
+        textEl.textContent = pick;
+
+        const hideIntro = () => {
+          intro.hidden = true;
+          intro.setAttribute("aria-hidden", "true");
+          intro.classList.remove("is-visible");
+        };
+
+        root.addEventListener("cf-dock-expand", hideIntro);
+
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          intro.hidden = false;
+          intro.setAttribute("aria-hidden", "false");
+          intro.classList.add("is-visible");
+          return;
+        }
+
+        const DELAY_MS = 3000;
+        let revealed = false;
+        let timer = null;
+        const ENGAGE = ["scroll", "pointerdown", "keydown", "touchstart"];
+
+        const reveal = () => {
+          if (revealed || root.querySelector(".conversational-form-root--dock.is-active")) {
+            return;
+          }
+          revealed = true;
+          if (timer) clearTimeout(timer);
+          ENGAGE.forEach((ev) => window.removeEventListener(ev, onEngage));
+          intro.hidden = false;
+          intro.setAttribute("aria-hidden", "false");
+          requestAnimationFrame(() => intro.classList.add("is-visible"));
+        };
+
+        const onEngage = () => {
+          if (revealed || timer) return;
+          timer = setTimeout(reveal, DELAY_MS);
+        };
+
+        ENGAGE.forEach((ev) =>
+          window.addEventListener(ev, onEngage, { passive: true }),
+        );
+      })();
+    </script>
+  ) : null
+}
 
 <style>
   .svc {
@@ -589,13 +684,17 @@ const logoSrc = (landing.heroLogo || "").trim()
   }
 
   .svc-footer-chat {
+    --svc-footer-chat-max: 34rem;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 40;
-    padding: 0.65rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.97) 28%);
+    display: grid;
+    justify-items: stretch;
+    gap: 0.55rem;
+    padding: 0.55rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.97) 40%);
     pointer-events: none;
   }
 
@@ -603,30 +702,72 @@ const logoSrc = (landing.heroLogo || "").trim()
     pointer-events: auto;
   }
 
-  .svc-footer-chat :global(.conversational-form-root--embedded) {
+  .svc-footer-chat :global(.conversational-form-root--dock),
+  .svc-footer-chat__intro,
+  .svc-footer-chat__link {
     width: 100%;
-    max-width: 34rem;
-    margin: 0 auto;
-    padding: 0.85rem 0.85rem 0.95rem;
+    max-width: var(--svc-footer-chat-max);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .svc-footer-chat__intro {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.55rem;
+    opacity: 0;
+    transform: translateY(0.55rem);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .svc-footer-chat__intro.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .svc-footer-chat__face {
+    flex-shrink: 0;
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1.5px solid rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
+    background: #e2e8f0;
+  }
+
+  .svc-footer-chat__face--fallback {
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    background: var(--svc-accent);
+  }
+
+  .svc-footer-chat__bubble {
+    margin: 0;
+    max-width: min(18rem, calc(100% - 3rem));
+    padding: 0.55rem 0.75rem;
     border-radius: 1rem;
+    border-bottom-left-radius: 0.3rem;
     border: 1px solid rgba(15, 23, 42, 0.1);
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
-    min-height: 0;
+    background: #fff;
+    color: var(--svc-ink);
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.3;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
   }
 
-  .svc-footer-chat :global(.conversational-form-root--embedded .conversation-scroll) {
-    max-height: min(28vh, 12rem);
-  }
-
-  .svc-footer-chat :global(.conversational-form-root--embedded .input-area) {
-    position: static;
-    margin-top: 0.55rem;
+  .svc-footer-chat :global(.conversational-form-root--dock .input-pill) {
+    border-color: rgba(15, 23, 42, 0.14);
+    background: #fff;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
   }
 
   .svc-footer-chat__link {
-    margin: 0.45rem auto 0;
-    max-width: 34rem;
+    margin: 0 auto;
     text-align: center;
   }
 
@@ -767,11 +908,11 @@ const logoSrc = (landing.heroLogo || "").trim()
   }
 
   .svc--skyline[data-has-chat="1"] .svc-foot__meta {
-    padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .svc[data-has-chat="1"]:not(.svc--skyline) {
-    padding-bottom: calc(13rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .svc-foot__meta p {
@@ -833,9 +974,8 @@ const logoSrc = (landing.heroLogo || "").trim()
       max-width: 40rem;
     }
 
-    .svc-footer-chat :global(.conversational-form-root--embedded),
-    .svc-footer-chat__link {
-      max-width: 40rem;
+    .svc-footer-chat {
+      --svc-footer-chat-max: 40rem;
     }
 
     .svc-logo {
