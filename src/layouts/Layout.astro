@@ -112,7 +112,6 @@ try {
 		lang="en"
 		class:list={[
 			marketingNav && "site-marketing",
-			isIndexPage && "site-home",
 			!fullBleed && "site-page",
 		]}
 		style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
@@ -373,7 +372,7 @@ try {
 	 * One header clearance for every inner public page. Do not min-height
 	 * 100vh on page shells — that sizes to Safari’s layout viewport and
 	 * keeps scrolling content out of the overlay status bar. Homepage
-	 * (site-home / fullBleed) stays edge-to-edge under the header.
+	 * (fullBleed) stays edge-to-edge under the header.
 	 */
 	html.site-page main#main-content {
 		padding-top: calc(

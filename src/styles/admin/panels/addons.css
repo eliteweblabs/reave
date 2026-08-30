@@ -20,14 +20,12 @@
 .addons-dl-wrap .dl-hero--compact .dl-lead,
 .addons-dl-wrap .dl-lead,
 .addons-dl-wrap .dl-meta,
-.addons-dl-wrap .dl-callout,
-.addons-dl-wrap .dl-footnote {
+.addons-dl-wrap .dl-callout {
   max-width: 52rem;
   color: var(--muted);
 }
 
-.addons-dl-wrap .dl-callout,
-.addons-dl-wrap .dl-footnote {
+.addons-dl-wrap .dl-callout {
   max-width: none;
   border-color: var(--panel-border);
   background: var(--panel);

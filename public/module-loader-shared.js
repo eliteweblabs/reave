@@ -20,9 +20,7 @@
 
   function renderCallout(innerHtml, extras = {}) {
     const tag = extras.tag === 'p' ? 'p' : 'div';
-    const extraClass = extras.className ? ` ${extras.className}` : '';
-    const role = extras.role ? ` role="${escHtml(extras.role)}"` : '';
-    return `<${tag} class="dl-callout${extraClass}"${role}>${innerHtml}</${tag}>`;
+    return `<${tag} class="dl-callout">${innerHtml}</${tag}>`;
   }
 
   function renderStatusLegend(options = {}) {

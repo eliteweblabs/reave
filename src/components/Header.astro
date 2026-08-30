@@ -27,8 +27,6 @@ interface Props {
   signInAutoOpen?: boolean;
   /** Public site content config (nav, homepage). */
   siteContent?: SiteContentConfig;
-  /** Show a back chevron beside the wordmark (AdminSpecialLayout / special pages). */
-  specialPage?: boolean;
   /** Back target when special-page chrome is showing. */
   backHref?: string;
   backLabel?: string;
@@ -41,7 +39,6 @@ const {
   profileMenu = [],
   signInAutoOpen: signInAutoOpenProp = false,
   siteContent,
-  specialPage = false,
   backHref: backHrefProp,
   backLabel: backLabelProp,
 } = Astro.props;
@@ -100,7 +97,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     "app-header",
     {
       "app-header--admin": adminShell,
-      "app-header--special": specialPage,
     },
   ]}
   id={adminShell ? "topbar" : undefined}
@@ -113,7 +109,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     <span class="app-header-scrim-fade"></span>
   </div>
 
-  <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
+  <div class="app-header-row">
   <div class="app-header-brand">
   {adminShell && (
     <a
@@ -858,10 +854,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     }
   }
 
-  .app-header--admin::before {
-    content: none;
-  }
-
   .app-header--admin .app-header-row > * {
     position: relative;
     z-index: 1;
@@ -1458,13 +1450,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     overflow: visible;
   }
 
-  .topbar-profile-hit {
-    position: relative;
-    display: inline-flex;
-    flex-shrink: 0;
-    overflow: visible;
-  }
-
   .topbar-profile-cluster {
     display: inline-flex;
     align-items: center;
@@ -1784,8 +1769,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     z-index: 5;
   }
 
-  .topbar-profile-menu > .topbar-badge,
-  .topbar-profile-hit > .topbar-badge {
+  .topbar-profile-menu > .topbar-badge {
     z-index: 6;
   }
 

@@ -8,8 +8,7 @@
 }
 
 .dl-hero,
-.dl-app,
-.dl-footer {
+.dl-app {
   width: 100%;
   max-width: 1280px;
 }
@@ -45,16 +44,6 @@
   font-size: 1rem;
   line-height: 1.65;
   color: rgba(255, 255, 255, 0.68);
-}
-
-.dl-sandbox-note {
-  margin: 14px 0 0;
-  font-size: 0.82rem;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.dl-sandbox-note a {
-  color: rgba(255, 255, 255, 0.82);
 }
 
 .dl-app {
@@ -235,7 +224,8 @@
 .dl-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1rem;
+  align-items: center;
+  gap: 0.65rem 1.15rem;
   font-size: 0.72rem;
   color: rgba(255, 255, 255, 0.55);
 }
@@ -244,6 +234,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+/* Tile badges float right; legend pills must stay in the flex flow. */
+.dl-legend .dl-badge {
+  float: none;
+  margin: 0;
 }
 
 .dl-sections {
@@ -390,29 +386,9 @@
   color: #6ee7b7;
 }
 
-.dl-badge--pending {
-  background: rgba(251, 191, 36, 0.15);
-  color: #fde68a;
-}
-
 .dl-badge--development {
   background: rgba(59, 130, 246, 0.18);
   color: #93c5fd;
-}
-
-.dl-badge--request {
-  background: rgba(129, 140, 248, 0.18);
-  color: #c7d2fe;
-}
-
-.dl-badge--rejected {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.dl-badge--noprod {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.42);
 }
 
 .dl-badge--included {
@@ -519,10 +495,9 @@
   outline-offset: 2px;
 }
 
-.dl-callout,
-.dl-footnote {
+.dl-callout {
   margin: 0;
-  padding: 2.15rem 1.15rem;
+  padding: 1.5rem 1.25rem;
   font-size: 0.82rem;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.55);
@@ -532,8 +507,7 @@
   box-sizing: border-box;
 }
 
-.dl-callout a,
-.dl-footnote a {
+.dl-callout a {
   color: rgba(255, 255, 255, 0.88);
 }
 
@@ -554,17 +528,6 @@
   color: rgba(255, 255, 255, 0.78);
   border-color: rgba(167, 139, 250, 0.28);
   background: rgba(99, 102, 241, 0.08);
-}
-
-.dl-footer {
-  text-align: center;
-  font-family: var(--font-content);
-  font-size: 0.92rem;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.dl-footer a {
-  color: rgba(255, 255, 255, 0.88);
 }
 
 @media (max-width: 1100px) {
@@ -659,8 +622,7 @@
   margin: 0;
 }
 
-.dw-identity-block .dl-callout,
-.dw-identity-block .dl-footnote {
+.dw-identity-block .dl-callout {
   margin: 0;
 }
 
@@ -982,7 +944,6 @@ html:not([data-theme="dark"]) .dl-success-title {
 }
 
 html:not([data-theme="dark"]) .dl-lead,
-html:not([data-theme="dark"]) .dl-sandbox-note,
 html:not([data-theme="dark"]) .dl-loading,
 html:not([data-theme="dark"]) .dl-field-label,
 html:not([data-theme="dark"]) .dl-meta,
@@ -990,22 +951,17 @@ html:not([data-theme="dark"]) .dl-legend,
 html:not([data-theme="dark"]) .dl-tile-blurb,
 html:not([data-theme="dark"]) .dl-tile-requires,
 html:not([data-theme="dark"]) .dl-callout,
-html:not([data-theme="dark"]) .dl-footnote,
-html:not([data-theme="dark"]) .dl-footer,
 html:not([data-theme="dark"]) .dw-repo,
 html:not([data-theme="dark"]) .dw-var-help,
 html:not([data-theme="dark"]) .dw-places-empty {
   color: var(--site-fg-muted, #525252);
 }
 
-html:not([data-theme="dark"]) .dl-sandbox-note a,
 html:not([data-theme="dark"]) .dl-success-body,
 html:not([data-theme="dark"]) .dl-success-meta,
 html:not([data-theme="dark"]) .dl-section-title,
 html:not([data-theme="dark"]) .dl-tile-label,
 html:not([data-theme="dark"]) .dl-callout a,
-html:not([data-theme="dark"]) .dl-footnote a,
-html:not([data-theme="dark"]) .dl-footer a,
 html:not([data-theme="dark"]) .dw-playbook-notes,
 html:not([data-theme="dark"]) .dw-step--current,
 html:not([data-theme="dark"]) .dw-multi-opt,
@@ -1019,7 +975,6 @@ html:not([data-theme="dark"]) .dl-toolbar,
 html:not([data-theme="dark"]) .dl-section-title,
 html:not([data-theme="dark"]) .dl-tile,
 html:not([data-theme="dark"]) .dl-callout,
-html:not([data-theme="dark"]) .dl-footnote,
 html:not([data-theme="dark"]) .dw-service,
 html:not([data-theme="dark"]) .dw-table-wrap,
 html:not([data-theme="dark"]) .dw-review-stats .mod-summary-pill,
@@ -1032,7 +987,6 @@ html:not([data-theme="dark"]) .dl-toolbar,
 html:not([data-theme="dark"]) .dl-section-title,
 html:not([data-theme="dark"]) .dl-tile,
 html:not([data-theme="dark"]) .dl-callout,
-html:not([data-theme="dark"]) .dl-footnote,
 html:not([data-theme="dark"]) .dw-service {
   background: var(--site-card, rgba(23, 23, 23, 0.03));
 }
@@ -1072,25 +1026,9 @@ html:not([data-theme="dark"]) .dl-badge--deployed {
   color: #047857;
 }
 
-html:not([data-theme="dark"]) .dl-badge--pending {
-  background: rgba(217, 119, 6, 0.14);
-  color: #b45309;
-}
-
 html:not([data-theme="dark"]) .dl-badge--development {
   background: rgba(37, 99, 235, 0.12);
   color: #1d4ed8;
-}
-
-html:not([data-theme="dark"]) .dl-badge--request {
-  background: rgba(79, 70, 229, 0.12);
-  color: #4338ca;
-}
-
-html:not([data-theme="dark"]) .dl-badge--rejected,
-html:not([data-theme="dark"]) .dl-badge--noprod {
-  background: rgba(23, 23, 23, 0.06);
-  color: var(--site-fg-muted, #525252);
 }
 
 html:not([data-theme="dark"]) .dl-badge--included {
