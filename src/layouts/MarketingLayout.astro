@@ -1,34 +1,16 @@
 ---
 /**
- * Public inner-page layout — same chrome as Layout, plus the marketing help chat.
- * The homepage and /demo-loader use Layout.astro directly so this widget is never imported there.
+ * Public inner-page layout — same chrome as Layout.
+ * Marketing help chat is intentionally not mounted; portal keeps its own widget.
  */
 import Layout from "./Layout.astro";
 import type { Props as LayoutProps } from "./Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
-import { getCompanyConfig } from "../lib/companyConfig";
-import { hasFeature } from "../lib/features";
-import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 
 export type Props = LayoutProps;
 
 const props = Astro.props;
-const company = await getCompanyConfig(Astro.request);
-const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout {...props}>
   <slot />
-  {
-    showSiteAssistant && (
-      <SiteAssistantWidget
-        slot="end"
-        brandTitle={company.name}
-        supportPhone={company.supportPhone}
-        supportEmail={company.supportEmail}
-        pagePath={Astro.url.pathname}
-      />
-    )
-  }
 </Layout>
