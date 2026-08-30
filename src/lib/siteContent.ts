@@ -423,6 +423,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/modules',
       '/demo',
       '/demo-loader',
+      '/demo-five',
       '/deploy',
       '/about',
       '/digital-audit',
