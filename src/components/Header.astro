@@ -776,8 +776,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   .app-header--admin.app-header--scrim > .app-header-scrim {
     display: block;
-    /* Same top pin as public; trim the fade tail so dashboard content peeks sooner. */
-    height: calc(var(--app-header-scrim-h) - 20px);
+    /* Same top pin as public; trim the fade tail so dashboard content at
+     * scroll 0 (alerts, first cards) is not washed by the blur. */
+    height: calc(var(--app-header-scrim-h) - 28px);
   }
 
   /*
