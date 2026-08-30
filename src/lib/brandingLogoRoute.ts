@@ -14,7 +14,7 @@ export async function brandingLogoPngGet(context: APIContext): Promise<Response>
     return new Response('Not found', { status: 404 });
   }
 
-  const etag = `"${brandingEtag(stored, 256, 'logo')}"`;
+  const etag = `"${brandingEtag(stored, 640, 'logo')}"`;
   if (request.headers.get('if-none-match') === etag) {
     return new Response(null, { status: 304 });
   }
