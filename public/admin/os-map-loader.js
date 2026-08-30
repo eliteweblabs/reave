@@ -1055,10 +1055,11 @@ function syncCanvasVisibility() {
   setPanelDisplay('punchlist-editor', MAP.type === 'punchlist' ? 'flex' : 'none');
   // Dashboard content scrolls under the transparent topbar — enable the same
   // progressive blur scrim used on public pages (Header.astro app-header-scrim).
-  document.getElementById('topbar')?.classList.toggle(
-    'app-header--scrim',
-    MAP.type === 'dashboard',
-  );
+  // html.admin-dashboard keeps the logo bar position:fixed on mobile; other
+  // panels use absolute so content can paint into the safe-area bands.
+  const onDashboard = MAP.type === 'dashboard';
+  document.getElementById('topbar')?.classList.toggle('app-header--scrim', onDashboard);
+  document.documentElement.classList.toggle('admin-dashboard', onDashboard);
 }
 
 // ---- health polling ----

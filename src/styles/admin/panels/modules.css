@@ -13,7 +13,6 @@
   --mod-tone-internal: #78716c;
   position: fixed;
   inset: 0;
-  height: 100dvh;
   display: none;
   flex-direction: row;
   background: var(--bg);

@@ -3,7 +3,6 @@
 #social-panel {
   position: fixed;
   inset: 0;
-  height: 100dvh;
   display: none;
   flex-direction: row;
   background: var(--bg);
@@ -413,7 +412,6 @@
 #analytics-panel {
   position: fixed;
   inset: 0;
-  height: 100dvh;
   display: none;
   flex-direction: column;
   background: var(--bg);
@@ -425,7 +423,6 @@
 #fleet-panel {
   position: fixed;
   inset: 0;
-  height: 100dvh;
   display: none;
   flex-direction: column;
   background: var(--bg);

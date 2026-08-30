@@ -3,7 +3,6 @@
 #search-overlay {
   position: fixed;
   inset: 0;
-  height: 100dvh;
   display: none;
   flex-direction: column;
   background: var(--overlay-bg);

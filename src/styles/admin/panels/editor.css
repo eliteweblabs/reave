@@ -6,7 +6,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  height: 100dvh;
   display: flex;
   flex-direction: row;
   background: var(--bg);
@@ -1142,7 +1141,6 @@ button.de-placeholder-action:active {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  height: 100dvh;
   display: flex;
   flex-direction: row;
   background: var(--bg);

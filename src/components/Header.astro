@@ -647,8 +647,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   /*
    * Public header: out-of-flow overlay so the hero can paint the full
    * viewport. Desktop stays pinned. Mobile scrolls with the page — no
-   * black notch strip. Pad logo/actions below the notch. Admin stays
-   * fixed/transparent.
+   * black notch strip. Pad logo/actions below the notch. Admin is
+   * transparent too; on mobile it is absolute (dashboard stays fixed via
+   * html.admin-dashboard) so panel content can fill the safe-area bands
+   * while the footer nav remains the sticky chrome.
    */
   .app-header {
     position: fixed;
@@ -701,6 +703,18 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   @media (max-width: 639px) {
     .app-header--admin {
       --app-header-inline-pad: max(0.75rem, env(safe-area-inset-left, 0px));
+      /*
+       * Mobile admin: do not pin the logo bar. Panels fill inset:0 and
+       * scroll their own content into the safe areas; the sticky footer
+       * nav is the chrome that stays. Dashboard keeps position:fixed
+       * (html.admin-dashboard) so the map/home shell can stay a single
+       * viewport with internal scroll.
+       */
+      position: absolute;
+    }
+
+    html.admin-dashboard .app-header--admin {
+      position: fixed;
     }
   }
 

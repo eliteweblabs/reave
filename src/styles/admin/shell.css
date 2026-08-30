@@ -35,9 +35,10 @@ html {
   text-size-adjust: 100%;
   /*
    * inset:0 fills the layout viewport, including the iOS home-indicator
-   * band under viewport-fit=cover. Do not lock height to 100dvh — that
-   * ends the shell above the indicator and leaves a white gap under the
-   * footer knob in the installed PWA.
+   * band under viewport-fit=cover. Panel shells must also use inset:0
+   * only — never height:100dvh. That property overrides bottom from
+   * inset and ends the panel above the indicator (permanent white gap
+   * under the footer knob; content clips mid-line above the safe area).
    */
   position: fixed;
   inset: 0;
@@ -161,7 +162,7 @@ html.admin-keyboard-open :is(
   top: var(--vv-offset-top, 0px);
   left: var(--vv-offset-left, 0px);
   width: var(--vv-width, 100%);
-  height: var(--vv-height, 100dvh);
+  height: var(--vv-height, 100%);
   right: auto;
   bottom: auto;
 }
@@ -283,7 +284,6 @@ select,
 #wrap {
   position: fixed;
   inset: 0;
-  height: 100dvh;
   overflow: hidden;
   cursor: grab;
   background-color: var(--bg);
