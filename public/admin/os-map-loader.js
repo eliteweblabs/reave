@@ -3787,6 +3787,19 @@ function dashboardSiteCardTone(card) {
   return { offline: false, paused: false };
 }
 
+function siteHealthForCard(card, siteHealth) {
+  const sites = siteHealth?.sites;
+  if (!sites || typeof sites !== 'object') return null;
+  return sites[card.siteId] || null;
+}
+
+function dashboardSiteHealthIssueLine(health) {
+  if (!health || !Array.isArray(health.issues) || !health.issues.length) return '';
+  const critical = health.issues.find((i) => i.severity === 'critical');
+  const top = critical || health.issues[0];
+  return top?.label || '';
+}
+
 function getUptimeSyncSitesButton() {
   return document.querySelector(UPTIME_SYNC_SITES_BTN_SELECTOR);
 }
@@ -5613,6 +5626,7 @@ function renderAdminDashboard(data, opts = {}) {
   const analyticsLive = data?.analyticsConfigured === true;
   const analyticsPreview = data?.analytics;
   const analyticsError = typeof data?.analyticsError === 'string' ? data.analyticsError : '';
+  const siteHealth = data?.siteHealth || null;
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
   const analyticsSites = Array.isArray(analyticsPreview?.sites) ? analyticsPreview.sites : [];
   const siteCards = mergeDashboardSiteCards(monitors, analyticsSites);
@@ -5653,6 +5667,24 @@ function renderAdminDashboard(data, opts = {}) {
     }));
   }
 
+  if (siteCards.length && (siteHealth || uptimeConfigured || analyticsLive)) {
+    const critical =
+      siteHealth?.criticalSites ?? stats.siteHealthCritical ?? null;
+    const graded = siteHealth
+      ? Object.values(siteHealth.sites || {}).filter((row) => row && row.grade).length
+      : 0;
+    statsEl.appendChild(buildDashStat({
+      value: siteHealth ? (critical ?? 0) : '—',
+      label: 'Site issues',
+      hint: siteHealth
+        ? `${graded} graded · robots / Search Console / wiring`
+        : 'scanning in background',
+      tone: critical > 0 ? 'failed' : siteHealth ? 'live' : 'muted',
+      muted: !siteHealth,
+      onClick: () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }),
+    }));
+  }
+
   mount.appendChild(statsEl);
 
   const showFleetGrid =
@@ -5663,19 +5695,33 @@ function renderAdminDashboard(data, opts = {}) {
     const analyticsLoading = analyticsLive && !analyticsPreview && !analyticsError;
     for (const card of siteCards) {
       const { offline, paused } = dashboardSiteCardTone(card);
+      const health = siteHealthForCard(card, siteHealth);
       const meta = dashboardSiteCardMeta(card, {
         analyticsLive,
         analyticsLoading,
       });
+      const issueLine = dashboardSiteHealthIssueLine(health);
+      const grade = health?.grade ? String(health.grade).toUpperCase() : '';
+      const gradeClass = grade
+        ? ` dash-site-grade dash-site-grade--${grade.toLowerCase()}`
+        : '';
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className =
-        `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}`;
-      btn.title = card.siteId;
+        `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}` +
+        (health?.criticalCount > 0 ? ' dash-uptime-tile--health-warn' : '');
+      const issueHint = health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
+      btn.title = [card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — ');
       btn.innerHTML =
         `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
-        `<div class="dash-uptime-name">${escHtml(card.label || card.siteId)}</div>` +
-        `<div class="dash-uptime-meta">${escHtml(meta)}</div>`;
+        `<div class="dash-uptime-name-row">` +
+          `<div class="dash-uptime-name">${escHtml(card.label || card.siteId)}</div>` +
+          (grade ? `<span class="${gradeClass.trim()}" aria-label="Grade ${escHtml(grade)}">${escHtml(grade)}</span>` : '') +
+        `</div>` +
+        `<div class="dash-uptime-meta">${escHtml(meta)}</div>` +
+        (issueLine
+          ? `<div class="dash-uptime-meta dash-uptime-issue">${escHtml(issueLine)}</div>`
+          : '');
       btn.addEventListener('click', () => {
         setActiveMap('analytics', { force: true, analyticsSiteId: card.siteId });
       });
@@ -5757,6 +5803,38 @@ function renderAdminDashboard(data, opts = {}) {
 
   if (!opts.skipHydrate && analyticsLive && !analyticsPreview && !analyticsError) {
     void hydrateDashboardAnalytics();
+  }
+  if (!opts.skipHydrate && siteCards.length && !siteHealth) {
+    void hydrateDashboardSiteHealth();
+  }
+}
+
+let dashboardSiteHealthHydrateGen = 0;
+
+async function hydrateDashboardSiteHealth() {
+  const gen = ++dashboardSiteHealthHydrateGen;
+  try {
+    const res = await adminFetch('/api/admin/sites/health');
+    const payload = await readAdminJson(res, 'site health');
+    if (gen !== dashboardSiteHealthHydrateGen) return;
+    if (MAP?.type !== 'dashboard') return;
+    if (!payload.ok || !payload.siteHealth) {
+      throw new Error(payload.error || `HTTP ${res.status}`);
+    }
+    if (!lastDashboardPayload) return;
+    const health = payload.siteHealth;
+    lastDashboardPayload = {
+      ...lastDashboardPayload,
+      siteHealth: health,
+      stats: {
+        ...(lastDashboardPayload.stats || {}),
+        siteHealthCritical: health.criticalSites ?? null,
+        siteHealthCheckedAt: health.checkedAt ?? null,
+      },
+    };
+    renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+  } catch {
+    /* background grade — leave cards without letters until next load */
   }
 }
 

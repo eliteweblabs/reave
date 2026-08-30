@@ -195,8 +195,8 @@ function estimateSitemapUrls(body: string): number | null {
   return null;
 }
 
-function robotsBlocksAll(body: string): boolean {
-  // Naive but useful: User-agent: * followed by Disallow: / (with optional trailing notes)
+/** True when User-agent: * (or empty) has Disallow: / or /*. */
+export function robotsTxtBlocksAll(body: string): boolean {
   const blocks: string[] = [];
   let currentUa = '';
   for (const rawLine of body.split(/\r?\n/)) {
@@ -213,6 +213,10 @@ function robotsBlocksAll(body: string): boolean {
     }
   }
   return blocks.some((d) => d === '/' || d === '/*');
+}
+
+function robotsBlocksAll(body: string): boolean {
+  return robotsTxtBlocksAll(body);
 }
 
 function extractSitemapRefs(body: string): string[] {
