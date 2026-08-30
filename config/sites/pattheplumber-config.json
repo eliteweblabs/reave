@@ -29,9 +29,32 @@
     "heroHeadline": "Burst pipe? Call now.",
     "heroBody": "When water is going where it shouldn’t, you want a real plumber on the phone — not a call center. Sixteen years on the tools. Fully licensed in Massachusetts. Side work and emergencies welcome.",
     "heroLogo": "/sites/pattheplumber/logo.png",
+    "photo": {
+      "src": "/sites/pattheplumber/face.png",
+      "alt": "Pat the Plumber",
+      "width": 512,
+      "height": 512
+    },
+    "scheduleUrl": "/form/schedule",
     "callCta": {
       "label": "Call Pat now",
       "stickyLabel": "Call now"
+    },
+    "payments": {
+      "heading": "Easy ways to pay",
+      "intro": "Apple Pay, Venmo, cash, and credit card on site — plus simple online payment when that works better.",
+      "onlineNote": "Simple online payment available after the job.",
+      "methods": [
+        { "label": "Apple Pay", "icon": "/sites/pattheplumber/pay/apple-pay.svg" },
+        { "label": "Venmo", "icon": "/sites/pattheplumber/pay/venmo.svg" },
+        { "label": "Cash", "icon": "/sites/pattheplumber/pay/cash.svg" },
+        { "label": "Credit card", "icon": "/sites/pattheplumber/pay/card.svg" }
+      ]
+    },
+    "schedule": {
+      "heading": "Book a time",
+      "intro": "Not an emergency? Pick a slot online — same calendar Pat uses for side work and scheduled visits.",
+      "formSlug": "schedule"
     },
     "services": {
       "heading": "What I handle",

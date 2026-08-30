@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 28" role="img" aria-label="Credit card">
+  <rect width="48" height="28" rx="5" fill="#1e293b"/>
+  <rect x="7" y="7" width="34" height="14" rx="2" fill="#f8fafc"/>
+  <rect x="7" y="10" width="34" height="3.2" fill="#0f172a"/>
+  <rect x="10" y="16.2" width="8" height="2.2" rx="0.6" fill="#94a3b8"/>
+  <rect x="20" y="16.2" width="5" height="2.2" rx="0.6" fill="#94a3b8"/>
+  <rect x="30" y="15.6" width="7.5" height="3.4" rx="0.7" fill="#f59e0b"/>
+</svg>

@@ -6,6 +6,7 @@
 import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
+import ConversationalForm from "../ConversationalForm.astro";
 
 interface Props {
   landing: SiteLandingConfig;
@@ -29,9 +30,18 @@ const serviceItems =
   services?.items?.map((item) =>
     typeof item === "string" ? { label: item, icon: undefined as string | undefined } : item,
   ) ?? [];
+const payments = landing.payments;
+const schedule = landing.schedule;
+const scheduleFormSlug =
+  schedule?.formSlug === false
+    ? ""
+    : (typeof schedule?.formSlug === "string" && schedule.formSlug.trim()) ||
+      (schedule ? "schedule" : "");
+const scheduleUrl = (landing.scheduleUrl || "").trim();
 const about = landing.about;
 const contact = landing.contact;
 const reviews = landing.reviews;
+const face = landing.photo;
 const footerImage = landing.footerImage || "";
 
 /** Prefer a static site logo so admin branding reprocessing cannot mangle it. */
@@ -110,6 +120,53 @@ const logoSrc = (landing.heroLogo || "").trim()
     }
 
     {
+      payments?.methods?.length ? (
+        <section class="svc-section" id="payments">
+          <h2>{payments.heading}</h2>
+          {payments.intro && <p class="svc-copy">{payments.intro}</p>}
+          <ul class="svc-pay">
+            {payments.methods.map((method) => (
+              <li>
+                <img class="svc-pay__logo" src={method.icon} alt="" width="96" height="56" />
+                <span>{method.label}</span>
+              </li>
+            ))}
+          </ul>
+          {payments.onlineNote && (
+            <p class="svc-pay__online">{payments.onlineNote}</p>
+          )}
+        </section>
+      ) : null
+    }
+
+    {
+      schedule ? (
+        <section class="svc-section" id="schedule">
+          <h2>{schedule.heading}</h2>
+          {schedule.intro && <p class="svc-copy">{schedule.intro}</p>}
+          {scheduleFormSlug ? (
+            <div class="svc-schedule">
+              <ConversationalForm
+                slug={scheduleFormSlug}
+                embedded
+                brandName={landing.name || company.name || "Pat the Plumber"}
+              />
+            </div>
+          ) : null}
+          {scheduleUrl && scheduleUrl !== `/form/${scheduleFormSlug}` ? (
+            <p class="svc-schedule__link">
+              <a href={scheduleUrl}>Open full scheduler</a>
+            </p>
+          ) : scheduleUrl && !scheduleFormSlug ? (
+            <p class="svc-schedule__link">
+              <a href={scheduleUrl}>Book online</a>
+            </p>
+          ) : null}
+        </section>
+      ) : null
+    }
+
+    {
       reviews?.items?.length ? (
         <section class="svc-section" id="reviews">
           <h2>{reviews.heading}</h2>
@@ -130,10 +187,23 @@ const logoSrc = (landing.heroLogo || "").trim()
     {
       about && (
         <section class="svc-section" id="about">
-          <h2>{about.heading}</h2>
-          {about.body?.map((p) => (
-            <p class="svc-copy">{p}</p>
-          ))}
+          <div class={`svc-about${face?.src ? " svc-about--face" : ""}`}>
+            {face?.src ? (
+              <img
+                class="svc-about__face"
+                src={face.src}
+                alt={face.alt || landing.name || "Pat"}
+                width={face.width || 512}
+                height={face.height || 512}
+              />
+            ) : null}
+            <div class="svc-about__copy">
+              <h2>{about.heading}</h2>
+              {about.body?.map((p) => (
+                <p class="svc-copy">{p}</p>
+              ))}
+            </div>
+          </div>
           {about.highlights?.length ? (
             <ul class="svc-highlights">
               {about.highlights.map((item) => (
@@ -427,6 +497,87 @@ const logoSrc = (landing.heroLogo || "").trim()
     object-fit: contain;
   }
 
+  .svc-pay {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .svc-pay li {
+    display: grid;
+    justify-items: center;
+    gap: 0.45rem;
+    padding: 0.85rem 0.65rem 0.75rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.78);
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+
+  .svc-pay__logo {
+    width: 3.75rem;
+    height: auto;
+    display: block;
+  }
+
+  .svc-pay__online {
+    margin: 0.95rem 0 0;
+    padding: 0.85rem 1rem;
+    border-radius: 0.85rem;
+    border: 1px dashed rgba(12, 74, 110, 0.35);
+    background: rgba(255, 255, 255, 0.7);
+    color: var(--svc-accent);
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .svc-schedule {
+    margin-top: 0.35rem;
+  }
+
+  .svc-schedule :global(.conversational-form-root--embedded) {
+    margin: 0;
+    padding: 1rem 0.85rem 1.1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.82);
+  }
+
+  .svc-schedule__link {
+    margin: 0.85rem 0 0;
+    text-align: center;
+  }
+
+  .svc-schedule__link a {
+    color: var(--svc-accent);
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .svc-about--face {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 0.35rem;
+  }
+
+  .svc-about__face {
+    width: min(9.5rem, 42vw);
+    height: auto;
+    margin: 0 auto;
+    display: block;
+  }
+
+  .svc-about__copy h2 {
+    margin: 0 0 0.85rem;
+  }
+
   .svc-reviews {
     display: grid;
     gap: 0.9rem;
@@ -604,6 +755,21 @@ const logoSrc = (landing.heroLogo || "").trim()
 
     .svc-hero {
       padding-top: 1rem;
+    }
+
+    .svc-pay {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .svc-about--face {
+      grid-template-columns: 8.5rem 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .svc-about__face {
+      width: 8.5rem;
+      margin: 0;
     }
   }
 </style>
