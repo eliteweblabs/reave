@@ -60,6 +60,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const patch: {
     to?: ReturnType<typeof normalizeEmailDraftRecipients>;
     cc?: ReturnType<typeof normalizeEmailDraftRecipients>;
+    from?: string;
     subject?: string;
     body?: string;
     images?: ReturnType<typeof normalizeEmailComposeImages>;
@@ -69,6 +70,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   if (body.to !== undefined) patch.to = normalizeEmailDraftRecipients(body.to);
   if (body.cc !== undefined) patch.cc = normalizeEmailDraftRecipients(body.cc);
+  if (body.from !== undefined) patch.from = String(body.from).trim();
   if (body.subject !== undefined) patch.subject = String(body.subject);
   if (body.body !== undefined) patch.body = String(body.body);
   else if (body.text !== undefined) patch.body = String(body.text);

@@ -1665,7 +1665,7 @@ function renderNewClientForm(pane) {
   importBtn.type = 'button';
   importBtn.className = 'cl-import-carddav-btn';
   importBtn.innerHTML =
-    `${iosIcon('upload', 16)}<span>Import from CardDAV</span>${iosIcon('chevron-right', 16)}`;
+    `${iosIcon('upload', 16)}<span>Import contacts</span>${iosIcon('chevron-right', 16)}`;
   importBtn.addEventListener('click', openCardDavImportFromNewClient);
   fields.appendChild(importBtn);
 

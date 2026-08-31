@@ -2,6 +2,7 @@
  * Open (or continue) a dedicated repair chat when a Railway deploy fails.
  * One Session per service — later failures append and keep fixing.
  */
+import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { postToSystemAlertsThread } from './systemAlertsThread';
 import { formatRailwayLogsSummary, railwayGetLogs } from './railwayAgentApi';
 import { createLogger } from './logger';
@@ -32,6 +33,8 @@ export type DeployFailureChatInput = {
   model?: string;
   /** Default true — owner should not need to nudge the agent. */
   autoRun?: boolean;
+  /** Log the alert only — skip Railway log fetch (duplicate webhook append). */
+  appendOnly?: boolean;
 };
 
 async function fetchFailureLogs(opts: {
@@ -108,28 +111,47 @@ export async function openDeployFailureRepairChat(
   });
   const reuseTitle = deployFailureAlertTitle(service);
 
-  const logs = await fetchFailureLogs({
-    project: input.project,
-    service: input.service || service,
-    environment: input.environment,
-    deploymentId: input.deploymentId,
-  });
+  const logs = input.appendOnly
+    ? '(Duplicate webhook — logs omitted. See earlier turns in this Session.)'
+    : await fetchFailureLogs({
+        project: input.project,
+        service: input.service || service,
+        environment: input.environment,
+        deploymentId: input.deploymentId,
+      });
 
-  const message = buildRepairPrompt({
-    baseMessage: input.message,
-    logs,
-    playbookExtra: input.playbookExtra,
-    service,
-  });
+  let message = input.appendOnly
+    ? [
+        `Deploy failure (duplicate webhook) — ${service}`,
+        '',
+        input.message.trim(),
+      ].join('\n')
+    : buildRepairPrompt({
+        baseMessage: input.message,
+        logs,
+        playbookExtra: input.playbookExtra,
+        service,
+      });
+
+  const llmReady = isAnthropicLlmConfigured();
+  const wantsAutoRun = input.autoRun !== false;
+  if (wantsAutoRun && !llmReady) {
+    message = [
+      message,
+      '',
+      '(Auto-repair skipped — no LLM API key is configured. Set OPENROUTER_API_KEY or ANTHROPIC_API_KEY on Railway, then send a message in this chat to retry.)',
+    ].join('\n');
+  }
 
   const result = await postToSystemAlertsThread({
     message,
-    autoRun: input.autoRun !== false,
+    autoRun: wantsAutoRun && llmReady,
     emailId: input.emailId,
     model: input.model ?? DEPLOY_FAILURE_REPAIR_MODEL,
     bypassSleep: true,
     reuseTitle,
     repairRun: true,
+    repairService: service,
     // No phone push — build failures stay in the one repair Session.
   });
 

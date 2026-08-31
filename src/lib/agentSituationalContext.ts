@@ -5,6 +5,7 @@
  *
  * Pure helpers — no Postgres / Clerk so verify scripts can import this file.
  */
+import { isAgentLlmBlockedReply } from './anthropicMessages';
 import { titleFromMessage, type ChatThreadSummary, type ChatTurn } from './chatTypes';
 
 export const DEPLOY_FAILURE_TITLE_PREFIX = 'Deploy failed —';
@@ -12,7 +13,20 @@ export const DEPLOY_FAILURE_REUSE_MS = 6 * 60 * 60 * 1000;
 export const DEPLOY_FAILURE_RERUN_COOLDOWN_MS = 8 * 60 * 1000;
 /** Hard cap so a webhook storm + env-var redeploys cannot burn unlimited Opus runs. */
 export const DEPLOY_FAILURE_MAX_AUTO_RUNS = 3;
+/** Docker-image services — each set_railway_variables redeploy triggers another webhook. */
+export const DEPLOY_FAILURE_MAX_RAILWAY_VAR_REDEPLOYS = 2;
 export const MAX_RECENT_SESSIONS_IN_PROMPT = 12;
+
+/** Railway services deployed from a container image (not this GitHub repo). */
+export function isDockerImageRailwayService(service?: string): boolean {
+  const s = normalizeServiceName(service).toLowerCase();
+  return (
+    s === 'calcom-web-app' ||
+    s === 'calcom-postgres' ||
+    s.endsWith('-postgres') ||
+    s.includes('postgres')
+  );
+}
 
 export type ReusableAlertThread = {
   id: string;
@@ -24,7 +38,13 @@ export type RepairFollowUpDecision =
   | 'run'
   | 'suppress-running'
   | 'suppress-cooldown'
-  | 'suppress-exhausted';
+  | 'suppress-exhausted'
+  | 'suppress-agent-blocked'
+  | 'suppress-unresolved'
+  | 'suppress-resolved'
+  | 'suppress-duplicate-deploy'
+  | 'suppress-repeat'
+  | 'suppress-railway-vars';
 
 export type OwnerIdentityInput = {
   companyName: string;
@@ -110,18 +130,114 @@ export function lastAssistantIsUnresolved(content: string): boolean {
   return /🚨\s*UNRESOLVED/i.test(content);
 }
 
+export function lastAssistantIsResolved(content: string): boolean {
+  return /✅\s*RESOLVED/i.test(content);
+}
+
+export function lastAssistantIsAgentBlocked(content: string): boolean {
+  return isAgentLlmBlockedReply(content);
+}
+
+export function anyAssistantIsAgentBlocked(turns: ChatTurn[]): boolean {
+  return turns.some((t) => t.role === 'assistant' && isAgentLlmBlockedReply(t.content));
+}
+
+export function extractDeploymentIdFromAlert(message: string): string | null {
+  const m = message.match(/^Deployment:\s*(\S+)/m);
+  return m?.[1]?.trim() || null;
+}
+
+/** Same Railway deployment id already logged in this repair Session. */
+export function deploymentIdSeenInThread(turns: ChatTurn[], deploymentId: string | null | undefined): boolean {
+  const needle = deploymentId?.trim();
+  if (!needle) return false;
+  const token = `Deployment: ${needle}`;
+  return turns.some((t) => t.role === 'user' && t.content.includes(token));
+}
+
+/** Count redeploy-triggering set_railway_variables calls visible in assistant turns. */
+export function countRailwayVariableRedeploys(turns: ChatTurn[]): number {
+  let n = 0;
+  for (const t of turns) {
+    if (t.role !== 'assistant') continue;
+    if (/Variables saved — affected service\(s\) will redeploy/i.test(t.content)) n++;
+    else if (/set_railway_variables/i.test(t.content) && !/skip_deploys:\s*true/i.test(t.content)) n++;
+  }
+  return n;
+}
+
+function assistantReplyFingerprint(content: string): string {
+  return content
+    .replace(/\s+/g, ' ')
+    .replace(/[🚀🟢🔴]/g, '')
+    .trim()
+    .slice(0, 240)
+    .toLowerCase();
+}
+
+/** Back-to-back assistant replies are identical — likely a token-burn loop. */
+export function assistantRepeatsLastReply(turns: ChatTurn[]): boolean {
+  const assistants = turns.filter((t) => t.role === 'assistant');
+  if (assistants.length < 2) return false;
+  const last = assistants[assistants.length - 1]!;
+  const prev = assistants[assistants.length - 2]!;
+  const a = assistantReplyFingerprint(last.content);
+  const b = assistantReplyFingerprint(prev.content);
+  if (a.length < 48 || b.length < 48) return false;
+  return a === b;
+}
+
+export function repairFollowUpSuppressNote(decision: RepairFollowUpDecision): string {
+  switch (decision) {
+    case 'suppress-exhausted':
+      return `\n\n(Auto-repair stopped after ${DEPLOY_FAILURE_MAX_AUTO_RUNS} attempts on this Session. The previous successful deploy is still live. Continue this chat manually to retry.)`;
+    case 'suppress-agent-blocked':
+      return '\n\n(Auto-repair paused — Claude is unreachable (invalid API key or billing). Fix OPENROUTER_API_KEY / ANTHROPIC_API_KEY on Railway; further deploy failures will be logged here without re-running the agent.)';
+    case 'suppress-unresolved':
+      return '\n\n(Auto-repair paused — the agent already marked this 🚨 UNRESOLVED. Further webhooks will be logged here; send a message when you want another attempt.)';
+    case 'suppress-resolved':
+      return '\n\n(Auto-repair paused — the agent already marked this ✅ RESOLVED. Further duplicate webhooks will be logged here only.)';
+    case 'suppress-duplicate-deploy':
+      return '\n\n(Same Railway deployment id as a prior alert in this Session — not re-running the agent.)';
+    case 'suppress-repeat':
+      return '\n\n(Auto-repair paused — the last two agent replies were identical. Send a message to continue manually.)';
+    case 'suppress-railway-vars':
+      return `\n\n(Auto-repair paused — already tried set_railway_variables ${DEPLOY_FAILURE_MAX_RAILWAY_VAR_REDEPLOYS} times on a docker-image service. Pin the image digest or fix env in Railway manually.)`;
+    default:
+      return '';
+  }
+}
+
 export function shouldAutoRunRepairFollowUp(opts: {
   runActive: boolean;
   lastAssistantAtMs?: number | null;
   lastAssistantUnresolved?: boolean;
+  lastAssistantResolved?: boolean;
+  lastAssistantBlocked?: boolean;
+  anyAssistantBlocked?: boolean;
   assistantRunCount?: number;
+  duplicateDeployment?: boolean;
+  repeatsLastReply?: boolean;
+  railwayVarRedeploys?: number;
+  repairService?: string;
   nowMs: number;
   cooldownMs?: number;
   maxAutoRuns?: number;
 }): RepairFollowUpDecision {
   if (opts.runActive) return 'suppress-running';
+  if (opts.anyAssistantBlocked || opts.lastAssistantBlocked) return 'suppress-agent-blocked';
+  if (opts.lastAssistantUnresolved) return 'suppress-unresolved';
+  if (opts.lastAssistantResolved) return 'suppress-resolved';
   const maxRuns = opts.maxAutoRuns ?? DEPLOY_FAILURE_MAX_AUTO_RUNS;
   if ((opts.assistantRunCount ?? 0) >= maxRuns) return 'suppress-exhausted';
+  if (opts.duplicateDeployment) return 'suppress-duplicate-deploy';
+  if (opts.repeatsLastReply) return 'suppress-repeat';
+  if (
+    isDockerImageRailwayService(opts.repairService) &&
+    (opts.railwayVarRedeploys ?? 0) >= DEPLOY_FAILURE_MAX_RAILWAY_VAR_REDEPLOYS
+  ) {
+    return 'suppress-railway-vars';
+  }
   const cooldown = opts.cooldownMs ?? DEPLOY_FAILURE_RERUN_COOLDOWN_MS;
   // Cooldown after ANY reply — not only 🚨 UNRESOLVED. A mistaken ✅ RESOLVED
   // used to immediately re-run on the next duplicate webhook and burn credits.

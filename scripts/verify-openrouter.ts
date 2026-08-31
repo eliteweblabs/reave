@@ -28,4 +28,11 @@ assert.equal(toOpenRouterModelId('claude-haiku-4-5'), 'anthropic/claude-haiku-4.
 assert.equal(toOpenRouterModelId('claude-opus-5'), 'anthropic/claude-opus-5');
 assert.equal(toOpenRouterModelId('anthropic/claude-sonnet-4.6'), 'anthropic/claude-sonnet-4.6');
 
+// OPENROUTER_API_KEY must win over a leftover ANTHROPIC_BASE_URL → api.anthropic.com
+process.env.ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+const endpointMisconfig = resolveAnthropicEndpoint();
+assert.ok(endpointMisconfig);
+assert.equal(endpointMisconfig.baseUrl, DEFAULT_OPENROUTER_BASE_URL);
+assert.equal(endpointMisconfig.messagesUrl, `${DEFAULT_OPENROUTER_BASE_URL}/v1/messages`);
+
 console.log('verify-openrouter: ok');

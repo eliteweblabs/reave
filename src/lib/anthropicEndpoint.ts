@@ -53,25 +53,45 @@ export function isOpenRouterHost(host: string): boolean {
   return h === 'openrouter.ai' || h.endsWith('.openrouter.ai');
 }
 
+export function isDirectAnthropicBaseUrl(baseUrl: string): boolean {
+  if (!baseUrl || baseUrl === DEFAULT_ANTHROPIC_BASE_URL) return true;
+  return hostFromBaseUrl(baseUrl) === 'api.anthropic.com';
+}
+
 /** Resolve gateway root from env. Empty / unset → direct Anthropic. */
 export function resolveAnthropicBaseUrl(): string {
-  const raw =
-    serverEnv('ANTHROPIC_BASE_URL')?.trim() ||
-    serverEnv('OMNIROUTE_BASE_URL')?.trim() ||
-    serverEnv('OPENROUTER_BASE_URL')?.trim() ||
-    '';
+  const openrouterKey = serverEnv('OPENROUTER_API_KEY')?.trim();
+  const openrouterBase = serverEnv('OPENROUTER_BASE_URL')?.trim();
+  const anthropicBase = serverEnv('ANTHROPIC_BASE_URL')?.trim();
+  const omnirouteBase = serverEnv('OMNIROUTE_BASE_URL')?.trim();
+
+  // OpenRouter key → OpenRouter host unless an explicit OpenRouter base URL is set.
+  // Do not honor ANTHROPIC_BASE_URL / OMNIROUTE_BASE_URL here — those are common
+  // leftovers and would send sk-or-* keys to api.anthropic.com (401 AUTH_002).
+  if (openrouterKey) {
+    if (openrouterBase) {
+      return normalizeGatewayRoot(openrouterBase) || DEFAULT_OPENROUTER_BASE_URL;
+    }
+    if (anthropicBase) {
+      const normalized = normalizeGatewayRoot(anthropicBase);
+      if (isOpenRouterHost(hostFromBaseUrl(normalized))) return normalized;
+    }
+    return DEFAULT_OPENROUTER_BASE_URL;
+  }
+
+  if (openrouterBase) {
+    return normalizeGatewayRoot(openrouterBase) || DEFAULT_OPENROUTER_BASE_URL;
+  }
+
+  const raw = anthropicBase || omnirouteBase || '';
   if (raw) {
     const normalized = normalizeGatewayRoot(raw);
     return normalized || DEFAULT_ANTHROPIC_BASE_URL;
-  }
-  if (serverEnv('OPENROUTER_API_KEY')?.trim()) {
-    return DEFAULT_OPENROUTER_BASE_URL;
   }
   return DEFAULT_ANTHROPIC_BASE_URL;
 }
 
 export function isOpenRouterGateway(): boolean {
-  if (serverEnv('OPENROUTER_API_KEY')?.trim()) return true;
   return isOpenRouterHost(hostFromBaseUrl(resolveAnthropicBaseUrl()));
 }
 
@@ -154,22 +174,29 @@ export function anthropicRequestHeaders(
   viaGateway: boolean,
   gatewayKind: AnthropicGatewayKind = viaGateway ? 'gateway' : 'anthropic',
 ): Record<string, string> {
-  const headers: Record<string, string> = {
-    'x-api-key': apiKey,
-    'anthropic-version': '2023-06-01',
-    'Content-Type': 'application/json',
-  };
-  // Gateways prefer Bearer; OpenRouter requires it. OmniRoute also accepts x-api-key.
-  if (viaGateway || gatewayKind === 'openrouter') {
-    headers.Authorization = `Bearer ${apiKey}`;
-  }
   if (gatewayKind === 'openrouter') {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${apiKey}`,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    };
     const referer = siteOriginFallback();
     if (referer && !/localhost/i.test(referer)) {
       headers['HTTP-Referer'] = referer;
     }
     const title = serverEnv('OPENROUTER_APP_NAME')?.trim() || serverEnv('COMPANY_NAME')?.trim();
     if (title) headers['X-Title'] = title;
+    return headers;
+  }
+
+  const headers: Record<string, string> = {
+    'x-api-key': apiKey,
+    'anthropic-version': '2023-06-01',
+    'Content-Type': 'application/json',
+  };
+  // OmniRoute and other gateways accept Bearer; also accepts x-api-key.
+  if (viaGateway) {
+    headers.Authorization = `Bearer ${apiKey}`;
   }
   return headers;
 }

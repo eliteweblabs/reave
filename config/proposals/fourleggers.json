@@ -1,0 +1,21 @@
+{
+  "slug": "fourleggers",
+  "title": "Four Leggers — Website & Client Portal",
+  "clientName": "Four Leggers",
+  "headline": "Your demo site, ready to go live",
+  "lede": "Scheduling, client login, and admin on reΛVE — branded for Four Leggers in Beverly.",
+  "demoUrl": "https://reave.app/demo/fourleggers/",
+  "invoiceUrl": null,
+  "workSlug": "fourleggers",
+  "priceLabel": "$4,000",
+  "priceNote": "Growth tier · month-one installation",
+  "published": true,
+  "includes": [
+    "Branded public website (demo you just toured)",
+    "Online scheduling flow",
+    "Client portal login & dog profiles",
+    "Admin dashboard on reΛVE",
+    "Managed hosting & SSL setup"
+  ],
+  "bodyMarkdown": "Paste your scope and terms in the linked Work project — this page renders that markdown automatically."
+}

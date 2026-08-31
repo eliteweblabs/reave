@@ -60,6 +60,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const event = await createScheduledEmail({
     to: normalizeEmailDraftRecipients(body.toRecipients ?? body.to),
     cc: normalizeEmailDraftRecipients(body.ccRecipients ?? body.cc),
+    from: String(body.from ?? '').trim(),
     subject: String(body.subject ?? ''),
     body: String(body.text ?? body.body ?? ''),
     images: normalizeEmailComposeImages(body.images),

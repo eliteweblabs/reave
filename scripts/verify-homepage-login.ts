@@ -290,6 +290,21 @@ assert.equal(
   ),
   'https://reave.app/__clerk',
 );
+{
+  const prevDomain = process.env.COMPANY_DOMAIN;
+  process.env.COMPANY_DOMAIN = 'life-saving.reave.app';
+  assert.equal(
+    absoluteClerkProxyUrl(
+      new Request('https://reave-production-1489.up.railway.app/__clerk/v1/client', {
+        headers: { 'X-Forwarded-Proto': 'https', 'X-Forwarded-Host': 'reave-production-1489.up.railway.app' },
+      }),
+    ),
+    'https://life-saving.reave.app/__clerk',
+    'Clerk-Proxy-Url must use COMPANY_DOMAIN, not the Railway default host',
+  );
+  if (prevDomain === undefined) delete process.env.COMPANY_DOMAIN;
+  else process.env.COMPANY_DOMAIN = prevDomain;
+}
 assert.equal(isClerkFrontendApiHost('clerk.reave.app'), true);
 assert.equal(isClerkFrontendApiHost('frontend-api.clerk.dev'), true);
 assert.equal(isClerkFrontendApiHost('reave.app'), false);

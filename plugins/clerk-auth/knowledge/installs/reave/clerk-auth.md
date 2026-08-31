@@ -1,6 +1,6 @@
 # Clerk authentication (reave.app only)
 
-This playbook is **install-scoped** to official reave.app. Completed client installs do not load it — Clerk is already wired; there is nothing for the owner to set up.
+This playbook is **install-scoped** to official reave.app. Client installs use their **own Clerk application** — see `plugins/clerk-auth/knowledge/installs/client/clerk-auth.md`. Do not copy reave.app Clerk keys onto client Railway services.
 
 Sign-in for this app is **Clerk** (`@clerk/astro`, `@clerk/backend`). That is always-on product, not an optional extra.
 

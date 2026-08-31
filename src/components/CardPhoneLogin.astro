@@ -6,19 +6,27 @@ interface Props {
   phoneE164: string;
   signedIn: boolean;
   redirectUrl?: string;
+  /** At least one /card passkey registered — hide login from visitors. */
+  hasPasskeys?: boolean;
+  /** Server-side device trust from a prior passkey auth. */
+  passkeyTrusted?: { displayName: string } | null;
 }
 
 const {
   phoneE164,
   signedIn,
   redirectUrl = '/admin/',
+  hasPasskeys = false,
+  passkeyTrusted = null,
 } = Astro.props;
 
 const clerkReady = isClerkFrontendConfigured();
 const last4 = cardPhoneLast4(phoneE164);
 const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP !== '0';
-const showDashboard = signedIn;
-const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
+const trustedDisplayName = passkeyTrusted?.displayName?.trim() || '';
+const showDashboard = signedIn || Boolean(trustedDisplayName);
+const showLogin = clerkReady && Boolean(phoneE164) && !signedIn && !trustedDisplayName;
+const passkeyGated = showLogin && hasPasskeys;
 ---
 
 {showDashboard && (
@@ -29,13 +37,22 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
     </span>
     <span class="nfc-login-copy">
       <span class="nfc-login-label">Dashboard</span>
-      <span class="nfc-login-meta">You're signed in</span>
+      <span class="nfc-login-meta">{signedIn ? "You're signed in" : `Continue as ${trustedDisplayName}`}</span>
     </span>
   </a>
 )}
 
 {showLogin && (
-  <div class="nfc-login" data-card-phone-login>
+  <>
+    <input
+      type="text"
+      name="username"
+      autocomplete="username webauthn"
+      tabindex="-1"
+      aria-hidden="true"
+      class="nfc-passkey-autofill"
+    />
+    <div class="nfc-login" data-card-phone-login hidden={passkeyGated || undefined}>
     <button
       type="button"
       class="nfc-login-btn"
@@ -77,10 +94,16 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
 
     <div id="clerk-captcha" class="nfc-clerk-captcha"></div>
   </div>
+  </>
 )}
 
-{showLogin && (
-  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp }}>
+{(showLogin || passkeyGated) && (
+  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp, passkeyGated }}>
+    import { initCardPasskeyGate, registerCardPasskeyAfterLogin } from '../client/cardPasskey.ts';
+
+    if (passkeyGated) {
+      initCardPasskeyGate({ gated: true, redirectUrl });
+    }
     function clerkMessage(err) {
       const first = err?.errors?.[0];
       return first?.longMessage || first?.message || err?.message || 'Could not send a code.';
@@ -243,6 +266,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       try {
         const clerk = await waitForClerk();
         await verifyCode(clerk, mode, code);
+        await registerCardPasskeyAfterLogin();
         window.location.assign(redirectUrl);
       } catch (err) {
         showError(clerkMessage(err));
@@ -418,5 +442,19 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
 
   .nfc-clerk-captcha {
     min-height: 0;
+  }
+
+  .nfc-passkey-autofill {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
   }
 </style>

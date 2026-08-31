@@ -208,6 +208,7 @@ import {
   startNewClient,
   confirmDiscardChanges,
 } from './clients-panel.js?v=20260830a';
+import { mountClientSetupWizard, reopenClientSetupWizard } from './client-setup-panel.js?v=20260831a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -15298,6 +15299,7 @@ function applyDraftToCompose(draft, opts = {}) {
   emailState.compose = {
     to: (draft.to || []).map(normalizeEmailRecipient).filter(Boolean),
     cc: (draft.cc || []).map(normalizeEmailRecipient).filter(Boolean),
+    from: normalizeEmailComposeFrom(draft.from) || defaultEmailComposeFrom(),
     subject: draft.subject || '',
     body: draft.body || '',
     images: normalizeEmailComposeImages(draft.images),
@@ -15392,6 +15394,7 @@ function applyScheduledToCompose(event, opts = {}) {
   emailState.compose = {
     to: (event.to || []).map(normalizeEmailRecipient).filter(Boolean),
     cc: (event.cc || []).map(normalizeEmailRecipient).filter(Boolean),
+    from: normalizeEmailComposeFrom(event.from) || defaultEmailComposeFrom(),
     subject: event.subject || '',
     body: event.body || '',
     images: normalizeEmailComposeImages(event.images),
@@ -15895,8 +15898,20 @@ function buildReplyQuoteClient(ev) {
   return `\n\n---\nOn ${when}, ${from} wrote:\n${quoted}`;
 }
 
+function defaultEmailComposeFrom() {
+  const brand = companyBrand();
+  const email = String(brand.fromEmail || '').trim();
+  const name = String(brand.name || '').trim();
+  if (name && email) return `${name} <${email}>`;
+  return email;
+}
+
+function normalizeEmailComposeFrom(raw) {
+  return String(raw ?? '').trim();
+}
+
 function emptyEmailCompose(overrides = {}) {
-  return {
+  const merged = {
     to: [],
     cc: [],
     subject: '',
@@ -15904,6 +15919,8 @@ function emptyEmailCompose(overrides = {}) {
     images: [],
     ...overrides,
   };
+  merged.from = normalizeEmailComposeFrom(merged.from) || defaultEmailComposeFrom();
+  return merged;
 }
 
 const EMAIL_COMPOSE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
@@ -16162,10 +16179,14 @@ function commitPendingComposeRecipient(input, field) {
 function syncComposeFromDom() {
   const root = getEmailPanel();
   if (!root) return;
+  const fromEl = root.querySelector('#em-compose-from');
   const subjectEl = root.querySelector('#em-compose-subject');
   const bodyEl = root.querySelector('#em-compose-body, .em-compose-textarea');
   const toInput = root.querySelector('#em-compose-to');
   const ccInput = root.querySelector('#em-compose-cc');
+  if (fromEl instanceof HTMLInputElement) {
+    emailState.compose.from = normalizeEmailComposeFrom(fromEl.value) || defaultEmailComposeFrom();
+  }
   if (subjectEl instanceof HTMLInputElement) emailState.compose.subject = subjectEl.value;
   if (bodyEl instanceof HTMLTextAreaElement) emailState.compose.body = bodyEl.value;
   commitPendingComposeRecipient(toInput, 'to');
@@ -16176,10 +16197,11 @@ let emailDraftSaveTimer = 0;
 let emailDraftSaveInFlight = null;
 
 function emailDraftPayload() {
-  const { to, cc, subject, body } = emailState.compose;
+  const { to, cc, from, subject, body } = emailState.compose;
   return {
     to: (Array.isArray(to) ? to : []).map(normalizeEmailRecipient).filter(Boolean),
     cc: (Array.isArray(cc) ? cc : []).map(normalizeEmailRecipient).filter(Boolean),
+    from: normalizeEmailComposeFrom(from) || defaultEmailComposeFrom(),
     subject: String(subject || '').trim(),
     body: String(body || ''),
     images: normalizeEmailComposeImages(emailState.compose.images),
@@ -16424,6 +16446,7 @@ function cloneEmailCompose(compose) {
   return {
     to: (Array.isArray(compose?.to) ? compose.to : []).map(normalizeEmailRecipient).filter(Boolean),
     cc: (Array.isArray(compose?.cc) ? compose.cc : []).map(normalizeEmailRecipient).filter(Boolean),
+    from: normalizeEmailComposeFrom(compose?.from) || defaultEmailComposeFrom(),
     subject: String(compose?.subject || ''),
     body: String(compose?.body || ''),
     images: normalizeEmailComposeImages(compose?.images),
@@ -16486,6 +16509,8 @@ function emailSendPayloadFromSnapshot(snap) {
   if (ccEmails.length) payload.cc = ccEmails.length === 1 ? ccEmails[0] : ccEmails;
   payload.toRecipients = recipients;
   payload.ccRecipients = ccRecipients;
+  const from = normalizeEmailComposeFrom(snap.compose.from);
+  if (from) payload.from = from;
   if (snap.replyToId) payload.inReplyToEmailId = snap.replyToId;
   if (snap.scheduledAt) payload.scheduledAt = snap.scheduledAt;
   return payload;
@@ -16613,6 +16638,7 @@ async function commitQueuedEmailSend(snap) {
         body: JSON.stringify({
           to: snap.compose.to,
           cc: snap.compose.cc,
+          from: snap.compose.from,
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
@@ -16643,6 +16669,7 @@ async function commitQueuedEmailSend(snap) {
         body: JSON.stringify({
           to: snap.compose.to,
           cc: snap.compose.cc,
+          from: snap.compose.from,
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
@@ -16706,6 +16733,7 @@ async function sendEmailCompose() {
   emailState.compose = {
     to: recipients,
     cc: ccRecipients,
+    from: normalizeEmailComposeFrom(emailState.compose.from) || defaultEmailComposeFrom(),
     subject: subjectTrim,
     body: bodyTrim,
     images,
@@ -16800,6 +16828,7 @@ async function scheduleEmailCompose() {
   emailState.compose = {
     to: recipients,
     cc: ccRecipients,
+    from: normalizeEmailComposeFrom(emailState.compose.from) || defaultEmailComposeFrom(),
     subject: subjectTrim,
     body: bodyTrim,
     images,
@@ -16949,6 +16978,23 @@ function renderEmailComposePane(pane) {
 
   const form = document.createElement('div');
   form.className = 'em-compose';
+
+  const fromField = document.createElement('div');
+  fromField.className = 'em-compose-field';
+  fromField.innerHTML = '<label class="em-compose-label" for="em-compose-from">From</label>';
+  const fromInput = document.createElement('input');
+  fromInput.id = 'em-compose-from';
+  fromInput.type = 'text';
+  fromInput.className = 'em-compose-input';
+  fromInput.placeholder = defaultEmailComposeFrom() || 'you@example.com';
+  fromInput.value = normalizeEmailComposeFrom(emailState.compose.from) || defaultEmailComposeFrom();
+  fromInput.disabled = emailState.sending;
+  fromInput.autocomplete = 'email';
+  fromInput.addEventListener('input', () => {
+    emailState.compose.from = normalizeEmailComposeFrom(fromInput.value) || defaultEmailComposeFrom();
+    scheduleEmailDraftSave();
+  });
+  fromField.appendChild(fromInput);
 
   const toField = document.createElement('div');
   toField.className = 'em-compose-field';
@@ -17145,7 +17191,7 @@ function renderEmailComposePane(pane) {
     const files = collectEmailComposeImageFiles(e.clipboardData);
     const text = e.clipboardData?.getData('text/plain') || '';
     if (!files.length) return;
-    if (text && (e.target === subjectInput || e.target?.closest?.('.em-compose-to-input'))) return;
+    if (text && (e.target === subjectInput || e.target === fromInput || e.target?.closest?.('.em-compose-to-input'))) return;
     e.preventDefault();
     ingestFiles(files);
   });
@@ -17160,7 +17206,7 @@ function renderEmailComposePane(pane) {
     ? emailState.replyMode === 'reply-all'
       ? 'Reply all includes everyone on the original message except your own addresses. The message is marked handled after send.'
       : 'Reply is sent in the same thread when the original message ID is available. The message is marked handled after send.'
-    : 'Sent via Resend using your configured outbound address.';
+    : 'Sent via Resend. From defaults to your outbound address — change only for another verified domain.';
   hint.appendChild(document.createElement('br'));
   const shortHint = document.createElement('span');
   shortHint.textContent =
@@ -17243,6 +17289,7 @@ function renderEmailComposePane(pane) {
     bannerActions.appendChild(cancelBtn);
     banner.appendChild(bannerText);
     banner.appendChild(bannerActions);
+    form.appendChild(fromField);
     form.appendChild(toField);
     form.appendChild(ccField);
     form.appendChild(subjectField);
@@ -17252,6 +17299,7 @@ function renderEmailComposePane(pane) {
     form.appendChild(banner);
     form.appendChild(actions);
   } else {
+    form.appendChild(fromField);
     form.appendChild(toField);
     form.appendChild(ccField);
     form.appendChild(subjectField);
@@ -18572,6 +18620,19 @@ async function boot() {
   syncAdminSplitView(MAP?.type);
   scanPanelSidebars();
   void consumePendingOtpCopy();
+  if (userId) {
+    void mountClientSetupWizard();
+    try {
+      const bootUrl = new URL(window.location.href);
+      if (bootUrl.searchParams.get('clientSetup') === '1') {
+        bootUrl.searchParams.delete('clientSetup');
+        window.history.replaceState({}, '', bootUrl.pathname + bootUrl.search + bootUrl.hash);
+        void reopenClientSetupWizard();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 boot().catch(showBootError);

@@ -13,6 +13,8 @@ import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import PlausibleScript from '../components/PlausibleScript.astro';
 import { cardPhoneToE164, resolveCardPhoneRaw } from '../lib/cardPhoneAuth';
+import { readCardPasskeyTrust } from '../lib/cardPasskeyTrust';
+import { storeHasCardPasskeys } from '../lib/cardPasskeyStore';
 import {
   appleMapsDirectionsUrl,
   mapsDirectionsUrl,
@@ -45,6 +47,8 @@ try {
 } catch {
   signedIn = false;
 }
+const passkeyTrust = readCardPasskeyTrust(Astro.request);
+const hasPasskeys = await storeHasCardPasskeys();
 const address = company.address?.trim() || '';
 const geo = company.geo;
 
@@ -184,7 +188,16 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
           </a>
         )}
 
-        <CardPhoneLogin phoneE164={phoneE164} signedIn={signedIn} />
+        <CardPhoneLogin
+          phoneE164={phoneE164}
+          signedIn={signedIn}
+          hasPasskeys={hasPasskeys}
+          passkeyTrusted={
+            passkeyTrust
+              ? { displayName: passkeyTrust.displayName || 'You' }
+              : null
+          }
+        />
       </nav>
     </main>
     {directionsHref && (

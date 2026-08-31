@@ -3,14 +3,20 @@
  * Run: npm run check:agent-awareness
  */
 import assert from 'node:assert/strict';
+import { isAgentLlmBlockedReply } from '../src/lib/anthropicMessages.ts';
 import {
+  assistantRepeatsLastReply,
   deployFailureAlertTitle,
   deployFailureServiceName,
+  deploymentIdSeenInThread,
   findReusableAlertThread,
   formatOwnerIdentityBlock,
   formatRecentSessionsBlock,
   formatSessionAge,
   isDeployFailureTitle,
+  isDockerImageRailwayService,
+  lastAssistantIsAgentBlocked,
+  lastAssistantIsResolved,
   lastAssistantIsUnresolved,
   lastAssistantTurn,
   shouldAutoRunRepairFollowUp,
@@ -36,6 +42,16 @@ assert.equal(
 assert.equal(titlesMatchAlert('Deploy failed — calcom-web-app', 'deploy failed — calcom-web-app'), true);
 assert.equal(isDeployFailureTitle('Deploy failed — calcom-web-app'), true);
 assert.equal(isDeployFailureTitle('New project created automatically'), false);
+assert.equal(isDockerImageRailwayService('calcom-web-app'), true);
+assert.equal(isDockerImageRailwayService('reave'), false);
+
+assert.ok(
+  isAgentLlmBlockedReply(
+    'Anthropic error (401): {"error":{"code":"AUTH_002","message":"Invalid API key"}}',
+  ),
+);
+assert.ok(lastAssistantIsAgentBlocked('OpenRouter rejected the API key (401).'));
+assert.equal(lastAssistantIsResolved('✅ RESOLVED — rollout teardown'), true);
 
 const now = Date.parse('2026-08-21T16:00:00.000Z');
 const threads = [
@@ -82,20 +98,28 @@ assert.equal(shouldAutoRunRepairFollowUp({ runActive: true, nowMs: now }), 'supp
 assert.equal(
   shouldAutoRunRepairFollowUp({
     runActive: false,
-    lastAssistantUnresolved: true,
-    lastAssistantAtMs: now - 2 * 60_000,
+    lastAssistantBlocked: true,
     nowMs: now,
   }),
-  'suppress-cooldown',
+  'suppress-agent-blocked',
 );
 assert.equal(
   shouldAutoRunRepairFollowUp({
     runActive: false,
     lastAssistantUnresolved: true,
+    lastAssistantAtMs: now - 2 * 60_000,
+    nowMs: now,
+  }),
+  'suppress-unresolved',
+);
+assert.equal(
+  shouldAutoRunRepairFollowUp({
+    runActive: false,
+    lastAssistantResolved: true,
     lastAssistantAtMs: now - 20 * 60_000,
     nowMs: now,
   }),
-  'run',
+  'suppress-resolved',
 );
 assert.equal(
   shouldAutoRunRepairFollowUp({
@@ -119,6 +143,25 @@ assert.equal(
 assert.equal(
   shouldAutoRunRepairFollowUp({
     runActive: false,
+    duplicateDeployment: true,
+    lastAssistantAtMs: now - 20 * 60_000,
+    nowMs: now,
+  }),
+  'suppress-duplicate-deploy',
+);
+assert.equal(
+  shouldAutoRunRepairFollowUp({
+    runActive: false,
+    repairService: 'calcom-web-app',
+    railwayVarRedeploys: 2,
+    lastAssistantAtMs: now - 20 * 60_000,
+    nowMs: now,
+  }),
+  'suppress-railway-vars',
+);
+assert.equal(
+  shouldAutoRunRepairFollowUp({
+    runActive: false,
     lastAssistantUnresolved: false,
     lastAssistantAtMs: now - 20 * 60_000,
     nowMs: now,
@@ -128,7 +171,6 @@ assert.equal(
 );
 
 assert.equal(lastAssistantIsUnresolved('Tried logs.\n🚨 UNRESOLVED — missing CALENDSO_ENCRYPTION_KEY'), true);
-assert.equal(lastAssistantIsUnresolved('✅ RESOLVED — rollout teardown'), false);
 assert.equal(
   lastAssistantTurn([
     { role: 'user', content: 'fail' },
@@ -137,6 +179,28 @@ assert.equal(
   ])?.content,
   'looking',
 );
+
+assert.equal(
+  deploymentIdSeenInThread(
+    [{ role: 'user', content: 'Deployment: dep-abc\nfailed' }],
+    'dep-abc',
+  ),
+  true,
+);
+
+const repeatTurns = [
+  { role: 'user', content: 'a' },
+  {
+    role: 'assistant',
+    content: `${'x'.repeat(50)} same fix applied via set_railway_variables for calcom-web-app end`,
+  },
+  { role: 'user', content: 'b' },
+  {
+    role: 'assistant',
+    content: `${'x'.repeat(50)} same fix applied via set_railway_variables for calcom-web-app end`,
+  },
+];
+assert.equal(assistantRepeatsLastReply(repeatTurns), true);
 
 const identity = formatOwnerIdentityBlock({
   companyName: 'reave.app',

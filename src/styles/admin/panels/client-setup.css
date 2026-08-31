@@ -151,3 +151,37 @@
   opacity: 0.55;
   cursor: default;
 }
+.cs-wizard-import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.cs-wizard-import-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+}
+.cs-wizard-import-file {
+  padding: 0.55rem;
+  border: 2px dashed var(--panel-border);
+  border-radius: 8px;
+  background: var(--card, var(--surface-muted));
+  font-size: 0.82rem;
+}
+.cs-wizard-import-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+.cs-wizard-import-status--info { color: var(--muted); }
+.cs-wizard-import-status--success { color: #16a34a; }
+.cs-wizard-import-status--error { color: #dc2626; }
+.cs-wizard-push-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.cs-wizard-body a {
+  color: inherit;
+}

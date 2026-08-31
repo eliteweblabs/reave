@@ -13,6 +13,7 @@ import {
 } from './chatStore';
 import { titleFromMessage, type ChatTurn } from './chatTypes';
 import { runKnowledgeAgent } from './agentRunner';
+import { isAgentLlmBlockedReply } from './anthropicMessages';
 import { prependDeployBanner } from './deployStatus';
 import { sendPushNotification } from './webPush';
 import { isSleepModeActive } from './pushQuietHours';
@@ -28,9 +29,17 @@ import {
   DEPLOY_FAILURE_MAX_AUTO_RUNS,
   DEPLOY_FAILURE_RERUN_COOLDOWN_MS,
   DEPLOY_FAILURE_REUSE_MS,
+  anyAssistantIsAgentBlocked,
+  assistantRepeatsLastReply,
+  countRailwayVariableRedeploys,
+  deploymentIdSeenInThread,
+  extractDeploymentIdFromAlert,
   findReusableAlertThread,
+  lastAssistantIsAgentBlocked,
+  lastAssistantIsResolved,
   lastAssistantIsUnresolved,
   lastAssistantTurn,
+  repairFollowUpSuppressNote,
   shouldAutoRunRepairFollowUp,
 } from './agentSituationalContext';
 
@@ -117,6 +126,8 @@ export async function postToSystemAlertsThread(opts: {
   reuseMaxAgeMs?: number;
   /** Extra tool-round budget so a repair can actually ship a fix. */
   repairRun?: boolean;
+  /** Railway service name for repair guardrails (docker-image dedup, var caps). */
+  repairService?: string;
   push?: {
     title: string;
     body: string;
@@ -159,6 +170,7 @@ async function postAlertInner(opts: {
   reuseTitle?: string;
   reuseMaxAgeMs?: number;
   repairRun?: boolean;
+  repairService?: string;
   push?: {
     title: string;
     body: string;
@@ -223,29 +235,36 @@ async function postAlertInner(opts: {
       systemAlert: true as const,
       ...(opts.emailId ? { emailId: opts.emailId } : {}),
       ...(opts.repairRun ? { repairRun: true as const } : {}),
+      ...(opts.repairService ? { repairDeployService: opts.repairService } : {}),
     };
 
     let agentReply: string | undefined;
     let suppressed = false;
 
-    if (reused && autoRun) {
+    const hasPriorRepairRun = priorTurns.some((t) => t.role === 'assistant');
+    if (opts.repairRun && autoRun && (reused || hasPriorRepairRun)) {
       const last = lastAssistantTurn(priorTurns);
       const assistantRunCount = priorTurns.filter((t) => t.role === 'assistant').length;
+      const deploymentId = extractDeploymentIdFromAlert(opts.message);
       const decision = shouldAutoRunRepairFollowUp({
         runActive: await threadRunIsActive(userId, threadId),
         lastAssistantAtMs,
         lastAssistantUnresolved: last ? lastAssistantIsUnresolved(last.content) : false,
+        lastAssistantResolved: last ? lastAssistantIsResolved(last.content) : false,
+        lastAssistantBlocked: last ? lastAssistantIsAgentBlocked(last.content) : false,
+        anyAssistantBlocked: anyAssistantIsAgentBlocked(priorTurns),
         assistantRunCount,
+        duplicateDeployment: deploymentIdSeenInThread(priorTurns, deploymentId),
+        repeatsLastReply: assistantRepeatsLastReply(priorTurns),
+        railwayVarRedeploys: countRailwayVariableRedeploys(priorTurns),
+        repairService: opts.repairService,
         nowMs: Date.now(),
         cooldownMs: DEPLOY_FAILURE_RERUN_COOLDOWN_MS,
         maxAutoRuns: DEPLOY_FAILURE_MAX_AUTO_RUNS,
       });
 
       if (decision !== 'run') {
-        const note =
-          decision === 'suppress-exhausted'
-            ? `\n\n(Auto-repair stopped after ${DEPLOY_FAILURE_MAX_AUTO_RUNS} attempts on this Session. The previous successful deploy is still live. Owner can continue this chat to try again.)`
-            : '';
+        const note = repairFollowUpSuppressNote(decision);
         await storeAppendChatMessages(userId, threadId, [
           { role: 'user', content: `${opts.message}${note}` },
         ]);
@@ -273,6 +292,9 @@ async function postAlertInner(opts: {
           { role: 'assistant', content: reply, agent_usage: result.usage },
         ]);
         agentReply = reply;
+        if (opts.repairRun && isAgentLlmBlockedReply(reply)) {
+          log.warn('repair run blocked — LLM unavailable', { threadId, title });
+        }
       } finally {
         clearAgentRun(userId, threadId, runSignal);
       }

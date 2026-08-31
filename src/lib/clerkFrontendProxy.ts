@@ -1,7 +1,7 @@
 import { setDefaultResultOrder } from 'node:dns';
 import { clerkEnsureDomainProxy, clerkFrontendApiHost, clerkFrontendApiOrigin, clerkSecretKey } from './clerkClient';
 import { ADMIN_SCOPED_CLERK_PROXY_PATH, DEFAULT_CLERK_FRONTEND_PROXY_PATH } from './clerkProxyUrl';
-import { publicHostFromEnv } from './requestHost';
+import { publicHostFromEnv, resolvePublicHost } from './requestHost';
 
 /** Official Clerk Frontend API — required when using a same-origin proxy. */
 export const CLERK_OFFICIAL_FRONTEND_API_ORIGIN = 'https://frontend-api.clerk.dev';
@@ -41,7 +41,11 @@ export function absoluteClerkProxyUrl(request: Request): string {
     request.headers.get('X-Forwarded-Proto')?.split(',')[0]?.trim() ||
     incoming.protocol.replace(':', '') ||
     'https';
+  // Clerk registers one proxy_url per instance (COMPANY_DOMAIN / PUBLIC_SITE_*).
+  // Railway default domains must not become Clerk-Proxy-Url or FAPI returns host_invalid.
   const host =
+    publicHostFromEnv() ||
+    resolvePublicHost(request) ||
     request.headers.get('X-Forwarded-Host')?.split(',')[0]?.trim() ||
     request.headers.get('Host')?.trim() ||
     incoming.host;
@@ -56,6 +60,17 @@ export function clerkProxyRequestHeaders(request: Request, proxyUrl: string): He
   headers.set('Clerk-Proxy-Url', proxyUrl);
   const secret = clerkSecretKey();
   if (secret) headers.set('Clerk-Secret-Key', secret);
+  const ip = clientIp(request);
+  if (ip) headers.set('X-Forwarded-For', ip);
+  return headers;
+}
+
+/** Direct instance FAPI — no Clerk-Proxy-Url (wrong host causes host_invalid). */
+export function clerkInstanceRequestHeaders(request: Request): Headers {
+  const headers = new Headers();
+  for (const [key, value] of request.headers.entries()) {
+    if (FORWARD_HEADERS.has(key.toLowerCase())) headers.set(key, value);
+  }
   const ip = clientIp(request);
   if (ip) headers.set('X-Forwarded-For', ip);
   return headers;
@@ -229,11 +244,18 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   if (clerkSecretKey()) {
     upstream = await fetchClerkUpstream(officialTarget, init);
     if (upstream && (await isOfficialProxyRejected(upstream)) && instanceTarget) {
-      const fallback = await fetchClerkUpstream(instanceTarget, init);
+      const fallbackInit: RequestInit = {
+        ...init,
+        headers: clerkInstanceRequestHeaders(request),
+      };
+      const fallback = await fetchClerkUpstream(instanceTarget, fallbackInit);
       if (fallback) upstream = fallback;
     }
   } else if (instanceTarget) {
-    upstream = await fetchClerkUpstream(instanceTarget, init);
+    upstream = await fetchClerkUpstream(instanceTarget, {
+      ...init,
+      headers: clerkInstanceRequestHeaders(request),
+    });
   } else {
     return new Response('Clerk is not configured', { status: 503 });
   }
