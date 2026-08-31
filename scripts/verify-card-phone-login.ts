@@ -49,6 +49,9 @@ assert.match(login, /fetchCardLoginCaptchaFields/);
 assert.match(login, /turnstile/);
 assert.match(login, /captchaToken/);
 assert.match(login, /id="clerk-captcha"/);
+assert.match(login, /registerCardPasskeyAfterLogin/);
+assert.match(login, /initCardPasskeyGate/);
+assert.match(login, /autocomplete="username webauthn"/);
 assert.doesNotMatch(login, /type="password"/);
 assert.doesNotMatch(login, /name="password"/);
 
