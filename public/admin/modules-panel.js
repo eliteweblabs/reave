@@ -142,6 +142,7 @@ function newCustomRow(group) {
         : group === 'google_workspace' || group === 'hosting'
           ? 'service'
           : 'public',
+    audience: group === 'internal' ? 'owner' : 'both',
     requires: [],
     industries: [],
   };
@@ -167,6 +168,7 @@ function mergeItems(catalog, deploy) {
         priceLabel: row.priceLabel || '',
         saleSheet: row.saleSheet === true,
         visibility: row.visibility || 'public',
+        audience: row.audience === 'owner' || row.audience === 'staff' ? row.audience : 'both',
         requires: Array.isArray(row.requires) ? row.requires : [],
         industries: Array.isArray(row.industries) ? row.industries : [],
         deploy: deployByFeature.get(row.feature) || null,
@@ -188,6 +190,7 @@ function mergeItems(catalog, deploy) {
       priceLabel: m.price?.label || '',
       saleSheet: m.saleSheet === true,
       visibility: m.visibility || 'public',
+      audience: m.audience === 'owner' || m.audience === 'staff' ? m.audience : 'both',
       requires: Array.isArray(m.requires) ? m.requires : [],
       industries: [],
       deploy: m,
@@ -471,6 +474,11 @@ function readDetailIntoCatalog() {
   if (groupEl?.value && GROUP_META[groupEl.value]) row.group = groupEl.value;
   const sheet = pane.querySelector('[data-field="sheet"]');
   if (sheet) row.saleSheet = sheet.getAttribute('aria-checked') === 'true';
+  const audienceEl = pane.querySelector('[data-field="audience"]');
+  if (audienceEl?.value === 'owner' || audienceEl?.value === 'staff' || audienceEl?.value === 'both') {
+    row.audience = audienceEl.value;
+    item.audience = row.audience;
+  }
   row.requires = [...pane.querySelectorAll('[data-requires]:checked')]
     .map((el) => el.getAttribute('data-requires'))
     .filter(Boolean);
@@ -644,7 +652,15 @@ function renderDetailPane() {
       `<button type="button" class="prof-plugin-toggle" role="switch" data-field="sheet" ` +
       `aria-checked="${item.saleSheet ? 'true' : 'false'}" aria-label="Show on sale sheet"></button>` +
       `<span class="mod-sheet-hint">Show this module on the public sale sheet.</span>` +
-      `</div>`;
+      `</div>` +
+      `<label class="de-label">Staff access` +
+      `<select data-field="audience" class="de-input">` +
+      `<option value="both"${item.audience !== 'owner' && item.audience !== 'staff' ? ' selected' : ''}>Owner + staff</option>` +
+      `<option value="staff"${item.audience === 'staff' ? ' selected' : ''}>Staff only</option>` +
+      `<option value="owner"${item.audience === 'owner' ? ' selected' : ''}>Owner only</option>` +
+      `</select>` +
+      `<span class="mod-sheet-hint">Who can open this module in the admin OS. Satellites pull this from reΛVe.</span>` +
+      `</label>`;
     scroll.appendChild(fields);
   } else {
     const blurb = document.createElement('p');

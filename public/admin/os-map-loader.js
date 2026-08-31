@@ -373,6 +373,7 @@ const MAP_ICON_KEYS = {
   modules: 'puzzle',
   finance: 'wallet',
   profile: 'user',
+  team: 'users',
   company: 'building-2',
   settings: 'settings',
   socials: 'link-2',
@@ -389,6 +390,7 @@ const MAP_ICON_KEYS = {
 /** Admin settings pages — one map tab per section. */
 const SETTINGS_MAP_TYPES = new Set([
   'profile',
+  'team',
   'company',
   'settings',
   'socials',
@@ -915,6 +917,8 @@ function activateMapPanel(opts = {}) {
     }
   } else if (MAP.type === 'profile') {
     loadProfileTab();
+  } else if (MAP.type === 'team') {
+    loadTeamTab();
   } else if (MAP.type === 'company') {
     loadCompanyTab();
   } else if (MAP.type === 'settings') {
@@ -8892,6 +8896,133 @@ async function loadProfileTab() {
       `<div class="profile-panel-scroll">` +
         `<div class="prof-card"><h1 class="prof-title">Profile</h1>` +
         `<p class="dash-empty">Could not load profile: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+    prependSettingsBackHeader(root);
+  }
+}
+
+function teamStatusLabel(status) {
+  if (status === 'active') return 'Active';
+  if (status === 'invited') return 'Invited';
+  if (status === 'revoked') return 'Revoked';
+  return status || '—';
+}
+
+function renderTeamPanel(members) {
+  const list = Array.isArray(members) ? members : [];
+  const rows = list.length
+    ? list
+        .map(
+          (m) =>
+            `<li class="team-member-row" data-team-id="${escHtml(m.id)}">` +
+            `<div class="team-member-main">` +
+            `<span class="team-member-email">${escHtml(m.email)}</span>` +
+            `<span class="team-member-status team-member-status--${escHtml(m.status || 'invited')}">${escHtml(teamStatusLabel(m.status))}</span>` +
+            `</div>` +
+            `<button type="button" class="prof-btn-secondary team-revoke-btn" data-team-id="${escHtml(m.id)}">Remove</button>` +
+            `</li>`,
+        )
+        .join('')
+    : `<li class="team-empty">No staff yet — invite someone below.</li>`;
+  return (
+    `<div class="profile-panel-scroll">` +
+      `<div class="prof-card">` +
+        `<h1 class="prof-title">Team</h1>` +
+        `<p class="prof-subtitle">Invite staff to the admin OS. Module access follows reΛVe catalog settings (Owner + staff / Staff only / Owner only).</p>` +
+        `<div id="team-alert" class="prof-alert" hidden></div>` +
+        `<form id="team-invite-form" class="prof-form">` +
+          `<div class="prof-field">` +
+            `<label for="team-invite-email">Email</label>` +
+            `<div class="team-invite-row">` +
+              `<input id="team-invite-email" name="email" type="email" required placeholder="name@company.com" autocomplete="email" />` +
+              `<button type="submit" class="prof-btn-primary" id="team-invite-btn">Invite</button>` +
+            `</div>` +
+            `<span class="prof-hint">They get a Clerk invite and can open /admin after accepting. You stay the install owner.</span>` +
+          `</div>` +
+        `</form>` +
+        `<h2 class="prof-section-title">Staff</h2>` +
+        `<ul id="team-member-list" class="team-member-list">${rows}</ul>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function bindTeamPanel(root) {
+  const alertEl = root.querySelector('#team-alert');
+  const form = root.querySelector('#team-invite-form');
+  const listEl = root.querySelector('#team-member-list');
+
+  form?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const email = String(new FormData(form).get('email') || '').trim();
+    if (!email) return;
+    const btn = root.querySelector('#team-invite-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      showProfileAlert(
+        alertEl,
+        json.invited ? `Invite sent to ${email}.` : `${email} is active staff.`,
+        'success',
+      );
+      form.reset();
+      await loadTeamTab({ quiet: true });
+    } catch (e) {
+      showProfileAlert(alertEl, e.message || 'Invite failed.', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  listEl?.addEventListener('click', async (ev) => {
+    const btn = ev.target?.closest?.('.team-revoke-btn');
+    if (!btn) return;
+    const id = btn.getAttribute('data-team-id');
+    if (!id) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/api/admin/team/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      showProfileAlert(alertEl, 'Staff access removed.', 'success');
+      await loadTeamTab({ quiet: true });
+    } catch (e) {
+      showProfileAlert(alertEl, e.message || 'Could not remove staff.', 'error');
+      btn.disabled = false;
+    }
+  });
+}
+
+async function loadTeamTab(opts = {}) {
+  await flushSettingsAutosave();
+  const root = settingsPanelRoot();
+  if (!root) return;
+  if (!opts.quiet) {
+    mountPanelSkeleton(root, 'dashboard', 'Loading team…', {
+      contentSelector: '.prof-card',
+      wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+    });
+    prependSettingsBackHeader(root);
+  }
+
+  try {
+    const res = await fetch('/api/admin/team', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    root.innerHTML = renderTeamPanel(data.members);
+    prependSettingsBackHeader(root);
+    bindTeamPanel(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Team</h1>` +
+        `<p class="dash-empty">Could not load team: ${escHtml(e.message)}</p></div>` +
       `</div>`;
     prependSettingsBackHeader(root);
   }

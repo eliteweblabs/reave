@@ -37,6 +37,14 @@ export function catalogSaleSheet(feature: string, fallback: boolean): boolean {
   return row ? row.saleSheet : fallback;
 }
 
+export function catalogAudience(
+  feature: string,
+  fallback: import('./moduleAudience').ModuleAudience = 'both',
+): import('./moduleAudience').ModuleAudience {
+  const row = peekCatalogRow(feature);
+  return row?.audience ?? fallback;
+}
+
 export function catalogGroupFor(feature: string): CatalogGroupId | null {
   return peekCatalogRow(feature)?.group ?? null;
 }

@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   fetchPunchlistHub,
   isPunchlistHubClientConfigured,
@@ -21,7 +21,7 @@ export const prerender = false;
 
 
 export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDeploymentOwner(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   if (isPunchlistHubHost()) {
@@ -60,7 +60,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const auth = await requireDeploymentOwner(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (isPunchlistHubHost()) {
     return jsonResponse({ ok: false, error: 'Add items from Punch list on a client install.' }, 400);

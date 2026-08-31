@@ -69,6 +69,7 @@ const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
 
 export const PROFILE_MENU_KEYS = [
   'profile',
+  'team',
   'company',
   'settings',
   'socials',
@@ -194,6 +195,8 @@ export type InstallConfigClient = Pick<
   isCanonicalReave?: boolean;
   /** Home-grid cards: enabled modules with dashboard:true, plus core OS tiles. */
   dashboardCards?: DashboardCard[];
+  /** Signed-in admin role for this session (`owner` | `staff`). */
+  dashboardRole?: 'owner' | 'staff' | null;
   deployStatus?: {
     modules: Array<{ id: InstallFeatureId; label: string; status: ModuleDeployStatus; showBanner: boolean }>;
     hasBanner: boolean;
@@ -202,6 +205,7 @@ export type InstallConfigClient = Pick<
 
 export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   profile: 'Profile',
+  team: 'Team',
   company: 'Company',
   settings: 'Settings',
   socials: 'Socials',
@@ -504,6 +508,15 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   return nav;
 }
 
+function ensureProfileMenuTeam(menu: ProfileMenuKey[]): ProfileMenuKey[] {
+  if (menu.includes('team')) return menu;
+  const profileAt = menu.indexOf('profile');
+  if (profileAt >= 0) {
+    return [...menu.slice(0, profileAt + 1), 'team', ...menu.slice(profileAt + 1)];
+  }
+  return ['team', ...menu];
+}
+
 function ensureProfileMenuAddons(menu: ProfileMenuKey[]): ProfileMenuKey[] {
   if (menu.includes('addons')) return menu;
   const socialsAt = menu.indexOf('socials');
@@ -538,6 +551,8 @@ function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   }
   // Catalog editor lives in dashboard → Modules, not a separate account page.
   menu = menu.filter((key) => key !== 'catalog');
+  // Owner invites staff from account → Team.
+  menu = ensureProfileMenuTeam(menu);
   // End users buy/request modules from account → Add-ons. Always show it.
   menu = ensureProfileMenuAddons(menu);
   // AI inventory + model defaults — available on every install.

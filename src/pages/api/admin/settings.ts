@@ -10,7 +10,7 @@ import {
   getAppSettings,
   saveAppSettings,
 } from '../../../lib/appSettingsStore';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
@@ -25,7 +25,7 @@ function parseOptionalBool(raw: unknown): boolean | undefined {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   try {
@@ -38,7 +38,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   let body: Record<string, unknown>;

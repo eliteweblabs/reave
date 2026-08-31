@@ -22,6 +22,7 @@ import {
   isPrivateFeature,
   type FeatureId,
 } from './featureCatalog';
+import { defaultModuleAudience, type ModuleAudience } from './moduleAudience';
 import { MODULE_DISPLAY_GROUPS } from './moduleDisplayGroups';
 import { PAID_MODULE_PRICES } from './paidModulePrices';
 
@@ -222,6 +223,12 @@ export type CatalogRow = {
   priceLabel: string;
   saleSheet: boolean;
   visibility: 'public' | 'private' | 'service';
+  /**
+   * Who may use this module in the admin OS once it is enabled on the install.
+   * Owner always has access. Staff only when `staff` or `both`.
+   * Reave management edits this; satellites pull via the hub.
+   */
+  audience: ModuleAudience;
   /** Feature slugs that turn on automatically with this module. */
   requires: string[];
   /** Industry slugs that include this module in a suggested demo / deploy stack. */
@@ -465,21 +472,30 @@ function priceFields(feature: FeatureId): Pick<CatalogRow, 'priceAmount' | 'pric
 }
 
 export function defaultModuleCatalog(): CatalogRow[] {
-  const core: CatalogRow[] = CORE_OS_CARDS.map((card) => ({
-    key: `core:${card.id}`,
-    kind: 'core',
-    group: 'core',
-    id: catalogIdForCard(card.id) || '—',
-    feature: card.id,
-    label: card.label,
-    blurb: card.blurb,
-    priceAmount: null,
-    priceLabel: 'Included',
-    saleSheet: true,
-    visibility: 'public',
-    requires: [],
-    industries: [],
-  }));
+  const core: CatalogRow[] = CORE_OS_CARDS.map((card) => {
+    const visibility = 'public' as const;
+    return {
+      key: `core:${card.id}`,
+      kind: 'core' as const,
+      group: 'core' as const,
+      id: catalogIdForCard(card.id) || '—',
+      feature: card.id,
+      label: card.label,
+      blurb: card.blurb,
+      priceAmount: null,
+      priceLabel: 'Included',
+      saleSheet: true,
+      visibility,
+      audience: defaultModuleAudience({
+        feature: card.id,
+        visibility,
+        kind: 'core',
+        group: 'core',
+      }),
+      requires: [],
+      industries: [],
+    };
+  });
 
   const modules: CatalogRow[] = FEATURE_IDS.filter((feature) => {
     if (feature === 'content_management') return false;
@@ -487,10 +503,12 @@ export function defaultModuleCatalog(): CatalogRow[] {
     return true;
   }).map((feature) => {
     const { priceAmount, priceLabel } = priceFields(feature);
+    const visibility = featureVisibility(feature);
+    const group = catalogGroupForFeature(feature);
     return {
       key: `module:${feature}`,
       kind: 'module' as const,
-      group: catalogGroupForFeature(feature),
+      group,
       id: catalogIdForFeature(feature) || '—',
       feature,
       label: FEATURE_LABELS[feature],
@@ -498,7 +516,13 @@ export function defaultModuleCatalog(): CatalogRow[] {
       priceAmount,
       priceLabel,
       saleSheet: FEATURE_SALE_SHEET.has(feature),
-      visibility: featureVisibility(feature),
+      visibility,
+      audience: defaultModuleAudience({
+        feature,
+        visibility,
+        kind: 'module',
+        group,
+      }),
       requires: featureRequirements(feature),
       industries: defaultIndustriesForFeature(feature),
     };

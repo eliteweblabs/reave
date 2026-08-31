@@ -6,7 +6,7 @@
  * Official reave.app host only. Client installs 404.
  */
 import type { APIContext } from 'astro';
-import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { isCanonicalReaveInstall } from '../../../lib/installConfig';
 import {
   applyCatalogIndustriesToPlaybooks,
@@ -20,6 +20,7 @@ import {
   replaceModuleCatalog,
   resetModuleCatalog,
 } from '../../../lib/moduleCatalogStore';
+import { clearModuleAudienceCache } from '../../../lib/moduleAudienceHub';
 import { jsonResponse } from '../../../lib/apiResponse';
 
 async function syncIndustryPlaybooks(rows: { feature: string; id: string }[]) {
@@ -48,7 +49,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const hostDenied = requireReaveCatalogAdmin();
   if (hostDenied) return hostDenied;
 
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   const rows = await listModuleCatalog();
@@ -70,7 +71,7 @@ export async function PUT(context: APIContext): Promise<Response> {
   const hostDenied = requireReaveCatalogAdmin();
   if (hostDenied) return hostDenied;
 
-  const auth = await requireDashboardUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   let body: unknown;
@@ -87,6 +88,7 @@ export async function PUT(context: APIContext): Promise<Response> {
   const o = body as { reset?: unknown; rows?: unknown };
   const result = o.reset === true ? await resetModuleCatalog() : await replaceModuleCatalog(o.rows);
   if (!result.ok) return jsonResponse({ error: result.error }, 400);
+  clearModuleAudienceCache();
   await syncIndustryPlaybooks(result.rows);
   return jsonResponse({
     ok: true,

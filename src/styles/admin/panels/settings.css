@@ -1275,6 +1275,60 @@
   margin: 1.5rem 0 0.5rem;
 }
 
+/* Account → Team */
+.team-invite-row {
+  display: flex;
+  gap: 0.55rem;
+  align-items: stretch;
+}
+.team-invite-row input {
+  flex: 1;
+  min-width: 0;
+}
+.team-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+.team-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--panel-border, color-mix(in srgb, currentColor 12%, transparent));
+  border-radius: 10px;
+}
+.team-member-main {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.team-member-email {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-member-status {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+.team-member-status--active {
+  color: #15803d;
+  opacity: 1;
+}
+.team-member-status--invited {
+  color: #a16207;
+  opacity: 1;
+}
+.team-empty {
+  opacity: 0.65;
+  padding: 0.35rem 0;
+}
+
 /* Profile → Email signature editor */
 .prof-field--signature {
   gap: 0.55rem;
