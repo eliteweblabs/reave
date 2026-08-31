@@ -10,10 +10,11 @@ import "../../styles/brand.css";
 
 const company = await getCompanyConfig(Astro.request);
 const subtitle = getSiteContent().homepage.subtitle?.trim() || "";
-const { userId } = Astro.locals.auth();
-if (userId) {
-  const next = Astro.url.searchParams.get("redirect_url") || "/admin/";
-  return Astro.redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/admin/");
+let userId: string | null = null;
+try {
+  userId = Astro.locals.auth?.()?.userId ?? null;
+} catch {
+  userId = null;
 }
 ---
 

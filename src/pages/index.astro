@@ -25,6 +25,18 @@ const homepageTemplate = resolveHomepageTemplate(siteContent, {
   requestHost: resolvePublicHost(Astro.request),
 });
 const isLogin = homepageTemplate === "login";
+if (isLogin) {
+  let signedInUserId: string | null = null;
+  try {
+    signedInUserId = Astro.locals.auth?.()?.userId ?? null;
+  } catch {
+    signedInUserId = null;
+  }
+  if (signedInUserId) {
+    const next = Astro.url.searchParams.get("redirect_url") || "/admin/";
+    return Astro.redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/admin/");
+  }
+}
 const isBarbersEdge = siteContent.key === "barbersedge";
 const barbersEdgeOwner = getBarbersEdgeBarber("horell-cruz");
 const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteContent.landing;
