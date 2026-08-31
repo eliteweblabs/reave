@@ -199,6 +199,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
+  @media (max-width: 768px) {
+    /*
+     * Header scrolls in flow above main — size the hero to the remaining
+     * viewport instead of 100dvh plus a fixed-header pad.
+     */
+    .home-hero {
+      min-height: calc(100dvh - var(--app-header-offset, 3.25rem));
+      padding-top: 0;
+    }
+  }
+
   @media (max-width: 640px) {
     .home-hero {
       /* Keep the chat lane tucked under the raised brand block. */

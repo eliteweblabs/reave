@@ -384,7 +384,7 @@ html.marketing-menu-open .app-header > .app-header-scrim {
 }
 
 /*
- * Mobile public header is position:absolute and the overlay is full-viewport.
+ * Mobile public header scrolls in document flow and the overlay is full-viewport.
  * Paint the chrome band so the dimmed backdrop cannot show through.
  */
 @media (max-width: 768px) {

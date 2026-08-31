@@ -692,15 +692,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   /*
-   * Public header: out-of-flow overlay so the hero can paint the full
-   * viewport. Stay position:fixed on every breakpoint and every public
-   * page — an absolute bar scrolls off and the notch treatment vanishes
-   * (homepage, about masonry, features, …). Safari’s rubber-band also
-   * paints html/body --site-canvas in the overscroll gap, and an absolute
-   * header rides down into that slab. Pad logo/actions below the notch.
-   * Admin is transparent too; on mobile it is absolute (dashboard stays
-   * fixed via html.admin-dashboard) so panel content can fill the
-   * safe-area bands while the footer nav remains the sticky chrome.
+   * Public header: desktop stays fixed with a scrim so inner pages can
+   * scroll under the logo row. Mobile scrolls in normal document flow —
+   * iOS cannot reliably compose a fixed header, fixed/sticky footer CTAs,
+   * and safe-area content at once (the CTAs flash and jump). Pad
+   * logo/actions below the notch. Admin is transparent; on mobile it is
+   * absolute (dashboard stays fixed via html.admin-dashboard) so panel
+   * content can fill the safe-area bands while the footer nav remains
+   * the sticky chrome.
    */
   .app-header {
     position: fixed;
@@ -756,6 +755,28 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   html.marketing-menu-open .app-header,
   html.overlay-menu-open .app-header {
     z-index: 2100;
+  }
+
+  /*
+   * Mobile public pages: scroll the header with the page and drop the scrim
+   * bleed/blur stack — backdrop-filter on a fixed bar fights sticky CTAs.
+   */
+  @media (max-width: 768px) {
+    .app-header:not(.app-header--admin) {
+      position: relative;
+      top: auto;
+      left: auto;
+      right: auto;
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    html[data-safe-top-frozen="1"] .app-header:not(.app-header--admin) {
+      padding-top: var(--safe-top);
+    }
+
+    .app-header:not(.app-header--admin) > .app-header-scrim {
+      display: none;
+    }
   }
 
   @media (max-width: 639px) {
