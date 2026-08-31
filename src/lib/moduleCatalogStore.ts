@@ -31,6 +31,7 @@ import {
   type CatalogRow,
   type CatalogRowKind,
 } from './moduleCatalog';
+import { defaultModuleAudience, normalizeModuleAudience } from './moduleAudience';
 import { databaseUrl, getPgPool } from './pgPool';
 import { projectRoot } from './projectRoot';
 import { serverEnv } from './serverEnv';
@@ -178,6 +179,16 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
             ? 'Internal'
             : 'Included';
     const priceAmount = parsePriceAmount(o.priceAmount, priceLabel);
+    const visibility =
+      feature === 'google_workspace' ||
+      group === 'google_workspace' ||
+      isHostingFeature(feature) ||
+      group === 'hosting' ||
+      o.visibility === 'service'
+        ? ('service' as const)
+        : o.visibility === 'private'
+          ? ('private' as const)
+          : ('public' as const);
     out.push({
       key,
       kind,
@@ -189,16 +200,11 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       priceAmount,
       priceLabel,
       saleSheet: o.saleSheet === true,
-      visibility:
-        feature === 'google_workspace' ||
-        group === 'google_workspace' ||
-        isHostingFeature(feature) ||
-        group === 'hosting' ||
-        o.visibility === 'service'
-          ? 'service'
-          : o.visibility === 'private'
-            ? 'private'
-            : 'public',
+      visibility,
+      audience: normalizeModuleAudience(
+        o.audience,
+        defaultModuleAudience({ feature, visibility, kind, group }),
+      ),
       requires: parseRequires(o.requires, feature),
       industries: parseIndustries(o.industries, feature),
     });

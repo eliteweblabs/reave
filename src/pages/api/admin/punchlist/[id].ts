@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   deleteOfficialPunchlistItem,
   fetchPunchlistHub,
@@ -31,7 +31,7 @@ function parseStatus(raw: unknown): TodoStatus | undefined {
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
-  const auth = await requireDeploymentOwner(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const id = parseId(context.params.id);
@@ -70,7 +70,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
-  const auth = await requireDeploymentOwner(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const id = parseId(context.params.id);

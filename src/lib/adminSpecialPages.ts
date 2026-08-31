@@ -24,6 +24,7 @@ export const ADMIN_PRIMARY_PAGE_KEYS = [
 /** Account pages keep the wordmark + their own pane back. */
 export const ADMIN_SETTINGS_PAGE_KEYS = [
   'profile',
+  'team',
   'company',
   'settings',
   'socials',

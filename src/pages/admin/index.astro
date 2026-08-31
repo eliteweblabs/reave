@@ -21,11 +21,14 @@ import { isSpecialAdminPageKey } from "../../lib/adminSpecialPages";
 import { enabledFeatures, ensureFeatureOverridesLoaded } from "../../lib/features";
 import { getDeployStatusClientSummary } from "../../lib/deployModuleStatus";
 import { ensureOwnerProfileFromEnv, getAuthUser, isDeploymentOwner } from "../../lib/deploymentOwner";
+import { ensureModuleAudienceLoaded, getModuleAudienceMap } from "../../lib/moduleAudienceHub";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
 import { githubRepoSlug } from "../../lib/githubClient";
 import { ensureInstallSeed, shouldSeedOnBoot } from "../../lib/installSeed";
 import { ensureSeededInboxClearedOnLiveEmail } from "../../lib/seededInboxCleanup";
+import { resolveStaffMember } from "../../lib/staffAuth";
+import { filterInstallConfigForStaff } from "../../lib/staffNav";
 import "../../styles/brand.css";
 import "../../styles/admin/index.css";
 
@@ -46,20 +49,33 @@ const company = await getCompanyConfig(Astro.request);
 const companyBrand = companyToBrandContext(company, Astro.request);
 const staffAvatarUrl = companyStaffAvatarUrl(company);
 const isOwner = userId ? await isDeploymentOwner(Astro) : false;
+const staffMember = !isOwner && userId ? await resolveStaffMember(Astro, userId) : null;
+const isStaff = Boolean(staffMember && staffMember.status === 'active');
+const canAccessAdmin = isOwner || isStaff;
 if (isOwner) {
   await ensureFeatureOverridesLoaded();
 }
-const installConfigClient = {
+await ensureModuleAudienceLoaded();
+const audienceMap = isStaff ? await getModuleAudienceMap() : undefined;
+let installConfigClient = {
   ...getInstallConfigClient(),
   features: [...enabledFeatures()],
   deployStatus: getDeployStatusClientSummary(),
+  dashboardRole: isOwner ? ('owner' as const) : isStaff ? ('staff' as const) : null,
 };
-const deniedUser = userId && !isOwner ? await getAuthUser(Astro) : null;
+if (isStaff) {
+  installConfigClient = {
+    ...filterInstallConfigForStaff(installConfigClient, audienceMap),
+    deployStatus: getDeployStatusClientSummary(),
+    dashboardRole: 'staff' as const,
+  };
+}
+const deniedUser = userId && !canAccessAdmin ? await getAuthUser(Astro) : null;
 const signedInAs =
   deniedUser?.emailAddresses?.[0]?.emailAddress?.trim() ||
   deniedUser?.username?.trim() ||
   "";
-if (userId && !isOwner) {
+if (userId && !canAccessAdmin) {
   Astro.response.status = 403;
 }
 if (isOwner) {
@@ -70,13 +86,13 @@ if (isOwner && shouldSeedOnBoot()) {
 } else if (isOwner) {
   void ensureSeededInboxClearedOnLiveEmail();
 }
-const mapboxAccessToken = isOwner ? getPublicMapboxAccessToken() || '' : '';
+const mapboxAccessToken = canAccessAdmin ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
 const githubRepo = githubRepoSlug();
 const requestedTab =
   Astro.url.searchParams.get("tab") || Astro.url.searchParams.get("map");
 const specialPage = isSpecialAdminPageKey(requestedTab);
-const bootDashboard = isOwner && (!requestedTab || requestedTab === "dashboard");
+const bootDashboard = canAccessAdmin && (!requestedTab || requestedTab === "dashboard");
 ---
 
 <!doctype html>
@@ -88,13 +104,14 @@ const bootDashboard = isOwner && (!requestedTab || requestedTab === "dashboard")
   <AdminHead
     companyName={company.name}
     fonts={company.fonts}
-    pageTitle={isOwner ? undefined : `Access pending — ${company.name}`}
+    pageTitle={canAccessAdmin ? undefined : `Access pending — ${company.name}`}
   />
   <body
     class:list={[{ "admin-special-page": specialPage }]}
     data-user-id={userId ?? ""}
     data-is-owner={isOwner ? "1" : ""}
-    data-admin-spa={isOwner ? "1" : undefined}
+    data-is-staff={isStaff ? "1" : ""}
+    data-admin-spa={canAccessAdmin ? "1" : undefined}
   >
     <DeployStatusBanner />
     <Header
@@ -103,7 +120,7 @@ const bootDashboard = isOwner && (!requestedTab || requestedTab === "dashboard")
       signInAutoOpen={!userId}
     />
 
-    {isOwner ? (
+    {canAccessAdmin ? (
       <>
         <AdminMapChrome bootDashboard={bootDashboard} />
         <AdminPanelMounts bootDashboard={bootDashboard} />
@@ -123,12 +140,12 @@ const bootDashboard = isOwner && (!requestedTab || requestedTab === "dashboard")
       <main class="admin-access-denied">
         <div class="admin-access-denied-card">
           <p class="admin-access-denied-kicker">Signed in</p>
-          <h1>This account isn’t an administrator yet</h1>
+          <h1>This account isn’t on the team yet</h1>
           <p>
             You’re signed in{signedInAs ? ` as ${signedInAs}` : ""}, but admin
             access hasn’t been granted to this account.
           </p>
-          <p>Ask the site owner to enable it, then refresh this page.</p>
+          <p>Ask the site owner to invite you from Team, then refresh this page.</p>
           <a class="admin-access-denied-home" href="/">Back to the site</a>
         </div>
       </main>

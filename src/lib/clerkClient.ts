@@ -381,6 +381,57 @@ export async function clerkCreateUser(opts: {
   return { ok: true, user: r.body as ClerkUser };
 }
 
+/** Create an instance invitation (email) for the current Clerk app. */
+export async function clerkCreateInvitation(opts: {
+  email_address: string;
+  redirect_url?: string;
+  public_metadata?: Record<string, unknown>;
+  notify?: boolean;
+  ignore_existing?: boolean;
+}): Promise<{
+  ok: boolean;
+  invitation?: { id: string; email_address?: string; status?: string };
+  error?: string;
+}> {
+  const r = await backendPost('/invitations', {
+    email_address: opts.email_address,
+    redirect_url: opts.redirect_url,
+    public_metadata: opts.public_metadata,
+    notify: opts.notify !== false,
+    ignore_existing: opts.ignore_existing === true,
+  });
+  if (!r.ok) {
+    const errors = (r.body as Record<string, unknown>)?.errors;
+    const msg = Array.isArray(errors)
+      ? (errors[0] as Record<string, unknown>)?.message
+      : (r.body as Record<string, unknown>)?.message ?? `Clerk API error ${r.status}`;
+    return { ok: false, error: String(msg) };
+  }
+  const body = r.body as Record<string, unknown>;
+  return {
+    ok: true,
+    invitation: {
+      id: String(body.id ?? ''),
+      email_address: typeof body.email_address === 'string' ? body.email_address : opts.email_address,
+      status: typeof body.status === 'string' ? body.status : undefined,
+    },
+  };
+}
+
+/** Revoke a pending Clerk invitation. */
+export async function clerkRevokeInvitation(
+  invitationId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const r = await backendPost(`/invitations/${encodeURIComponent(invitationId)}/revoke`, {});
+  if (!r.ok) {
+    const msg =
+      (r.body as Record<string, unknown>)?.message ??
+      `Clerk API error ${r.status}`;
+    return { ok: false, error: String(msg) };
+  }
+  return { ok: true };
+}
+
 /** Update a user in the current Clerk app. */
 export async function clerkUpdateUser(
   userId: string,

@@ -475,6 +475,7 @@ export const MAPS = {
   deploy:    { id: 'deploy',    title: 'Deploy Wizard', icon: 'sparkles', link: '/deploy', nodes: [], edges: [], groups: [] },
   'sales-sheet': { id: 'sales-sheet', title: 'Sales sheet', icon: 'receipt', link: '/admin/sales-sheet', nodes: [], edges: [], groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
+  team:      { id: 'team',      title: 'Team',       icon: '👥',  type: 'team',          nodes: [],             edges: [],             groups: [] },
   company:   { id: 'company',   title: 'Company',    icon: '🏢',  type: 'company',       nodes: [],             edges: [],             groups: [] },
   settings:  { id: 'settings',  title: 'Settings',   icon: '⚙️',  type: 'settings',      nodes: [],             edges: [],             groups: [] },
   socials:   { id: 'socials',   title: 'Socials',    icon: '🔗',  type: 'socials',       nodes: [],             edges: [],             groups: [] },
@@ -492,7 +493,7 @@ export const MAPS = {
 export const ADMIN_PRIMARY_PAGE_KEYS = ['dashboard', 'chats', 'email', 'work', 'schedule', 'clients', 'todo', 'punchlist'];
 
 /** Account pages keep the wordmark + their own pane back. Keep in sync with src/lib/adminSpecialPages.ts. */
-export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'company', 'settings', 'socials', 'addons', 'ai-services', 'industries', 'vapi', 'lead-scanner'];
+export const ADMIN_SETTINGS_PAGE_KEYS = ['profile', 'team', 'company', 'settings', 'socials', 'addons', 'ai-services', 'industries', 'vapi', 'lead-scanner'];
 
 const ADMIN_PRIMARY_PAGE_SET = new Set(ADMIN_PRIMARY_PAGE_KEYS);
 const ADMIN_SETTINGS_PAGE_SET = new Set(ADMIN_SETTINGS_PAGE_KEYS);
