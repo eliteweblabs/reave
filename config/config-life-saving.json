@@ -1,0 +1,44 @@
+{
+  "features": [
+    "billing",
+    "client_portal",
+    "digital_signature",
+    "documents",
+    "email_marketing",
+    "portal_assistant",
+    "real_estate_data",
+    "scheduling",
+    "time_tracking",
+    "web_handoff",
+    "website",
+    "wordpress_content"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "email",
+    "rules",
+    "work",
+    "schedule",
+    "clients",
+    "social",
+    "media",
+    "analytics",
+    "finance"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "addons"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "homepageTemplate": "landing",
+  "siteContentKey": "life-saving"
+}
