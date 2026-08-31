@@ -102,8 +102,14 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
     --home-sticky-cta-bottom: 5px;
     --home-hero-brand-bottom: 42%;
-    --home-hero-icon-size: clamp(190px, 42vw, 312px);
-    --home-hero-icon-pad: 1.25rem; /* ~20px at 16px root */
+    --home-hero-icon-size-max: 312px;
+    --home-hero-icon-size: clamp(190px, 42vw, var(--home-hero-icon-size-max));
+    --home-hero-title-at-max: 2.89rem;
+    /* Title + pad track the mark so the lockup scales as one piece. */
+    --home-hero-title-size: calc(
+      var(--home-hero-title-at-max) * var(--home-hero-icon-size) / var(--home-hero-icon-size-max)
+    );
+    --home-hero-icon-pad: calc(1.25rem * var(--home-hero-icon-size) / var(--home-hero-icon-size-max));
     /*
      * Pasted mark SVGs are 512². Letterforms sit inside ~26.9% empty box
      * above and ~28.5% below. Collapse both so the brand row hugs the ink —
@@ -167,7 +173,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     /* Tuck into empty SVG canvas; leave the 20px pad under the ink. */
     margin: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-below) * -1) 0 0;
     font-family: var(--font-primary);
-    font-size: clamp(1.53rem, 4.29vw, 2.89rem);
+    font-size: var(--home-hero-title-size);
     font-weight: 700;
     letter-spacing: -0.04em;
     line-height: 1.08;
@@ -175,8 +181,6 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     text-align: center;
     /* Keep the headline on one line above small screens (brand column can wrap it otherwise). */
     white-space: nowrap;
-    /* One clamp for every width — a second phone clamp was stepping the size
-       when the forced <br> kicked in. Stop iOS from resizing on wrap. */
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
     -webkit-user-select: none;
