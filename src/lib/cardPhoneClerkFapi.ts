@@ -138,28 +138,56 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
 }
 
-function phoneCodeFactor(json: Record<string, unknown>): { phoneNumberId: string } | null {
-  const response = asRecord(json.response) ?? json;
-  const factors = response.supported_first_factors;
-  if (!Array.isArray(factors)) return null;
-  for (const row of factors) {
-    const factor = asRecord(row);
-    if (factor?.strategy === 'phone_code' && typeof factor.phone_number_id === 'string') {
-      return { phoneNumberId: factor.phone_number_id };
+function signInFromEnvelope(json: Record<string, unknown>): Record<string, unknown> | null {
+  const response = asRecord(json.response);
+  if (response) {
+    const object = typeof response.object === 'string' ? response.object : '';
+    if (object === 'sign_in_attempt' || (typeof response.id === 'string' && response.id.startsWith('sia_'))) {
+      return response;
     }
+  }
+  const client = asRecord(json.client);
+  const nested = asRecord(client?.sign_in ?? client?.signIn);
+  return nested ?? response ?? json;
+}
+
+function factorList(signIn: Record<string, unknown>): unknown[] {
+  const factors = signIn.supported_first_factors ?? signIn.supportedFirstFactors;
+  return Array.isArray(factors) ? factors : [];
+}
+
+function phoneCodeFactor(signIn: Record<string, unknown>): { phoneNumberId: string } | null {
+  for (const row of factorList(signIn)) {
+    const factor = asRecord(row);
+    if (factor?.strategy !== 'phone_code') continue;
+    const id =
+      (typeof factor.phone_number_id === 'string' && factor.phone_number_id) ||
+      (typeof factor.phoneNumberId === 'string' && factor.phoneNumberId) ||
+      '';
+    if (id) return { phoneNumberId: id };
   }
   return null;
 }
 
-function signInStatus(json: Record<string, unknown>): string {
-  const response = asRecord(json.response) ?? json;
-  return typeof response.status === 'string' ? response.status : '';
+function resourceId(json: Record<string, unknown>): string {
+  const signIn = signInFromEnvelope(json);
+  const id = signIn?.id;
+  return typeof id === 'string' ? id : '';
 }
 
-function resourceId(json: Record<string, unknown>): string {
-  const response = asRecord(json.response) ?? json;
-  const id = response.id;
-  return typeof id === 'string' ? id : '';
+function phoneCodeAlreadyPrepared(signIn: Record<string, unknown>): boolean {
+  const verification = asRecord(signIn.first_factor_verification ?? signIn.firstFactorVerification);
+  if (!verification || verification.strategy !== 'phone_code') return false;
+  const status = verification.status;
+  return status === 'unverified' || status === 'verified';
+}
+
+async function ensureClerkClient(
+  request: Request,
+  jar: Record<string, string>,
+): Promise<Record<string, string>> {
+  const boot = await clerkFapiJson(request, jar, 'v1/client', 'GET');
+  return boot.cookies;
 }
 
 export async function startCardPhoneLogin(
@@ -167,17 +195,30 @@ export async function startCardPhoneLogin(
   phoneE164: string,
   allowSignUp: boolean,
 ): Promise<CardLoginPending> {
-  let cookies: Record<string, string> = {};
+  let cookies = await ensureClerkClient(request, {});
 
   try {
     const created = await clerkFapiJson(request, cookies, 'v1/client/sign_ins', 'POST', {
       identifier: phoneE164,
+      strategy: 'phone_code',
     });
     cookies = created.cookies;
-    const signInId = resourceId(created.json);
-    const factor = phoneCodeFactor(created.json);
-    if (!signInId || !factor) {
-      if (signInStatus(created.json) === 'needs_identifier') {
+    const signIn = signInFromEnvelope(created.json);
+    const signInId = typeof signIn?.id === 'string' ? signIn.id : '';
+    const factor = signIn ? phoneCodeFactor(signIn) : null;
+    if (!signInId || !signIn) {
+      throw new Error('Could not start sign-in for this number.');
+    }
+    if (phoneCodeAlreadyPrepared(signIn)) {
+      return {
+        mode: 'sign-in',
+        resourceId: signInId,
+        cookies,
+        exp: Date.now() + 10 * 60 * 1000,
+      };
+    }
+    if (!factor) {
+      if (signIn.status === 'needs_identifier') {
         throw new ClerkFapiError(
           'Could not verify this phone number. Try again from the browser.',
           'needs_identifier',
@@ -185,6 +226,14 @@ export async function startCardPhoneLogin(
           created.json,
         );
       }
+      const strategies = factorList(signIn)
+        .map((row) => asRecord(row)?.strategy)
+        .filter((value): value is string => typeof value === 'string');
+      console.warn('[card-login] sign-in missing phone_code factor', {
+        signInId,
+        status: signIn.status,
+        strategies,
+      });
       throw new Error('Phone codes are not enabled for this number.');
     }
     const prepared = await clerkFapiJson(request, cookies, `v1/client/sign_ins/${signInId}/prepare_first_factor`, 'POST', {
@@ -204,6 +253,8 @@ export async function startCardPhoneLogin(
       throw err instanceof Error ? err : new Error('Could not send a code.');
     }
   }
+
+  cookies = await ensureClerkClient(request, cookies);
 
   const signUp = await clerkFapiJson(request, cookies, 'v1/client/sign_ups', 'POST', {
     phone_number: phoneE164,
@@ -243,8 +294,11 @@ export async function finishCardPhoneLogin(
       'POST',
       { strategy: 'phone_code', code: digits },
     );
-    const response = asRecord(verified.json.response) ?? verified.json;
-    const sessionId = typeof response.created_session_id === 'string' ? response.created_session_id : '';
+    const response = signInFromEnvelope(verified.json) ?? verified.json;
+    const sessionId =
+      (typeof response.created_session_id === 'string' && response.created_session_id) ||
+      (typeof response.createdSessionId === 'string' && response.createdSessionId) ||
+      '';
     if (response.status !== 'complete' || !sessionId) {
       throw new Error('That code did not finish sign-in.');
     }
@@ -258,8 +312,11 @@ export async function finishCardPhoneLogin(
     'POST',
     { strategy: 'phone_code', code: digits },
   );
-  const response = asRecord(verified.json.response) ?? verified.json;
-  const sessionId = typeof response.created_session_id === 'string' ? response.created_session_id : '';
+  const response = signInFromEnvelope(verified.json) ?? verified.json;
+  const sessionId =
+    (typeof response.created_session_id === 'string' && response.created_session_id) ||
+    (typeof response.createdSessionId === 'string' && response.createdSessionId) ||
+    '';
   if (response.status !== 'complete' || !sessionId) {
     throw new Error('That code did not finish sign-in.');
   }

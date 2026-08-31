@@ -34,6 +34,57 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Sticky sales-demo notice */
+.demo-notice {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--gold-nav);
+  color: var(--navy);
+  border-bottom: 1px solid color-mix(in srgb, var(--navy) 14%, transparent);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.demo-notice .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.55rem 0;
+}
+
+.demo-notice p {
+  flex: 1 1 14rem;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.demo-notice strong {
+  font-weight: 700;
+}
+
+.demo-notice__btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--navy);
+  color: var(--white);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.demo-notice__btn:hover {
+  background: color-mix(in srgb, var(--navy) 88%, black);
+}
+
 img,
 svg {
   display: block;
@@ -208,9 +259,20 @@ select {
   padding: 0 0.75rem;
 }
 
-.hero__dogs svg {
+.hero__dogs-silhouette {
   width: 100%;
-  height: auto;
+  aspect-ratio: 1280 / 280;
+  max-height: 11rem;
+  background: color-mix(in srgb, var(--navy) 38%, transparent);
+  mask-image: url("./images/dogs-row.png");
+  mask-mode: luminance;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center bottom;
+  -webkit-mask-image: url("./images/dogs-row.png");
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center bottom;
 }
 
 .hero__caption {
@@ -314,6 +376,63 @@ select {
   color: var(--gold);
 }
 
+.price-grid {
+  margin-top: 2rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.price-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  padding: 1.35rem 1.2rem;
+}
+
+.price-card h3 {
+  color: var(--navy);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.price-card__term {
+  margin-top: 0.25rem;
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.price-card__amount {
+  margin-top: 0.55rem;
+  color: var(--navy);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.price-card p:last-child {
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.price-note {
+  margin-top: 1.35rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.price-note a {
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.price-note a:hover {
+  color: var(--gold);
+}
+
 /* Booking */
 .book-grid {
   margin-top: 1.75rem;
@@ -332,10 +451,18 @@ select {
   gap: 1rem;
 }
 
+.form fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
 .form legend,
 .form label span {
   display: block;
   margin-bottom: 0.4rem;
+  padding: 0;
   color: var(--navy);
   font-size: 0.68rem;
   font-weight: 700;
