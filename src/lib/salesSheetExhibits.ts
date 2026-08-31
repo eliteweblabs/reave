@@ -1311,13 +1311,14 @@ export function renderFindingPhoneHtml(finding: SalesSheetFinding, opts: SalesSh
 }
 
 /**
- * Client-portal Overview: the sticky sales-sheet directories iPhone
- * (28 icons, A–Z) plus legend and coverage summary.
+ * Client-portal Overview: responsive directory icon grid (no phone skin)
+ * plus legend and coverage summary.
  */
 export function renderPortalDirectoriesExhibitHtml(opts: {
   directoryChecks: DirectoryCheck[];
   website?: string;
   businessName?: string;
+  /** @deprecated Ignored — portal no longer uses the iPhone frame. */
   frameSrc?: string;
   directoryIconGroup?: string | null;
 }): string {
@@ -1327,54 +1328,162 @@ export function renderPortalDirectoriesExhibitHtml(opts: {
     problem: summarizeDirectoryChecks(opts.directoryChecks),
     solution: DIRECTORY_COVERAGE_FINDING.solution,
   };
-  const phone = renderFindingPhoneHtml(finding, {
-    website: opts.website,
-    businessName: opts.businessName,
-    frameSrc: opts.frameSrc,
-    directoryChecks: opts.directoryChecks,
-    directoryIconGroup: opts.directoryIconGroup,
-  });
+  const slugs = directorySlugsForGroup(opts.directoryIconGroup);
+  const checks =
+    opts.directoryChecks?.length === slugs.length
+      ? opts.directoryChecks
+      : verdictsFromListed(
+          listedDirectorySlugs({
+            text: [finding.problem, finding.solution].filter(Boolean).join('\n'),
+          }),
+          slugs,
+        );
+  const grid = `<div class="portal-dirs-grid" data-icon-group="${escapeHtml(opts.directoryIconGroup || 'general')}" data-ss-exhibit="directories">${checks.map(directoryTileHtml).join('')}</div>`;
   return `
 <style>
-${iphoneCss()}
 .portal-dirs-exhibit {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
   margin: 1.25rem 0 0.5rem;
   padding: 1rem 0.75rem 1.1rem;
   border-radius: 16px;
-  background: rgba(127, 127, 127, 0.08);
+  background: var(--site-card, rgba(127, 127, 127, 0.08));
+  color: var(--site-fg, #171717);
 }
-.portal-dirs-exhibit .ss-phone {
-  width: min(220px, 58vw);
-  margin: 0 auto;
+.portal-dirs-grid {
+  width: 100%;
+  max-width: 720px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem 0.5rem;
+  margin: 0;
+  padding: 0;
 }
+@media (min-width: 560px) {
+  .portal-dirs-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+@media (min-width: 860px) {
+  .portal-dirs-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    max-width: 880px;
+  }
+}
+.portal-dirs-exhibit .ss-phone-dir {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  background: transparent;
+}
+.portal-dirs-exhibit .ss-phone-dir-mark {
+  position: relative;
+  width: min(100%, 56px);
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+}
+.portal-dirs-exhibit .ss-phone-dir-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 22.37%;
+  overflow: hidden;
+  background: #d8d8de;
+}
+.portal-dirs-exhibit .ss-phone-dir-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.portal-dirs-exhibit .ss-phone-dir-name {
+  display: block;
+  width: 100%;
+  margin-top: 0.28rem;
+  font-size: clamp(9px, 2.4vw, 11px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--site-fg, #171717);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.portal-dirs-exhibit .ss-phone-dir-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  box-shadow: 0 0 0 1.5px var(--site-canvas, #fff);
+}
+.portal-dirs-exhibit .ss-phone-dir-badge svg {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+.portal-dirs-exhibit .ss-phone-dir-badge--ok { background: #34c759; }
+.portal-dirs-exhibit .ss-phone-dir-badge--half { background: #ff9f0a; }
+.portal-dirs-exhibit .ss-phone-dir-badge--miss { background: #ff3b30; }
 .portal-dirs-kicker {
   margin: 0;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted, #6b6b6b);
+  color: var(--site-fg-muted, var(--muted, #6b6b6b));
 }
 .portal-dirs-exhibit .ss-exhibit-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
   width: 100%;
-  max-width: 280px;
+  max-width: 320px;
+  margin: 0;
+}
+.portal-dirs-exhibit .ss-exhibit-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  color: var(--site-fg, #171717);
+}
+.portal-dirs-exhibit .ss-exhibit-legend-dot {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+}
+.portal-dirs-exhibit .ss-exhibit-legend-dot svg {
+  display: block;
+  width: 8px;
+  height: 8px;
 }
 .portal-dirs-summary {
   margin: 0;
-  max-width: 320px;
+  max-width: 420px;
   text-align: center;
   font-size: 13px;
-  line-height: 1.4;
-  color: var(--text, inherit);
-  opacity: 0.85;
+  line-height: 1.45;
+  color: var(--site-fg-muted, var(--site-fg, inherit));
 }
 </style>
 <div class="portal-dirs-exhibit">
-  ${phone}
+  ${grid}
   <p class="portal-dirs-kicker">${escapeHtml(finding.categoryLabel)}</p>
   ${directoryLegendHtml()}
   <p class="portal-dirs-summary">${escapeHtml(finding.problem)}</p>
