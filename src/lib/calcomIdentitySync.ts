@@ -4,9 +4,10 @@
  * Two paths, both sourced from the always-on `reave` node:
  *  1. Railway references on calcom-web-app (`${{ reave.EMAIL_FROM }}`, …)
  *     — wizard apply, or pickup when the sibling appears later.
- *  2. Cal.com `users` row (avatar / username / email / name) so the
- *     personal onboarding form is already filled. Stock Cal.com does not
- *     read a username/avatar env var.
+ *  2. Cal.com `users` row (avatar / username / email / name). When the
+ *     database is empty we INSERT the owner + default event types — signup
+ *     is disabled, so there is no onboarding form to finish. Stock Cal.com
+ *     does not read a username/avatar env var.
  */
 import pg from 'pg';
 import { railwayListVariables, railwayResolveScope, railwaySetVariables } from './railwayAgentApi';
@@ -15,17 +16,20 @@ import { DEPLOY_APP_SERVICE, railwayLocalRef, railwayRef } from './deployWizardC
 import { resolveInstallIdentity, type InstallIdentity } from './installIdentity';
 import { createLogger } from './logger';
 import { serverEnv } from './serverEnv';
+import { ensureCalcomOwnerEventTypes, provisionCalcomOwner, type SqlQuery } from './calcomOwnerProvision';
 
 const log = createLogger('calcom-identity');
 
 const CALCOM_WEB = 'calcom-web-app';
 const CALCOM_POSTGRES = 'calcom-postgres';
+const CALCOM_BOOKING = 'calcom-booking-api';
+const DEFAULT_TZ = 'America/New_York';
 
 export type CalcomIdentitySyncResult = {
   ok: boolean;
   identity: InstallIdentity;
   railway?: { updated: string[]; skipped: string[] };
-  profile?: { updated: boolean; userId?: number; reason?: string };
+  profile?: { updated: boolean; created?: boolean; userId?: number; reason?: string };
   error?: string;
 };
 
@@ -130,6 +134,26 @@ async function applyRailwayIdentity(
   updated.push(...calApply.updated.map((n) => `${CALCOM_WEB}.${n}`));
   skipped.push(...calApply.skipped.map((n) => `${CALCOM_WEB}.${n}`));
 
+  if (hasService(names, CALCOM_BOOKING)) {
+    const bookingVars = await railwayListVariables({ project, service: CALCOM_BOOKING });
+    const bookingExisting = bookingVars.ok ? bookingVars.variables : {};
+    const mapbox =
+      reaveExisting.MAPBOX_ACCESS_TOKEN?.trim() ||
+      reaveExisting.PUBLIC_MAPBOX_ACCESS_TOKEN?.trim()
+        ? railwayRef(
+            appService,
+            reaveExisting.MAPBOX_ACCESS_TOKEN?.trim() ? 'MAPBOX_ACCESS_TOKEN' : 'PUBLIC_MAPBOX_ACCESS_TOKEN',
+          )
+        : '';
+    const bookingDesired: Record<string, string> = {
+      CALCOM_USERNAME: railwayRef(appService, 'CALCOM_USERNAME'),
+    };
+    if (mapbox) bookingDesired.MAPBOX_ACCESS_TOKEN = mapbox;
+    const bookingApply = await ensureVars(CALCOM_BOOKING, bookingDesired, bookingExisting, project);
+    updated.push(...bookingApply.updated.map((n) => `${CALCOM_BOOKING}.${n}`));
+    skipped.push(...bookingApply.skipped.map((n) => `${CALCOM_BOOKING}.${n}`));
+  }
+
   return { updated, skipped };
 }
 
@@ -152,7 +176,7 @@ async function resolveCalcomDatabaseUrl(project?: string): Promise<string | null
 async function syncCalcomUserProfile(
   identity: InstallIdentity,
   project?: string,
-): Promise<{ updated: boolean; userId?: number; reason?: string }> {
+): Promise<{ updated: boolean; created?: boolean; userId?: number; reason?: string }> {
   if (!identity.username && !identity.email && !identity.name && !identity.iconUrl) {
     return { updated: false, reason: 'install identity is empty' };
   }
@@ -189,8 +213,19 @@ async function syncCalcomUserProfile(
     if (!cols.has('id')) return { updated: false, reason: 'Cal.com users table has no id' };
 
     const users = await pool.query<UserRow>(`SELECT id, username, email, name FROM ${table} ORDER BY id ASC LIMIT 20`);
+    const timezone = serverEnv('BOOKING_TIMEZONE')?.trim() || DEFAULT_TZ;
+    const query = ((sql: string, values?: unknown[]) => pool.query(sql, values)) as SqlQuery;
+
     if (!users.rows.length) {
-      return { updated: false, reason: 'no Cal.com user yet — finish signup once, then reave.app fills the profile' };
+      const provisioned = await provisionCalcomOwner(query, identity, timezone);
+      if (!provisioned.created) {
+        return { updated: false, reason: provisioned.reason || 'could not create Cal.com owner' };
+      }
+      log.info('calcom owner provisioned', {
+        userId: provisioned.userId,
+        eventTypes: provisioned.eventTypes,
+      });
+      return { updated: true, created: true, userId: provisioned.userId, reason: 'created owner + default event types' };
     }
 
     const emailLc = identity.email.toLowerCase();
@@ -199,6 +234,12 @@ async function syncCalcomUserProfile(
       users.rows.find((u) => u.email && u.email.toLowerCase() === emailLc) ||
       users.rows[0];
     if (!match) return { updated: false, reason: 'no Cal.com user to update' };
+
+    await ensureCalcomOwnerEventTypes(query, match.id, timezone).catch((e) => {
+      log.warn('calcom event type seed skipped', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    });
 
     const sets: string[] = [];
     const values: unknown[] = [];

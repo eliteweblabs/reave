@@ -56,7 +56,7 @@ import {
 } from './work-panel.js?v=20260830a';
 import { createDetailChrome, createDetailFormScroll, createDetailPanelBody } from './detail-tabs.js?v=20260807b';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
-import { mountAddressAutocomplete } from './schedule-panel.js?v=20260830a';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260831a';
 import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 

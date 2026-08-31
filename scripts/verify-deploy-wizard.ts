@@ -241,6 +241,20 @@ assert.equal(calDb?.filled, '${{ calcom-postgres.DATABASE_URL }}');
 const named = buildDeployWizardPlan({ features: ['scheduling'], installSlug: 'tonybarlettajr' });
 const namedUser = named.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_USERNAME');
 assert.equal(namedUser?.filled, 'tonybarlettajr');
+const bookingUser = named.variables.find((v) => v.service === 'calcom-booking-api' && v.name === 'CALCOM_USERNAME');
+assert.equal(bookingUser?.kind, 'reference');
+assert.equal(bookingUser?.filled, '${{ reave.CALCOM_USERNAME }}');
+const bookingMapbox = named.variables.find((v) => v.service === 'calcom-booking-api' && v.name === 'MAPBOX_ACCESS_TOKEN');
+assert.equal(bookingMapbox?.filled, '${{ reave.PUBLIC_MAPBOX_ACCESS_TOKEN }}');
+const jkPlan = buildDeployWizardPlan({ features: ['scheduling'], installSlug: 'jk' });
+assert.equal(
+  jkPlan.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_USERNAME')?.filled,
+  'jk',
+);
+assert.equal(
+  jkPlan.variables.find((v) => v.service === 'calcom-booking-api' && v.name === 'CALCOM_USERNAME')?.filled,
+  '${{ reave.CALCOM_USERNAME }}',
+);
 assert.equal(slugifyCalcomUsername('Tony Barletta Jr.'), 'tonybarlettajr');
 assert.equal(slugifyCalcomUsername('https://tonybarlettajr.com/'), 'tonybarlettajr');
 assert.equal(parseEmailAddress('Tony Barletta Jr. <hello@tonybarlettajr.com>'), 'hello@tonybarlettajr.com');

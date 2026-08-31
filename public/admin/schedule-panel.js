@@ -2363,7 +2363,10 @@ function renderSchedulePanel() {
     body.appendChild(err);
     const hint = document.createElement('div');
     hint.className = 'de-empty';
-    hint.innerHTML = 'Enable <code>scheduling</code> in FEATURES and set BOOKING_API_URL on Railway.';
+    const userMissing = /user not found/i.test(scheduleState.error || '');
+    hint.innerHTML = userMissing
+      ? 'Cal.com has no owner user for this install yet. The deploy wizard should create one from <code>CALCOM_USERNAME</code> (the install slug) and point <code>calcom-booking-api</code> at it. Redeploy after that lands — do not finish Cal.com signup; public signup is off on purpose.'
+      : 'Enable <code>scheduling</code> in FEATURES and set BOOKING_API_URL on Railway.';
     body.appendChild(hint);
   } else {
     renderScheduleCalendarBody(body);
