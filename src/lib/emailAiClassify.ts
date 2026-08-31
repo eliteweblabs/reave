@@ -6,6 +6,8 @@
  */
 
 import { serverEnv } from './serverEnv';
+import { createAnthropicMessage } from './anthropicMessages';
+import { resolveAnthropicApiKey } from './anthropicEndpoint';
 import { normalizeEmailBody } from './emailBody';
 import {
   formatAttachmentListForPrompt,
@@ -156,7 +158,7 @@ export async function runAiClassify(
   contactKind: string | null,
   receivedAtIso?: string,
 ): Promise<AiClassifyResult | null> {
-  const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
+  const key = resolveAnthropicApiKey()?.trim();
   if (!key) return null;
 
   const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';
@@ -230,26 +232,20 @@ Attachments: when the body is empty but Attachments are listed, summarize the at
     .join('\n');
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 500,
-        system,
-        messages: [{ role: 'user', content: user }],
-      }),
+    const result = await createAnthropicMessage({
+      model,
+      max_tokens: 500,
+      system,
+      messages: [{ role: 'user', content: user }],
     });
-    if (!res.ok) {
-      console.warn('[email] AI classify HTTP', res.status);
+    if (!result.ok) {
+      console.warn('[email] AI classify HTTP', result.status);
       return null;
     }
-    const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
-    const text = data.content?.find((c) => c.type === 'text')?.text?.trim() ?? '';
+    const data = result.data;
+    const text = (data.content as Array<{ type: string; text?: string }> | undefined)
+      ?.find((c) => c.type === 'text')
+      ?.text?.trim() ?? '';
     const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
     const parsed = JSON.parse(cleaned) as Record<string, unknown>;
     const label = normalizeLabel(parsed.label ?? parsed.category);

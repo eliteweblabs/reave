@@ -3,6 +3,7 @@ import type { APIContext } from 'astro';
 import { getAgentModelSettings } from '../../lib/agentModel';
 import {
   isAnthropicGatewayConfigured,
+  isOpenRouterGateway,
   resolveAnthropicEndpoint,
 } from '../../lib/anthropicEndpoint';
 import { enabledFeatures, FEATURE_LABELS, hasFeature, type FeatureId } from '../../lib/features';
@@ -208,8 +209,13 @@ export const GET: APIRoute = async (context) => {
     crater: craterProbe,
     anthropic: anthropicEndpoint
       ? configured(anthropicDetail ?? 'LLM key set')
-      : unconfigured('ANTHROPIC_API_KEY / OMNIROUTE_API_KEY not set'),
-    omniroute: isAnthropicGatewayConfigured()
+      : unconfigured('ANTHROPIC_API_KEY / OPENROUTER_API_KEY / OMNIROUTE_API_KEY not set'),
+    openrouter: isOpenRouterGateway()
+      ? anthropicEndpoint
+        ? configured(`Messages via ${anthropicEndpoint.host}`)
+        : unconfigured('OPENROUTER_API_KEY not set')
+      : unconfigured('OPENROUTER_API_KEY not set'),
+    omniroute: isAnthropicGatewayConfigured() && !isOpenRouterGateway()
       ? anthropicEndpoint
         ? configured(`Messages via ${anthropicEndpoint.host}`)
         : unconfigured('ANTHROPIC_BASE_URL set · gateway key missing')

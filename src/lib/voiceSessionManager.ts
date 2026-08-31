@@ -12,6 +12,7 @@
  *   VOICE_GREETING         — Custom greeting prompt (optional).
  */
 import { ANTHROPIC_PROMPT_CACHE, createAnthropicMessage } from './anthropicMessages';
+import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { serverEnv } from './serverEnv';
 import { hasFeature } from './features';
 
@@ -126,9 +127,8 @@ export async function runVoiceAgent(
   callControlId: string,
   userText: string,
 ): Promise<string | null> {
-  const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
-  if (!key) {
-    console.warn('[voice] ANTHROPIC_API_KEY not set, cannot run AI agent');
+  if (!isAnthropicLlmConfigured()) {
+    console.warn('[voice] LLM key not set (ANTHROPIC_API_KEY / OPENROUTER_API_KEY), cannot run AI agent');
     return null;
   }
 

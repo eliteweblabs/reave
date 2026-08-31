@@ -7,6 +7,7 @@ import { getAgentModelSettings, type AgentModelSettings } from './agentModel';
 import { getAnthropicBalance, type AnthropicBalance } from './anthropicBalance';
 import {
   isAnthropicGatewayConfigured,
+  isOpenRouterGateway,
   resolveAnthropicApiKey,
   resolveAnthropicBaseUrl,
   resolveAnthropicEndpoint,
@@ -20,6 +21,7 @@ import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from './vapiPlugin';
 
 export const AI_SERVICE_PROVIDERS = [
   'anthropic',
+  'openrouter',
   'omniroute',
   'openai',
   'google',
@@ -89,6 +91,8 @@ export function labelForProvider(provider: AiServiceProvider): string {
   switch (provider) {
     case 'anthropic':
       return 'Anthropic';
+    case 'openrouter':
+      return 'OpenRouter';
     case 'omniroute':
       return 'OmniRoute';
     case 'openai':
@@ -137,7 +141,7 @@ function anthropicBuiltin(model: AgentModelSettings, keySource: AnthropicKeySour
       purpose: 'chat',
       status: 'missing',
       detail: isAnthropicGatewayConfigured()
-        ? 'Gateway key not set (OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN)'
+        ? 'Gateway key not set (OPENROUTER_API_KEY / OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN)'
         : 'ANTHROPIC_API_KEY not set',
     };
   }
@@ -156,6 +160,36 @@ function anthropicBuiltin(model: AgentModelSettings, keySource: AnthropicKeySour
   };
 }
 
+function openrouterBuiltin(): BuiltinAiService {
+  const base = {
+    id: 'openrouter',
+    kind: 'builtin' as const,
+    name: 'OpenRouter gateway',
+    provider: 'openrouter' as const,
+    purpose: 'chat' as const,
+  };
+  if (!isOpenRouterGateway()) {
+    return {
+      ...base,
+      status: 'missing',
+      detail: 'Set OPENROUTER_API_KEY to route Claude through OpenRouter',
+    };
+  }
+  if (!resolveAnthropicApiKey()) {
+    return {
+      ...base,
+      status: 'missing',
+      detail: `Gateway ${resolveAnthropicBaseUrl()} · missing OPENROUTER_API_KEY`,
+    };
+  }
+  const endpoint = resolveAnthropicEndpoint();
+  return {
+    ...base,
+    status: 'configured',
+    detail: `Routing Messages API via ${endpoint?.host ?? 'openrouter.ai'}`,
+  };
+}
+
 function omnirouteBuiltin(): BuiltinAiService {
   const base = {
     id: 'omniroute',
@@ -164,7 +198,7 @@ function omnirouteBuiltin(): BuiltinAiService {
     provider: 'omniroute' as const,
     purpose: 'chat' as const,
   };
-  if (!isAnthropicGatewayConfigured()) {
+  if (!isAnthropicGatewayConfigured() || isOpenRouterGateway()) {
     return {
       ...base,
       status: 'missing',
@@ -290,6 +324,7 @@ export async function listBuiltinAiServices(): Promise<{
   const anthropicKeySource = getAnthropicKeySource();
   return {
     builtins: [
+      openrouterBuiltin(),
       omnirouteBuiltin(),
       anthropicBuiltin(model, anthropicKeySource),
       vapiBuiltin(),

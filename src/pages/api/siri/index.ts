@@ -67,6 +67,7 @@ import {
 import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { sendTelnyxSms } from '../../../lib/telnyxClient';
 import { serverEnv } from '../../../lib/serverEnv';
+import { isAnthropicLlmConfigured } from '../../../lib/anthropicEndpoint';
 import { cachedCompanyBrandName } from '../../../lib/companyConfig';
 import { secretMatches } from '../../../lib/secretCompare';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -1343,7 +1344,7 @@ async function handleStatus(): Promise<SiriResponse> {
   const checks = {
     contactApi: isContactApiConfigured(),
     telnyx: Boolean(serverEnv('TELNYX_API_KEY')),
-    anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')),
+    anthropic: isAnthropicLlmConfigured(),
   };
 
   const statusWord = (up: boolean) => (up ? 'online' : 'offline');

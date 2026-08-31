@@ -11,6 +11,8 @@ import { serverEnv } from './serverEnv';
 import { postToSystemAlertsThread, agentAlertUserId } from './adminAgentAlert';
 import { sendTelnyxSms } from './telnyxClient';
 import { isSleepModeActive } from './pushQuietHours';
+import { createAnthropicMessage } from './anthropicMessages';
+import { resolveAnthropicApiKey } from './anthropicEndpoint';
 
 export interface InboundSms {
   from: string;
@@ -51,30 +53,22 @@ function formatSmsAlert(sms: InboundSms): string {
 }
 
 async function aiReply(sms: InboundSms): Promise<string | null> {
-  const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
-  if (!key) return null;
+  if (!resolveAnthropicApiKey()?.trim()) return null;
 
   const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 200,
-        system:
-          'You are a concise SMS assistant. Reply in 1–2 sentences max. No markdown, no lists. If you cannot help with the request, politely say so and suggest they call or email.',
-        messages: [{ role: 'user', content: sms.text }],
-      }),
+    const result = await createAnthropicMessage({
+      model,
+      max_tokens: 200,
+      system:
+        'You are a concise SMS assistant. Reply in 1–2 sentences max. No markdown, no lists. If you cannot help with the request, politely say so and suggest they call or email.',
+      messages: [{ role: 'user', content: sms.text }],
     });
-    if (!res.ok) return null;
-    const j = (await res.json()) as { content?: Array<{ type: string; text: string }> };
-    const block = j.content?.find((b) => b.type === 'text');
+    if (!result.ok) return null;
+    const block = (result.data.content as Array<{ type: string; text: string }> | undefined)?.find(
+      (b) => b.type === 'text',
+    );
     return block?.text?.trim() || null;
   } catch {
     return null;

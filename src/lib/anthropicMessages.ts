@@ -4,8 +4,10 @@ import { getAgentContext } from './agentContext';
 import { isSleepModeActive } from './pushQuietHours';
 import {
   anthropicRequestHeaders,
+  isOpenRouterGateway,
   resolveAnthropicEndpoint,
 } from './anthropicEndpoint';
+import { toOpenRouterModelId } from './openRouterModel';
 
 export type AnthropicCacheControl = { type: 'ephemeral'; ttl?: '5m' | '1h' };
 
@@ -139,10 +141,20 @@ function logPromptCacheUsage(usage?: AnthropicUsage): void {
 }
 
 function missingKeyMessage(): string {
-  if (serverEnv('ANTHROPIC_BASE_URL')?.trim() || serverEnv('OMNIROUTE_BASE_URL')?.trim()) {
-    return 'LLM gateway key not set (OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY)';
+  if (
+    serverEnv('OPENROUTER_API_KEY')?.trim() ||
+    serverEnv('ANTHROPIC_BASE_URL')?.trim() ||
+    serverEnv('OMNIROUTE_BASE_URL')?.trim() ||
+    serverEnv('OPENROUTER_BASE_URL')?.trim()
+  ) {
+    return 'LLM gateway key not set (OPENROUTER_API_KEY / OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY)';
   }
   return 'ANTHROPIC_API_KEY not set';
+}
+
+function gatewayRequestBody(body: Record<string, unknown>): Record<string, unknown> {
+  if (!isOpenRouterGateway() || typeof body.model !== 'string') return body;
+  return { ...body, model: toOpenRouterModelId(body.model) };
 }
 
 export async function createAnthropicMessage(
@@ -162,12 +174,12 @@ export async function createAnthropicMessage(
   const send = (payload: Record<string, unknown>) =>
     fetch(endpoint.messagesUrl, {
       method: 'POST',
-      headers: anthropicRequestHeaders(endpoint.apiKey, endpoint.viaGateway),
-      body: JSON.stringify(payload),
+      headers: anthropicRequestHeaders(endpoint.apiKey, endpoint.viaGateway, endpoint.gatewayKind),
+      body: JSON.stringify(gatewayRequestBody(payload)),
       signal,
     });
 
-  let payload = withLearnedOutputCap(body);
+  let payload = withLearnedOutputCap(gatewayRequestBody(body));
   let res = await send(payload);
 
   if (!res.ok) {
@@ -233,12 +245,12 @@ export async function streamAnthropicMessage(
   const send = (payload: Record<string, unknown>) =>
     fetch(endpoint.messagesUrl, {
       method: 'POST',
-      headers: anthropicRequestHeaders(endpoint.apiKey, endpoint.viaGateway),
-      body: JSON.stringify({ ...payload, stream: true }),
+      headers: anthropicRequestHeaders(endpoint.apiKey, endpoint.viaGateway, endpoint.gatewayKind),
+      body: JSON.stringify({ ...gatewayRequestBody(payload), stream: true }),
       signal: opts.signal,
     });
 
-  let payload = withLearnedOutputCap(body);
+  let payload = withLearnedOutputCap(gatewayRequestBody(body));
   let res = await send(payload);
 
   if (!res.ok) {

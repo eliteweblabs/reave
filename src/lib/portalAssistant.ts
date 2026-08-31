@@ -9,14 +9,14 @@
  * client's unguessable /c/<uid> link) plus general troubleshooting knowledge
  * built into the model.
  */
-import { serverEnv } from './serverEnv';
 import { resolveAgentModel } from './agentModel';
-import { anthropicApiHeaders } from './anthropicMessages';
+import { createAnthropicMessage } from './anthropicMessages';
+import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { isSleepModeActive } from './pushQuietHours';
 import type { ClientDataEntry, ClientPortalField } from './contactApi';
 
 export function isPortalAssistantConfigured(): boolean {
-  return Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim());
+  return isAnthropicLlmConfigured();
 }
 
 export type PortalAssistantTurn = { role: 'user' | 'assistant'; content: string };
@@ -148,8 +148,7 @@ export async function runPortalAssistantReply(opts: {
   history?: PortalAssistantTurn[];
   signal?: AbortSignal;
 }): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
-  const apiKey = serverEnv('ANTHROPIC_API_KEY');
-  if (!apiKey) return { ok: false, error: 'Assistant is not configured.' };
+  if (!isAnthropicLlmConfigured()) return { ok: false, error: 'Assistant is not configured.' };
   if (await isSleepModeActive()) {
     return {
       ok: false,
@@ -165,24 +164,21 @@ export async function runPortalAssistantReply(opts: {
   ];
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: anthropicApiHeaders(apiKey),
-      body: JSON.stringify({
+    const result = await createAnthropicMessage(
+      {
         model,
         max_tokens: MAX_OUTPUT_TOKENS,
         system,
         messages,
-      }),
-      signal: opts.signal,
-    });
+      },
+      opts.signal,
+    );
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText);
-      return { ok: false, error: `Assistant error (${res.status}): ${text.slice(0, 300)}` };
+    if (!result.ok) {
+      return { ok: false, error: `Assistant error (${result.status}): ${result.text.slice(0, 300)}` };
     }
 
-    const data = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
+    const data = result.data;
     const reply = (data.content ?? [])
       .filter((b) => b.type === 'text')
       .map((b) => b.text ?? '')

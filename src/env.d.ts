@@ -13,6 +13,12 @@ interface ImportMetaEnv {
   ANTHROPIC_KEY_SOURCE?: string;
   /** Optional: defaults to claude-sonnet-4-6 */
   ANTHROPIC_MODEL?: string;
+  /** OpenRouter API key — routes Claude Messages API through OpenRouter when set. */
+  OPENROUTER_API_KEY?: string;
+  /** OpenRouter gateway root (default https://openrouter.ai/api). No `/v1` suffix. */
+  OPENROUTER_BASE_URL?: string;
+  /** Optional app name sent as X-Title to OpenRouter. */
+  OPENROUTER_APP_NAME?: string;
   /** Anthropic Console org id — for live prepaid credit balance in /admin model switcher */
   ANTHROPIC_ORG_ID?: string;
   /** Anthropic Console sessionKey cookie — expires periodically; see .env.example */

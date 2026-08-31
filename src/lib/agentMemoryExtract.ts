@@ -12,6 +12,7 @@ import {
 import { notifyAgentMemoryUpdated } from './agentMemoryNotify';
 import { storeListMemories, storeUpsertMemory } from './agentMemoryStore';
 import { createAnthropicMessage, type AnthropicMessagesResponse } from './anthropicMessages';
+import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { runWithAgentContext } from './agentContext';
 import { createLogger } from './logger';
 import { serverEnv } from './serverEnv';
@@ -112,7 +113,7 @@ export function scheduleAgentMemoryExtract(opts: {
   threadId?: string;
   systemAlert?: boolean;
 }): void {
-  if (!serverEnv('ANTHROPIC_API_KEY')?.trim()) return;
+  if (!isAnthropicLlmConfigured()) return;
   const userId = opts.userId?.trim();
   if (!userId) return;
   if (

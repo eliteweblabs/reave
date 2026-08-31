@@ -40,6 +40,7 @@ import {
   streamAnthropicMessage,
   withToolPromptCaching,
 } from './anthropicMessages';
+import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { runWithAgentContext, getAgentContext, type AgentRunContext } from './agentContext';
 import { appendAgentPartialText, setAgentProgress } from './agentProgress';
 import { isSleepModeActive, sleepModeBlockMessage, getPushQuietHoursSettings } from './pushQuietHours';
@@ -687,9 +688,8 @@ async function runKnowledgeAgentInner(
   }
 
   const { userText, images = [], docs = [], priorTurns = [], model: modelOverride } = opts;
-  const apiKey = serverEnv('ANTHROPIC_API_KEY');
-  if (!apiKey) {
-    return { text: 'LLM is not configured. Set ANTHROPIC_API_KEY.', usage: null };
+  if (!isAnthropicLlmConfigured()) {
+    return { text: 'LLM is not configured. Set ANTHROPIC_API_KEY or OPENROUTER_API_KEY.', usage: null };
   }
 
   const model = await resolveAgentModel(modelOverride, {

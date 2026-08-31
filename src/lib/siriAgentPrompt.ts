@@ -40,6 +40,7 @@ import { createLogger } from './logger';
 import { truncateNotificationText } from './notificationFormat';
 import { getAliveAgentRunLease } from './pgAgentRunLeases';
 import { isProcessDraining } from './processDrain';
+import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { serverEnv } from './serverEnv';
 import { sendPushNotification } from './webPush';
 
@@ -235,7 +236,7 @@ export async function startSiriAgentPrompt(
     return { ok: false, error: 'message is required', text: msg };
   }
 
-  if (!serverEnv('ANTHROPIC_API_KEY')?.trim()) {
+  if (!isAnthropicLlmConfigured()) {
     const msg = 'Claude is not configured on this install.';
     return { ok: false, error: msg, text: msg };
   }

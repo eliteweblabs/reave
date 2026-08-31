@@ -4,6 +4,8 @@
  */
 
 import { serverEnv } from './serverEnv';
+import { createAnthropicMessage } from './anthropicMessages';
+import { resolveAnthropicApiKey } from './anthropicEndpoint';
 import { isSleepModeActive } from './pushQuietHours';
 
 export interface EmailMergeSource {
@@ -228,7 +230,7 @@ export async function mergeEmailIntoProjectBody(opts: {
     suggestedTitle: isNewProject ? fallbackProjectTitleFromEmail(email) : undefined,
   });
 
-  const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
+  const key = resolveAnthropicApiKey()?.trim();
   if (!key) return fallback();
   if (await isSleepModeActive()) return fallback();
 
@@ -285,29 +287,19 @@ ${jsonFooter}`;
       ].join('\n');
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 2048,
-        system,
-        messages: [{ role: 'user', content: user }],
-      }),
+    const result = await createAnthropicMessage({
+      model,
+      max_tokens: 2048,
+      system,
+      messages: [{ role: 'user', content: user }],
     });
 
-    if (!res.ok) {
-      console.warn('[email-project-merge] anthropic error', res.status);
+    if (!result.ok) {
+      console.warn('[email-project-merge] anthropic error', result.status);
       return fallback();
     }
 
-    const data = (await res.json()) as {
-      content?: Array<{ type: string; text?: string }>;
-    };
+    const data = result.data;
     const text = (data.content ?? [])
       .filter((b) => b.type === 'text')
       .map((b) => b.text ?? '')

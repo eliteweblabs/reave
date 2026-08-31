@@ -15,6 +15,7 @@ import { isRailwayConfigured, railwayListProjectNetworking, railwayPing } from '
 import { isResendDnsSyncConfigured, syncResendDnsToCloudflare } from './resendDnsSync';
 import { isKinstaConfigured, kinstaListSites, kinstaPing } from './kinstaClient';
 import { isPexelsConfigured } from './pexelsClient';
+import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { serverEnv } from './serverEnv';
 
 export const DEV_TASK_NAMES = [
@@ -51,7 +52,7 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           contact_api: isContactApiConfigured(),
           carddav: isCardDavConfigured(),
           media_webdav: isMediaWebdavConfigured(),
-          anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim()),
+          anthropic: isAnthropicLlmConfigured(),
           railway: isRailwayConfigured(),
           kinsta: isKinstaConfigured(),
           booking: isBookingConfigured(),

@@ -6,6 +6,7 @@ import { iosIcon, bindConfirmDeleteButton } from './admin-ui.js?v=20260825h';
 
 const PROVIDERS = [
   { id: 'anthropic', label: 'Anthropic' },
+  { id: 'openrouter', label: 'OpenRouter' },
   { id: 'omniroute', label: 'OmniRoute' },
   { id: 'openai', label: 'OpenAI' },
   { id: 'google', label: 'Google' },

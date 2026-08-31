@@ -1,24 +1,30 @@
 /**
- * Anthropic Messages endpoint resolution — direct Anthropic or OmniRoute gateway.
+ * Anthropic Messages endpoint resolution — direct Anthropic, OpenRouter, or OmniRoute gateway.
  *
- * OmniRoute accepts the Anthropic Messages API at `{base}/v1/messages`.
- * Set ANTHROPIC_BASE_URL (or OMNIROUTE_BASE_URL) to the gateway root with no `/v1`.
- * Prefer OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN for the gateway key; fall back to
+ * Gateways accept the Anthropic Messages API at `{base}/v1/messages`.
+ * - OpenRouter: set OPENROUTER_API_KEY (base defaults to https://openrouter.ai/api).
+ * - OmniRoute / other: set ANTHROPIC_BASE_URL (or OMNIROUTE_BASE_URL) to the gateway root with no `/v1`.
+ * Prefer OPENROUTER_API_KEY / OMNIROUTE_API_KEY / ANTHROPIC_AUTH_TOKEN for gateway keys; fall back to
  * ANTHROPIC_API_KEY (sent as x-api-key, same as Claude Code).
  */
+import { siteOriginFallback } from './requestOrigin';
 import { serverEnv } from './serverEnv';
 
 export const DEFAULT_ANTHROPIC_BASE_URL = 'https://api.anthropic.com';
+export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api';
+
+export type AnthropicGatewayKind = 'anthropic' | 'openrouter' | 'gateway';
 
 export type AnthropicEndpoint = {
   /** Gateway or Anthropic root — no trailing slash, no `/v1`. */
   baseUrl: string;
   /** Full Messages URL. */
   messagesUrl: string;
-  /** Credential for this hop (OmniRoute key or Anthropic key). */
+  /** Credential for this hop (OpenRouter / OmniRoute key or Anthropic key). */
   apiKey: string;
-  /** True when traffic goes through a non-Anthropic base URL (typically OmniRoute). */
+  /** True when traffic goes through a non-Anthropic base URL. */
   viaGateway: boolean;
+  gatewayKind: AnthropicGatewayKind;
   /** Host label for status UI. */
   host: string;
 };
@@ -27,17 +33,56 @@ function trimSlash(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
+function normalizeGatewayRoot(raw: string): string {
+  let url = trimSlash(raw);
+  // Callers sometimes paste …/v1; gateways want the root.
+  if (url.toLowerCase().endsWith('/v1')) url = url.slice(0, -3);
+  return trimSlash(url);
+}
+
+function hostFromBaseUrl(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).host || baseUrl;
+  } catch {
+    return baseUrl;
+  }
+}
+
+export function isOpenRouterHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return h === 'openrouter.ai' || h.endsWith('.openrouter.ai');
+}
+
 /** Resolve gateway root from env. Empty / unset → direct Anthropic. */
 export function resolveAnthropicBaseUrl(): string {
   const raw =
     serverEnv('ANTHROPIC_BASE_URL')?.trim() ||
     serverEnv('OMNIROUTE_BASE_URL')?.trim() ||
+    serverEnv('OPENROUTER_BASE_URL')?.trim() ||
     '';
-  if (!raw) return DEFAULT_ANTHROPIC_BASE_URL;
-  let url = trimSlash(raw);
-  // Callers sometimes paste …/v1; Claude Code / OmniRoute want the root.
-  if (url.toLowerCase().endsWith('/v1')) url = url.slice(0, -3);
-  return trimSlash(url) || DEFAULT_ANTHROPIC_BASE_URL;
+  if (raw) {
+    const normalized = normalizeGatewayRoot(raw);
+    return normalized || DEFAULT_ANTHROPIC_BASE_URL;
+  }
+  if (serverEnv('OPENROUTER_API_KEY')?.trim()) {
+    return DEFAULT_OPENROUTER_BASE_URL;
+  }
+  return DEFAULT_ANTHROPIC_BASE_URL;
+}
+
+export function isOpenRouterGateway(): boolean {
+  if (serverEnv('OPENROUTER_API_KEY')?.trim()) return true;
+  return isOpenRouterHost(hostFromBaseUrl(resolveAnthropicBaseUrl()));
+}
+
+export function resolveAnthropicGatewayKind(): AnthropicGatewayKind {
+  if (!isAnthropicGatewayConfigured()) return 'anthropic';
+  return isOpenRouterGateway() ? 'openrouter' : 'gateway';
+}
+
+/** True when any Anthropic Messages credential is available (direct or gateway). */
+export function isAnthropicLlmConfigured(): boolean {
+  return Boolean(resolveAnthropicApiKey());
 }
 
 export function isAnthropicGatewayConfigured(): boolean {
@@ -46,9 +91,12 @@ export function isAnthropicGatewayConfigured(): boolean {
 
 /**
  * Key used for the Messages hop.
- * When a gateway base URL is set, prefer OmniRoute / auth-token keys.
+ * When a gateway base URL is set, prefer gateway-specific keys.
  */
 export function resolveAnthropicApiKey(): string | undefined {
+  const openrouter = serverEnv('OPENROUTER_API_KEY')?.trim();
+  if (openrouter) return openrouter;
+
   const gateway = isAnthropicGatewayConfigured();
   if (gateway) {
     return (
@@ -66,31 +114,39 @@ export function resolveAnthropicEndpoint(): AnthropicEndpoint | null {
   if (!apiKey) return null;
   const baseUrl = resolveAnthropicBaseUrl();
   const viaGateway = baseUrl !== DEFAULT_ANTHROPIC_BASE_URL;
-  let host = 'api.anthropic.com';
-  try {
-    host = new URL(baseUrl).host || host;
-  } catch {
-    host = baseUrl;
-  }
+  const host = hostFromBaseUrl(baseUrl);
   return {
     baseUrl,
     messagesUrl: `${baseUrl}/v1/messages`,
     apiKey,
     viaGateway,
+    gatewayKind: resolveAnthropicGatewayKind(),
     host,
   };
 }
 
-/** Headers for Anthropic Messages (and OmniRoute’s Anthropic-compatible surface). */
-export function anthropicRequestHeaders(apiKey: string, viaGateway: boolean): Record<string, string> {
+/** Headers for Anthropic Messages (and gateway-compatible surfaces). */
+export function anthropicRequestHeaders(
+  apiKey: string,
+  viaGateway: boolean,
+  gatewayKind: AnthropicGatewayKind = viaGateway ? 'gateway' : 'anthropic',
+): Record<string, string> {
   const headers: Record<string, string> = {
     'x-api-key': apiKey,
     'anthropic-version': '2023-06-01',
     'Content-Type': 'application/json',
   };
-  // OmniRoute prefers Bearer; also accepts x-api-key (v3.8+). Send both when gateway.
-  if (viaGateway) {
+  // Gateways prefer Bearer; OpenRouter requires it. OmniRoute also accepts x-api-key.
+  if (viaGateway || gatewayKind === 'openrouter') {
     headers.Authorization = `Bearer ${apiKey}`;
+  }
+  if (gatewayKind === 'openrouter') {
+    const referer = siteOriginFallback();
+    if (referer && !/localhost/i.test(referer)) {
+      headers['HTTP-Referer'] = referer;
+    }
+    const title = serverEnv('OPENROUTER_APP_NAME')?.trim() || serverEnv('COMPANY_NAME')?.trim();
+    if (title) headers['X-Title'] = title;
   }
   return headers;
 }
