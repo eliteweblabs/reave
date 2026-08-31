@@ -17,6 +17,7 @@
 @import './panels/dscr.css';
 @import './panels/sales-sheet.css';
 @import './panels/media.css';
+@import './panels/client-setup.css';
 @import './panels/search.css';
 @import './panels/components-gallery.css';
 /* Skeleton shimmer — imported last so it wins over panel loading stubs */
