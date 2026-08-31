@@ -3,68 +3,57 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a112d" />
+    <meta name="theme-color" content="#213B7D" />
     <link rel="icon" href="./images/logo.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@600&family=Montserrat:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <title>Client login · Four Leggers</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body class="auth-page">
+    <div class="util">
+      <div class="wrap">
+        <a href="./">Back to Four Leggers</a>
+        <a href="tel:+19789224182">978.922.4182</a>
+      </div>
+    </div>
     <header class="site-header">
-      <div class="site-header__inner">
+      <div class="wrap">
         <a class="brand" href="./">
-          <img src="./images/logo.png" alt="Four Leggers" width="48" height="48" />
-          <span>Four Leggers</span>
+          <img src="./images/logo.png" alt="Four Leggers" width="68" height="67" />
         </a>
-        <a class="btn btn--navy" href="./">Back to site</a>
+        <a class="btn btn--ghost" href="./">Home</a>
       </div>
     </header>
 
-    <main class="auth-card" style="margin-top: 5.5rem">
-      <img class="auth-card__logo" src="./images/logo.png" alt="" width="88" height="88" />
+    <main class="auth-card">
+      <img src="./images/logo.png" alt="" width="80" height="79" />
       <h1>Client login</h1>
-      <p class="lede">Book daycare, grooms, and sitting. See upcoming visits for your pack.</p>
-      <p class="demo-banner">
-        Demo only — any email + password opens the portal mock. No accounts are created.
-      </p>
-      <form id="login-form" class="form">
+      <p class="lede">Book daycare and grooms. See upcoming visits for your dogs.</p>
+      <p class="demo-note">Demo only — any email and password opens the portal mock.</p>
+      <form id="login-form" class="form" style="margin-top: 1rem">
         <label class="field">
           <span>Email</span>
-          <input
-            type="email"
-            name="email"
-            placeholder="you@example.com"
-            autocomplete="username"
-            required
-          />
+          <input type="email" name="email" placeholder="you@example.com" autocomplete="username" required />
         </label>
         <label class="field">
           <span>Password</span>
-          <input
-            type="password"
-            name="password"
-            placeholder="••••••••"
-            autocomplete="current-password"
-            required
-          />
+          <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required />
         </label>
         <button type="submit" class="btn btn--gold btn--wide">Sign in</button>
-        <p class="form-note">Forgot password? In a live install this would email a reset link.</p>
+        <p class="form-note">A live install would email a reset link from here.</p>
       </form>
     </main>
-
     <script>
       document.getElementById("login-form")?.addEventListener("submit", (event) => {
         event.preventDefault();
         const data = new FormData(event.target);
-        const email = String(data.get("email") || "client@fourleggers.demo");
         const params = new URLSearchParams({
-          email,
+          email: String(data.get("email") || "client@fourleggers.demo"),
           dog: "Maple",
           service: "Daycare",
           when: "This week",

@@ -5,501 +5,277 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta
       name="description"
-      content="Beverly MA dog daycare, grooming, sitting, boarding, and training. Book online and manage visits from your client portal — a REΛVE proposal for Four Leggers."
+      content="Beverly, MA dog daycare, grooming, sitting, boarding, and training. Book online and manage visits from your client portal."
     />
-    <meta name="theme-color" content="#0a112d" />
+    <meta name="theme-color" content="#213B7D" />
     <link rel="icon" href="./images/logo.png" type="image/png" />
     <link rel="apple-touch-icon" href="./images/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@600&family=Montserrat:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <meta property="og:title" content="Four Leggers · Daycare, grooming & sitting in Beverly" />
-    <meta
-      property="og:description"
-      content="Proposal site — scheduling + client login for Four Leggers Pet Supplies & Services."
-    />
-    <meta property="og:image" content="./images/logo.png" />
-    <title>Four Leggers · Daycare, grooming & sitting in Beverly</title>
+    <title>Four Leggers · Pet Supplies &amp; Services · Beverly, MA</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div class="util">
+      <div class="wrap">
+        <a href="mailto:info@fourleggersdogdaycare.com">info@fourleggersdogdaycare.com</a>
+        <a href="tel:+19789224182">978.922.4182</a>
+      </div>
+    </div>
+
     <header class="site-header">
-      <div class="site-header__inner">
+      <div class="wrap">
         <a class="brand" href="#top">
-          <img src="./images/logo.png" alt="Four Leggers" width="48" height="48" />
-          <span>Four Leggers</span>
+          <img src="./images/logo.png" alt="Four Leggers" width="68" height="67" />
         </a>
-        <nav class="nav-desktop" aria-label="Primary">
+        <nav class="nav-main" aria-label="Primary">
+          <a href="#top" aria-current="page">Home</a>
           <a href="#services">Services</a>
-          <a href="#pack">The pack</a>
+          <a href="#schedule">Schedule</a>
           <a href="#about">About</a>
         </nav>
         <div class="header-actions">
-          <a class="btn btn--login" href="./login.html">Login</a>
-          <a class="btn btn--navy" href="#schedule">Book</a>
+          <a class="btn btn--ghost" href="./login.html">Client login</a>
+          <a class="btn btn--gold" href="#schedule">Book a visit</a>
         </div>
       </div>
     </header>
 
-    <main>
-      <section id="top" class="hero">
-        <div class="hero__glow hero__glow--a" aria-hidden="true"></div>
-        <div class="hero__glow hero__glow--b" aria-hidden="true"></div>
-        <div class="hero__grid">
-          <div>
-            <p class="hero__eyebrow">Beverly’s one-stop pack</p>
-            <h1>
-              Groom them.<br />
-              Sit them.<br />
-              <span class="accent-text">Play with them.</span>
-            </h1>
+    <main id="top">
+      <section class="hero">
+        <div class="wrap">
+          <div class="hero__copy">
+            <p class="hero__eyebrow">Beverly, Massachusetts</p>
+            <h1>Daycare and grooming for every kind of dog.</h1>
             <p class="hero__lede">
-              Four Leggers is daycare, grooming, sitting, boarding, and training in Beverly —
-              force-free, high staff-to-dog ratio, and room to run. Book a visit. Check in from your
-              phone.
+              Four Leggers is your one-stop in Beverly — daycare, grooming, sitting, boarding, and
+              training in 8,000+ square feet of indoor and outdoor play. Force-free. High staff-to-dog
+              ratio. Room to run.
             </p>
             <div class="hero__ctas">
-              <a class="btn btn--gold" href="#schedule">Book a visit</a>
-              <a class="btn btn--outline" href="./login.html">Client login</a>
-            </div>
-          </div>
-          <div class="hero__visual">
-            <img
-              class="hero__badge"
-              src="./images/logo.png"
-              alt="Four Leggers badge"
-              width="112"
-              height="112"
-            />
-            <div class="hero__frame">
-              <img
-                src="./images/hero/play.jpg"
-                alt="Dogs playing in the Four Leggers indoor facility"
-              />
-            </div>
-            <div class="hero__inset">
-              <img
-                src="./images/hero/staff.jpg"
-                alt="A Four Leggers team member with a happy pup"
-              />
+              <a class="btn btn--gold" href="#schedule">Enroll in daycare</a>
+              <a class="btn btn--navy" href="./login.html">Client login</a>
             </div>
           </div>
         </div>
-        <div class="marquee" aria-hidden="true">
-          <div class="marquee__track">
-            <span>
-              <span>Daycare</span><span>●</span><span>Grooming</span><span>●</span
-              ><span>Sitting</span><span>●</span><span>Boarding</span><span>●</span
-              ><span>Training</span><span>●</span><span>Pet supplies</span><span>●</span
-              ><span>Beverly, MA</span>
-            </span>
-            <span>
-              <span>Daycare</span><span>●</span><span>Grooming</span><span>●</span
-              ><span>Sitting</span><span>●</span><span>Boarding</span><span>●</span
-              ><span>Training</span><span>●</span><span>Pet supplies</span><span>●</span
-              ><span>Beverly, MA</span>
-            </span>
-          </div>
+        <div class="hero__dogs">
+          <img src="./images/dogs.svg" alt="Silhouettes of many dog breeds, from dachshund to poodle" />
         </div>
-        <div class="accent-bar" aria-hidden="true"></div>
+        <p class="hero__caption">Small dogs · large dogs · every mix in between</p>
       </section>
 
-      <section id="services" class="section section--cream">
-        <div class="section__inner">
-          <p class="section__eyebrow">What we do</p>
-          <h2>Care for the whole dog</h2>
+      <section id="services" class="section">
+        <div class="wrap">
+          <p class="section__kicker">Services</p>
+          <h2>Looking for pet services?</h2>
           <p class="section__intro">
-            Grooming and daycare up front. Sitting, boarding, walks, and training when you want the
-            full Four Leggers life — all under one roof in Beverly.
+            From daycare and training to boarding, grooming, and supplies — owned and managed by
+            experienced trainers. No overcrowding. No aversives.
           </p>
-          <div class="service-grid">
-            <article class="service-card service-card--featured">
-              <p class="service-card__kicker">Bath, brush, and a little spa</p>
-              <h3>Grooming</h3>
-              <p>
-                Force-free baths and haircuts with feedback from pet parents. We work with you so
-                your dog looks exactly how you hoped — and still wants to come back.
-              </p>
-              <ul>
-                <li>Baths, tidy-ups &amp; full grooms</li>
-                <li>Quote from a photo or drop-in chat</li>
-              </ul>
-              <button type="button" class="btn btn--gold" data-book="Grooming">
-                Schedule grooming
-              </button>
-            </article>
-
-            <article class="service-card service-card--featured">
-              <p class="service-card__kicker">8,000+ sq ft to run</p>
-              <h3>Daycare</h3>
+          <div class="service-list">
+            <article class="service">
+              <h3>Dog daycare</h3>
               <p>
                 Climate-controlled indoor space, outdoor play, and separate areas for small and large
-                dogs. High staff-to-dog ratio. Daily enrichment — not a warehouse.
+                dogs. Target 1:7 staff-to-dog ratio with daily enrichment.
               </p>
-              <ul>
-                <li>Full &amp; half days</li>
-                <li>1:7 staff-to-dog target</li>
-              </ul>
-              <button type="button" class="btn btn--gold" data-book="Daycare">
-                Schedule daycare
-              </button>
+              <button type="button" data-book="Daycare">Schedule daycare</button>
             </article>
-
-            <article class="service-card">
-              <p class="service-card__kicker">Home-like, not kennel-like</p>
-              <h3>Sitting &amp; boarding</h3>
+            <article class="service">
+              <h3>Dog grooming</h3>
               <p>
-                Overnight boarding or in-home sitting so your dog keeps their routine. Staff homes or
+                Force-free baths and haircuts. We work with you so your dog comes out looking how you
+                hoped — and still wants to come back.
+              </p>
+              <button type="button" data-book="Grooming">Schedule grooming</button>
+            </article>
+            <article class="service">
+              <h3>Walking &amp; sitting</h3>
+              <p>
+                Walks in Beverly, Salem, Hamilton, and Wenham. Overnight sitting in a staff home, or
                 visits to yours — cats welcome too.
               </p>
-              <ul>
-                <li>Overnight stays — text for dates</li>
-                <li>In-home sitting — custom quote</li>
-              </ul>
-              <button type="button" class="btn btn--navy" data-book="Sitting &amp; boarding">
-                Schedule sitting
-              </button>
+              <button type="button" data-book="Sitting">Schedule sitting</button>
             </article>
-
-            <article class="service-card">
-              <p class="service-card__kicker">Neighborhood energy dump</p>
-              <h3>Walks &amp; training</h3>
+            <article class="service">
+              <h3>Training</h3>
               <p>
-                Walks across Beverly, Salem, Hamilton, and Wenham. Positive, science-based training —
-                no spray bottles, no aversives.
+                Positive reinforcement and science-based methods only. No spray bottles. No citronella.
+                Just dogs learning in a way that sticks.
               </p>
-              <ul>
-                <li>Local dog walking routes</li>
-                <li>Force-free training sessions</li>
-              </ul>
-              <button type="button" class="btn btn--navy" data-book="Walks &amp; training">
-                Schedule walks / training
-              </button>
+              <button type="button" data-book="Training">Schedule training</button>
+            </article>
+            <article class="service">
+              <h3>Boarding</h3>
+              <p>
+                Keep the routine. Dogs stay with staff or we come to your house so your pet can remain
+                at home while you’re away.
+              </p>
+              <button type="button" data-book="Boarding">Schedule boarding</button>
+            </article>
+            <article class="service">
+              <h3>Pet supplies</h3>
+              <p>
+                Healthy toys, treats, kibble, frozen raw, freeze-dried, and enrichment — the shop is
+                here when you pick up.
+              </p>
+              <button type="button" data-book="Daycare">Ask about the shop</button>
             </article>
           </div>
         </div>
       </section>
 
-      <section id="pack" class="section section--navy">
-        <div class="section__inner">
-          <div class="pack-head">
-            <div>
-              <p class="section__eyebrow">The wall</p>
-              <h2>Meet the regulars</h2>
-              <p class="section__intro">
-                Daycare faces, groomed coats, and facility life. Tag us and your pup might land here
-                next.
-              </p>
-            </div>
-            <div class="pack-actions">
-              <a class="btn btn--gold" href="./login.html">Open client portal</a>
-              <a class="btn btn--outline" href="#schedule">Book for your dog</a>
-            </div>
-          </div>
-
-          <div class="pack-grid">
-            <button type="button" class="pack-item" data-lightbox="./images/pack/01.webp" data-alt="Daycare play">
-              <img src="./images/pack/01.webp" alt="Daycare play" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/pack/02.webp" data-alt="Happy daycare dog">
-              <img src="./images/pack/02.webp" alt="Happy daycare dog" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/hero/facility-wide.png" data-alt="Four Leggers facility">
-              <img src="./images/hero/facility-wide.png" alt="Four Leggers facility" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/pack/03.webp" data-alt="Facility pup">
-              <img src="./images/pack/03.webp" alt="Facility pup" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/pack/04.webp" data-alt="Playgroup buddy">
-              <img src="./images/pack/04.webp" alt="Playgroup buddy" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/hero/play.jpg" data-alt="Indoor play space">
-              <img src="./images/hero/play.jpg" alt="Indoor play space" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/pack/05.webp" data-alt="Grooming-ready pup">
-              <img src="./images/pack/05.webp" alt="Grooming-ready pup" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/pack/06.png" data-alt="Four Leggers guest">
-              <img src="./images/pack/06.png" alt="Four Leggers guest" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-            <button type="button" class="pack-item" data-lightbox="./images/hero/staff.jpg" data-alt="Staff with a client dog">
-              <img src="./images/hero/staff.jpg" alt="Staff with a client dog" loading="lazy" />
-              <span>#FourLeggers</span>
-            </button>
-          </div>
-
-          <div class="pack-note">
-            <p>
-              <strong>Client portal preview.</strong> Parents log in to book daycare and grooms, see
-              upcoming visits, and keep dog profiles in one place — the REΛVE install would wire this
-              to real accounts.
+      <section id="schedule" class="section section--sky">
+        <div class="wrap book-grid">
+          <div>
+            <p class="section__kicker">Scheduling</p>
+            <h2>Book a visit</h2>
+            <p class="section__intro">
+              Pick a service, your dog’s name, and a window. In a live REΛVE install this writes to
+              the calendar. Here it opens the client portal mock so you can see the flow.
             </p>
+            <form id="book-form" class="form book-panel">
+              <fieldset>
+                <legend>Service</legend>
+                <div class="chip-row">
+                  <label>
+                    <input type="radio" name="service" value="Daycare" checked />
+                    <span>Daycare</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="service" value="Grooming" />
+                    <span>Grooming</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="service" value="Sitting" />
+                    <span>Sitting</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="service" value="Training" />
+                    <span>Training</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="service" value="Boarding" />
+                    <span>Boarding</span>
+                  </label>
+                </div>
+              </fieldset>
+              <label class="field">
+                <span>Dog’s name</span>
+                <input name="dog" placeholder="e.g. Maple" autocomplete="off" />
+              </label>
+              <fieldset>
+                <legend>When</legend>
+                <div class="when-grid">
+                  <label>
+                    <input type="radio" name="when" value="ASAP" />
+                    <span>ASAP</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="when" value="Today" />
+                    <span>Today</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="when" value="This week" checked />
+                    <span>This week</span>
+                  </label>
+                </div>
+              </fieldset>
+              <button type="submit" class="btn btn--gold btn--wide">Continue to portal</button>
+              <p class="form-note">Demo only — no appointment is stored.</p>
+            </form>
           </div>
+          <aside>
+            <p class="section__kicker">Already a client?</p>
+            <h2>Log in to manage visits</h2>
+            <p class="section__intro">
+              Parents see upcoming daycare and grooms, keep dog profiles, and book the next drop-off
+              without a phone tag.
+            </p>
+            <p style="margin-top: 1.1rem">
+              <a class="btn btn--navy" href="./login.html">Open client login</a>
+            </p>
+          </aside>
         </div>
       </section>
 
-      <section id="about" class="section section--cream">
-        <div class="section__inner about-grid">
-          <div class="about-photo">
-            <img
-              src="./images/hero/facility-wide.png"
-              alt="Dogs playing across the Four Leggers indoor floor"
-            />
-          </div>
-          <div class="about-copy">
-            <p class="section__eyebrow">A little about us</p>
-            <h2>Your dog’s second family in Beverly.</h2>
-            <p>
-              Four Leggers is your one-stop for daycare, training, boarding, grooming, and pet
-              supplies. Modern facility, plenty of room to run, and a team that studies canine
-              behavior — owned and managed by experienced trainers.
-            </p>
-            <p>
-              We keep a high staff-to-dog ratio, skip the overcrowding, and never use aversives. Open
-              communication with pet parents. Force-free, always.
-            </p>
-            <ul class="highlights">
-              <li>Book services 24/7 from the portal</li>
-              <li>Bonded &amp; insured</li>
-              <li>Force-free facility</li>
-              <li>Constant supervision</li>
-              <li>Beverly · walks to Salem, Hamilton &amp; Wenham</li>
-            </ul>
-            <p class="about-phone">Call (978) 922-4182</p>
-            <a class="about-email" href="mailto:info@fourleggersdogdaycare.com"
-              >info@fourleggersdogdaycare.com</a
-            >
-            <a
-              class="about-dir"
-              href="https://www.google.com/maps/dir/?api=1&destination=Four+Leggers+Pet+Supplies+%26+Services,+Beverly,+MA"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span>Directions</span>
-              Beverly, Massachusetts
-            </a>
-            <p class="why-note">
-              <strong>Proposal site.</strong> Visual flash for a REΛVE install — scheduling sheet and
-              client login are interactive mocks, not live bookings yet.
-            </p>
-          </div>
+      <section id="about" class="section section--navy">
+        <div class="wrap">
+          <p class="section__kicker">Why Four Leggers</p>
+          <h2>Your pets are family. So are you.</h2>
+          <p class="section__intro">
+            We study canine behavior. Daycare and day-training dogs get daily enrichment and
+            reinforcement for desirable behavior — a facility that is enjoyable and safe for four-legged
+            guests.
+          </p>
+          <ul class="why-list">
+            <li>Book service 24/7</li>
+            <li>Experienced, professional staff</li>
+            <li>Bonded &amp; insured</li>
+            <li>A force-free facility</li>
+            <li>Constant supervision</li>
+            <li>Team focused on canine behavior and your dog’s well-being</li>
+          </ul>
+          <p style="margin-top: 1.75rem">
+            <a class="btn btn--gold" href="tel:+19789224182">Call 978.922.4182</a>
+          </p>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
-      <div class="accent-bar" style="margin: -3rem -1rem 2.5rem" aria-hidden="true"></div>
-      <div class="site-footer__inner">
-        <div class="footer-brand">
-          <img src="./images/logo.png" alt="" width="56" height="56" />
-          <div>
-            <p>Four Leggers</p>
-            <a
-              href="https://www.google.com/maps/dir/?api=1&destination=Four+Leggers+Pet+Supplies+%26+Services,+Beverly,+MA"
-              target="_blank"
-              rel="noreferrer"
-              >Beverly, MA · Directions</a
-            >
-          </div>
+      <div class="wrap">
+        <div>
+          <img src="./images/logo.png" alt="" width="56" height="55" />
+          <p style="margin-top: 0.5rem; font-weight: 700">Four Leggers</p>
+          <a
+            href="https://www.google.com/maps/dir/?api=1&destination=950+Cummings+Center+Suite+101X+Beverly+MA+01915"
+            target="_blank"
+            rel="noreferrer"
+            >950 Cummings Center, Suite 101X<br />Beverly, MA 01915</a
+          >
         </div>
-        <div class="footer-contact">
-          <a href="tel:+19789224182">(978) 922-4182</a>
+        <div>
+          <a href="tel:+19789224182">978.922.4182</a>
           <a href="mailto:info@fourleggersdogdaycare.com">info@fourleggersdogdaycare.com</a>
           <a href="https://www.fourleggersdoggiedaycare.com/" target="_blank" rel="noreferrer"
-            >Current site</a
+            >Current website</a
           >
         </div>
       </div>
-      <p class="site-footer__note">
-        Sales proposal — layout patterned on the PDX Paws Railway demo; palette and copy from Four
-        Leggers. Not a live booking system.
-      </p>
+      <div class="wrap">
+        <p class="site-footer__note">
+          Sales proposal for Four Leggers. Visual only — scheduling and login are mocks, not a live
+          install.
+        </p>
+      </div>
     </footer>
 
-    <nav class="speed-dial" aria-label="Quick actions">
-      <div class="speed-dial__inner">
-        <a
-          class="speed-dial__dir"
-          href="https://www.google.com/maps/dir/?api=1&destination=Four+Leggers+Pet+Supplies+%26+Services,+Beverly,+MA"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"></path>
-            <circle cx="12" cy="10" r="2.25"></circle>
-          </svg>
-          Directions
-        </a>
-        <a class="speed-dial__call" href="tel:+19789224182">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path
-              d="M22 16.9v2.2a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 1h2.2a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L7.1 8.7a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2.1z"
-            ></path>
-          </svg>
-          Call
-        </a>
-        <button class="speed-dial__book" type="button" data-book>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="16" rx="2"></rect>
-            <path d="M3 10h18M8 3v4M16 3v4"></path>
-          </svg>
-          Book
-        </button>
-        <a class="speed-dial__login" href="./login.html">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-            <path d="M10 17l5-5-5-5"></path>
-            <path d="M15 12H3"></path>
-          </svg>
-          Login
-        </a>
-      </div>
-    </nav>
-
-    <div id="schedule-sheet" class="sheet" hidden>
-      <div class="sheet__panel" role="dialog" aria-labelledby="schedule" aria-modal="true">
-        <div class="sheet__handle" aria-hidden="true"></div>
-        <div class="sheet__head">
-          <div>
-            <p class="font-hand">Let’s book it</p>
-            <h2 id="schedule">Schedule a visit</h2>
-          </div>
-          <button id="sheet-close" type="button" class="btn btn--navy">Close</button>
-        </div>
-        <form id="book-form" class="form">
-          <fieldset>
-            <legend>Service</legend>
-            <div class="chip-row">
-              <label>
-                <input type="radio" name="service" value="Grooming" checked />
-                <span>Grooming</span>
-              </label>
-              <label>
-                <input type="radio" name="service" value="Daycare" />
-                <span>Daycare</span>
-              </label>
-              <label>
-                <input type="radio" name="service" value="Sitting & boarding" />
-                <span>Sitting &amp; boarding</span>
-              </label>
-              <label>
-                <input type="radio" name="service" value="Walks & training" />
-                <span>Walks &amp; training</span>
-              </label>
-            </div>
-          </fieldset>
-          <label class="field">
-            <span>Dog’s name</span>
-            <input name="dog" placeholder="e.g. Maple" autocomplete="off" />
-          </label>
-          <fieldset>
-            <legend>When</legend>
-            <div class="when-grid">
-              <label>
-                <input type="radio" name="when" value="ASAP" />
-                <span>ASAP</span>
-              </label>
-              <label>
-                <input type="radio" name="when" value="Today" />
-                <span>Today</span>
-              </label>
-              <label>
-                <input type="radio" name="when" value="This week" checked />
-                <span>This week</span>
-              </label>
-            </div>
-          </fieldset>
-          <button type="submit" class="btn btn--navy btn--wide">Continue to portal</button>
-          <p class="form-note">
-            Demo flow — opens the client portal mock with your selections. Live SMS / calendar comes
-            with the full install.
-          </p>
-        </form>
-      </div>
-    </div>
-
-    <div id="lightbox" class="lightbox" hidden>
-      <img alt="" />
-    </div>
-
     <script>
-      const sheet = document.getElementById("schedule-sheet");
-      const triggers = [
-        ...document.querySelectorAll("[data-book]"),
-        ...document.querySelectorAll('a[href="#schedule"]'),
-      ];
-
-      function openSheet(service) {
-        if (service) {
+      const form = document.getElementById("book-form");
+      document.querySelectorAll("[data-book]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const value = btn.getAttribute("data-book");
           const input = document.querySelector(
-            `input[name="service"][value="${CSS.escape(service)}"]`
+            `input[name="service"][value="${CSS.escape(value || "")}"]`
           );
           if (input) input.checked = true;
-        }
-        sheet?.classList.add("is-open");
-        sheet?.removeAttribute("hidden");
-        document.getElementById("schedule")?.scrollIntoView({ block: "nearest" });
-      }
-
-      function closeSheet() {
-        sheet?.classList.remove("is-open");
-        sheet?.setAttribute("hidden", "");
-      }
-
-      triggers.forEach((el) => {
-        el.addEventListener("click", (event) => {
-          if (el instanceof HTMLAnchorElement) event.preventDefault();
-          const service =
-            el instanceof HTMLButtonElement || el.hasAttribute("data-book")
-              ? el.getAttribute("data-book") || undefined
-              : undefined;
-          openSheet(service || undefined);
+          document.getElementById("schedule")?.scrollIntoView({ behavior: "smooth" });
         });
       });
-
-      document.getElementById("sheet-close")?.addEventListener("click", closeSheet);
-      sheet?.addEventListener("click", (event) => {
-        if (event.target === sheet) closeSheet();
-      });
-
-      document.getElementById("book-form")?.addEventListener("submit", (event) => {
+      form?.addEventListener("submit", (event) => {
         event.preventDefault();
-        const data = new FormData(event.target);
+        const data = new FormData(form);
         const params = new URLSearchParams({
           service: String(data.get("service") || "Daycare"),
           dog: String(data.get("dog") || "your dog").trim() || "your dog",
           when: String(data.get("when") || "This week"),
         });
         window.location.href = `./portal.html?${params.toString()}`;
-      });
-
-      if (location.hash === "#schedule") openSheet();
-
-      const lightbox = document.getElementById("lightbox");
-      const lightboxImg = lightbox?.querySelector("img");
-      document.querySelectorAll("[data-lightbox]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          if (!lightbox || !lightboxImg) return;
-          lightboxImg.src = btn.getAttribute("data-lightbox") || "";
-          lightboxImg.alt = btn.getAttribute("data-alt") || "";
-          lightbox.classList.add("is-open");
-          lightbox.removeAttribute("hidden");
-        });
-      });
-      lightbox?.addEventListener("click", () => {
-        lightbox.classList.remove("is-open");
-        lightbox.setAttribute("hidden", "");
       });
     </script>
   </body>
