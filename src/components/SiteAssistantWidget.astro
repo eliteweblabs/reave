@@ -17,6 +17,8 @@ export interface Props {
   footerPrefix?: string;
   inputPlaceholder?: string;
   avatarSrc?: string;
+  /** sessionStorage key for sheet message history. */
+  storageKey?: string;
   /** Hide the FAB when a custom footer dock opens the sheet. */
   hideFab?: boolean;
   /** Slide the FAB in horizontally a few seconds after the user engages. */
@@ -39,6 +41,7 @@ const {
   footerPrefix = 'Urgent?',
   inputPlaceholder,
   avatarSrc,
+  storageKey = 'sa-chat-site',
   hideFab = false,
   revealFabOnEngagement = false,
   hideFabForHero = false,
@@ -54,7 +57,7 @@ const greeting =
 <AssistantWidget
   instanceId="site"
   endpoint="/api/site/assistant"
-  storageKey="sa-chat-site"
+  storageKey={storageKey}
   brandTitle={headerSubtitle || brandTitle}
   headerTitle={headerTitle}
   greeting={greeting}

@@ -52,6 +52,7 @@
       ]
     },
     "chat": {
+      "enabled": true,
       "dockPlaceholder": "How can I help you?",
       "inputPlaceholder": "How can I help you?",
       "introPhrases": [
@@ -59,17 +60,24 @@
         "Pat here, anything I can help with?",
         "Don’t get💩 on your hands. Call a pro"
       ],
+      "greeting": "Hi! this is Pat, what’s up?",
       "avatarSrc": "/sites/pattheplumber/face.png",
       "avatarAlt": "Pat the Plumber",
       "headerTitle": "Pat the Plumber",
       "footerPrefix": "Emergency?",
       "hideFab": true,
+      "revealFabOnEngagement": false,
+      "openOnFocus": true,
+      "dismissPersist": "session",
+      "dismissStorageKey": "svc-footer-chat-intro-dismissed",
+      "historyStorageKey": "sa-chat-site",
       "engagement": {
         "mode": "scroll",
         "minScrollPx": 64,
         "delayMs": 3000,
         "settleMs": 900
-      }
+      },
+      "businessNotes": "Pat is a solo plumber serving Winthrop / East Boston and nearby. Prefer call for emergencies. Chat can answer hours, services, and how booking works — do not invent prices."
     },
     "schedule": {
       "formSlug": "schedule"

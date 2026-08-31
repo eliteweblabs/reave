@@ -201,7 +201,7 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
     id: 'portal_assistant',
     label: 'Help Chat',
     blurb:
-      'Public-site + portal speed-dial chat that answers in a bottom sheet. Configure greetings, avatar, dock placeholder, and scroll engagement per landing.',
+      'Public-site + portal speed-dial chat in a bottom sheet. Configure intro phrases, greeting, avatar, dock copy, engagement, dismiss, and business notes per landing.',
   },
   {
     id: 'projects',

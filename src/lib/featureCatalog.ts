@@ -271,7 +271,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
 export const FEATURE_BLURBS: Record<FeatureId, string> = {
   client_portal: 'Branded portal for each client at /c/:uid — projects, billing, vault',
   web_handoff: 'Secure credential & data handoff in the portal Data tab',
-  portal_assistant: 'Speed-dial support chat for clients in the portal',
+  portal_assistant: 'Speed-dial help chat on the public site and client portal — answers in a bottom sheet',
   billing: 'Get paid without leaving the work — send a quote, collect the invoice, or log a payment with Siri*.',
   site_audits: 'Automated website presence & technical audits',
   analytic_audit:

@@ -25,7 +25,9 @@ export const prerender = false;
 function businessNotesFromLanding(): string {
   const landing = getSiteContent().landing;
   if (!landing || landing.variant !== 'service') return '';
+  const chatNotes = String(landing.chat?.businessNotes || '').trim();
   const bits: string[] = [];
+  if (chatNotes) bits.push(chatNotes);
   if (landing.role) bits.push(`Role: ${landing.role}`);
   if (landing.tagline) bits.push(landing.tagline);
   if (landing.heroBody) bits.push(landing.heroBody);

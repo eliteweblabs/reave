@@ -89,6 +89,12 @@ const chatEngagement = siteChat?.engagement || {
   delayMs: 3000,
   settleMs: 900,
 };
+const chatOpenOnFocus = siteChat?.openOnFocus !== false;
+const chatDismissPersist = siteChat?.dismissPersist || "session";
+const chatDismissKey =
+  siteChat?.dismissStorageKey || "svc-footer-chat-intro-dismissed";
+const chatHistoryKey = siteChat?.historyStorageKey || "sa-chat-site";
+const chatRevealFab = siteChat?.revealFabOnEngagement === true;
 const about = landing.about;
 const contact = landing.contact;
 const reviews = landing.reviews;
@@ -313,7 +319,9 @@ const logoSrc = (landing.heroLogo || "").trim()
           pagePath={Astro.url.pathname}
           inputPlaceholder={siteChat?.inputPlaceholder || chatPlaceholder}
           avatarSrc={chatFaceSrc || undefined}
+          storageKey={chatHistoryKey}
           hideFab={siteChat?.hideFab !== false}
+          revealFabOnEngagement={chatRevealFab}
         />
         <div class="svc-footer-chat" data-svc-footer-chat role="region" aria-label="Chat">
           {
@@ -397,15 +405,45 @@ const logoSrc = (landing.heroLogo || "").trim()
         introPhrases,
         chatFaceAlt,
         engagement: chatEngagement,
+        openOnFocus: chatOpenOnFocus,
+        dismissPersist: chatDismissPersist,
+        dismissStorageKey: chatDismissKey,
       }}
     >
       (function () {
-        const DISMISS_KEY = "svc-footer-chat-intro-dismissed";
+        const DISMISS_KEY = dismissStorageKey || "svc-footer-chat-intro-dismissed";
+        const persistMode = dismissPersist || "session";
         const dockRoot = document.querySelector("[data-svc-footer-chat]");
         const widget = document.querySelector("[data-assistant-widget]");
         const dockForm = dockRoot?.querySelector("[data-svc-aw-dock]");
         const dockInput = dockForm?.querySelector(".svc-footer-chat__input");
         if (!dockRoot || !widget) return;
+
+        const dismissStore = () => {
+          if (persistMode === "local") return window.localStorage;
+          if (persistMode === "session") return window.sessionStorage;
+          return null;
+        };
+
+        const isDismissed = () => {
+          const store = dismissStore();
+          if (!store) return false;
+          try {
+            return store.getItem(DISMISS_KEY) === "1";
+          } catch (_) {
+            return false;
+          }
+        };
+
+        const persistDismiss = () => {
+          const store = dismissStore();
+          if (!store) return;
+          try {
+            store.setItem(DISMISS_KEY, "1");
+          } catch (_) {
+            /* private mode */
+          }
+        };
 
         const openChat = (message) => {
           widget.dispatchEvent(
@@ -425,13 +463,15 @@ const logoSrc = (landing.heroLogo || "").trim()
           openChat(value || undefined);
         });
 
-        dockInput?.addEventListener("focus", () => {
-          openChat();
-          window.setTimeout(() => {
-            const sheetInput = widget.querySelector(".aw-input");
-            if (sheetInput instanceof HTMLTextAreaElement) sheetInput.focus();
-          }, 320);
-        });
+        if (openOnFocus !== false) {
+          dockInput?.addEventListener("focus", () => {
+            openChat();
+            window.setTimeout(() => {
+              const sheetInput = widget.querySelector(".aw-input");
+              if (sheetInput instanceof HTMLTextAreaElement) sheetInput.focus();
+            }, 320);
+          });
+        }
 
         const intro = dockRoot.querySelector("[data-svc-intro]");
         const textEl = intro?.querySelector("[data-svc-intro-text]");
@@ -439,13 +479,9 @@ const logoSrc = (landing.heroLogo || "").trim()
         const openBtn = intro?.querySelector("[data-svc-intro-open]");
         if (!intro || !textEl || !introPhrases.length) return;
 
-        try {
-          if (sessionStorage.getItem(DISMISS_KEY) === "1") {
-            intro.remove();
-            return;
-          }
-        } catch (_) {
-          /* private mode */
+        if (isDismissed()) {
+          intro.remove();
+          return;
         }
 
         if (engagement?.mode === "none") {
@@ -489,13 +525,7 @@ const logoSrc = (landing.heroLogo || "").trim()
           intro.hidden = true;
           intro.setAttribute("aria-hidden", "true");
           intro.classList.remove("is-visible");
-          if (persist) {
-            try {
-              sessionStorage.setItem(DISMISS_KEY, "1");
-            } catch (_) {
-              /* ignore */
-            }
-          }
+          if (persist) persistDismiss();
         };
 
         const reveal = () => {
@@ -524,7 +554,7 @@ const logoSrc = (landing.heroLogo || "").trim()
           timer = setTimeout(reveal, DELAY_MS);
         };
 
-        if (engagement?.mode === "immediate") {
+        if (engagement?.mode === "immediate" || engagement?.mode === "delay") {
           timer = setTimeout(reveal, DELAY_MS);
         } else {
           window.addEventListener("scroll", onScroll, { passive: true });
@@ -839,7 +869,10 @@ const logoSrc = (landing.heroLogo || "").trim()
     right: 0;
     bottom: 0;
     z-index: 40;
+    /* One centered column: dock spans it; intro pins to its left edge. */
     display: grid;
+    grid-template-columns: minmax(0, var(--svc-footer-chat-max));
+    justify-content: center;
     justify-items: stretch;
     gap: 0.55rem;
     padding: 0.55rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
@@ -852,18 +885,20 @@ const logoSrc = (landing.heroLogo || "").trim()
   }
 
   .svc-footer-chat :global(.conversational-form-root--dock),
-  .svc-footer-chat__intro,
   .svc-footer-chat__dock {
     width: 100%;
-    max-width: var(--svc-footer-chat-max);
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0;
   }
 
   .svc-footer-chat__intro {
     display: flex;
     align-items: flex-end;
+    justify-content: flex-start;
+    justify-self: start;
     gap: 0.55rem;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
     opacity: 0;
     transform: translateY(0.55rem);
     transition: opacity 0.35s ease, transform 0.35s ease;
@@ -965,10 +1000,6 @@ const logoSrc = (landing.heroLogo || "").trim()
   .svc-footer-chat__dismiss:focus-visible {
     outline: 2px solid var(--svc-accent);
     outline-offset: 1px;
-  }
-
-  .svc-footer-chat__dock {
-    margin: 0;
   }
 
   .svc-footer-chat__pill {
