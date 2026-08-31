@@ -4,6 +4,7 @@ import { getAgentContext } from './agentContext';
 import { isSleepModeActive } from './pushQuietHours';
 import {
   anthropicRequestHeaders,
+  isDirectAnthropicBaseUrl,
   isOpenRouterGateway,
   resolveAnthropicEndpoint,
 } from './anthropicEndpoint';
@@ -27,6 +28,7 @@ export type AnthropicMessagesResponse = {
 };
 
 const LOW_CREDIT_BALANCE_RE = /credit balance is too low/i;
+const INVALID_API_KEY_RE = /invalid api key|authentication_error|AUTH_002|invalid x-api-key/i;
 
 /**
  * Turn a failed Anthropic API response into chat-friendly text. The "credit
@@ -40,6 +42,21 @@ export function formatAnthropicApiError(status: number, text: string): string {
       "Your Anthropic API credit balance is too low, so the agent can't respond right now.",
       renderButton('Add Anthropic credits', 'https://console.anthropic.com/settings/billing'),
     ].join('\n\n');
+  }
+  if (status === 401 && INVALID_API_KEY_RE.test(text)) {
+    const endpoint = resolveAnthropicEndpoint();
+    if (endpoint?.gatewayKind === 'openrouter') {
+      return [
+        'OpenRouter rejected the API key (401). Check OPENROUTER_API_KEY on Railway — it must start with sk-or- and be active at openrouter.ai/keys.',
+        renderButton('OpenRouter keys', 'https://openrouter.ai/keys'),
+      ].join('\n\n');
+    }
+    if (serverEnv('OPENROUTER_API_KEY')?.trim() && endpoint && isDirectAnthropicBaseUrl(endpoint.baseUrl)) {
+      return [
+        'Claude is misconfigured: OPENROUTER_API_KEY is set but requests still target api.anthropic.com. Redeploy after the routing fix, or remove ANTHROPIC_BASE_URL if it points at Anthropic.',
+        renderButton('OpenRouter dashboard', 'https://openrouter.ai/activity'),
+      ].join('\n\n');
+    }
   }
   return `Anthropic error (${status}): ${text.slice(0, 500)}`;
 }
