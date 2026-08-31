@@ -993,6 +993,23 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['scheduling'],
   }),
   v({
+    name: 'CALCOM_USERNAME',
+    service: 'calcom-booking-api',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'CALCOM_USERNAME'),
+    description: 'Same owner username as reave — booking-api looks this user up. Without it the calendar returns User not found.',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'MAPBOX_ACCESS_TOKEN',
+    service: 'calcom-booking-api',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'PUBLIC_MAPBOX_ACCESS_TOKEN'),
+    description: 'Geocode job-site addresses on create. Copied from reave PUBLIC_MAPBOX_ACCESS_TOKEN.',
+    features: ['scheduling'],
+    required: false,
+  }),
+  v({
     name: 'CALCOM_DATABASE_URL',
     service: DEPLOY_APP_SERVICE,
     kind: 'reference',
@@ -2038,7 +2055,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
     if (raw.name === 'FEATURES') filled = JSON.stringify([...features].sort());
     if (raw.name === 'GITHUB_WEBSITE_REPO') filled = defaultWebsiteRepoSlug(installSlug);
-    if (raw.name === 'CALCOM_USERNAME') filled = installSlug;
+    if (raw.name === 'CALCOM_USERNAME' && service === appService) filled = installSlug;
     if (raw.name === 'POST_ALIAS') filled = postAlias;
     if (raw.name === 'COMPANY_NAME') filled = companyName;
     if (raw.name === 'ADMIN_USERNAME') filled = adminUsername;

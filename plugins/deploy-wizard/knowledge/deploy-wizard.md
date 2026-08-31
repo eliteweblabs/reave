@@ -69,13 +69,13 @@ Put third-party secrets on the Astro service once. Siblings **reference** them �
 |------------|----------------|
 | `RESEND_FROM` → `EMAIL_FROM=${{RESEND_FROM}}` | Cal.com `EMAIL_FROM=${{ reave.EMAIL_FROM }}` and `NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS` |
 | `EMAIL_FROM_NAME` | Cal.com `EMAIL_FROM_NAME` / `NEXT_PUBLIC_APP_NAME` / `NEXT_PUBLIC_COMPANY_NAME`; Crater `MAIL_FROM_NAME` |
-| `CALCOM_USERNAME` | Filled from the install slug. Booking links and the Cal.com user use this — do not re-type on calcom-web-app. |
+| `CALCOM_USERNAME` | Filled from the install slug on `reave`. `calcom-booking-api` must reference `${{ reave.CALCOM_USERNAME }}` or list/create returns "User not found". Do not re-type on calcom-web-app. |
 | `COMPANY_ICON_URL` | `${{PUBLIC_SITE_URL}}/api/branding/icon?size=192` — Cal.com avatar pickup and any sibling that needs the mark |
 | `COMPANY_LOGO_URL` | `${{PUBLIC_SITE_URL}}/branding/logo.png` — Crater invoice email header (PNG wordmark) |
 | `RESEND_API_KEY` | Cal.com `RESEND_API_KEY` + `EMAIL_SERVER_PASSWORD`; Crater `MAIL_PASSWORD` |
 | `PUBLIC_SITE_URL` | `contact-api` / fleet / inventory / materials `ALLOWED_ORIGINS` |
 
-Cal.com’s onboarding form (avatar, username, email) is a user row, not an env var. After apply — or when `calcom-web-app` shows up later — the reave.app node writes those fields from company config / `GET /api/install/identity`. Refresh the Cal.com onboarding page if it was already open.
+Cal.com’s owner (avatar, username, email) is a `users` row, not an env var. After apply — or when `calcom-web-app` shows up later — the reave.app node **creates** that row when the Cal.com database is empty (plus 15/30/60 event types and weekday hours), then keeps username / email / icon in sync from company config / `GET /api/install/identity`. Public signup stays off (`NEXT_PUBLIC_DISABLE_SIGNUP=true`). Do not ask the owner to finish Cal.com onboarding.
 
 Cal.com also gets Resend SMTP literals (`smtp.resend.com` / `465` / `resend`) so it never falls back to local `sendmail` when `EMAIL_FROM` is unset.
 

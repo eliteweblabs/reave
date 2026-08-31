@@ -180,6 +180,11 @@ async function bookingFetch<T>(
   const base = bookingBaseUrl();
   if (!base) return { ok: false, error: 'BOOKING_API_URL is not set' };
 
+  const owner = calcomUsername();
+  if (owner && (init.query?.username === undefined || init.query.username === '')) {
+    init.query = { ...init.query, username: owner };
+  }
+
   let url = `${base}${path}`;
   if (init.query) {
     const params = new URLSearchParams();
@@ -468,6 +473,7 @@ export async function bookingCreate(input: {
     body: JSON.stringify({
       ...rest,
       address,
+      username: calcomUsername() || undefined,
       ...(confirmContactUid ? { confirmContactUid } : {}),
       ...lengthFields,
     }),
