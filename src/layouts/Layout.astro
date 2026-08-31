@@ -375,6 +375,18 @@ try {
 	 * (fullBleed) stays edge-to-edge under the header.
 	 */
 	html.site-page main#main-content {
+		/*
+		 * env() at the use site — Safari can zero the same inset when it
+		 * only lives inside --app-header-offset / --safe-top. After the
+		 * header probe freezes a pixel value, use the measured offset.
+		 */
+		padding-top: calc(
+			var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) +
+				var(--site-page-pad-top, 40px)
+		);
+	}
+
+	html[data-safe-top-frozen="1"].site-page main#main-content {
 		padding-top: calc(
 			var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) +
 				var(--site-page-pad-top, 40px)
