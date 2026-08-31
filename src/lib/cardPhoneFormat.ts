@@ -15,3 +15,22 @@ export function cardPhoneLast4(e164: string): string {
   const digits = e164.replace(/\D/g, '');
   return digits.slice(-4);
 }
+
+function normalizeCardLoginHost(raw?: string | null): string {
+  return (
+    (raw ?? '')
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .split('/')[0]
+      ?.split(':')[0]
+      ?.replace(/\.+$/, '')
+      ?.replace(/^www\./, '') || ''
+  );
+}
+
+/** Server-side FAPI proxy — only for *.reave.app satellites blocked by clerk-js. */
+export function cardLoginUsesServerProxy(host?: string | null): boolean {
+  const normalized = normalizeCardLoginHost(host);
+  return Boolean(normalized.endsWith('.reave.app') && normalized !== 'reave.app');
+}

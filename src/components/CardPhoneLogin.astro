@@ -6,12 +6,15 @@ interface Props {
   phoneE164: string;
   signedIn: boolean;
   redirectUrl?: string;
+  /** *.reave.app satellites — server FAPI proxy; own domains use clerk-js (captcha). */
+  useServerProxy?: boolean;
 }
 
 const {
   phoneE164,
   signedIn,
   redirectUrl = '/admin/',
+  useServerProxy = false,
 } = Astro.props;
 
 const clerkReady = isClerkFrontendConfigured();
@@ -80,7 +83,12 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
 )}
 
 {showLogin && (
-  <script type="module" define:vars={{ redirectUrl }}>
+  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp, useServerProxy }}>
+    function clerkMessage(err) {
+      const first = err?.errors?.[0];
+      return first?.longMessage || first?.message || err?.message || 'Could not send a code.';
+    }
+
     function waitForClerk() {
       return new Promise((resolve, reject) => {
         if (window.Clerk?.loaded && window.Clerk.client) {
@@ -111,11 +119,131 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       });
     }
 
-    async function sendCode() {
+    async function sendCodeClient(clerk) {
+      try {
+        const created = await clerk.client.signIn.create({ identifier: phoneE164 });
+        const factor = (created.supportedFirstFactors || []).find(
+          (row) => row.strategy === 'phone_code' && row.phoneNumberId,
+        );
+        if (!factor) {
+          throw new Error('Phone codes are not enabled for this number.');
+        }
+        await clerk.client.signIn.prepareFirstFactor({
+          strategy: 'phone_code',
+          phoneNumberId: factor.phoneNumberId,
+        });
+        return 'sign-in';
+      } catch (err) {
+        const code = err?.errors?.[0]?.code;
+        if (code !== 'form_identifier_not_found' || !allowSignUp) throw err;
+        await clerk.client.signUp.create({ phoneNumber: phoneE164 });
+        await clerk.client.signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
+        return 'sign-up';
+      }
+    }
+
+    async function verifyCodeClient(clerk, mode, code) {
+      if (mode === 'sign-up') {
+        const result = await clerk.client.signUp.attemptPhoneNumberVerification({ code });
+        if (result.status !== 'complete' || !result.createdSessionId) {
+          throw new Error('That code did not finish sign-in.');
+        }
+        await clerk.setActive({ session: result.createdSessionId });
+        return;
+      }
+      const result = await clerk.client.signIn.attemptFirstFactor({
+        strategy: 'phone_code',
+        code,
+      });
+      if (result.status !== 'complete' || !result.createdSessionId) {
+        throw new Error('That code did not finish sign-in.');
+      }
+      await clerk.setActive({ session: result.createdSessionId });
+    }
+
+    async function loadTurnstileScript() {
+      if (window.turnstile) return;
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        script.onload = () => resolve(undefined);
+        script.onerror = () => reject(new Error('Could not load the security check.'));
+        document.head.appendChild(script);
+      });
+    }
+
+    let turnstileWidgetId = null;
+
+    function resetTurnstileWidget() {
+      if (turnstileWidgetId != null && window.turnstile?.remove) {
+        try {
+          window.turnstile.remove(turnstileWidgetId);
+        } catch {
+          /* widget already gone */
+        }
+      }
+      turnstileWidgetId = null;
+      const container = document.getElementById('clerk-captcha');
+      if (container) container.innerHTML = '';
+    }
+
+    async function fetchCardLoginCaptchaFields() {
+      const res = await fetch('/__clerk/v1/environment', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      let env = {};
+      try {
+        env = await res.json();
+      } catch {
+        env = {};
+      }
+      const dc = env.display_config || env.displayConfig || {};
+      const siteKey = dc.captcha_public_key || dc.captchaPublicKey || '';
+      const widgetType = dc.captcha_widget_type || dc.captchaWidgetType || 'smart';
+      if (!siteKey) return { captchaWidgetType: widgetType };
+
+      await loadTurnstileScript();
+      const container = document.getElementById('clerk-captcha');
+      if (!container) throw new Error('Security check unavailable.');
+
+      resetTurnstileWidget();
+
+      return new Promise((resolve, reject) => {
+        try {
+          turnstileWidgetId = window.turnstile.render(container, {
+            sitekey: siteKey,
+            appearance: widgetType === 'smart' ? 'interaction-only' : 'always',
+            callback: (token) => {
+              resolve({ captchaToken: token, captchaWidgetType: widgetType });
+            },
+            'error-callback': () => {
+              reject(new Error('Security check failed. Refresh and try again.'));
+            },
+            'timeout-callback': () => {
+              reject(new Error('Security check timed out. Try again.'));
+            },
+          });
+          if (widgetType === 'invisible' || widgetType === 'smart') {
+            window.turnstile.execute(turnstileWidgetId);
+          }
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error('Security check failed.'));
+        }
+      });
+    }
+
+    async function sendCodeServer() {
+      const captcha = await fetchCardLoginCaptchaFields();
       const res = await fetch('/api/card/login/send', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(captcha),
       });
       let data = {};
       try {
@@ -124,12 +252,13 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
         data = {};
       }
       if (!res.ok || !data.ok) {
+        resetTurnstileWidget();
         throw new Error(data.error || 'Could not send a code.');
       }
       return data.mode || 'sign-in';
     }
 
-    async function verifyCode(code) {
+    async function verifyCodeServer(code) {
       const res = await fetch('/api/card/login/verify', {
         method: 'POST',
         credentials: 'same-origin',
@@ -163,6 +292,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
     if (!sendBtn || !form || !input || !submitBtn || !resendBtn) {
       /* card login chrome not on this page */
     } else {
+    let mode = 'sign-in';
     let sending = false;
 
     function showLoginError(message) {
@@ -201,10 +331,18 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       showLoginError('');
       showError('');
       try {
-        await sendCode();
+        if (useServerProxy) {
+          mode = await sendCodeServer();
+        } else {
+          const clerk = await waitForClerk();
+          mode = await sendCodeClient(clerk);
+        }
         showOtp();
       } catch (err) {
-        showLoginError(err?.message || 'Could not send a code.');
+        if (useServerProxy) resetTurnstileWidget();
+        showLoginError(
+          useServerProxy ? err?.message || 'Could not send a code.' : clerkMessage(err),
+        );
         sendBtn.hidden = false;
         sendBtn.disabled = false;
       } finally {
@@ -217,6 +355,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
     });
 
     resendBtn.addEventListener('click', () => {
+      resetTurnstileWidget();
       sendBtn.hidden = false;
       form.hidden = true;
       startOtp();
@@ -233,10 +372,15 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       input.disabled = true;
       showError('');
       try {
-        await verifyCode(code);
+        if (useServerProxy) {
+          await verifyCodeServer(code);
+        } else {
+          const clerk = await waitForClerk();
+          await verifyCodeClient(clerk, mode, code);
+        }
         window.location.assign(redirectUrl);
       } catch (err) {
-        showError(err?.message || 'That code did not finish sign-in.');
+        showError(useServerProxy ? err?.message || 'That code did not finish sign-in.' : clerkMessage(err));
         submitBtn.disabled = false;
         input.disabled = false;
         input.focus();
