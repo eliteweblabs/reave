@@ -1,5 +1,5 @@
 /**
- * GET /api/c/:slug/directories — lazy directories iPhone for portal Overview.
+ * GET /api/c/:slug/directories — lazy directories icon grid for portal Overview.
  *
  * Public (unguessable /c/<uid>). Runs live site-link + Brave name search —
  * deliberately not on the SSR path so Overview first paint stays fast.
@@ -15,7 +15,6 @@ import { hasFeature } from '../../../../lib/features';
 import { clientIp } from '../../../../lib/clientIp';
 import { checkDirectoryCoverage } from '../../../../lib/salesSheetDirectoryCheck';
 import { renderPortalDirectoriesExhibitHtml } from '../../../../lib/salesSheetExhibits';
-import { IPHONE_FRAME_SRC } from '../../../../lib/salesSheetPlacesView';
 
 export const prerender = false;
 
@@ -72,7 +71,6 @@ export const GET: APIRoute = async ({ params, request }) => {
     directoryChecks,
     website,
     businessName,
-    frameSrc: IPHONE_FRAME_SRC,
   });
 
   return jsonResponse({
