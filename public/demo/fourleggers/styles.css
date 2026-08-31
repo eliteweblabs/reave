@@ -376,6 +376,63 @@ select {
   color: var(--gold);
 }
 
+.price-grid {
+  margin-top: 2rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.price-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  padding: 1.35rem 1.2rem;
+}
+
+.price-card h3 {
+  color: var(--navy);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.price-card__term {
+  margin-top: 0.25rem;
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.price-card__amount {
+  margin-top: 0.55rem;
+  color: var(--navy);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.price-card p:last-child {
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.price-note {
+  margin-top: 1.35rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.price-note a {
+  color: var(--navy);
+  font-weight: 600;
+}
+
+.price-note a:hover {
+  color: var(--gold);
+}
+
 /* Booking */
 .book-grid {
   margin-top: 1.75rem;
