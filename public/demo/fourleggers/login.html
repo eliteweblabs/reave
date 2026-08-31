@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a112d" />
+    <link rel="icon" href="./images/logo.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@600&family=Montserrat:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>Client login · Four Leggers</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="auth-page">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="./">
+          <img src="./images/logo.png" alt="Four Leggers" width="48" height="48" />
+          <span>Four Leggers</span>
+        </a>
+        <a class="btn btn--navy" href="./">Back to site</a>
+      </div>
+    </header>
+
+    <main class="auth-card" style="margin-top: 5.5rem">
+      <img class="auth-card__logo" src="./images/logo.png" alt="" width="88" height="88" />
+      <h1>Client login</h1>
+      <p class="lede">Book daycare, grooms, and sitting. See upcoming visits for your pack.</p>
+      <p class="demo-banner">
+        Demo only — any email + password opens the portal mock. No accounts are created.
+      </p>
+      <form id="login-form" class="form">
+        <label class="field">
+          <span>Email</span>
+          <input
+            type="email"
+            name="email"
+            placeholder="you@example.com"
+            autocomplete="username"
+            required
+          />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input
+            type="password"
+            name="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          />
+        </label>
+        <button type="submit" class="btn btn--gold btn--wide">Sign in</button>
+        <p class="form-note">Forgot password? In a live install this would email a reset link.</p>
+      </form>
+    </main>
+
+    <script>
+      document.getElementById("login-form")?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const data = new FormData(event.target);
+        const email = String(data.get("email") || "client@fourleggers.demo");
+        const params = new URLSearchParams({
+          email,
+          dog: "Maple",
+          service: "Daycare",
+          when: "This week",
+        });
+        window.location.href = `./portal.html?${params.toString()}`;
+      });
+    </script>
+  </body>
+</html>

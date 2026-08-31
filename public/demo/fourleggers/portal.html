@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0a112d" />
+    <link rel="icon" href="./images/logo.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@600&family=Montserrat:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>Client portal · Four Leggers</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="portal-page">
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="./">
+          <img src="./images/logo.png" alt="Four Leggers" width="48" height="48" />
+          <span>Four Leggers</span>
+        </a>
+        <div class="header-actions">
+          <a class="btn btn--login" href="./">Site</a>
+          <a class="btn btn--navy" href="./login.html">Sign out</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="portal-shell" style="margin-top: 5.5rem">
+      <div class="portal-top">
+        <div>
+          <p class="font-hand" style="color: var(--coral); font-size: 1.5rem">Welcome back</p>
+          <h1 id="portal-title">Your pack</h1>
+          <p id="portal-email">client@fourleggers.demo</p>
+        </div>
+        <button type="button" class="btn btn--gold" id="portal-book">Book again</button>
+      </div>
+
+      <p class="demo-banner">
+        Visual flash of a REΛVE client portal — appointments and dog profiles are sample data.
+      </p>
+
+      <div class="portal-grid">
+        <section class="portal-card">
+          <h2>Upcoming</h2>
+          <p class="meta" id="request-line">Requested visit will show here.</p>
+          <div class="appt">
+            <div class="appt__day"><strong id="day-num">4</strong><span id="day-mon">Sep</span></div>
+            <div>
+              <strong id="appt-service">Daycare</strong>
+              <p class="meta" id="appt-detail">Full day · drop-off 7:30a</p>
+            </div>
+          </div>
+          <div class="appt">
+            <div class="appt__day"><strong>12</strong><span>Sep</span></div>
+            <div>
+              <strong>Grooming</strong>
+              <p class="meta">Bath &amp; tidy · 11:00a</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="portal-card">
+          <h2>Dogs</h2>
+          <div class="dog-row">
+            <img class="dog-avatar" src="./images/pack/02.webp" alt="" />
+            <div>
+              <strong id="dog-name">Maple</strong>
+              <p class="meta">Daycare · Grooming · Boarding</p>
+            </div>
+          </div>
+          <div class="dog-row">
+            <img class="dog-avatar" src="./images/pack/04.webp" alt="" />
+            <div>
+              <strong>Scout</strong>
+              <p class="meta">Walks · Training</p>
+            </div>
+          </div>
+          <button type="button" class="btn btn--ghost" style="margin-top: 1rem; width: 100%">
+            Add another dog
+          </button>
+        </section>
+      </div>
+
+      <section class="portal-card" style="margin-top: 0.85rem">
+        <h2>Quick book</h2>
+        <p class="meta">Same sheet as the public site — picks land here in a live install.</p>
+        <div class="chip-row" style="margin-top: 0.75rem">
+          <button type="button" class="btn btn--navy" data-quick="Daycare">Daycare</button>
+          <button type="button" class="btn btn--navy" data-quick="Grooming">Grooming</button>
+          <button type="button" class="btn btn--navy" data-quick="Sitting & boarding">
+            Sitting
+          </button>
+        </div>
+        <p id="quick-confirm" class="form-note" style="margin-top: 0.85rem; text-align: left"></p>
+      </section>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const dog = params.get("dog") || "Maple";
+      const service = params.get("service") || "Daycare";
+      const when = params.get("when") || "This week";
+      const email = params.get("email") || "client@fourleggers.demo";
+
+      document.getElementById("portal-email").textContent = email;
+      document.getElementById("dog-name").textContent = dog;
+      document.getElementById("appt-service").textContent = service;
+      document.getElementById("request-line").textContent =
+        `You asked for ${service} for ${dog} · ${when}.`;
+      document.getElementById("appt-detail").textContent =
+        when === "ASAP"
+          ? "Hold for next open slot"
+          : when === "Today"
+            ? "Same-day request · staff will confirm"
+            : "Full day · drop-off 7:30a";
+
+      document.getElementById("portal-book")?.addEventListener("click", () => {
+        window.location.href = "./#schedule";
+      });
+
+      document.querySelectorAll("[data-quick]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const label = btn.getAttribute("data-quick") || "a visit";
+          const el = document.getElementById("quick-confirm");
+          if (el) {
+            el.textContent = `Got it — “${label}” for ${dog} is queued in this demo. A live REΛVE install would write the booking and notify the shop.`;
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
