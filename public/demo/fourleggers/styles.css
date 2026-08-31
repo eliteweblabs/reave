@@ -259,9 +259,20 @@ select {
   padding: 0 0.75rem;
 }
 
-.hero__dogs svg {
+.hero__dogs-silhouette {
   width: 100%;
-  height: auto;
+  aspect-ratio: 1280 / 280;
+  max-height: 11rem;
+  background: color-mix(in srgb, var(--navy) 38%, transparent);
+  mask-image: url("./images/dogs-row.png");
+  mask-mode: luminance;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center bottom;
+  -webkit-mask-image: url("./images/dogs-row.png");
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center bottom;
 }
 
 .hero__caption {
