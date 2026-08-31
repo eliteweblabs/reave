@@ -10,6 +10,11 @@ import "../../styles/brand.css";
 
 const company = await getCompanyConfig(Astro.request);
 const subtitle = getSiteContent().homepage.subtitle?.trim() || "";
+const { userId } = Astro.locals.auth();
+if (userId) {
+  const next = Astro.url.searchParams.get("redirect_url") || "/admin/";
+  return Astro.redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/admin/");
+}
 ---
 
 <!doctype html>
@@ -25,8 +30,8 @@ const subtitle = getSiteContent().homepage.subtitle?.trim() || "";
     <title>{company.name}</title>
     <Favicon />
   </head>
-  <body data-user-id="">
-    <Header />
+  <body data-user-id={userId ?? ""}>
+    <Header signInAutoOpen={!userId} />
     <main class="login-stage">
       <h1>{company.name}</h1>
       {subtitle && <p>{subtitle}</p>}

@@ -369,6 +369,17 @@ assert.equal(
   assert.equal(forwarded.get('accept-encoding'), null);
 }
 
+const homeLogin = readFileSync('src/components/home/HomeLoginPage.astro', 'utf8');
+assert.match(homeLogin, /locals\.auth\(\)/);
+assert.match(homeLogin, /Astro\.redirect/);
+assert.match(homeLogin, /data-user-id=\{userId/);
+assert.match(homeLogin, /signInAutoOpen=\{!userId\}/);
+assert.doesNotMatch(
+  homeLogin,
+  /data-user-id=""/,
+  'login homepage must not hardcode an empty session — that trips the stuck-sign-in sheet',
+);
+
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 assert.match(astroConfig, /clerkProxyUrlFromEnv/);
 assert.match(astroConfig, /proxyUrl/);
