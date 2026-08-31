@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { cardPhoneLast4, cardPhoneToE164 } from '../src/lib/cardPhoneFormat.ts';
+import { cardPhoneLast4, cardPhoneToE164, cardLoginUsesServerProxy } from '../src/lib/cardPhoneFormat.ts';
 
 assert.equal(cardPhoneToE164('(617) 706-0805'), '+16177060805');
 assert.equal(cardPhoneToE164('16177060805'), '+16177060805');
@@ -12,10 +12,15 @@ assert.equal(cardPhoneToE164('+16177060805'), '+16177060805');
 assert.equal(cardPhoneToE164(''), '');
 assert.equal(cardPhoneLast4('+16177060805'), '0805');
 
+assert.equal(cardLoginUsesServerProxy('life-saving.reave.app'), true);
+assert.equal(cardLoginUsesServerProxy('app.levineslaw.com'), false);
+assert.equal(cardLoginUsesServerProxy('reave.app'), false);
+
 const card = readFileSync('src/pages/card.astro', 'utf8');
 assert.match(card, /CardPhoneLogin/);
 assert.match(card, /cardPhoneToE164/);
 assert.match(card, /resolveCardPhoneRaw/);
+assert.match(card, /useServerProxy/);
 
 const companyConfig = readFileSync('src/lib/defaultSupportPhone.ts', 'utf8');
 assert.match(companyConfig, /DEFAULT_SUPPORT_PHONE = '\+1-617-706-0805'/);
@@ -28,7 +33,8 @@ const login = readFileSync('src/components/CardPhoneLogin.astro', 'utf8');
 assert.match(login, /Text a one-time code/);
 assert.match(login, /\/api\/card\/login\/send/);
 assert.match(login, /\/api\/card\/login\/verify/);
-assert.doesNotMatch(login, /clerk\.client\.signIn\.create/);
+assert.match(login, /clerk\.client\.signIn\.create/);
+assert.match(login, /useServerProxy/);
 assert.match(login, /autocomplete="one-time-code"/);
 assert.match(login, /id="clerk-captcha"/);
 assert.doesNotMatch(login, /type="password"/);

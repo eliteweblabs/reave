@@ -6,12 +6,15 @@ interface Props {
   phoneE164: string;
   signedIn: boolean;
   redirectUrl?: string;
+  /** *.reave.app satellites — server FAPI proxy; own domains use clerk-js (captcha). */
+  useServerProxy?: boolean;
 }
 
 const {
   phoneE164,
   signedIn,
   redirectUrl = '/admin/',
+  useServerProxy = false,
 } = Astro.props;
 
 const clerkReady = isClerkFrontendConfigured();
@@ -78,7 +81,12 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
 )}
 
 {showLogin && (
-  <script type="module" define:vars={{ redirectUrl }}>
+  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp, useServerProxy }}>
+    function clerkMessage(err) {
+      const first = err?.errors?.[0];
+      return first?.longMessage || first?.message || err?.message || 'Could not send a code.';
+    }
+
     function waitForClerk() {
       return new Promise((resolve, reject) => {
         if (window.Clerk?.loaded && window.Clerk.client) {
@@ -109,7 +117,49 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       });
     }
 
-    async function sendCode() {
+    async function sendCodeClient(clerk) {
+      try {
+        const created = await clerk.client.signIn.create({ identifier: phoneE164 });
+        const factor = (created.supportedFirstFactors || []).find(
+          (row) => row.strategy === 'phone_code' && row.phoneNumberId,
+        );
+        if (!factor) {
+          throw new Error('Phone codes are not enabled for this number.');
+        }
+        await clerk.client.signIn.prepareFirstFactor({
+          strategy: 'phone_code',
+          phoneNumberId: factor.phoneNumberId,
+        });
+        return 'sign-in';
+      } catch (err) {
+        const code = err?.errors?.[0]?.code;
+        if (code !== 'form_identifier_not_found' || !allowSignUp) throw err;
+        await clerk.client.signUp.create({ phoneNumber: phoneE164 });
+        await clerk.client.signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
+        return 'sign-up';
+      }
+    }
+
+    async function verifyCodeClient(clerk, mode, code) {
+      if (mode === 'sign-up') {
+        const result = await clerk.client.signUp.attemptPhoneNumberVerification({ code });
+        if (result.status !== 'complete' || !result.createdSessionId) {
+          throw new Error('That code did not finish sign-in.');
+        }
+        await clerk.setActive({ session: result.createdSessionId });
+        return;
+      }
+      const result = await clerk.client.signIn.attemptFirstFactor({
+        strategy: 'phone_code',
+        code,
+      });
+      if (result.status !== 'complete' || !result.createdSessionId) {
+        throw new Error('That code did not finish sign-in.');
+      }
+      await clerk.setActive({ session: result.createdSessionId });
+    }
+
+    async function sendCodeServer() {
       const res = await fetch('/api/card/login/send', {
         method: 'POST',
         credentials: 'same-origin',
@@ -127,7 +177,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       return data.mode || 'sign-in';
     }
 
-    async function verifyCode(code) {
+    async function verifyCodeServer(code) {
       const res = await fetch('/api/card/login/verify', {
         method: 'POST',
         credentials: 'same-origin',
@@ -160,6 +210,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
     if (!sendBtn || !form || !input || !submitBtn || !resendBtn) {
       /* card login chrome not on this page */
     } else {
+    let mode = 'sign-in';
     let sending = false;
 
     function showError(message) {
@@ -182,10 +233,15 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       if (sendMeta) sendMeta.textContent = 'Sending code…';
       showError('');
       try {
-        await sendCode();
+        if (useServerProxy) {
+          mode = await sendCodeServer();
+        } else {
+          const clerk = await waitForClerk();
+          mode = await sendCodeClient(clerk);
+        }
         showOtp();
       } catch (err) {
-        showError(err?.message || 'Could not send a code.');
+        showError(useServerProxy ? err?.message || 'Could not send a code.' : clerkMessage(err));
         if (sendMeta) sendMeta.textContent = 'Text a one-time code';
         sendBtn.hidden = false;
         sendBtn.disabled = false;
@@ -215,10 +271,15 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       input.disabled = true;
       showError('');
       try {
-        await verifyCode(code);
+        if (useServerProxy) {
+          await verifyCodeServer(code);
+        } else {
+          const clerk = await waitForClerk();
+          await verifyCodeClient(clerk, mode, code);
+        }
         window.location.assign(redirectUrl);
       } catch (err) {
-        showError(err?.message || 'That code did not finish sign-in.');
+        showError(useServerProxy ? err?.message || 'That code did not finish sign-in.' : clerkMessage(err));
         submitBtn.disabled = false;
         input.disabled = false;
         input.focus();

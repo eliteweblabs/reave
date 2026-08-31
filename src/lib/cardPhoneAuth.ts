@@ -7,7 +7,7 @@ import { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
 import { getDeploymentOwnerProfile } from './deploymentOwner';
 import { serverEnv } from './serverEnv';
 
-export { cardPhoneLast4, cardPhoneToE164 } from './cardPhoneFormat';
+export { cardPhoneLast4, cardPhoneToE164, cardLoginUsesServerProxy } from './cardPhoneFormat';
 
 /**
  * Phone shown on /card (Call, Text, Login OTP). Prefer Admin → Company support

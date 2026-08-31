@@ -151,6 +151,11 @@ function phoneCodeFactor(json: Record<string, unknown>): { phoneNumberId: string
   return null;
 }
 
+function signInStatus(json: Record<string, unknown>): string {
+  const response = asRecord(json.response) ?? json;
+  return typeof response.status === 'string' ? response.status : '';
+}
+
 function resourceId(json: Record<string, unknown>): string {
   const response = asRecord(json.response) ?? json;
   const id = response.id;
@@ -172,6 +177,14 @@ export async function startCardPhoneLogin(
     const signInId = resourceId(created.json);
     const factor = phoneCodeFactor(created.json);
     if (!signInId || !factor) {
+      if (signInStatus(created.json) === 'needs_identifier') {
+        throw new ClerkFapiError(
+          'Could not verify this phone number. Try again from the browser.',
+          'needs_identifier',
+          cookies,
+          created.json,
+        );
+      }
       throw new Error('Phone codes are not enabled for this number.');
     }
     const prepared = await clerkFapiJson(request, cookies, `v1/client/sign_ins/${signInId}/prepare_first_factor`, 'POST', {
@@ -187,7 +200,7 @@ export async function startCardPhoneLogin(
   } catch (err) {
     const code = err instanceof ClerkFapiError ? err.code : '';
     cookies = err instanceof ClerkFapiError ? err.cookies : cookies;
-    if (!allowSignUp || code !== 'form_identifier_not_found') {
+    if (!allowSignUp || (code !== 'form_identifier_not_found' && code !== 'needs_identifier')) {
       throw err instanceof Error ? err : new Error('Could not send a code.');
     }
   }
