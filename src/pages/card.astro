@@ -23,11 +23,9 @@ import { companyOgImageUrl, getCompanyConfig } from '../lib/companyConfig';
 import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
 import { contactTelHref } from '../lib/contactApi';
 import { LOGO_ICON_OG_PATH } from '../lib/companyLogo';
-import { escapeHtml } from '../lib/htmlEscape';
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
 import { requestOrigin } from '../lib/requestOrigin';
 import { shareSafeText } from '../lib/shareSafeText';
-import { getSiteContent } from '../lib/siteContent';
 import '../styles/brand.css';
 
 export const prerender = false;
@@ -36,21 +34,6 @@ const company = await getCompanyConfig(Astro.request);
 
 const displayName = company.name?.trim() || 'Contact';
 const tagline = company.description?.trim() || '';
-const heroHeadlineHtml = getSiteContent().homepage.heroHeadlineHtml?.trim() || '';
-
-function twoLineTitleHtml(text: string): string {
-  const trimmed = text.trim();
-  const comma = trimmed.indexOf(',');
-  if (comma > 0) {
-    const rest = trimmed.slice(comma + 1).trim();
-    if (rest) {
-      return `${escapeHtml(trimmed.slice(0, comma + 1))}<br />${escapeHtml(rest)}`;
-    }
-  }
-  return escapeHtml(trimmed);
-}
-
-const titleHtml = heroHeadlineHtml || twoLineTitleHtml(tagline || displayName);
 const phoneRaw = await resolveCardPhoneRaw(Astro, company.supportPhone);
 const telDigits = contactTelHref(phoneRaw);
 const phoneHref = telDigits ? `tel:${telDigits}` : '';
@@ -138,7 +121,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     <main class="nfc-shell">
       <header class="nfc-brand">
         <BrandIconLockup company={company} variant="hero" idPrefix="nfc-mark" />
-        <h1 class="nfc-title" set:html={titleHtml} />
+        <h1 class="nfc-sr-only">{displayName}</h1>
       </header>
 
       <nav class="nfc-actions" aria-label={`Contact ${displayName}`}>
@@ -269,30 +252,16 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     margin-bottom: 36px;
   }
 
-  .nfc-title {
-    position: relative;
-    z-index: 1;
-    margin: calc(var(--home-hero-icon-size) * var(--home-hero-icon-ink-below) * -1) 0 0;
-    font-family: var(--font-primary);
-    font-size: clamp(1.39rem, 3.9vw, 2.625rem);
-    font-weight: 700;
-    letter-spacing: -0.04em;
-    line-height: 1.08;
-    color: var(--site-fg, #171717);
-    text-align: center;
-    text-wrap: balance;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  .nfc-title :global(.home-hero-title-break) {
-    display: inline;
-  }
-
-  @media (max-width: 480px) {
-    .nfc-title {
-      font-size: clamp(1.24rem, 5.625vw, 1.61rem);
-    }
+  .nfc-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   @media (max-height: 720px) {

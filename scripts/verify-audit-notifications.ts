@@ -247,7 +247,8 @@ const wayneReply = [
   assert.match(card, /BrandIconLockup/);
   assert.match(card, /CardPhoneLogin/);
   assert.match(card, /variant="hero"/);
-  assert.match(card, /nfc-title/);
+  assert.doesNotMatch(card, /nfc-title/);
+  assert.match(card, /nfc-sr-only/);
   assert.match(card, /nativeMapsDirectionsUrl/);
   assert.match(card, /data-apple-maps/);
   assert.doesNotMatch(card, /https:\/\/www\.google\.com\/maps\/dir/);
