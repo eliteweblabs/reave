@@ -175,6 +175,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     text-align: center;
     /* Keep the headline on one line above small screens (brand column can wrap it otherwise). */
     white-space: nowrap;
+    /* One clamp for every width — a second phone clamp was stepping the size
+       when the forced <br> kicked in. Stop iOS from resizing on wrap. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     -webkit-user-select: none;
     user-select: none;
   }
@@ -205,17 +209,10 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
     .home-hero-title {
       white-space: normal;
-      text-wrap: balance;
     }
 
     .home-hero-title :global(.home-hero-title-break) {
       display: inline;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .home-hero-title {
-      font-size: clamp(1.36rem, 6.19vw, 1.77rem);
     }
   }
 
