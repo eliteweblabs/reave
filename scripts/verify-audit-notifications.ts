@@ -245,6 +245,7 @@ const wayneReply = [
   const header = readFileSync('src/components/Header.astro', 'utf8');
   assert.match(hero, /BrandIconLockup/);
   assert.match(card, /BrandIconLockup/);
+  assert.match(card, /CardPhoneLogin/);
   assert.match(card, /variant="hero"/);
   assert.match(card, /nfc-title/);
   assert.match(card, /nativeMapsDirectionsUrl/);

@@ -52,6 +52,7 @@
     "check:court-radius": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-court-radius.ts",
     "check:website-editor": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-website-editor-repo.ts",
     "check:homepage-login": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-homepage-login.ts",
+    "check:card-login": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-card-phone-login.ts",
     "check:visits": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-visit-planner.ts",
     "check:logo-contrast": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-logo-contrast-adapt.ts",
     "check:replaced-logo-invert": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-replaced-app-logo-invert.ts",

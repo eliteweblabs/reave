@@ -5,12 +5,14 @@
  */
 import BrandFontHead from '../components/BrandFontHead.astro';
 import BrandIconLockup from '../components/BrandIconLockup.astro';
+import CardPhoneLogin from '../components/CardPhoneLogin.astro';
 import Favicon from '../components/Favicon.astro';
 import PwaDocumentTitle from '../components/PwaDocumentTitle.astro';
 import SiteBackground from '../components/SiteBackground.astro';
 import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import PlausibleScript from '../components/PlausibleScript.astro';
+import { cardPhoneToE164 } from '../lib/cardPhoneAuth';
 import {
   appleMapsDirectionsUrl,
   mapsDirectionsUrl,
@@ -53,6 +55,13 @@ const phoneRaw = company.supportPhone?.trim() || '';
 const telDigits = contactTelHref(phoneRaw);
 const phoneHref = telDigits ? `tel:${telDigits}` : '';
 const smsHref = telDigits ? `sms:${telDigits}` : '';
+const phoneE164 = cardPhoneToE164(phoneRaw);
+let signedIn = false;
+try {
+  signedIn = Boolean(Astro.locals.auth?.()?.userId);
+} catch {
+  signedIn = false;
+}
 const address = company.address?.trim() || '';
 const geo = company.geo;
 
@@ -191,6 +200,8 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
             </span>
           </a>
         )}
+
+        <CardPhoneLogin phoneE164={phoneE164} signedIn={signedIn} />
       </nav>
     </main>
     {directionsHref && (

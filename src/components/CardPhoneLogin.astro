@@ -1,0 +1,397 @@
+---
+import { cardPhoneLast4 } from '../lib/cardPhoneAuth';
+import { isClerkFrontendConfigured } from '../lib/clerkClient';
+
+interface Props {
+  phoneE164: string;
+  signedIn: boolean;
+  redirectUrl?: string;
+}
+
+const {
+  phoneE164,
+  signedIn,
+  redirectUrl = '/admin/',
+} = Astro.props;
+
+const clerkReady = isClerkFrontendConfigured();
+const last4 = cardPhoneLast4(phoneE164);
+const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP !== '0';
+const showDashboard = signedIn;
+const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
+---
+
+{showDashboard && (
+  <a class="nfc-login-btn" href="/admin/" aria-label="Open dashboard">
+    <span class="nfc-login-ico" aria-hidden="true">
+      <!-- IOS_ICONS.dashboard — keep in sync with public/admin/admin-ui.js -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+    </span>
+    <span class="nfc-login-copy">
+      <span class="nfc-login-label">Dashboard</span>
+      <span class="nfc-login-meta">You're signed in</span>
+    </span>
+  </a>
+)}
+
+{showLogin && (
+  <div class="nfc-login" data-card-phone-login>
+    <button
+      type="button"
+      class="nfc-login-btn"
+      id="nfc-login-send"
+      aria-label="Log in with a texted code"
+    >
+      <span class="nfc-login-ico" aria-hidden="true">
+        <!-- IOS_ICONS.log-in — keep in sync with public/admin/admin-ui.js -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg>
+      </span>
+      <span class="nfc-login-copy">
+        <span class="nfc-login-label">Login</span>
+        <span class="nfc-login-meta" id="nfc-login-send-meta">Text a one-time code</span>
+      </span>
+    </button>
+
+    <form class="nfc-otp" id="nfc-otp-form" hidden>
+      <label class="nfc-otp-label" for="nfc-otp-code">
+        Code sent{last4 ? ` to ••••${last4}` : ''}
+      </label>
+      <input
+        id="nfc-otp-code"
+        name="code"
+        type="text"
+        inputmode="numeric"
+        autocomplete="one-time-code"
+        autocapitalize="off"
+        spellcheck="false"
+        maxlength="6"
+        pattern="[0-9]*"
+        placeholder="000000"
+      />
+      <p class="nfc-otp-err" id="nfc-otp-err" hidden></p>
+      <button class="nfc-otp-go" type="submit" id="nfc-otp-submit">Continue</button>
+      <button class="nfc-otp-resend" type="button" id="nfc-otp-resend">Resend code</button>
+    </form>
+
+    <div id="clerk-captcha" class="nfc-clerk-captcha"></div>
+  </div>
+)}
+
+{showLogin && (
+  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp }}>
+    function clerkMessage(err) {
+      const first = err?.errors?.[0];
+      return first?.longMessage || first?.message || err?.message || 'Could not send a code.';
+    }
+
+    function waitForClerk() {
+      return new Promise((resolve, reject) => {
+        if (window.Clerk?.loaded && window.Clerk.client) {
+          resolve(window.Clerk);
+          return;
+        }
+        const started = Date.now();
+        const onReady = () => {
+          if (window.Clerk?.loaded && window.Clerk.client) {
+            cleanup();
+            resolve(window.Clerk);
+          }
+        };
+        const cleanup = () => {
+          window.removeEventListener('clerk-loaded', onReady, true);
+          clearInterval(timer);
+        };
+        window.addEventListener('clerk-loaded', onReady, true);
+        const timer = setInterval(() => {
+          if (window.Clerk?.loaded && window.Clerk.client) {
+            cleanup();
+            resolve(window.Clerk);
+          } else if (Date.now() - started > 20000) {
+            cleanup();
+            reject(new Error('Sign-in is still loading. Try again.'));
+          }
+        }, 50);
+      });
+    }
+
+    async function sendCode(clerk) {
+      try {
+        const created = await clerk.client.signIn.create({ identifier: phoneE164 });
+        const factor = (created.supportedFirstFactors || []).find(
+          (row) => row.strategy === 'phone_code' && row.phoneNumberId,
+        );
+        if (!factor) {
+          throw new Error('Phone codes are not enabled for this number.');
+        }
+        await clerk.client.signIn.prepareFirstFactor({
+          strategy: 'phone_code',
+          phoneNumberId: factor.phoneNumberId,
+        });
+        return 'sign-in';
+      } catch (err) {
+        const code = err?.errors?.[0]?.code;
+        if (code !== 'form_identifier_not_found' || !allowSignUp) throw err;
+        await clerk.client.signUp.create({ phoneNumber: phoneE164 });
+        await clerk.client.signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
+        return 'sign-up';
+      }
+    }
+
+    async function verifyCode(clerk, mode, code) {
+      if (mode === 'sign-up') {
+        const result = await clerk.client.signUp.attemptPhoneNumberVerification({ code });
+        if (result.status !== 'complete' || !result.createdSessionId) {
+          throw new Error('That code did not finish sign-in.');
+        }
+        await clerk.setActive({ session: result.createdSessionId });
+        return;
+      }
+      const result = await clerk.client.signIn.attemptFirstFactor({
+        strategy: 'phone_code',
+        code,
+      });
+      if (result.status !== 'complete' || !result.createdSessionId) {
+        throw new Error('That code did not finish sign-in.');
+      }
+      await clerk.setActive({ session: result.createdSessionId });
+    }
+
+    const sendBtn = document.getElementById('nfc-login-send');
+    const sendMeta = document.getElementById('nfc-login-send-meta');
+    const form = document.getElementById('nfc-otp-form');
+    const input = document.getElementById('nfc-otp-code');
+    const errEl = document.getElementById('nfc-otp-err');
+    const submitBtn = document.getElementById('nfc-otp-submit');
+    const resendBtn = document.getElementById('nfc-otp-resend');
+    if (!sendBtn || !form || !input || !submitBtn || !resendBtn) {
+      /* card login chrome not on this page */
+    } else {
+    let mode = 'sign-in';
+    let sending = false;
+
+    function showError(message) {
+      if (!errEl) return;
+      errEl.hidden = !message;
+      errEl.textContent = message || '';
+    }
+
+    function showOtp() {
+      sendBtn.hidden = true;
+      form.hidden = false;
+      input.value = '';
+      input.focus();
+    }
+
+    async function startOtp() {
+      if (sending) return;
+      sending = true;
+      sendBtn.disabled = true;
+      if (sendMeta) sendMeta.textContent = 'Sending code…';
+      showError('');
+      try {
+        const clerk = await waitForClerk();
+        mode = await sendCode(clerk);
+        showOtp();
+      } catch (err) {
+        showError(clerkMessage(err));
+        if (sendMeta) sendMeta.textContent = 'Text a one-time code';
+        sendBtn.hidden = false;
+        sendBtn.disabled = false;
+      } finally {
+        sending = false;
+      }
+    }
+
+    sendBtn.addEventListener('click', () => {
+      startOtp();
+    });
+
+    resendBtn.addEventListener('click', () => {
+      sendBtn.hidden = false;
+      form.hidden = true;
+      startOtp();
+    });
+
+    async function submitCode(event) {
+      event?.preventDefault();
+      const code = input.value.replace(/\D/g, '');
+      if (code.length < 4) {
+        showError('Enter the code from the text.');
+        return;
+      }
+      submitBtn.disabled = true;
+      input.disabled = true;
+      showError('');
+      try {
+        const clerk = await waitForClerk();
+        await verifyCode(clerk, mode, code);
+        window.location.assign(redirectUrl);
+      } catch (err) {
+        showError(clerkMessage(err));
+        submitBtn.disabled = false;
+        input.disabled = false;
+        input.focus();
+      }
+    }
+
+    form.addEventListener('submit', submitCode);
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/\D/g, '').slice(0, 6);
+      showError('');
+      if (input.value.length === 6) submitCode();
+    });
+    }
+  </script>
+)}
+
+<style>
+  .nfc-login {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .nfc-login-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 64px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: var(--site-fg, #171717);
+    background: var(--brand-glass-bg);
+    border: 1px solid var(--brand-glass-border-color);
+    backdrop-filter: var(--brand-glass-blur);
+    -webkit-backdrop-filter: var(--brand-glass-blur);
+    -webkit-tap-highlight-color: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      transform 0.15s ease,
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .nfc-login-btn:hover,
+  .nfc-login-btn:focus-visible {
+    background: var(--brand-glass-bg-hover);
+    border-color: var(--brand-glass-border-color-hover);
+  }
+
+  .nfc-login-btn:active {
+    transform: scale(0.985);
+  }
+
+  .nfc-login-btn:disabled {
+    opacity: 0.72;
+    cursor: wait;
+  }
+
+  .nfc-login-ico {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    color: inherit;
+  }
+
+  .nfc-login-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .nfc-login-label {
+    font-family: var(--font-primary);
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .nfc-login-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .nfc-otp {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .nfc-otp[hidden] {
+    display: none;
+  }
+
+  .nfc-otp-label {
+    font: 600 0.72rem/1.2 var(--font-content);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .nfc-otp input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 56px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--brand-glass-border-color);
+    background: var(--brand-glass-bg);
+    color: var(--site-fg, #171717);
+    font-family: var(--font-primary);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 0.28em;
+    text-align: center;
+    outline: none;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  .nfc-otp-err {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.35;
+    color: #b42318;
+  }
+
+  .nfc-otp-go,
+  .nfc-otp-resend {
+    min-height: 48px;
+    border-radius: 16px;
+    font: 600 1rem/1 var(--font-primary);
+    letter-spacing: -0.02em;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nfc-otp-go {
+    border: 0;
+    background: var(--brand-btn-bg, #111);
+    color: var(--brand-btn-fg, #fff);
+  }
+
+  .nfc-otp-resend {
+    border: 0;
+    background: transparent;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .nfc-clerk-captcha {
+    min-height: 0;
+  }
+</style>
