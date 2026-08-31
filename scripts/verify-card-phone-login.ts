@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { cardPhoneLast4, cardPhoneToE164 } from '../src/lib/cardPhoneAuth.ts';
+import { cardPhoneLast4, cardPhoneToE164 } from '../src/lib/cardPhoneFormat.ts';
 
 assert.equal(cardPhoneToE164('(617) 706-0805'), '+16177060805');
 assert.equal(cardPhoneToE164('16177060805'), '+16177060805');
@@ -15,6 +15,13 @@ assert.equal(cardPhoneLast4('+16177060805'), '0805');
 const card = readFileSync('src/pages/card.astro', 'utf8');
 assert.match(card, /CardPhoneLogin/);
 assert.match(card, /cardPhoneToE164/);
+assert.match(card, /resolveCardPhoneRaw/);
+
+const companyConfig = readFileSync('src/lib/defaultSupportPhone.ts', 'utf8');
+assert.match(companyConfig, /DEFAULT_SUPPORT_PHONE = '\+1-617-706-0805'/);
+
+const config = readFileSync('src/lib/companyConfig.ts', 'utf8');
+assert.match(config, /DEFAULT_SUPPORT_PHONE,/);
 assert.doesNotMatch(card, /name="password"/);
 
 const login = readFileSync('src/components/CardPhoneLogin.astro', 'utf8');

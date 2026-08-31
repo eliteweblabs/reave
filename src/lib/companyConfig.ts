@@ -36,8 +36,10 @@ import {
   officialReavePublicEmailPatch,
 } from './reavePublicEmail';
 import { shareSafeText } from './shareSafeText';
+import { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
 
 export { shareSafeText } from './shareSafeText';
+export { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
 
 /**
  * Make a string safe to use as an HTTP header value. `fetch` requires header
@@ -480,6 +482,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     stored?.supportPhone,
     serverEnv('COMPANY_SUPPORT_PHONE'),
     serverEnv('TWILIO_FROM_NUMBER'),
+    serverEnv('OWNER_PHONE'),
+    DEFAULT_SUPPORT_PHONE,
   );
   const fromEmail =
     canonicalizeReaveBrandEmail(

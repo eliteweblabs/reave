@@ -139,18 +139,21 @@ function profileFromClerkUser(user: {
   firstName?: string | null;
   lastName?: string | null;
   emailAddresses?: Array<{ emailAddress?: string | null }> | null;
+  phoneNumbers?: Array<{ phoneNumber?: string | null }> | null;
   publicMetadata?: unknown;
 }): DeploymentOwnerProfile {
   const meta = (user.publicMetadata ?? {}) as Record<string, string>;
   const firstName = (user.firstName ?? '').trim();
   const lastName = (user.lastName ?? '').trim();
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+  const profilePhone = (meta.phone ?? '').trim();
+  const clerkPhone = (user.phoneNumbers?.[0]?.phoneNumber ?? '').trim();
   return {
     firstName,
     lastName,
     fullName,
     email: user.emailAddresses?.[0]?.emailAddress?.trim() || '',
-    phone: (meta.phone ?? '').trim(),
+    phone: profilePhone || clerkPhone,
     address: (meta.address ?? '').trim(),
     timezone: (meta.timezone ?? '').trim(),
   };
@@ -166,7 +169,13 @@ export async function getDeploymentOwnerProfile(
     if (ownerId) {
       try {
         const user = await client.users.getUser(ownerId);
-        return profileFromClerkUser(user);
+        const profile = profileFromClerkUser(user);
+        const seeded = ownerProfileFromEnv();
+        return {
+          ...profile,
+          phone: profile.phone || seeded.phone,
+          timezone: profile.timezone || seeded.timezone,
+        };
       } catch {
         /* fall through */
       }
@@ -176,7 +185,15 @@ export async function getDeploymentOwnerProfile(
     for (let page = 0; page < 5; page++) {
       const batch = await client.users.getUserList({ limit: 100, offset });
       const match = batch.data.find((user) => isDeploymentOwnerUser(user));
-      if (match) return profileFromClerkUser(match);
+      if (match) {
+        const profile = profileFromClerkUser(match);
+        const seeded = ownerProfileFromEnv();
+        return {
+          ...profile,
+          phone: profile.phone || seeded.phone,
+          timezone: profile.timezone || seeded.timezone,
+        };
+      }
       if (batch.data.length < 100) break;
       offset += batch.data.length;
     }

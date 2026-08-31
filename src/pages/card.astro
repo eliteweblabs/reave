@@ -12,7 +12,7 @@ import SiteBackground from '../components/SiteBackground.astro';
 import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import PlausibleScript from '../components/PlausibleScript.astro';
-import { cardPhoneToE164 } from '../lib/cardPhoneAuth';
+import { cardPhoneToE164, resolveCardPhoneRaw } from '../lib/cardPhoneAuth';
 import {
   appleMapsDirectionsUrl,
   mapsDirectionsUrl,
@@ -51,7 +51,7 @@ function twoLineTitleHtml(text: string): string {
 }
 
 const titleHtml = heroHeadlineHtml || twoLineTitleHtml(tagline || displayName);
-const phoneRaw = company.supportPhone?.trim() || '';
+const phoneRaw = await resolveCardPhoneRaw(Astro, company.supportPhone);
 const telDigits = contactTelHref(phoneRaw);
 const phoneHref = telDigits ? `tel:${telDigits}` : '';
 const smsHref = telDigits ? `sms:${telDigits}` : '';
@@ -246,10 +246,12 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: safe center;
     align-items: center;
     min-height: 100dvh;
     width: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
   }
 
