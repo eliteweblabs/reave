@@ -332,10 +332,18 @@ select {
   gap: 1rem;
 }
 
+.form fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
 .form legend,
 .form label span {
   display: block;
   margin-bottom: 0.4rem;
+  padding: 0;
   color: var(--navy);
   font-size: 0.68rem;
   font-weight: 700;
