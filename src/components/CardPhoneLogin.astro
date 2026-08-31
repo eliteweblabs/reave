@@ -6,15 +6,12 @@ interface Props {
   phoneE164: string;
   signedIn: boolean;
   redirectUrl?: string;
-  /** *.reave.app satellites — server FAPI proxy; own domains use clerk-js (captcha). */
-  useServerProxy?: boolean;
 }
 
 const {
   phoneE164,
   signedIn,
   redirectUrl = '/admin/',
-  useServerProxy = false,
 } = Astro.props;
 
 const clerkReady = isClerkFrontendConfigured();
@@ -83,7 +80,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
 )}
 
 {showLogin && (
-  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp, useServerProxy }}>
+  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp }}>
     function clerkMessage(err) {
       const first = err?.errors?.[0];
       return first?.longMessage || first?.message || err?.message || 'Could not send a code.';
@@ -119,7 +116,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       });
     }
 
-    async function sendCodeClient(clerk) {
+    async function sendCode(clerk) {
       try {
         const created = await clerk.client.signIn.create({ identifier: phoneE164 });
         const factor = (created.supportedFirstFactors || []).find(
@@ -142,7 +139,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       }
     }
 
-    async function verifyCodeClient(clerk, mode, code) {
+    async function verifyCode(clerk, mode, code) {
       if (mode === 'sign-up') {
         const result = await clerk.client.signUp.attemptPhoneNumberVerification({ code });
         if (result.status !== 'complete' || !result.createdSessionId) {
@@ -159,126 +156,6 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
         throw new Error('That code did not finish sign-in.');
       }
       await clerk.setActive({ session: result.createdSessionId });
-    }
-
-    async function loadTurnstileScript() {
-      if (window.turnstile) return;
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-        script.async = true;
-        script.onload = () => resolve(undefined);
-        script.onerror = () => reject(new Error('Could not load the security check.'));
-        document.head.appendChild(script);
-      });
-    }
-
-    let turnstileWidgetId = null;
-
-    function resetTurnstileWidget() {
-      if (turnstileWidgetId != null && window.turnstile?.remove) {
-        try {
-          window.turnstile.remove(turnstileWidgetId);
-        } catch {
-          /* widget already gone */
-        }
-      }
-      turnstileWidgetId = null;
-      const container = document.getElementById('clerk-captcha');
-      if (container) container.innerHTML = '';
-    }
-
-    async function fetchCardLoginCaptchaFields() {
-      const res = await fetch('/__clerk/v1/environment', {
-        credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
-      });
-      let env = {};
-      try {
-        env = await res.json();
-      } catch {
-        env = {};
-      }
-      const dc = env.display_config || env.displayConfig || {};
-      const siteKey = dc.captcha_public_key || dc.captchaPublicKey || '';
-      const widgetType = dc.captcha_widget_type || dc.captchaWidgetType || 'smart';
-      if (!siteKey) return { captchaWidgetType: widgetType };
-
-      await loadTurnstileScript();
-      const container = document.getElementById('clerk-captcha');
-      if (!container) throw new Error('Security check unavailable.');
-
-      resetTurnstileWidget();
-
-      return new Promise((resolve, reject) => {
-        try {
-          turnstileWidgetId = window.turnstile.render(container, {
-            sitekey: siteKey,
-            appearance: widgetType === 'smart' ? 'interaction-only' : 'always',
-            callback: (token) => {
-              resolve({ captchaToken: token, captchaWidgetType: widgetType });
-            },
-            'error-callback': () => {
-              reject(new Error('Security check failed. Refresh and try again.'));
-            },
-            'timeout-callback': () => {
-              reject(new Error('Security check timed out. Try again.'));
-            },
-          });
-          if (widgetType === 'invisible' || widgetType === 'smart') {
-            window.turnstile.execute(turnstileWidgetId);
-          }
-        } catch (err) {
-          reject(err instanceof Error ? err : new Error('Security check failed.'));
-        }
-      });
-    }
-
-    async function sendCodeServer() {
-      const captcha = await fetchCardLoginCaptchaFields();
-      const res = await fetch('/api/card/login/send', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(captcha),
-      });
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-      if (!res.ok || !data.ok) {
-        resetTurnstileWidget();
-        throw new Error(data.error || 'Could not send a code.');
-      }
-      return data.mode || 'sign-in';
-    }
-
-    async function verifyCodeServer(code) {
-      const res = await fetch('/api/card/login/verify', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      });
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-      if (!res.ok || !data.ok || !data.sessionId) {
-        throw new Error(data.error || 'That code did not finish sign-in.');
-      }
-      const clerk = await waitForClerk();
-      await clerk.setActive({ session: data.sessionId });
     }
 
     const sendBtn = document.getElementById('nfc-login-send');
@@ -331,18 +208,11 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       showLoginError('');
       showError('');
       try {
-        if (useServerProxy) {
-          mode = await sendCodeServer();
-        } else {
-          const clerk = await waitForClerk();
-          mode = await sendCodeClient(clerk);
-        }
+        const clerk = await waitForClerk();
+        mode = await sendCode(clerk);
         showOtp();
       } catch (err) {
-        if (useServerProxy) resetTurnstileWidget();
-        showLoginError(
-          useServerProxy ? err?.message || 'Could not send a code.' : clerkMessage(err),
-        );
+        showLoginError(clerkMessage(err));
         sendBtn.hidden = false;
         sendBtn.disabled = false;
       } finally {
@@ -355,7 +225,6 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
     });
 
     resendBtn.addEventListener('click', () => {
-      resetTurnstileWidget();
       sendBtn.hidden = false;
       form.hidden = true;
       startOtp();
@@ -372,15 +241,11 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       input.disabled = true;
       showError('');
       try {
-        if (useServerProxy) {
-          await verifyCodeServer(code);
-        } else {
-          const clerk = await waitForClerk();
-          await verifyCodeClient(clerk, mode, code);
-        }
+        const clerk = await waitForClerk();
+        await verifyCode(clerk, mode, code);
         window.location.assign(redirectUrl);
       } catch (err) {
-        showError(useServerProxy ? err?.message || 'That code did not finish sign-in.' : clerkMessage(err));
+        showError(clerkMessage(err));
         submitBtn.disabled = false;
         input.disabled = false;
         input.focus();

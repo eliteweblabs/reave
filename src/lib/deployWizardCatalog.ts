@@ -651,26 +651,26 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: 'shared',
     kind: 'secret',
     description:
-      'Clerk publishable key (pk_live_ / pk_test_). Shared so every service in the project sees it, not only `reave`.',
+      'Clerk publishable key (pk_live_ / pk_test_) from a new Clerk application for this install — not reave.app’s keys.',
   }),
   v({
     name: 'CLERK_SECRET_KEY',
     service: 'shared',
     kind: 'secret',
     description:
-      'Clerk secret key (sk_live_ / sk_test_). Shared so the serving app sees it even when the public domain is not on `reave`.',
+      'Clerk secret key (sk_live_ / sk_test_) from the same install-scoped Clerk application.',
   }),
   v({
     name: 'PUBLIC_CLERK_PUBLISHABLE_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Clerk publishable key (pk_live_ / pk_test_). Copied onto the app service as well as shared.',
+    description: 'Same install-scoped Clerk publishable key on the app service.',
   }),
   v({
     name: 'CLERK_SECRET_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Clerk secret key (sk_live_ / sk_test_). Copied onto the app service as well as shared.',
+    description: 'Same install-scoped Clerk secret key on the app service.',
   }),
   v({
     name: 'PUBLIC_CLERK_ALLOW_SIGN_UP',
@@ -1718,7 +1718,11 @@ export type DeployWizardPlanInput = {
 export const DEPLOY_WIZARD_DERIVED_SECRETS = new Set(['RESEND_FROM', 'EMAIL_FROM_NAME']);
 
 /** Secrets that must not be copied from the reave.app host (client-scoped tokens). */
-export const DEPLOY_WIZARD_NEVER_INHERIT = new Set(['GITHUB_TOKEN']);
+export const DEPLOY_WIZARD_NEVER_INHERIT = new Set([
+  'GITHUB_TOKEN',
+  'PUBLIC_CLERK_PUBLISHABLE_KEY',
+  'CLERK_SECRET_KEY',
+]);
 
 /** Secrets that show a paste field (Anthropic is optional — blank copies the reave.app host key). */
 export const DEPLOY_WIZARD_OPERATOR_INPUT_SECRETS = new Set(['ANTHROPIC_API_KEY']);
