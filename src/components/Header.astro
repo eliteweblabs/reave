@@ -423,10 +423,9 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
    * env() at the property still works. Public padding therefore uses env()
    * at the use site until this probe freezes a pixel value.
    *
-   * Light pages (about, demo, modules) often probe before Safari has a real
-   * inset and used to bail forever; the homepage usually won that race
-   * because it is heavier. Retry a few frames / pageshow so every public
-   * page gets the same freeze.
+   * First paint on iOS often reports 0 on every public page, including
+   * the homepage. Retry a few frames / pageshow so the freeze is not a
+   * race the homepage sometimes wins and every other route loses.
    */
   function overlayMenuTouchGuard(e: TouchEvent) {
     const open = document.querySelector(".overlay-menu:not([hidden])");
@@ -694,13 +693,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   /*
    * Public header: out-of-flow overlay so the hero can paint the full
-   * viewport. Desktop stays pinned. Homepage mobile scrolls with the page
-   * so content can still reach the island. Inner pages (html.site-page)
-   * stay fixed so the notch band does not vanish after scroll. Pad
-   * logo/actions below the notch. Admin is transparent too; on mobile it
-   * is absolute (dashboard stays fixed via html.admin-dashboard) so panel
-   * content can fill the safe-area bands while the footer nav remains the
-   * sticky chrome.
+   * viewport. Stay position:fixed on every breakpoint and every public
+   * page — an absolute bar scrolls off and the notch treatment vanishes
+   * (homepage, about masonry, features, …). Safari’s rubber-band also
+   * paints html/body --site-canvas in the overscroll gap, and an absolute
+   * header rides down into that slab. Pad logo/actions below the notch.
+   * Admin is transparent too; on mobile it is absolute (dashboard stays
+   * fixed via html.admin-dashboard) so panel content can fill the
+   * safe-area bands while the footer nav remains the sticky chrome.
    */
   .app-header {
     position: fixed;
@@ -756,22 +756,6 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   html.marketing-menu-open .app-header,
   html.overlay-menu-open .app-header {
     z-index: 2100;
-  }
-
-  @media (max-width: 768px) {
-    .app-header:not(.app-header--admin) {
-      position: absolute;
-    }
-
-    /*
-     * Homepage stays absolute so the hero can still reach the island.
-     * Every other public page keeps the bar pinned — otherwise the
-     * notch treatment scrolls away and masonry / copy sit under the
-     * status bar (the /about portfolio failure).
-     */
-    html.site-page .app-header:not(.app-header--admin) {
-      position: fixed;
-    }
   }
 
   @media (max-width: 639px) {
@@ -834,8 +818,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     position: absolute;
     top: calc(-1 * var(--safe-top));
     /* Padding-box of the header is already viewport-wide. Negative insets
-     * used to cancel padding actually bleed 1rem past each edge and — on
-     * iOS, where this bar is position:absolute — widen the document. */
+     * used to cancel padding actually bleed 1rem past each edge and widen
+     * the document. */
     left: 0;
     right: 0;
     height: var(--app-header-scrim-h);
