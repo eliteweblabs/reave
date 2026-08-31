@@ -1,0 +1,308 @@
+---
+import MarketingLayout from '../../layouts/MarketingLayout.astro';
+import { ArrowRight, ExternalLink } from 'lucide-astro';
+import {
+  getPublicSalesProposal,
+  proposalBodyMarkdown,
+} from '../../lib/proposalsStore';
+import { renderDocumentMarkdown } from '../../lib/renderDocumentMarkdown';
+
+export const prerender = false;
+
+const slug = String(Astro.params.slug || '').trim();
+const proposal = slug ? await getPublicSalesProposal(slug) : null;
+
+if (!proposal) {
+  return Astro.redirect('/pricing');
+}
+
+const bodyMarkdown = await proposalBodyMarkdown(proposal);
+const bodyHtml = bodyMarkdown ? await renderDocumentMarkdown(bodyMarkdown) : '';
+const payReady = !!proposal.invoiceUrl;
+---
+
+<MarketingLayout
+  title={proposal.title}
+  description={proposal.lede || proposal.headline}
+>
+  <div class="proposal-page">
+    <section class="proposal-hero">
+      <p class="proposal-kicker">{proposal.clientName}</p>
+      <h1>{proposal.headline}</h1>
+      {proposal.lede ? <p class="proposal-lede">{proposal.lede}</p> : null}
+      <div class="proposal-hero__actions">
+        {
+          payReady ? (
+            <a class="proposal-btn proposal-btn--primary" href={proposal.invoiceUrl!}>
+              Buy now
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+            </a>
+          ) : (
+            <a class="proposal-btn proposal-btn--primary" href="/schedule">
+              Book a call
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+            </a>
+          )
+        }
+        {
+          proposal.demoUrl ? (
+            <a
+              class="proposal-btn proposal-btn--ghost"
+              href={proposal.demoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View demo
+              <ExternalLink size={15} strokeWidth={2} aria-hidden="true" />
+            </a>
+          ) : null
+        }
+      </div>
+    </section>
+
+    <div class="proposal-grid">
+      <section class="proposal-main">
+        {
+          bodyHtml ? (
+            <article class="proposal-body" set:html={bodyHtml} />
+          ) : (
+            <p class="proposal-empty">
+              Scope and terms will appear here from the linked Work project.
+            </p>
+          )
+        }
+      </section>
+
+      <aside class="proposal-buy" aria-labelledby="proposal-buy-title">
+        <div class="proposal-buy__card">
+          <p class="proposal-buy__eyebrow">Proposal</p>
+          <h2 id="proposal-buy-title">{proposal.title}</h2>
+          {
+            proposal.priceLabel ? (
+              <p class="proposal-buy__price">{proposal.priceLabel}</p>
+            ) : null
+          }
+          {proposal.priceNote ? <p class="proposal-buy__note">{proposal.priceNote}</p> : null}
+          {
+            proposal.includes.length ? (
+              <ul class="proposal-buy__list">
+                {proposal.includes.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+            ) : null
+          }
+          {
+            payReady ? (
+              <a class="proposal-btn proposal-btn--primary proposal-btn--wide" href={proposal.invoiceUrl!}>
+                Pay invoice &amp; start
+              </a>
+            ) : (
+              <>
+                <p class="proposal-buy__pending">
+                  Secure pay link coming shortly — book a call or email info@reave.app to complete
+                  purchase.
+                </p>
+                <a class="proposal-btn proposal-btn--ghost proposal-btn--wide" href="/schedule">
+                  Schedule a call instead
+                </a>
+              </>
+            )
+          }
+          {
+            proposal.demoUrl ? (
+              <a
+                class="proposal-link"
+                href={proposal.demoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open live demo
+              </a>
+            ) : null
+          }
+        </div>
+      </aside>
+    </div>
+  </div>
+</MarketingLayout>
+
+<style>
+  .proposal-page {
+    width: min(100%, 980px);
+    margin: 0 auto;
+    padding: 0 var(--site-page-gutter, 20px) calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .proposal-hero {
+    text-align: center;
+    padding: 2.5rem 0 2rem;
+    max-width: 42rem;
+    margin: 0 auto;
+  }
+
+  .proposal-kicker {
+    margin: 0 0 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .proposal-hero h1 {
+    margin: 0;
+    font-size: clamp(1.85rem, 5vw, 2.65rem);
+    letter-spacing: -0.03em;
+    line-height: 1.12;
+    color: var(--site-fg, #171717);
+  }
+
+  .proposal-lede {
+    margin: 1rem auto 0;
+    max-width: 34rem;
+    color: var(--site-fg-muted, #525252);
+    font-size: 1.02rem;
+    line-height: 1.55;
+  }
+
+  .proposal-hero__actions {
+    margin-top: 1.35rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.65rem;
+  }
+
+  .proposal-grid {
+    display: grid;
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  @media (min-width: 860px) {
+    .proposal-grid {
+      grid-template-columns: minmax(0, 1fr) 18rem;
+    }
+  }
+
+  .proposal-body :global(h2),
+  .proposal-body :global(h3) {
+    margin: 1.35rem 0 0.55rem;
+    color: var(--site-fg, #171717);
+  }
+
+  .proposal-body :global(p),
+  .proposal-body :global(li) {
+    color: var(--site-fg-muted, #525252);
+    line-height: 1.6;
+  }
+
+  .proposal-body :global(ul) {
+    padding-left: 1.2rem;
+  }
+
+  .proposal-empty {
+    color: var(--site-fg-muted, #525252);
+    font-style: italic;
+  }
+
+  .proposal-buy__card {
+    position: sticky;
+    top: calc(var(--site-header-height, 64px) + 1rem);
+    border: 1px solid var(--site-border, #e5e5e5);
+    border-radius: 1rem;
+    padding: 1.25rem;
+    background: rgb(255 255 255 / 0.72);
+    backdrop-filter: blur(12px);
+  }
+
+  .proposal-buy__eyebrow {
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .proposal-buy__card h2 {
+    margin: 0.35rem 0 0;
+    font-size: 1.05rem;
+    line-height: 1.35;
+    color: var(--site-fg, #171717);
+  }
+
+  .proposal-buy__price {
+    margin: 0.85rem 0 0;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--site-fg, #171717);
+  }
+
+  .proposal-buy__note {
+    margin: 0.25rem 0 0;
+    font-size: 0.82rem;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .proposal-buy__list {
+    margin: 1rem 0 0;
+    padding-left: 1.1rem;
+    font-size: 0.88rem;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .proposal-buy__list li + li {
+    margin-top: 0.35rem;
+  }
+
+  .proposal-buy__pending {
+    margin: 1rem 0 0;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .proposal-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.72rem 1.15rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .proposal-btn--primary {
+    background: var(--site-fg, #171717);
+    color: #fff;
+  }
+
+  .proposal-btn--ghost {
+    background: transparent;
+    color: var(--site-fg, #171717);
+    box-shadow: inset 0 0 0 1.5px var(--site-border, #d4d4d4);
+  }
+
+  .proposal-btn--wide {
+    width: 100%;
+    margin-top: 1rem;
+  }
+
+  .proposal-link {
+    display: block;
+    margin-top: 0.85rem;
+    text-align: center;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--site-fg-muted, #525252);
+  }
+</style>

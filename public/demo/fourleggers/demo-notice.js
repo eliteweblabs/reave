@@ -8,7 +8,7 @@
     bar.innerHTML =
       '<div class="wrap">' +
       "<p><strong>Demo site.</strong> Visual proposal only — scheduling and client login are not wired to a live install.</p>" +
-      '<a class="demo-notice__btn" href="https://reave.app/card">Contact reΛVe</a>' +
+      '<a class="demo-notice__btn" href="https://reave.app/proposal/fourleggers">Buy this site</a>' +
       "</div>";
     document.body.insertBefore(bar, document.body.firstChild);
   }

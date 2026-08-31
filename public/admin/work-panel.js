@@ -56,7 +56,7 @@ import {
   projectFileMediaFilter,
   fetchMediaAsFile,
 } from './media-picker.js?v=20260813b';
-import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
+import { mountProposalSalesFields } from './proposal-sales-fields.js?v=20260831a';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -4076,6 +4076,7 @@ function renderEditWorkForm(pane) {
       fields.appendChild(statusPill.el);
 
       metaFields = appendWorkMetaFields(fields, workState.draft, queueWorkAutosave);
+      void mountProposalSalesFields(fields, slug);
 
       const checklistMount = document.createElement('div');
       checklistMount.className = 'wk-checklist-mount';
