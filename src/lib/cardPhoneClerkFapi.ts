@@ -11,6 +11,7 @@ import {
   clerkProxyRequestHeaders,
 } from './clerkFrontendProxy';
 import { clerkSecretKey } from './clerkClient';
+import { captchaFieldsForFapi, type CardLoginCaptcha } from './cardLoginCaptcha';
 import { resolvePublicHost } from './requestHost';
 
 export type CardLoginMode = 'sign-in' | 'sign-up';
@@ -190,17 +191,43 @@ async function ensureClerkClient(
   return boot.cookies;
 }
 
+function browserClerkCookies(request: Request): Record<string, string> {
+  const raw = request.headers.get('cookie') || '';
+  const jar: Record<string, string> = {};
+  for (const part of raw.split(';')) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const name = trimmed.slice(0, eq);
+    if (name === '__client' || name.startsWith('__clerk')) {
+      try {
+        jar[name] = decodeURIComponent(trimmed.slice(eq + 1));
+      } catch {
+        jar[name] = trimmed.slice(eq + 1);
+      }
+    }
+  }
+  return jar;
+}
+
 export async function startCardPhoneLogin(
   request: Request,
   phoneE164: string,
   allowSignUp: boolean,
+  captcha: CardLoginCaptcha = {},
 ): Promise<CardLoginPending> {
-  let cookies = await ensureClerkClient(request, {});
+  let cookies = browserClerkCookies(request);
+  if (!cookies.__client) {
+    cookies = await ensureClerkClient(request, cookies);
+  }
+  const captchaBody = captchaFieldsForFapi(captcha);
 
   try {
     const created = await clerkFapiJson(request, cookies, 'v1/client/sign_ins', 'POST', {
       identifier: phoneE164,
       strategy: 'phone_code',
+      ...captchaBody,
     });
     cookies = created.cookies;
     const signIn = signInFromEnvelope(created.json);
@@ -258,6 +285,7 @@ export async function startCardPhoneLogin(
 
   const signUp = await clerkFapiJson(request, cookies, 'v1/client/sign_ups', 'POST', {
     phone_number: phoneE164,
+    ...captchaBody,
   });
   cookies = signUp.cookies;
   const signUpId = resourceId(signUp.json);

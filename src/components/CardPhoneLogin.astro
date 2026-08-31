@@ -161,11 +161,89 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       await clerk.setActive({ session: result.createdSessionId });
     }
 
+    async function loadTurnstileScript() {
+      if (window.turnstile) return;
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        script.onload = () => resolve(undefined);
+        script.onerror = () => reject(new Error('Could not load the security check.'));
+        document.head.appendChild(script);
+      });
+    }
+
+    let turnstileWidgetId = null;
+
+    function resetTurnstileWidget() {
+      if (turnstileWidgetId != null && window.turnstile?.remove) {
+        try {
+          window.turnstile.remove(turnstileWidgetId);
+        } catch {
+          /* widget already gone */
+        }
+      }
+      turnstileWidgetId = null;
+      const container = document.getElementById('clerk-captcha');
+      if (container) container.innerHTML = '';
+    }
+
+    async function fetchCardLoginCaptchaFields() {
+      const res = await fetch('/__clerk/v1/environment', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      let env = {};
+      try {
+        env = await res.json();
+      } catch {
+        env = {};
+      }
+      const dc = env.display_config || env.displayConfig || {};
+      const siteKey = dc.captcha_public_key || dc.captchaPublicKey || '';
+      const widgetType = dc.captcha_widget_type || dc.captchaWidgetType || 'smart';
+      if (!siteKey) return { captchaWidgetType: widgetType };
+
+      await loadTurnstileScript();
+      const container = document.getElementById('clerk-captcha');
+      if (!container) throw new Error('Security check unavailable.');
+
+      resetTurnstileWidget();
+
+      return new Promise((resolve, reject) => {
+        try {
+          turnstileWidgetId = window.turnstile.render(container, {
+            sitekey: siteKey,
+            appearance: widgetType === 'smart' ? 'interaction-only' : 'always',
+            callback: (token) => {
+              resolve({ captchaToken: token, captchaWidgetType: widgetType });
+            },
+            'error-callback': () => {
+              reject(new Error('Security check failed. Refresh and try again.'));
+            },
+            'timeout-callback': () => {
+              reject(new Error('Security check timed out. Try again.'));
+            },
+          });
+          if (widgetType === 'invisible' || widgetType === 'smart') {
+            window.turnstile.execute(turnstileWidgetId);
+          }
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error('Security check failed.'));
+        }
+      });
+    }
+
     async function sendCodeServer() {
+      const captcha = await fetchCardLoginCaptchaFields();
       const res = await fetch('/api/card/login/send', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(captcha),
       });
       let data = {};
       try {
@@ -174,6 +252,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
         data = {};
       }
       if (!res.ok || !data.ok) {
+        resetTurnstileWidget();
         throw new Error(data.error || 'Could not send a code.');
       }
       return data.mode || 'sign-in';
@@ -260,6 +339,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
         }
         showOtp();
       } catch (err) {
+        if (useServerProxy) resetTurnstileWidget();
         showLoginError(
           useServerProxy ? err?.message || 'Could not send a code.' : clerkMessage(err),
         );
@@ -275,6 +355,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
     });
 
     resendBtn.addEventListener('click', () => {
+      resetTurnstileWidget();
       sendBtn.hidden = false;
       form.hidden = true;
       startOtp();

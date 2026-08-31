@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { jsonResponse } from '../../../../lib/apiResponse';
+import { parseCardLoginCaptchaRequest } from '../../../../lib/cardLoginCaptcha';
 import { resolveCardPhoneRaw, cardPhoneToE164 } from '../../../../lib/cardPhoneAuth';
 import {
   cardLoginPendingCookie,
@@ -39,9 +40,10 @@ export const POST: APIRoute = async (context) => {
   }
 
   const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP !== '0';
+  const captcha = await parseCardLoginCaptchaRequest(context.request);
 
   try {
-    const pending = await startCardPhoneLogin(context.request, phoneE164, allowSignUp);
+    const pending = await startCardPhoneLogin(context.request, phoneE164, allowSignUp, captcha);
     return jsonResponse(
       { ok: true, mode: pending.mode, last4: phoneE164.slice(-4) },
       200,
