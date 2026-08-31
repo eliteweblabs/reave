@@ -85,6 +85,29 @@ export function isAnthropicLlmConfigured(): boolean {
   return Boolean(resolveAnthropicApiKey());
 }
 
+export type LlmRouteInfo = {
+  /** anthropic = direct API; openrouter | gateway = proxied */
+  kind: AnthropicGatewayKind;
+  /** Short label for UI chips, null when direct Anthropic. */
+  label: string | null;
+  host: string | null;
+};
+
+/** Resolved LLM routing for admin UI (model switcher chip, health, etc.). */
+export function getLlmRouteInfo(): LlmRouteInfo {
+  const endpoint = resolveAnthropicEndpoint();
+  if (!endpoint?.viaGateway) {
+    return { kind: 'anthropic', label: null, host: 'api.anthropic.com' };
+  }
+  if (endpoint.gatewayKind === 'openrouter') {
+    return { kind: 'openrouter', label: 'OpenRouter', host: endpoint.host };
+  }
+  const host = endpoint.host || 'gateway';
+  const short =
+    /omniroute/i.test(host) ? 'OmniRoute' : host.length > 28 ? `${host.slice(0, 25)}…` : host;
+  return { kind: 'gateway', label: short, host: endpoint.host };
+}
+
 export function isAnthropicGatewayConfigured(): boolean {
   return resolveAnthropicBaseUrl() !== DEFAULT_ANTHROPIC_BASE_URL;
 }

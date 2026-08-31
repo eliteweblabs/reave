@@ -12,6 +12,7 @@ import {
 import { agentModelStorageBackend, setStoredAgentModel } from '../../../lib/agentModelStore';
 import { getAnthropicBalance, type AnthropicBalance } from '../../../lib/anthropicBalance';
 import { getAnthropicKeySource, type AnthropicKeySource } from '../../../lib/anthropicKeySource';
+import { getLlmRouteInfo, type LlmRouteInfo } from '../../../lib/anthropicEndpoint';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../lib/apiResponse';
 
@@ -22,6 +23,7 @@ function payload(
   settings: AgentModelSettings,
   anthropicBalance: AnthropicBalance,
   anthropicKeySource: AnthropicKeySource = getAnthropicKeySource(),
+  llmRoute: LlmRouteInfo = getLlmRouteInfo(),
 ) {
   return {
     ok: true,
@@ -34,6 +36,7 @@ function payload(
     storage: agentModelStorageBackend(),
     anthropicBalance,
     anthropicKeySource,
+    llmRoute,
   };
 }
 

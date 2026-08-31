@@ -365,6 +365,39 @@ body.sidebar-resize-active * {
   display: block;
   flex-shrink: 0;
 }
+.ch-llm-route-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: #312e81;
+  background: #eef2ff;
+  border: 1px solid #a5b4fc;
+  border-radius: 999px;
+  padding: 0.22rem 0.5rem 0.22rem 0.4rem;
+  white-space: nowrap;
+}
+.ch-llm-route-flag[hidden] {
+  display: none !important;
+}
+.ch-llm-route-flag svg {
+  display: block;
+  flex-shrink: 0;
+}
+.ch-llm-route-flag--banner {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--footer-nav-h) + 0.5rem);
+  transform: translateX(-50%);
+  margin: 0;
+  z-index: 5;
+  font-size: 0.7rem;
+  padding: 0.32rem 0.62rem 0.32rem 0.48rem;
+}
 .ch-reave-key-flag--banner {
   position: absolute;
   left: 50%;
@@ -375,7 +408,8 @@ body.sidebar-resize-active * {
   font-size: 0.7rem;
   padding: 0.32rem 0.62rem 0.32rem 0.48rem;
 }
-#chat-panel .ch-sidebar:has(.ch-reave-key-flag--banner:not([hidden])) .ch-list {
+#chat-panel .ch-sidebar:has(.ch-reave-key-flag--banner:not([hidden])) .ch-list,
+#chat-panel .ch-sidebar:has(.ch-llm-route-flag--banner:not([hidden])) .ch-list {
   padding-bottom: calc(var(--footer-scroll-pad) + 2.5rem);
 }
 @media (prefers-color-scheme: dark) {

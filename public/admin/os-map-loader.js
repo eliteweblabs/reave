@@ -1149,6 +1149,7 @@ export let agentModelState = {
   saving: false,
   anthropicBalance: null,
   anthropicKeySource: 'none',
+  llmRoute: null,
 };
 
 function formatBalanceUsd(n) {
@@ -1443,6 +1444,23 @@ function isReaveSharedAnthropicKey() {
   return agentModelState.anthropicKeySource === 'reave';
 }
 
+function llmRouteChipLabel(route) {
+  if (!route?.label) return null;
+  return route.kind === 'openrouter' ? 'via OpenRouter' : `via ${route.label}`;
+}
+
+function llmRouteChipTitle(route) {
+  if (!route?.label) return '';
+  if (route.kind === 'openrouter') {
+    return 'Claude requests route through OpenRouter (OPENROUTER_API_KEY). Usage and billing are on openrouter.ai.';
+  }
+  return `Claude requests route through ${route.host || route.label} (ANTHROPIC_BASE_URL).`;
+}
+
+function isLlmRouteActive() {
+  return Boolean(agentModelState.llmRoute?.label);
+}
+
 function createChatReaveKeyFlag(variant = 'chip') {
   const el = document.createElement(variant === 'banner' ? 'div' : 'span');
   el.className = variant === 'banner' ? 'ch-reave-key-flag ch-reave-key-flag--banner' : 'ch-reave-key-flag';
@@ -1459,10 +1477,41 @@ function syncReaveKeyFlags() {
   });
 }
 
+function createChatLlmRouteFlag(variant = 'chip') {
+  const el = document.createElement(variant === 'banner' ? 'div' : 'span');
+  el.className =
+    variant === 'banner' ? 'ch-llm-route-flag ch-llm-route-flag--banner' : 'ch-llm-route-flag';
+  el.dataset.routeKind = agentModelState.llmRoute?.kind || '';
+  el.hidden = !isLlmRouteActive();
+  el.title = llmRouteChipTitle(agentModelState.llmRoute);
+  el.innerHTML = `${iosIcon('layers', variant === 'banner' ? 14 : 12)}<span>${escHtml(llmRouteChipLabel(agentModelState.llmRoute) || '')}</span>`;
+  return el;
+}
+
+function syncLlmRouteFlags() {
+  const route = agentModelState.llmRoute;
+  const on = isLlmRouteActive();
+  const label = llmRouteChipLabel(route);
+  const title = llmRouteChipTitle(route);
+  document.querySelectorAll('.ch-llm-route-flag').forEach((el) => {
+    el.hidden = !on;
+    el.dataset.routeKind = route?.kind || '';
+    el.title = title;
+    const text = el.querySelector('span');
+    if (text) text.textContent = label || '';
+  });
+}
+
+function syncChatModelFlags() {
+  syncReaveKeyFlags();
+  syncLlmRouteFlags();
+}
+
 function createChatModelSwitcher() {
   const cluster = document.createElement('div');
   cluster.className = 'ch-model-cluster';
   cluster.appendChild(createChatReaveKeyFlag('chip'));
+  cluster.appendChild(createChatLlmRouteFlag('chip'));
 
   const wrap = document.createElement('div');
   wrap.className = 'ch-model-switcher';
@@ -1515,13 +1564,14 @@ async function loadAgentModel() {
     agentModelState.options = data.options || [];
     agentModelState.anthropicBalance = data.anthropicBalance || null;
     agentModelState.anthropicKeySource = data.anthropicKeySource || 'none';
+    agentModelState.llmRoute = data.llmRoute || null;
   } catch (e) {
     console.warn('[model] load failed:', e);
   } finally {
     agentModelState.loading = false;
     renderModelSelectOptions();
     syncModelNodeLabels();
-    syncReaveKeyFlags();
+    syncChatModelFlags();
   }
 }
 
@@ -1544,6 +1594,7 @@ async function saveAgentModel(model) {
     agentModelState.options = data.options || agentModelState.options;
     agentModelState.anthropicBalance = data.anthropicBalance || agentModelState.anthropicBalance;
     if (data.anthropicKeySource) agentModelState.anthropicKeySource = data.anthropicKeySource;
+    if (data.llmRoute) agentModelState.llmRoute = data.llmRoute;
     syncModelNodeLabels();
     if (activeKey === 'system') pollHealth();
   } catch (e) {
@@ -1553,7 +1604,7 @@ async function saveAgentModel(model) {
   } finally {
     agentModelState.saving = false;
     renderModelSelectOptions();
-    syncReaveKeyFlags();
+    syncChatModelFlags();
   }
 }
 
@@ -12883,6 +12934,7 @@ initChatPanel({
   scrollSidebarListItemIntoView,
   agentModelState,
   createChatReaveKeyFlag,
+  createChatLlmRouteFlag,
   chatHasConversation,
   buildChatPaneHeader,
   clearTopbarPanelContext,
