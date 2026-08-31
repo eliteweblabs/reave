@@ -78,12 +78,7 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
 )}
 
 {showLogin && (
-  <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp }}>
-    function clerkMessage(err) {
-      const first = err?.errors?.[0];
-      return first?.longMessage || first?.message || err?.message || 'Could not send a code.';
-    }
-
+  <script type="module" define:vars={{ redirectUrl }}>
     function waitForClerk() {
       return new Promise((resolve, reject) => {
         if (window.Clerk?.loaded && window.Clerk.client) {
@@ -114,46 +109,45 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       });
     }
 
-    async function sendCode(clerk) {
+    async function sendCode() {
+      const res = await fetch('/api/card/login/send', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      let data = {};
       try {
-        const created = await clerk.client.signIn.create({ identifier: phoneE164 });
-        const factor = (created.supportedFirstFactors || []).find(
-          (row) => row.strategy === 'phone_code' && row.phoneNumberId,
-        );
-        if (!factor) {
-          throw new Error('Phone codes are not enabled for this number.');
-        }
-        await clerk.client.signIn.prepareFirstFactor({
-          strategy: 'phone_code',
-          phoneNumberId: factor.phoneNumberId,
-        });
-        return 'sign-in';
-      } catch (err) {
-        const code = err?.errors?.[0]?.code;
-        if (code !== 'form_identifier_not_found' || !allowSignUp) throw err;
-        await clerk.client.signUp.create({ phoneNumber: phoneE164 });
-        await clerk.client.signUp.preparePhoneNumberVerification({ strategy: 'phone_code' });
-        return 'sign-up';
+        data = await res.json();
+      } catch {
+        data = {};
       }
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Could not send a code.');
+      }
+      return data.mode || 'sign-in';
     }
 
-    async function verifyCode(clerk, mode, code) {
-      if (mode === 'sign-up') {
-        const result = await clerk.client.signUp.attemptPhoneNumberVerification({ code });
-        if (result.status !== 'complete' || !result.createdSessionId) {
-          throw new Error('That code did not finish sign-in.');
-        }
-        await clerk.setActive({ session: result.createdSessionId });
-        return;
-      }
-      const result = await clerk.client.signIn.attemptFirstFactor({
-        strategy: 'phone_code',
-        code,
+    async function verifyCode(code) {
+      const res = await fetch('/api/card/login/verify', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
       });
-      if (result.status !== 'complete' || !result.createdSessionId) {
-        throw new Error('That code did not finish sign-in.');
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
       }
-      await clerk.setActive({ session: result.createdSessionId });
+      if (!res.ok || !data.ok || !data.sessionId) {
+        throw new Error(data.error || 'That code did not finish sign-in.');
+      }
+      const clerk = await waitForClerk();
+      await clerk.setActive({ session: data.sessionId });
     }
 
     const sendBtn = document.getElementById('nfc-login-send');
@@ -166,7 +160,6 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
     if (!sendBtn || !form || !input || !submitBtn || !resendBtn) {
       /* card login chrome not on this page */
     } else {
-    let mode = 'sign-in';
     let sending = false;
 
     function showError(message) {
@@ -189,11 +182,10 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       if (sendMeta) sendMeta.textContent = 'Sending code…';
       showError('');
       try {
-        const clerk = await waitForClerk();
-        mode = await sendCode(clerk);
+        await sendCode();
         showOtp();
       } catch (err) {
-        showError(clerkMessage(err));
+        showError(err?.message || 'Could not send a code.');
         if (sendMeta) sendMeta.textContent = 'Text a one-time code';
         sendBtn.hidden = false;
         sendBtn.disabled = false;
@@ -223,11 +215,10 @@ const showLogin = clerkReady && Boolean(phoneE164) && !signedIn;
       input.disabled = true;
       showError('');
       try {
-        const clerk = await waitForClerk();
-        await verifyCode(clerk, mode, code);
+        await verifyCode(code);
         window.location.assign(redirectUrl);
       } catch (err) {
-        showError(clerkMessage(err));
+        showError(err?.message || 'That code did not finish sign-in.');
         submitBtn.disabled = false;
         input.disabled = false;
         input.focus();

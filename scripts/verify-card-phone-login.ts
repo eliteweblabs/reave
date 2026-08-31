@@ -26,9 +26,9 @@ assert.doesNotMatch(card, /name="password"/);
 
 const login = readFileSync('src/components/CardPhoneLogin.astro', 'utf8');
 assert.match(login, /Text a one-time code/);
-assert.match(login, /prepareFirstFactor/);
-assert.match(login, /strategy: 'phone_code'/);
-assert.match(login, /identifier: phoneE164/);
+assert.match(login, /\/api\/card\/login\/send/);
+assert.match(login, /\/api\/card\/login\/verify/);
+assert.doesNotMatch(login, /clerk\.client\.signIn\.create/);
 assert.match(login, /autocomplete="one-time-code"/);
 assert.match(login, /id="clerk-captcha"/);
 assert.doesNotMatch(login, /type="password"/);
