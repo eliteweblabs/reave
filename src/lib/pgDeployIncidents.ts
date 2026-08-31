@@ -35,7 +35,14 @@ export type DeployIncidentRow = {
   resolved_at: string | null;
 };
 
-const ACTIVE_STATUSES: DeployIncidentStatus[] = ['open', 'investigating', 'fixing', 'verifying'];
+const ACTIVE_STATUSES: DeployIncidentStatus[] = [
+  'open',
+  'investigating',
+  'fixing',
+  'verifying',
+  /** Holds repo lock while Claude is unreachable — stops webhook → agent loops. */
+  'suppressed',
+];
 
 const STALE_MINUTES = 45;
 

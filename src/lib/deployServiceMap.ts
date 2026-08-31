@@ -84,7 +84,14 @@ export function resolveDeployTarget(opts: {
   };
 }
 
-/** dedup_key for incident blocking — one active incident per repo. */
-export function deployDedupKey(target: DeployServiceTarget): string {
+/**
+ * dedup_key for incident blocking — one active incident per repo + Railway service
+ * so calcom-web-app failures do not share a lock with the main reave app.
+ */
+export function deployDedupKey(target: DeployServiceTarget, service?: string): string {
+  const svc = (service ?? '').trim().toLowerCase();
+  if (svc && svc !== '?' && svc !== 'service') {
+    return `${target.repo.toLowerCase()}::${svc}`;
+  }
   return target.repo.toLowerCase();
 }

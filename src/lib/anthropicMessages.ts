@@ -31,6 +31,21 @@ const LOW_CREDIT_BALANCE_RE = /credit balance is too low/i;
 const INVALID_API_KEY_RE = /invalid api key|authentication_error|AUTH_002|invalid x-api-key/i;
 
 /**
+ * True when the agent could not call Claude — invalid key, billing, or missing
+ * credentials. Deploy auto-repair must not loop on these; the owner fixes env vars.
+ */
+export function isAgentLlmBlockedReply(content: string): boolean {
+  const text = content.trim();
+  if (!text) return false;
+  if (LOW_CREDIT_BALANCE_RE.test(text)) return true;
+  if (/^ANTHROPIC_API_KEY not set/i.test(text)) return true;
+  if (/OpenRouter rejected the API key/i.test(text)) return true;
+  if (/Claude is misconfigured: OPENROUTER_API_KEY/i.test(text)) return true;
+  if (/^Anthropic error/i.test(text) && INVALID_API_KEY_RE.test(text)) return true;
+  return false;
+}
+
+/**
  * Turn a failed Anthropic API response into chat-friendly text. The "credit
  * balance is too low" error is common (prepaid credits ran out) and useless
  * as raw JSON, so swap it for a plain message plus a button straight to the

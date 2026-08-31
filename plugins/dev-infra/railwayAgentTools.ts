@@ -22,6 +22,11 @@ import {
   railwayWhoami,
 } from '../../src/lib/railwayAgentApi';
 import type { AgentToolDef, ToolContext, ToolHandler } from '../../src/lib/agentTools/types';
+import { getAgentContext } from '../../src/lib/agentContext';
+import {
+  DEPLOY_FAILURE_MAX_RAILWAY_VAR_REDEPLOYS,
+  isDockerImageRailwayService,
+} from '../../src/lib/agentSituationalContext';
 
 function railwayGate(): string | null {
   if (!isRailwayConfigured()) {
@@ -44,6 +49,22 @@ function parseVariablesArg(raw: unknown): Record<string, string> | null {
     out[key] = String(value);
   }
   return Object.keys(out).length ? out : null;
+}
+
+/** Block redeploy loops during auto-repair on docker-image Railway services. */
+function repairDockerRedeployBlocked(service: string | undefined): string | null {
+  const ctx = getAgentContext();
+  if (!ctx.repairRun) return null;
+  const svc = service || ctx.repairDeployService;
+  if (!isDockerImageRailwayService(svc)) return null;
+  const store = ctx as ReturnType<typeof getAgentContext> & { _repairRailwayVarSets?: number };
+  store._repairRailwayVarSets = (store._repairRailwayVarSets ?? 0) + 1;
+  if (store._repairRailwayVarSets > DEPLOY_FAILURE_MAX_RAILWAY_VAR_REDEPLOYS) {
+    return JSON.stringify({
+      error: `Repair guardrail: already triggered ${DEPLOY_FAILURE_MAX_RAILWAY_VAR_REDEPLOYS} redeploys on docker-image service "${svc ?? '?'}" in this Session. Mark 🚨 UNRESOLVED — pin the image digest or fix env in Railway manually.`,
+    });
+  }
+  return null;
 }
 
 async function handle_list_railway_projects(_args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -169,6 +190,10 @@ async function handle_set_railway_variables(args: Record<string, unknown>, _ctx:
   if (blocked) return blocked;
   const variables = parseVariablesArg(args.variables);
   if (!variables) return JSON.stringify({ error: 'variables object is required, e.g. {"NODE_ENV":"production"}' });
+  if (args.skip_deploys !== true) {
+    const repairBlock = repairDockerRedeployBlocked(strArg(args, 'service'));
+    if (repairBlock) return repairBlock;
+  }
   const result = await railwaySetVariables({
     project: strArg(args, 'project'),
     environment: strArg(args, 'environment'),
@@ -281,6 +306,8 @@ async function handle_redeploy_railway_service(args: Record<string, unknown>, _c
       hint: 'Re-call redeploy_railway_service with the same service and confirmed:true after the owner approves.',
     });
   }
+  const repairBlock = repairDockerRedeployBlocked(service);
+  if (repairBlock) return repairBlock;
   const result = await railwayRedeployService({
     project: strArg(args, 'project'),
     environment: strArg(args, 'environment'),

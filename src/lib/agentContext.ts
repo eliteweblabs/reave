@@ -14,6 +14,10 @@ export interface AgentRunContext {
    * diagnose and ship a fix instead of stopping at a 5-round diagnosis.
    */
   repairRun?: boolean;
+  /** Railway service under repair (for docker-image guardrails). */
+  repairDeployService?: string;
+  /** Per-run counter — set_railway_variables redeploys during repairRun. */
+  _repairRailwayVarSets?: number;
   /**
    * Owner-initiated Siri Shortcuts (and similar) may run Claude during sleep mode.
    * Checked by the agent runner and Anthropic client — automated overnight work stays blocked.

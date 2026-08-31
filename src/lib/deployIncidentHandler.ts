@@ -4,7 +4,9 @@
  * One active incident per GitHub repo — duplicate emails/webhooks for the same
  * repo are suppressed so the agent never runs parallel repairs.
  */
+import { isAgentLlmBlockedReply } from './anthropicMessages';
 import { openDeployFailureRepairChat, DEPLOY_FAILURE_REPAIR_MODEL } from './deployFailureChat';
+import { isDockerImageRailwayService } from './agentSituationalContext';
 import { resolveDeployTarget, deployDedupKey, type DeployServiceTarget } from './deployServiceMap';
 import {
   dbAcquireDeployIncident,
@@ -62,6 +64,7 @@ export function parseDeployOutcome(reply: string): 'resolved' | 'unresolved' | '
 
 /** Heuristic fallback when structured markers are missing. */
 function heuristicResolved(reply: string): boolean {
+  if (isAgentLlmBlockedReply(reply)) return false;
   const lower = reply.toLowerCase();
   const unresolved = [
     'build failed',
@@ -249,9 +252,23 @@ async function runInvestigation(opts: {
       return;
     }
 
+    if (isAgentLlmBlockedReply(agentReply)) {
+      if (canPersist) {
+        await dbUpdateDeployIncident(incidentId, {
+          status: 'suppressed',
+          agent_reply: agentReply,
+          resolution: 'agent_llm_blocked',
+        });
+      }
+      log.warn('incident paused — agent LLM blocked', { id: incidentId, repo: opts.target.repo });
+      return;
+    }
+
     const structured = parseDeployOutcome(agentReply);
+    const dockerImage = isDockerImageRailwayService(opts.incident.service ?? undefined);
     const resolved =
-      structured === 'resolved' || (structured === 'unknown' && heuristicResolved(agentReply));
+      structured === 'resolved' ||
+      (!dockerImage && structured === 'unknown' && heuristicResolved(agentReply));
     const fixSha = extractFixCommitSha(agentReply);
 
     if (resolved) {
@@ -328,7 +345,7 @@ export async function handleDeployFailure(input: DeployFailureInput): Promise<De
     subject: input.subject,
     body: input.body,
   });
-  const dedupKey = deployDedupKey(target);
+  const dedupKey = deployDedupKey(target, input.service);
 
   if (!isDeployIncidentsDbConfigured()) {
     log.warn('DATABASE_URL missing — running without repo lock');
@@ -383,6 +400,16 @@ export async function handleDeployFailure(input: DeployFailureInput): Promise<De
         source: input.source,
       });
       await silentDeleteEmail(input.emailId);
+      await openDeployFailureRepairChat({
+        source: input.source,
+        message: input.message,
+        project: input.project,
+        service: input.service,
+        environment: input.environment,
+        deploymentId: input.deploymentId,
+        autoRun: false,
+        appendOnly: true,
+      }).catch((e) => log.warn('duplicate append failed', e));
       return {
         handled: true,
         suppressed: true,
