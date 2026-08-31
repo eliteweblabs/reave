@@ -25,6 +25,7 @@ export type ScheduledEmailRecord = {
   id: string;
   to: EmailDraftRecipient[];
   cc: EmailDraftRecipient[];
+  from: string;
   subject: string;
   body: string;
   images: EmailComposeImage[];
@@ -41,6 +42,7 @@ export type ScheduledEmailRecord = {
 export type CreateScheduledEmailInput = {
   to?: EmailDraftRecipient[];
   cc?: EmailDraftRecipient[];
+  from?: string;
   subject?: string;
   body?: string;
   images?: EmailComposeImage[];
@@ -52,6 +54,7 @@ export type CreateScheduledEmailInput = {
 export type UpdateScheduledEmailInput = {
   to?: EmailDraftRecipient[];
   cc?: EmailDraftRecipient[];
+  from?: string;
   subject?: string;
   body?: string;
   images?: EmailComposeImage[];
@@ -79,6 +82,7 @@ CREATE TABLE IF NOT EXISTS email_scheduled (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_by            TEXT
 );
+ALTER TABLE email_scheduled ADD COLUMN IF NOT EXISTS from_address TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS email_scheduled_due_idx
   ON email_scheduled (scheduled_at ASC)
   WHERE status IN ('pending', 'sending', 'failed');
@@ -121,6 +125,7 @@ function readFileRows(): ScheduledEmailRecord[] {
       ...row,
       to: normalizeEmailDraftRecipients(row.to),
       cc: normalizeEmailDraftRecipients(row.cc),
+      from: String(row.from ?? '').trim(),
       images: normalizeEmailComposeImages(row.images),
       status: normalizeStatus(row.status),
     }));
@@ -138,6 +143,7 @@ function rowToRecord(row: {
   id: string;
   to_recipients: unknown;
   cc_recipients?: unknown;
+  from_address?: string | null;
   subject: string;
   body: string;
   images?: unknown;
@@ -154,6 +160,7 @@ function rowToRecord(row: {
     id: row.id,
     to: normalizeEmailDraftRecipients(row.to_recipients),
     cc: normalizeEmailDraftRecipients(row.cc_recipients),
+    from: row.from_address?.trim() || '',
     subject: row.subject || '',
     body: row.body || '',
     images: normalizeEmailComposeImages(row.images),
@@ -181,7 +188,7 @@ export async function listScheduledEmails(limit = 200): Promise<ScheduledEmailRe
     const pool = await ensureSchema();
     if (pool) {
       const { rows } = await pool.query(
-        `SELECT id, to_recipients, cc_recipients, subject, body, images, in_reply_to_email_id,
+        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
                 scheduled_at, status, resend_id, error, created_at, updated_at, created_by
          FROM email_scheduled
          WHERE status IN ('pending', 'sending', 'failed')
@@ -209,7 +216,7 @@ export async function getScheduledEmail(id: string): Promise<ScheduledEmailRecor
     const pool = await ensureSchema();
     if (pool) {
       const { rows } = await pool.query(
-        `SELECT id, to_recipients, cc_recipients, subject, body, images, in_reply_to_email_id,
+        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
                 scheduled_at, status, resend_id, error, created_at, updated_at, created_by
          FROM email_scheduled
          WHERE id = $1
@@ -233,6 +240,7 @@ export async function createScheduledEmail(
     id: randomUUID(),
     to: normalizeEmailDraftRecipients(input.to),
     cc: normalizeEmailDraftRecipients(input.cc),
+    from: input.from?.trim() || '',
     subject: input.subject?.trim() || '',
     body: input.body ?? '',
     images: normalizeEmailComposeImages(input.images),
@@ -251,13 +259,14 @@ export async function createScheduledEmail(
     if (pool) {
       await pool.query(
         `INSERT INTO email_scheduled
-          (id, to_recipients, cc_recipients, subject, body, images, in_reply_to_email_id,
+          (id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
            scheduled_at, status, created_by)
-         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6::jsonb, $7, $8, 'pending', $9)`,
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7::jsonb, $8, $9, 'pending', $10)`,
         [
           record.id,
           JSON.stringify(record.to),
           JSON.stringify(record.cc),
+          record.from,
           record.subject,
           record.body,
           JSON.stringify(record.images),
@@ -288,6 +297,7 @@ export async function updateScheduledEmail(
     ...existing,
     to: input.to !== undefined ? normalizeEmailDraftRecipients(input.to) : existing.to,
     cc: input.cc !== undefined ? normalizeEmailDraftRecipients(input.cc) : existing.cc || [],
+    from: input.from !== undefined ? input.from.trim() : existing.from || '',
     subject: input.subject !== undefined ? input.subject.trim() : existing.subject,
     body: input.body !== undefined ? input.body : existing.body,
     images: input.images !== undefined ? normalizeEmailComposeImages(input.images) : existing.images || [],
@@ -308,11 +318,12 @@ export async function updateScheduledEmail(
         `UPDATE email_scheduled
          SET to_recipients = $2::jsonb,
              cc_recipients = $3::jsonb,
-             subject = $4,
-             body = $5,
-             images = $6::jsonb,
-             in_reply_to_email_id = $7,
-             scheduled_at = $8,
+             from_address = $4,
+             subject = $5,
+             body = $6,
+             images = $7::jsonb,
+             in_reply_to_email_id = $8,
+             scheduled_at = $9,
              status = 'pending',
              error = NULL,
              updated_at = now()
@@ -321,6 +332,7 @@ export async function updateScheduledEmail(
           id,
           JSON.stringify(updated.to),
           JSON.stringify(updated.cc),
+          updated.from,
           updated.subject,
           updated.body,
           JSON.stringify(updated.images),
@@ -360,7 +372,7 @@ export async function claimDueScheduledEmails(limit = 20): Promise<ScheduledEmai
            LIMIT $1
            FOR UPDATE SKIP LOCKED
          )
-         RETURNING id, to_recipients, cc_recipients, subject, body, images, in_reply_to_email_id,
+         RETURNING id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
                    scheduled_at, status, resend_id, error, created_at, updated_at, created_by`,
         [capped, staleBefore],
       );
@@ -478,6 +490,7 @@ export async function cancelScheduledEmailToDraft(
   const draft = await createEmailDraft({
     to: existing.to,
     cc: existing.cc,
+    from: existing.from,
     subject: existing.subject,
     body: existing.body,
     images: existing.images,
@@ -492,6 +505,7 @@ export function scheduledEmailToComposeBody(row: ScheduledEmailRecord): Record<s
   return {
     to: row.to.map((r) => r.email),
     cc: row.cc.map((r) => r.email),
+    from: row.from || undefined,
     subject: row.subject,
     text: row.body,
     images: row.images,

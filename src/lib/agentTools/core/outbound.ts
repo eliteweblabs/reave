@@ -208,6 +208,7 @@ async function handle_send_email(args: Record<string, unknown>, _ctx: ToolContex
     const record = await createScheduledEmail({
       to: [{ email: to, name: '', uid: null }],
       cc: (cc ?? []).map((email) => ({ email, name: '', uid: null })),
+      from: from || '',
       subject,
       body,
       inReplyToEmailId,

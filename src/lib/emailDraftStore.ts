@@ -23,6 +23,7 @@ export type EmailDraftRecord = {
   id: string;
   to: EmailDraftRecipient[];
   cc: EmailDraftRecipient[];
+  from: string;
   subject: string;
   body: string;
   images: EmailComposeImage[];
@@ -35,6 +36,7 @@ export type EmailDraftRecord = {
 export type CreateEmailDraftInput = {
   to?: EmailDraftRecipient[];
   cc?: EmailDraftRecipient[];
+  from?: string;
   subject?: string;
   body?: string;
   images?: EmailComposeImage[];
@@ -45,6 +47,7 @@ export type CreateEmailDraftInput = {
 export type UpdateEmailDraftInput = {
   to?: EmailDraftRecipient[];
   cc?: EmailDraftRecipient[];
+  from?: string;
   subject?: string;
   body?: string;
   images?: EmailComposeImage[];
@@ -67,6 +70,7 @@ CREATE TABLE IF NOT EXISTS email_drafts (
 );
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS cc_recipients JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS from_address TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS email_drafts_updated_idx
   ON email_drafts (updated_at DESC);
 CREATE INDEX IF NOT EXISTS email_drafts_created_by_idx
@@ -126,6 +130,7 @@ function readFileRows(): EmailDraftRecord[] {
       ...row,
       to: normalizeEmailDraftRecipients(row.to),
       cc: normalizeEmailDraftRecipients(row.cc),
+      from: String(row.from ?? '').trim(),
       images: normalizeEmailComposeImages(row.images),
     }));
   } catch {
@@ -142,6 +147,7 @@ function rowToRecord(row: {
   id: string;
   to_recipients: unknown;
   cc_recipients?: unknown;
+  from_address?: string | null;
   subject: string;
   body: string;
   images?: unknown;
@@ -154,6 +160,7 @@ function rowToRecord(row: {
     id: row.id,
     to: normalizeEmailDraftRecipients(row.to_recipients),
     cc: normalizeEmailDraftRecipients(row.cc_recipients),
+    from: row.from_address?.trim() || '',
     subject: row.subject || '',
     body: row.body || '',
     images: normalizeEmailComposeImages(row.images),
@@ -182,7 +189,7 @@ export async function listEmailDrafts(limit = 200): Promise<EmailDraftRecord[]> 
         updated_at: Date;
         created_by: string | null;
       }>(
-        `SELECT id, to_recipients, cc_recipients, subject, body, images, in_reply_to_email_id, created_at, updated_at, created_by
+        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id, created_at, updated_at, created_by
          FROM email_drafts
          ORDER BY updated_at DESC
          LIMIT $1`,
@@ -218,7 +225,7 @@ export async function getEmailDraft(id: string): Promise<EmailDraftRecord | null
         updated_at: Date;
         created_by: string | null;
       }>(
-        `SELECT id, to_recipients, cc_recipients, subject, body, images, in_reply_to_email_id, created_at, updated_at, created_by
+        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id, created_at, updated_at, created_by
          FROM email_drafts
          WHERE id = $1
          LIMIT 1`,
@@ -239,6 +246,7 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
     id: randomUUID(),
     to: normalizeEmailDraftRecipients(input.to),
     cc: normalizeEmailDraftRecipients(input.cc),
+    from: input.from?.trim() || '',
     subject: input.subject?.trim() || '',
     body: input.body ?? '',
     images: normalizeEmailComposeImages(input.images),
@@ -253,12 +261,13 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
     if (pool) {
       await pool.query(
         `INSERT INTO email_drafts
-          (id, to_recipients, cc_recipients, subject, body, images, in_reply_to_email_id, created_by)
-         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6::jsonb, $7, $8)`,
+          (id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id, created_by)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7::jsonb, $8, $9)`,
         [
           record.id,
           JSON.stringify(record.to),
           JSON.stringify(record.cc),
+          record.from,
           record.subject,
           record.body,
           JSON.stringify(record.images),
@@ -288,6 +297,7 @@ export async function updateEmailDraft(
     ...existing,
     to: input.to !== undefined ? normalizeEmailDraftRecipients(input.to) : existing.to,
     cc: input.cc !== undefined ? normalizeEmailDraftRecipients(input.cc) : existing.cc || [],
+    from: input.from !== undefined ? input.from.trim() : existing.from || '',
     subject: input.subject !== undefined ? input.subject.trim() : existing.subject,
     body: input.body !== undefined ? input.body : existing.body,
     images: input.images !== undefined ? normalizeEmailComposeImages(input.images) : existing.images || [],
@@ -305,16 +315,18 @@ export async function updateEmailDraft(
         `UPDATE email_drafts
          SET to_recipients = $2::jsonb,
              cc_recipients = $3::jsonb,
-             subject = $4,
-             body = $5,
-             images = $6::jsonb,
-             in_reply_to_email_id = $7,
+             from_address = $4,
+             subject = $5,
+             body = $6,
+             images = $7::jsonb,
+             in_reply_to_email_id = $8,
              updated_at = now()
          WHERE id = $1`,
         [
           id,
           JSON.stringify(updated.to),
           JSON.stringify(updated.cc),
+          updated.from,
           updated.subject,
           updated.body,
           JSON.stringify(updated.images),
