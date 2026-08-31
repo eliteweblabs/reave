@@ -208,6 +208,7 @@ import {
   startNewClient,
   confirmDiscardChanges,
 } from './clients-panel.js?v=20260830a';
+import { mountClientSetupWizard, reopenClientSetupWizard } from './client-setup-panel.js?v=20260831a';
 import {
   ensureShakePermission,
   flushShakeUndoCommit,
@@ -18572,6 +18573,19 @@ async function boot() {
   syncAdminSplitView(MAP?.type);
   scanPanelSidebars();
   void consumePendingOtpCopy();
+  if (userId) {
+    void mountClientSetupWizard();
+    try {
+      const bootUrl = new URL(window.location.href);
+      if (bootUrl.searchParams.get('clientSetup') === '1') {
+        bootUrl.searchParams.delete('clientSetup');
+        window.history.replaceState({}, '', bootUrl.pathname + bootUrl.search + bootUrl.hash);
+        void reopenClientSetupWizard();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 boot().catch(showBootError);

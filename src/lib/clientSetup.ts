@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { isCardDavConfigured } from './carddav/auth';
 import { getStoredCompanyConfig } from './companyConfigStore';
+import { isContactApiConfigured, listContacts } from './contactApi';
 import { hasFeature } from './features';
 import { isCanonicalReaveInstall } from './installConfig';
 import { getPgPool } from './pgPool';
@@ -20,6 +21,7 @@ export type ClientSetupStepId =
   | 'mail-provider'
   | 'company'
   | 'push'
+  | 'contacts-import'
   | 'carddav'
   | 'maps';
 
@@ -52,6 +54,8 @@ export type ClientSetupState = {
   resendConfigured: boolean;
   mapsConfigured: boolean;
   companyAddress: string | null;
+  contactCount: number;
+  contactsApiConfigured: boolean;
 };
 
 const STEP_IDS: ClientSetupStepId[] = [
@@ -61,6 +65,7 @@ const STEP_IDS: ClientSetupStepId[] = [
   'mail-provider',
   'company',
   'push',
+  'contacts-import',
   'carddav',
   'maps',
 ];
@@ -115,8 +120,16 @@ export function inboundMailHost(domain = companyDomain()): string {
   return `inbound.${host}`;
 }
 
+async function contactListTotal(): Promise<number> {
+  if (!isContactApiConfigured()) return 0;
+  const listed = await listContacts({ limit: 1, offset: 0 });
+  if (!listed.ok) return 0;
+  return Number(listed.data.total) || 0;
+}
+
 async function contextFlags() {
   const stored = await getStoredCompanyConfig();
+  const contactCount = await contactListTotal();
   return {
     resendConfigured: isResendConfigured(),
     mapsConfigured: Boolean(serverEnv('GOOGLE_MAPS_API_KEY')?.trim() || serverEnv('GOOGLE_PLACES_API_KEY')?.trim()),
@@ -127,6 +140,8 @@ async function contextFlags() {
     domain: companyDomain(),
     carddavOn: hasFeature('carddav'),
     mapsUseful: hasFeature('online_reviews') || hasFeature('scheduling') || hasFeature('real_estate_data'),
+    contactCount,
+    contactsApiConfigured: isContactApiConfigured(),
   };
 }
 
@@ -137,6 +152,8 @@ export function buildClientSetupSteps(
     companyAddress: string | null;
     carddavOn: boolean;
     mapsUseful: boolean;
+    contactCount: number;
+    contactsApiConfigured: boolean;
   },
   progress: ClientSetupProgress,
 ): ClientSetupStep[] {
@@ -191,9 +208,17 @@ export function buildClientSetupSteps(
       auto: false,
     },
     {
+      id: 'contacts-import',
+      title: 'Import your contacts',
+      summary: 'Upload a vCard or CSV export from iPhone, Mac, Gmail, or Outlook — or skip and add contacts one at a time.',
+      required: false,
+      include: flags.contactsApiConfigured,
+      auto: flags.contactCount > 0,
+    },
+    {
       id: 'carddav',
       title: 'Contacts on iPhone',
-      summary: 'Add the CardDAV account in iOS Settings. The username is on this install — the phone step is yours.',
+      summary: 'After import, add CardDAV in iOS Settings for ongoing two-way sync. New edits on your phone flow back here.',
       required: false,
       include: flags.carddavOn,
       auto: false,
@@ -316,6 +341,8 @@ export async function getClientSetupState(): Promise<ClientSetupState> {
     resendConfigured: flags.resendConfigured,
     mapsConfigured: flags.mapsConfigured,
     companyAddress: flags.companyAddress,
+    contactCount: flags.contactCount,
+    contactsApiConfigured: flags.contactsApiConfigured,
   };
 }
 
