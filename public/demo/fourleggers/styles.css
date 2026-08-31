@@ -34,6 +34,57 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Sticky sales-demo notice */
+.demo-notice {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--gold-nav);
+  color: var(--navy);
+  border-bottom: 1px solid color-mix(in srgb, var(--navy) 14%, transparent);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.demo-notice .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.55rem 0;
+}
+
+.demo-notice p {
+  flex: 1 1 14rem;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.demo-notice strong {
+  font-weight: 700;
+}
+
+.demo-notice__btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--navy);
+  color: var(--white);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.demo-notice__btn:hover {
+  background: color-mix(in srgb, var(--navy) 88%, black);
+}
+
 img,
 svg {
   display: block;
