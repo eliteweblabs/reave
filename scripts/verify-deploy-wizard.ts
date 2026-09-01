@@ -98,8 +98,12 @@ assert.equal(install?.filled, 'acme');
 assert.equal(core.variables.find((v) => v.name === 'FEATURES')?.filled, '[]');
 assert.equal(core.postAlias, 'project');
 assert.ok(
-  core.variables.some((v) => v.name === 'VAPI_API_KEY' && v.inheritFromHost),
-  'public host secrets copy even when the module was not selected',
+  !core.variables.some((v) => v.name === 'VAPI_API_KEY' && v.inheritFromHost),
+  'Vapi keys are per-install — not copied from reave.app',
+);
+assert.ok(
+  !core.variables.some((v) => v.name === 'AGENT_ALERT_USER_ID' && v.inheritFromHost),
+  'owner Clerk id is per-install — not copied from reave.app',
 );
 assert.ok(
   core.variables.some((v) => v.name === 'PEXELS_API_KEY' && v.inheritFromHost),

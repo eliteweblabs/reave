@@ -1722,6 +1722,12 @@ export const DEPLOY_WIZARD_NEVER_INHERIT = new Set([
   'GITHUB_TOKEN',
   'PUBLIC_CLERK_PUBLISHABLE_KEY',
   'CLERK_SECRET_KEY',
+  'AGENT_ALERT_USER_ID',
+  'PUBLIC_VAPI_ASSISTANT_ID',
+  'PUBLIC_VAPI_PUBLIC_KEY',
+  'VAPI_API_KEY',
+  'TELNYX_FROM_NUMBER',
+  'TELNYX_OPERATOR_NUMBER',
 ]);
 
 /** Secrets that show a paste field (Anthropic is optional — blank copies the reave.app host key). */
