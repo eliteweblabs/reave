@@ -1291,6 +1291,10 @@
   white-space: nowrap;
   max-width: 16rem;
 }
+.em-lab-chip-field {
+  user-select: none;
+  -webkit-user-select: none;
+}
 .em-lab-chip-rm {
   display: inline-flex;
   align-items: center;

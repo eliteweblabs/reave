@@ -541,7 +541,14 @@ export function createEmailTriageLab(deps) {
         li.appendChild(face);
       }
       const label = document.createElement('span');
-      label.textContent = `${chipFieldLabel(chip.field)}: ${chip.text}`;
+      label.className = 're-lab-chip-copy';
+      const prefix = document.createElement('strong');
+      prefix.className = 're-lab-chip-field';
+      prefix.textContent = `${chipFieldLabel(chip.field)}:`;
+      const value = document.createElement('span');
+      value.className = 're-lab-chip-value';
+      value.textContent = ` ${chip.text}`;
+      label.append(prefix, value);
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 're-lab-target-rm';
