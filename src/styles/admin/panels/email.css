@@ -1321,15 +1321,17 @@
 }
 .em-detail--lab .em-detail-body,
 .em-detail--lab .em-detail-body-html,
-.em-detail--lab .em-from-client,
 .em-detail--lab .em-from-value,
 .em-detail--lab .em-to-value,
-.em-detail--lab .em-detail-subject,
 .em-detail--lab .em-subject-value,
-.em-detail--lab .em-detail-summary,
-.em-detail--lab .em-detail-meta {
+.em-detail--lab .em-detail-summary {
   user-select: text;
   -webkit-user-select: text;
+}
+.em-detail--lab .em-detail-meta strong,
+.em-detail--lab .em-from-client strong {
+  user-select: none;
+  -webkit-user-select: none;
 }
 .em-subject-value {
   color: inherit;
