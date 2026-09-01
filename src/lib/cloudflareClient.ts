@@ -198,6 +198,11 @@ export async function cloudflareFindZone(zoneName: string): Promise<CfResult<{ i
   return { ok: true, data: zone };
 }
 
+/** Fetch zone details including assigned nameservers. */
+export async function cloudflareGetZone(zoneId: string): Promise<CfResult<CfZone>> {
+  return cfFetch<CfZone>(`/zones/${zoneId}`);
+}
+
 export async function cloudflareListDnsRecords(
   zoneId: string,
   opts?: { type?: string; name?: string },

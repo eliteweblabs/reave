@@ -100,6 +100,28 @@ The first step writes these onto `reave` (same keys live client installs already
 
 Owner name, email, phone, and timezone are the same fields as Admin → Profile. They are optional. On the first owner visit to `/admin`, empty Clerk Profile fields are filled from these values. `OWNER_EMAIL` also becomes the Web Push `mailto:` and is added to owner-match names so the first sign-in can match before `AGENT_ALERT_USER_ID` is set.
 
+## Staging on `{slug}.reave.app`
+
+When the client apex is empty or not yet in Cloudflare, Apply **does not** wait for DNS. It stages the install on **`{install-slug}.reave.app`** on the official reave.app zone:
+
+- `PUBLIC_SITE_URL`, `PUBLIC_SITE_DOMAIN`, and `COMPANY_DOMAIN` point at the staging host (not the raw `*.up.railway.app` URL).
+- `PLANNED_SITE_DOMAIN` keeps the client apex for cutover.
+- `RESEND_FROM` / `EMAIL_FROM` use `noreply@inbound.reave.app` until go-live.
+- DNS Apply only wires the `@` app host on reave.app — skip `ap` / `cal` / `inbound` until the client zone exists.
+
+When the apex is already in Cloudflare, behavior is unchanged (full DNS on Apply).
+
+## Go live (`/go-live`)
+
+After staging, open **`/go-live`** (owner-only, same host as the deploy wizard). Pick the Railway project, enter the client apex, and choose:
+
+| Registrar | What happens |
+|-----------|----------------|
+| **Name.com** | Paste API username + token — nameservers update automatically |
+| **GoDaddy / manual** | Apply creates the Cloudflare zone and shows nameservers to paste at the registrar |
+
+Go live then: creates/finds the Cloudflare zone, attaches Railway custom domains, writes full DNS (inbound MX, `ap`, `cal`, …), and flips `PUBLIC_SITE_URL` to `https://{apex}`. Add the apex in Clerk → Domains when DNS resolves.
+
 ## Apply fills every value
 
 This wizard is owner-only. The Variables step is read-only. Apply:

@@ -55,7 +55,9 @@ export async function resolveDeployWizardApply(
   const vapid = needsVapid ? webpush.generateVAPIDKeys() : null;
 
   let webhookSecret = '';
-  const needsWebhook = plan.variables.some((variable) => variable.provisionedOnApply && variable.name === 'RESEND_WEBHOOK_SECRET');
+  const needsWebhook =
+    !plan.stagingHost &&
+    plan.variables.some((variable) => variable.provisionedOnApply && variable.name === 'RESEND_WEBHOOK_SECRET');
   if (needsWebhook) {
     const endpoint = deployWizardInboundWebhookUrl(plan.siteDomain);
     if (!endpoint) {
