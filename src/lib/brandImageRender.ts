@@ -16,8 +16,6 @@ import {
   punchSolidNeutralBackground,
   type LogoContrastAnalysis,
 } from './logoContrastAdapt';
-import { readPublicBrandingFile } from './publicBranding';
-
 /** Default Home Screen / favicon tile — keep in sync with companyBrandColors.DEFAULT_ICON_BACKGROUND. */
 export const DEFAULT_ICON_BACKGROUND = '#09090b';
 
@@ -82,18 +80,7 @@ function pushSvg(sources: BrandMarkSource[], raw?: string | null): void {
   if (svg) sources.push({ kind: 'svg', svg });
 }
 
-function pushDiskBranding(sources: BrandMarkSource[]): void {
-  const iconSvg = readPublicBrandingFile('icon.svg');
-  if (iconSvg) pushSvg(sources, iconSvg.data.toString('utf8'));
-  const iconPng = readPublicBrandingFile('icon.png');
-  if (iconPng) sources.push({ kind: 'raster', buffer: iconPng.data });
-  const logoSvg = readPublicBrandingFile('logo.svg');
-  if (logoSvg) pushSvg(sources, logoSvg.data.toString('utf8'));
-  const logoPng = readPublicBrandingFile('logo.png');
-  if (logoPng) sources.push({ kind: 'raster', buffer: logoPng.data });
-}
-
-/** Icon PNG → icon SVG → logo PNG → logo SVG, then disk branding files. */
+/** Icon PNG → icon SVG → logo PNG → logo SVG from admin company config. */
 export function collectBrandMarkSources(stored: StoredCompanyConfig | null): BrandMarkSource[] {
   const sources: BrandMarkSource[] = [];
   if (stored) {
@@ -102,7 +89,6 @@ export function collectBrandMarkSources(stored: StoredCompanyConfig | null): Bra
     pushRaster(sources, stored.logoData, stored.logoMediaType);
     pushSvg(sources, stored.logoSvg);
   }
-  if (sources.length === 0) pushDiskBranding(sources);
   return sources;
 }
 
@@ -150,7 +136,7 @@ async function rasterizeWordmark(source: BrandMarkSource, maxHeight: number): Pr
 
 /**
  * Wide wordmark PNG for email headers and generic /branding/logo.png.
- * Company config first, then public/branding/logo.png. No letter-tile fallback.
+ * Admin company config only — no letter-tile fallback.
  */
 export async function renderCompanyLogoWordmarkPng(
   stored: StoredCompanyConfig | null,
@@ -159,21 +145,17 @@ export async function renderCompanyLogoWordmarkPng(
     const png = await rasterizeWordmark(source, LOGO_WORDMARK_MAX_HEIGHT);
     if (png) return png;
   }
-  return readPublicBrandingFile('logo.png')?.data ?? null;
+  return null;
 }
 
 export function companyLogoSvgMarkup(stored: StoredCompanyConfig | null): string | null {
   const svg = stored?.logoSvg?.trim();
-  if (svg) return svg;
-  const disk = readPublicBrandingFile('logo.svg');
-  return disk ? disk.data.toString('utf8') : null;
+  return svg || null;
 }
 
 export function companyIconSvgMarkup(stored: StoredCompanyConfig | null): string | null {
   const svg = stored?.iconSvg?.trim();
-  if (svg) return svg;
-  const disk = readPublicBrandingFile('icon.svg');
-  return disk ? disk.data.toString('utf8') : null;
+  return svg || null;
 }
 
 /**
@@ -528,7 +510,7 @@ function brandingNameTag(name: string): string {
 export function brandingEtag(
   stored: StoredCompanyConfig | null,
   size: number,
-  kind: 'icon' | 'og' | 'logo' = 'icon',
+  kind: 'icon' | 'og' | 'logo' | 'logo-alt' | 'logo-email' = 'icon',
   opts?: { transparent?: boolean },
 ): string {
   const updated = stored?.updatedAt ?? '0';

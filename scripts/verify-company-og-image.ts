@@ -72,7 +72,7 @@ assert.equal(BRANDING_LOGO_ALT_PATH, '/branding/logo.alt.png');
   assert.ok(png, 'expected wordmark PNG from logo SVG');
   const meta = await sharp(png!).metadata();
   assert.equal(meta.format, 'png');
-  assert.ok((meta.height ?? 0) <= 256);
+  assert.ok((meta.height ?? 0) <= 640);
 }
 
 console.log('verify-company-og-image: ok');

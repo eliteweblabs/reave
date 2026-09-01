@@ -39,9 +39,13 @@ function emailAbsoluteUrl(path: string, base: string): string {
   return `${base}${normalized}`;
 }
 
-/** Absolute wordmark URL for <img> — /branding/logo.png, or empty when hidden. */
+/** Absolute wordmark URL for <img> — light-bg contrast via ?email=1. */
 function emailLogoAbsoluteUrl(company: Awaited<ReturnType<typeof getCompanyConfig>>, base: string): string {
-  return emailAbsoluteUrl(deckQuantumHeroLogo(company) || '', base);
+  const path = deckQuantumHeroLogo(company) || '';
+  if (!path) return '';
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const sep = normalized.includes('?') ? '&' : '?';
+  return emailAbsoluteUrl(`${normalized}${sep}email=1`, base);
 }
 
 /** Absolute square mark for the email footer. */

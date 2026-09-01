@@ -32,11 +32,4 @@ src/knowledge/social-tokens.json
 src/knowledge/integration-tokens.json
 src/knowledge/.media/
 
-# Per-install brand marks. URLs stay /branding/logo.png — production serves
-# company config; drop PNG/SVG here locally only. Do not put these in /public
-# or the static file server 404s instead of hitting the route.
-src/knowledge/branding/*
-!src/knowledge/branding/.gitkeep
-!src/knowledge/branding/README.md
-!src/knowledge/branding/logo.alt.png
 .playwright-mcp/
