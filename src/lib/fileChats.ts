@@ -1,5 +1,5 @@
 /**
- * Markdown-file chat archive (same persistence model as /api/todo).
+ * Markdown-file chat archive (Postgres is production backend; file fallback when DATABASE_URL unset).
  * One thread = one .md file under src/knowledge/chats/ (override with CHATS_DIR).
  *
  * On Railway, writes persist until the next deploy unless committed to git.

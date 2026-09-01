@@ -1,5 +1,6 @@
 /**
- * Parse markdown todo files from src/knowledge/todo/*.md
+ * Parse one-time todo seed files from seeds/todos/*.md (reave.app product backlog).
+ * Seeded into Postgres once via pgTodos; not live company to-do data.
  */
 
 import { join } from 'path';
@@ -21,8 +22,8 @@ export interface MarkdownTodoSection {
   items: MarkdownTodoItem[];
 }
 
-function todoDir(): string {
-  return process.env.TODO_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'todo');
+function todoSeedDir(): string {
+  return process.env.TODO_SEED_DIR?.trim() || join(projectRoot(), 'seeds', 'todos');
 }
 
 function parseFile(slug: string, content: string): MarkdownTodoSection {
@@ -53,7 +54,7 @@ function parseFile(slug: string, content: string): MarkdownTodoSection {
 }
 
 export function readMarkdownTodoSections(): MarkdownTodoSection[] {
-  const dir = todoDir();
+  const dir = todoSeedDir();
   if (!existsSync(dir)) return [];
 
   const files = readdirSync(dir)

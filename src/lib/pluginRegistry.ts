@@ -240,6 +240,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['google-workspace-dkim'];
     case 'website':
       return ['website'];
+    case 'scheduling':
+      return ['booksy-api-access'];
     default:
       return [];
   }

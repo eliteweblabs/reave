@@ -23,13 +23,36 @@ cloud-agent-settings-export.json
 # clerk configuration (can include secrets)
 /.clerk/
 
-# Ephemeral file-based chat threads (Postgres is production backend)
+# Ephemeral per-install data (Postgres is production backend; never commit pooled JSON)
 src/knowledge/chats/*.md
 !src/knowledge/chats/.gitkeep
+src/knowledge/jobs/*.md
+!src/knowledge/jobs/.gitkeep
 src/knowledge/agent-memories.json
 src/knowledge/company-config.json
 src/knowledge/social-tokens.json
 src/knowledge/integration-tokens.json
+src/knowledge/email-rules.json
+src/knowledge/email-inbox.json
+src/knowledge/email-drafts.json
+src/knowledge/deck-industries.json
+src/knowledge/module-catalog.json
+src/knowledge/module-audience.json
+src/knowledge/agent-model.json
+src/knowledge/ai-services.json
+src/knowledge/staff-members.json
+src/knowledge/client-setup.json
+src/knowledge/practice-gate.json
+src/knowledge/push-subscriptions.json
+src/knowledge/push-alerts.json
+src/knowledge/push-quiet-hours.json
+src/knowledge/newsletter.json
+src/knowledge/engagement-events.json
+src/knowledge/tracked-links.json
+src/knowledge/project-outbound-emails.json
+src/knowledge/auto-email-response-drafts.json
+src/knowledge/email-scheduled.json
+src/knowledge/app-settings.json
 src/knowledge/.media/
 
 .playwright-mcp/
