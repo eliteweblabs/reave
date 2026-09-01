@@ -28,6 +28,7 @@ export type EmailDraftRecord = {
   body: string;
   images: EmailComposeImage[];
   inReplyToEmailId: string | null;
+  useBrandedTemplate: boolean;
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
@@ -41,6 +42,7 @@ export type CreateEmailDraftInput = {
   body?: string;
   images?: EmailComposeImage[];
   inReplyToEmailId?: string | null;
+  useBrandedTemplate?: boolean;
   createdBy?: string | null;
 };
 
@@ -52,6 +54,7 @@ export type UpdateEmailDraftInput = {
   body?: string;
   images?: EmailComposeImage[];
   inReplyToEmailId?: string | null;
+  useBrandedTemplate?: boolean;
 };
 
 const MAX_FILE_ROWS = 500;
@@ -71,6 +74,7 @@ CREATE TABLE IF NOT EXISTS email_drafts (
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS cc_recipients JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS from_address TEXT NOT NULL DEFAULT '';
+ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS use_branded_template BOOLEAN NOT NULL DEFAULT true;
 CREATE INDEX IF NOT EXISTS email_drafts_updated_idx
   ON email_drafts (updated_at DESC);
 CREATE INDEX IF NOT EXISTS email_drafts_created_by_idx
@@ -132,6 +136,7 @@ function readFileRows(): EmailDraftRecord[] {
       cc: normalizeEmailDraftRecipients(row.cc),
       from: String(row.from ?? '').trim(),
       images: normalizeEmailComposeImages(row.images),
+      useBrandedTemplate: row.useBrandedTemplate !== false,
     }));
   } catch {
     return [];
@@ -152,6 +157,7 @@ function rowToRecord(row: {
   body: string;
   images?: unknown;
   in_reply_to_email_id: string | null;
+  use_branded_template?: boolean | null;
   created_at: Date | string;
   updated_at: Date | string;
   created_by: string | null;
@@ -165,6 +171,7 @@ function rowToRecord(row: {
     body: row.body || '',
     images: normalizeEmailComposeImages(row.images),
     inReplyToEmailId: row.in_reply_to_email_id?.trim() || null,
+    useBrandedTemplate: row.use_branded_template !== false,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
     createdBy: row.created_by?.trim() || null,
@@ -189,7 +196,8 @@ export async function listEmailDrafts(limit = 200): Promise<EmailDraftRecord[]> 
         updated_at: Date;
         created_by: string | null;
       }>(
-        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id, created_at, updated_at, created_by
+        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
+                use_branded_template, created_at, updated_at, created_by
          FROM email_drafts
          ORDER BY updated_at DESC
          LIMIT $1`,
@@ -225,7 +233,8 @@ export async function getEmailDraft(id: string): Promise<EmailDraftRecord | null
         updated_at: Date;
         created_by: string | null;
       }>(
-        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id, created_at, updated_at, created_by
+        `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
+                use_branded_template, created_at, updated_at, created_by
          FROM email_drafts
          WHERE id = $1
          LIMIT 1`,
@@ -251,6 +260,7 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
     body: input.body ?? '',
     images: normalizeEmailComposeImages(input.images),
     inReplyToEmailId: input.inReplyToEmailId?.trim() || null,
+    useBrandedTemplate: input.useBrandedTemplate !== false,
     createdAt: now,
     updatedAt: now,
     createdBy: input.createdBy?.trim() || null,
@@ -261,8 +271,8 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
     if (pool) {
       await pool.query(
         `INSERT INTO email_drafts
-          (id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id, created_by)
-         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7::jsonb, $8, $9)`,
+          (id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id, use_branded_template, created_by)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7::jsonb, $8, $9, $10)`,
         [
           record.id,
           JSON.stringify(record.to),
@@ -272,6 +282,7 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
           record.body,
           JSON.stringify(record.images),
           record.inReplyToEmailId,
+          record.useBrandedTemplate,
           record.createdBy,
         ],
       );
@@ -305,6 +316,10 @@ export async function updateEmailDraft(
       input.inReplyToEmailId !== undefined
         ? input.inReplyToEmailId?.trim() || null
         : existing.inReplyToEmailId,
+    useBrandedTemplate:
+      input.useBrandedTemplate !== undefined
+        ? input.useBrandedTemplate !== false
+        : existing.useBrandedTemplate !== false,
     updatedAt: new Date().toISOString(),
   };
 
@@ -320,6 +335,7 @@ export async function updateEmailDraft(
              body = $6,
              images = $7::jsonb,
              in_reply_to_email_id = $8,
+             use_branded_template = $9,
              updated_at = now()
          WHERE id = $1`,
         [
@@ -331,6 +347,7 @@ export async function updateEmailDraft(
           updated.body,
           JSON.stringify(updated.images),
           updated.inReplyToEmailId,
+          updated.useBrandedTemplate,
         ],
       );
       if (rowCount) return updated;

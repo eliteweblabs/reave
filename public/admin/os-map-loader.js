@@ -10902,7 +10902,7 @@ let emailState = {
   activeDraftId: null,
   activeScheduledId: null,
   scheduledAt: null,
-  compose: { to: [], cc: [], subject: '', body: '', images: [] },
+  compose: { to: [], cc: [], subject: '', body: '', images: [], useBrandedTemplate: true },
   sending: false,
   storage: 'files',
   digest: null,
@@ -15305,6 +15305,7 @@ function applyDraftToCompose(draft, opts = {}) {
     subject: draft.subject || '',
     body: draft.body || '',
     images: normalizeEmailComposeImages(draft.images),
+    useBrandedTemplate: draft.useBrandedTemplate !== false,
   };
 }
 
@@ -15400,6 +15401,7 @@ function applyScheduledToCompose(event, opts = {}) {
     subject: event.subject || '',
     body: event.body || '',
     images: normalizeEmailComposeImages(event.images),
+    useBrandedTemplate: event.useBrandedTemplate !== false,
   };
 }
 
@@ -15919,6 +15921,7 @@ function emptyEmailCompose(overrides = {}) {
     subject: '',
     body: '',
     images: [],
+    useBrandedTemplate: true,
     ...overrides,
   };
   merged.from = normalizeEmailComposeFrom(merged.from) || defaultEmailComposeFrom();
@@ -16208,6 +16211,7 @@ function emailDraftPayload() {
     body: String(body || ''),
     images: normalizeEmailComposeImages(emailState.compose.images),
     inReplyToEmailId: emailState.replyToId || null,
+    useBrandedTemplate: emailState.compose.useBrandedTemplate !== false,
   };
 }
 
@@ -16452,6 +16456,7 @@ function cloneEmailCompose(compose) {
     subject: String(compose?.subject || ''),
     body: String(compose?.body || ''),
     images: normalizeEmailComposeImages(compose?.images),
+    useBrandedTemplate: compose?.useBrandedTemplate !== false,
   };
 }
 
@@ -16515,6 +16520,7 @@ function emailSendPayloadFromSnapshot(snap) {
   if (from) payload.from = from;
   if (snap.replyToId) payload.inReplyToEmailId = snap.replyToId;
   if (snap.scheduledAt) payload.scheduledAt = snap.scheduledAt;
+  payload.useBrandedTemplate = snap.compose.useBrandedTemplate !== false;
   return payload;
 }
 
@@ -16644,6 +16650,7 @@ async function commitQueuedEmailSend(snap) {
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
+          useBrandedTemplate: snap.compose.useBrandedTemplate !== false,
           inReplyToEmailId: snap.replyToId,
         }),
       });
@@ -16675,6 +16682,7 @@ async function commitQueuedEmailSend(snap) {
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
+          useBrandedTemplate: snap.compose.useBrandedTemplate !== false,
           inReplyToEmailId: snap.replyToId,
           scheduledAt: snap.scheduledAt,
         }),
@@ -17211,9 +17219,37 @@ function renderEmailComposePane(pane) {
     : 'Sent via Resend. From defaults to your outbound address — change only for another verified domain.';
   hint.appendChild(document.createElement('br'));
   const shortHint = document.createElement('span');
+  shortHint.className = 'em-compose-shortcode-hint';
   shortHint.textContent =
     '[center][button title="Open" href="https://example.com"/][/center]';
   hint.appendChild(shortHint);
+
+  const brandedRow = document.createElement('div');
+  brandedRow.className = 'em-compose-branded-row';
+  const brandedToggle = document.createElement('label');
+  brandedToggle.className = 'em-compose-branded-toggle';
+  const brandedInput = document.createElement('input');
+  brandedInput.type = 'checkbox';
+  brandedInput.className = 'em-compose-branded-input';
+  brandedInput.checked = emailState.compose.useBrandedTemplate !== false;
+  brandedInput.disabled = emailState.sending;
+  const brandedTrack = document.createElement('span');
+  brandedTrack.className = 'em-compose-branded-track';
+  const brandedLabel = document.createElement('span');
+  brandedLabel.className = 'em-compose-branded-label';
+  brandedLabel.textContent = 'Branded template';
+  brandedToggle.append(brandedInput, brandedTrack, brandedLabel);
+  const brandedHint = document.createElement('span');
+  brandedHint.className = 'em-compose-branded-hint';
+  brandedHint.textContent = 'Logo, footer, and company styling';
+  brandedRow.append(brandedToggle, brandedHint);
+  brandedInput.addEventListener('change', () => {
+    emailState.compose.useBrandedTemplate = brandedInput.checked;
+    shortHint.hidden = !brandedInput.checked;
+    if (form.classList.contains('em-compose--previewing')) hideEmailComposePreview(form);
+    scheduleEmailDraftSave();
+  });
+  shortHint.hidden = !brandedInput.checked;
 
   const previewPane = document.createElement('div');
   previewPane.className = 'em-compose-preview-pane';
@@ -17297,6 +17333,7 @@ function renderEmailComposePane(pane) {
     form.appendChild(subjectField);
     form.appendChild(bodyField);
     form.appendChild(hint);
+    form.appendChild(brandedRow);
     form.appendChild(previewPane);
     form.appendChild(banner);
     form.appendChild(actions);
@@ -17307,6 +17344,7 @@ function renderEmailComposePane(pane) {
     form.appendChild(subjectField);
     form.appendChild(bodyField);
     form.appendChild(hint);
+    form.appendChild(brandedRow);
     form.appendChild(previewPane);
     form.appendChild(actions);
   }

@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { parseUseBrandedTemplate } from '../../../../lib/adminComposeEmail';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { normalizeEmailComposeImages } from '../../../../lib/emailComposeImages';
 import {
@@ -52,6 +53,9 @@ export async function POST(context: APIContext): Promise<Response> {
         : body.in_reply_to_email_id != null
           ? String(body.in_reply_to_email_id).trim() || null
           : null,
+    useBrandedTemplate: parseUseBrandedTemplate(
+      body.useBrandedTemplate ?? body.use_branded_template ?? body.branded,
+    ),
     createdBy: userId,
   });
 

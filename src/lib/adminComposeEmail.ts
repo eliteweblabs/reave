@@ -6,16 +6,65 @@
 import type { APIContext } from 'astro';
 import {
   resolveComposeImagesForSend,
+  type EmailInlineImage,
   type EmailSendAttachment,
 } from './emailComposeImages';
 import { storeGetEmailInbox } from './emailInboxStore';
-import { buildReplyEmailHeaders, formatQuotedReplyHtml, splitQuotedReplyBody } from './emailReply';
+import {
+  buildReplyEmailHeaders,
+  formatQuotedReplyHtml,
+  quotedReplyHtmlFromText,
+  splitQuotedReplyBody,
+} from './emailReply';
 import { brandedPlainTextEmail } from './inboundEmailReply';
+import { escapeHtml } from './htmlEscape';
 import {
   appendSignatureToHtmlFragment,
   appendSignatureToPlainText,
   getUserEmailSignature,
+  signatureHtmlForEmail,
 } from './userEmailSignature';
+
+/** Default true — branded wrapper unless compose explicitly turns it off. */
+export function parseUseBrandedTemplate(raw: unknown): boolean {
+  if (raw === false || raw === 0 || raw === '0' || raw === 'false') return false;
+  return true;
+}
+
+function plainComposeEmail(opts: {
+  body: string;
+  signature?: string;
+  quotedHtml?: string;
+  inlineImages?: EmailInlineImage[];
+}): { text: string; html: string } {
+  const { draft, quote } = splitQuotedReplyBody(opts.body);
+  const signature = opts.signature?.trim() || '';
+  let text = draft;
+  if (signature) text += `\n\n${signature}`;
+  if (quote) text += quote.startsWith('\n') ? quote : `\n\n${quote}`;
+
+  const paragraphs = draft.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+  const htmlParts: string[] = [];
+  for (const p of paragraphs) {
+    htmlParts.push(
+      `<p style="margin:0 0 1em;font-family:sans-serif;font-size:14px;line-height:1.5;color:#111">${escapeHtml(p).replace(/\n/g, '<br>')}</p>`,
+    );
+  }
+  if (opts.inlineImages?.length) {
+    for (const img of opts.inlineImages) {
+      htmlParts.push(
+        `<p style="margin:0 0 1em"><img src="cid:${escapeHtml(img.cid)}" alt="${escapeHtml(img.alt)}" style="max-width:100%;height:auto"></p>`,
+      );
+    }
+  }
+  if (signature) {
+    htmlParts.push(`<div style="margin-top:1em">${signatureHtmlForEmail(signature)}</div>`);
+  }
+  const quotedHtml = opts.quotedHtml?.trim() || (quote ? quotedReplyHtmlFromText(quote) : '');
+  if (quotedHtml) htmlParts.push(quotedHtml);
+
+  return { text, html: htmlParts.join('\n') };
+}
 
 export type AdminComposeMail = {
   to: string[];
@@ -62,6 +111,9 @@ export async function buildAdminComposeEmail(
   const subject = String(body.subject ?? '').trim();
   const html = String(body.html ?? '').trim() || undefined;
   const text = String(body.text ?? body.body ?? '').trim();
+  const useBrandedTemplate = parseUseBrandedTemplate(
+    body.useBrandedTemplate ?? body.use_branded_template ?? body.branded,
+  );
   const from = String(body.from ?? '').trim() || undefined;
   const cc = body.cc;
   const bcc = body.bcc;
@@ -117,14 +169,25 @@ export async function buildAdminComposeEmail(
             bodyText: inbound.bodyText,
           })
         : undefined;
-    const wrapped = await brandedPlainTextEmail({
-      body: sendText,
-      signature,
-      quotedHtml,
-      inlineImages: composeImages.inline,
-    });
-    sendText = wrapped.text;
-    sendHtml = wrapped.html;
+    if (useBrandedTemplate) {
+      const wrapped = await brandedPlainTextEmail({
+        body: sendText,
+        signature,
+        quotedHtml,
+        inlineImages: composeImages.inline,
+      });
+      sendText = wrapped.text;
+      sendHtml = wrapped.html;
+    } else {
+      const plain = plainComposeEmail({
+        body: sendText,
+        signature,
+        quotedHtml,
+        inlineImages: composeImages.inline,
+      });
+      sendText = plain.text;
+      sendHtml = plain.html;
+    }
   } else {
     sendText = appendSignatureToPlainText(sendText, signature);
     if (sendHtml) sendHtml = appendSignatureToHtmlFragment(sendHtml, signature);

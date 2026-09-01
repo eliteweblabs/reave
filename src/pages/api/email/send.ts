@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { buildAdminComposeEmail } from '../../../lib/adminComposeEmail';
+import { buildAdminComposeEmail, parseUseBrandedTemplate } from '../../../lib/adminComposeEmail';
 import { deliverAdminComposeMail } from '../../../lib/deliverAdminCompose';
 import { isImmediateScheduledAt, parseComposeScheduledAt } from '../../../lib/emailComposeSchedule';
 import { normalizeEmailComposeImages } from '../../../lib/emailComposeImages';
@@ -58,6 +58,9 @@ export async function POST(context: APIContext): Promise<Response> {
           : body.in_reply_to_email_id != null
             ? String(body.in_reply_to_email_id).trim() || null
             : null,
+      useBrandedTemplate: parseUseBrandedTemplate(
+        body.useBrandedTemplate ?? body.use_branded_template ?? body.branded,
+      ),
       scheduledAt: scheduledAt.toISOString(),
       createdBy: userId,
     });
