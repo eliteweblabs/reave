@@ -692,15 +692,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   /*
-   * Public header: out-of-flow overlay so the hero can paint the full
-   * viewport. Stay position:fixed on every breakpoint and every public
-   * page — an absolute bar scrolls off and the notch treatment vanishes
-   * (homepage, about masonry, features, …). Safari’s rubber-band also
-   * paints html/body --site-canvas in the overscroll gap, and an absolute
-   * header rides down into that slab. Pad logo/actions below the notch.
-   * Admin is transparent too; on mobile it is absolute (dashboard stays
-   * fixed via html.admin-dashboard) so panel content can fill the
-   * safe-area bands while the footer nav remains the sticky chrome.
+   * Public header: desktop stays fixed with a scrim so inner pages can
+   * scroll under the logo row. Mobile uses an absolute overlay that scrolls
+   * with the page — iOS cannot reliably compose a fixed header, sticky
+   * footer CTAs, and safe-area content at once. Out of flow so the hero can
+   * paint into the top safe area. Admin is transparent; on mobile it is
+   * absolute (dashboard stays fixed via html.admin-dashboard) so panel
+   * content can fill the safe-area bands while the footer nav remains
+   * the sticky chrome.
    */
   .app-header {
     position: fixed;
@@ -756,6 +755,29 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   html.marketing-menu-open .app-header,
   html.overlay-menu-open .app-header {
     z-index: 2100;
+  }
+
+  /*
+   * Mobile public pages: absolute overlay that scrolls with the page (not
+   * fixed — that fights sticky CTAs). Out of flow so the hero can paint
+   * edge-to-edge into the top safe area; drop the scrim bleed/blur stack.
+   */
+  @media (max-width: 768px) {
+    .app-header:not(.app-header--admin) {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    html[data-safe-top-frozen="1"] .app-header:not(.app-header--admin) {
+      padding-top: var(--safe-top);
+    }
+
+    .app-header:not(.app-header--admin) > .app-header-scrim {
+      display: none;
+    }
   }
 
   @media (max-width: 639px) {

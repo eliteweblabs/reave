@@ -199,6 +199,22 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     }
   }
 
+  @media (max-width: 768px) {
+    /*
+     * Header is an absolute overlay — pull the hero box up through the top
+     * safe area so scroll can carry demo/content under the Dynamic Island
+     * instead of clipping at the layout viewport edge.
+     */
+    .home-hero {
+      margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+      min-height: calc(100dvh + env(safe-area-inset-top, 0px));
+      padding-top: calc(
+        var(--app-header-offset, 3.25rem) + env(safe-area-inset-top, 0px)
+      );
+      overflow: visible;
+    }
+  }
+
   @media (max-width: 640px) {
     .home-hero {
       /* Keep the chat lane tucked under the raised brand block. */

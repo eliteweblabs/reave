@@ -12,10 +12,9 @@ import SiteBackground from '../components/SiteBackground.astro';
 import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import PlausibleScript from '../components/PlausibleScript.astro';
-import { cardLoginUsesServerProxy, cardPhoneToE164, resolveCardPhoneRaw } from '../lib/cardPhoneAuth';
+import { cardPhoneToE164, resolveCardPhoneRaw } from '../lib/cardPhoneAuth';
 import { readCardPasskeyTrust } from '../lib/cardPasskeyTrust';
 import { storeHasCardPasskeys } from '../lib/cardPasskeyStore';
-import { resolvePublicHost } from '../lib/requestHost';
 import {
   appleMapsDirectionsUrl,
   mapsDirectionsUrl,
@@ -192,7 +191,6 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
         <CardPhoneLogin
           phoneE164={phoneE164}
           signedIn={signedIn}
-          useServerProxy={cardLoginUsesServerProxy(resolvePublicHost(Astro.request))}
           hasPasskeys={hasPasskeys}
           passkeyTrusted={
             passkeyTrust

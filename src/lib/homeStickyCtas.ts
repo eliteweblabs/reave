@@ -1,6 +1,7 @@
 /**
  * Homepage hero CTAs — size the CSS sticky track, or hide at #contact.
  */
+import { initBrowserUiBottomInset } from "./browserUiBottomInset";
 import { initFloatingWidgetSectionHide } from "./floatingWidgetSectionHide";
 
 /**
@@ -42,16 +43,10 @@ function initStickyCtaBackdrop(el: HTMLElement): void {
 
   const observe = () => {
     const pill = row.getBoundingClientRect();
-    const viewport = window.innerHeight;
+    const viewport = window.visualViewport?.height ?? window.innerHeight;
     if (pill.height <= 0 || viewport <= 0) return;
-    /*
-     * On the tour the pill is `position: sticky`, so its resolved `top` is
-     * where it parks in the viewport — use that rather than the live rect,
-     * which is off while the pill rides up the tail of the track. The
-     * viewport-fixed variant has no `top` and never leaves the bottom.
-     */
-    const parked = parseFloat(getComputedStyle(el).top);
-    const pillTop = Number.isFinite(parked) ? parked : pill.top;
+
+    const pillTop = pill.top;
     const pillBottom = pillTop + pill.height;
     if (pillBottom <= 0 || pillTop >= viewport) return;
 
@@ -136,6 +131,7 @@ export function initHomeStickyCtas(root?: HTMLElement | null): void {
 }
 
 export function bootHomeStickyCtas(): void {
+  initBrowserUiBottomInset();
   document
     .querySelectorAll<HTMLElement>("[data-home-sticky-ctas]")
     .forEach((el) => initHomeStickyCtas(el));

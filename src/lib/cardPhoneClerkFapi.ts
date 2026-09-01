@@ -1,9 +1,6 @@
 /**
- * Server-side Clerk Frontend API for /card phone OTP.
- *
- * Client-side clerk-js sign-in fails on *.reave.app satellite hosts
- * (`operation_not_allowed_on_satellite_domain`). Proxy FAPI from the server
- * with the primary auth origin instead.
+ * Optional server-side Clerk Frontend API for /card phone OTP.
+ * Card login uses clerk-js in the browser; each install has its own Clerk app.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
@@ -29,10 +26,7 @@ type ClerkErrorBody = {
 
 function clerkPrimaryAuthOrigin(request: Request): string {
   const host = resolvePublicHost(request);
-  if (!host || host === 'reave.app' || host.endsWith('.reave.app')) {
-    return 'https://reave.app';
-  }
-  return `https://${host}`;
+  return host ? `https://${host}` : 'https://reave.app';
 }
 
 function mergeCookies(jar: Record<string, string>, setCookies: string[]): Record<string, string> {

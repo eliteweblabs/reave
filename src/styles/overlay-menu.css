@@ -384,8 +384,9 @@ html.marketing-menu-open .app-header > .app-header-scrim {
 }
 
 /*
- * Mobile public header is position:absolute and the overlay is full-viewport.
- * Paint the chrome band so the dimmed backdrop cannot show through.
+ * Mobile public header is an absolute overlay that scrolls with the page;
+ * the overlay is full-viewport. Paint the chrome band so the dimmed backdrop
+ * cannot show through.
  */
 @media (max-width: 768px) {
   html.overlay-menu-open:not(.account-menu-docked) .app-header:not(.app-header--admin) .app-header-row {

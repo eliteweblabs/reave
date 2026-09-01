@@ -14,6 +14,34 @@
   const { MODULE_STATUS: STATUS, escHtml: esc, renderCallout } =
     window.ModuleLoaderShared;
 
+  /** Safari bottom toolbar inset — mirrors src/lib/browserUiBottomInset.ts */
+  (function initBrowserUiBottomInset() {
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let raf = 0;
+    const sync = function () {
+      raf = 0;
+      const inset = Math.max(
+        0,
+        Math.round(window.innerHeight - vv.height - vv.offsetTop),
+      );
+      document.documentElement.style.setProperty(
+        '--browser-ui-bottom',
+        inset + 'px',
+      );
+    };
+    const schedule = function () {
+      if (raf) return;
+      raf = window.requestAnimationFrame(sync);
+    };
+    sync();
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+    window.addEventListener('resize', schedule);
+    window.addEventListener('orientationchange', schedule);
+  })();
+
   /** Browse catalog only — never render switches or the demo request form. */
   let sections = [];
   let included = [];

@@ -5,6 +5,13 @@ html {
   scroll-padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
+@media (max-width: 768px) {
+  html {
+    /* Public header scrolls away — anchor jumps only need safe-area clearance. */
+    scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  }
+}
+
 .marketing-bg {
   position: absolute;
   inset: 0;
@@ -71,6 +78,12 @@ html {
   align-items: center;
   overflow: clip;
   scroll-margin-top: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 8px);
+}
+
+@media (max-width: 768px) {
+  .home-section {
+    scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 8px);
+  }
 }
 
 .home-section--photo {

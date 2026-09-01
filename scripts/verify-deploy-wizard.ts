@@ -360,10 +360,10 @@ assert.deepEqual(
   [DEPLOY_APP_SERVICE, 'shared'].sort(),
 );
 assert.ok(clerkSecretVars.every((v) => v.required === false));
-assert.ok(clerkSecretVars.every((v) => v.inheritFromHost === true), 'Clerk keys copy from this host when present');
+assert.ok(clerkSecretVars.every((v) => v.inheritFromHost === false), 'Clerk keys are per-install — not copied from reave.app');
 const clerkPublishableVars = coreSecrets.variables.filter((v) => v.name === 'PUBLIC_CLERK_PUBLISHABLE_KEY');
 assert.equal(clerkPublishableVars.length, 2);
-assert.ok(clerkPublishableVars.every((v) => v.inheritFromHost === true));
+assert.ok(clerkPublishableVars.every((v) => v.inheritFromHost === false));
 assert.equal(anthropicKeySourceForApply('', 'sk-ant-host'), 'reave');
 assert.equal(anthropicKeySourceForApply('sk-ant-client', 'sk-ant-host'), 'client');
 assert.equal(anthropicKeySourceForApply('', ''), '');

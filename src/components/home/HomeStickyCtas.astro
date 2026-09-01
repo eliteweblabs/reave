@@ -101,10 +101,14 @@ const trailingCtas = ctas.slice(1);
   .home-sticky-ctas {
     --home-hero-copy-h: calc(120px + env(safe-area-inset-bottom, 0px));
     --home-sticky-cta-bottom: 5px;
+    --home-sticky-cta-floor: calc(
+      var(--home-sticky-cta-bottom) + env(safe-area-inset-bottom, 0px) +
+        var(--browser-ui-bottom, 0px)
+    );
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: var(--home-sticky-cta-floor);
     z-index: 100;
     display: flex;
     flex-direction: column;
@@ -116,7 +120,7 @@ const trailingCtas = ctas.slice(1);
     padding:
       10px
       max(28px, env(safe-area-inset-right, 0px))
-      calc(var(--home-sticky-cta-bottom) + env(safe-area-inset-bottom, 0px))
+      10px
       max(28px, env(safe-area-inset-left, 0px));
     overflow: visible;
     box-sizing: border-box;
@@ -156,6 +160,18 @@ const trailingCtas = ctas.slice(1);
     /* Glow sits in the padding so overflow:clip cannot shave the Demo pill. */
     padding-bottom: 20px;
     box-sizing: border-box;
+  }
+
+  @media (max-width: 768px) {
+    /*
+     * Bottom sticky tracks the live scrollport — the old 100dvh top parking
+     * sat on the layout viewport and blocked Safari's toolbar collapse.
+     */
+    .home-sticky-cta-track > .home-sticky-ctas {
+      bottom: var(--home-sticky-cta-floor);
+      top: auto;
+      align-self: end;
+    }
   }
 
   .home-sticky-cta-track__body,

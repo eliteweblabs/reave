@@ -1,4 +1,5 @@
 ---
+import ComplianceLogos from './ComplianceLogos.astro';
 import SiteLegalLinks from './SiteLegalLinks.astro';
 import FootBostonTag from './FootBostonTag.astro';
 
@@ -20,6 +21,7 @@ const {
 
 <footer class:list={['site-foot', `site-foot--${tone}`, className]}>
   {leading && <span class="site-foot-leading">{leading}</span>}
+  <ComplianceLogos />
   <div class="site-foot-meta">
     <FootBostonTag />
     {showLegalLinks && <SiteLegalLinks />}
