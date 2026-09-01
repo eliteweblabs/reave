@@ -383,6 +383,24 @@ export function createEmailTriageLab(deps) {
   }
 
   function ruleMatchesComposedEmail(rule) {
+    const paired =
+      Array.isArray(rule?.phraseFields) &&
+      rule.phraseFields.length === (rule?.phrases || []).length &&
+      (rule?.phrases || []).length >= 2
+        ? (rule.phrases || []).map((text, i) => ({
+            field: rule.phraseFields[i],
+            text: String(text || ''),
+          }))
+        : null;
+    if (paired) {
+      return paired.every(({ field, text }) => {
+        const phrase = String(text || '').trim().toLowerCase();
+        if (!phrase) return false;
+        if (field === 'from') return fromMatchHay(state.from).includes(phrase);
+        if (field === 'subject') return String(state.subject || '').toLowerCase().includes(phrase);
+        return String(state.text || '').toLowerCase().includes(phrase);
+      });
+    }
     const fields = rule?.fields?.length ? rule.fields : ['subject', 'body'];
     const hay = fields
       .map((f) => {
@@ -541,7 +559,14 @@ export function createEmailTriageLab(deps) {
         li.appendChild(face);
       }
       const label = document.createElement('span');
-      label.textContent = `${chipFieldLabel(chip.field)}: ${chip.text}`;
+      label.className = 're-lab-chip-copy';
+      const prefix = document.createElement('strong');
+      prefix.className = 're-lab-chip-field';
+      prefix.textContent = `${chipFieldLabel(chip.field)}:`;
+      const value = document.createElement('span');
+      value.className = 're-lab-chip-value';
+      value.textContent = ` ${chip.text}`;
+      label.append(prefix, value);
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 're-lab-target-rm';

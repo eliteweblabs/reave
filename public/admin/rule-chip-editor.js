@@ -61,6 +61,20 @@ export function phrasesFromChips(chips) {
   return out;
 }
 
+/** Parallel field list for phrasesFromChips (same dedupe order). */
+export function phraseFieldsFromChips(chips) {
+  const out = [];
+  const seen = new Set();
+  for (const chip of Array.isArray(chips) ? chips : []) {
+    const text = normalizeTargetPhrase(chip?.text);
+    const key = text.toLowerCase();
+    if (!text || seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalizeChipField(chip?.field));
+  }
+  return out;
+}
+
 /** Unique chip fields in first-seen order. */
 export function fieldsFromChips(chips, fallback = ['subject', 'body']) {
   const out = [];
@@ -89,13 +103,19 @@ export function titleFromRulePhrases(phrases, fallback = 'New rule') {
 
 /**
  * Expand a stored rule into field-tagged chips.
- * One field → one chip per phrase. Several fields → phrase × field so a
- * save round-trips without dropping a Search-in target.
+ * When phraseFields aligns with phrases, one chip per pair. Otherwise one field
+ * → one chip per phrase, or phrase × field for legacy multi-field rules.
  */
-export function chipsFromRulePhrases(phrases, fields) {
+export function chipsFromRulePhrases(phrases, fields, phraseFields) {
   const list = (Array.isArray(phrases) ? phrases : [])
     .map((p) => normalizeTargetPhrase(p))
     .filter(Boolean);
+  const paired = (Array.isArray(phraseFields) ? phraseFields : [])
+    .map(normalizeChipField)
+    .filter(Boolean);
+  if (paired.length === list.length && list.length >= 2) {
+    return list.map((text, i) => ({ id: newChipId(), field: paired[i], text }));
+  }
   const flds = (Array.isArray(fields) && fields.length ? fields : ['subject'])
     .map(normalizeChipField)
     .filter((f, i, a) => a.indexOf(f) === i);

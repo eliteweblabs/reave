@@ -17718,10 +17718,20 @@ function exitEmailLabMode(opts = {}) {
 }
 
 function stripEmailLabFieldPrefix(text, field) {
-  const label = field === 'from' ? 'From' : field === 'subject' ? 'Subject' : '';
-  if (!label) return text;
-  const stripped = String(text || '').replace(new RegExp(`^${label}\\s*[:\\s]\\s*`, 'i'), '').trim();
-  return stripped || text;
+  let t = String(text || '').trim();
+  const labels =
+    field === 'from'
+      ? ['From']
+      : field === 'subject'
+        ? ['Subject']
+        : field === 'body'
+          ? ['Body', 'To']
+          : [];
+  for (const label of labels) {
+    const stripped = t.replace(new RegExp(`^${label}\\s*[:\\s]\\s*`, 'i'), '').trim();
+    if (stripped && stripped !== t) return stripped;
+  }
+  return t;
 }
 
 function isLabHighlightAdjustment(prev, next) {
@@ -17839,8 +17849,15 @@ function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-la
       const li = document.createElement('li');
       li.className = 'em-lab-chip';
       const label = document.createElement('span');
+      label.className = 'em-lab-chip-copy';
       const fieldLabel = p.field === 'from' ? 'From' : p.field === 'subject' ? 'Subject' : 'Body';
-      label.textContent = `(${fieldLabel}: ${p.text})`;
+      const prefix = document.createElement('span');
+      prefix.className = 'em-lab-chip-field';
+      prefix.textContent = `(${fieldLabel}: `;
+      const value = document.createElement('span');
+      value.className = 'em-lab-chip-value';
+      value.textContent = `${p.text})`;
+      label.append(prefix, value);
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 'em-lab-chip-rm';
@@ -18115,6 +18132,10 @@ async function createRuleFromEmailLab() {
     if (subject) addEmailLabPhrase(subject, 'subject');
   }
   const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
+  const phraseFields =
+    emailState.labPhrases.length > 1
+      ? emailState.labPhrases.map((p) => p.field).filter(Boolean)
+      : undefined;
   const titleSource = phrases[0] || String(ev.subject || '').trim() || 'New rule';
   const fields = [...new Set(emailState.labPhrases.map((p) => p.field))];
   emailState.labCreating = true;
@@ -18131,6 +18152,10 @@ async function createRuleFromEmailLab() {
       scope: 'personal',
       description: '',
       phrases,
+      phraseFields:
+        phraseFields && phraseFields.length === phrases.length && phrases.length > 1
+          ? phraseFields
+          : undefined,
       exceptPhrases: [],
       matchMode: phrases.length > 1 ? 'all' : 'any',
       fields: fields.length ? fields : ['body'],

@@ -20,11 +20,24 @@ function parseDraft(body: Record<string, unknown>): RuleApplyDraft {
   const fields = (Array.isArray(body.fields) ? body.fields : [])
     .map((f) => String(f).trim().toLowerCase())
     .filter((f): f is RuleField => f === 'from' || f === 'subject' || f === 'body');
-  const matchMode = String(body.matchMode || body.match_mode || 'any').toLowerCase() === 'all'
-    ? 'all'
-    : 'any';
+  const phraseFieldsRaw =
+    body.phraseFields !== undefined ? body.phraseFields : body.phrase_fields;
+  const phraseFields = Array.isArray(phraseFieldsRaw)
+    ? phraseFieldsRaw
+        .map((f) => String(f).trim().toLowerCase())
+        .filter((f): f is RuleField => f === 'from' || f === 'subject' || f === 'body')
+    : undefined;
+  const paired =
+    phraseFields && phraseFields.length === phrases.length && phrases.length > 1
+      ? phraseFields
+      : undefined;
+  const matchMode =
+    paired || String(body.matchMode || body.match_mode || 'any').toLowerCase() === 'all'
+      ? 'all'
+      : 'any';
   return {
     phrases,
+    phraseFields: paired,
     exceptPhrases,
     fields,
     matchMode: matchMode as MatchMode,

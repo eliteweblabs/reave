@@ -138,6 +138,12 @@ export interface EmailRule {
   /** Case-insensitive substrings; matched against the selected `fields`. */
   phrases: string[];
   /**
+   * Optional per-phrase field (same length/order as `phrases`). When set with
+   * 2+ entries, every phrase must match its field (AND) — not either/or in the
+   * combined haystack.
+   */
+  phraseFields?: RuleField[];
+  /**
    * Case-insensitive substrings that veto a match — if any appear in the
    * selected `fields`, the rule does not fire (NOT / except clause).
    */
@@ -699,6 +705,30 @@ export function blockedByExceptPhrases(rule: EmailRule, email: InboundEmail): st
   return except.filter((p) => haystack.includes(p.toLowerCase()));
 }
 
+export type RuleTargetPair = { field: RuleField; phrase: string };
+
+/** Per-field target pairs when phraseFields aligns with phrases (2+ chips). */
+export function ruleTargetPairs(
+  rule: Pick<EmailRule, 'phrases' | 'phraseFields'>,
+): RuleTargetPair[] | null {
+  const phrases = normalizePhraseList(rule.phrases).map((p) => p.toLowerCase());
+  const rawFields = rule.phraseFields;
+  if (!Array.isArray(rawFields) || rawFields.length !== phrases.length || phrases.length < 2) {
+    return null;
+  }
+  const pairs: RuleTargetPair[] = [];
+  for (let i = 0; i < phrases.length; i++) {
+    const field = String(rawFields[i] || '').trim().toLowerCase();
+    if (field !== 'from' && field !== 'subject' && field !== 'body') return null;
+    pairs.push({ field, phrase: phrases[i]! });
+  }
+  return pairs;
+}
+
+function matchesFieldPairedTargets(email: InboundEmail, pairs: RuleTargetPair[]): boolean {
+  return pairs.every(({ field, phrase }) => fieldMatchValue(email, field).includes(phrase));
+}
+
 function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
   if (!rule.enabled) return false;
   if (isVerificationCodeRuleStatus(rule.status)) {
@@ -710,6 +740,11 @@ function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
     return blockedByExceptPhrases(rule, email).length === 0;
   }
   if (rule.phrases.length === 0) return false;
+  const paired = ruleTargetPairs(rule);
+  if (paired) {
+    if (!matchesFieldPairedTargets(email, paired)) return false;
+    return blockedByExceptPhrases(rule, email).length === 0;
+  }
   const haystack = ruleHaystack(rule, email);
   const hits = rule.phrases.map((p) => haystack.includes(p.toLowerCase()));
   const positive = rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
@@ -722,7 +757,10 @@ function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
  * Forces `enabled: true` so draft / Test-rule checks ignore the Off toggle.
  */
 export function emailMatchesRule(
-  rule: Pick<EmailRule, 'phrases' | 'exceptPhrases' | 'fields' | 'matchMode' | 'status'> &
+  rule: Pick<
+    EmailRule,
+    'phrases' | 'phraseFields' | 'exceptPhrases' | 'fields' | 'matchMode' | 'status'
+  > &
     Partial<Pick<EmailRule, 'enabled'>>,
   email: InboundEmail,
 ): boolean {

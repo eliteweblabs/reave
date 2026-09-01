@@ -2169,6 +2169,8 @@ button.de-placeholder-action:active {
 }
 .re-lab-chip-field {
   font-weight: 700;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .re-lab-chip-value {
   font-weight: 400;
@@ -2245,6 +2247,8 @@ button.de-placeholder-action:active {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
+  user-select: none;
+  -webkit-user-select: none;
 }
 .re-chip-col--target .re-chip-col-title {
   color: var(--em-notice-active, #3fb950);
