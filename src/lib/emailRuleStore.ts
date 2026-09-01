@@ -156,6 +156,7 @@ ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_push BOOLEAN;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_dashboard BOOLEAN;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_actions JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'personal';
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS phrase_fields JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 `;
 
@@ -210,6 +211,16 @@ function normalizeFields(raw: unknown): RuleField[] {
   const allowed = new Set<RuleField>(['subject', 'body', 'from']);
   const out = raw.map(String).filter((f): f is RuleField => allowed.has(f as RuleField));
   return out.length ? out : ['subject', 'body'];
+}
+
+function normalizePhraseFields(raw: unknown, phraseCount: number): RuleField[] | undefined {
+  if (!Array.isArray(raw) || phraseCount < 2) return undefined;
+  const allowed = new Set<RuleField>(['subject', 'body', 'from']);
+  const out = raw
+    .map((f) => String(f).trim().toLowerCase())
+    .filter((f): f is RuleField => allowed.has(f as RuleField));
+  if (out.length !== phraseCount) return undefined;
+  return out;
 }
 
 function normalizeMatchMode(raw: unknown): MatchMode {
@@ -279,6 +290,7 @@ function rowToRecord(row: {
   hit_count?: number | null;
   last_matched_at?: Date | string | null;
   scope?: string | null;
+  phrase_fields?: unknown;
 }): EmailRuleRecord {
   const notifyFields = coalesceRuleNotifyFields({
     notify: !!row.notify,
@@ -303,6 +315,10 @@ function rowToRecord(row: {
     scope: normalizeEmailRuleScope(row.scope, scopeFallback),
     description: row.description ?? undefined,
     phrases: Array.isArray(row.phrases) ? row.phrases.map(String) : [],
+    phraseFields: normalizePhraseFields(
+      row.phrase_fields,
+      Array.isArray(row.phrases) ? row.phrases.length : 0,
+    ),
     exceptPhrases: Array.isArray(row.except_phrases)
       ? row.except_phrases.map(String).map((p) => p.trim()).filter(Boolean)
       : [],
@@ -359,6 +375,10 @@ function parseConfig(raw: string): EmailRulesConfig | null {
           scope: normalizeEmailRuleScope(r.scope, scopeFallback),
           description: r.description ? String(r.description) : undefined,
           phrases: Array.isArray(r.phrases) ? r.phrases.map(String) : [],
+          phraseFields: normalizePhraseFields(
+            r.phraseFields,
+            Array.isArray(r.phrases) ? r.phrases.length : 0,
+          ),
           exceptPhrases: Array.isArray(r.exceptPhrases)
             ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
             : [],
@@ -449,7 +469,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
               expires_at, created_at, updated_at, summary_override, forward_to, create_project, hit_count, last_matched_at,
-              except_phrases, notify_push, notify_dashboard, notify_actions, scope
+              except_phrases, notify_push, notify_dashboard, notify_actions, scope, phrase_fields
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -499,8 +519,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
            expires_at, created_at, updated_at, summary_override, forward_to, create_project, hit_count, last_matched_at,
-           except_phrases, notify_push, notify_dashboard, notify_actions, scope)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+           except_phrases, notify_push, notify_dashboard, notify_actions, scope, phrase_fields)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
          ON CONFLICT (id) DO UPDATE SET
            sort_order = EXCLUDED.sort_order,
            title = EXCLUDED.title,
@@ -522,7 +542,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
            notify_push = EXCLUDED.notify_push,
            notify_dashboard = EXCLUDED.notify_dashboard,
            notify_actions = EXCLUDED.notify_actions,
-           scope = EXCLUDED.scope`,
+           scope = EXCLUDED.scope,
+           phrase_fields = EXCLUDED.phrase_fields`,
         [
           r.id,
           r.sortOrder,
@@ -551,6 +572,7 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           notifyDashboard,
           JSON.stringify(notifyActions),
           normalizeEmailRuleScope(r.scope, 'personal'),
+          JSON.stringify(Array.isArray(r.phraseFields) ? r.phraseFields : []),
         ]
       );
     }
@@ -996,6 +1018,8 @@ export type RuleInput = {
   status: string;
   description?: string;
   phrases: string[];
+  /** Per-phrase field targets (same order as phrases). */
+  phraseFields?: RuleField[];
   /** Phrases that veto a match (NOT clause). */
   exceptPhrases?: string[];
   matchMode: MatchMode;
@@ -1074,8 +1098,11 @@ export function sanitizeEmailRuleInput(input: RuleInput): SanitizeEmailRuleResul
       status,
       description: input.description?.trim() || undefined,
       phrases,
+      phraseFields: normalizePhraseFields(input.phraseFields, phrases.length),
       exceptPhrases,
-      matchMode: normalizeMatchMode(input.matchMode),
+      matchMode: normalizePhraseFields(input.phraseFields, phrases.length)
+        ? 'all'
+        : normalizeMatchMode(input.matchMode),
       fields: normalizeFields(input.fields),
       notify: notifyFields.notify,
       notifyPush: notifyFields.notifyPush,
@@ -1107,6 +1134,9 @@ export function parseEmailRuleInput(body: Record<string, unknown>): RuleInput | 
   const fields = Array.isArray(fieldsRaw)
     ? (fieldsRaw as RuleField[])
     : (['subject', 'body'] as RuleField[]);
+  const phraseFieldsRaw =
+    body.phraseFields !== undefined ? body.phraseFields : body.phrase_fields;
+  const phraseFields = normalizePhraseFields(phraseFieldsRaw, phrases.length);
   const expiresRaw = body.expiresAt !== undefined ? body.expiresAt : body.expires_at;
   const expiresAt = parseExpiresAt(expiresRaw ?? null);
   if (expiresAt === undefined) return null;
@@ -1140,6 +1170,7 @@ export function parseEmailRuleInput(body: Record<string, unknown>): RuleInput | 
     status,
     description: body.description != null ? String(body.description) : undefined,
     phrases,
+    phraseFields,
     exceptPhrases,
     matchMode: (body.matchMode === 'all' ? 'all' : 'any') as MatchMode,
     fields,

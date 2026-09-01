@@ -383,6 +383,24 @@ export function createEmailTriageLab(deps) {
   }
 
   function ruleMatchesComposedEmail(rule) {
+    const paired =
+      Array.isArray(rule?.phraseFields) &&
+      rule.phraseFields.length === (rule?.phrases || []).length &&
+      (rule?.phrases || []).length >= 2
+        ? (rule.phrases || []).map((text, i) => ({
+            field: rule.phraseFields[i],
+            text: String(text || ''),
+          }))
+        : null;
+    if (paired) {
+      return paired.every(({ field, text }) => {
+        const phrase = String(text || '').trim().toLowerCase();
+        if (!phrase) return false;
+        if (field === 'from') return fromMatchHay(state.from).includes(phrase);
+        if (field === 'subject') return String(state.subject || '').toLowerCase().includes(phrase);
+        return String(state.text || '').toLowerCase().includes(phrase);
+      });
+    }
     const fields = rule?.fields?.length ? rule.fields : ['subject', 'body'];
     const hay = fields
       .map((f) => {

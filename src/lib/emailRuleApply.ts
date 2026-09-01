@@ -29,6 +29,7 @@ const MAX_APPLY = 100;
 
 export type RuleApplyDraft = {
   phrases: string[];
+  phraseFields?: RuleField[];
   exceptPhrases?: string[];
   fields: RuleField[];
   matchMode?: MatchMode;
@@ -61,13 +62,23 @@ function normalizeDraft(raw: RuleApplyDraft): EmailRule | null {
   const fields = (Array.isArray(raw.fields) ? raw.fields : [])
     .map((f) => String(f || '').trim().toLowerCase())
     .filter((f): f is RuleField => f === 'from' || f === 'subject' || f === 'body');
+  const phraseFieldsRaw = raw.phraseFields;
+  const phraseFields =
+    Array.isArray(phraseFieldsRaw) && phraseFieldsRaw.length === phrases.length && phrases.length > 1
+      ? phraseFieldsRaw
+          .map((f) => String(f || '').trim().toLowerCase())
+          .filter((f): f is RuleField => f === 'from' || f === 'subject' || f === 'body')
+      : undefined;
+  const paired =
+    phraseFields && phraseFields.length === phrases.length ? phraseFields : undefined;
   return {
     status: String(raw.status || 'CUSTOM').trim() || 'CUSTOM',
     phrases,
+    phraseFields: paired,
     exceptPhrases: (Array.isArray(raw.exceptPhrases) ? raw.exceptPhrases : [])
       .map((p) => String(p || '').trim())
       .filter(Boolean),
-    matchMode: raw.matchMode === 'all' ? 'all' : 'any',
+    matchMode: paired ? 'all' : raw.matchMode === 'all' ? 'all' : 'any',
     fields: fields.length ? fields : ['subject', 'body'],
     notify: false,
     enabled: true,

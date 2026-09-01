@@ -18132,6 +18132,10 @@ async function createRuleFromEmailLab() {
     if (subject) addEmailLabPhrase(subject, 'subject');
   }
   const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
+  const phraseFields =
+    emailState.labPhrases.length > 1
+      ? emailState.labPhrases.map((p) => p.field).filter(Boolean)
+      : undefined;
   const titleSource = phrases[0] || String(ev.subject || '').trim() || 'New rule';
   const fields = [...new Set(emailState.labPhrases.map((p) => p.field))];
   emailState.labCreating = true;
@@ -18148,6 +18152,10 @@ async function createRuleFromEmailLab() {
       scope: 'personal',
       description: '',
       phrases,
+      phraseFields:
+        phraseFields && phraseFields.length === phrases.length && phrases.length > 1
+          ? phraseFields
+          : undefined,
       exceptPhrases: [],
       matchMode: phrases.length > 1 ? 'all' : 'any',
       fields: fields.length ? fields : ['body'],

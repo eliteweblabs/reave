@@ -51,6 +51,7 @@ import {
   createChipPair,
   chipsFromRulePhrases,
   phrasesFromChips,
+  phraseFieldsFromChips,
   fieldsFromChips,
   titleFromRulePhrases,
 } from './rule-chip-editor.js?v=20260829a';
@@ -1189,7 +1190,7 @@ function renderRuleEditPane(pane, opts = {}) {
   const form = document.createElement('div');
   form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
 
-  const matchChipSeed = chipsFromRulePhrases(rule.phrases, rule.fields);
+  const matchChipSeed = chipsFromRulePhrases(rule.phrases, rule.fields, rule.phraseFields);
   const exceptChipSeed = chipsFromRulePhrases(rule.exceptPhrases, rule.fields);
   const chipPair = createChipPair({
     targets: matchChipSeed,
@@ -1197,9 +1198,13 @@ function renderRuleEditPane(pane, opts = {}) {
     targetField: (rule.fields || []).length === 1 ? rule.fields[0] : matchChipSeed.at(-1)?.field || 'subject',
     exemptField: (rule.fields || []).length === 1 ? rule.fields[0] : exceptChipSeed.at(-1)?.field || 'subject',
     disabled: isCatalogReadOnly(rule),
+    onChange: () => {
+      if (matchChips.getChips().length > 1) matchModeIn.value = 'all';
+    },
   });
   const matchChips = chipPair.targets;
   const exceptChips = chipPair.exemptions;
+  if (matchChips.getChips().length > 1) matchModeIn.value = 'all';
 
   const scopeIn = document.createElement('input');
   scopeIn.type = 'hidden';
@@ -1570,6 +1575,7 @@ function renderRuleEditPane(pane, opts = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phrases: payload.phrases,
+          phraseFields: payload.phraseFields,
           exceptPhrases: payload.exceptPhrases,
           fields: payload.fields,
           matchMode: payload.matchMode,
@@ -1700,11 +1706,15 @@ function renderRuleEditPane(pane, opts = {}) {
 function collectRulePayload(inputs) {
   inputs.matchChips?.commitDraft?.();
   inputs.exceptChips?.commitDraft?.();
-  const matchChips = inputs.matchChips?.getChips?.() || [];
+  const matchChipsList = matchChips.getChips?.() || [];
+  const phrases = phrasesFromChips(matchChipsList);
+  const phraseFields = phraseFieldsFromChips(matchChipsList);
   const exceptChips = inputs.exceptChips?.getChips?.() || [];
-  const phrases = phrasesFromChips(matchChips);
   const exceptPhrases = phrasesFromChips(exceptChips);
-  const fields = fieldsFromChips(matchChips, inputs.originalFields);
+  const fields = fieldsFromChips(matchChipsList, inputs.originalFields);
+  const pairedFields =
+    phraseFields.length === phrases.length && phrases.length > 1 ? phraseFields : undefined;
+  const matchMode = phrases.length > 1 || pairedFields ? 'all' : inputs.matchModeIn?.value === 'all' ? 'all' : 'any';
   const notifyActions = [];
   inputs.notifyActionsWrap.querySelectorAll('[data-notify-action]').forEach((btn) => {
     if (ruleToggleOn(btn)) notifyActions.push(btn.dataset.notifyAction);
@@ -1729,8 +1739,9 @@ function collectRulePayload(inputs) {
     status: statusForProcess(process, inputs.statusIn.value.trim()),
     description: inputs.descIn.value.trim(),
     phrases,
+    phraseFields: pairedFields,
     exceptPhrases,
-    matchMode: inputs.matchModeIn?.value === 'all' ? 'all' : 'any',
+    matchMode,
     fields,
     notify: notifyPush || notifyDashboard,
     notifyPush,
@@ -2066,6 +2077,7 @@ async function startNewRule(draft = null) {
         scope: draft.scope === 'universal' ? 'universal' : 'personal',
         description: String(draft.description || ''),
         phrases,
+        phraseFields: Array.isArray(draft.phraseFields) ? draft.phraseFields : undefined,
         exceptPhrases: Array.isArray(draft.exceptPhrases) ? draft.exceptPhrases : [],
         matchMode: draft.matchMode === 'all' ? 'all' : 'any',
         fields: Array.isArray(draft.fields) && draft.fields.length ? draft.fields : ['body'],
