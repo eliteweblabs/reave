@@ -193,7 +193,7 @@ function mount() {
       pill.type = 'button';
       pill.className = 'ch-undo-toast ch-toast-visible cg-undo-pill';
       pill.setAttribute('aria-label', 'Undo');
-      const ring = createTimingRing({ size: 26, durationMs: 5000, autoplay: false });
+      const ring = createTimingRing({ size: 20, durationMs: 5000, autoplay: false });
       const label = document.createElement('span');
       label.className = 'ch-undo-label';
       label.textContent = 'Undo';

@@ -947,21 +947,20 @@ body.admin-split-view #chat-panel .ch-compose {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
   /* Hidden leftover must not steal taps or flash the iOS tap-highlight. */
   pointer-events: none;
   visibility: hidden;
   -webkit-tap-highlight-color: transparent;
-  /* Below the measured header — desktop PWA titlebars eat safe-top + 1.25rem. */
-  top: calc(var(--topbar-measured-h, var(--topbar-h)) + 0.65rem);
+  top: max(0.45rem, env(safe-area-inset-top, 0px));
   bottom: auto;
   z-index: 11000;
   transform: translateX(-50%) translateY(-0.5rem);
-  padding: 0.72rem 1.35rem;
+  padding: 0.48rem 1rem;
   border: none;
   border-radius: 999px;
   font-family: var(--font-primary);
-  font-size: 0.92rem;
+  font-size: 0.8rem;
   font-weight: 600;
   line-height: 1;
   color: #fff;
@@ -975,8 +974,8 @@ body.admin-split-view #chat-panel .ch-compose {
 .ch-undo-toast .timing-ring {
   display: block;
   flex-shrink: 0;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
 }
 .ch-undo-label {
   display: block;

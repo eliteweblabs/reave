@@ -1,11 +1,11 @@
 /**
- * Shake-to-undo for reversible admin actions (deletes, notification dismiss).
+ * Shake-to-undo for reversible admin actions (notification dismiss, send undo).
  *
  * Flow: optimistic UI → short undo window → commit. Shake (when motion is available)
  * or tapping Undo cancels the commit and runs the undo callback.
  *
- * Use queueUndoableDelete() for every user-initiated delete so the same Undo
- * toast + shake path covers chats, email, and the other admin lists.
+ * Deletes use queueUndoableDelete() for optimistic hide + immediate commit only —
+ * trash controls already require a second tap (confirmDelete), so no undo toast.
  *
  * iOS 13+ requires DeviceMotionEvent.requestPermission() from a user gesture; call
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
@@ -167,7 +167,7 @@ function showUndoToast(onUndo) {
   toast.removeAttribute('aria-hidden');
   toast.inert = false;
 
-  const ring = createTimingRing({ size: 26, durationMs: UNDO_WINDOW_MS, autoplay: false });
+  const ring = createTimingRing({ size: 20, durationMs: UNDO_WINDOW_MS, autoplay: false });
   const label = document.createElement('span');
   label.className = 'ch-undo-label';
   label.textContent = 'Undo';
@@ -277,8 +277,9 @@ function forgetHiddenIds(ids) {
 }
 
 /**
- * Optimistic delete: hide now, commit after the undo window, restore on Undo/shake.
- * A new queue call commits any previous pending action first.
+ * Optimistic delete: hide now, commit immediately. Restore only on API failure.
+ * Confirm-delete controls already require a second tap, so no undo toast.
+ * A new call commits any previous pending shake-undo action first.
  *
  * @param {{
  *   key: string,
@@ -302,6 +303,8 @@ export async function queueUndoableDelete(opts) {
     .map((id) => String(id || '').trim())
     .filter(Boolean);
 
+  if (pending) await flushPendingCommit();
+
   rememberHiddenIds(ids);
   try {
     hide();
@@ -310,26 +313,14 @@ export async function queueUndoableDelete(opts) {
     throw e;
   }
 
-  void ensureShakePermission();
-
-  await queueShakeUndo({
-    key,
-    commit: async () => {
-      try {
-        await commit();
-      } catch (e) {
-        forgetHiddenIds(ids);
-        await restore();
-        if (typeof onCommitError === 'function') await onCommitError(e);
-        return;
-      }
-      forgetHiddenIds(ids);
-    },
-    undo: () => {
-      forgetHiddenIds(ids);
-      return restore();
-    },
-  });
+  try {
+    await commit();
+    forgetHiddenIds(ids);
+  } catch (e) {
+    forgetHiddenIds(ids);
+    await restore();
+    if (typeof onCommitError === 'function') await onCommitError(e);
+  }
 }
 
 if (typeof window !== 'undefined') {
