@@ -14,6 +14,7 @@ import { carddavPlugin } from '../../plugins/carddav/manifest';
 import { clientPortalPlugin } from '../../plugins/client-portal/manifest';
 import { codeDevPlugin } from '../../plugins/code-dev/manifest';
 import { devInfraPlugin } from '../../plugins/dev-infra/manifest';
+import { autoEmailResponsePlugin } from '../../plugins/auto-email-response/manifest';
 import { emailMarketingPlugin } from '../../plugins/email-marketing/manifest';
 import { namecomDnsPlugin } from '../../plugins/namecom-dns/manifest';
 import { schedulingPlugin } from '../../plugins/scheduling/manifest';
@@ -51,6 +52,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   codeDevPlugin,
   devInfraPlugin,
   emailMarketingPlugin,
+  autoEmailResponsePlugin,
   namecomDnsPlugin,
   schedulingPlugin,
   siteAuditsPlugin,
@@ -190,6 +192,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage', 'google-workspace-dns'];
     case 'email-marketing':
       return ['newsletter'];
+    case 'auto-email-response':
+      return ['auto-email-response'];
     case 'uptime-monitoring':
       return ['uptime-monitoring'];
     case 'fleet':

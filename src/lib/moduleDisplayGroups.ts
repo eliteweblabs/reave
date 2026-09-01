@@ -30,6 +30,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
       'scheduling',
       'time_tracking',
       'email_marketing',
+      'auto_email_response',
       'sms',
       'siri',
     ],
