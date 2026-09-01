@@ -9,6 +9,7 @@ import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
+import { parseStoredBusinessHours, type BusinessHours } from './businessHours';
 import { projectRoot } from './projectRoot';
 
 export type StoredCompanyLogo = {
@@ -90,6 +91,8 @@ export type StoredCompanyConfig = {
   brandSecondary?: string | null;
   /** Admin-selected Home Screen / favicon tile background (hex). */
   iconBackground?: string | null;
+  /** Structured weekly hours for listings / scheduling (Google day index 0 = Sunday). */
+  businessHours?: BusinessHours | null;
   updatedAt?: string | null;
 };
 
@@ -160,6 +163,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS portal_outreach_notice TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_data TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_media_type TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS email_font TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS business_hours TEXT;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -186,6 +190,15 @@ function configFilePath(): string {
   const override = serverEnv('COMPANY_CONFIG_FILE')?.trim();
   if (override) return override;
   return join(projectRoot(), 'src', 'knowledge', 'company-config.json');
+}
+
+function parseStoredBusinessHoursJson(raw: string | null | undefined): BusinessHours | null {
+  if (!raw?.trim()) return null;
+  try {
+    return parseStoredBusinessHours(JSON.parse(raw));
+  } catch {
+    return null;
+  }
 }
 
 function parseFontGoogleSpecs(raw: unknown): Record<string, string> | null {
@@ -293,6 +306,7 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     brandPrimary: str('brandPrimary') || str('brand_primary') || null,
     brandSecondary: str('brandSecondary') || str('brand_secondary') || null,
     iconBackground: str('iconBackground') || str('icon_background') || null,
+    businessHours: parseStoredBusinessHours(o.businessHours),
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -380,6 +394,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     og_data: string | null;
     og_media_type: string | null;
     email_font: string | null;
+    business_hours: string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -393,7 +408,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
             brand_primary, brand_secondary, icon_background, portal_outreach_notice,
-            og_data, og_media_type, email_font, updated_at
+            og_data, og_media_type, email_font, business_hours, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -458,6 +473,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     ogData: row.og_data,
     ogMediaType: row.og_media_type,
     emailFont: row.email_font,
+    businessHours: parseStoredBusinessHoursJson(row.business_hours),
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -523,6 +539,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        og_data = $54,
        og_media_type = $55,
        email_font = $56,
+       business_hours = $57,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -584,6 +601,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.ogData ?? null,
       config.ogMediaType ?? null,
       config.emailFont ?? null,
+      config.businessHours ? JSON.stringify(config.businessHours) : null,
     ],
   );
   if ((result.rowCount ?? 0) > 0) return true;

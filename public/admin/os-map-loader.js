@@ -2,6 +2,12 @@ import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT, i
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
 import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 import { postTitle, postLower, postNew, postSave, postTitleLabel, postAlias, postCountLabel } from '/admin/post-alias.js?v=20260805a';
+import {
+  bindCompanyListing,
+  renderCompanyHoursSection,
+  renderGoogleListingPreviewSection,
+  refreshGoogleListingPreview,
+} from '/admin/company-listing.js?v=20260901a';
 
 function companyBrand() {
   return (
@@ -7209,6 +7215,17 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
     async save(payload) {
       if (payload.supportPhone != null) payload.supportPhone = phoneToStorage(payload.supportPhone);
       if (companyPendingGeo) payload.geo = companyPendingGeo;
+      if (typeof payload.businessHours === 'string') {
+        const raw = payload.businessHours.trim();
+        if (!raw) delete payload.businessHours;
+        else {
+          try {
+            payload.businessHours = JSON.parse(raw);
+          } catch {
+            delete payload.businessHours;
+          }
+        }
+      }
       const res = await fetch('/api/admin/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -7221,6 +7238,7 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
           syncCompanySvgFields(root, json.company);
           logoBranding.refreshPreview(json.company);
           iconBranding.refreshPreview(json.company);
+          refreshGoogleListingPreview(root);
           companyAutosave.resync?.();
         }
       }
@@ -7233,6 +7251,7 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   bindCompanyEmailFontPreview(root, emailFontCatalog);
   bindCompanyBrandColors(root);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
+  bindCompanyListing(root, { onHoursChange: () => void companyAutosave.flush?.() });
 }
 
 function bindCompanyBrandColors(root) {
@@ -8284,6 +8303,11 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `<div id="company-map-host" class="cl-map-section"></div>`,
           ) +
           profSection(
+            'Hours of operation',
+            'Weekly schedule for Google Business Profile and Apple Business Connect feeds.',
+            renderCompanyHoursSection(c),
+          ) +
+          profSection(
             'Logo &amp; Icon',
             'PNG, JPEG, or WebP. Used when no SVG is pasted in the group below. Header and homepage: SVG → image → company name.',
             `<div class="prof-branding-uploads">` +
@@ -8438,6 +8462,11 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
             `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" />` +
             `<span class="prof-hint">Used when <code>RESEND_FROM</code> is not set. Support email and phone appear as Call / Text / Email on client portal pages.</span></div>`,
+          ) +
+          profSection(
+            'Listing preview',
+            'How your business may appear on Google Maps before reviews and categories are assigned.',
+            renderGoogleListingPreviewSection(),
           ) +
           profSection(
             'Client Portal',
