@@ -2,6 +2,7 @@
  * JSON branding payload for Crater + integrations.
  * Logo bytes are served from admin company_config via /api/branding/logo — not /branding/* disk files.
  */
+import type { APIContext } from 'astro';
 import {
   DEFAULT_SITE_BRAND_PRIMARY,
   DEFAULT_SITE_BRAND_SECONDARY,
@@ -12,6 +13,7 @@ import { companyBrandingVersion, getCompanyConfig, type CompanyConfig } from './
 import { BRANDING_LOGO_API_PATH } from './companyLogo';
 import { getStoredCompanyConfig } from './companyConfigStore';
 import { siteBaseUrl } from './contactApi';
+import { getDeploymentOwnerProfile } from './deploymentOwner';
 
 export type BrandingApiPayload = {
   ok: true;
@@ -19,6 +21,10 @@ export type BrandingApiPayload = {
   logoSource: CompanyConfig['logoSource'];
   /** Absolute PNG URL for white email headers; null when admin wordmark is hidden or unset. */
   logoEmailUrl: string | null;
+  /** Deployment owner full name (Admin → Profile first + last). */
+  contactName: string | null;
+  /** Owner email, falling back to company support/from addresses. */
+  contactEmail: string | null;
   primary: string;
   secondary: string;
   accent: string;
@@ -52,19 +58,25 @@ export function brandingLogoEmailUrl(company: CompanyConfig, base: string): stri
   return `${origin}${BRANDING_LOGO_API_PATH}?${params.toString()}`;
 }
 
-export async function buildBrandingApiPayload(request?: Request): Promise<BrandingApiPayload> {
+export async function buildBrandingApiPayload(context: APIContext): Promise<BrandingApiPayload> {
   const stored = await getStoredCompanyConfig();
-  const company = await getCompanyConfig(request);
-  const base = siteBaseUrl(request);
+  const company = await getCompanyConfig(context.request);
+  const base = siteBaseUrl(context.request);
   const colors = resolveCompanyBrandColors(stored?.brandPrimary, stored?.brandSecondary);
   const storedPrimary = normalizeBrandColorHex(stored?.brandPrimary);
   const storedSecondary = normalizeBrandColorHex(stored?.brandSecondary);
+  const owner = await getDeploymentOwnerProfile(context);
+  const contactName = owner?.fullName?.trim() || null;
+  const contactEmail =
+    owner?.email?.trim() || company.supportEmail?.trim() || company.fromEmail?.trim() || null;
 
   return {
     ok: true,
     name: company.name,
     logoSource: company.logoSource,
     logoEmailUrl: brandingLogoEmailUrl(company, base),
+    contactName,
+    contactEmail,
     primary: colors.primary,
     secondary: colors.secondary,
     accent: colors.accent,

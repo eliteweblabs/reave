@@ -6,6 +6,6 @@ export const prerender = false;
 
 /** Admin branding for Crater invoice mail, agents, and integrations. */
 export const GET: APIRoute = async (context) => {
-  const payload = await buildBrandingApiPayload(context.request);
+  const payload = await buildBrandingApiPayload(context);
   return jsonResponse(payload, 200, { cache: 'public, max-age=60' });
 };
