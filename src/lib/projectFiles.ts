@@ -538,15 +538,42 @@ export async function storeAddProjectFile(
     uploadedBy?: string | null;
     source?: ProjectFileSource;
     sourceRef?: string | null;
+    /** Skip when copying from the media library (already archived). */
+    skipMediaArchive?: boolean;
   },
 ): Promise<{ ok: true; file: ProjectFileSummary } | { ok: false; error: string }> {
   if (!isSafeWorkSlug(slug)) return { ok: false, error: 'Invalid slug' };
 
+  let result: { ok: true; file: ProjectFileSummary } | { ok: false; error: string };
   if (isProjectFilesDbConfigured()) {
-    const result = await dbAddProjectFile(slug, input);
-    if (result) return result;
+    const dbResult = await dbAddProjectFile(slug, input);
+    if (dbResult) result = dbResult;
+    else result = fileAddProjectFile(slug, input);
+  } else {
+    result = fileAddProjectFile(slug, input);
   }
-  return fileAddProjectFile(slug, input);
+
+  if (result.ok) await maybeArchiveProjectFileToMediaLibrary(input);
+  return result;
+}
+
+async function maybeArchiveProjectFileToMediaLibrary(input: {
+  filename?: string;
+  mediaType: string;
+  dataBase64: string;
+  uploadedBy?: string | null;
+  skipMediaArchive?: boolean;
+}): Promise<void> {
+  if (input.skipMediaArchive) return;
+  const { archiveUploadToMediaLibrary, isMediaLibraryMediaType } = await import('./mediaLibrary');
+  const mediaType = input.mediaType.trim().toLowerCase();
+  if (!isMediaLibraryMediaType(mediaType)) return;
+  await archiveUploadToMediaLibrary({
+    filename: input.filename,
+    mediaType,
+    dataBase64: input.dataBase64,
+    uploadedBy: input.uploadedBy ?? null,
+  });
 }
 
 export async function storeDeleteProjectFile(slug: string, id: string): Promise<boolean> {

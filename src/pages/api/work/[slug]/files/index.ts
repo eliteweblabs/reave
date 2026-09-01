@@ -41,12 +41,15 @@ export async function POST(context: APIContext): Promise<Response> {
   const parsed = await parseProjectFileUpload(context.request);
   if (!parsed.ok) return parsed.response;
 
+  const fromLibrary = context.request.headers.get('X-From-Media-Library') === '1';
+
   const result = await storeAddProjectFile(slug, {
     filename: parsed.filename,
     mediaType: parsed.mediaType,
     dataBase64: parsed.buffer.toString('base64'),
     uploadedBy: userId,
     source: 'admin',
+    skipMediaArchive: fromLibrary,
   });
   if (!result.ok) return jsonResponse({ ok: false, error: result.error }, 400);
   return jsonResponse({ ok: true, file: result.file });

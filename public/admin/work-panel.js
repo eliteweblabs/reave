@@ -4978,7 +4978,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     }
   }
 
-  async function uploadFilesToProject(files) {
+  async function uploadFilesToProject(files, opts = {}) {
     if (!files?.length) return;
     uploadBtn.disabled = true;
     libraryBtn.disabled = true;
@@ -4987,9 +4987,11 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       for (const file of files) {
         const form = new FormData();
         form.append('file', file);
+        const headers = opts.fromLibrary ? { 'X-From-Media-Library': '1' } : undefined;
         const res = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, {
           method: 'POST',
           body: form,
+          headers,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -5020,7 +5022,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       filter: projectFileMediaFilter,
       onPick: async (item) => {
         const file = await fetchMediaAsFile(item);
-        await uploadFilesToProject([file]);
+        await uploadFilesToProject([file], { fromLibrary: true });
       },
     });
   });
