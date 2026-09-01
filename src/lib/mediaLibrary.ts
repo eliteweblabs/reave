@@ -728,6 +728,45 @@ export async function storeAddMedia(input: {
   return fileAddMedia(input);
 }
 
+/** Copy an upload into the media library. Branding slots keep their own bytes; library rows survive slot clears. */
+export async function archiveUploadToMediaLibrary(input: {
+  filename?: string;
+  mediaType: string;
+  dataBase64: string;
+  altText?: string | null;
+  uploadedBy?: string | null;
+}): Promise<void> {
+  const mediaType = input.mediaType.trim().toLowerCase();
+  if (!isMediaLibraryMediaType(mediaType)) return;
+  const result = await storeAddMedia({
+    filename: input.filename,
+    mediaType,
+    dataBase64: input.dataBase64,
+    altText: input.altText ?? null,
+    uploadedBy: input.uploadedBy ?? null,
+  });
+  if (!result.ok) {
+    console.error('[media-library] archive upload failed', result.error);
+  }
+}
+
+/** Archive SVG markup (logo/icon uploads) as image/svg+xml in the media library. */
+export async function archiveSvgUploadToMediaLibrary(input: {
+  filename?: string;
+  svg: string;
+  uploadedBy?: string | null;
+}): Promise<void> {
+  const name = input.filename?.trim();
+  const filename =
+    name && name.toLowerCase().endsWith('.svg') ? name : name ? `${name}.svg` : 'upload.svg';
+  await archiveUploadToMediaLibrary({
+    filename,
+    mediaType: 'image/svg+xml',
+    dataBase64: Buffer.from(input.svg, 'utf8').toString('base64'),
+    uploadedBy: input.uploadedBy,
+  });
+}
+
 export async function storeUpdateMedia(
   id: string,
   input: {

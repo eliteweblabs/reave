@@ -5,6 +5,7 @@ import {
   setClientPortalIcon,
 } from '../../../../lib/clientBranding';
 import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
+import { archiveUploadToMediaLibrary } from '../../../../lib/mediaLibrary';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
@@ -67,6 +68,13 @@ export async function POST(context: APIContext): Promise<Response> {
     mediaType,
   });
   if (!saved.ok) return jsonResponse({ error: saved.error || 'Failed to save icon' }, 500);
+
+  await archiveUploadToMediaLibrary({
+    filename: file.name.trim() || undefined,
+    mediaType,
+    dataBase64: buffer.toString('base64'),
+    uploadedBy: userId,
+  });
 
   return jsonResponse({ ok: true, iconUrl: saved.iconUrl });
 }

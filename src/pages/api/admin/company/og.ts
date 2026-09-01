@@ -5,6 +5,7 @@ import {
   setStoredCompanyOg,
 } from '../../../../lib/companyConfigStore';
 import { parseCompanyOgUpload } from '../../../../lib/companyLogo';
+import { archiveUploadToMediaLibrary } from '../../../../lib/mediaLibrary';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
@@ -14,6 +15,7 @@ export const prerender = false;
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let form: FormData;
   try {
@@ -38,6 +40,13 @@ export async function POST(context: APIContext): Promise<Response> {
     mediaType: parsed.mediaType,
   });
   if (!ok) return jsonResponse({ error: 'Failed to save share image' }, 500);
+
+  await archiveUploadToMediaLibrary({
+    filename: file.name.trim() || undefined,
+    mediaType: parsed.mediaType,
+    dataBase64: parsed.dataBase64,
+    uploadedBy: userId,
+  });
 
   const company = await getCompanyConfig(context.request);
   return jsonResponse({ ok: true, company });

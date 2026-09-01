@@ -5,6 +5,7 @@ import {
   setClientPortalLogo,
 } from '../../../../lib/clientBranding';
 import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
+import { archiveUploadToMediaLibrary } from '../../../../lib/mediaLibrary';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   adaptLogoContrast,
@@ -61,6 +62,7 @@ export async function GET(context: APIContext): Promise<Response> {
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const uid = (context.params.uid ?? '').trim();
   if (!uid) return jsonResponse({ error: 'Not found' }, 404);
@@ -91,6 +93,13 @@ export async function POST(context: APIContext): Promise<Response> {
     mediaType,
   });
   if (!saved.ok) return jsonResponse({ error: saved.error || 'Failed to save logo' }, 500);
+
+  await archiveUploadToMediaLibrary({
+    filename: file.name.trim() || undefined,
+    mediaType,
+    dataBase64: buffer.toString('base64'),
+    uploadedBy: userId,
+  });
 
   return jsonResponse({ ok: true, logoUrl: saved.logoUrl });
 }

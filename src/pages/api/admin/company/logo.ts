@@ -6,6 +6,10 @@ import {
   setStoredCompanyLogo,
 } from '../../../../lib/companyConfigStore';
 import { parseCompanyBrandUpload } from '../../../../lib/companyLogo';
+import {
+  archiveSvgUploadToMediaLibrary,
+  archiveUploadToMediaLibrary,
+} from '../../../../lib/mediaLibrary';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
@@ -45,6 +49,21 @@ export async function POST(context: APIContext): Promise<Response> {
           mediaType: parsed.mediaType,
         });
   if (!ok) return jsonResponse({ error: 'Failed to save logo' }, 500);
+
+  if (parsed.kind === 'svg') {
+    await archiveSvgUploadToMediaLibrary({
+      filename: file.name.trim() || undefined,
+      svg: parsed.svg,
+      uploadedBy: userId,
+    });
+  } else {
+    await archiveUploadToMediaLibrary({
+      filename: file.name.trim() || undefined,
+      mediaType: parsed.mediaType,
+      dataBase64: parsed.dataBase64,
+      uploadedBy: userId,
+    });
+  }
 
   const company = await getCompanyConfig(context.request);
   return jsonResponse({ ok: true, company });
