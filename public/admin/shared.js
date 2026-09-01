@@ -208,6 +208,12 @@ export function skeletonHtml(kind = 'list', label = 'Loading…') {
       `<div class="home-dashboard-scroll">` +
         `<div class="sk-home" role="status" aria-live="polite" aria-busy="true">` +
           `<span class="sk-sr">${safeLabel}</span>` +
+          `<div class="sk-home-briefing">` +
+            `<div class="sk-bone sk-home-briefing-title"></div>` +
+            `<div class="sk-bone sk-home-briefing-date"></div>` +
+            `<div class="sk-bone sk-home-briefing-line"></div>` +
+            `<div class="sk-bone sk-home-briefing-line"></div>` +
+          `</div>` +
           `<div class="sk-home-alerts">${alerts}</div>` +
           `<section class="sk-home-section sk-home-today">` +
             `<div class="sk-home-today-head">` +

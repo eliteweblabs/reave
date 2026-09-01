@@ -879,7 +879,7 @@ function dashboardPanelHasContent() {
   const root = document.getElementById('dashboard-panel');
   return Boolean(
     root?.querySelector(
-      '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+      '.home-dashboard-scroll .dash-briefing, .home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
     ),
   );
 }
@@ -5510,6 +5510,44 @@ function queueTriageEmailFromUrl() {
 let lastDashboardPayload = null;
 let dashboardAnalyticsHydrateGen = 0;
 
+function buildMorningBriefingPanel(briefing) {
+  const section = document.createElement('section');
+  section.className = 'dash-briefing';
+
+  const header = document.createElement('div');
+  header.className = 'dash-header';
+  header.innerHTML =
+    `<h1 class="home-dashboard-title">${escHtml(briefing?.greeting || 'Good morning')}</h1>` +
+    `<p class="dash-date">${escHtml(briefing?.dateLabel || '')}</p>`;
+  section.appendChild(header);
+
+  const lines = Array.isArray(briefing?.lines) ? briefing.lines : [];
+  if (lines.length) {
+    const list = document.createElement('ul');
+    list.className = 'dash-briefing-lines';
+    for (const line of lines) {
+      const li = document.createElement('li');
+      const tone = line.tone === 'warn' ? ' dash-briefing-line--warn' : line.tone === 'muted' ? ' dash-briefing-line--muted' : '';
+      const mapKey = String(line.mapKey || '').trim();
+      if (mapKey && MAPS[mapKey]) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `dash-briefing-line dash-briefing-line-btn${tone}`;
+        btn.textContent = line.text || '';
+        btn.addEventListener('click', () => setActiveMap(mapKey, { force: activeKey === mapKey }));
+        li.appendChild(btn);
+      } else {
+        li.className = `dash-briefing-line${tone}`;
+        li.textContent = line.text || '';
+      }
+      list.appendChild(li);
+    }
+    section.appendChild(list);
+  }
+
+  return section;
+}
+
 function renderAdminDashboard(data, opts = {}) {
   lastDashboardPayload = data;
   const root = document.getElementById('dashboard-panel');
@@ -5531,6 +5569,10 @@ function renderAdminDashboard(data, opts = {}) {
   const automationNotifications = filterPendingDismissNotifications(
     Array.isArray(data?.automationNotifications) ? data.automationNotifications : [],
   );
+
+  if (data?.briefing) {
+    mount.appendChild(buildMorningBriefingPanel(data.briefing));
+  }
 
   if (automationNotifications.length) {
     mount.appendChild(buildReviewAlertBanners(automationNotifications));

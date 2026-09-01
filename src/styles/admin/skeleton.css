@@ -223,6 +223,31 @@
   margin-bottom: 0.85rem;
 }
 
+.sk-home-briefing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 1.1rem;
+}
+
+.sk-home-briefing-title {
+  width: 62%;
+  height: 1.35rem;
+  border-radius: 8px;
+}
+
+.sk-home-briefing-date {
+  width: 38%;
+  height: 0.82rem;
+  border-radius: 6px;
+}
+
+.sk-home-briefing-line {
+  width: 100%;
+  height: 2.15rem;
+  border-radius: 10px;
+}
+
 .sk-home-alert {
   height: 3.35rem;
   border-radius: 12px;
