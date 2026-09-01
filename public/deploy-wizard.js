@@ -442,6 +442,38 @@
     return `${slug}.reave.app`;
   }
 
+  function renderApplySummary() {
+    const stagingHost = stagingPreviewHost();
+    const apex = siteDomain.trim();
+    const newProject = project === '__new__' || !project;
+    const projLabel = (projectName || companyName || installSlug || 'demo').trim() || 'demo';
+    const hasNamecom = dnsAccess === 'namecom' && namecomUsername && namecomToken;
+    const hasGoDaddy = dnsAccess === 'godaddy' && godaddyToken;
+    const oneShot = (hasNamecom || hasGoDaddy) && apex;
+
+    let urlPart;
+    if (oneShot) {
+      urlPart = `go live on <code>${esc(apex)}</code> (Cloudflare zone + registrar nameservers)`;
+    } else if (dnsAccess === 'cloudflare' && apex) {
+      urlPart = `wire <code>${esc(apex)}</code> (zone must exist in Cloudflare)`;
+    } else if (apex) {
+      urlPart = `stage on <code>${esc(stagingHost)}</code> · save <code>${esc(apex)}</code> for Go live`;
+    } else {
+      urlPart = `stage on <code>${esc(stagingHost)}</code>`;
+    }
+
+    const railwayPart = newProject
+      ? `create a new Railway project <strong>${esc(projLabel)}</strong>`
+      : `update the selected Railway project`;
+
+    return (
+      `<p class="dl-callout dw-apply-summary" role="status">` +
+      `<strong>Apply will</strong> ${railwayPart} and ${urlPart}. ` +
+      `These are separate: Railway is always a new stack for a new client; the registrar choice only picks the public URL today.` +
+      `</p>`
+    );
+  }
+
   function renderDnsAccessBlock() {
     const stagingHost = stagingPreviewHost();
     return (
@@ -481,6 +513,7 @@
           : dnsAccess === 'cloudflare'
             ? `<p class="dl-meta">Zone must already exist in this Cloudflare account. If it does not, pick Name.com or GoDaddy for one-shot.</p>`
             : `<p class="dl-meta">Without registrar credentials, Apply stages on <code>${esc(stagingHost)}</code>. Cut over later on <a href="/go-live">Go live</a>.</p>`) +
+      renderApplySummary() +
       `</div>`
     );
   }
@@ -522,15 +555,16 @@
       `<label class="dl-field">` +
       `<span class="dl-field-label">Railway project</span>` +
       (projectOptions
-        ? `<select id="dw-project" class="dl-select"><option value="__new__"${newSelected}>New project…</option>${projectOptions}</select>`
+        ? `<select id="dw-project" class="dl-select"><option value="__new__"${newSelected}>New project (default for new clients)</option>${projectOptions}</select>`
         : `<input id="dw-project" class="dl-input" type="text" placeholder="New project name" value="${esc(project === '__new__' ? '' : project)}" />`) +
       `</label>` +
       (project === '__new__' || !projectOptions
-        ? `<label class="dl-field">` +
+        ? `<p class="dl-meta">New client installs always get their own Railway project — name defaults from company or slug below.</p>` +
+          `<label class="dl-field">` +
           `<span class="dl-field-label">Project name</span>` +
           `<input id="dw-project-name" class="dl-input" type="text" maxlength="64" placeholder="${esc(nameHint)}" value="${esc(projectName)}" />` +
           `</label>`
-        : '') +
+        : `<p class="dl-meta">Re-apply only — pick an existing project to refresh variables/DNS without creating a new stack.</p>`) +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Environment</span>` +
       `<input id="dw-env" class="dl-input" type="text" value="${esc(environment)}" />` +
@@ -1364,6 +1398,27 @@
       readIdentity();
       render();
       bind();
+    });
+    root.querySelector('#dw-godaddy-token')?.addEventListener('input', () => {
+      readIdentity();
+      if (step === 0) {
+        render();
+        bind();
+      }
+    });
+    root.querySelector('#dw-namecom-user')?.addEventListener('input', () => {
+      readIdentity();
+      if (step === 0) {
+        render();
+        bind();
+      }
+    });
+    root.querySelector('#dw-namecom-token')?.addEventListener('input', () => {
+      readIdentity();
+      if (step === 0) {
+        render();
+        bind();
+      }
     });
     root.querySelector('#dw-install')?.addEventListener('input', () => {
       readIdentity();
