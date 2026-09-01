@@ -52,6 +52,64 @@
   color: var(--muted);
 }
 
+.dash-briefing {
+  margin-bottom: 1.35rem;
+  min-width: 0;
+}
+.dash-briefing .dash-header {
+  margin-bottom: 0.65rem;
+}
+.dash-briefing-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.dash-briefing-line {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--fg);
+}
+.dash-briefing-line-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-subtle);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s;
+}
+.dash-briefing-line-btn:hover {
+  background: var(--surface-muted);
+}
+.dash-briefing-line-btn:active {
+  transform: scale(0.99);
+}
+.dash-briefing-line--warn {
+  color: #f87171;
+}
+.dash-briefing-line-btn.dash-briefing-line--warn {
+  border-color: color-mix(in srgb, #f87171 35%, var(--panel-border));
+  background: color-mix(in srgb, #f87171 8%, var(--surface-subtle));
+}
+.dash-briefing-line--muted {
+  color: var(--muted);
+}
+.dash-briefing-line-btn.dash-briefing-line--muted {
+  cursor: default;
+}
+.dash-briefing-line-btn.dash-briefing-line--muted:hover {
+  background: var(--surface-subtle);
+}
+
 .dash-stats {
   display: grid;
   grid-template-columns: repeat(var(--dash-stat-cols), minmax(0, 1fr));

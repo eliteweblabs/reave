@@ -30,6 +30,7 @@ export type ScheduledEmailRecord = {
   body: string;
   images: EmailComposeImage[];
   inReplyToEmailId: string | null;
+  useBrandedTemplate: boolean;
   scheduledAt: string;
   status: ScheduledEmailStatus;
   resendId: string | null;
@@ -47,6 +48,7 @@ export type CreateScheduledEmailInput = {
   body?: string;
   images?: EmailComposeImage[];
   inReplyToEmailId?: string | null;
+  useBrandedTemplate?: boolean;
   scheduledAt: string;
   createdBy?: string | null;
 };
@@ -59,6 +61,7 @@ export type UpdateScheduledEmailInput = {
   body?: string;
   images?: EmailComposeImage[];
   inReplyToEmailId?: string | null;
+  useBrandedTemplate?: boolean;
   scheduledAt?: string;
 };
 
@@ -83,6 +86,7 @@ CREATE TABLE IF NOT EXISTS email_scheduled (
   created_by            TEXT
 );
 ALTER TABLE email_scheduled ADD COLUMN IF NOT EXISTS from_address TEXT NOT NULL DEFAULT '';
+ALTER TABLE email_scheduled ADD COLUMN IF NOT EXISTS use_branded_template BOOLEAN NOT NULL DEFAULT true;
 CREATE INDEX IF NOT EXISTS email_scheduled_due_idx
   ON email_scheduled (scheduled_at ASC)
   WHERE status IN ('pending', 'sending', 'failed');
@@ -128,6 +132,7 @@ function readFileRows(): ScheduledEmailRecord[] {
       from: String(row.from ?? '').trim(),
       images: normalizeEmailComposeImages(row.images),
       status: normalizeStatus(row.status),
+      useBrandedTemplate: row.useBrandedTemplate !== false,
     }));
   } catch {
     return [];
@@ -148,6 +153,7 @@ function rowToRecord(row: {
   body: string;
   images?: unknown;
   in_reply_to_email_id: string | null;
+  use_branded_template?: boolean | null;
   scheduled_at: Date | string;
   status: string;
   resend_id?: string | null;
@@ -165,6 +171,7 @@ function rowToRecord(row: {
     body: row.body || '',
     images: normalizeEmailComposeImages(row.images),
     inReplyToEmailId: row.in_reply_to_email_id?.trim() || null,
+    useBrandedTemplate: row.use_branded_template !== false,
     scheduledAt: new Date(row.scheduled_at).toISOString(),
     status: normalizeStatus(row.status),
     resendId: row.resend_id?.trim() || null,
@@ -189,7 +196,7 @@ export async function listScheduledEmails(limit = 200): Promise<ScheduledEmailRe
     if (pool) {
       const { rows } = await pool.query(
         `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
-                scheduled_at, status, resend_id, error, created_at, updated_at, created_by
+                use_branded_template, scheduled_at, status, resend_id, error, created_at, updated_at, created_by
          FROM email_scheduled
          WHERE status IN ('pending', 'sending', 'failed')
          ORDER BY scheduled_at ASC
@@ -217,7 +224,7 @@ export async function getScheduledEmail(id: string): Promise<ScheduledEmailRecor
     if (pool) {
       const { rows } = await pool.query(
         `SELECT id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
-                scheduled_at, status, resend_id, error, created_at, updated_at, created_by
+                use_branded_template, scheduled_at, status, resend_id, error, created_at, updated_at, created_by
          FROM email_scheduled
          WHERE id = $1
          LIMIT 1`,
@@ -245,6 +252,7 @@ export async function createScheduledEmail(
     body: input.body ?? '',
     images: normalizeEmailComposeImages(input.images),
     inReplyToEmailId: input.inReplyToEmailId?.trim() || null,
+    useBrandedTemplate: input.useBrandedTemplate !== false,
     scheduledAt: new Date(input.scheduledAt).toISOString(),
     status: 'pending',
     resendId: null,
@@ -260,8 +268,8 @@ export async function createScheduledEmail(
       await pool.query(
         `INSERT INTO email_scheduled
           (id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
-           scheduled_at, status, created_by)
-         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7::jsonb, $8, $9, 'pending', $10)`,
+           use_branded_template, scheduled_at, status, created_by)
+         VALUES ($1, $2::jsonb, $3::jsonb, $4, $5, $6, $7::jsonb, $8, $9, $10, 'pending', $11)`,
         [
           record.id,
           JSON.stringify(record.to),
@@ -271,6 +279,7 @@ export async function createScheduledEmail(
           record.body,
           JSON.stringify(record.images),
           record.inReplyToEmailId,
+          record.useBrandedTemplate,
           record.scheduledAt,
           record.createdBy,
         ],
@@ -305,6 +314,10 @@ export async function updateScheduledEmail(
       input.inReplyToEmailId !== undefined
         ? input.inReplyToEmailId?.trim() || null
         : existing.inReplyToEmailId,
+    useBrandedTemplate:
+      input.useBrandedTemplate !== undefined
+        ? input.useBrandedTemplate !== false
+        : existing.useBrandedTemplate !== false,
     scheduledAt: input.scheduledAt !== undefined ? new Date(input.scheduledAt).toISOString() : existing.scheduledAt,
     status: 'pending',
     error: null,
@@ -323,7 +336,8 @@ export async function updateScheduledEmail(
              body = $6,
              images = $7::jsonb,
              in_reply_to_email_id = $8,
-             scheduled_at = $9,
+             use_branded_template = $9,
+             scheduled_at = $10,
              status = 'pending',
              error = NULL,
              updated_at = now()
@@ -337,6 +351,7 @@ export async function updateScheduledEmail(
           updated.body,
           JSON.stringify(updated.images),
           updated.inReplyToEmailId,
+          updated.useBrandedTemplate,
           updated.scheduledAt,
         ],
       );
@@ -373,7 +388,7 @@ export async function claimDueScheduledEmails(limit = 20): Promise<ScheduledEmai
            FOR UPDATE SKIP LOCKED
          )
          RETURNING id, to_recipients, cc_recipients, from_address, subject, body, images, in_reply_to_email_id,
-                   scheduled_at, status, resend_id, error, created_at, updated_at, created_by`,
+                   use_branded_template, scheduled_at, status, resend_id, error, created_at, updated_at, created_by`,
         [capped, staleBefore],
       );
       return rows.map(rowToRecord);
@@ -495,6 +510,7 @@ export async function cancelScheduledEmailToDraft(
     body: existing.body,
     images: existing.images,
     inReplyToEmailId: existing.inReplyToEmailId,
+    useBrandedTemplate: existing.useBrandedTemplate !== false,
     createdBy: existing.createdBy,
   });
   await deleteScheduledEmail(id);
@@ -510,5 +526,6 @@ export function scheduledEmailToComposeBody(row: ScheduledEmailRecord): Record<s
     text: row.body,
     images: row.images,
     inReplyToEmailId: row.inReplyToEmailId,
+    useBrandedTemplate: row.useBrandedTemplate !== false,
   };
 }

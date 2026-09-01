@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { clerkClient } from '@clerk/astro/server';
 import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import {
@@ -44,6 +45,8 @@ import {
   scheduleSiteHealthFleetRefresh,
   type SiteHealthFleet,
 } from '../../../lib/siteHealthGrade';
+import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
+import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
 
 export const prerender = false;
 
@@ -215,9 +218,37 @@ export async function GET(context: APIContext): Promise<Response> {
   );
   const siteHealth: SiteHealthFleet | null = siteHealthCached;
 
+  let firstName = '';
+  try {
+    const user = await clerkClient(context).users.getUser(userId);
+    firstName = user.firstName?.trim() || '';
+  } catch {
+    /* greeting works without a name */
+  }
+
+  const sleepDeferred = await storeListSleepDeferredEmails(50);
+  const briefing: MorningBriefing = buildMorningBriefing({
+    firstName,
+    stats: {
+      reviewsPending,
+      emailsUnread: inboxDigest.unread ?? digest.unread,
+      projectsActive,
+      todosOpen,
+      uptimeDown: uptime?.summary?.down ?? null,
+      siteHealthCritical: siteHealth?.criticalSites ?? null,
+      billingOverdue: billing?.overdueCount ?? null,
+      billingOverdueDue: billing?.overdueDue ?? null,
+    },
+    eventsTodayCount: eventsToday.length,
+    upcomingTodos,
+    sleepDeferredCount: sleepDeferred.length,
+    schedulingConfigured,
+  });
+
   return jsonResponse({
     ok: true,
     generatedAt: new Date().toISOString(),
+    briefing,
     stats: {
       emails: reviewsPending,
       emailsTotal,

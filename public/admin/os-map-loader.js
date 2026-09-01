@@ -885,7 +885,7 @@ function dashboardPanelHasContent() {
   const root = document.getElementById('dashboard-panel');
   return Boolean(
     root?.querySelector(
-      '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+      '.home-dashboard-scroll .dash-briefing, .home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
     ),
   );
 }
@@ -5516,6 +5516,44 @@ function queueTriageEmailFromUrl() {
 let lastDashboardPayload = null;
 let dashboardAnalyticsHydrateGen = 0;
 
+function buildMorningBriefingPanel(briefing) {
+  const section = document.createElement('section');
+  section.className = 'dash-briefing';
+
+  const header = document.createElement('div');
+  header.className = 'dash-header';
+  header.innerHTML =
+    `<h1 class="home-dashboard-title">${escHtml(briefing?.greeting || 'Good morning')}</h1>` +
+    `<p class="dash-date">${escHtml(briefing?.dateLabel || '')}</p>`;
+  section.appendChild(header);
+
+  const lines = Array.isArray(briefing?.lines) ? briefing.lines : [];
+  if (lines.length) {
+    const list = document.createElement('ul');
+    list.className = 'dash-briefing-lines';
+    for (const line of lines) {
+      const li = document.createElement('li');
+      const tone = line.tone === 'warn' ? ' dash-briefing-line--warn' : line.tone === 'muted' ? ' dash-briefing-line--muted' : '';
+      const mapKey = String(line.mapKey || '').trim();
+      if (mapKey && MAPS[mapKey]) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `dash-briefing-line dash-briefing-line-btn${tone}`;
+        btn.textContent = line.text || '';
+        btn.addEventListener('click', () => setActiveMap(mapKey, { force: activeKey === mapKey }));
+        li.appendChild(btn);
+      } else {
+        li.className = `dash-briefing-line${tone}`;
+        li.textContent = line.text || '';
+      }
+      list.appendChild(li);
+    }
+    section.appendChild(list);
+  }
+
+  return section;
+}
+
 function renderAdminDashboard(data, opts = {}) {
   lastDashboardPayload = data;
   const root = document.getElementById('dashboard-panel');
@@ -5537,6 +5575,10 @@ function renderAdminDashboard(data, opts = {}) {
   const automationNotifications = filterPendingDismissNotifications(
     Array.isArray(data?.automationNotifications) ? data.automationNotifications : [],
   );
+
+  if (data?.briefing) {
+    mount.appendChild(buildMorningBriefingPanel(data.briefing));
+  }
 
   if (automationNotifications.length) {
     mount.appendChild(buildReviewAlertBanners(automationNotifications));
@@ -10931,7 +10973,7 @@ let emailState = {
   activeDraftId: null,
   activeScheduledId: null,
   scheduledAt: null,
-  compose: { to: [], cc: [], subject: '', body: '', images: [] },
+  compose: { to: [], cc: [], subject: '', body: '', images: [], useBrandedTemplate: true },
   sending: false,
   storage: 'files',
   digest: null,
@@ -15334,6 +15376,7 @@ function applyDraftToCompose(draft, opts = {}) {
     subject: draft.subject || '',
     body: draft.body || '',
     images: normalizeEmailComposeImages(draft.images),
+    useBrandedTemplate: draft.useBrandedTemplate !== false,
   };
 }
 
@@ -15429,6 +15472,7 @@ function applyScheduledToCompose(event, opts = {}) {
     subject: event.subject || '',
     body: event.body || '',
     images: normalizeEmailComposeImages(event.images),
+    useBrandedTemplate: event.useBrandedTemplate !== false,
   };
 }
 
@@ -15948,6 +15992,7 @@ function emptyEmailCompose(overrides = {}) {
     subject: '',
     body: '',
     images: [],
+    useBrandedTemplate: true,
     ...overrides,
   };
   merged.from = normalizeEmailComposeFrom(merged.from) || defaultEmailComposeFrom();
@@ -16237,6 +16282,7 @@ function emailDraftPayload() {
     body: String(body || ''),
     images: normalizeEmailComposeImages(emailState.compose.images),
     inReplyToEmailId: emailState.replyToId || null,
+    useBrandedTemplate: emailState.compose.useBrandedTemplate !== false,
   };
 }
 
@@ -16481,6 +16527,7 @@ function cloneEmailCompose(compose) {
     subject: String(compose?.subject || ''),
     body: String(compose?.body || ''),
     images: normalizeEmailComposeImages(compose?.images),
+    useBrandedTemplate: compose?.useBrandedTemplate !== false,
   };
 }
 
@@ -16544,6 +16591,7 @@ function emailSendPayloadFromSnapshot(snap) {
   if (from) payload.from = from;
   if (snap.replyToId) payload.inReplyToEmailId = snap.replyToId;
   if (snap.scheduledAt) payload.scheduledAt = snap.scheduledAt;
+  payload.useBrandedTemplate = snap.compose.useBrandedTemplate !== false;
   return payload;
 }
 
@@ -16673,6 +16721,7 @@ async function commitQueuedEmailSend(snap) {
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
+          useBrandedTemplate: snap.compose.useBrandedTemplate !== false,
           inReplyToEmailId: snap.replyToId,
         }),
       });
@@ -16704,6 +16753,7 @@ async function commitQueuedEmailSend(snap) {
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
+          useBrandedTemplate: snap.compose.useBrandedTemplate !== false,
           inReplyToEmailId: snap.replyToId,
           scheduledAt: snap.scheduledAt,
         }),
@@ -17240,9 +17290,37 @@ function renderEmailComposePane(pane) {
     : 'Sent via Resend. From defaults to your outbound address — change only for another verified domain.';
   hint.appendChild(document.createElement('br'));
   const shortHint = document.createElement('span');
+  shortHint.className = 'em-compose-shortcode-hint';
   shortHint.textContent =
     '[center][button title="Open" href="https://example.com"/][/center]';
   hint.appendChild(shortHint);
+
+  const brandedRow = document.createElement('div');
+  brandedRow.className = 'em-compose-branded-row';
+  const brandedToggle = document.createElement('label');
+  brandedToggle.className = 'em-compose-branded-toggle';
+  const brandedInput = document.createElement('input');
+  brandedInput.type = 'checkbox';
+  brandedInput.className = 'em-compose-branded-input';
+  brandedInput.checked = emailState.compose.useBrandedTemplate !== false;
+  brandedInput.disabled = emailState.sending;
+  const brandedTrack = document.createElement('span');
+  brandedTrack.className = 'em-compose-branded-track';
+  const brandedLabel = document.createElement('span');
+  brandedLabel.className = 'em-compose-branded-label';
+  brandedLabel.textContent = 'Branded template';
+  brandedToggle.append(brandedInput, brandedTrack, brandedLabel);
+  const brandedHint = document.createElement('span');
+  brandedHint.className = 'em-compose-branded-hint';
+  brandedHint.textContent = 'Logo, footer, and company styling';
+  brandedRow.append(brandedToggle, brandedHint);
+  brandedInput.addEventListener('change', () => {
+    emailState.compose.useBrandedTemplate = brandedInput.checked;
+    shortHint.hidden = !brandedInput.checked;
+    if (form.classList.contains('em-compose--previewing')) hideEmailComposePreview(form);
+    scheduleEmailDraftSave();
+  });
+  shortHint.hidden = !brandedInput.checked;
 
   const previewPane = document.createElement('div');
   previewPane.className = 'em-compose-preview-pane';
@@ -17326,6 +17404,7 @@ function renderEmailComposePane(pane) {
     form.appendChild(subjectField);
     form.appendChild(bodyField);
     form.appendChild(hint);
+    form.appendChild(brandedRow);
     form.appendChild(previewPane);
     form.appendChild(banner);
     form.appendChild(actions);
@@ -17336,6 +17415,7 @@ function renderEmailComposePane(pane) {
     form.appendChild(subjectField);
     form.appendChild(bodyField);
     form.appendChild(hint);
+    form.appendChild(brandedRow);
     form.appendChild(previewPane);
     form.appendChild(actions);
   }

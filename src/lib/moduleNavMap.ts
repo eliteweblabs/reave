@@ -26,6 +26,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   dev_infra: ['__system__'],
   code_dev: ['__system__'],
   email_marketing: ['newsletter'],
+  auto_email_response: ['rules', 'email'],
   fleet_tracking: ['fleet'],
   dealership_wizard: ['__system__'],
   namecom_dns: ['company'],

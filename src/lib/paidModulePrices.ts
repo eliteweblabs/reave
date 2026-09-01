@@ -25,6 +25,7 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   carddav: { amount: 150, interval: 'once', currency: 'usd' },
   scheduling: { amount: 175, interval: 'once', currency: 'usd' },
   email_marketing: { amount: 200, interval: 'once', currency: 'usd' },
+  auto_email_response: { amount: 175, interval: 'once', currency: 'usd' },
   fleet_tracking: { amount: 275, interval: 'once', currency: 'usd' },
   dealership_wizard: { amount: 300, interval: 'once', currency: 'usd' },
   namecom_dns: { amount: 150, interval: 'once', currency: 'usd' },

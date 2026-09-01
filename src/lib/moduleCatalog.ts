@@ -436,6 +436,7 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   sms: ALL_INDUSTRIES,
   siri: ALL_INDUSTRIES,
   email_marketing: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'real-estate-agents', 'entrepreneurs'],
+  auto_email_response: ALL_INDUSTRIES,
   social_inbox: ['marketers', 'hair-stylists', 'artists', 'creators', 'designers', 'real-estate-agents'],
   online_reviews: ['hair-stylists', 'marketers', 'general', 'plumbing', 'electricians', 'artists', 'creators'],
   site_audits: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'general', 'plumbing', 'entrepreneurs'],

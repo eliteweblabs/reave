@@ -39,6 +39,7 @@ const FEATURE_IDS_LIST = [
   'dev_infra',
   'code_dev',
   'email_marketing',
+  'auto_email_response',
   'fleet_tracking',
   'dealership_wizard',
   'namecom_dns',

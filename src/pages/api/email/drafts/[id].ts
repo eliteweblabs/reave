@@ -5,6 +5,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { parseUseBrandedTemplate } from '../../../../lib/adminComposeEmail';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { normalizeEmailComposeImages } from '../../../../lib/emailComposeImages';
 import {
@@ -57,6 +58,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     body?: string;
     images?: ReturnType<typeof normalizeEmailComposeImages>;
     inReplyToEmailId?: string | null;
+    useBrandedTemplate?: boolean;
   } = {};
 
   if (body.to !== undefined) patch.to = normalizeEmailDraftRecipients(body.to);
@@ -70,6 +72,11 @@ export async function PATCH(context: APIContext): Promise<Response> {
     patch.inReplyToEmailId = String(body.inReplyToEmailId).trim() || null;
   } else if (body.in_reply_to_email_id !== undefined) {
     patch.inReplyToEmailId = String(body.in_reply_to_email_id).trim() || null;
+  }
+  if (body.useBrandedTemplate !== undefined || body.use_branded_template !== undefined || body.branded !== undefined) {
+    patch.useBrandedTemplate = parseUseBrandedTemplate(
+      body.useBrandedTemplate ?? body.use_branded_template ?? body.branded,
+    );
   }
 
   const event = await updateEmailDraft(id, patch);
