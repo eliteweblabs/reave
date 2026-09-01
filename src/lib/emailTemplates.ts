@@ -13,10 +13,9 @@ import { resolveCompanyBrandColors } from './companyBrandColors';
 import {
   brandIconUrl,
   companyBrandingVersion,
-  deckQuantumHeroLogo,
   getCompanyConfig,
-  type CompanyConfig,
 } from './companyConfig';
+import { brandingLogoEmailUrl } from './brandingApiPayload';
 import { emailSafeFontById } from './emailSafeFonts';
 import { siteBaseUrl } from './contactApi';
 import { qrCodeDataUrl } from './qrCode';
@@ -39,13 +38,9 @@ function emailAbsoluteUrl(path: string, base: string): string {
   return `${base}${normalized}`;
 }
 
-/** Absolute wordmark URL for <img> — light-bg contrast via ?email=1. */
+/** Absolute wordmark URL for <img> — admin PNG via /api/branding/logo. */
 function emailLogoAbsoluteUrl(company: Awaited<ReturnType<typeof getCompanyConfig>>, base: string): string {
-  const path = deckQuantumHeroLogo(company) || '';
-  if (!path) return '';
-  const normalized = path.startsWith('/') ? path : `/${path}`;
-  const sep = normalized.includes('?') ? '&' : '?';
-  return emailAbsoluteUrl(`${normalized}${sep}email=1`, base);
+  return brandingLogoEmailUrl(company, base) || '';
 }
 
 /** Absolute square mark for the email footer. */
