@@ -322,6 +322,17 @@ export function deployWizardFqdn(host: string, apex: string): string {
   return label ? `${label}.${apex}` : apex;
 }
 
+/** Demo / no-DNS staging host on the official zone, e.g. life-saving.reave.app */
+export function deployWizardStagingHost(installSlug: string): string {
+  const slug = (installSlug ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+  return `${slug || 'demo'}.reave.app`;
+}
+
 /**
  * Canonical Railway service names. New installs must use these exact names
  * so reference templates stay copy-paste identical.
@@ -726,6 +737,14 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     kind: 'literal',
     value: '',
     description: 'Install apex (acme.com). Filled from the wizard site-domain field.',
+    required: false,
+  }),
+  v({
+    name: 'PLANNED_SITE_DOMAIN',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    value: '',
+    description: 'Client-owned apex for go-live when staging on {slug}.reave.app.',
     required: false,
   }),
   v({
@@ -1938,6 +1957,11 @@ export type DeployWizardPlan = {
   appService: string;
   installSlug: string;
   siteDomain: string;
+  /** Client apex when staging on {slug}.reave.app — filled at go-live. */
+  plannedSiteDomain: string;
+  /** True when the public host is {slug}.reave.app (demo / no Cloudflare yet). */
+  stagingHost: boolean;
+  stagingNote?: string;
   postAlias: string;
   companyName: string;
   adminUsername: string;
@@ -2076,6 +2100,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'BOOKING_TIMEZONE') filled = timezone;
     if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'COMPANY_DOMAIN' && siteDomain) filled = siteDomain;
+    if (raw.name === 'PLANNED_SITE_DOMAIN') filled = '';
     if (raw.name === 'EMAIL_FROM_NAME' && companyName) filled = companyName;
     if (raw.name === 'RESEND_FROM' && siteDomain) filled = deployWizardResendFrom(siteDomain);
     if (raw.name === 'VAPID_SUBJECT' && ownerEmail) filled = `mailto:${ownerEmail}`;
@@ -2192,6 +2217,8 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     appService,
     installSlug,
     siteDomain,
+    plannedSiteDomain: '',
+    stagingHost: false,
     postAlias,
     companyName,
     adminUsername,

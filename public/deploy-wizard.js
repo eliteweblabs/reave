@@ -449,8 +449,8 @@
       `<input id="dw-install" class="dl-input" type="text" maxlength="40" value="${esc(installSlug)}" />` +
       `</label>` +
       `<label class="dl-field">` +
-      `<span class="dl-field-label">Site domain</span>` +
-      `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
+      `<span class="dl-field-label">Client apex (optional)</span>` +
+      `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com — leave blank to stage on {slug}.reave.app" value="${esc(siteDomain)}" />` +
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Post name</span>` +
@@ -589,12 +589,17 @@
       `<section class="dl-section" data-section="domains">` +
       `<h2 class="dl-section-title">DNS / subdomains</h2>` +
       `<label class="dl-field dw-domain-field">` +
-      `<span class="dl-field-label">Site domain (apex)</span>` +
+      `<span class="dl-field-label">Client apex (optional)</span>` +
       `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
       `</label>` +
+      (plan.stagingHost
+        ? `<p class="dl-callout"><strong>Staging:</strong> ${esc(plan.stagingNote || '')} Apply wires <code>${esc(plan.siteDomain)}</code> on the reave.app zone. Cut over later on <a href="/go-live">Go live</a>${plan.plannedSiteDomain ? ` for <code>${esc(plan.plannedSiteDomain)}</code>` : ''}.</p>`
+        : '') +
       `<p class="dl-callout">${
         cloudflare.configured
-          ? `Apply attaches Railway hosts and writes these on Cloudflare${siteDomain ? ` (${esc(siteDomain)})` : ''}. <code>book</code> is skipped (Railway’s public domain is enough). Clerk CNAMEs still come from Clerk → Domains.`
+          ? plan.stagingHost
+            ? `Apply attaches Railway and writes DNS on reave.app for the staging host only. Full apex DNS runs on Go live.`
+            : `Apply attaches Railway hosts and writes these on Cloudflare${siteDomain ? ` (${esc(siteDomain)})` : ''}. <code>book</code> is skipped (Railway’s public domain is enough). Clerk CNAMEs still come from Clerk → Domains.`
           : `Set <code>CLOUDFLARE_API_TOKEN</code> on this host to auto-write DNS. Until then, add these on the apex${siteDomain ? ` (${esc(siteDomain)})` : ''} and attach each CNAME on the named Railway service.`
       }</p>` +
       `<div class="dw-table-wrap">` +
@@ -826,7 +831,11 @@
       `<span class="mod-summary-pill">${plan.referenceCount} auto-wired</span>` +
       `<span class="mod-summary-pill">${plan.features.length} modules</span>` +
       `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
+      (plan.stagingHost ? `<span class="mod-summary-pill">Staging · ${esc(plan.siteDomain)}</span>` : '') +
       `</div>` +
+      (plan.stagingHost
+        ? `<p class="dl-callout">${esc(plan.stagingNote || '')} After Apply, open <a href="/go-live${plan.plannedSiteDomain ? `?domain=${encodeURIComponent(plan.plannedSiteDomain)}` : ''}">Go live</a> when the client domain is ready.</p>`
+        : '') +
       (missing.length
         ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Anthropic defaults to this host’s reave.app key. Resend is copied from this host on apply.</p>`
         : '') +

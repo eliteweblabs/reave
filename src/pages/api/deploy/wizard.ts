@@ -29,6 +29,7 @@ import {
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from '../../../lib/deployWizardCatalog';
+import { buildDeployWizardPlanResolved } from '../../../lib/deployWizardStaging';
 import { listDeckIndustries } from '../../../lib/deckIndustriesStore';
 import { executeDeployWizardApply, isDeployWizardApplyNeedGithubApp } from '../../../lib/deployWizardApply';
 import { serverEnv } from '../../../lib/serverEnv';
@@ -263,7 +264,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const ownerPhone = typeof body.ownerPhone === 'string' ? body.ownerPhone : undefined;
   const timezone = typeof body.timezone === 'string' ? body.timezone : undefined;
   const seed = parseSeed(body);
-  const plan = buildDeployWizardPlan({
+  const plan = await buildDeployWizardPlanResolved({
     features,
     extras,
     appService,

@@ -6,11 +6,13 @@ import {
   buildDeployWizardPlan,
   formatDeployWizardCli,
   isDeployWizardExtraId,
+  isDeployWizardPublicHost,
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from './deployWizardCatalog';
 import type { DeployWizardGithubAppApplyBody, DeployWizardGithubAppCredentials } from './deployWizardGithubApp';
 import { applyDeployWizardDns } from './deployWizardDns';
+import { applyDeployWizardPublicOrigin } from './deployWizardStaging';
 import { isDeployWizardNeedGithubApp, resolveDeployWizardApply } from './deployWizardResolve';
 import { isCloudflareConfigured } from './cloudflareClient';
 import { syncCalcomIdentityFromReave } from './calcomIdentitySync';
@@ -164,6 +166,20 @@ export async function executeDeployWizardApply(opts: {
     summary: e instanceof Error ? e.message : String(e),
   }));
   if (dns.summary) say(dns.summary);
+
+  if (opts.plan.siteDomain && isDeployWizardPublicHost(opts.plan.siteDomain)) {
+    say(`Setting public URL to https://${opts.plan.siteDomain}…`);
+    const origin = await applyDeployWizardPublicOrigin({
+      project,
+      environment: opts.environment,
+      plan: opts.plan,
+    });
+    if (!origin.ok) {
+      say(`Public URL: ${origin.error}`);
+    } else if (origin.updated.length) {
+      say(`Public URL updated (${origin.updated.join(', ')}).`);
+    }
+  }
 
   const provisioned = [...stack.notes, ...resolved.notes];
   say('Apply finished. Redeploy each service when you are ready.');

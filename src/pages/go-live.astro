@@ -1,0 +1,51 @@
+---
+/**
+ * /go-live — cut a staged install over to the client apex (registrar → Cloudflare → Railway).
+ */
+import Layout from "../layouts/MarketingLayout.astro";
+import { denyUnlessDeploymentOwner } from "../lib/deploymentOwner";
+import { hasFeature } from "../lib/features";
+import { isCanonicalReaveInstall } from "../lib/installConfig";
+import "../styles/demo-loader.css";
+
+export const prerender = false;
+
+if (!isCanonicalReaveInstall() || !hasFeature("deploy_wizard")) {
+  return new Response("Not found", { status: 404 });
+}
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  return Astro.redirect(
+    `/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`,
+  );
+}
+
+const denied = await denyUnlessDeploymentOwner(Astro);
+if (denied) return denied;
+---
+
+<Layout
+  title="Go live"
+  description="Point the client domain at Cloudflare, wire Railway DNS, and flip PUBLIC_SITE_URL to the apex."
+  noIndex={true}
+>
+  <div class="demo-loader-page">
+    <header class="dl-hero">
+      <p class="dl-kicker">Domain cutover</p>
+      <h1 class="dl-h1">Go live</h1>
+      <p class="dl-lead">
+        After the deploy wizard stages on <strong>{`{slug}`}.reave.app</strong>, use this
+        page to add the client apex to Cloudflare, update registrar nameservers
+        (Name.com auto or GoDaddy manual), attach Railway custom domains, and
+        set <code>PUBLIC_SITE_URL</code> to the real domain.
+      </p>
+    </header>
+
+    <div id="go-live-app" class="dl-app" aria-live="polite">
+      <p class="dl-loading">Loading…</p>
+    </div>
+  </div>
+
+  <script is:inline src={`/go-live.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
+</Layout>

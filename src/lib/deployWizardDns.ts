@@ -17,6 +17,7 @@ import {
   type DeployWizardPlan,
   type DeployWizardPlanDomain,
 } from './deployWizardCatalog';
+import { deployWizardDnsDomainsForApply } from './deployWizardStaging';
 import {
   isResendConfigured,
   resendCreateDomain,
@@ -295,7 +296,7 @@ export async function applyDeployWizardDns(opts: {
     };
   }
 
-  for (const domain of opts.plan.domains) {
+  for (const domain of deployWizardDnsDomainsForApply(opts.plan)) {
     if (!domain.fqdn || domain.fqdn.includes('{apex}')) {
       rows.push({
         host: domain.host,
