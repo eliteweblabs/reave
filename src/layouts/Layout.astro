@@ -393,17 +393,6 @@ try {
 		);
 	}
 
-	/*
-	 * Mobile public header scrolls in document flow — main should not also
-	 * reserve a fixed-header band (that doubled clearance and fought CTAs).
-	 */
-	@media (max-width: 768px) {
-		html.site-page main#main-content,
-		html[data-safe-top-frozen="1"].site-page main#main-content {
-			padding-top: var(--site-page-pad-top, 40px);
-		}
-	}
-
 	@media (min-width: 769px) {
 		html,
 		body {

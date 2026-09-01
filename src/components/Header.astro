@@ -693,10 +693,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 
   /*
    * Public header: desktop stays fixed with a scrim so inner pages can
-   * scroll under the logo row. Mobile scrolls in normal document flow —
-   * iOS cannot reliably compose a fixed header, fixed/sticky footer CTAs,
-   * and safe-area content at once (the CTAs flash and jump). Pad
-   * logo/actions below the notch. Admin is transparent; on mobile it is
+   * scroll under the logo row. Mobile uses an absolute overlay that scrolls
+   * with the page — iOS cannot reliably compose a fixed header, sticky
+   * footer CTAs, and safe-area content at once. Out of flow so the hero can
+   * paint into the top safe area. Admin is transparent; on mobile it is
    * absolute (dashboard stays fixed via html.admin-dashboard) so panel
    * content can fill the safe-area bands while the footer nav remains
    * the sticky chrome.
@@ -758,15 +758,16 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   }
 
   /*
-   * Mobile public pages: scroll the header with the page and drop the scrim
-   * bleed/blur stack — backdrop-filter on a fixed bar fights sticky CTAs.
+   * Mobile public pages: absolute overlay that scrolls with the page (not
+   * fixed — that fights sticky CTAs). Out of flow so the hero can paint
+   * edge-to-edge into the top safe area; drop the scrim bleed/blur stack.
    */
   @media (max-width: 768px) {
     .app-header:not(.app-header--admin) {
-      position: relative;
-      top: auto;
-      left: auto;
-      right: auto;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
       padding-top: env(safe-area-inset-top, 0px);
     }
 

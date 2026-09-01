@@ -201,12 +201,17 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
 
   @media (max-width: 768px) {
     /*
-     * Header scrolls in flow above main — size the hero to the remaining
-     * viewport instead of 100dvh plus a fixed-header pad.
+     * Header is an absolute overlay — pull the hero box up through the top
+     * safe area so scroll can carry demo/content under the Dynamic Island
+     * instead of clipping at the layout viewport edge.
      */
     .home-hero {
-      min-height: calc(100dvh - var(--app-header-offset, 3.25rem));
-      padding-top: 0;
+      margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+      min-height: calc(100dvh + env(safe-area-inset-top, 0px));
+      padding-top: calc(
+        var(--app-header-offset, 3.25rem) + env(safe-area-inset-top, 0px)
+      );
+      overflow: visible;
     }
   }
 
