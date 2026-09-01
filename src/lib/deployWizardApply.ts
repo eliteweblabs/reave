@@ -12,7 +12,10 @@ import {
 } from './deployWizardCatalog';
 import type { DeployWizardGithubAppApplyBody, DeployWizardGithubAppCredentials } from './deployWizardGithubApp';
 import { applyDeployWizardDns } from './deployWizardDns';
-import { applyDeployWizardPublicOrigin } from './deployWizardStaging';
+import {
+  applyDeployWizardPublicOrigin,
+  provisionDeployWizardClientDomain,
+} from './deployWizardStaging';
 import { isDeployWizardNeedGithubApp, resolveDeployWizardApply } from './deployWizardResolve';
 import { isCloudflareConfigured } from './cloudflareClient';
 import { syncCalcomIdentityFromReave } from './calcomIdentitySync';
@@ -79,6 +82,8 @@ export async function executeDeployWizardApply(opts: {
   environment: string;
   request: Request;
   githubApp?: DeployWizardGithubAppCredentials;
+  namecomUsername?: string;
+  namecomToken?: string;
   onProgress?: DeployWizardApplyProgress;
 }): Promise<DeployWizardApplyResult> {
   const say = (message: string) => {
@@ -154,6 +159,20 @@ export async function executeDeployWizardApply(opts: {
     : undefined;
 
   say('Applying DNS (Resend inbound and Cloudflare when configured)…');
+  if (opts.plan.provisionOnApply) {
+    const apex = opts.plan.plannedSiteDomain || opts.plan.siteDomain;
+    say(`Provisioning ${apex} in Cloudflare before DNS…`);
+    const provision = await provisionDeployWizardClientDomain({
+      apex,
+      dnsAccess: opts.plan.dnsAccess,
+      namecomUsername: opts.namecomUsername,
+      namecomToken: opts.namecomToken,
+      onProgress: say,
+    });
+    if (!provision.ok) {
+      return { ok: false, error: provision.error, plan: opts.plan, cli, applied };
+    }
+  }
   const dns = await applyDeployWizardDns({
     plan: opts.plan,
     project,

@@ -102,7 +102,15 @@ Owner name, email, phone, and timezone are the same fields as Admin → Profile.
 
 ## Staging on `{slug}.reave.app`
 
-When the client apex is empty or not yet in Cloudflare, Apply **does not** wait for DNS. It stages the install on **`{install-slug}.reave.app`** on the official reave.app zone:
+There is **no REΛVE.app dropdown**. On the first wizard step, enter the client apex and choose **Registrar access**:
+
+| Choice | Apply behavior |
+|--------|----------------|
+| **Not yet** (default) | Stages on `{slug}.reave.app` when the apex is empty or not in Cloudflare |
+| **Name.com** + API creds | One-shot: create Cloudflare zone, update Name.com nameservers, wire full apex DNS |
+| **Already in Cloudflare** | Wire the apex when the zone exists in this account |
+
+When staging applies:
 
 - `PUBLIC_SITE_URL`, `PUBLIC_SITE_DOMAIN`, and `COMPANY_DOMAIN` point at the staging host (not the raw `*.up.railway.app` URL).
 - `PLANNED_SITE_DOMAIN` keeps the client apex for cutover.

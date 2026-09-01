@@ -1710,14 +1710,22 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   }),
 ];
 
+export type DeployWizardDnsAccess = 'skip' | 'namecom' | 'cloudflare';
+
 export type DeployWizardPlanInput = {
   features: readonly FeatureId[];
   extras?: readonly (DeployWizardExtraId | 'materials')[];
   /** Override the Astro service name if this install is not `reave`. */
   appService?: string;
   installSlug?: string;
-  /** Install apex, e.g. `acme.com` — used to render FQDNs. */
+  /** Client-owned apex (e.g. acme.com). Staging uses {slug}.reave.app when DNS is not ready. */
   siteDomain?: string;
+  /** How Apply handles DNS when the apex is not in Cloudflare yet. */
+  dnsAccess?: DeployWizardDnsAccess;
+  /** Name.com API username — only used when dnsAccess is namecom (Apply only, not returned on plan). */
+  namecomUsername?: string;
+  /** Name.com API token — only used when dnsAccess is namecom (Apply only, not returned on plan). */
+  namecomToken?: string;
   /** Work-record label (POST_ALIAS). Default `project`. */
   postAlias?: string;
   companyName?: string;
@@ -1961,6 +1969,9 @@ export type DeployWizardPlan = {
   plannedSiteDomain: string;
   /** True when the public host is {slug}.reave.app (demo / no Cloudflare yet). */
   stagingHost: boolean;
+  /** Create Cloudflare zone (+ Name.com NS) on Apply before DNS. */
+  provisionOnApply: boolean;
+  dnsAccess: DeployWizardDnsAccess;
   stagingNote?: string;
   postAlias: string;
   companyName: string;
@@ -2219,6 +2230,8 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     siteDomain,
     plannedSiteDomain: '',
     stagingHost: false,
+    provisionOnApply: false,
+    dnsAccess: 'skip',
     postAlias,
     companyName,
     adminUsername,

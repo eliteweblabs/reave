@@ -74,6 +74,9 @@
   let appService = 'reave';
   let installSlug = 'demo';
   let siteDomain = '';
+  let dnsAccess = 'skip';
+  let namecomUsername = '';
+  let namecomToken = '';
   let postAlias = 'project';
   let companyName = '';
   let adminUsername = '';
@@ -128,6 +131,7 @@
   let environment = 'production';
   let railway = { configured: false, projects: [] };
   let cloudflare = { configured: false };
+  let namecom = { configured: false };
   let plan = null;
   let cli = '';
   let values = {};
@@ -431,6 +435,47 @@
     );
   }
 
+  function stagingPreviewHost() {
+    const slug = (installSlug || 'demo').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'demo';
+    return `${slug}.reave.app`;
+  }
+
+  function renderDnsAccessBlock() {
+    const stagingHost = stagingPreviewHost();
+    return (
+      `<div class="dw-identity-block dw-dns-block">` +
+      `<h2 class="dl-section-title">Client domain &amp; DNS</h2>` +
+      `<p class="dl-callout">Enter the client&apos;s real domain — you never pick <code>reave.app</code> from a menu. Without registrar access, Apply automatically stages on <code>${esc(stagingHost)}</code>.</p>` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Client apex</span>` +
+      `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
+      `</label>` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Registrar access</span>` +
+      `<select id="dw-dns-access" class="dl-select">` +
+      `<option value="skip"${dnsAccess === 'skip' ? ' selected' : ''}>Not yet — stage on ${esc(stagingHost)}</option>` +
+      `<option value="namecom"${dnsAccess === 'namecom' ? ' selected' : ''}>Name.com — one-shot (create zone + nameservers)</option>` +
+      `<option value="cloudflare"${dnsAccess === 'cloudflare' ? ' selected' : ''}>Already in Cloudflare</option>` +
+      `</select>` +
+      `</label>` +
+      (dnsAccess === 'namecom'
+        ? `<div class="dl-toolbar dw-identity">` +
+          `<label class="dl-field">` +
+          `<span class="dl-field-label">Name.com username</span>` +
+          `<input id="dw-namecom-user" class="dl-input" type="text" autocomplete="username" value="${esc(namecomUsername)}" />` +
+          `</label>` +
+          `<label class="dl-field">` +
+          `<span class="dl-field-label">Name.com API token</span>` +
+          `<input id="dw-namecom-token" class="dl-input" type="password" autocomplete="current-password" value="${esc(namecomToken)}" placeholder="${namecom.configured ? 'Optional — env fallback on server' : 'Required for one-shot'}" />` +
+          `</label>` +
+          `</div>`
+        : dnsAccess === 'cloudflare'
+          ? `<p class="dl-meta">Zone must already exist in this Cloudflare account. If it does not, pick Name.com or stage first.</p>`
+          : `<p class="dl-meta">GoDaddy and other registrars: stage now, cut over later on <a href="/go-live">Go live</a>.</p>`) +
+      `</div>`
+    );
+  }
+
   function renderIdentity() {
     const projectOptions = (railway.projects || [])
       .map((p) => {
@@ -441,16 +486,13 @@
     const newSelected = project === '__new__' || !project ? ' selected' : '';
     const nameHint = projectName || companyName || installSlug || 'barry-levine';
     return (
+      renderDnsAccessBlock() +
       `<div class="dw-identity-block">` +
       `<h2 class="dl-section-title">Install</h2>` +
       `<div class="dl-toolbar dw-identity">` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Install slug</span>` +
       `<input id="dw-install" class="dl-input" type="text" maxlength="40" value="${esc(installSlug)}" />` +
-      `</label>` +
-      `<label class="dl-field">` +
-      `<span class="dl-field-label">Client apex (optional)</span>` +
-      `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com — leave blank to stage on {slug}.reave.app" value="${esc(siteDomain)}" />` +
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Post name</span>` +
@@ -588,18 +630,19 @@
     return (
       `<section class="dl-section" data-section="domains">` +
       `<h2 class="dl-section-title">DNS / subdomains</h2>` +
-      `<label class="dl-field dw-domain-field">` +
-      `<span class="dl-field-label">Client apex (optional)</span>` +
-      `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
-      `</label>` +
+      (plan.stagingNote ? `<p class="dl-callout">${esc(plan.stagingNote)}</p>` : '') +
       (plan.stagingHost
-        ? `<p class="dl-callout"><strong>Staging:</strong> ${esc(plan.stagingNote || '')} Apply wires <code>${esc(plan.siteDomain)}</code> on the reave.app zone. Cut over later on <a href="/go-live">Go live</a>${plan.plannedSiteDomain ? ` for <code>${esc(plan.plannedSiteDomain)}</code>` : ''}.</p>`
-        : '') +
+        ? `<p class="dl-callout"><strong>Staging:</strong> ${esc(plan.stagingNote || '')}</p>`
+        : plan.provisionOnApply
+          ? `<p class="dl-callout"><strong>One-shot:</strong> ${esc(plan.stagingNote || '')}</p>`
+          : '') +
       `<p class="dl-callout">${
         cloudflare.configured
-          ? plan.stagingHost
-            ? `Apply attaches Railway and writes DNS on reave.app for the staging host only. Full apex DNS runs on Go live.`
-            : `Apply attaches Railway hosts and writes these on Cloudflare${siteDomain ? ` (${esc(siteDomain)})` : ''}. <code>book</code> is skipped (Railway’s public domain is enough). Clerk CNAMEs still come from Clerk → Domains.`
+          ? plan.provisionOnApply
+            ? `Apply creates the client zone, updates Name.com, attaches Railway hosts, and writes full DNS on the apex.`
+            : plan.stagingHost
+              ? `Apply attaches Railway and writes DNS on reave.app for the staging host only. Full apex DNS runs on Go live.`
+              : `Apply attaches Railway hosts and writes these on Cloudflare${siteDomain ? ` (${esc(siteDomain)})` : ''}. <code>book</code> is skipped (Railway’s public domain is enough). Clerk CNAMEs still come from Clerk → Domains.`
           : `Set <code>CLOUDFLARE_API_TOKEN</code> on this host to auto-write DNS. Until then, add these on the apex${siteDomain ? ` (${esc(siteDomain)})` : ''} and attach each CNAME on the named Railway service.`
       }</p>` +
       `<div class="dw-table-wrap">` +
@@ -832,10 +875,13 @@
       `<span class="mod-summary-pill">${plan.features.length} modules</span>` +
       `<span class="mod-summary-pill">${(plan.domains || []).length} DNS hosts</span>` +
       (plan.stagingHost ? `<span class="mod-summary-pill">Staging · ${esc(plan.siteDomain)}</span>` : '') +
+      (plan.provisionOnApply ? `<span class="mod-summary-pill">One-shot · ${esc(plan.siteDomain)}</span>` : '') +
       `</div>` +
       (plan.stagingHost
-        ? `<p class="dl-callout">${esc(plan.stagingNote || '')} After Apply, open <a href="/go-live${plan.plannedSiteDomain ? `?domain=${encodeURIComponent(plan.plannedSiteDomain)}` : ''}">Go live</a> when the client domain is ready.</p>`
-        : '') +
+        ? `<p class="dl-callout">${esc(plan.stagingNote || '')} After Apply, open <a href="/go-live${plan.plannedSiteDomain ? `?domain=${encodeURIComponent(plan.plannedSiteDomain)}` : ''}">Go live</a> when registrar access is ready.</p>`
+        : plan.provisionOnApply
+          ? `<p class="dl-callout">${esc(plan.stagingNote || '')} Add the apex in Clerk when DNS resolves.</p>`
+          : '') +
       (missing.length
         ? `<p class="dl-launch-error" role="alert">${missing.length} required token${missing.length === 1 ? '' : 's'} missing (${missing.map((v) => v.name).join(', ')}). Anthropic defaults to this host’s reave.app key. Resend is copied from this host on apply.</p>`
         : '') +
@@ -917,6 +963,9 @@
   function readIdentity() {
     const installEl = root.querySelector('#dw-install');
     const domainEl = root.querySelector('#dw-domain');
+    const dnsEl = root.querySelector('#dw-dns-access');
+    const namecomUserEl = root.querySelector('#dw-namecom-user');
+    const namecomTokenEl = root.querySelector('#dw-namecom-token');
     const postEl = root.querySelector('#dw-post');
     const companyEl = root.querySelector('#dw-company');
     const adminEl = root.querySelector('#dw-admin');
@@ -930,6 +979,9 @@
     const envEl = root.querySelector('#dw-env');
     if (installEl) installSlug = installEl.value.trim() || 'demo';
     if (domainEl) siteDomain = domainEl.value.trim();
+    if (dnsEl) dnsAccess = dnsEl.value === 'namecom' || dnsEl.value === 'cloudflare' ? dnsEl.value : 'skip';
+    if (namecomUserEl) namecomUsername = namecomUserEl.value.trim();
+    if (namecomTokenEl) namecomToken = namecomTokenEl.value.trim();
     if (postEl) postAlias = postEl.value.trim() || 'project';
     if (companyEl) companyName = companyEl.value.trim();
     if (adminEl) adminUsername = adminEl.value.trim();
@@ -984,6 +1036,9 @@
         appService,
         installSlug,
         siteDomain,
+        dnsAccess,
+        namecomUsername: namecomUsername || undefined,
+        namecomToken: namecomToken || undefined,
         postAlias,
         companyName,
         adminUsername,
@@ -1112,6 +1167,9 @@
           appService,
           installSlug,
           siteDomain,
+          dnsAccess,
+          namecomUsername: namecomUsername || undefined,
+          namecomToken: namecomToken || undefined,
           postAlias,
           companyName,
           adminUsername,
@@ -1286,6 +1344,18 @@
       render();
       bind();
     });
+    root.querySelector('#dw-dns-access')?.addEventListener('change', () => {
+      readIdentity();
+      render();
+      bind();
+    });
+    root.querySelector('#dw-install')?.addEventListener('input', () => {
+      readIdentity();
+      if (step === 0) {
+        render();
+        bind();
+      }
+    });
     root.querySelector('#dw-domain')?.addEventListener('change', () => {
       readIdentity();
       if (step === 1) void goNextFromExtras();
@@ -1400,6 +1470,7 @@
       if (Array.isArray(data.practiceAreas) && data.practiceAreas.length) practiceAreas = data.practiceAreas;
       railway = data.railway || railway;
       cloudflare = data.cloudflare || cloudflare;
+      namecom = data.namecom || namecom;
       if (data.defaults) {
         appService = data.defaults.appService || appService;
         environment = data.defaults.environment || environment;

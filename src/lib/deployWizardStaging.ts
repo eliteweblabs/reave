@@ -7,11 +7,13 @@ import {
   deployWizardStagingHost,
   DEPLOY_APP_SERVICE,
   normalizeSiteDomain,
+  type DeployWizardDnsAccess,
   type DeployWizardPlan,
   type DeployWizardPlanDomain,
   type DeployWizardPlanInput,
 } from './deployWizardCatalog';
 import { cloudflareFindZone, cloudflareZoneName } from './cloudflareClient';
+import { resolveNamecomCredentials } from './namecomClient';
 import { railwaySetVariables } from './railwayAgentApi';
 
 export const REAVE_STAGING_PARENT = 'reave.app';
@@ -26,23 +28,36 @@ export type DeployWizardSiteResolution = {
   siteDomain: string;
   plannedSiteDomain: string;
   stagingHost: boolean;
+  provisionOnApply: boolean;
+  dnsAccess: DeployWizardDnsAccess;
   note: string;
 };
+
+function hasNamecomCreds(input: Pick<DeployWizardPlanInput, 'dnsAccess' | 'namecomUsername' | 'namecomToken'>): boolean {
+  if (input.dnsAccess !== 'namecom') return false;
+  return Boolean(resolveNamecomCredentials({ username: input.namecomUsername, token: input.namecomToken }));
+}
 
 /** Pick the public host Apply should wire today. */
 export async function resolveDeployWizardSiteDomain(opts: {
   installSlug: string;
   plannedSiteDomain?: string;
+  dnsAccess?: DeployWizardDnsAccess;
+  namecomUsername?: string;
+  namecomToken?: string;
 }): Promise<DeployWizardSiteResolution> {
   const slug = (opts.installSlug ?? '').trim() || 'demo';
   const planned = normalizeSiteDomain(opts.plannedSiteDomain);
   const stagingDefault = deployWizardStagingHost(slug);
+  const dnsAccess: DeployWizardDnsAccess = opts.dnsAccess ?? 'skip';
 
   if (!planned) {
     return {
       siteDomain: stagingDefault,
       plannedSiteDomain: '',
       stagingHost: true,
+      provisionOnApply: false,
+      dnsAccess: 'skip',
       note: `No client domain yet — staging at ${stagingDefault}.`,
     };
   }
@@ -52,6 +67,8 @@ export async function resolveDeployWizardSiteDomain(opts: {
       siteDomain: planned,
       plannedSiteDomain: '',
       stagingHost: true,
+      provisionOnApply: false,
+      dnsAccess: 'skip',
       note: `Using REΛVE staging host ${planned}.`,
     };
   }
@@ -63,7 +80,42 @@ export async function resolveDeployWizardSiteDomain(opts: {
       siteDomain: planned,
       plannedSiteDomain: planned,
       stagingHost: false,
-      note: `Cloudflare zone ${zoneName} is ready — wiring ${planned}.`,
+      provisionOnApply: false,
+      dnsAccess: dnsAccess === 'cloudflare' ? 'cloudflare' : 'skip',
+      note: `Cloudflare zone ${zoneName} is ready — wiring ${planned} on Apply.`,
+    };
+  }
+
+  if (dnsAccess === 'namecom' && hasNamecomCreds(opts)) {
+    return {
+      siteDomain: planned,
+      plannedSiteDomain: planned,
+      stagingHost: false,
+      provisionOnApply: true,
+      dnsAccess: 'namecom',
+      note: `Apply creates the Cloudflare zone for ${planned} and updates Name.com nameservers — one-shot go-live.`,
+    };
+  }
+
+  if (dnsAccess === 'namecom') {
+    return {
+      siteDomain: stagingDefault,
+      plannedSiteDomain: planned,
+      stagingHost: true,
+      provisionOnApply: false,
+      dnsAccess: 'namecom',
+      note: `Enter Name.com credentials to wire ${planned} on Apply — otherwise staging at ${stagingDefault}.`,
+    };
+  }
+
+  if (dnsAccess === 'cloudflare') {
+    return {
+      siteDomain: stagingDefault,
+      plannedSiteDomain: planned,
+      stagingHost: true,
+      provisionOnApply: false,
+      dnsAccess: 'cloudflare',
+      note: `${planned} is not in Cloudflare yet — staging at ${stagingDefault}. Add the zone or use Name.com credentials.`,
     };
   }
 
@@ -71,7 +123,9 @@ export async function resolveDeployWizardSiteDomain(opts: {
     siteDomain: stagingDefault,
     plannedSiteDomain: planned,
     stagingHost: true,
-    note: `${planned} is not in Cloudflare yet — staging at ${stagingDefault}. Go live when DNS is ready.`,
+    provisionOnApply: false,
+    dnsAccess: 'skip',
+    note: `No registrar access yet — staging at ${stagingDefault}. Cut over on Go live when DNS is ready.`,
   };
 }
 
@@ -82,6 +136,9 @@ export async function buildDeployWizardPlanResolved(
   const resolved = await resolveDeployWizardSiteDomain({
     installSlug,
     plannedSiteDomain: input.siteDomain,
+    dnsAccess: input.dnsAccess,
+    namecomUsername: input.namecomUsername,
+    namecomToken: input.namecomToken,
   });
 
   const plan = buildDeployWizardPlan({
@@ -94,6 +151,8 @@ export async function buildDeployWizardPlanResolved(
     ...plan,
     plannedSiteDomain: resolved.plannedSiteDomain,
     stagingHost: resolved.stagingHost,
+    provisionOnApply: resolved.provisionOnApply,
+    dnsAccess: resolved.dnsAccess,
     stagingNote: resolved.note,
   };
 
@@ -120,6 +179,35 @@ export function deployWizardDnsDomainsForApply(plan: DeployWizardPlan): DeployWi
   return plan.domains.filter(
     (d) => d.host === '@' && (d.target === plan.appService || d.target === DEPLOY_APP_SERVICE),
   );
+}
+
+export async function provisionDeployWizardClientDomain(opts: {
+  apex: string;
+  dnsAccess: DeployWizardDnsAccess;
+  namecomUsername?: string;
+  namecomToken?: string;
+  onProgress?: (message: string) => void;
+}): Promise<{ ok: true; nameservers: string[] } | { ok: false; error: string }> {
+  const say = (message: string) => opts.onProgress?.(message);
+  const { ensureClientCloudflareZone, provisionNamecomNameservers } = await import('./clientDomainProvision');
+
+  say(`Ensuring Cloudflare zone for ${opts.apex}…`);
+  const zone = await ensureClientCloudflareZone(opts.apex);
+  if (!zone.ok) return zone;
+
+  if (opts.dnsAccess === 'namecom') {
+    say('Updating Name.com nameservers…');
+    const ns = await provisionNamecomNameservers({
+      domain: opts.apex,
+      nameservers: zone.data.nameservers,
+      username: opts.namecomUsername,
+      token: opts.namecomToken,
+    });
+    if (!ns.ok) return ns;
+    say(`Name.com now points ${opts.apex} at Cloudflare.`);
+  }
+
+  return { ok: true, nameservers: zone.data.nameservers };
 }
 
 export async function applyDeployWizardPublicOrigin(opts: {

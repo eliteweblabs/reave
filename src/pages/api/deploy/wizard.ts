@@ -28,6 +28,7 @@ import {
   normalizeSiteDomain,
   type DeployWizardExtraId,
   type DeployWizardPlan,
+  type DeployWizardDnsAccess,
 } from '../../../lib/deployWizardCatalog';
 import { buildDeployWizardPlanResolved } from '../../../lib/deployWizardStaging';
 import { listDeckIndustries } from '../../../lib/deckIndustriesStore';
@@ -40,6 +41,7 @@ import { isCanonicalReaveInstall } from '../../../lib/installConfig';
 import { isCloudflareConfigured } from '../../../lib/cloudflareClient';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
 import { isResendConfigured } from '../../../lib/resendDnsSync';
+import { isNamecomConfigured } from '../../../lib/namecomClient';
 import { isGithubAppConfigured } from '../../../lib/githubApp';
 import {
   createGithubAppPending,
@@ -217,6 +219,7 @@ export async function GET(context: APIContext): Promise<Response> {
       projects,
     },
     cloudflare: { configured: isCloudflareConfigured() },
+    namecom: { configured: isNamecomConfigured() },
     resend: { configured: isResendConfigured() },
     githubApp: { configured: isGithubAppConfigured() },
     defaults: {
@@ -234,6 +237,21 @@ export async function GET(context: APIContext): Promise<Response> {
       timezone: 'America/New_York',
     },
   });
+}
+
+function parseDnsAccess(body: Record<string, unknown>): DeployWizardDnsAccess {
+  const raw = typeof body.dnsAccess === 'string' ? body.dnsAccess.trim() : '';
+  if (raw === 'namecom' || raw === 'cloudflare') return raw;
+  return 'skip';
+}
+
+function parseNamecomCreds(body: Record<string, unknown>): { username?: string; token?: string } {
+  const username = typeof body.namecomUsername === 'string' ? body.namecomUsername.trim() : '';
+  const token = typeof body.namecomToken === 'string' ? body.namecomToken.trim() : '';
+  return {
+    username: username || undefined,
+    token: token || undefined,
+  };
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -264,12 +282,17 @@ export async function POST(context: APIContext): Promise<Response> {
   const ownerPhone = typeof body.ownerPhone === 'string' ? body.ownerPhone : undefined;
   const timezone = typeof body.timezone === 'string' ? body.timezone : undefined;
   const seed = parseSeed(body);
+  const dnsAccess = parseDnsAccess(body);
+  const namecom = parseNamecomCreds(body);
   const plan = await buildDeployWizardPlanResolved({
     features,
     extras,
     appService,
     installSlug,
     siteDomain,
+    dnsAccess,
+    namecomUsername: namecom.username,
+    namecomToken: namecom.token,
     postAlias,
     companyName,
     adminUsername,
@@ -347,6 +370,8 @@ export async function POST(context: APIContext): Promise<Response> {
       environment,
       request: context.request,
       githubApp: resumeGithubApp || undefined,
+      namecomUsername: namecom.username,
+      namecomToken: namecom.token,
     });
     if (isDeployWizardApplyNeedGithubApp(executed)) {
       const setup = createGithubAppPending(
@@ -403,6 +428,8 @@ export async function POST(context: APIContext): Promise<Response> {
           environment,
           request: context.request,
           githubApp: resumeGithubApp || undefined,
+          namecomUsername: namecom.username,
+          namecomToken: namecom.token,
           onProgress: (message) => emit({ phase: 'log', message }),
         });
         if (isDeployWizardApplyNeedGithubApp(executed)) {

@@ -12,22 +12,11 @@ import {
 } from './deployWizardCatalog';
 import { applyDeployWizardDns } from './deployWizardDns';
 import { applyDeployWizardPublicOrigin, isDeployWizardReaveStagingHost } from './deployWizardStaging';
-import {
-  cloudflareCreateZone,
-  cloudflareFindZone,
-  cloudflareGetZone,
-  cloudflareZoneName,
-  isCloudflareConfigured,
-} from './cloudflareClient';
+import { ensureClientCloudflareZone, provisionNamecomNameservers } from './clientDomainProvision';
+import { isCloudflareConfigured } from './cloudflareClient';
 import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
 import { CATALOG_BASELINE_FEATURES } from './moduleCatalog';
-import {
-  isNamecomConfigured,
-  namecomPing,
-  namecomSetNameservers,
-  resolveNamecomCredentials,
-  type NamecomCredentials,
-} from './namecomClient';
+import { isNamecomConfigured } from './namecomClient';
 import { isRailwayConfigured, railwayResolveProject } from './railwayClient';
 import { railwayListVariables, railwaySetVariables } from './railwayAgentApi';
 
@@ -144,34 +133,6 @@ export async function loadGoLiveInstallContext(opts: {
   };
 }
 
-async function ensureCloudflareZone(domain: string): Promise<
-  | { ok: true; zoneId: string; zoneName: string; nameservers: string[]; created: boolean }
-  | { ok: false; error: string }
-> {
-  const apex = cloudflareZoneName(domain);
-  const existing = await cloudflareFindZone(apex);
-  if (existing.ok) {
-    const detail = await cloudflareGetZone(existing.data.id);
-    return {
-      ok: true,
-      zoneId: existing.data.id,
-      zoneName: existing.data.name,
-      nameservers: detail.ok ? detail.data.name_servers ?? [] : [],
-      created: false,
-    };
-  }
-
-  const created = await cloudflareCreateZone(apex, { jump_start: true });
-  if (!created.ok) return created;
-  return {
-    ok: true,
-    zoneId: created.data.id,
-    zoneName: created.data.name,
-    nameservers: created.data.name_servers ?? [],
-    created: true,
-  };
-}
-
 function buildGoLivePlan(ctx: GoLiveInstallContext, apex: string): DeployWizardPlan {
   return buildDeployWizardPlan({
     features: ctx.features.length ? ctx.features : [...CATALOG_BASELINE_FEATURES],
@@ -240,7 +201,7 @@ export async function executeGoLive(opts: {
 
   pushStep({ id: 'zone', label: 'Cloudflare zone', status: 'running' });
   say(`Creating Cloudflare zone for ${apex}…`);
-  const zone = await ensureCloudflareZone(apex);
+  const zone = await ensureClientCloudflareZone(apex);
   if (!zone.ok) {
     pushStep({ id: 'zone', label: 'Cloudflare zone', status: 'error', detail: zone.error });
     return { ok: false, error: zone.error, steps };
@@ -249,53 +210,30 @@ export async function executeGoLive(opts: {
     id: 'zone',
     label: 'Cloudflare zone',
     status: 'done',
-    detail: zone.created ? `Created ${zone.zoneName}` : `Using existing ${zone.zoneName}`,
+    detail: zone.data.created ? `Created ${zone.data.zoneName}` : `Using existing ${zone.data.zoneName}`,
   });
 
   let registrarUpdated = false;
   const registrar = opts.registrar ?? 'manual';
   if (registrar === 'namecom') {
     pushStep({ id: 'registrar', label: 'Registrar nameservers', status: 'running' });
-    const creds: NamecomCredentials | null = resolveNamecomCredentials({
+    say(`Pointing ${apex} at Cloudflare nameservers on Name.com…`);
+    const ns = await provisionNamecomNameservers({
+      domain: apex,
+      nameservers: zone.data.nameservers,
       username: opts.namecomUsername,
       token: opts.namecomToken,
     });
-    if (!creds) {
-      pushStep({
-        id: 'registrar',
-        label: 'Registrar nameservers',
-        status: 'error',
-        detail: 'Name.com username and API token are required',
-      });
-      return { ok: false, error: 'Name.com credentials are required for automatic nameserver update', steps };
-    }
-    say('Verifying Name.com credentials…');
-    const ping = await namecomPing(creds);
-    if (!ping.ok) {
-      pushStep({ id: 'registrar', label: 'Registrar nameservers', status: 'error', detail: ping.error });
-      return { ok: false, error: `Name.com: ${ping.error}`, steps };
-    }
-    if (!zone.nameservers.length) {
-      pushStep({
-        id: 'registrar',
-        label: 'Registrar nameservers',
-        status: 'error',
-        detail: 'Cloudflare did not return nameservers',
-      });
-      return { ok: false, error: 'Cloudflare zone has no nameservers to assign', steps };
-    }
-    say(`Pointing ${apex} at Cloudflare nameservers on Name.com…`);
-    const ns = await namecomSetNameservers(apex, zone.nameservers, creds);
     if (!ns.ok) {
       pushStep({ id: 'registrar', label: 'Registrar nameservers', status: 'error', detail: ns.error });
-      return { ok: false, error: `Name.com: ${ns.error}`, steps };
+      return { ok: false, error: ns.error, steps };
     }
     registrarUpdated = true;
     pushStep({
       id: 'registrar',
       label: 'Registrar nameservers',
       status: 'done',
-      detail: `Updated to ${zone.nameservers.join(', ')}`,
+      detail: `Updated to ${zone.data.nameservers.join(', ')}`,
     });
   } else {
     pushStep({
@@ -365,8 +303,8 @@ export async function executeGoLive(opts: {
   return {
     ok: true,
     domain: apex,
-    nameservers: zone.nameservers,
-    zoneId: zone.zoneId,
+    nameservers: zone.data.nameservers,
+    zoneId: zone.data.zoneId,
     plan,
     dnsSummary: dns.summary,
     registrarUpdated,
