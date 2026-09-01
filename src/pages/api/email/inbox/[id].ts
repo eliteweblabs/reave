@@ -21,7 +21,7 @@ import {
   plainTextForDisplay,
   resolveEmailHtmlForDisplay,
 } from '../../../../lib/emailBody';
-import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
+import { inboxMonetaryAmount } from '../../../../lib/emailMoney';
 import { parseEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../lib/emailUnsubscribe';
 import { fetchResendInboundEmail } from '../../../../lib/resendInboundEmail';
 import { unlinkProjectItem } from '../../../../lib/projectLinks';
@@ -129,7 +129,7 @@ export async function GET(context: APIContext): Promise<Response> {
     }
   }
 
-  const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  const monetaryAmount = inboxMonetaryAmount(event);
   const unsubscribe = parseEmailUnsubscribe(headers);
   const rawAudit =
     event.category === 'receipt'
@@ -205,7 +205,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     });
     if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
     await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
-    const monetaryAmount = extractMonetaryAmountFromEmail(event);
+    const monetaryAmount = inboxMonetaryAmount(event);
     const badgeCount = await getReviewsPendingCount().catch(() => undefined);
     return jsonResponse({
       ok: true,
@@ -238,7 +238,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     // paths still fire even when there were no sibling push alerts to clear.
     scheduleReviewsBadgePush();
   }
-  const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  const monetaryAmount = inboxMonetaryAmount(event);
   const badgeCount = clearedReviewSurface
     ? await getReviewsPendingCount().catch(() => undefined)
     : undefined;

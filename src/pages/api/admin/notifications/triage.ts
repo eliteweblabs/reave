@@ -11,7 +11,7 @@ import {
   type NotificationTriageInput,
 } from '../../../../lib/notificationTriage';
 import type { EmailTriageFeedbackAction } from '../../../../lib/emailTriage';
-import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
+import { inboxMonetaryAmount } from '../../../../lib/emailMoney';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
@@ -75,7 +75,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const result = await triageNotification(input);
   const event = result.event;
-  const monetaryAmount = event ? extractMonetaryAmountFromEmail(event) : null;
+  const monetaryAmount = event ? inboxMonetaryAmount(event) : null;
 
   return jsonResponse({
     ok: true,

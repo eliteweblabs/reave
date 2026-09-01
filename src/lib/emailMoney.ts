@@ -52,6 +52,19 @@ export function extractMonetaryAmountFromEmail(ev: {
   return extractMonetaryAmountFromText(text);
 }
 
+/** Inbox UI — skip price hints for mail already filed as junk or auto-deleted. */
+export function inboxMonetaryAmount(ev: {
+  category?: string;
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+}): number | null {
+  const category = String(ev.category || '').toLowerCase();
+  if (category === 'receipt' || category === 'junk' || category === 'auto_deleted') return null;
+  return extractMonetaryAmountFromEmail(ev);
+}
+
 export function formatUsdAmount(amount: number): string {
   return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }

@@ -12,7 +12,11 @@ import {
 } from '../../../lib/emailInboxStore';
 import { getReviewsPendingCount } from '../../../lib/reviewsPendingCount';
 import { inboxListExcerpt } from '../../../lib/emailBody';
-import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
+import { inboxMonetaryAmount } from '../../../lib/emailMoney';
+import {
+  extractForwardedToFromAudit,
+  parseClassificationAudit,
+} from '../../../lib/emailClassificationAudit';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { isPushConfigured } from '../../../lib/webPush';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -23,7 +27,9 @@ import { jsonResponse } from '../../../lib/apiResponse';
 export const prerender = false;
 
 function enrichEmailEvent(event: EmailInboxRecord) {
-  const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  const monetaryAmount = inboxMonetaryAmount(event);
+  const forwardedTo =
+    extractForwardedToFromAudit(parseClassificationAudit(event.classificationAudit)) || undefined;
   const excerpt = inboxListExcerpt(event);
   return {
     ...toEmailInboxListRecord(event),
@@ -31,6 +37,7 @@ function enrichEmailEvent(event: EmailInboxRecord) {
     summary: excerpt || event.summary,
     monetaryAmount,
     hasMonetaryValue: monetaryAmount != null,
+    ...(forwardedTo ? { forwardedTo } : {}),
   };
 }
 

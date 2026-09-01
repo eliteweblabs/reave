@@ -12060,6 +12060,7 @@ function emailShowsReceiptAction(ev) {
   if (isVerificationCodeEmail(ev)) return false;
   if (isAuthLinkEmailRecord(ev)) return false;
   if (ev.category === 'receipt') return false;
+  if (isAutoDeletedEmail(ev)) return false;
   return emailMonetaryAmount(ev) != null;
 }
 
@@ -14485,7 +14486,8 @@ function createEmailListItem(ev) {
       (isProjectReplyEmail(ev)
         ? '<span class="em-status em-project-reply">Contact reply</span>'
         : `<span class="em-status ${isVerificationCodeEmail(ev) || isAuthLinkEmailRecord(ev) ? 'em-cat-otp' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
-      (emailMonetaryAmount(ev) && ev.category !== 'receipt'
+      emailForwardedChipHtml(ev) +
+      (!isAutoDeletedEmail(ev) && emailMonetaryAmount(ev) && ev.category !== 'receipt'
         ? `<span class="em-status em-money-hint">${escHtml(formatEmailUsd(emailMonetaryAmount(ev)))}</span>`
         : '') +
       (isEmailBooked(ev)
