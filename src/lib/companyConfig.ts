@@ -22,6 +22,12 @@ import {
 
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 export { DEFAULT_PORTAL_OUTREACH_NOTICE };
+import {
+  formatWeekHours,
+  hasAnyHours,
+  parseStoredBusinessHours,
+  type BusinessHours,
+} from './businessHours';
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { normalizeBrandColorHex, resolveCompanyBrandColors, resolveIconBackground } from './companyBrandColors';
 import { emailFontStack, normalizeEmailFontId } from './emailSafeFonts';
@@ -221,6 +227,10 @@ export type CompanyConfig = {
   brandSecondary: string;
   /** Home Screen / favicon tile background (hex). */
   iconBackground: string;
+  /** Structured weekly hours for directory listings and scheduling. */
+  businessHours: BusinessHours | null;
+  /** Compact hours lines for admin UI (e.g. Mon–Fri 9am–5pm). */
+  hoursLines: string[];
 };
 
 function trim(s: string | null | undefined): string {
@@ -540,6 +550,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     brandPrimary: brandColors.primary,
     brandSecondary: brandColors.secondary,
     iconBackground: resolveIconBackground(stored?.iconBackground),
+    businessHours: parseStoredBusinessHours(stored?.businessHours) ?? null,
+    hoursLines: formatWeekHours(parseStoredBusinessHours(stored?.businessHours)),
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
@@ -645,6 +657,8 @@ export type CompanyConfigInput = {
   logoSvg?: string;
   /** Paste full <svg>…</svg> for animated homepage hero icon. */
   iconSvg?: string;
+  /** Structured weekly hours JSON from admin repeater. */
+  businessHours?: BusinessHours | string | null;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -732,6 +746,22 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.iconSvg !== undefined) {
     const t = input.iconSvg.trim();
     out.iconSvg = t || null;
+  }
+  if (input.businessHours !== undefined) {
+    if (input.businessHours == null || input.businessHours === '') {
+      out.businessHours = null;
+    } else if (typeof input.businessHours === 'string') {
+      try {
+        out.businessHours = parseStoredBusinessHours(JSON.parse(input.businessHours));
+      } catch {
+        out.businessHours = null;
+      }
+    } else {
+      out.businessHours = parseStoredBusinessHours(input.businessHours);
+    }
+    if (out.businessHours && !hasAnyHours(out.businessHours)) {
+      out.businessHours = null;
+    }
   }
   return out;
 }
