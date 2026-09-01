@@ -13,6 +13,12 @@ import {
   resolveNamecomCredentials,
   type NamecomCredentials,
 } from './namecomClient';
+import {
+  godaddyPing,
+  godaddySetNameservers,
+  resolveGoDaddyCredentials,
+  type GoDaddyCredentials,
+} from './godaddyClient';
 
 export type ClientCloudflareZone = {
   zoneId: string;
@@ -71,4 +77,30 @@ export async function provisionNamecomNameservers(opts: {
   const ns = await namecomSetNameservers(opts.domain, opts.nameservers, creds);
   if (!ns.ok) return { ok: false, error: `Name.com: ${ns.error}` };
   return { ok: true };
+}
+
+export async function provisionGoDaddyNameservers(opts: {
+  domain: string;
+  nameservers: string[];
+  token?: string;
+  ote?: boolean;
+}): Promise<{ ok: true; async: boolean } | { ok: false; error: string }> {
+  const creds: GoDaddyCredentials | null = resolveGoDaddyCredentials({
+    token: opts.token,
+    ote: opts.ote,
+  });
+  if (!creds) {
+    return {
+      ok: false,
+      error: 'GoDaddy API token (PAT) is required — scope domains.nameserver:update',
+    };
+  }
+  const ping = await godaddyPing(creds);
+  if (!ping.ok) return { ok: false, error: `GoDaddy: ${ping.error}` };
+  if (!opts.nameservers.length) {
+    return { ok: false, error: 'Cloudflare zone has no nameservers to assign' };
+  }
+  const ns = await godaddySetNameservers(opts.domain, opts.nameservers, creds);
+  if (!ns.ok) return { ok: false, error: `GoDaddy: ${ns.error}` };
+  return { ok: true, async: ns.data.async };
 }

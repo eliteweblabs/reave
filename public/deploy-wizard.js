@@ -77,6 +77,7 @@
   let dnsAccess = 'skip';
   let namecomUsername = '';
   let namecomToken = '';
+  let godaddyToken = '';
   let postAlias = 'project';
   let companyName = '';
   let adminUsername = '';
@@ -132,6 +133,7 @@
   let railway = { configured: false, projects: [] };
   let cloudflare = { configured: false };
   let namecom = { configured: false };
+  let godaddy = { configured: false };
   let plan = null;
   let cli = '';
   let values = {};
@@ -455,6 +457,7 @@
       `<select id="dw-dns-access" class="dl-select">` +
       `<option value="skip"${dnsAccess === 'skip' ? ' selected' : ''}>Not yet — stage on ${esc(stagingHost)}</option>` +
       `<option value="namecom"${dnsAccess === 'namecom' ? ' selected' : ''}>Name.com — one-shot (create zone + nameservers)</option>` +
+      `<option value="godaddy"${dnsAccess === 'godaddy' ? ' selected' : ''}>GoDaddy — one-shot (PAT + nameservers)</option>` +
       `<option value="cloudflare"${dnsAccess === 'cloudflare' ? ' selected' : ''}>Already in Cloudflare</option>` +
       `</select>` +
       `</label>` +
@@ -469,9 +472,15 @@
           `<input id="dw-namecom-token" class="dl-input" type="password" autocomplete="current-password" value="${esc(namecomToken)}" placeholder="${namecom.configured ? 'Optional — env fallback on server' : 'Required for one-shot'}" />` +
           `</label>` +
           `</div>`
-        : dnsAccess === 'cloudflare'
-          ? `<p class="dl-meta">Zone must already exist in this Cloudflare account. If it does not, pick Name.com or stage first.</p>`
-          : `<p class="dl-meta">GoDaddy and other registrars: stage now, cut over later on <a href="/go-live">Go live</a>.</p>`) +
+        : dnsAccess === 'godaddy'
+          ? `<label class="dl-field dw-field--wide">` +
+            `<span class="dl-field-label">GoDaddy API token (PAT)</span>` +
+            `<input id="dw-godaddy-token" class="dl-input" type="password" autocomplete="off" value="${esc(godaddyToken)}" placeholder="${godaddy.configured ? 'Optional — GODADDY_API_TOKEN env fallback' : 'Required — scope domains.nameserver:update'}" />` +
+            `</label>` +
+            `<p class="dl-meta">Create a Personal Access Token at developer.godaddy.com with <code>domains.nameserver:update</code> (and <code>domains.domain:read</code> to verify).</p>`
+          : dnsAccess === 'cloudflare'
+            ? `<p class="dl-meta">Zone must already exist in this Cloudflare account. If it does not, pick Name.com or GoDaddy for one-shot.</p>`
+            : `<p class="dl-meta">Without registrar credentials, Apply stages on <code>${esc(stagingHost)}</code>. Cut over later on <a href="/go-live">Go live</a>.</p>`) +
       `</div>`
     );
   }
@@ -966,6 +975,7 @@
     const dnsEl = root.querySelector('#dw-dns-access');
     const namecomUserEl = root.querySelector('#dw-namecom-user');
     const namecomTokenEl = root.querySelector('#dw-namecom-token');
+    const godaddyTokenEl = root.querySelector('#dw-godaddy-token');
     const postEl = root.querySelector('#dw-post');
     const companyEl = root.querySelector('#dw-company');
     const adminEl = root.querySelector('#dw-admin');
@@ -979,9 +989,13 @@
     const envEl = root.querySelector('#dw-env');
     if (installEl) installSlug = installEl.value.trim() || 'demo';
     if (domainEl) siteDomain = domainEl.value.trim();
-    if (dnsEl) dnsAccess = dnsEl.value === 'namecom' || dnsEl.value === 'cloudflare' ? dnsEl.value : 'skip';
+    if (dnsEl) {
+      const v = dnsEl.value;
+      dnsAccess = v === 'namecom' || v === 'godaddy' || v === 'cloudflare' ? v : 'skip';
+    }
     if (namecomUserEl) namecomUsername = namecomUserEl.value.trim();
     if (namecomTokenEl) namecomToken = namecomTokenEl.value.trim();
+    if (godaddyTokenEl) godaddyToken = godaddyTokenEl.value.trim();
     if (postEl) postAlias = postEl.value.trim() || 'project';
     if (companyEl) companyName = companyEl.value.trim();
     if (adminEl) adminUsername = adminEl.value.trim();
@@ -1039,6 +1053,7 @@
         dnsAccess,
         namecomUsername: namecomUsername || undefined,
         namecomToken: namecomToken || undefined,
+        godaddyToken: godaddyToken || undefined,
         postAlias,
         companyName,
         adminUsername,
@@ -1170,6 +1185,7 @@
           dnsAccess,
           namecomUsername: namecomUsername || undefined,
           namecomToken: namecomToken || undefined,
+          godaddyToken: godaddyToken || undefined,
           postAlias,
           companyName,
           adminUsername,
@@ -1471,6 +1487,7 @@
       railway = data.railway || railway;
       cloudflare = data.cloudflare || cloudflare;
       namecom = data.namecom || namecom;
+      godaddy = data.godaddy || godaddy;
       if (data.defaults) {
         appService = data.defaults.appService || appService;
         environment = data.defaults.environment || environment;

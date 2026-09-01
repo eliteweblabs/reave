@@ -14,6 +14,7 @@ import {
 } from './deployWizardCatalog';
 import { cloudflareFindZone, cloudflareZoneName } from './cloudflareClient';
 import { resolveNamecomCredentials } from './namecomClient';
+import { resolveGoDaddyCredentials } from './godaddyClient';
 import { railwaySetVariables } from './railwayAgentApi';
 
 export const REAVE_STAGING_PARENT = 'reave.app';
@@ -38,6 +39,11 @@ function hasNamecomCreds(input: Pick<DeployWizardPlanInput, 'dnsAccess' | 'namec
   return Boolean(resolveNamecomCredentials({ username: input.namecomUsername, token: input.namecomToken }));
 }
 
+function hasGoDaddyCreds(input: Pick<DeployWizardPlanInput, 'dnsAccess' | 'godaddyToken'>): boolean {
+  if (input.dnsAccess !== 'godaddy') return false;
+  return Boolean(resolveGoDaddyCredentials({ token: input.godaddyToken }));
+}
+
 /** Pick the public host Apply should wire today. */
 export async function resolveDeployWizardSiteDomain(opts: {
   installSlug: string;
@@ -45,6 +51,7 @@ export async function resolveDeployWizardSiteDomain(opts: {
   dnsAccess?: DeployWizardDnsAccess;
   namecomUsername?: string;
   namecomToken?: string;
+  godaddyToken?: string;
 }): Promise<DeployWizardSiteResolution> {
   const slug = (opts.installSlug ?? '').trim() || 'demo';
   const planned = normalizeSiteDomain(opts.plannedSiteDomain);
@@ -97,6 +104,17 @@ export async function resolveDeployWizardSiteDomain(opts: {
     };
   }
 
+  if (dnsAccess === 'godaddy' && hasGoDaddyCreds(opts)) {
+    return {
+      siteDomain: planned,
+      plannedSiteDomain: planned,
+      stagingHost: false,
+      provisionOnApply: true,
+      dnsAccess: 'godaddy',
+      note: `Apply creates the Cloudflare zone for ${planned} and updates GoDaddy nameservers — one-shot go-live.`,
+    };
+  }
+
   if (dnsAccess === 'namecom') {
     return {
       siteDomain: stagingDefault,
@@ -105,6 +123,17 @@ export async function resolveDeployWizardSiteDomain(opts: {
       provisionOnApply: false,
       dnsAccess: 'namecom',
       note: `Enter Name.com credentials to wire ${planned} on Apply — otherwise staging at ${stagingDefault}.`,
+    };
+  }
+
+  if (dnsAccess === 'godaddy') {
+    return {
+      siteDomain: stagingDefault,
+      plannedSiteDomain: planned,
+      stagingHost: true,
+      provisionOnApply: false,
+      dnsAccess: 'godaddy',
+      note: `Enter a GoDaddy PAT (domains.nameserver:update) to wire ${planned} on Apply — otherwise staging at ${stagingDefault}.`,
     };
   }
 
@@ -139,6 +168,7 @@ export async function buildDeployWizardPlanResolved(
     dnsAccess: input.dnsAccess,
     namecomUsername: input.namecomUsername,
     namecomToken: input.namecomToken,
+    godaddyToken: input.godaddyToken,
   });
 
   const plan = buildDeployWizardPlan({
@@ -186,10 +216,12 @@ export async function provisionDeployWizardClientDomain(opts: {
   dnsAccess: DeployWizardDnsAccess;
   namecomUsername?: string;
   namecomToken?: string;
+  godaddyToken?: string;
   onProgress?: (message: string) => void;
 }): Promise<{ ok: true; nameservers: string[] } | { ok: false; error: string }> {
   const say = (message: string) => opts.onProgress?.(message);
-  const { ensureClientCloudflareZone, provisionNamecomNameservers } = await import('./clientDomainProvision');
+  const { ensureClientCloudflareZone, provisionNamecomNameservers, provisionGoDaddyNameservers } =
+    await import('./clientDomainProvision');
 
   say(`Ensuring Cloudflare zone for ${opts.apex}…`);
   const zone = await ensureClientCloudflareZone(opts.apex);
@@ -205,6 +237,21 @@ export async function provisionDeployWizardClientDomain(opts: {
     });
     if (!ns.ok) return ns;
     say(`Name.com now points ${opts.apex} at Cloudflare.`);
+  }
+
+  if (opts.dnsAccess === 'godaddy') {
+    say('Updating GoDaddy nameservers…');
+    const ns = await provisionGoDaddyNameservers({
+      domain: opts.apex,
+      nameservers: zone.data.nameservers,
+      token: opts.godaddyToken,
+    });
+    if (!ns.ok) return ns;
+    say(
+      ns.async
+        ? `GoDaddy accepted the nameserver change for ${opts.apex} (registry propagation may take a few minutes).`
+        : `GoDaddy now points ${opts.apex} at Cloudflare.`,
+    );
   }
 
   return { ok: true, nameservers: zone.data.nameservers };

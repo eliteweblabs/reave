@@ -84,6 +84,7 @@ export async function executeDeployWizardApply(opts: {
   githubApp?: DeployWizardGithubAppCredentials;
   namecomUsername?: string;
   namecomToken?: string;
+  godaddyToken?: string;
   onProgress?: DeployWizardApplyProgress;
 }): Promise<DeployWizardApplyResult> {
   const say = (message: string) => {
@@ -167,6 +168,7 @@ export async function executeDeployWizardApply(opts: {
       dnsAccess: opts.plan.dnsAccess,
       namecomUsername: opts.namecomUsername,
       namecomToken: opts.namecomToken,
+      godaddyToken: opts.godaddyToken,
       onProgress: say,
     });
     if (!provision.ok) {

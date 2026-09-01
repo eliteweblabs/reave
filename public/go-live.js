@@ -13,13 +13,14 @@
   if (!root) return;
 
   let projects = [];
-  let capabilities = { cloudflare: false, railway: false, namecomEnv: false };
+  let capabilities = { cloudflare: false, railway: false, namecomEnv: false, godaddyEnv: false };
   let project = '';
   let environment = 'production';
   let domain = '';
   let registrar = 'manual';
   let namecomUsername = '';
   let namecomToken = '';
+  let godaddyToken = '';
   let install = null;
   let loadingInstall = false;
   let applying = false;
@@ -71,12 +72,17 @@
     const regEl = root.querySelector('#gl-registrar');
     const userEl = root.querySelector('#gl-namecom-user');
     const tokenEl = root.querySelector('#gl-namecom-token');
+    const godaddyEl = root.querySelector('#gl-godaddy-token');
     if (projectEl) project = projectEl.value.trim();
     if (domainEl) domain = domainEl.value.trim();
     if (envEl) environment = envEl.value.trim() || 'production';
-    if (regEl) registrar = regEl.value === 'namecom' ? 'namecom' : 'manual';
+    if (regEl) {
+      const v = regEl.value;
+      registrar = v === 'namecom' || v === 'godaddy' ? v : 'manual';
+    }
     if (userEl) namecomUsername = userEl.value.trim();
     if (tokenEl) namecomToken = tokenEl.value.trim();
+    if (godaddyEl) godaddyToken = godaddyEl.value.trim();
   }
 
   function renderCapabilities() {
@@ -93,6 +99,9 @@
     );
     if (capabilities.namecomEnv) {
       pills.push('<span class="mod-summary-pill">Name.com env fallback</span>');
+    }
+    if (capabilities.godaddyEnv) {
+      pills.push('<span class="mod-summary-pill">GoDaddy env fallback</span>');
     }
     return `<div class="dw-review-stats">${pills.join('')}</div>`;
   }
@@ -114,9 +123,18 @@
   }
 
   function renderRegistrarFields() {
+    if (registrar === 'godaddy') {
+      return (
+        `<label class="dl-field dw-field--wide">` +
+        `<span class="dl-field-label">GoDaddy API token (PAT)</span>` +
+        `<input id="gl-godaddy-token" class="dl-input" type="password" autocomplete="off" value="${esc(godaddyToken)}" placeholder="${capabilities.godaddyEnv ? 'Optional — GODADDY_API_TOKEN env fallback' : 'Required — domains.nameserver:update'}" />` +
+        `</label>` +
+        `<p class="dl-meta">Personal Access Token from developer.godaddy.com with <code>domains.nameserver:update</code>.</p>`
+      );
+    }
     if (registrar !== 'namecom') {
       return (
-        `<p class="dl-meta">GoDaddy and most registrars: after Apply, paste the Cloudflare nameservers at your registrar. Propagation can take up to 48 hours.</p>`
+        `<p class="dl-meta">Manual: after Go live, paste the Cloudflare nameservers at your registrar. Propagation can take up to 48 hours.</p>`
       );
     }
     return (
@@ -181,7 +199,8 @@
       `<label class="dl-field">` +
       `<span class="dl-field-label">Registrar</span>` +
       `<select id="gl-registrar" class="dl-input">` +
-      `<option value="manual"${registrar === 'manual' ? ' selected' : ''}>GoDaddy / manual (copy nameservers)</option>` +
+      `<option value="manual"${registrar === 'manual' ? ' selected' : ''}>Manual (copy nameservers)</option>` +
+      `<option value="godaddy"${registrar === 'godaddy' ? ' selected' : ''}>GoDaddy (auto nameservers)</option>` +
       `<option value="namecom"${registrar === 'namecom' ? ' selected' : ''}>Name.com (auto nameservers)</option>` +
       `</select>` +
       `</label>` +
@@ -223,6 +242,7 @@
           registrar,
           namecomUsername: namecomUsername || undefined,
           namecomToken: namecomToken || undefined,
+          godaddyToken: godaddyToken || undefined,
         }),
       });
 

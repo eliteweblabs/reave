@@ -12,15 +12,16 @@ import {
 } from './deployWizardCatalog';
 import { applyDeployWizardDns } from './deployWizardDns';
 import { applyDeployWizardPublicOrigin, isDeployWizardReaveStagingHost } from './deployWizardStaging';
-import { ensureClientCloudflareZone, provisionNamecomNameservers } from './clientDomainProvision';
+import { ensureClientCloudflareZone, provisionNamecomNameservers, provisionGoDaddyNameservers } from './clientDomainProvision';
 import { isCloudflareConfigured } from './cloudflareClient';
 import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
 import { CATALOG_BASELINE_FEATURES } from './moduleCatalog';
 import { isNamecomConfigured } from './namecomClient';
+import { isGoDaddyConfigured } from './godaddyClient';
 import { isRailwayConfigured, railwayResolveProject } from './railwayClient';
 import { railwayListVariables, railwaySetVariables } from './railwayAgentApi';
 
-export type GoLiveRegistrar = 'namecom' | 'manual';
+export type GoLiveRegistrar = 'namecom' | 'godaddy' | 'manual';
 
 export type GoLiveInstallContext = {
   projectId: string;
@@ -159,6 +160,7 @@ export async function executeGoLive(opts: {
   registrar?: GoLiveRegistrar;
   namecomUsername?: string;
   namecomToken?: string;
+  godaddyToken?: string;
   onProgress?: (message: string) => void;
 }): Promise<GoLiveResult> {
   const say = (message: string) => opts.onProgress?.(message);
@@ -234,6 +236,27 @@ export async function executeGoLive(opts: {
       label: 'Registrar nameservers',
       status: 'done',
       detail: `Updated to ${zone.data.nameservers.join(', ')}`,
+    });
+  } else if (registrar === 'godaddy') {
+    pushStep({ id: 'registrar', label: 'Registrar nameservers', status: 'running' });
+    say(`Pointing ${apex} at Cloudflare nameservers on GoDaddy…`);
+    const ns = await provisionGoDaddyNameservers({
+      domain: apex,
+      nameservers: zone.data.nameservers,
+      token: opts.godaddyToken,
+    });
+    if (!ns.ok) {
+      pushStep({ id: 'registrar', label: 'Registrar nameservers', status: 'error', detail: ns.error });
+      return { ok: false, error: ns.error, steps };
+    }
+    registrarUpdated = true;
+    pushStep({
+      id: 'registrar',
+      label: 'Registrar nameservers',
+      status: 'done',
+      detail: ns.async
+        ? `GoDaddy accepted — ${zone.data.nameservers.join(', ')} (registry may take a few minutes)`
+        : `Updated to ${zone.data.nameservers.join(', ')}`,
     });
   } else {
     pushStep({
@@ -316,10 +339,12 @@ export function goLiveCapabilities(): {
   cloudflare: boolean;
   railway: boolean;
   namecomEnv: boolean;
+  godaddyEnv: boolean;
 } {
   return {
     cloudflare: isCloudflareConfigured(),
     railway: isRailwayConfigured(),
     namecomEnv: isNamecomConfigured(),
+    godaddyEnv: isGoDaddyConfigured(),
   };
 }

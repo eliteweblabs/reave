@@ -14,6 +14,7 @@ import {
   loadGoLiveInstallContext,
   type GoLiveRegistrar,
 } from '../../lib/goLive';
+import { isGoDaddyConfigured } from '../../lib/godaddyClient';
 import { isRailwayConfigured, railwayListProjects } from '../../lib/railwayClient';
 
 export const prerender = false;
@@ -84,9 +85,12 @@ export async function POST(context: APIContext): Promise<Response> {
   const project = typeof body.project === 'string' ? body.project.trim() : '';
   const domain = normalizeSiteDomain(typeof body.domain === 'string' ? body.domain : '');
   const environment = typeof body.environment === 'string' ? body.environment : 'production';
-  const registrar = (body.registrar === 'namecom' ? 'namecom' : 'manual') as GoLiveRegistrar;
+  const registrar = (
+    body.registrar === 'namecom' ? 'namecom' : body.registrar === 'godaddy' ? 'godaddy' : 'manual'
+  ) as GoLiveRegistrar;
   const namecomUsername = typeof body.namecomUsername === 'string' ? body.namecomUsername.trim() : '';
   const namecomToken = typeof body.namecomToken === 'string' ? body.namecomToken.trim() : '';
+  const godaddyToken = typeof body.godaddyToken === 'string' ? body.godaddyToken.trim() : '';
   const stream = body.stream === true;
 
   if (!project) return jsonResponse({ ok: false, error: 'project is required' }, 400);
@@ -100,6 +104,7 @@ export async function POST(context: APIContext): Promise<Response> {
       registrar,
       namecomUsername: namecomUsername || undefined,
       namecomToken: namecomToken || undefined,
+      godaddyToken: godaddyToken || undefined,
     });
     if (!result.ok) return jsonResponse({ ok: false, error: result.error, steps: result.steps }, 400);
     return jsonResponse({ ok: true, ...result });
@@ -119,6 +124,7 @@ export async function POST(context: APIContext): Promise<Response> {
         registrar,
         namecomUsername: namecomUsername || undefined,
         namecomToken: namecomToken || undefined,
+        godaddyToken: godaddyToken || undefined,
         onProgress: (message) => send({ type: 'progress', message }),
       });
       send({ type: 'result', result });

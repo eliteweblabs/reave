@@ -1710,7 +1710,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
   }),
 ];
 
-export type DeployWizardDnsAccess = 'skip' | 'namecom' | 'cloudflare';
+export type DeployWizardDnsAccess = 'skip' | 'namecom' | 'godaddy' | 'cloudflare';
 
 export type DeployWizardPlanInput = {
   features: readonly FeatureId[];
@@ -1726,6 +1726,8 @@ export type DeployWizardPlanInput = {
   namecomUsername?: string;
   /** Name.com API token — only used when dnsAccess is namecom (Apply only, not returned on plan). */
   namecomToken?: string;
+  /** GoDaddy PAT — only used when dnsAccess is godaddy (Apply only, not returned on plan). */
+  godaddyToken?: string;
   /** Work-record label (POST_ALIAS). Default `project`. */
   postAlias?: string;
   companyName?: string;

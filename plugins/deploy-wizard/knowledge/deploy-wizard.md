@@ -108,6 +108,7 @@ There is **no REΛVE.app dropdown**. On the first wizard step, enter the client 
 |--------|----------------|
 | **Not yet** (default) | Stages on `{slug}.reave.app` when the apex is empty or not in Cloudflare |
 | **Name.com** + API creds | One-shot: create Cloudflare zone, update Name.com nameservers, wire full apex DNS |
+| **GoDaddy** + PAT | One-shot: create Cloudflare zone, update GoDaddy nameservers (`domains.nameserver:update`), wire full apex DNS |
 | **Already in Cloudflare** | Wire the apex when the zone exists in this account |
 
 When staging applies:
@@ -126,7 +127,8 @@ After staging, open **`/go-live`** (owner-only, same host as the deploy wizard).
 | Registrar | What happens |
 |-----------|----------------|
 | **Name.com** | Paste API username + token — nameservers update automatically |
-| **GoDaddy / manual** | Apply creates the Cloudflare zone and shows nameservers to paste at the registrar |
+| **GoDaddy** | Paste a PAT with `domains.nameserver:update` — nameservers update automatically |
+| **Manual** | Apply creates the Cloudflare zone and shows nameservers to paste at the registrar |
 
 Go live then: creates/finds the Cloudflare zone, attaches Railway custom domains, writes full DNS (inbound MX, `ap`, `cal`, …), and flips `PUBLIC_SITE_URL` to `https://{apex}`. Add the apex in Clerk → Domains when DNS resolves.
 

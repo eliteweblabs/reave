@@ -42,6 +42,7 @@ import { isCloudflareConfigured } from '../../../lib/cloudflareClient';
 import { isRailwayConfigured, railwayListProjects } from '../../../lib/railwayClient';
 import { isResendConfigured } from '../../../lib/resendDnsSync';
 import { isNamecomConfigured } from '../../../lib/namecomClient';
+import { isGoDaddyConfigured } from '../../../lib/godaddyClient';
 import { isGithubAppConfigured } from '../../../lib/githubApp';
 import {
   createGithubAppPending,
@@ -220,6 +221,7 @@ export async function GET(context: APIContext): Promise<Response> {
     },
     cloudflare: { configured: isCloudflareConfigured() },
     namecom: { configured: isNamecomConfigured() },
+    godaddy: { configured: isGoDaddyConfigured() },
     resend: { configured: isResendConfigured() },
     githubApp: { configured: isGithubAppConfigured() },
     defaults: {
@@ -241,7 +243,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
 function parseDnsAccess(body: Record<string, unknown>): DeployWizardDnsAccess {
   const raw = typeof body.dnsAccess === 'string' ? body.dnsAccess.trim() : '';
-  if (raw === 'namecom' || raw === 'cloudflare') return raw;
+  if (raw === 'namecom' || raw === 'godaddy' || raw === 'cloudflare') return raw;
   return 'skip';
 }
 
@@ -284,6 +286,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const seed = parseSeed(body);
   const dnsAccess = parseDnsAccess(body);
   const namecom = parseNamecomCreds(body);
+  const godaddyToken = typeof body.godaddyToken === 'string' ? body.godaddyToken.trim() : '';
   const plan = await buildDeployWizardPlanResolved({
     features,
     extras,
@@ -293,6 +296,7 @@ export async function POST(context: APIContext): Promise<Response> {
     dnsAccess,
     namecomUsername: namecom.username,
     namecomToken: namecom.token,
+    godaddyToken: godaddyToken || undefined,
     postAlias,
     companyName,
     adminUsername,
@@ -372,6 +376,7 @@ export async function POST(context: APIContext): Promise<Response> {
       githubApp: resumeGithubApp || undefined,
       namecomUsername: namecom.username,
       namecomToken: namecom.token,
+      godaddyToken: godaddyToken || undefined,
     });
     if (isDeployWizardApplyNeedGithubApp(executed)) {
       const setup = createGithubAppPending(
@@ -430,6 +435,7 @@ export async function POST(context: APIContext): Promise<Response> {
           githubApp: resumeGithubApp || undefined,
           namecomUsername: namecom.username,
           namecomToken: namecom.token,
+          godaddyToken: godaddyToken || undefined,
           onProgress: (message) => emit({ phase: 'log', message }),
         });
         if (isDeployWizardApplyNeedGithubApp(executed)) {
