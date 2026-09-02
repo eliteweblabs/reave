@@ -231,6 +231,8 @@ export type CompanyConfig = {
   businessHours: BusinessHours | null;
   /** Compact hours lines for admin UI (e.g. Mon–Fri 9am–5pm). */
   hoursLines: string[];
+  /** Push company hours onto Cal.com Working Hours when saving. */
+  syncHoursToCalcom: boolean;
 };
 
 function trim(s: string | null | undefined): string {
@@ -552,6 +554,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     iconBackground: resolveIconBackground(stored?.iconBackground),
     businessHours: parseStoredBusinessHours(stored?.businessHours) ?? null,
     hoursLines: formatWeekHours(parseStoredBusinessHours(stored?.businessHours)),
+    syncHoursToCalcom: stored?.syncHoursToCalcom === true,
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
@@ -659,6 +662,8 @@ export type CompanyConfigInput = {
   iconSvg?: string;
   /** Structured weekly hours JSON from admin repeater. */
   businessHours?: BusinessHours | string | null;
+  /** Push company hours onto Cal.com Working Hours when saving. */
+  syncHoursToCalcom?: boolean | string | null;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -762,6 +767,11 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
     if (out.businessHours && !hasAnyHours(out.businessHours)) {
       out.businessHours = null;
     }
+  }
+  if (input.syncHoursToCalcom !== undefined) {
+    const raw = input.syncHoursToCalcom;
+    out.syncHoursToCalcom =
+      raw === true || raw === 'true' || raw === '1' || raw === 'on';
   }
   return out;
 }

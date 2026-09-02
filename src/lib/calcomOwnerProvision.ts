@@ -10,6 +10,11 @@
  * schema drift (users vs "User", avatar vs avatarUrl, …).
  */
 import { randomUUID } from 'node:crypto';
+import {
+  hasAnyHours,
+  MINUTES_PER_DAY,
+  type BusinessHours,
+} from './businessHours';
 import type { InstallIdentity } from './installIdentity';
 
 export const DEFAULT_CALCOM_EVENT_TYPES: ReadonlyArray<{
@@ -28,6 +33,49 @@ export const CALCOM_WEEKDAY_DAYS = [1, 2, 3, 4, 5] as const;
 export const DEFAULT_CALCOM_WORK_START = '09:00:00';
 export const DEFAULT_CALCOM_WORK_END = '17:00:00';
 
+export type CalcomAvailabilityWindow = {
+  days: number[];
+  startTime: string;
+  endTime: string;
+};
+
+/** Minutes from midnight → Cal.com `time` string (HH:MM:SS). */
+export function minutesToCalcomTime(minutes: number): string {
+  const total = Math.min(Math.max(Math.round(minutes), 0), MINUTES_PER_DAY);
+  if (total >= MINUTES_PER_DAY) return '23:59:00';
+  const hour = Math.floor(total / 60);
+  const minute = total % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`;
+}
+
+/**
+ * Collapse company business hours into Cal.com Availability rows
+ * (same start/end shared across days).
+ */
+export function businessHoursToCalcomWindows(
+  hours: BusinessHours | null | undefined,
+): CalcomAvailabilityWindow[] {
+  if (!hours || !hasAnyHours(hours)) return [];
+  if (hours.alwaysOpen) {
+    return [{ days: [0, 1, 2, 3, 4, 5, 6], startTime: '00:00:00', endTime: '23:59:00' }];
+  }
+  const byKey = new Map<string, number[]>();
+  for (let day = 0; day < 7; day += 1) {
+    for (const interval of hours.days[day] ?? []) {
+      const startTime = minutesToCalcomTime(interval.start);
+      const endTime = minutesToCalcomTime(interval.end);
+      if (startTime === endTime) continue;
+      const key = `${startTime}|${endTime}`;
+      const list = byKey.get(key) ?? [];
+      list.push(day);
+      byKey.set(key, list);
+    }
+  }
+  return [...byKey.entries()].map(([key, days]) => {
+    const [startTime, endTime] = key.split('|');
+    return { days: [...days].sort((a, b) => a - b), startTime, endTime };
+  });
+}
 export type SqlQuery = <T = Record<string, unknown>>(
   sql: string,
   values?: unknown[],
@@ -219,8 +267,9 @@ async function ensureWorkingSchedule(
   if (availTable) {
     const availSql = quoteIdent(availTable);
     const availCols = await listColumns(query, availTable);
+    const scheduleCol = availCols.has('scheduleId') ? 'scheduleId' : 'schedule_id';
     const hasHours = await query<{ id: number }>(
-      `SELECT id FROM ${availSql} WHERE ${quoteIdent(availCols.has('scheduleId') ? 'scheduleId' : 'schedule_id')} = $1 LIMIT 1`,
+      `SELECT id FROM ${availSql} WHERE ${quoteIdent(scheduleCol)} = $1 LIMIT 1`,
       [scheduleId],
     ).catch(() => ({ rows: [] as Array<{ id: number }> }));
     if (!hasHours.rows.length) {
@@ -235,6 +284,51 @@ async function ensureWorkingSchedule(
   }
 
   return scheduleId;
+}
+
+/**
+ * Replace the owner's Cal.com Availability with company business hours.
+ * Creates a Working Hours schedule when the user has none yet.
+ */
+export async function syncCalcomScheduleFromBusinessHours(
+  query: SqlQuery,
+  userId: number,
+  timezone: string,
+  hours: BusinessHours | null | undefined,
+): Promise<{ ok: boolean; scheduleId?: number; windows?: number; reason?: string }> {
+  const windows = businessHoursToCalcomWindows(hours);
+  if (!windows.length) {
+    return { ok: false, reason: 'no bookable hours to sync' };
+  }
+
+  const scheduleId = await ensureWorkingSchedule(query, userId, timezone);
+  if (scheduleId == null) {
+    return { ok: false, reason: 'Cal.com Schedule table not found' };
+  }
+
+  const availTable = await findPublicTable(query, ['Availability', 'availability']);
+  if (!availTable) {
+    return { ok: false, scheduleId, reason: 'Cal.com Availability table not found' };
+  }
+  const availSql = quoteIdent(availTable);
+  const availCols = await listColumns(query, availTable);
+  const scheduleCol = availCols.has('scheduleId') ? 'scheduleId' : 'schedule_id';
+
+  await query(`DELETE FROM ${availSql} WHERE ${quoteIdent(scheduleCol)} = $1`, [scheduleId]);
+
+  let written = 0;
+  for (const window of windows) {
+    const id = await insertRow(query, availSql, availCols, {
+      userId,
+      scheduleId,
+      days: window.days,
+      startTime: window.startTime,
+      endTime: window.endTime,
+    });
+    if (id != null) written += 1;
+  }
+
+  return { ok: written > 0, scheduleId, windows: written, reason: written ? undefined : 'could not insert availability' };
 }
 
 /**
