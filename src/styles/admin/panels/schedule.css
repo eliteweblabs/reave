@@ -59,6 +59,13 @@
   border: 1px solid var(--panel-border);
   background: var(--surface-muted);
 }
+.dash-fleet-grid .dash-fleet-tile {
+  min-height: var(--dash-fleet-tile-min-h);
+  justify-content: flex-start;
+}
+.dash-fleet-grid .dash-uptime-tile--add {
+  min-height: var(--dash-fleet-tile-min-h);
+}
 .dash-uptime-tile--down {
   background: rgba(248, 113, 113, 0.08);
   border-color: rgba(248, 113, 113, 0.35);
@@ -161,25 +168,69 @@
   min-width: 0;
   width: 100%;
 }
+.dash-uptime-name-row .dash-uptime-dot {
+  margin-top: 0;
+}
 .dash-uptime-name-row .dash-uptime-name {
   flex: 1 1 auto;
 }
 .dash-site-grade {
   flex: 0 0 auto;
-  font-size: 0.68rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  font-size: 0.58rem;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
+  border: 1.5px solid currentColor;
+  background: transparent;
 }
-.dash-site-grade--a { color: #3fb950; }
-.dash-site-grade--b { color: #58a6ff; }
-.dash-site-grade--c { color: #d29922; }
-.dash-site-grade--d { color: #db6d28; }
-.dash-site-grade--f { color: #f85149; }
-.dash-uptime-issue {
+.dash-site-grade--a { color: #3fb950; background: rgba(63, 185, 80, 0.12); }
+.dash-site-grade--b { color: #58a6ff; background: rgba(88, 166, 255, 0.12); }
+.dash-site-grade--c { color: #d29922; background: rgba(210, 153, 34, 0.14); }
+.dash-site-grade--d { color: #db6d28; background: rgba(219, 109, 40, 0.14); }
+.dash-site-grade--f { color: #f85149; background: rgba(248, 81, 73, 0.12); }
+.dash-site-signals {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: 0.95rem;
+  margin-top: auto;
+  width: 100%;
+}
+.dash-site-signal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 4px;
+  opacity: 0.35;
+  color: var(--muted);
+}
+.dash-site-signal svg {
+  display: block;
+}
+.dash-site-signal--ok {
+  opacity: 1;
+  color: #3fb950;
+}
+.dash-site-signal--warn {
+  opacity: 1;
+  color: #d29922;
+}
+.dash-site-signal--crit {
+  opacity: 1;
   color: #f85149;
-  opacity: 0.92;
+}
+.dash-site-signal--unknown {
+  opacity: 0.28;
+  color: var(--muted);
 }
 .dash-uptime-tile--health-warn:not(.dash-uptime-tile--down) {
   border-color: rgba(210, 153, 34, 0.45);

@@ -3855,11 +3855,80 @@ function siteHealthForCard(card, siteHealth) {
   return sites[card.siteId] || null;
 }
 
-function dashboardSiteHealthIssueLine(health) {
-  if (!health || !Array.isArray(health.issues) || !health.issues.length) return '';
-  const critical = health.issues.find((i) => i.severity === 'critical');
-  const top = critical || health.issues[0];
-  return top?.label || '';
+const SITE_HEALTH_SIGNALS = [
+  { key: 'robots', icon: 'file-text', label: 'robots.txt' },
+  { key: 'gsc', icon: 'search', label: 'Search Console' },
+  { key: 'analytics', icon: 'bar-chart-2', label: 'Analytics' },
+];
+
+function siteHealthIssueCodes(health) {
+  if (!health || !Array.isArray(health.issues)) return new Set();
+  return new Set(health.issues.map((i) => i.code).filter(Boolean));
+}
+
+function siteHealthSignalState(key, health, card, fleet, opts = {}) {
+  const codes = siteHealthIssueCodes(health);
+  if (key === 'robots') {
+    if (!health) return 'unknown';
+    if (codes.has('robots_blocked')) return 'crit';
+    if (codes.has('robots_missing')) return 'warn';
+    return 'ok';
+  }
+  if (key === 'gsc') {
+    if (!health) return 'unknown';
+    if (codes.has('gsc_missing')) return 'crit';
+    if (codes.has('gsc_unconnected')) return 'warn';
+    if (fleet?.googleConnected === false) return 'warn';
+    return 'ok';
+  }
+  if (key === 'analytics') {
+    if (card.analytics) {
+      return card.analytics.registered ? 'ok' : 'warn';
+    }
+    if (opts.analyticsLoading) return 'unknown';
+    if (opts.analyticsLive) return 'warn';
+    return 'unknown';
+  }
+  return 'unknown';
+}
+
+function siteHealthSignalTitle(key, state, health, card, opts = {}) {
+  const codes = siteHealthIssueCodes(health);
+  if (key === 'robots') {
+    if (state === 'crit') return 'robots.txt blocks crawlers';
+    if (state === 'warn') return 'No robots.txt';
+    if (state === 'ok') return 'robots.txt OK';
+    return 'robots.txt — checking…';
+  }
+  if (key === 'gsc') {
+    if (state === 'crit') return 'Not in Search Console';
+    if (state === 'warn') {
+      if (codes.has('gsc_unconnected')) return 'Search Console not connected';
+      return 'Search Console not connected';
+    }
+    if (state === 'ok') return 'In Search Console';
+    return 'Search Console — checking…';
+  }
+  if (key === 'analytics') {
+    if (state === 'warn') return 'Analytics not wired';
+    if (state === 'ok') return 'Analytics wired';
+    if (opts.analyticsLoading) return 'Analytics — loading…';
+    return 'Analytics';
+  }
+  return '';
+}
+
+function dashboardSiteHealthSignalsHtml(health, card, fleet, opts = {}) {
+  const parts = SITE_HEALTH_SIGNALS.map((sig) => {
+    const state = siteHealthSignalState(sig.key, health, card, fleet, opts);
+    const title = siteHealthSignalTitle(sig.key, state, health, card, opts);
+    return (
+      `<span class="dash-site-signal dash-site-signal--${state}" title="${escHtml(title)}" aria-label="${escHtml(title)}">` +
+        `${iosIcon(sig.icon, 11)}` +
+      `</span>`
+    );
+  });
+  return `<div class="dash-site-signals" aria-hidden="false">${parts.join('')}</div>`;
 }
 
 function getUptimeSyncSitesButton() {
@@ -5804,28 +5873,29 @@ function renderAdminDashboard(data, opts = {}) {
         analyticsLive,
         analyticsLoading,
       });
-      const issueLine = dashboardSiteHealthIssueLine(health);
       const grade = health?.grade ? String(health.grade).toUpperCase() : '';
       const gradeClass = grade
-        ? ` dash-site-grade dash-site-grade--${grade.toLowerCase()}`
+        ? `dash-site-grade dash-site-grade--${grade.toLowerCase()}`
         : '';
+      const signalsHtml = dashboardSiteHealthSignalsHtml(health, card, siteHealth, {
+        analyticsLive,
+        analyticsLoading,
+      });
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className =
-        `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}` +
+        `dash-uptime-tile dash-fleet-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}` +
         (health?.criticalCount > 0 ? ' dash-uptime-tile--health-warn' : '');
       const issueHint = health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
       btn.title = [card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — ');
       btn.innerHTML =
-        `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
         `<div class="dash-uptime-name-row">` +
+          `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
           `<div class="dash-uptime-name">${escHtml(card.label || card.siteId)}</div>` +
-          (grade ? `<span class="${gradeClass.trim()}" aria-label="Grade ${escHtml(grade)}">${escHtml(grade)}</span>` : '') +
+          (grade ? `<span class="${gradeClass}" aria-label="Grade ${escHtml(grade)}">${escHtml(grade)}</span>` : '') +
         `</div>` +
         `<div class="dash-uptime-meta">${escHtml(meta)}</div>` +
-        (issueLine
-          ? `<div class="dash-uptime-meta dash-uptime-issue">${escHtml(issueLine)}</div>`
-          : '');
+        signalsHtml;
       btn.addEventListener('click', () => {
         setActiveMap('analytics', { force: true, analyticsSiteId: card.siteId });
       });
@@ -5836,7 +5906,7 @@ function renderAdminDashboard(data, opts = {}) {
     if (analyticsLive) {
       const more = document.createElement('button');
       more.type = 'button';
-      more.className = 'dash-uptime-tile dash-uptime-tile--add';
+      more.className = 'dash-uptime-tile dash-uptime-tile--add dash-fleet-tile';
       more.innerHTML =
         `<span class="dash-uptime-add-icon" aria-hidden="true">${navIcon('bar-chart-2', 16)}</span>` +
         `<div class="dash-uptime-name">All accounts</div>`;
@@ -5911,9 +5981,29 @@ function renderAdminDashboard(data, opts = {}) {
   if (!opts.skipHydrate && siteCards.length && !siteHealth) {
     void hydrateDashboardSiteHealth();
   }
+  if (!opts.skipHydrate && siteCards.length) {
+    void hydrateDashboardSiteWiring();
+  }
 }
 
 let dashboardSiteHealthHydrateGen = 0;
+let dashboardSiteWireRuns = 0;
+const DASHBOARD_SITE_WIRE_MAX = 2;
+
+async function hydrateDashboardSiteWiring() {
+  if (dashboardSiteWireRuns >= DASHBOARD_SITE_WIRE_MAX) return;
+  dashboardSiteWireRuns += 1;
+  try {
+    const res = await adminFetch('/api/admin/sites/wire', { method: 'POST' });
+    const payload = await readAdminJson(res, 'site wire');
+    if (MAP?.type !== 'dashboard') return;
+    if (!payload.wired) return;
+    void hydrateDashboardAnalytics();
+    void hydrateDashboardSiteHealth();
+  } catch {
+    /* background wiring — silent */
+  }
+}
 
 async function hydrateDashboardSiteHealth() {
   const gen = ++dashboardSiteHealthHydrateGen;
@@ -5937,6 +6027,7 @@ async function hydrateDashboardSiteHealth() {
       },
     };
     renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+    void hydrateDashboardSiteWiring();
   } catch {
     /* background grade — leave cards without letters until next load */
   }

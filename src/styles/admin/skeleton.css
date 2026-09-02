@@ -341,7 +341,7 @@
 }
 
 .sk-home-uptime-tile {
-  min-height: var(--dash-uptime-add-min-h);
+  min-height: var(--dash-fleet-tile-min-h, var(--dash-uptime-add-min-h));
   border-radius: 10px;
 }
 

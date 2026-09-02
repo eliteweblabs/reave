@@ -55,6 +55,11 @@ const PROBE_CONCURRENCY = 4;
 let healthCache: { at: number; fleet: SiteHealthFleet } | null = null;
 let healthInflight: Promise<SiteHealthFleet> | null = null;
 
+/** Drop cached grades after wiring or manual refresh. */
+export function invalidateSiteHealthFleetCache(): void {
+  healthCache = null;
+}
+
 export function peekCachedSiteHealthFleet(
   opts: { allowStale?: boolean } = {},
 ): SiteHealthFleet | null {
