@@ -145,6 +145,50 @@ export type SiteLandingReview = {
   stars?: string;
 };
 
+export type SiteLandingPackPhoto = {
+  src: string;
+  alt: string;
+};
+
+/** PDX Paws–style neighborhood pack landing (marquee, service cards, photo wall). */
+export type SiteLandingPackConfig = {
+  marquee?: string[];
+  hero?: {
+    headlineLines?: string[];
+    headlineAccent?: string;
+    primaryCta?: { label: string; href: string };
+    secondaryCta?: { label: string; href: string };
+    mainImage?: string;
+    mainAlt?: string;
+    insetImage?: string;
+    insetAlt?: string;
+    aboutImage?: string;
+    aboutAlt?: string;
+  };
+  wall?: {
+    id?: string;
+    eyebrow?: string;
+    heading?: string;
+    intro?: string;
+    steps?: string[];
+    photos?: SiteLandingPackPhoto[];
+  };
+  social?: {
+    instagram?: string;
+    hashtag?: string;
+    instagramUrl?: string;
+    mapsUrl?: string;
+    city?: string;
+  };
+  nav?: Array<{ href: string; label: string }>;
+  cancellation?: string;
+  booking?: {
+    sheetTitle?: string;
+    sheetKicker?: string;
+    smsIntro?: string;
+  };
+};
+
 /** Aggregated static marketing site — rendered when homepage.template === "landing". */
 export type SiteLandingConfig = {
   title?: string;
@@ -156,9 +200,10 @@ export type SiteLandingConfig = {
    * `editorial` = Campion-style scrolling site.
    * `service` = mobile call-first single page (trades / emergency).
    * `tech` = mobile-first Salesforce / consulting landing.
+   * `pack` = PDX Paws–style neighborhood service site (marquee, cards, wall).
    * Default keeps the original navy landing.
    */
-  variant?: "default" | "editorial" | "service" | "tech";
+  variant?: "default" | "editorial" | "service" | "tech" | "pack";
   photo?: {
     src: string;
     alt: string;
@@ -183,8 +228,22 @@ export type SiteLandingConfig = {
   /** Plain service list for `service` / `tech` landings (no map / directions). */
   services?: {
     heading: string;
-    items: Array<string | { label: string; icon?: string; description?: string }>;
+    intro?: string;
+    items: Array<
+      | string
+      | {
+          label: string;
+          icon?: string;
+          description?: string;
+          kicker?: string;
+          prices?: string[];
+          featured?: boolean;
+          bookHref?: string;
+        }
+    >;
   };
+  /** Pack-variant chrome (marquee, wall, speed dial). */
+  pack?: SiteLandingPackConfig;
   /** Leadership bios for `tech` landings. */
   team?: {
     heading: string;

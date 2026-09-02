@@ -1,0 +1,33 @@
+{
+  "features": [
+    "website",
+    "scheduling",
+    "fleet_tracking",
+    "time_tracking",
+    "client_portal",
+    "documents",
+    "portal_assistant"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "punchlist",
+    "documents",
+    "knowledge",
+    "chats",
+    "work",
+    "schedule",
+    "clients",
+    "fleet"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "addons"
+  ],
+  "homepageTemplate": "landing",
+  "siteContentKey": "drpawscalls"
+}

@@ -1,0 +1,150 @@
+{
+  "key": "drpawscalls",
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "Dr Paws Calls",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true
+  },
+  "landing": {
+    "variant": "pack",
+    "title": "Dr Paws Calls · Mobile veterinary house calls",
+    "description": "Mobile veterinary care at home — wellness exams, vaccines, urgent visits, and end-of-life support. We come to you so your pet stays comfortable.",
+    "themeColor": "#1c1410",
+    "eyebrow": "Mobile vet · We come to you",
+    "name": "Dr Paws Calls",
+    "tagline": "Real veterinary care in your living room — less stress for pets, less hassle for you.",
+    "heroHeadline": "Call them. Care for them. At home.",
+    "heroBody": "Dr Paws Calls is mobile veterinary care with people who actually like your pet. House calls, wellness, vaccines, and the hard days too — calm, one-on-one, no waiting room.",
+    "heroLogo": "/sites/drpawscalls/logo.png",
+    "scheduleUrl": "/form/schedule",
+    "services": {
+      "heading": "Care where they're comfortable",
+      "intro": "House calls up front. Wellness, vaccines, and urgent visits when you need a vet who shows up.",
+      "items": [
+        {
+          "label": "House calls",
+          "kicker": "Your couch, our exam table",
+          "description": "Full veterinary visits at home — exam, treatment plan, and prescriptions without loading a stressed pet into the car.",
+          "prices": ["Wellness visit — from $175", "Multi-pet same address — ask when booking"],
+          "featured": true,
+          "bookHref": "/form/schedule"
+        },
+        {
+          "label": "Wellness & vaccines",
+          "kicker": "Annuals without the lobby",
+          "description": "Checkups, vaccines, and lab work coordinated around your schedule. We bring what we need and leave you a clear plan.",
+          "prices": ["Annual wellness — quoted at booking", "Vaccine packages — text for details"],
+          "featured": true,
+          "bookHref": "/form/schedule"
+        },
+        {
+          "label": "Urgent visits",
+          "kicker": "Same-day when we can",
+          "description": "Not an ER — but when something's off and you need a vet today, we triage by phone and come when it's safe to treat at home.",
+          "prices": ["Urgent slot — availability varies", "After-hours — call first"],
+          "featured": false,
+          "bookHref": "/form/schedule"
+        },
+        {
+          "label": "Senior & chronic care",
+          "kicker": "Long relationships, gentle hands",
+          "description": "Arthritis, diabetes, kidney disease — ongoing care plans with visits that respect how much your old friend can handle.",
+          "prices": ["Care plan — set at first visit", "Follow-ups — bundled when possible"],
+          "featured": false,
+          "bookHref": "/form/schedule"
+        },
+        {
+          "label": "End-of-life care",
+          "kicker": "Peaceful goodbyes at home",
+          "description": "Quality-of-life consults and humane euthanasia in the place your pet feels safest. We move slowly and answer every question.",
+          "prices": ["Consult — $150", "At-home passing — quoted after consult"],
+          "featured": false,
+          "bookHref": "/form/schedule"
+        }
+      ]
+    },
+    "pack": {
+      "marquee": [
+        "House calls",
+        "Wellness exams",
+        "Vaccines",
+        "Senior care",
+        "Urgent visits",
+        "End-of-life"
+      ],
+      "hero": {
+        "headlineLines": ["Call them.", "Care for them."],
+        "headlineAccent": "At home.",
+        "primaryCta": { "label": "Book a visit", "href": "/form/schedule" },
+        "secondaryCta": { "label": "See happy patients", "href": "#wall" },
+        "mainImage": "/sites/drpawscalls/hero/main.jpg",
+        "mainAlt": "A mobile vet visit with a happy dog at home",
+        "insetImage": "/sites/drpawscalls/hero/inset.jpg",
+        "insetAlt": "Veterinarian kneeling beside a calm dog",
+        "aboutImage": "/sites/drpawscalls/hero/about.jpg",
+        "aboutAlt": "Dr Paws Calls on a house-call visit"
+      },
+      "wall": {
+        "id": "wall",
+        "eyebrow": "Happy patients",
+        "heading": "Tag us. We put you up.",
+        "intro": "Post your pet, tag @drpawscalls and #DrPawsCalls. The best shots land here — no app to download, just good dogs and cats being cute at home.",
+        "steps": [
+          "1. Snap a photo — messy couch hair counts.",
+          "2. Post it and tag @drpawscalls.",
+          "3. Drop #DrPawsCalls so we can find you."
+        ],
+        "photos": [
+          { "src": "/sites/drpawscalls/wall/01.jpeg", "alt": "Happy dog on a home visit" },
+          { "src": "/sites/drpawscalls/wall/02.jpeg", "alt": "Calm pup after an exam" },
+          { "src": "/sites/drpawscalls/wall/03.jpg", "alt": "Pet looking up from the rug" },
+          { "src": "/sites/drpawscalls/wall/04.jpg", "alt": "House-call moment in the kitchen" },
+          { "src": "/sites/drpawscalls/wall/05.jpg", "alt": "Senior dog getting gentle care" },
+          { "src": "/sites/drpawscalls/wall/06.jpg", "alt": "Tail wag at the front door" }
+        ]
+      },
+      "social": {
+        "instagram": "drpawscalls",
+        "hashtag": "DrPawsCalls",
+        "instagramUrl": "https://instagram.com/drpawscalls",
+        "city": "Greater Boston · Mobile service area"
+      },
+      "nav": [
+        { "href": "#services", "label": "Services" },
+        { "href": "#wall", "label": "Patients" },
+        { "href": "#about", "label": "About" }
+      ],
+      "cancellation": "House calls: 24 hours. Same-day urgent slots: 4 hours. Late cancel or no-show may be charged a travel fee.",
+      "booking": {
+        "sheetKicker": "Let's book it",
+        "sheetTitle": "Text us a plan",
+        "smsIntro": "Hi Dr Paws Calls — I'd like to book something for my pet"
+      }
+    },
+    "about": {
+      "heading": "We're the humans behind the badge.",
+      "body": [
+        "Dr Paws Calls takes a whole-pet approach: care that meets your animal where they're calmest — usually home. Fewer car rides, fewer waiting-room meltdowns, more time for the exam that actually matters.",
+        "We're built for mobile field service — real scheduling, real routes, real follow-up. You talk to the team that shows up, not a call center."
+      ]
+    },
+    "contact": {
+      "heading": "Reach us",
+      "phone": "(617) 797-3070",
+      "phoneHref": "tel:+16177973070"
+    },
+    "footer": "Placeholder photography — swap in Dr Paws branding and patient photos in admin → Media when ready."
+  }
+}

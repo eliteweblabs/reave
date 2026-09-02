@@ -1,0 +1,620 @@
+---
+/**
+ * PDX Paws–style neighborhood service landing (marquee, cards, photo wall, speed dial).
+ */
+import type { SiteLandingConfig } from "../../lib/siteContent";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { contactTelHref } from "../../lib/contactApi";
+import "../../styles/pack-landing.css";
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+const company = await getCompanyConfig(Astro.request);
+const pack = landing.pack ?? {};
+const hero = pack.hero ?? {};
+const wall = pack.wall ?? {};
+const social = pack.social ?? {};
+const contact = landing.contact ?? {};
+const about = landing.about ?? {};
+const services = landing.services;
+const booking = pack.booking ?? {};
+
+const brandName = landing.name || company.name || "Book";
+const logoSrc =
+  (landing.heroLogo || "").trim() ||
+  (company.logoPath && company.logoSource !== "hidden"
+    ? `${company.logoPath}${company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : ""}`
+    : "");
+
+const phoneDisplay = (contact.phone || company.supportPhone || "").trim();
+const phoneDigits = contactTelHref(
+  contact.phoneHref?.replace(/^tel:/i, "") || phoneDisplay,
+);
+const phoneHref = phoneDigits ? `tel:${phoneDigits}` : "";
+const phonePretty = phoneDisplay || phoneDigits;
+const email = contact.email || company.supportEmail || "";
+const scheduleUrl = landing.scheduleUrl || "/form/schedule";
+
+const headlineLines = hero.headlineLines?.length
+  ? hero.headlineLines
+  : landing.heroHeadline
+    ? landing.heroHeadline.split(/\.\s+/).filter(Boolean)
+    : [brandName];
+
+const accent = hero.headlineAccent || headlineLines[headlineLines.length - 1] || "";
+const bodyLines = accent && headlineLines[headlineLines.length - 1] === accent
+  ? headlineLines.slice(0, -1)
+  : headlineLines;
+
+const primaryCta = hero.primaryCta ?? { label: "Book a visit", href: scheduleUrl };
+const secondaryCta = hero.secondaryCta ?? {
+  label: "See happy patients",
+  href: `#${wall.id || "wall"}`,
+};
+
+const marqueeItems =
+  pack.marquee?.length ? pack.marquee : ["House calls", "Wellness", "Vaccines", "Senior care"];
+
+const navLinks = pack.nav?.length
+  ? pack.nav
+  : [
+      { href: "#services", label: "Services" },
+      { href: `#${wall.id || "wall"}`, label: "Patients" },
+      { href: "#about", label: "About" },
+    ];
+
+const serviceItems =
+  services?.items?.map((item) => {
+    if (typeof item === "string") {
+      return { name: item, kicker: "", blurb: "", prices: [] as string[], featured: false, bookHref: scheduleUrl };
+    }
+    return {
+      name: item.label,
+      kicker: item.kicker || "",
+      blurb: item.description || "",
+      prices: item.prices || [],
+      featured: Boolean(item.featured),
+      bookHref: item.bookHref || scheduleUrl,
+    };
+  }) ?? [];
+
+const wallPhotos = wall.photos ?? [];
+const hashtag = social.hashtag || "DrPawsCalls";
+const instagram = social.instagram || "";
+const instagramUrl = social.instagramUrl || (instagram ? `https://instagram.com/${instagram}` : "");
+const mapsUrl = social.mapsUrl || "";
+const city = social.city || contact.officeLines?.join(", ") || "";
+const wallId = wall.id || "wall";
+const smsIntro =
+  booking.smsIntro ||
+  `Hi ${brandName} — I'd like to book something for my pet.`;
+
+const smsHref = phoneDigits
+  ? `sms:+${phoneDigits}?&body=${encodeURIComponent(smsIntro)}`
+  : scheduleUrl;
+---
+
+<div class="pack" data-pack-root>
+  <a class="pack-login" href="/sign-in">Login</a>
+
+  <header class="pack-header">
+    <div class="pack-header__inner">
+      <a class="pack-header__brand" href="#top">
+        {
+          logoSrc ? (
+            <img class="pack-header__logo" src={logoSrc} alt={brandName} width="48" height="56" />
+          ) : null
+        }
+        <span class="pack-header__name">{brandName}</span>
+      </a>
+      <nav class="pack-header__nav" aria-label="Site">
+        {navLinks.map((link) => (
+          <a href={link.href}>{link.label}</a>
+        ))}
+      </nav>
+      <a class="pack-header__book" href={scheduleUrl}>Book</a>
+    </div>
+  </header>
+
+  <main>
+    <section id="top" class="pack-hero">
+      <div class="pack-hero__glow-a" aria-hidden="true"></div>
+      <div class="pack-hero__glow-b" aria-hidden="true"></div>
+      <div class="pack-hero__grid">
+        <div>
+          {landing.eyebrow && <p class="pack-hero__eyebrow">{landing.eyebrow}</p>}
+          <h1 class="pack-hero__title">
+            {
+              bodyLines.map((line, i) => (
+                <>
+                  {line}
+                  {i < bodyLines.length - 1 || accent ? "." : ""}
+                  {i < bodyLines.length - 1 ? <br /> : null}
+                </>
+              ))
+            }
+            {
+              accent ? (
+                <>
+                  <span class="pack-sunset-text">{accent}</span>
+                </>
+              ) : null
+            }
+          </h1>
+          {
+            landing.heroBody && (
+              <p class="pack-hero__lede">{landing.heroBody}</p>
+            )
+          }
+          <div class="pack-hero__ctas">
+            <a class="pack-btn-primary" href={primaryCta.href}>{primaryCta.label}</a>
+            <a class="pack-btn-ghost" href={secondaryCta.href}>{secondaryCta.label}</a>
+          </div>
+        </div>
+        {
+          hero.mainImage ? (
+            <div class="pack-hero__visual">
+              {
+                logoSrc ? (
+                  <img
+                    class="pack-hero__logo-float"
+                    src={logoSrc}
+                    alt=""
+                    width="112"
+                    height="128"
+                  />
+                ) : null
+              }
+              <div class="pack-hero__main-frame">
+                <img
+                  src={hero.mainImage}
+                  alt={hero.mainAlt || brandName}
+                  width="640"
+                  height="800"
+                />
+              </div>
+              {
+                hero.insetImage ? (
+                  <div class="pack-hero__inset">
+                    <img
+                      src={hero.insetImage}
+                      alt={hero.insetAlt || ""}
+                      width="320"
+                      height="320"
+                    />
+                  </div>
+                ) : null
+              }
+            </div>
+          ) : null
+        }
+      </div>
+      <div class="pack-marquee" aria-hidden="true">
+        <div class="pack-marquee__track">
+          {
+            [0, 1].map(() => (
+              <span style="display:flex;gap:2rem;padding:0 1rem;">
+                {
+                  marqueeItems.map((item, i) => (
+                    <>
+                      <span>{item}</span>
+                      {i < marqueeItems.length - 1 ? <span aria-hidden="true">●</span> : null}
+                    </>
+                  ))
+                }
+                {instagram ? (
+                  <>
+                    <span aria-hidden="true">●</span>
+                    <span>Tag @{instagram}</span>
+                  </>
+                ) : null}
+                <span aria-hidden="true">●</span>
+              </span>
+            ))
+          }
+        </div>
+      </div>
+      <div class="pack-sunset-bar"></div>
+    </section>
+
+    {
+      serviceItems.length ? (
+        <section id="services" class="pack-section pack-section--cream">
+          <div class="pack-section__inner">
+            <p class="pack-hand">{services?.intro ? "What we do" : "Services"}</p>
+            <h2 class="pack-section__title">{services?.heading}</h2>
+            {services?.intro && <p class="pack-section__intro">{services.intro}</p>}
+            <div class="pack-services">
+              {
+                serviceItems.map((service) => (
+                  <article class:list={["pack-service", service.featured && "pack-service--featured"]}>
+                    {service.kicker && <p class="pack-service__kicker">{service.kicker}</p>}
+                    <h3 class="pack-service__name">{service.name}</h3>
+                    {service.blurb && <p class="pack-service__blurb">{service.blurb}</p>}
+                    {
+                      service.prices.length ? (
+                        <ul class="pack-service__prices">
+                          {service.prices.map((price) => (
+                            <li>{price}</li>
+                          ))}
+                        </ul>
+                      ) : null
+                    }
+                    {
+                      service.bookHref.startsWith("/") || service.bookHref.startsWith("#") ? (
+                        <a class="pack-service__book" href={service.bookHref}>
+                          Schedule {service.name.toLowerCase()}
+                        </a>
+                      ) : (
+                        <button
+                          type="button"
+                          class="pack-service__book"
+                          data-book={service.name}
+                        >
+                          Schedule {service.name.toLowerCase()}
+                        </button>
+                      )
+                    }
+                  </article>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+      ) : null
+    }
+
+    {
+      wallPhotos.length ? (
+        <section id={wallId} class="pack-section pack-section--dark">
+          <div class="pack-section__inner">
+            <div class="pack-wall-head">
+              <div>
+                {wall.eyebrow && <p class="pack-hand">{wall.eyebrow}</p>}
+                <h2 class="pack-section__title">{wall.heading || "Tag us. We put you up."}</h2>
+                {
+                  wall.intro ? (
+                    <p class="pack-section__intro">{wall.intro}</p>
+                  ) : instagram ? (
+                    <p class="pack-section__intro">
+                      Post your pup, tag <strong>@{instagram}</strong>
+                      {hashtag ? <> and <strong>#{hashtag}</strong></> : null}. The best shots land here.
+                    </p>
+                  ) : null
+                }
+              </div>
+              {
+                hashtag || instagramUrl ? (
+                  <div class="pack-wall-actions">
+                    {hashtag ? (
+                      <button type="button" id="pack-copy-tag" data-hashtag={hashtag}>
+                        Copy #{hashtag}
+                      </button>
+                    ) : null}
+                    {
+                      instagramUrl ? (
+                        <a href={instagramUrl} target="_blank" rel="noreferrer">
+                          Open Instagram
+                        </a>
+                      ) : null
+                    }
+                  </div>
+                ) : null
+              }
+            </div>
+            <div class="pack-masonry">
+              {
+                wallPhotos.map((photo) => (
+                  <button
+                    type="button"
+                    class="pack-masonry__item"
+                    data-lightbox={photo.src}
+                    data-alt={photo.alt}
+                  >
+                    <img src={photo.src} alt={photo.alt} loading="lazy" />
+                  </button>
+                ))
+              }
+            </div>
+            {
+              wall.steps?.length ? (
+                <div class="pack-wall-steps">
+                  <p class="pack-hand">Want your pet on this wall?</p>
+                  <ol>
+                    {wall.steps.map((step) => (
+                      <li>{step}</li>
+                    ))}
+                  </ol>
+                  {
+                    instagramUrl ? (
+                      <a class="pack-btn-primary" href={instagramUrl} target="_blank" rel="noreferrer" style="margin-top:1.25rem;display:inline-flex;">
+                        {instagram ? `Tag @${instagram}` : "Open Instagram"}
+                      </a>
+                    ) : null
+                  }
+                </div>
+              ) : null
+            }
+          </div>
+        </section>
+      ) : null
+    }
+
+    <section id="about" class="pack-section pack-section--cream">
+      <div class="pack-section__inner pack-about">
+        {
+          hero.aboutImage ? (
+            <div class="pack-about__photo">
+              <img src={hero.aboutImage} alt={hero.aboutAlt || brandName} />
+            </div>
+          ) : null
+        }
+        <div>
+          <p class="pack-hand">A little about us</p>
+          <h2 class="pack-section__title">{about.heading || "We're the humans behind the badge."}</h2>
+          {
+            about.body?.map((para) => (
+              <p class="pack-section__intro">{para}</p>
+            ))
+          }
+          {
+            !about.body?.length && landing.tagline ? (
+              <p class="pack-section__intro">{landing.tagline}</p>
+            ) : null
+          }
+          {
+            phonePretty ? (
+              <p class="pack-about__phone">Call or text {phonePretty}</p>
+            ) : null
+          }
+          {email ? <a class="pack-about__email" href={`mailto:${email}`}>{email}</a> : null}
+          {
+            city && mapsUrl ? (
+              <a class="pack-about__city" href={mapsUrl} target="_blank" rel="noreferrer">
+                <span>{city}</span>
+                <span>Service area</span>
+              </a>
+            ) : city ? (
+              <p class="pack-about__city">{city}</p>
+            ) : null
+          }
+          {
+            pack.cancellation ? (
+              <p class="pack-about__policy">
+                <strong>Cancellation.</strong> {pack.cancellation}
+              </p>
+            ) : null
+          }
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pack-footer">
+    <div class="pack-sunset-bar" style="margin:-3rem -1rem 2.5rem;"></div>
+    <div class="pack-footer__inner">
+      <div class="pack-footer__brand">
+        {logoSrc ? <img src={logoSrc} alt="" width="56" height="64" /> : null}
+        <div>
+          <p class="pack-footer__name">{brandName}</p>
+          {
+            city && mapsUrl ? (
+              <a class="pack-footer__links" href={mapsUrl} target="_blank" rel="noreferrer">
+                {city} · Service area
+              </a>
+            ) : city ? (
+              <span>{city}</span>
+            ) : null
+          }
+        </div>
+      </div>
+      <div class="pack-footer__links">
+        {phoneHref ? <a href={phoneHref}>{phonePretty}</a> : null}
+        {email ? <a href={`mailto:${email}`}>{email}</a> : null}
+        {
+          instagramUrl ? (
+            <a href={instagramUrl} target="_blank" rel="noreferrer">
+              {instagram ? `Instagram @${instagram}` : "Instagram"}
+            </a>
+          ) : null
+        }
+      </div>
+    </div>
+    {landing.footer && <p class="pack-footer__note">{landing.footer}</p>}
+  </footer>
+
+  {
+    phoneHref ? (
+      <nav class="pack-speed-dial" aria-label="Speed dial">
+        <div class="pack-speed-dial__grid">
+          {
+            mapsUrl ? (
+              <a class="pack-speed-dial__maps" href={mapsUrl} target="_blank" rel="noreferrer">
+                <!-- IOS_ICONS.map-pin — keep in sync with public/admin/admin-ui.js -->
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                  <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"></path>
+                  <circle cx="12" cy="10" r="2.25"></circle>
+                </svg>
+                <span>Area</span>
+              </a>
+            ) : (
+              <a class="pack-speed-dial__maps" href={scheduleUrl}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                  <path d="M16 2v4M8 2v4M3 10h18"></path>
+                </svg>
+                <span>Book</span>
+              </a>
+            )
+          }
+          <a class="pack-speed-dial__call" href={phoneHref}>
+            <!-- IOS_ICONS.phone -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+              <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path>
+            </svg>
+            <span>Call</span>
+          </a>
+          <a class="pack-speed-dial__sms" href={smsHref}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+              <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span>Text</span>
+          </a>
+        </div>
+      </nav>
+    ) : null
+  }
+
+  {
+    serviceItems.length && phoneDigits ? (
+      <div id="pack-schedule-sheet" class="pack-sheet" hidden>
+        <div class="pack-sheet__panel">
+          <div class="pack-sheet__handle" aria-hidden="true"></div>
+          <div class="pack-sheet__head">
+            <div>
+              <p class="pack-hand">{booking.sheetKicker || "Let's book it"}</p>
+              <h2 id="schedule" class="pack-section__title">{booking.sheetTitle || "Text us a plan"}</h2>
+            </div>
+            <button type="button" class="pack-sheet__close" id="pack-sheet-close">Close</button>
+          </div>
+          <form id="pack-book-form" class="pack-sheet__form">
+            <fieldset>
+              <legend class="pack-sheet__legend">Service</legend>
+              <div class="pack-sheet__chips">
+                {
+                  serviceItems.map((service, i) => (
+                    <label>
+                      <input type="radio" name="service" value={service.name} checked={i === 0} />
+                      <span>{service.name}</span>
+                    </label>
+                  ))
+                }
+              </div>
+            </fieldset>
+            <label>
+              <span class="pack-sheet__legend">Pet's name</span>
+              <input class="pack-sheet__input" name="pet" placeholder="e.g. Maple" />
+            </label>
+            <fieldset>
+              <legend class="pack-sheet__legend">When</legend>
+              <div class="pack-sheet__chips">
+                {["ASAP", "Today", "This week"].map((when, i) => (
+                  <label>
+                    <input type="radio" name="when" value={when} checked={i === 2} />
+                    <span>{when}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <button type="submit" class="pack-sheet__submit">Open SMS</button>
+            <p class="pack-sheet__hint">Opens a text to {phonePretty}. No account needed.</p>
+          </form>
+        </div>
+      </div>
+    ) : null
+  }
+
+  <div id="pack-lightbox" class="pack-lightbox" hidden>
+    <button type="button" class="pack-lightbox__close" id="pack-lightbox-close">Close</button>
+    <figure>
+      <img id="pack-lightbox-img" src="" alt="" />
+      <figcaption id="pack-lightbox-cap"></figcaption>
+      <p>{instagram ? `This could be your pet. Tag @${instagram}.` : "Happy patients welcome."}</p>
+    </figure>
+  </div>
+</div>
+
+<script define:vars={{ phoneDigits, brandName, hashtag, smsIntro }}>
+  const copyBtn = document.getElementById("pack-copy-tag");
+  copyBtn?.addEventListener("click", async () => {
+    const tag = copyBtn.dataset.hashtag || hashtag;
+    try {
+      await navigator.clipboard.writeText(`#${tag}`);
+      copyBtn.textContent = "Copied. Now go tag us.";
+      setTimeout(() => {
+        copyBtn.textContent = `Copy #${tag}`;
+      }, 2200);
+    } catch {
+      copyBtn.textContent = `#${tag}`;
+    }
+  });
+
+  const box = document.getElementById("pack-lightbox");
+  const img = document.getElementById("pack-lightbox-img");
+  const cap = document.getElementById("pack-lightbox-cap");
+  const closeLb = document.getElementById("pack-lightbox-close");
+
+  function hideLightbox() {
+    box?.classList.remove("is-open");
+    box?.setAttribute("hidden", "");
+  }
+  function showLightbox(src, alt) {
+    if (!(img instanceof HTMLImageElement)) return;
+    img.src = src;
+    img.alt = alt;
+    if (cap) cap.textContent = alt;
+    box?.classList.add("is-open");
+    box?.removeAttribute("hidden");
+  }
+
+  document.querySelectorAll("[data-lightbox]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      showLightbox(btn.getAttribute("data-lightbox") || "", btn.getAttribute("data-alt") || "");
+    });
+  });
+  closeLb?.addEventListener("click", hideLightbox);
+  box?.addEventListener("click", (e) => {
+    if (e.target === box) hideLightbox();
+  });
+
+  const sheet = document.getElementById("pack-schedule-sheet");
+  const openers = [
+    ...document.querySelectorAll("[data-book]"),
+    ...document.querySelectorAll('a[href="#schedule"]'),
+  ];
+
+  function openSheet(service) {
+    if (service) {
+      const radio = document.querySelector(`input[name="service"][value="${CSS.escape(service)}"]`);
+      if (radio instanceof HTMLInputElement) radio.checked = true;
+    }
+    sheet?.classList.add("is-open");
+    sheet?.removeAttribute("hidden");
+  }
+  function closeSheet() {
+    sheet?.classList.remove("is-open");
+    sheet?.setAttribute("hidden", "");
+  }
+
+  openers.forEach((el) => {
+    el.addEventListener("click", (e) => {
+      if (el instanceof HTMLAnchorElement) e.preventDefault();
+      const service = el instanceof HTMLButtonElement ? el.dataset.book : undefined;
+      openSheet(service);
+    });
+  });
+  document.getElementById("pack-sheet-close")?.addEventListener("click", closeSheet);
+  sheet?.addEventListener("click", (e) => {
+    if (e.target === sheet) closeSheet();
+  });
+
+  document.getElementById("pack-book-form")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!phoneDigits) return;
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const data = new FormData(form);
+    const service = String(data.get("service") || "a visit");
+    const pet = String(data.get("pet") || "my pet").trim() || "my pet";
+    const when = String(data.get("when") || "soon");
+    const body = encodeURIComponent(
+      `${smsIntro.replace(/\.$/, "")} — I'd like to schedule ${service} for ${pet}. Timing: ${when}.`,
+    );
+    window.location.href = `sms:+${phoneDigits}?&body=${body}`;
+  });
+
+  if (location.hash === "#schedule") openSheet();
+</script>
