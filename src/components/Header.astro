@@ -401,6 +401,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     fallbackRedirectUrl={signInRedirect}
     autoOpen={signInAutoOpen && !showMarketingNav}
     authPath={authPath}
+    dismissible={true}
+    closeHref={path === '/sign-in' || inAdminRoute ? '/' : ''}
   />
 )}
 

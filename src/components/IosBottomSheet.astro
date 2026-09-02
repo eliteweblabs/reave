@@ -15,6 +15,8 @@ interface Props {
   sheetOnly?: boolean;
   /** Show the circular close control (defaults to `dismissible`). */
   showClose?: boolean;
+  /** When set, the close control is a link (escape from dedicated login pages). */
+  closeHref?: string;
   /** Start with the close button hidden (OS dialog toggles visibility). */
   closeHidden?: boolean;
   /**
@@ -38,7 +40,8 @@ const {
   titleId = `${id}-title`,
   titleClass = '',
   dismissible = true,
-  showClose = dismissible,
+  closeHref = '',
+  showClose = dismissible || Boolean(closeHref),
   closeHidden = false,
   closeVia = 'ios',
   class: className = '',
@@ -60,7 +63,19 @@ const closeAttr = closeVia === 'os-dialog' ? { 'data-os-dialog-close': true } : 
   <div class:list={['ios-sheet', sheetClass, { 'ios-sheet--visible': startOpen }]} role="dialog" aria-modal="true" aria-labelledby={titleId}>
     <div class="ios-sheet-grabber" aria-hidden="true"></div>
     <header class="ios-sheet-header">
-      {showClose && (
+      {showClose && closeHref ? (
+        <a
+          href={closeHref}
+          class="ios-sheet-close"
+          aria-label="Close"
+          hidden={closeHidden || undefined}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+          </svg>
+        </a>
+      ) : showClose ? (
         <button
           type="button"
           class="ios-sheet-close"
@@ -73,7 +88,7 @@ const closeAttr = closeVia === 'os-dialog' ? { 'data-os-dialog-close': true } : 
             <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
           </svg>
         </button>
-      )}
+      ) : null}
       <h2 class:list={['ios-sheet-title', titleClass]} id={titleId}>{title}</h2>
       <div class="ios-sheet-header-trailing">
         <slot name="header-action" />

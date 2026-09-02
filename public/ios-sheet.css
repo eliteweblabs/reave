@@ -157,6 +157,7 @@ html.ios-sheet-locked body {
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, color 0.15s;
 }

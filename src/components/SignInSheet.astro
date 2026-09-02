@@ -9,10 +9,13 @@ interface Props {
   /** Open automatically once the page loads (e.g. signed-out /admin visit). */
   autoOpen?: boolean;
   /**
-   * When false, required auth — no backdrop / close / Escape / swipe dismiss.
-   * Defaults to `!autoOpen` (auto-opened gates on protected pages are locked).
+   * When false, backdrop / Escape / swipe do not dismiss.
+   * Dedicated login pages pass true plus `closeHref` so the X can leave.
+   * Defaults to true — the sheet always shows a close control.
    */
   dismissible?: boolean;
+  /** Close control navigates here (e.g. `/` from `/sign-in` or `/admin/login`). */
+  closeHref?: string;
   /** Current page path+query — Clerk hash routing keeps sign-in/sign-up in the sheet. */
   authPath?: string;
 }
@@ -22,12 +25,12 @@ const {
   allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP !== '0',
   autoOpen = false,
   dismissible: dismissibleProp,
+  closeHref = '',
   authPath = '/sign-in',
 } = Astro.props;
 
-/** Required sign-in (auto-open on protected pages) must stay until auth succeeds. */
 const clerkReady = isClerkFrontendConfigured();
-const dismissible = dismissibleProp ?? !autoOpen;
+const dismissible = dismissibleProp ?? true;
 const startOnSignUp = allowSignUp && Astro.url.searchParams.get('mode') === 'sign-up';
 const sheetAutoOpen = autoOpen && clerkReady;
 
@@ -86,7 +89,15 @@ const clerkAppearance = {
 };
 ---
 
-<IosBottomSheet id="sign-in-sheet" title={startOnSignUp ? 'Sign up' : 'Sign in'} dismissible={dismissible} startOpen={sheetAutoOpen} class="sign-in-sheet">
+<IosBottomSheet
+  id="sign-in-sheet"
+  title={startOnSignUp ? 'Sign up' : 'Sign in'}
+  dismissible={dismissible}
+  closeHref={closeHref}
+  showClose={true}
+  startOpen={sheetAutoOpen}
+  class="sign-in-sheet"
+>
   {/*
     Mount Clerk client-side only. Never SSR-mount <SignIn> on /admin when the
     browser already has a Clerk user but the server cookie is missing — Clerk
@@ -184,7 +195,7 @@ const clerkAppearance = {
   }
 </style>
 
-<script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance }}>
+<script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref }}>
   import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260813a';
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
@@ -357,6 +368,14 @@ const clerkAppearance = {
   function onClerkReady() {
     mountClerkAuth();
     bindClerkSsrSessionSync({ autoOpenSignIn });
+  }
+
+  if (closeHref) {
+    document.getElementById('sign-in-sheet')?.addEventListener('ios-sheet-close', () => {
+      if (serverHasStaffSession()) return;
+      const next = String(closeHref);
+      if (next.startsWith('/') && !next.startsWith('//')) window.location.assign(next);
+    });
   }
 
   if (autoOpenSignIn) {
