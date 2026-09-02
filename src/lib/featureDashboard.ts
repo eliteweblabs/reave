@@ -34,8 +34,6 @@ export const FEATURE_DASHBOARD: Partial<Record<FeatureId, FeatureDashboardDef>> 
   documents: { dashboard: true, icon: 'file-text' },
   billing: { dashboard: true, icon: 'wallet' },
   analytic_audit: { dashboard: true, icon: 'bar-chart-2' },
-  content_management: { dashboard: true, icon: 'image' },
-  website: { dashboard: true, icon: 'image' },
   deploy_wizard: { dashboard: true, icon: 'sparkles' },
   site_audits: { dashboard: true, icon: 'receipt' },
   fleet_tracking: { dashboard: true, icon: 'truck' },
@@ -94,8 +92,6 @@ export function dashboardCardsForFeatures(
     if (!def?.dashboard) continue;
     if (id === 'deploy_wizard' && !opts.showDeployWizard) continue;
     const mapKey = dashboardMapKeyForFeature(id);
-    // Feature tiles dedupe on destination. Core OS tiles (e.g. Media Library)
-    // may share a mapKey with an optional module (Agentic Website Editor).
     if (!mapKey || used.has(mapKey)) continue;
     used.add(mapKey);
     cards.push({

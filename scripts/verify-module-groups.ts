@@ -77,7 +77,9 @@ const dashCards = dashboardCardsForFeatures(['social_inbox', 'online_reviews', '
 assert.ok(dashCards.some((c) => c.id === 'social_inbox' && c.title === FEATURE_LABELS.social_inbox));
 assert.ok(dashCards.some((c) => c.id === 'online_reviews' && c.title === FEATURE_LABELS.online_reviews));
 assert.ok(dashCards.some((c) => c.id === 'media' && c.title === 'Media Library' && c.mapKey === 'media'));
-assert.ok(dashCards.some((c) => c.id === 'website' && c.title === FEATURE_LABELS.website && c.mapKey === 'media'));
+assert.ok(!dashCards.some((c) => c.id === 'website' || c.id === 'content_management'));
+assert.ok(!featureShowsDashboard('website'));
+assert.ok(!featureShowsDashboard('content_management'));
 assert.ok(!dashCards.some((c) => c.id === 'client_portal'));
 assert.equal(FEATURE_LABELS.google_workspace, 'Google™ Workspace');
 assert.equal(FEATURE_LABELS.hosting_core_os, 'Core OS Hosting');
