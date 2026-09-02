@@ -61,6 +61,11 @@ const LEGACY_DEFAULT_SESSION_TITLE = 'New chat';
 /** Keep in sync with MAX_CHAT_TITLE_LENGTH in src/lib/chatTypes.ts */
 const MAX_CHAT_TITLE_LENGTH = 120;
 
+const CH_SPINNER_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="42" stroke-dashoffset="15" opacity="0.9"/>' +
+  '</svg>';
+
 export function isDefaultSessionTitle(title) {
   const t = (title || '').trim();
   return !t || t === DEFAULT_SESSION_TITLE || t === LEGACY_DEFAULT_SESSION_TITLE;
@@ -1539,8 +1544,13 @@ function createChatListItem(t) {
   item.dataset.id = t.id;
   if (isActive) item.setAttribute('aria-current', 'page');
   const category = chatListCategory(t);
+  const statusIndicator =
+    `<span class="ch-item-status" aria-hidden="true">` +
+    `<span class="ch-item-status-spinner">${CH_SPINNER_SVG}</span>` +
+    `</span>`;
   item.innerHTML =
     sidebarAuthorIconHtml({ contactUid: t.contact_uid, iconUrl: t.author_icon_url }) +
+    statusIndicator +
     `<span class="ch-list-content">` +
       `<span class="em-item-row em-item-header">` +
         `<span class="em-unseen-dot" aria-hidden="true"></span>` +
@@ -1560,7 +1570,8 @@ function createChatListItem(t) {
 
 /**
  * Patch running state on existing sidebar rows (called on every running-poll
- * tick) instead of rebuilding the list — a class toggle shows the Working chip.
+ * tick) instead of rebuilding the list — a class toggle shows the Working chip
+ * and top-right spinner.
  */
 function applyChatRunningIndicators() {
   const root = getChatPanel();
