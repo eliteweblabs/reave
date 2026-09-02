@@ -114,6 +114,7 @@ export async function readApiJson(res) {
 }
 
 export function escHtml(str) {
+  // Keep in sync with public/shared/htmlEscape.js / src/lib/htmlEscape.ts
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

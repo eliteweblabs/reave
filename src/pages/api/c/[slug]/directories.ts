@@ -13,23 +13,11 @@ import {
 } from '../../../../lib/contactApi';
 import { hasFeature } from '../../../../lib/features';
 import { clientIp } from '../../../../lib/clientIp';
+import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
 import { checkDirectoryCoverage } from '../../../../lib/salesSheetDirectoryCheck';
 import { renderPortalDirectoriesExhibitHtml } from '../../../../lib/salesSheetExhibits';
 
 export const prerender = false;
-
-const hits = new Map<string, { n: number; t: number }>();
-
-function rateLimited(key: string): boolean {
-  const now = Date.now();
-  const row = hits.get(key);
-  if (!row || now - row.t > 60_000) {
-    hits.set(key, { n: 1, t: now });
-    return false;
-  }
-  row.n += 1;
-  return row.n > 12;
-}
 
 export const GET: APIRoute = async ({ params, request }) => {
   if (!hasFeature('client_portal')) {
@@ -39,8 +27,16 @@ export const GET: APIRoute = async ({ params, request }) => {
   const uid = (params.slug ?? '').trim();
   if (!uid) return jsonResponse({ ok: false, error: 'Missing contact id' }, 400);
 
-  if (rateLimited(`${uid}:${clientIp(request)}`)) {
-    return jsonResponse({ ok: false, error: 'Too many requests' }, 429);
+  const rate = checkInMemoryRateLimit(`portal-dirs:${uid}:${clientIp(request)}`, {
+    windowMs: 60_000,
+    maxPerWindow: 12,
+  });
+  if (!rate.ok) {
+    return jsonResponse(
+      { ok: false, error: 'Too many requests' },
+      429,
+      { headers: { 'Retry-After': String(rate.retryAfterSeconds) } },
+    );
   }
 
   const contactRes = await getContact(uid);

@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('./db');
-const { safeCompare } = require('./lib/safeCompare');
+const { safeCompare } = require('../lib/safeCompare');
 const { checkRateLimit, clientIp } = require('../lib/rateLimit');
 
 const app = express();
