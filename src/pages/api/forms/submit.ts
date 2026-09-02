@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { processContactFormIntake } from '../../../lib/contactFormIntake';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
-import { jsonResponse } from '../../../lib/apiResponse';
+import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
 import { isValidEmail } from '../../../lib/installIdentityFormat';
 
 /** Max field lengths — keeps public form abuse bounded. */
@@ -31,7 +31,9 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   try {
-    const formData = (await request.json()) as Record<string, unknown>;
+    const parsed = await readJsonBody(request);
+    if (parsed instanceof Response) return parsed;
+    const formData = parsed.body;
 
     // Honeypot — bots fill hidden "website_url"; real forms use "url" or omit.
     const honeypot = String(formData.website_url ?? formData.company_website ?? '').trim();

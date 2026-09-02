@@ -9,6 +9,7 @@
     rejected: { label: 'Rejected', tone: 'alert' },
   };
 
+  // Keep in sync with public/shared/htmlEscape.js / src/lib/htmlEscape.ts
   function escHtml(value) {
     return String(value)
       .replace(/&/g, '&amp;')

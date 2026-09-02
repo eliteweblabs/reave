@@ -3,7 +3,7 @@ const { readFileSync, existsSync } = require('fs');
 const { join } = require('path');
 const { getProvider, listProviders, withDefaultZip } = require('./providers');
 const cache = require('./lib/cache');
-const { safeCompare } = require('./lib/safeCompare');
+const { safeCompare } = require('../lib/safeCompare');
 const { checkRateLimit, clientIp } = require('../lib/rateLimit');
 
 const app = express();
