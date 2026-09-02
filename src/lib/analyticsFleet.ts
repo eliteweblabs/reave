@@ -142,7 +142,7 @@ export async function listAnalyticsAccounts(
   };
 }
 
-const PREVIEW_TTL_MS = 2 * 60_000;
+const PREVIEW_TTL_MS = 5 * 60_000;
 const ANALYTICS_ACCOUNT_CONCURRENCY = 6;
 
 let previewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;

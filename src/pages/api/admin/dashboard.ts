@@ -3,7 +3,6 @@
  */
 
 import type { APIContext } from 'astro';
-import { clerkClient } from '@clerk/astro/server';
 import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import {
@@ -49,6 +48,16 @@ import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morning
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
 
 export const prerender = false;
+
+function dashboardGreetingFirstName(context: APIContext): string {
+  const claims = context.locals.auth().sessionClaims as Record<string, unknown> | null | undefined;
+  if (!claims) return '';
+  for (const key of ['first_name', 'firstName', 'given_name']) {
+    const v = claims[key];
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return '';
+}
 
 
 async function loadClientsTotal(): Promise<number | null> {
@@ -218,14 +227,7 @@ export async function GET(context: APIContext): Promise<Response> {
   );
   const siteHealth: SiteHealthFleet | null = siteHealthCached;
 
-  let firstName = '';
-  try {
-    const user = await clerkClient(context).users.getUser(userId);
-    firstName = user.firstName?.trim() || '';
-  } catch {
-    /* greeting works without a name */
-  }
-
+  const firstName = dashboardGreetingFirstName(context);
   const sleepDeferred = await storeListSleepDeferredEmails(50);
   const briefing: MorningBriefing = buildMorningBriefing({
     firstName,

@@ -7,10 +7,6 @@ import { storeListChatThreadsForOwner } from '../../../lib/chatOwnerAccess';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import { storeEmailInboxDigest } from '../../../lib/emailInboxStore';
 import { getReviewsPendingCount } from '../../../lib/reviewsPendingCount';
-import {
-  bookingList,
-  isBookingConfigured,
-} from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -43,21 +39,6 @@ export async function GET(context: APIContext): Promise<Response> {
     if (listed.ok) clientsTotal = listed.data.total;
   }
 
-  let meetingsTotal: number | null = null;
-  if (isBookingConfigured()) {
-    const [upcomingRes, pastRes] = await Promise.all([
-      bookingList({ upcoming: true, status: 'accepted', limit: 500 }),
-      bookingList({ upcoming: false, status: 'accepted', limit: 500 }),
-    ]);
-    if (upcomingRes.ok && pastRes.ok) {
-      const seen = new Set<string>();
-      for (const b of [...upcomingRes.data.bookings, ...pastRes.data.bookings]) {
-        seen.add(b.uid);
-      }
-      meetingsTotal = seen.size;
-    }
-  }
-
   const projectsPending = jobs.filter(
     (j) => j.status === 'inquiry' || j.status === 'audit' || j.status === 'active',
   ).length;
@@ -71,7 +52,7 @@ export async function GET(context: APIContext): Promise<Response> {
       emailsTotal: inboxDigest.visible,
       emails: inboxDigest.visible,
       emailsUnread: inboxDigest.unread,
-      meetingsTotal,
+      meetingsTotal: null,
       projectsTotal: jobs.length,
       projectsPending,
       todosOpen,

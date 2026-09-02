@@ -918,7 +918,7 @@ function isPanelMapKey(key) {
 function activateMapPanel(opts = {}) {
   if (MAP.type === 'dashboard') {
     if (dashboardPanelHasContent() && !opts.refreshDashboard) {
-      void refreshInboxBadgeQuiet(true);
+      void refreshInboxBadgeQuiet();
     } else {
       loadAdminDashboard({ quiet: dashboardPanelHasContent() });
     }
@@ -3866,6 +3866,30 @@ function siteHealthIssueCodes(health) {
   return new Set(health.issues.map((i) => i.code).filter(Boolean));
 }
 
+/** True when fleet cards or health grades show Plausible/GSC gaps worth auto-wiring. */
+function dashboardFleetNeedsWiring(data, siteCards) {
+  if (!siteCards?.length) return false;
+  const health = data?.siteHealth;
+  if (health?.sites) {
+    for (const row of Object.values(health.sites)) {
+      for (const issue of row?.issues || []) {
+        if (issue.code === 'plausible_unregistered' || issue.code === 'gsc_missing') return true;
+      }
+    }
+  }
+  const analyticsLive = data?.analyticsConfigured === true;
+  return siteCards.some((card) => {
+    if (card.analytics) return card.analytics.registered !== true;
+    return analyticsLive;
+  });
+}
+
+function dashboardSiteCardsFromPayload(data) {
+  const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
+  const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
+  return mergeDashboardSiteCards(monitors, analyticsSites);
+}
+
 function siteHealthSignalState(key, health, card, fleet, opts = {}) {
   const codes = siteHealthIssueCodes(health);
   if (key === 'robots') {
@@ -5981,7 +6005,7 @@ function renderAdminDashboard(data, opts = {}) {
   if (!opts.skipHydrate && siteCards.length && !siteHealth) {
     void hydrateDashboardSiteHealth();
   }
-  if (!opts.skipHydrate && siteCards.length) {
+  if (!opts.skipHydrate && dashboardFleetNeedsWiring(data, siteCards)) {
     void hydrateDashboardSiteWiring();
   }
 }
@@ -6027,7 +6051,10 @@ async function hydrateDashboardSiteHealth() {
       },
     };
     renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
-    void hydrateDashboardSiteWiring();
+    const cards = dashboardSiteCardsFromPayload(lastDashboardPayload);
+    if (dashboardFleetNeedsWiring(lastDashboardPayload, cards)) {
+      void hydrateDashboardSiteWiring();
+    }
   } catch {
     /* background grade — leave cards without letters until next load */
   }
@@ -14831,7 +14858,7 @@ function pollActiveViewQuiet() {
   if (MAP.type === 'email' && emailPanelHasList() && !emailState.composing) {
     void loadEmailTab(true);
   }
-  if (MAP.type === 'dashboard' && dashboardPanelHasContent()) void refreshInboxBadgeQuiet(true);
+  if (MAP.type === 'dashboard' && dashboardPanelHasContent()) void refreshInboxBadgeQuiet();
 }
 
 function syncEmailPoll() {
