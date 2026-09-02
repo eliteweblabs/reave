@@ -1190,6 +1190,10 @@ function renderRuleEditPane(pane, opts = {}) {
   const form = document.createElement('div');
   form.className = accordion ? 're-form-scroll re-lab-rule-form' : 're-form-scroll';
 
+  const matchModeIn = document.createElement('input');
+  matchModeIn.type = 'hidden';
+  matchModeIn.value = rule.matchMode === 'all' ? 'all' : 'any';
+
   const matchChipSeed = chipsFromRulePhrases(rule.phrases, rule.fields, rule.phraseFields);
   const exceptChipSeed = chipsFromRulePhrases(rule.exceptPhrases, rule.fields);
   const chipPair = createChipPair({
@@ -1237,10 +1241,6 @@ function renderRuleEditPane(pane, opts = {}) {
   descIn.className = 're-textarea';
   descIn.rows = 2;
   descIn.value = rule.description || '';
-
-  const matchModeIn = document.createElement('input');
-  matchModeIn.type = 'hidden';
-  matchModeIn.value = rule.matchMode === 'all' ? 'all' : 'any';
 
   const processSel = document.createElement('input');
   processSel.type = 'hidden';
@@ -1706,7 +1706,7 @@ function renderRuleEditPane(pane, opts = {}) {
 function collectRulePayload(inputs) {
   inputs.matchChips?.commitDraft?.();
   inputs.exceptChips?.commitDraft?.();
-  const matchChipsList = matchChips.getChips?.() || [];
+  const matchChipsList = inputs.matchChips?.getChips?.() || [];
   const phrases = phrasesFromChips(matchChipsList);
   const phraseFields = phraseFieldsFromChips(matchChipsList);
   const exceptChips = inputs.exceptChips?.getChips?.() || [];
