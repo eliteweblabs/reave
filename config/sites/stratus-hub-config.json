@@ -1,5 +1,5 @@
 {
-  "key": "stratushub",
+  "key": "stratus-hub",
   "pages": ["/", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [
@@ -38,7 +38,7 @@
     "title": "Stratus Hub | Salesforce Development & Consulting",
     "description": "Boutique Salesforce certified administrators, developers, and consultants. Custom cloud solutions, integrations, and training — productivity and knowledge, delivered.",
     "themeColor": "#eef4fb",
-    "heroLogo": "/sites/stratushub/logo.png",
+    "heroLogo": "/sites/stratus-hub/logo.png",
     "eyebrow": "Salesforce · Cloud consulting",
     "name": "Stratus Hub",
     "role": "Technology consulting",

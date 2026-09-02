@@ -1,15 +1,21 @@
 {
   "features": [
     "billing",
+    "carddav",
     "client_portal",
-    "documents",
+    "cookie_notice",
     "digital_signature",
+    "documents",
     "email_marketing",
+    "online_reviews",
     "portal_assistant",
     "scheduling",
+    "site_audits",
+    "stock_photos",
     "time_tracking",
-    "website",
-    "content_management"
+    "voice",
+    "web_handoff",
+    "website"
   ],
   "footerNav": [
     "__system__",
@@ -24,6 +30,8 @@
     "work",
     "schedule",
     "clients",
+    "social",
+    "reviews",
     "media",
     "analytics",
     "finance"
@@ -37,8 +45,8 @@
   "homepageVoice": false,
   "chatFocusSkin": true,
   "homepageTemplate": "landing",
-  "siteContentKey": "stratushub",
-  "websiteRepo": "eliteweblabs/stratushub-site",
+  "siteContentKey": "stratus-hub",
+  "websiteRepo": "eliteweblabs/stratus-hub-site",
   "moduleStatus": {
     "website": "deployed"
   }
