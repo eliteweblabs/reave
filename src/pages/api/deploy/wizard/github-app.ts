@@ -118,7 +118,7 @@ export async function GET(context: APIContext): Promise<Response> {
       });
     }
 
-    const plan = planFromGithubAppApply(row.apply);
+    const plan = await planFromGithubAppApply(row.apply);
     const executed = await executeDeployWizardApply({
       plan,
       values: row.apply.values,
@@ -127,6 +127,9 @@ export async function GET(context: APIContext): Promise<Response> {
       environment: row.apply.environment,
       request: context.request,
       githubApp: credentials,
+      namecomUsername: row.apply.namecomUsername,
+      namecomToken: row.apply.namecomToken,
+      godaddyToken: row.apply.godaddyToken,
     });
 
     if (!executed.ok) {
@@ -137,12 +140,12 @@ export async function GET(context: APIContext): Promise<Response> {
     }
 
     deleteGithubAppPending(state);
-    const site = normalizeSiteDomain(plan.siteDomain);
-    return redirectToDeploy(
-      origin,
-      site && isDeployWizardPublicHost(site) ? { github: 'ok', site } : { github: 'ok' },
-      { 'Set-Cookie': clearGithubAppCookieHeader() },
-    );
+    const liveHost = normalizeSiteDomain(executed.plan.siteDomain);
+    const query: Record<string, string> = { github: 'ok' };
+    if (liveHost && isDeployWizardPublicHost(liveHost)) query.site = liveHost;
+    const planned = normalizeSiteDomain(executed.plan.plannedSiteDomain);
+    if (planned && planned !== liveHost) query.planned = planned;
+    return redirectToDeploy(origin, query, { 'Set-Cookie': clearGithubAppCookieHeader() });
   }
 
   return redirectToDeploy(origin, {

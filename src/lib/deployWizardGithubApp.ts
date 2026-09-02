@@ -7,7 +7,7 @@
  * installation is that repo only.
  */
 import { randomBytes } from 'node:crypto';
-import type { DeployWizardSeedInput } from './deployWizardCatalog';
+import type { DeployWizardSeedInput, DeployWizardDnsAccess } from './deployWizardCatalog';
 import { GITHUB_WEBSITE_OWNER, defaultWebsiteRepoSlug } from './websiteEditorRepo';
 
 const GITHUB_API = 'https://api.github.com';
@@ -53,7 +53,12 @@ export type DeployWizardGithubAppApplyBody = {
   extras: string[];
   appService?: string;
   installSlug: string;
+  /** Client apex from the wizard (may differ from resolved public host when staging). */
   siteDomain?: string;
+  dnsAccess?: DeployWizardDnsAccess;
+  namecomUsername?: string;
+  namecomToken?: string;
+  godaddyToken?: string;
   postAlias?: string;
   companyName?: string;
   adminUsername?: string;

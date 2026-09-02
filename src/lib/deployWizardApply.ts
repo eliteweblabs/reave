@@ -3,13 +3,13 @@
  * App manifest callback after the owner confirms the restricted App.
  */
 import {
-  buildDeployWizardPlan,
   formatDeployWizardCli,
   isDeployWizardExtraId,
   isDeployWizardPublicHost,
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from './deployWizardCatalog';
+import { buildDeployWizardPlanResolved } from './deployWizardStaging';
 import type { DeployWizardGithubAppApplyBody, DeployWizardGithubAppCredentials } from './deployWizardGithubApp';
 import { applyDeployWizardDns } from './deployWizardDns';
 import {
@@ -53,15 +53,21 @@ export function isDeployWizardApplyNeedGithubApp(
   return !result.ok && 'needsGithubApp' in result && result.needsGithubApp === true;
 }
 
-export function planFromGithubAppApply(apply: DeployWizardGithubAppApplyBody): DeployWizardPlan {
+export async function planFromGithubAppApply(
+  apply: DeployWizardGithubAppApplyBody,
+): Promise<DeployWizardPlan> {
   const features = apply.features.filter((f): f is FeatureId => FEATURE_ID_SET.has(f));
   const extras = apply.extras.filter((e): e is DeployWizardExtraId => isDeployWizardExtraId(e));
-  return buildDeployWizardPlan({
+  return buildDeployWizardPlanResolved({
     features,
     extras,
     appService: apply.appService,
     installSlug: apply.installSlug,
     siteDomain: apply.siteDomain,
+    dnsAccess: apply.dnsAccess,
+    namecomUsername: apply.namecomUsername,
+    namecomToken: apply.namecomToken,
+    godaddyToken: apply.godaddyToken,
     postAlias: apply.postAlias,
     companyName: apply.companyName,
     adminUsername: apply.adminUsername,

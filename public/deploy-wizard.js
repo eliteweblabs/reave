@@ -1556,6 +1556,11 @@
     bind();
   }
 
+  function isReaveStagingHost(host) {
+    const h = (host || '').trim().toLowerCase();
+    return h.endsWith('.reave.app') && h !== 'reave.app';
+  }
+
   async function init() {
     root.innerHTML = '<p class="dl-loading">Loading modules…</p>';
     try {
@@ -1595,14 +1600,29 @@
       project = '__new__';
       const params = new URLSearchParams(location.search);
       const returnedSite = (params.get('site') || '').trim().toLowerCase();
+      const returnedPlanned = (params.get('planned') || '').trim().toLowerCase();
       if (returnedSite && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(returnedSite)) {
-        siteDomain = returnedSite;
         githubSiteUrl = `https://${returnedSite}`;
+        if (!isReaveStagingHost(returnedSite)) {
+          siteDomain = returnedSite;
+        } else if (returnedPlanned && /^[a-z0-9.-]+\.[a-z]{2,}$/.test(returnedPlanned)) {
+          siteDomain = returnedPlanned;
+        }
       }
       if (params.get('github') === 'ok') {
-        githubBanner = githubSiteUrl
-          ? `GitHub App is installed. Checking ${returnedSite}…`
-          : 'Created a restricted GitHub App for this site and applied Railway variables. Redeploy when ready.';
+        if (githubSiteUrl) {
+          const host = returnedSite;
+          const plannedNote =
+            returnedPlanned && returnedPlanned !== host
+              ? ` Client apex ${returnedPlanned} is saved for Go live.`
+              : '';
+          githubBanner = isReaveStagingHost(host)
+            ? `GitHub App is installed. Checking staging host ${host}…${plannedNote}`
+            : `GitHub App is installed. Checking ${host}…`;
+        } else {
+          githubBanner =
+            'Created a restricted GitHub App for this site and applied Railway variables. Redeploy when ready.';
+        }
       } else if (params.get('github') === 'error') {
         error = params.get('message') || 'GitHub App setup failed.';
       }
@@ -1627,7 +1647,9 @@
     } catch {
       /* stay on /deploy */
     }
-    githubBanner = `${host} is not answering yet (DNS or the first Railway deploy). Use Open when the name resolves.`;
+    githubBanner = isReaveStagingHost(host)
+      ? `${host} is not answering yet (first Railway deploy may still be running). Use Open when ready — client apex cutover stays on Go live.`
+      : `${host} is not answering yet (DNS or the first Railway deploy). Use Open when the name resolves.`;
     render();
     bind();
   }
