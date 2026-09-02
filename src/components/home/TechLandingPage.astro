@@ -1,11 +1,12 @@
 ---
 /**
  * Mobile-first landing for tech / Salesforce consulting firms.
+ * Stratus Hub: chalkboard green, gears, boutique shop — not generic SaaS blue.
  */
 import type { SiteLandingConfig } from "../../lib/siteContent";
+import { getSiteContent } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
-import { Cloud } from "lucide-astro";
 
 interface Props {
   landing: SiteLandingConfig;
@@ -13,6 +14,7 @@ interface Props {
 
 const { landing } = Astro.props;
 const company = await getCompanyConfig(Astro.request);
+const site = getSiteContent();
 const year = new Date().getFullYear();
 
 const phoneDisplay = (landing.contact?.phone || company.supportPhone || "").trim();
@@ -24,16 +26,13 @@ const email = (landing.contact?.email || company.supportEmail || "").trim();
 const emailHref = email ? `mailto:${email}` : "";
 
 const logoSrc = (landing.heroLogo || "").trim();
+const heroImage = (landing.heroImage || "").trim();
 const services = landing.services;
 const serviceItems =
   services?.items?.map((item) =>
     typeof item === "string"
-      ? { label: item, description: undefined as string | undefined, icon: undefined as string | undefined }
-      : {
-          label: item.label,
-          description: item.description,
-          icon: item.icon,
-        },
+      ? { label: item, description: undefined as string | undefined }
+      : { label: item.label, description: item.description },
   ) ?? [];
 const numbers = landing.numbers;
 const reviews = landing.reviews;
@@ -41,6 +40,9 @@ const about = landing.about;
 const contact = landing.contact;
 const inquiry = landing.inquiry;
 const team = landing.team;
+const badges = landing.badges;
+const clientLogos = site.clientLogos ?? [];
+const pad = (n: number) => String(n + 1).padStart(2, "0");
 ---
 
 <div class="tech">
@@ -56,6 +58,7 @@ const team = landing.team;
     }
     <div class="tech-header__actions">
       <a class="tech-header__login" href="/sign-in">Login</a>
+      <a class="tech-header__contact" href="#contact">Contact</a>
       <button
         class="tech-menu"
         type="button"
@@ -71,35 +74,25 @@ const team = landing.team;
   </header>
 
   <nav class="tech-nav" id="tech-nav" data-tech-nav>
-    {services && <a href="#services">Services</a>}
-    {numbers && <a href="#numbers">Expertise</a>}
-    {reviews && <a href="#reviews">Clients</a>}
+    {services && <a href="#services">What We Do</a>}
+    {clientLogos.length > 0 && <a href="#clients">Clients</a>}
+    {reviews && <a href="#reviews">Testimonials</a>}
     {team && <a href="#team">Team</a>}
-    {about && <a href="#about">About</a>}
     <a href="#contact">Contact</a>
     <a href="/sign-in">Login</a>
   </nav>
 
   <main id="top">
-    <section class="tech-hero">
+    <section class="tech-hero" style={heroImage ? `--hero:url('${heroImage}')` : undefined}>
+      <div class="tech-hero__veil"></div>
       <div class="tech-hero__inner">
-        {
-          logoSrc && (
-            <img class="tech-hero__logo" src={logoSrc} alt="" width="220" height="60" />
-          )
-        }
-        {landing.eyebrow && <p class="tech-eyebrow">{landing.eyebrow}</p>}
-        <h1>{landing.heroHeadline || landing.name}</h1>
+        {landing.eyebrow && <p class="tech-kicker">{landing.eyebrow}</p>}
+        <div class="tech-hero__card">
+          <h1>{landing.heroHeadline || landing.tagline || landing.name}</h1>
+        </div>
         {landing.heroBody && <p class="tech-lede">{landing.heroBody}</p>}
-        {landing.tagline && !landing.heroBody && <p class="tech-lede">{landing.tagline}</p>}
         <div class="tech-actions">
-          {
-            emailHref && (
-              <a class="tech-btn tech-btn--primary" href={emailHref}>
-                Get in touch
-              </a>
-            )
-          }
+          <a class="tech-btn tech-btn--teal" href="#contact">Contact</a>
           {
             phoneHref && (
               <a class="tech-btn tech-btn--ghost" href={phoneHref}>
@@ -108,10 +101,6 @@ const team = landing.team;
             )
           }
         </div>
-        <p class="tech-salesforce" aria-label="Salesforce partner">
-          <Cloud size={20} strokeWidth={1.75} aria-hidden="true" />
-          Salesforce certified · Development · Consulting
-        </p>
       </div>
     </section>
 
@@ -119,23 +108,21 @@ const team = landing.team;
       serviceItems.length > 0 && (
         <section class="tech-section" id="services">
           <div class="tech-wrap">
-            <p class="tech-eyebrow">What we do</p>
-            <h2>{services?.heading || "Services"}</h2>
-            <div class="tech-services">
+            <p class="tech-kicker">Solutions</p>
+            <h2>{services?.heading || "What we do"}</h2>
+            <ol class="tech-services">
               {
-                serviceItems.map((item) => (
-                  <article class="tech-service">
-                    {item.icon ? (
-                      <img class="tech-service__icon" src={item.icon} alt="" width="40" height="40" />
-                    ) : (
-                      <span class="tech-service__dot" aria-hidden="true"></span>
-                    )}
-                    <h3>{item.label}</h3>
-                    {item.description && <p>{item.description}</p>}
-                  </article>
+                serviceItems.map((item, i) => (
+                  <li class="tech-service">
+                    <span class="tech-service__n">{pad(i)}</span>
+                    <div>
+                      <h3>{item.label}</h3>
+                      {item.description && <p>{item.description}</p>}
+                    </div>
+                  </li>
                 ))
               }
-            </div>
+            </ol>
           </div>
         </section>
       )
@@ -143,11 +130,11 @@ const team = landing.team;
 
     {
       numbers && (
-        <section class="tech-section tech-section--dark" id="numbers">
+        <section class="tech-board" id="numbers">
           <div class="tech-wrap">
-            <p class="tech-eyebrow tech-eyebrow--light">Expertise</p>
+            <p class="tech-kicker tech-kicker--light">Expertise</p>
             <h2>{numbers.heading}</h2>
-            {numbers.intro && <p class="tech-intro">{numbers.intro}</p>}
+            {numbers.intro && <p class="tech-intro tech-intro--light">{numbers.intro}</p>}
             <div class="tech-stats">
               {
                 numbers.stats.map((stat) => (
@@ -158,6 +145,40 @@ const team = landing.team;
                 ))
               }
             </div>
+            {
+              badges?.items?.length ? (
+                <div class="tech-badges" aria-label={badges.heading || "Certifications"}>
+                  {badges.items.map((badge) => (
+                    <img src={badge.src} alt={badge.alt} width="220" height="126" />
+                  ))}
+                </div>
+              ) : null
+            }
+          </div>
+        </section>
+      )
+    }
+
+    {
+      clientLogos.length > 0 && (
+        <section class="tech-section tech-section--tight" id="clients">
+          <div class="tech-wrap">
+            <p class="tech-kicker">Our clients</p>
+            <h2>Companies we have the pleasure of working with</h2>
+            <ul class="tech-logos">
+              {
+                clientLogos.map((logo) => (
+                  <li>
+                    <img
+                      src={logo.image}
+                      alt={logo.name}
+                      width={logo.width || 120}
+                      height={logo.height || 80}
+                    />
+                  </li>
+                ))
+              }
+            </ul>
           </div>
         </section>
       )
@@ -165,22 +186,22 @@ const team = landing.team;
 
     {
       reviews?.items?.length ? (
-        <section class="tech-section" id="reviews">
+        <section class="tech-section tech-section--paper" id="reviews">
           <div class="tech-wrap">
-            <p class="tech-eyebrow">Testimonials</p>
+            <p class="tech-kicker">Testimonials</p>
             <h2>{reviews.heading}</h2>
             {reviews.intro && <p class="tech-intro">{reviews.intro}</p>}
-            <div class="tech-reviews">
-              {
-                reviews.items.map((item) => (
-                  <article class="tech-review">
-                    {item.stars && <p class="tech-stars">{item.stars}</p>}
-                    <blockquote>“{item.quote}”</blockquote>
-                    <cite>{item.cite}</cite>
-                  </article>
-                ))
-              }
-            </div>
+          </div>
+          <div class="tech-reviews" data-tech-reviews>
+            {
+              reviews.items.map((item) => (
+                <article class="tech-review">
+                  {item.stars && <p class="tech-stars">{item.stars}</p>}
+                  <blockquote>“{item.quote}”</blockquote>
+                  <cite>{item.cite}</cite>
+                </article>
+              ))
+            }
           </div>
         </section>
       ) : null
@@ -188,18 +209,28 @@ const team = landing.team;
 
     {
       team?.members?.length ? (
-        <section class="tech-section tech-section--muted" id="team">
+        <section class="tech-section" id="team">
           <div class="tech-wrap">
-            <p class="tech-eyebrow">Team</p>
+            <p class="tech-kicker">Company</p>
             <h2>{team.heading}</h2>
             {team.intro && <p class="tech-intro">{team.intro}</p>}
             <div class="tech-team">
               {
                 team.members.map((member) => (
                   <article class="tech-member">
-                    <h3>{member.name}</h3>
-                    <p class="tech-member__role">{member.role}</p>
-                    {member.bio && <p>{member.bio}</p>}
+                    {member.photo && (
+                      <img
+                        src={member.photo}
+                        alt={member.photoAlt || member.name}
+                        width="300"
+                        height="300"
+                      />
+                    )}
+                    <div>
+                      <h3>{member.name}</h3>
+                      <p class="tech-member__role">{member.role}</p>
+                      {member.bio && <p>{member.bio}</p>}
+                    </div>
                   </article>
                 ))
               }
@@ -211,31 +242,29 @@ const team = landing.team;
 
     {
       about && (
-        <section class="tech-section" id="about">
+        <section class="tech-section tech-section--paper" id="about">
           <div class="tech-wrap tech-about">
-            <div>
-              <p class="tech-eyebrow">About</p>
-              <h2>{about.heading}</h2>
-              {about.body?.map((para) => <p>{para}</p>)}
-              {
-                about.highlights?.length ? (
-                  <ul class="tech-highlights">
-                    {about.highlights.map((item) => <li>{item}</li>)}
-                  </ul>
-                ) : null
-              }
-            </div>
+            <p class="tech-kicker">About</p>
+            <h2>{about.heading}</h2>
+            {about.body?.map((para) => <p>{para}</p>)}
+            {
+              about.highlights?.length ? (
+                <ul class="tech-highlights">
+                  {about.highlights.map((item) => <li>{item}</li>)}
+                </ul>
+              ) : null
+            }
           </div>
         </section>
       )
     }
 
-    <section class="tech-section tech-section--contact" id="contact">
+    <section class="tech-contact-band" id="contact">
       <div class="tech-wrap tech-contact">
         <div>
-          <p class="tech-eyebrow">Contact</p>
+          <p class="tech-kicker tech-kicker--light">Contact</p>
           <h2>{contact?.heading || "Start a project."}</h2>
-          <p class="tech-intro">
+          <p class="tech-intro tech-intro--light">
             Call, email, or send a message — we’ll get back to you quickly.
           </p>
           <ul class="tech-contact-list">
@@ -277,36 +306,43 @@ const team = landing.team;
 
         {
           inquiry && (
-            <form class="tech-form" action="https://api.web3forms.com/submit" method="POST">
-              {
-                inquiry.web3formsAccessKey && (
-                  <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />
-                )
-              }
-              <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
-              <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
-              <h2>{inquiry.heading}</h2>
-              <p>{inquiry.intro}</p>
-              <label>
-                Name
-                <input type="text" name="name" required autocomplete="name" />
-              </label>
-              <label>
-                Email
-                <input type="email" name="email" required autocomplete="email" />
-              </label>
-              <label>
-                Phone
-                <input type="tel" name="phone" autocomplete="tel" />
-              </label>
-              <label>
-                Message
-                <textarea name="message" rows="5" required />
-              </label>
-              <button class="tech-btn tech-btn--primary" type="submit">
-                {inquiry.submitLabel || "Send message"}
-              </button>
-            </form>
+            inquiry.web3formsAccessKey ? (
+              <form class="tech-form" action="https://api.web3forms.com/submit" method="POST">
+                <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />
+                <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
+                <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
+                <h2>{inquiry.heading}</h2>
+                <p>{inquiry.intro}</p>
+                <label>
+                  Name
+                  <input type="text" name="name" required autocomplete="name" />
+                </label>
+                <label>
+                  Email
+                  <input type="email" name="email" required autocomplete="email" />
+                </label>
+                <label>
+                  Phone
+                  <input type="tel" name="phone" autocomplete="tel" />
+                </label>
+                <label>
+                  Message
+                  <textarea name="message" rows="5" required />
+                </label>
+                <button class="tech-btn tech-btn--teal" type="submit">
+                  {inquiry.submitLabel || "Send message"}
+                </button>
+              </form>
+            ) : (
+              <div class="tech-form tech-form--plain">
+                <h2>{inquiry.heading}</h2>
+                <p>{inquiry.intro}</p>
+                <div class="tech-actions">
+                  {emailHref && <a class="tech-btn tech-btn--teal" href={emailHref}>Email the team</a>}
+                  {phoneHref && <a class="tech-btn tech-btn--ghost" href={phoneHref}>{phoneDisplay}</a>}
+                </div>
+              </div>
+            )
           )
         }
       </div>
@@ -341,11 +377,13 @@ const team = landing.team;
 
 <style>
   .tech {
-    --tech-blue: #0176d3;
-    --tech-navy: #032d60;
-    --tech-sky: #eef4fb;
-    --tech-text: #181818;
-    --tech-muted: #5c5c5c;
+    --tech-board: #2f4a2c;
+    --tech-leaf: #6f8f3c;
+    --tech-teal: #2a7a8a;
+    --tech-paper: #f4efe4;
+    --tech-ink: #1c1c1c;
+    --tech-muted: #5a574e;
+    --tech-cream: #fffdf8;
   }
 
   .tech-header {
@@ -355,38 +393,53 @@ const team = landing.team;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 0.75rem 1.25rem;
-    background: rgba(255, 255, 255, 0.96);
-    border-bottom: 1px solid rgba(3, 45, 96, 0.08);
-    backdrop-filter: blur(8px);
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    background: rgba(255, 253, 248, 0.94);
+    border-bottom: 1px solid rgba(47, 74, 44, 0.1);
+    backdrop-filter: blur(10px);
   }
 
   .tech-header__logo img {
     display: block;
-    height: 2rem;
+    height: 2.1rem;
     width: auto;
-    max-width: 9rem;
+    max-width: 9.5rem;
     object-fit: contain;
   }
 
   .tech-header__name {
     font-weight: 700;
     font-size: 1.05rem;
-    color: var(--tech-navy);
+    color: var(--tech-board);
     text-decoration: none;
   }
 
   .tech-header__actions {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.55rem;
   }
 
   .tech-header__login {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 600;
-    color: var(--tech-blue);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--tech-board);
+    text-decoration: none;
+  }
+
+  .tech-header__contact {
+    display: none;
+    min-height: 2.2rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--tech-teal);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     text-decoration: none;
   }
 
@@ -405,7 +458,7 @@ const team = landing.team;
     left: 0.55rem;
     width: 1.4rem;
     height: 2px;
-    background: var(--tech-navy);
+    background: var(--tech-board);
     transition: transform 0.3s ease;
   }
 
@@ -428,9 +481,9 @@ const team = landing.team;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.25rem;
+    gap: 1.2rem;
     padding: 5rem 1.5rem 2rem;
-    background: #fff;
+    background: var(--tech-paper);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -444,179 +497,175 @@ const team = landing.team;
   }
 
   .tech-nav a {
-    font-size: clamp(1.35rem, 4vw, 1.75rem);
-    font-weight: 600;
-    color: var(--tech-navy);
+    font-family: Fraunces, Georgia, serif;
+    font-size: clamp(1.6rem, 6vw, 2.2rem);
+    font-weight: 500;
+    color: var(--tech-board);
     text-decoration: none;
   }
 
   body.tech-nav-open { overflow: hidden; }
 
   .tech-hero {
-    background:
-      radial-gradient(circle at 85% 15%, rgba(1, 118, 211, 0.35), transparent 45%),
-      linear-gradient(165deg, var(--tech-navy) 0%, #014486 55%, var(--tech-blue) 100%);
+    position: relative;
+    min-height: 86vh;
+    display: grid;
+    align-items: end;
     color: #fff;
-    padding: 3.5rem 1.25rem 4rem;
+    background: var(--tech-board) center/cover no-repeat;
+    background-image: var(--hero);
+  }
+
+  .tech-hero__veil {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(20, 32, 18, 0.28) 0%, rgba(20, 32, 18, 0.72) 100%);
   }
 
   .tech-hero__inner {
-    max-width: 40rem;
+    position: relative;
+    z-index: 1;
+    width: min(720px, calc(100% - 2rem));
     margin: 0 auto;
+    padding: 5.5rem 0 2.75rem;
   }
 
-  .tech-hero__logo {
-    display: block;
-    height: 2.75rem;
-    width: auto;
-    max-width: 14rem;
-    margin-bottom: 1.5rem;
-    object-fit: contain;
-    filter: brightness(0) invert(1);
+  .tech-hero__card {
+    background: rgba(255, 253, 248, 0.94);
+    color: var(--tech-ink);
+    padding: 1.15rem 1.2rem;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
   }
 
   .tech-hero h1 {
     margin: 0;
-    font-size: clamp(2rem, 6vw, 3rem);
+    font-family: Fraunces, Georgia, serif;
+    font-size: clamp(1.85rem, 7vw, 3.1rem);
+    font-weight: 600;
     line-height: 1.12;
-    font-weight: 700;
     letter-spacing: -0.02em;
   }
 
   .tech-lede {
-    margin: 1rem 0 0;
-    font-size: 1.05rem;
-    line-height: 1.65;
-    color: rgba(255, 255, 255, 0.88);
+    margin: 1.15rem 0 0;
     max-width: 36rem;
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: rgba(255, 253, 248, 0.9);
   }
 
-  .tech-eyebrow {
+  .tech-kicker {
     margin: 0 0 0.65rem;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: var(--tech-blue);
+    color: var(--tech-leaf);
   }
 
-  .tech-eyebrow--light { color: #7eb8f0; }
+  .tech-hero .tech-kicker { color: #d4e3a6; }
+
+  .tech-kicker--light { color: #c5d89a; }
 
   .tech-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-top: 1.75rem;
+    gap: 0.7rem;
+    margin-top: 1.4rem;
   }
 
   .tech-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.85rem;
-    padding: 0.7rem 1.25rem;
-    border-radius: 999px;
+    min-height: 2.9rem;
+    padding: 0.7rem 1.2rem;
     border: 1px solid transparent;
     font: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     text-decoration: none;
     cursor: pointer;
   }
 
-  .tech-btn--primary {
-    background: #fff;
-    color: var(--tech-navy);
-  }
+  .tech-btn--teal { background: var(--tech-teal); color: #fff; }
+  .tech-btn--ghost { background: transparent; border-color: rgba(255,255,255,0.55); color: #fff; }
 
-  .tech-btn--ghost {
-    background: transparent;
-    border-color: rgba(255, 255, 255, 0.45);
+  .tech-section { padding: 3.4rem 0; }
+  .tech-section--tight { padding: 2.4rem 0; }
+  .tech-section--paper { background: var(--tech-paper); }
+
+  .tech-board {
+    padding: 3.4rem 0;
+    background: var(--tech-board);
     color: #fff;
   }
 
-  .tech-salesforce {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 2rem 0 0;
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.75);
-  }
-
-  .tech-section {
-    padding: 3.5rem 0;
-  }
-
-  .tech-section--dark {
-    background: var(--tech-navy);
-    color: #fff;
-  }
-
-  .tech-section--dark h2 { color: #fff; }
-
-  .tech-section--muted {
-    background: var(--tech-sky);
-  }
-
-  .tech-section--contact {
-    background: #fff;
-    border-top: 1px solid rgba(3, 45, 96, 0.08);
-  }
+  .tech-board h2 { color: #fff; }
 
   .tech-wrap {
-    width: min(1080px, calc(100% - 2.5rem));
+    width: min(1080px, calc(100% - 2rem));
     margin: 0 auto;
   }
 
-  .tech-section h2 {
-    margin: 0 0 1rem;
-    font-size: clamp(1.65rem, 4vw, 2.25rem);
+  .tech-section h2,
+  .tech-board h2,
+  .tech-contact h2 {
+    margin: 0 0 0.85rem;
+    font-family: Fraunces, Georgia, serif;
+    font-size: clamp(1.7rem, 5vw, 2.5rem);
+    font-weight: 600;
     line-height: 1.15;
-    color: var(--tech-navy);
+    color: var(--tech-board);
     letter-spacing: -0.02em;
   }
 
   .tech-intro {
-    margin: 0 0 1.5rem;
+    margin: 0 0 1.4rem;
     color: var(--tech-muted);
     line-height: 1.6;
     max-width: 38rem;
   }
 
+  .tech-intro--light { color: rgba(255, 253, 248, 0.78); }
+
   .tech-services {
+    margin: 1.6rem 0 0;
+    padding: 0;
+    list-style: none;
     display: grid;
-    gap: 1rem;
-    margin-top: 1.5rem;
+    gap: 0.85rem;
   }
 
   .tech-service {
-    padding: 1.25rem 1.35rem;
-    background: #fff;
-    border: 1px solid rgba(3, 45, 96, 0.08);
-    border-radius: 0.85rem;
-    box-shadow: 0 8px 24px rgba(3, 45, 96, 0.04);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.95rem;
+    padding: 1.15rem 1.1rem;
+    background: var(--tech-cream);
+    border: 1px solid rgba(47, 74, 44, 0.1);
   }
 
-  .tech-service__dot {
-    display: block;
-    width: 0.55rem;
-    height: 0.55rem;
-    margin-bottom: 0.75rem;
-    border-radius: 999px;
-    background: var(--tech-blue);
+  .tech-service__n {
+    font-family: Fraunces, Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--tech-leaf);
+    line-height: 1;
   }
 
   .tech-service h3 {
-    margin: 0 0 0.5rem;
-    font-size: 1.05rem;
-    color: var(--tech-navy);
+    margin: 0 0 0.4rem;
+    font-size: 1.15rem;
+    color: var(--tech-board);
   }
 
   .tech-service p {
     margin: 0;
     font-size: 0.95rem;
-    line-height: 1.6;
+    line-height: 1.55;
     color: var(--tech-muted);
   }
 
@@ -624,86 +673,131 @@ const team = landing.team;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1px;
-    margin-top: 1.5rem;
+    margin-top: 1.4rem;
     background: rgba(255, 255, 255, 0.12);
-    border-radius: 0.75rem;
-    overflow: hidden;
   }
 
   .tech-stats article {
-    padding: 1.35rem 1rem;
-    background: rgba(255, 255, 255, 0.04);
+    padding: 1.3rem 0.9rem;
+    background: rgba(20, 32, 18, 0.28);
     text-align: center;
   }
 
   .tech-stats strong {
     display: block;
-    font-size: clamp(1.6rem, 4vw, 2.2rem);
-    font-weight: 700;
-    color: #7eb8f0;
+    font-family: Fraunces, Georgia, serif;
+    font-size: clamp(1.7rem, 5vw, 2.3rem);
+    font-weight: 600;
+    color: #d4e3a6;
   }
 
   .tech-stats span {
     display: block;
-    margin-top: 0.35rem;
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.78);
+    margin-top: 0.3rem;
+    font-size: 0.78rem;
+    color: rgba(255, 253, 248, 0.75);
+  }
+
+  .tech-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem 1.4rem;
+    margin-top: 2rem;
+  }
+
+  .tech-badges img {
+    height: 4.4rem;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.25));
+  }
+
+  .tech-logos {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 1.4rem 1.8rem;
+    margin: 1.4rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tech-logos img {
+    display: block;
+    height: 3.25rem;
+    width: auto;
+    max-width: 7.5rem;
+    object-fit: contain;
+    filter: grayscale(1);
+    opacity: 0.78;
   }
 
   .tech-reviews {
-    display: grid;
-    gap: 1rem;
+    display: flex;
+    gap: 0.9rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 1rem 0.4rem;
+    margin-top: 0.4rem;
   }
 
   .tech-review {
-    padding: 1.25rem 1.35rem;
-    background: var(--tech-sky);
-    border-radius: 0.85rem;
+    flex: 0 0 min(86vw, 22rem);
+    scroll-snap-align: start;
+    padding: 1.3rem 1.25rem;
+    background: var(--tech-cream);
+    border: 1px solid rgba(47, 74, 44, 0.1);
   }
 
-  .tech-stars {
-    margin: 0 0 0.5rem;
-    color: #f5a623;
-    font-size: 0.9rem;
-  }
-
+  .tech-stars { margin: 0 0 0.45rem; color: var(--tech-leaf); }
   .tech-review blockquote {
-    margin: 0 0 0.75rem;
-    font-size: 0.98rem;
-    line-height: 1.55;
-    color: var(--tech-text);
+    margin: 0 0 0.85rem;
+    font-family: Fraunces, Georgia, serif;
+    font-size: 1.08rem;
+    line-height: 1.45;
+    color: var(--tech-ink);
   }
-
   .tech-review cite {
     font-style: normal;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--tech-muted);
   }
 
-  .tech-team {
-    display: grid;
-    gap: 1rem;
-    margin-top: 1rem;
-  }
+  .tech-team { display: grid; gap: 1.4rem; margin-top: 1.2rem; }
 
   .tech-member {
-    padding: 1.35rem;
-    background: #fff;
-    border-radius: 0.85rem;
-    border: 1px solid rgba(3, 45, 96, 0.08);
+    display: grid;
+    gap: 1rem;
+    padding: 1.15rem;
+    background: var(--tech-cream);
+    border: 1px solid rgba(47, 74, 44, 0.1);
+  }
+
+  .tech-member img {
+    width: 100%;
+    max-width: 11rem;
+    aspect-ratio: 1;
+    object-fit: cover;
+    background: var(--tech-paper);
   }
 
   .tech-member h3 {
     margin: 0;
-    font-size: 1.1rem;
-    color: var(--tech-navy);
+    font-family: Fraunces, Georgia, serif;
+    font-size: 1.35rem;
+    color: var(--tech-board);
   }
 
   .tech-member__role {
-    margin: 0.25rem 0 0.75rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--tech-blue);
+    margin: 0.2rem 0 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tech-teal);
   }
 
   .tech-member p:last-child {
@@ -713,12 +807,18 @@ const team = landing.team;
     color: var(--tech-muted);
   }
 
+  .tech-about p {
+    max-width: 40rem;
+    line-height: 1.65;
+    color: var(--tech-muted);
+  }
+
   .tech-highlights {
-    margin: 1.25rem 0 0;
+    margin: 1.2rem 0 0;
     padding: 0;
     list-style: none;
     display: grid;
-    gap: 0.55rem;
+    gap: 0.5rem;
   }
 
   .tech-highlights li {
@@ -733,16 +833,20 @@ const team = landing.team;
     position: absolute;
     left: 0;
     top: 0.55rem;
-    width: 0.35rem;
-    height: 0.35rem;
-    border-radius: 999px;
-    background: var(--tech-blue);
+    width: 0.4rem;
+    height: 0.4rem;
+    background: var(--tech-leaf);
   }
 
-  .tech-contact {
-    display: grid;
-    gap: 2rem;
+  .tech-contact-band {
+    padding: 3.4rem 0;
+    background: var(--tech-board);
+    color: #fff;
   }
+
+  .tech-contact-band h2 { color: #fff; }
+
+  .tech-contact { display: grid; gap: 2rem; }
 
   .tech-contact-list {
     margin: 0;
@@ -752,57 +856,45 @@ const team = landing.team;
 
   .tech-contact-list li {
     padding: 0.85rem 0;
-    border-bottom: 1px solid rgba(3, 45, 96, 0.08);
+    border-bottom: 1px solid rgba(255, 253, 248, 0.14);
   }
 
   .tech-contact-list strong {
     display: block;
     margin-bottom: 0.25rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--tech-muted);
+    color: #c5d89a;
   }
 
   .tech-contact-list a {
-    color: var(--tech-blue);
+    color: #fff;
     text-decoration: none;
     font-weight: 600;
   }
 
-  address {
-    font-style: normal;
-    line-height: 1.5;
-    color: var(--tech-text);
-  }
+  address { font-style: normal; line-height: 1.5; }
 
   .tech-form {
     display: grid;
     gap: 0.85rem;
-    padding: 1.35rem;
-    background: var(--tech-sky);
-    border-radius: 0.85rem;
+    padding: 1.25rem;
+    background: rgba(255, 253, 248, 0.08);
+    border: 1px solid rgba(255, 253, 248, 0.12);
   }
 
-  .tech-form h2 {
-    margin: 0;
-    font-size: 1.25rem;
-  }
-
-  .tech-form p {
-    margin: 0;
-    font-size: 0.92rem;
-    color: var(--tech-muted);
-  }
+  .tech-form h2 { margin: 0; font-size: 1.35rem; }
+  .tech-form p { margin: 0; font-size: 0.92rem; color: rgba(255,253,248,0.75); }
 
   .tech-form label {
     display: grid;
     gap: 0.35rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--tech-muted);
+    color: #c5d89a;
   }
 
   .tech-form input,
@@ -810,10 +902,9 @@ const team = landing.team;
     width: 100%;
     min-height: 2.65rem;
     padding: 0.65rem 0.75rem;
-    border: 1px solid rgba(3, 45, 96, 0.12);
-    border-radius: 0.5rem;
-    background: #fff;
-    color: var(--tech-text);
+    border: 1px solid rgba(255, 253, 248, 0.18);
+    background: rgba(255, 253, 248, 0.96);
+    color: var(--tech-ink);
     font: inherit;
     text-transform: none;
     letter-spacing: normal;
@@ -821,47 +912,29 @@ const team = landing.team;
   }
 
   .tech-footer {
-    padding: 2rem 1.25rem 2.5rem;
+    padding: 1.8rem 1.25rem 2.4rem;
     text-align: center;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--tech-muted);
-    background: var(--tech-sky);
+    background: var(--tech-paper);
   }
 
   @media (min-width: 640px) {
-    .tech-services {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .tech-stats {
-      grid-template-columns: repeat(4, 1fr);
-    }
-
-    .tech-reviews {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    .tech-team {
-      grid-template-columns: repeat(2, 1fr);
-    }
+    .tech-header__contact { display: inline-flex; align-items: center; }
+    .tech-services { grid-template-columns: 1fr; }
+    .tech-stats { grid-template-columns: repeat(4, 1fr); }
+    .tech-member { grid-template-columns: 10rem 1fr; align-items: start; }
+    .tech-member img { max-width: none; }
+    .tech-reviews { padding-inline: max(1rem, calc((100% - 1080px) / 2 + 1rem)); }
   }
 
   @media (min-width: 900px) {
-    .tech-hero {
-      padding: 5rem 1.25rem 5.5rem;
-    }
-
-    .tech-services {
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .tech-reviews {
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .tech-contact {
-      grid-template-columns: 1fr 1fr;
-      align-items: start;
-    }
+    .tech-hero { min-height: 92vh; }
+    .tech-hero__inner { padding: 7rem 0 4rem; }
+    .tech-hero__card { padding: 1.6rem 1.8rem; max-width: 28rem; }
+    .tech-services { grid-template-columns: 1fr 1fr; }
+    .tech-service:first-child { grid-column: 1 / -1; }
+    .tech-team { grid-template-columns: 1fr 1fr; }
+    .tech-contact { grid-template-columns: 1fr 1fr; align-items: start; }
   }
 </style>

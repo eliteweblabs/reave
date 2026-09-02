@@ -189,7 +189,18 @@ export type SiteLandingConfig = {
   team?: {
     heading: string;
     intro?: string;
-    members: Array<{ name: string; role: string; bio?: string }>;
+    members: Array<{
+      name: string;
+      role: string;
+      bio?: string;
+      photo?: string;
+      photoAlt?: string;
+    }>;
+  };
+  /** Certification / partner marks for `tech` landings. */
+  badges?: {
+    heading?: string;
+    items: Array<{ src: string; alt: string }>;
   };
   /** Accepted payment methods + logos for `service` landings. */
   payments?: {
@@ -412,6 +423,24 @@ function resolveLandingMedia(landing: SiteLandingConfig): SiteLandingConfig {
   if (next.heroImage) next.heroImage = siteMediaSrc(next.heroImage);
   if (next.photo?.src) {
     next.photo = { ...next.photo, src: siteMediaSrc(next.photo.src) };
+  }
+  if (next.team?.members) {
+    next.team = {
+      ...next.team,
+      members: next.team.members.map((member) => ({
+        ...member,
+        photo: member.photo ? siteMediaSrc(member.photo) : undefined,
+      })),
+    };
+  }
+  if (next.badges?.items) {
+    next.badges = {
+      ...next.badges,
+      items: next.badges.items.map((item) => ({
+        ...item,
+        src: siteMediaSrc(item.src) || item.src,
+      })),
+    };
   }
   if (next.properties?.items) {
     next.properties = {
