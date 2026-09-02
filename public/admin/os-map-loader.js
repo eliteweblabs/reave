@@ -15675,6 +15675,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
 
   let toHintEl = null;
   let dropdownPointerDown = false;
+  let searchGen = 0;
 
   dropdown.addEventListener('pointerdown', () => {
     dropdownPointerDown = true;
@@ -15751,6 +15752,17 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
     if (!open) highlightIdx = -1;
   }
 
+  function closeDropdown() {
+    searchGen += 1;
+    clearTimeout(emailToSearchTimer);
+    setDropdownOpen(false);
+    dropdown.innerHTML = '';
+  }
+
+  function shouldKeepDropdownOpen() {
+    return document.activeElement === input || wrap.contains(document.activeElement);
+  }
+
   function showToHint(message, warn = false) {
     if (!message) {
       toHintEl?.remove();
@@ -15788,7 +15800,8 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
     input.focus();
   }
 
-  function renderDropdown(clients, query) {
+  function renderDropdown(clients, query, gen) {
+    if (gen !== searchGen || !shouldKeepDropdownOpen()) return;
     showToHint('');
     dropdown.innerHTML = '';
     highlightIdx = -1;
@@ -15862,16 +15875,23 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   }
 
   async function runSearch() {
+    const gen = ++searchGen;
     const q = input.value.trim();
+    // Already addressed — only show suggestions when the user is typing (or picking first recipient).
+    if (!q && recipients.length) {
+      closeDropdown();
+      return;
+    }
     if (!q) {
       try {
         const res = await adminFetch('/api/clients?limit=20');
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        renderDropdown(data.clients || [], '');
+        renderDropdown(data.clients || [], '', gen);
         return;
       } catch (e) {
         if (e.message === 'Session expired') return;
+        if (gen !== searchGen || !shouldKeepDropdownOpen()) return;
         dropdown.innerHTML = `<div class="em-compose-to-empty">${escHtml(e.message)}</div>`;
         setDropdownOpen(true);
       }
@@ -15882,9 +15902,10 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
       const res = await adminFetch(`/api/clients?${params}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      renderDropdown(data.clients || [], q);
+      renderDropdown(data.clients || [], q, gen);
     } catch (e) {
       if (e.message === 'Session expired') return;
+      if (gen !== searchGen || !shouldKeepDropdownOpen()) return;
       dropdown.innerHTML = `<div class="em-compose-to-empty">${escHtml(e.message)}</div>`;
       setDropdownOpen(true);
     }
@@ -15919,16 +15940,32 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
     options[highlightIdx]?.scrollIntoView({ block: 'nearest' });
   }
 
-  input.addEventListener('focus', () => scheduleSearch());
+  input.addEventListener('focus', () => {
+    const q = input.value.trim();
+    if (q || !recipients.length) scheduleSearch();
+  });
   input.addEventListener('input', () => scheduleSearch());
   input.addEventListener('blur', () => {
     setTimeout(() => {
       if (dropdownPointerDown) return;
-      if (!wrap.contains(document.activeElement)) setDropdownOpen(false);
+      if (!wrap.contains(document.activeElement)) closeDropdown();
     }, 150);
   });
+  function onDocPointerDown(ev) {
+    if (!wrap.isConnected) {
+      document.removeEventListener('pointerdown', onDocPointerDown, true);
+      return;
+    }
+    if (!wrap.contains(ev.target)) closeDropdown();
+  }
+  document.addEventListener('pointerdown', onDocPointerDown, true);
   input.addEventListener('keydown', (ev) => {
     const options = [...dropdown.querySelectorAll('.em-compose-to-option:not(:disabled)')];
+    if (ev.key === 'Escape' && dropdown.style.display !== 'none') {
+      ev.preventDefault();
+      closeDropdown();
+      return;
+    }
     if (ev.key === 'ArrowDown') {
       if (dropdown.style.display !== 'none' && options.length) {
         ev.preventDefault();
