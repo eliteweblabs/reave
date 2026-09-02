@@ -16,7 +16,13 @@ import { DEPLOY_APP_SERVICE, railwayLocalRef, railwayRef } from './deployWizardC
 import { resolveInstallIdentity, type InstallIdentity } from './installIdentity';
 import { createLogger } from './logger';
 import { serverEnv } from './serverEnv';
-import { ensureCalcomOwnerEventTypes, provisionCalcomOwner, type SqlQuery } from './calcomOwnerProvision';
+import { getCompanyConfig } from './companyConfig';
+import {
+  ensureCalcomOwnerEventTypes,
+  provisionCalcomOwner,
+  syncCalcomScheduleFromBusinessHours,
+  type SqlQuery,
+} from './calcomOwnerProvision';
 
 const log = createLogger('calcom-identity');
 
@@ -30,6 +36,16 @@ export type CalcomIdentitySyncResult = {
   identity: InstallIdentity;
   railway?: { updated: string[]; skipped: string[] };
   profile?: { updated: boolean; created?: boolean; userId?: number; reason?: string };
+  error?: string;
+};
+
+export type CalcomHoursSyncResult = {
+  ok: boolean;
+  skipped?: boolean;
+  userId?: number;
+  scheduleId?: number;
+  windows?: number;
+  reason?: string;
   error?: string;
 };
 
@@ -323,6 +339,90 @@ export async function syncCalcomIdentityFromReave(opts?: {
     return { ok: false, identity, error };
   } finally {
     _running = false;
+  }
+}
+
+/**
+ * When Company → Hours has “Sync to Cal.com” on, push business hours onto
+ * the Cal.com owner’s Working Hours / Availability rows.
+ */
+export async function syncCalcomHoursFromReave(opts?: {
+  request?: Request;
+  project?: string;
+}): Promise<CalcomHoursSyncResult> {
+  const company = await getCompanyConfig(opts?.request);
+  if (!company.syncHoursToCalcom) {
+    return { ok: true, skipped: true, reason: 'sync to Cal.com is off' };
+  }
+  if (!company.businessHours) {
+    return { ok: true, skipped: true, reason: 'no company hours to sync' };
+  }
+
+  const databaseUrl = await resolveCalcomDatabaseUrl(opts?.project);
+  if (!databaseUrl) {
+    return { ok: false, reason: 'Cal.com database URL not available yet' };
+  }
+
+  const pool = new pg.Pool({
+    connectionString: databaseUrl.replace(/[?&]sslmode=[^&]*/g, ''),
+    ssl: databaseUrl.includes('localhost') ? false : { rejectUnauthorized: false },
+    max: 1,
+  });
+
+  try {
+    const tables = await pool.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name IN ('users', 'User')`,
+    );
+    const table = tables.rows.some((r) => r.table_name === 'users')
+      ? 'users'
+      : tables.rows.some((r) => r.table_name === 'User')
+        ? '"User"'
+        : null;
+    if (!table) return { ok: false, reason: 'Cal.com users table not found' };
+
+    const users = await pool.query<{ id: number; username: string | null; email: string | null }>(
+      `SELECT id, username, email FROM ${table} ORDER BY id ASC LIMIT 20`,
+    );
+    if (!users.rows.length) {
+      return { ok: false, reason: 'no Cal.com owner user yet' };
+    }
+
+    const identity = await resolveInstallIdentity(opts?.request);
+    const emailLc = identity.email.toLowerCase();
+    const match =
+      users.rows.find((u) => u.username && u.username === identity.username) ||
+      users.rows.find((u) => u.email && u.email.toLowerCase() === emailLc) ||
+      users.rows[0];
+
+    const timezone = serverEnv('BOOKING_TIMEZONE')?.trim() || DEFAULT_TZ;
+    const query = ((sql: string, values?: unknown[]) => pool.query(sql, values)) as SqlQuery;
+    const synced = await syncCalcomScheduleFromBusinessHours(
+      query,
+      match.id,
+      timezone,
+      company.businessHours,
+    );
+    if (synced.ok) {
+      log.info('calcom hours synced from company', {
+        userId: match.id,
+        scheduleId: synced.scheduleId,
+        windows: synced.windows,
+      });
+    }
+    return {
+      ok: synced.ok,
+      userId: match.id,
+      scheduleId: synced.scheduleId,
+      windows: synced.windows,
+      reason: synced.reason,
+    };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    log.warn('calcom hours sync failed', { error });
+    return { ok: false, error };
+  } finally {
+    await pool.end().catch(() => undefined);
   }
 }
 

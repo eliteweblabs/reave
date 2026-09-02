@@ -11,7 +11,10 @@ import { emailSafeFontCatalogForAdmin } from '../../../lib/emailSafeFonts';
 import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
-import { syncCalcomIdentityFromReave } from '../../../lib/calcomIdentitySync';
+import {
+  syncCalcomHoursFromReave,
+  syncCalcomIdentityFromReave,
+} from '../../../lib/calcomIdentitySync';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { jsonResponse } from '../../../lib/apiResponse';
@@ -97,7 +100,9 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!ok) return jsonResponse({ error: 'Failed to save company details' }, 500);
 
   invalidateOfficeCoordsCache();
-  void syncCalcomIdentityFromReave({ force: true, request: context.request }).catch(() => undefined);
+  void syncCalcomIdentityFromReave({ force: true, request: context.request })
+    .then(() => syncCalcomHoursFromReave({ request: context.request }))
+    .catch(() => undefined);
 
   const company = await getCompanyConfig(context.request);
   const fontCatalog = await brandFontCatalogForAdminAsync();

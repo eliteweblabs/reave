@@ -7386,6 +7386,13 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
           }
         }
       }
+      if (payload.syncHoursToCalcom != null) {
+        payload.syncHoursToCalcom =
+          payload.syncHoursToCalcom === true ||
+          payload.syncHoursToCalcom === 'true' ||
+          payload.syncHoursToCalcom === '1' ||
+          payload.syncHoursToCalcom === 'on';
+      }
       const res = await fetch('/api/admin/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

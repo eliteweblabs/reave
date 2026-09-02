@@ -166,21 +166,29 @@ function renderHoursRow(row) {
 export function renderCompanyHoursSection(company) {
   const hours = parseStoredBusinessHours(company?.businessHours);
   const alwaysOpen = hours?.alwaysOpen === true;
+  const syncToCalcom = company?.syncHoursToCalcom === true;
   const rows = rowsFromHours(hours);
   const hoursJson = hours ? JSON.stringify(hours) : '';
   return (
     `<input type="hidden" id="company-businessHours" name="businessHours" value="${escHtml(hoursJson)}" />` +
-    `<label class="co-hours-always">` +
-      `<input type="checkbox" id="company-hours-always-open" class="co-hours-always-input"${alwaysOpen ? ' checked' : ''} />` +
-      `<span>Open 24 hours</span>` +
-    `</label>` +
+    `<input type="hidden" id="company-syncHoursToCalcom" name="syncHoursToCalcom" value="${syncToCalcom ? 'true' : 'false'}" />` +
+    `<div class="co-hours-toggles">` +
+      `<label class="co-hours-always">` +
+        `<input type="checkbox" id="company-hours-always-open" class="co-hours-always-input"${alwaysOpen ? ' checked' : ''} />` +
+        `<span>Open 24 hours</span>` +
+      `</label>` +
+      `<label class="co-hours-always">` +
+        `<input type="checkbox" id="company-hours-sync-calcom" class="co-hours-sync-calcom-input"${syncToCalcom ? ' checked' : ''} />` +
+        `<span>Sync to Cal.com</span>` +
+      `</label>` +
+    `</div>` +
     `<div id="company-hours-repeater" class="co-hours-repeater${alwaysOpen ? ' is-always-open' : ''}">` +
       rows.map(renderHoursRow).join('') +
     `</div>` +
     `<div class="co-hours-actions">` +
       `<button type="button" id="company-hours-copy-weekdays" class="de-btn de-btn-secondary">Copy Mon to weekdays</button>` +
     `</div>` +
-    `<span class="prof-hint prof-hint--block">Structured hours feed directory listings and visit planning. Google uses Sunday as day 0 — we store the same shape.</span>`
+    `<span class="prof-hint prof-hint--block">Structured hours feed directory listings and visit planning. Turn on Sync to Cal.com to push the same windows onto booking availability. Google uses Sunday as day 0 — we store the same shape.</span>`
   );
 }
 
@@ -360,6 +368,8 @@ function readRowsFromDom(repeater) {
 export function bindCompanyListing(root, { onHoursChange } = {}) {
   const repeater = root.querySelector('#company-hours-repeater');
   const alwaysInput = root.querySelector('#company-hours-always-open');
+  const syncCalcomInput = root.querySelector('#company-hours-sync-calcom');
+  const syncCalcomHidden = root.querySelector('#company-syncHoursToCalcom');
   const copyBtn = root.querySelector('#company-hours-copy-weekdays');
   if (!(repeater instanceof HTMLElement)) return;
 
@@ -368,6 +378,15 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
     repeater.classList.toggle('is-always-open', alwaysOpen);
     const rows = readRowsFromDom(repeater);
     syncHiddenHours(root, rows, alwaysOpen);
+    onHoursChange?.();
+  };
+
+  const emitSyncCalcom = () => {
+    if (syncCalcomHidden instanceof HTMLInputElement) {
+      syncCalcomHidden.value =
+        syncCalcomInput instanceof HTMLInputElement && syncCalcomInput.checked ? 'true' : 'false';
+      syncCalcomHidden.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     onHoursChange?.();
   };
 
@@ -385,6 +404,10 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
 
   if (alwaysInput instanceof HTMLInputElement) {
     alwaysInput.addEventListener('change', emitHours);
+  }
+
+  if (syncCalcomInput instanceof HTMLInputElement) {
+    syncCalcomInput.addEventListener('change', emitSyncCalcom);
   }
 
   if (copyBtn instanceof HTMLButtonElement) {

@@ -5,8 +5,10 @@
 import assert from 'node:assert/strict';
 import {
   buildParameterizedInsert,
+  businessHoursToCalcomWindows,
   CALCOM_WEEKDAY_DAYS,
   DEFAULT_CALCOM_EVENT_TYPES,
+  minutesToCalcomTime,
   ownerUserColumnValues,
   pickExistingColumns,
   provisionCalcomOwner,
@@ -20,6 +22,36 @@ assert.deepEqual(
 );
 assert.equal(DEFAULT_CALCOM_EVENT_TYPES.find((t) => t.slug === '30min')?.length, 30);
 assert.deepEqual([...CALCOM_WEEKDAY_DAYS], [1, 2, 3, 4, 5]);
+
+assert.equal(minutesToCalcomTime(9 * 60), '09:00:00');
+assert.equal(minutesToCalcomTime(17 * 60 + 30), '17:30:00');
+assert.equal(minutesToCalcomTime(24 * 60), '23:59:00');
+
+assert.deepEqual(
+  businessHoursToCalcomWindows({
+    alwaysOpen: true,
+    days: [[], [], [], [], [], [], []],
+    source: 'manual',
+  }),
+  [{ days: [0, 1, 2, 3, 4, 5, 6], startTime: '00:00:00', endTime: '23:59:00' }],
+);
+
+const weekdayNineFive = businessHoursToCalcomWindows({
+  days: [
+    [],
+    [{ start: 9 * 60, end: 17 * 60 }],
+    [{ start: 9 * 60, end: 17 * 60 }],
+    [{ start: 9 * 60, end: 17 * 60 }],
+    [{ start: 9 * 60, end: 17 * 60 }],
+    [{ start: 9 * 60, end: 17 * 60 }],
+    [],
+  ],
+  source: 'manual',
+});
+assert.equal(weekdayNineFive.length, 1);
+assert.deepEqual(weekdayNineFive[0]?.days, [1, 2, 3, 4, 5]);
+assert.equal(weekdayNineFive[0]?.startTime, '09:00:00');
+assert.equal(weekdayNineFive[0]?.endTime, '17:00:00');
 
 assert.equal(quoteIdent('users'), 'users');
 assert.equal(quoteIdent('EventType'), '"EventType"');
