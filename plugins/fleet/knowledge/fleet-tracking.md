@@ -1,6 +1,8 @@
 # Fleet tracking
 
-Multi-vehicle GPS monitoring for businesses with field crews, delivery vans, or service trucks.
+Live GPS for mobile field crews — house-call vets, mobile groomers, service vans, and any business where distance and dispatch matter.
+
+Works alongside **Scheduling** (Cal.com bookings at client addresses) and the **visit planner** (`/admin/visit-plan`) which geo-clusters stops and estimates drive time between them.
 
 ## How it works
 
@@ -22,9 +24,12 @@ FLEET_API_KEY=${{ shared.FLEET_API_CLIENT_KEY }}
 Publish the bootstrap repo:
 
 ```sh
-cd bootstrap/fleet-api
-gh repo create eliteweblabs/fleet-api --public --source=. --remote=origin --push
+node scripts/publish-bootstrap-repo.mjs fleet-api
 ```
+
+## Deploy wizard
+
+Pick industry **Mobile field service** (aliases: mobile vet, house call) — the playbook enables Fleet, Scheduling, and Time tracking and documents visit-planner defaults.
 
 ## Vehicle fields
 

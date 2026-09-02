@@ -57,7 +57,5 @@ See `plugins/fleet/knowledge/fleet-api-reference.md` in the [reave](https://gith
 ## Publish to GitHub
 
 ```sh
-cd bootstrap/fleet-api
-git init && git add -A && git commit -m "Initial fleet-api"
-gh repo create eliteweblabs/fleet-api --public --source=. --remote=origin --push
+node scripts/publish-bootstrap-repo.mjs fleet-api
 ```

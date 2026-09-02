@@ -47,6 +47,7 @@ export const EMPTY_INDUSTRY_PLAYBOOK: DeckIndustryPlaybook = {
 /** Seed industries the deploy wizard already shipped before the catalog existed. */
 export const CANONICAL_DEPLOY_INDUSTRIES = [
   { slug: 'general', label: 'General contractor' },
+  { slug: 'field-service', label: 'Mobile field service' },
   { slug: 'law', label: 'Law firm' },
   { slug: 'plumbing', label: 'Plumbing' },
 ] as const;
@@ -60,6 +61,14 @@ const DEPLOY_INDUSTRY_ALIASES: Record<string, string> = {
   bankruptcy: 'law',
   'general-contractor': 'general',
   contractor: 'general',
+  'mobile-vet': 'field-service',
+  veterinary: 'field-service',
+  veterinarian: 'field-service',
+  vet: 'field-service',
+  'mobile-service': 'field-service',
+  'house-call': 'field-service',
+  'house-calls': 'field-service',
+  'field-services': 'field-service',
 };
 
 export function canonicalDeployIndustrySlug(raw: string): string | null {
@@ -174,6 +183,19 @@ export function defaultFixturePlaybook(id: string): DeckIndustryPlaybook {
       ...EMPTY_INDUSTRY_PLAYBOOK,
       notes:
         'Plumbing installs seed a sample inbox, jobs, and schedule for a trade shop. Live email can replace this after apply.',
+    };
+  }
+  if (canonical === 'field-service') {
+    const moduleIds = [
+      demoModuleIdForFeature('fleet_tracking'),
+      demoModuleIdForFeature('scheduling'),
+      demoModuleIdForFeature('time_tracking'),
+    ].filter(Boolean);
+    return {
+      ...EMPTY_INDUSTRY_PLAYBOOK,
+      moduleIds,
+      notes:
+        'Mobile field service — house calls, mobile vets, on-site care. Fleet GPS tracks vans in real time. Cal.com handles client booking. Work → visit planner (/admin/visit-plan) clusters stops by geography and estimates drive time; set visit duration per stop (e.g. 45–60m for clinical visits). Assign drivers in Fleet so their signed-in session reports GPS.',
     };
   }
   if (canonical === 'general') {

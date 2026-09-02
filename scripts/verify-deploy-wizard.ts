@@ -486,7 +486,11 @@ const backfilled = backfillCanonicalDeployIndustries([
 assert.equal(backfilled.changed, true);
 assert.deepEqual(
   backfilled.list.map((row) => row.slug),
-  ['general', 'law', 'plumbing', 'salon'],
+  ['field-service', 'general', 'law', 'plumbing', 'salon'],
+);
+assert.match(
+  backfilled.list.find((row) => row.slug === 'field-service')?.playbook.notes || '',
+  /visit planner/i,
 );
 assert.equal(backfilled.list.find((row) => row.slug === 'plumbing')?.label, 'Plumbing');
 assert.match(backfilled.list.find((row) => row.slug === 'plumbing')?.playbook.notes || '', /trade shop/);
