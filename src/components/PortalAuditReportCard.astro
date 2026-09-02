@@ -300,6 +300,40 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
 
 <style>
   .opd {
+    /* Light by default — matches portal ThemeInit / site canvas. */
+    --opd-bg: #f8fafc;
+    --opd-panel: #ffffff;
+    --opd-panel-alt: #f1f5f9;
+    --opd-hairline: rgba(23, 23, 23, 0.1);
+    --opd-text: #171717;
+    --opd-muted: #525252;
+    --opd-dim: #737373;
+    --opd-cyan: #0891b2;
+    --opd-good: #16a34a;
+    --opd-warn: #ca8a04;
+    --opd-risk: #ea580c;
+    --opd-crit: #dc2626;
+    --opd-stat-crit: #b91c1c;
+    --opd-stat-risk: #c2410c;
+    --opd-badge-bg: rgba(8, 145, 178, 0.1);
+    --opd-dot: rgba(23, 23, 23, 0.06);
+    --opd-sans: 'Inter', system-ui, sans-serif;
+    --opd-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    --opd-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    color-scheme: light;
+    color: var(--opd-text);
+    font-family: var(--opd-sans);
+    background:
+      radial-gradient(circle at 1px 1px, var(--opd-dot) 1px, transparent 0) 0 0 / 22px 22px,
+      var(--opd-bg);
+    border: 1px solid var(--opd-hairline);
+    border-radius: 12px;
+    padding: 22px 18px 28px;
+    margin: 0 -4px;
+  }
+
+  :global(html[data-theme="dark"]) .opd {
     --opd-bg: #0b0e13;
     --opd-panel: #131a22;
     --opd-panel-alt: #161e28;
@@ -312,20 +346,15 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     --opd-warn: #f2b84b;
     --opd-risk: #f2884b;
     --opd-crit: #ff6b72;
-    --opd-sans: 'Inter', system-ui, sans-serif;
-    --opd-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
-    --opd-mono: 'JetBrains Mono', ui-monospace, monospace;
+    --opd-stat-crit: #ffb3b7;
+    --opd-stat-risk: #ffc49a;
+    --opd-badge-bg: rgba(69, 199, 232, 0.12);
+    --opd-dot: rgba(35, 46, 59, 0.55);
 
     color-scheme: dark;
-    color: var(--opd-text);
-    font-family: var(--opd-sans);
     background:
-      radial-gradient(circle at 1px 1px, rgba(35, 46, 59, 0.55) 1px, transparent 0) 0 0 / 22px 22px,
+      radial-gradient(circle at 1px 1px, var(--opd-dot) 1px, transparent 0) 0 0 / 22px 22px,
       var(--opd-bg);
-    border: 1px solid var(--opd-hairline);
-    border-radius: 12px;
-    padding: 22px 18px 28px;
-    margin: 0 -4px;
   }
 
   .opd-waiting {
@@ -398,7 +427,7 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     text-underline-offset: 2px;
   }
   .opd-banner-link:hover {
-    color: var(--opd-fg, #f5f5f5);
+    color: var(--opd-text);
   }
 
   .opd-hero {
@@ -540,9 +569,9 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     flex: none;
     background: var(--opd-cyan);
   }
-  .opd-stat-crit { color: #ffb3b7; }
+  .opd-stat-crit { color: var(--opd-stat-crit); }
   .opd-stat-crit .opd-stat-dot { background: var(--opd-crit); }
-  .opd-stat-risk { color: #ffc49a; }
+  .opd-stat-risk { color: var(--opd-stat-risk); }
   .opd-stat-risk .opd-stat-dot { background: var(--opd-risk); }
 
   .grade-a, .grade-b { color: var(--opd-good); }
@@ -566,7 +595,7 @@ const ICON_PATHS: Record<ReportCardIcon, string> = {
     text-transform: uppercase;
     color: var(--opd-cyan);
     border: 1px solid var(--opd-cyan);
-    background: rgba(69, 199, 232, 0.12);
+    background: var(--opd-badge-bg);
     border-radius: 999px;
     padding: 3px 10px;
     margin-bottom: 14px;
