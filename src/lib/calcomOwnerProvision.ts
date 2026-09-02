@@ -9,6 +9,7 @@
  * Column / table names are discovered at runtime so this survives Cal.com
  * schema drift (users vs "User", avatar vs avatarUrl, …).
  */
+import { randomUUID } from 'node:crypto';
 import type { InstallIdentity } from './installIdentity';
 
 export const DEFAULT_CALCOM_EVENT_TYPES: ReadonlyArray<{
@@ -73,6 +74,7 @@ export function ownerUserColumnValues(
   timezone: string,
 ): Record<string, unknown> {
   return {
+    uuid: randomUUID(),
     username: identity.username,
     name: identity.name || identity.username,
     email: identity.email,
@@ -176,11 +178,11 @@ export async function ensureCalcomOwnerEventTypes(
       length: type.length,
       userId,
       hidden: false,
-      locations: [{ type: 'inPerson' }],
+      locations: JSON.stringify([{ type: 'inPerson' }]),
       timeZone: timezone,
       scheduleId,
       minimumBookingNotice: 0,
-      periodType: 'UNLIMITED',
+      periodType: 'unlimited',
     });
     if (id != null) {
       created += 1;

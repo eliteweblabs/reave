@@ -45,6 +45,7 @@ assert.equal(cols.username, 'jk');
 assert.equal(cols.email, 'jk@jasonkahan.com');
 assert.equal(cols.timeZone, 'America/New_York');
 assert.equal(cols.completedOnboarding, true);
+assert.match(String(cols.uuid), /^[0-9a-f-]{36}$/i);
 
 const skipEmpty = await provisionCalcomOwner((async () => ({ rows: [] })) as SqlQuery, {
   name: 'CAP Design Group',
