@@ -19,9 +19,7 @@ See `bootstrap/materials-api/README.md` and `plugins/materials/knowledge/materia
 Source for **eliteweblabs/fleet-api** — multi-vehicle GPS tracking for businesses.
 
 ```sh
-cd bootstrap/fleet-api
-git init && git add -A && git commit -m "Initial fleet-api"
-gh repo create eliteweblabs/fleet-api --public --source=. --remote=origin --push
+node scripts/publish-bootstrap-repo.mjs fleet-api
 ```
 
 Railway setup:

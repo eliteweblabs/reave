@@ -396,12 +396,13 @@ const ALL_INDUSTRIES = [
   'law',
   'lawyers',
   'marketers',
-  'pest-control',
+  'field-service',
   'plumbing',
   'real-estate-agents',
 ] as const;
 
-const TRADE_INDUSTRIES = ['general', 'plumbing', 'electricians', 'pest-control'] as const;
+const TRADE_INDUSTRIES = ['general', 'plumbing', 'electricians', 'field-service'] as const;
+const FIELD_SERVICE_INDUSTRIES = ['field-service', 'hair-stylists'] as const;
 const CREATIVE_INDUSTRIES = ['artists', 'creators', 'designers', 'marketers'] as const;
 const WEB_INDUSTRIES = [
   'artists',
@@ -413,7 +414,7 @@ const WEB_INDUSTRIES = [
   'law',
   'lawyers',
   'marketers',
-  'pest-control',
+  'field-service',
   'plumbing',
   'electricians',
   'real-estate-agents',
@@ -430,7 +431,7 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   cookie_notice: ALL_INDUSTRIES,
   hosting_core_os: ALL_INDUSTRIES,
   hosting_growth: ['artists', 'creators', 'designers', 'marketers', 'entrepreneurs', 'engineers'],
-  scheduling: ['hair-stylists', 'general', 'plumbing', 'electricians', 'marketers', 'law', 'lawyers', 'real-estate-agents'],
+  scheduling: [...FIELD_SERVICE_INDUSTRIES, 'general', 'plumbing', 'electricians', 'marketers', 'law', 'lawyers', 'real-estate-agents'],
   documents: ['law', 'lawyers', 'general', 'plumbing', 'electricians', 'real-estate-agents', 'entrepreneurs', 'engineers'],
   digital_signature: ['law', 'lawyers', 'real-estate-agents', 'general', 'plumbing', 'electricians'],
   voice: ['hair-stylists', 'general', 'plumbing', 'electricians', 'law', 'lawyers', 'marketers', 'real-estate-agents'],
@@ -444,9 +445,9 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   site_audits: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'general', 'plumbing', 'entrepreneurs'],
   analytic_audit: WEB_INDUSTRIES,
   site_monitoring: WEB_INDUSTRIES,
-  fleet_tracking: TRADE_INDUSTRIES,
+  fleet_tracking: [...TRADE_INDUSTRIES],
   materials_pricing: ['general', 'plumbing', 'electricians', 'engineers'],
-  time_tracking: ['general', 'plumbing', 'electricians', 'engineers', 'law', 'lawyers'],
+  time_tracking: [...FIELD_SERVICE_INDUSTRIES, 'general', 'plumbing', 'electricians', 'engineers', 'law', 'lawyers'],
   real_estate_data: ['real-estate-agents'],
   dscr_calculator: ['real-estate-agents'],
   credit_check: ['real-estate-agents', 'law', 'lawyers', 'general'],
