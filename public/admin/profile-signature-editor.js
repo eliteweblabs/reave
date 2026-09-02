@@ -37,6 +37,67 @@ function normalizeSignatureHtml(raw) {
     .join('<br />');
 }
 
+function isEmptySignatureBlock(el) {
+  if (el.querySelector('img')) return false;
+  const text = (el.textContent || '').replace(/\u00a0/g, ' ').trim();
+  if (text) return false;
+  const inner = (el.innerHTML || '').replace(/\s/g, '').toLowerCase();
+  return !inner || /^(<br\s*\/?>)+$/i.test(inner);
+}
+
+/** Mirror server normalizeSignatureHtmlForEmail — tight spacing for email clients. */
+function normalizeSignatureHtmlForEmail(html) {
+  const root = document.createElement('div');
+  root.innerHTML = sanitizeSignatureHtmlClient(html);
+
+  root.querySelectorAll('figure').forEach((fig) => {
+    const wrap = document.createElement('div');
+    wrap.style.margin = '0';
+    wrap.style.padding = '0';
+    wrap.style.lineHeight = '0';
+    wrap.innerHTML = fig.innerHTML;
+    fig.replaceWith(wrap);
+  });
+
+  root.querySelectorAll('img').forEach((img) => {
+    img.removeAttribute('class');
+    img.style.cssText =
+      'display:block;margin:0 0 6px 0;max-width:160px;height:auto;border:0;outline:none;text-decoration:none';
+  });
+
+  [...root.querySelectorAll('div, p')].forEach((el) => {
+    if (isEmptySignatureBlock(el)) {
+      el.remove();
+      return;
+    }
+    el.removeAttribute('class');
+    el.removeAttribute('contenteditable');
+    const hasImg = el.querySelector('img');
+    if (hasImg) {
+      el.style.margin = '0';
+      el.style.padding = '0';
+      el.style.lineHeight = '0';
+    } else {
+      el.style.margin = '0';
+      el.style.padding = '0';
+      el.style.lineHeight = '1.45';
+    }
+  });
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    root.querySelectorAll('br').forEach((br) => {
+      if (br.previousElementSibling?.tagName === 'BR') {
+        br.remove();
+        changed = true;
+      }
+    });
+  }
+
+  return root.innerHTML.trim();
+}
+
 function plainTextFromSignatureHtml(html) {
   const root = document.createElement('div');
   root.innerHTML = html;
@@ -218,7 +279,7 @@ export function bindProfileSignatureEditor(root, opts = {}) {
       previewBody.innerHTML = '<p class="prof-hint">Nothing to preview yet.</p>';
       return;
     }
-    previewBody.innerHTML = sanitizeSignatureHtmlClient(html);
+    previewBody.innerHTML = normalizeSignatureHtmlForEmail(html);
   }
 
   function applyFormat(command) {

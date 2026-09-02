@@ -3,9 +3,15 @@
  * (Admin → Profile), not company settings.
  */
 import type { APIContext } from 'astro';
+import * as cheerio from 'cheerio';
 import { clerkClient } from '@clerk/astro/server';
 import { clerkSecretKey } from './clerkClient';
 import { escHtml } from './escHtml';
+
+const SIG_IMG_STYLE =
+  'display:block;margin:0 0 6px 0;max-width:160px;height:auto;border:0;outline:none;text-decoration:none';
+const SIG_LOGO_WRAP_STYLE = 'margin:0;padding:0;line-height:0';
+const SIG_TEXT_BLOCK_STYLE = 'margin:0;padding:0;line-height:1.45';
 
 async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
   const secretKey = clerkSecretKey();
@@ -81,10 +87,70 @@ export function signatureToPlainText(signature: string): string {
     .trim();
 }
 
+function isEmptySignatureBlock($: cheerio.CheerioAPI, el: cheerio.Element): boolean {
+  const $el = $(el);
+  if ($el.find('img').length) return false;
+  const text = $el.text().replace(/\u00a0/g, ' ').trim();
+  if (text) return false;
+  const inner = ($el.html() || '').replace(/\s/g, '').toLowerCase();
+  return !inner || /^(<br\s*\/?>)+$/i.test(inner);
+}
+
+/**
+ * Tighten contenteditable markup for email clients — figures/divs/br-only rows
+ * pick up large default margins in Gmail and Apple Mail.
+ */
+export function normalizeSignatureHtmlForEmail(html: string): string {
+  const cleaned = sanitizeSignatureHtml(html);
+  if (!cleaned) return '';
+  const $ = cheerio.load(`<div id="sig-root">${cleaned}</div>`, null, false);
+  const root = $('#sig-root');
+
+  root.find('figure').each((_, fig) => {
+    const $fig = $(fig);
+    const $wrap = $('<div></div>').attr('style', SIG_LOGO_WRAP_STYLE);
+    $wrap.html($fig.html() || '');
+    $fig.replaceWith($wrap);
+  });
+
+  root.find('img').each((_, img) => {
+    $(img)
+      .removeAttr('class')
+      .attr('style', SIG_IMG_STYLE);
+  });
+
+  root.find('div, p').each((_, el) => {
+    const $el = $(el);
+    if ($el.is('#sig-root')) return;
+    if (isEmptySignatureBlock($, el)) {
+      $el.remove();
+      return;
+    }
+    const hasImg = $el.find('img').length > 0;
+    $el.removeAttr('class contenteditable').attr(
+      'style',
+      hasImg ? SIG_LOGO_WRAP_STYLE : SIG_TEXT_BLOCK_STYLE,
+    );
+  });
+
+  let removed = true;
+  while (removed) {
+    removed = false;
+    root.find('br').each((_, br) => {
+      if ($(br).prev('br').length) {
+        $(br).remove();
+        removed = true;
+      }
+    });
+  }
+
+  return (root.html() || '').trim();
+}
+
 export function signatureHtmlForEmail(signature: string): string {
   const trimmed = signature.trim();
   if (!trimmed) return '';
-  if (isHtmlSignature(trimmed)) return sanitizeSignatureHtml(trimmed);
+  if (isHtmlSignature(trimmed)) return normalizeSignatureHtmlForEmail(trimmed);
   return signatureToHtml(trimmed);
 }
 
