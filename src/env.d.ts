@@ -108,6 +108,12 @@ interface ImportMetaEnv {
   RAILWAY_INCIDENT_HANDLER?: string;
   /** Kap plugin upload auth (X-Kap-Key / Bearer). View at /r/{token}. */
   KAP_UPLOAD_KEY?: string;
+  /** Cloudinary — Kap uploads land here when all three are set (see bootstrap/kap-railway). */
+  CLOUDINARY_CLOUD_NAME?: string;
+  CLOUDINARY_API_KEY?: string;
+  CLOUDINARY_API_SECRET?: string;
+  /** Optional Cloudinary folder for Kap recordings (default kap). */
+  CLOUDINARY_KAP_FOLDER?: string;
   /** GitHub PAT (read-only Contents+Metadata) for dev/status tools. Recommended even for public repos to avoid rate limits. */
   GITHUB_TOKEN?: string;
   /** Optional alias for GITHUB_TOKEN. */

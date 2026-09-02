@@ -16,6 +16,10 @@ export const GET: APIRoute = async ({ params }) => {
   const record = await getKapRecording(token);
   if (!record) return new Response('Not found', { status: 404 });
 
+  if (record.remoteUrl) {
+    return Response.redirect(record.remoteUrl, 302);
+  }
+
   const buffer = Buffer.from(record.dataBase64, 'base64');
   const inline = record.mediaType.startsWith('image/') || record.mediaType.startsWith('video/');
   const disposition = inline

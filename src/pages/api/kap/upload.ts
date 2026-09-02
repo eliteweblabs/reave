@@ -8,8 +8,10 @@ import {
   isKapRecordingMediaType,
   kapRecordingViewUrl,
   KAP_RECORDING_MAX_BYTES,
+  KAP_RECORDING_CLOUDINARY_MAX_BYTES,
   storeKapRecording,
 } from '../../../lib/kapRecordings';
+import { isCloudinaryKapConfigured, uploadKapBufferToCloudinary } from '../../../lib/cloudinaryKap';
 import { secretMatches } from '../../../lib/secretCompare';
 import { serverEnv } from '../../../lib/serverEnv';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
@@ -69,19 +71,37 @@ export async function POST(context: APIContext): Promise<Response> {
       400,
     );
   }
-  if (file.size > KAP_RECORDING_MAX_BYTES) {
+  const useCloudinary = isCloudinaryKapConfigured();
+  const maxBytes = useCloudinary ? KAP_RECORDING_CLOUDINARY_MAX_BYTES : KAP_RECORDING_MAX_BYTES;
+  if (file.size > maxBytes) {
     return jsonResponse(
-      { ok: false, error: `File too large (max ${KAP_RECORDING_MAX_BYTES / (1024 * 1024)} MB)` },
+      { ok: false, error: `File too large (max ${maxBytes / (1024 * 1024)} MB)` },
       400,
     );
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
+
+  let remoteUrl: string | undefined;
+  if (useCloudinary) {
+    const uploaded = await uploadKapBufferToCloudinary({
+      buffer,
+      mediaType,
+      filename: file.name.trim() || undefined,
+    });
+    if (!uploaded.ok) {
+      return jsonResponse({ ok: false, error: uploaded.error }, 502);
+    }
+    remoteUrl = uploaded.url;
+  }
+
   const stored = await storeKapRecording({
     filename: file.name.trim() || undefined,
     mediaType,
     sizeBytes: buffer.length,
-    dataBase64: buffer.toString('base64'),
+    ...(remoteUrl
+      ? { remoteUrl }
+      : { dataBase64: buffer.toString('base64') }),
   });
   if (!stored.ok) return jsonResponse({ ok: false, error: stored.error }, 400);
 

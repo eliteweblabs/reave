@@ -21,9 +21,11 @@ export type KapRecordingSummary = {
 
 export type KapRecordingRecord = KapRecordingSummary & {
   dataBase64: string;
+  remoteUrl?: string;
 };
 
 export const KAP_RECORDING_MAX_BYTES = 25 * 1024 * 1024;
+export const KAP_RECORDING_CLOUDINARY_MAX_BYTES = 100 * 1024 * 1024;
 
 const KAP_MEDIA_TYPES = new Set([
   'image/gif',
@@ -40,10 +42,12 @@ CREATE TABLE IF NOT EXISTS kap_recordings (
   filename      TEXT NOT NULL,
   media_type    TEXT NOT NULL,
   size_bytes    BIGINT NOT NULL,
-  data_base64   TEXT NOT NULL,
+  data_base64   TEXT NOT NULL DEFAULT '',
+  remote_url    TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS kap_recordings_created_idx ON kap_recordings (created_at DESC);
+ALTER TABLE kap_recordings ADD COLUMN IF NOT EXISTS remote_url TEXT;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -96,7 +100,8 @@ function normalizeRecord(raw: Record<string, unknown>): KapRecordingRecord | nul
   const filename = String(raw.filename ?? '').trim();
   const mediaType = String(raw.mediaType ?? raw.media_type ?? '').trim().toLowerCase();
   const dataBase64 = String(raw.dataBase64 ?? raw.data_base64 ?? '').trim();
-  if (!token || !filename || !mediaType || !dataBase64) return null;
+  const remoteUrl = String(raw.remoteUrl ?? raw.remote_url ?? '').trim() || undefined;
+  if (!token || !filename || !mediaType || (!dataBase64 && !remoteUrl)) return null;
   const sizeBytes = Number(raw.sizeBytes ?? raw.size_bytes ?? 0);
   const createdAtRaw = raw.createdAt ?? raw.created_at;
   const createdAt =
@@ -110,24 +115,32 @@ function normalizeRecord(raw: Record<string, unknown>): KapRecordingRecord | nul
     sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : 0,
     createdAt,
     dataBase64,
+    remoteUrl,
   };
 }
 
 export async function storeKapRecording(input: {
   filename?: string;
   mediaType: string;
-  dataBase64: string;
+  dataBase64?: string;
+  remoteUrl?: string;
   sizeBytes: number;
 }): Promise<{ ok: true; record: KapRecordingSummary } | { ok: false; error: string }> {
   const mediaType = input.mediaType.trim().toLowerCase();
   if (!isKapRecordingMediaType(mediaType)) {
     return { ok: false, error: 'Unsupported media type' };
   }
-  if (input.sizeBytes <= 0 || input.sizeBytes > KAP_RECORDING_MAX_BYTES) {
-    return {
-      ok: false,
-      error: `File too large (max ${KAP_RECORDING_MAX_BYTES / (1024 * 1024)} MB)`,
-    };
+  const remoteUrl = input.remoteUrl?.trim() || undefined;
+  const dataBase64 = input.dataBase64?.trim() || '';
+  if (!remoteUrl && !dataBase64) {
+    return { ok: false, error: 'Missing recording payload' };
+  }
+  if (input.sizeBytes <= 0) {
+    return { ok: false, error: 'Empty file' };
+  }
+  const maxBytes = remoteUrl ? KAP_RECORDING_CLOUDINARY_MAX_BYTES : KAP_RECORDING_MAX_BYTES;
+  if (input.sizeBytes > maxBytes) {
+    return { ok: false, error: `File too large (max ${maxBytes / (1024 * 1024)} MB)` };
   }
 
   const token = generateKapRecordingToken();
@@ -137,9 +150,9 @@ export async function storeKapRecording(input: {
   const pool = await ensureSchema();
   if (pool) {
     await pool.query(
-      `INSERT INTO kap_recordings (token, filename, media_type, size_bytes, data_base64, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [token, filename, mediaType, input.sizeBytes, input.dataBase64, createdAt],
+      `INSERT INTO kap_recordings (token, filename, media_type, size_bytes, data_base64, remote_url, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [token, filename, mediaType, input.sizeBytes, dataBase64, remoteUrl ?? null, createdAt],
     );
   } else {
     writeFileSync(
@@ -150,7 +163,8 @@ export async function storeKapRecording(input: {
           filename,
           mediaType,
           sizeBytes: input.sizeBytes,
-          dataBase64: input.dataBase64,
+          dataBase64,
+          remoteUrl,
           createdAt,
         },
         null,
@@ -172,7 +186,7 @@ export async function getKapRecording(token: string): Promise<KapRecordingRecord
   const pool = await ensureSchema();
   if (pool) {
     const res = await pool.query(
-      `SELECT token, filename, media_type, size_bytes, data_base64, created_at
+      `SELECT token, filename, media_type, size_bytes, data_base64, remote_url, created_at
        FROM kap_recordings WHERE token = $1`,
       [id],
     );
@@ -184,6 +198,7 @@ export async function getKapRecording(token: string): Promise<KapRecordingRecord
       media_type: row.media_type,
       size_bytes: row.size_bytes,
       data_base64: row.data_base64,
+      remote_url: row.remote_url,
       created_at: row.created_at,
     });
   }
