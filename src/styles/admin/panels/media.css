@@ -70,10 +70,12 @@
   gap: 0.65rem 0.85rem;
 }
 
+.ml-toolbar-collections,
 .ml-toolbar-filters {
   flex: 0 0 auto;
 }
 
+.ml-toolbar-collections .sliding-pill-select,
 .ml-toolbar-filters .sliding-pill-select {
   margin: 0;
 }

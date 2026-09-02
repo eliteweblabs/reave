@@ -1266,8 +1266,8 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   const hint = document.createElement('span');
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = uploadsDisabled
-    ? 'Fetch from website works before saving. Upload logo and icon after the contact is saved.'
-    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Upload a file, pick from the Media library, or fetch from the website URL.';
+    ? 'Fetch from website works before saving — files land in Media → Brand Icons. Upload logo and icon after the contact is saved.'
+    : 'Logo: client portal header. Icon: install icon and favicons. Fetched images are stored in Media → Brand Icons. Upload a file, pick from the library, or fetch from the website URL.';
 
   wrap.appendChild(uploads);
   wrap.appendChild(hint);
@@ -1624,7 +1624,7 @@ function bindClientBrandingFetch(btn, uid, getWebsite, asset, onUpdate, refreshe
         const res = await fetch('/api/clients/scrape-branding-preview', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ website }),
+          body: JSON.stringify({ website, asset }),
         });
         json = await res.json();
       }
@@ -1640,10 +1640,11 @@ function bindClientBrandingFetch(btn, uid, getWebsite, asset, onUpdate, refreshe
           alert(`Couldn't find a logo on ${website}.`);
           return;
         }
-        refreshers.refreshLogo(logoUrl, json.logoSource || 'website');
+        refreshers.refreshLogo(logoUrl, json.logoSource || 'upload');
         onUpdate({
           logoUrl,
-          logoSource: json.logoSource || 'website',
+          logoMediaId: json.mediaId || '',
+          logoSource: json.logoSource || 'upload',
           website: json.website || website,
           tagline: json.tagline || '',
         });
@@ -1653,10 +1654,11 @@ function bindClientBrandingFetch(btn, uid, getWebsite, asset, onUpdate, refreshe
           alert(`Couldn't find an icon on ${website}.`);
           return;
         }
-        refreshers.refreshIcon(iconUrl, json.iconSource || 'website');
+        refreshers.refreshIcon(iconUrl, json.iconSource || 'upload');
         onUpdate({
           iconUrl,
-          iconSource: json.iconSource || 'website',
+          iconMediaId: json.mediaId || '',
+          iconSource: json.iconSource || 'upload',
           website: json.website || website,
         });
       }
@@ -2384,7 +2386,12 @@ async function createClient(payload) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ website: payload.website.trim() }),
       });
-      if (clientState.draft?.logoUrl || clientState.draft?.iconUrl) {
+      if (clientState.draft?.logoMediaId) {
+        await applyMediaToTarget(clientState.draft.logoMediaId, 'client-logo', uid);
+      }
+      if (clientState.draft?.iconMediaId) {
+        await applyMediaToTarget(clientState.draft.iconMediaId, 'client-icon', uid);
+      } else if (clientState.draft?.logoUrl || clientState.draft?.iconUrl) {
         await fetch(`/api/clients/${encodeURIComponent(uid)}/scrape-branding`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

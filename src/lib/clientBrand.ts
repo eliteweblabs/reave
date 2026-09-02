@@ -14,6 +14,16 @@ import {
 import { normalizePublicUrl, resolvePublicRedirectUrl } from './publicUrl';
 import { isPortalWebsiteUrlFieldLabel, portalSiteUrl } from './siteMonitoring';
 import { refreshPortalBrandColors } from './portalBrandColors';
+import {
+  brandingBlobFromMedia,
+  mediaLibraryThumbnailUrl,
+  storeGetMedia,
+  storeUpsertBrandIconMedia,
+} from './mediaLibrary';
+import {
+  setClientPortalIcon,
+  setClientPortalLogo,
+} from './clientBranding';
 
 /** Browser-like UA — avoids bot-detection redirect loops on some sites (incl. self-fetch). */
 const SCRAPE_USER_AGENT =
@@ -252,50 +262,141 @@ export type ClientPortalScrapedBrandApply = {
   tagline?: boolean;
 };
 
+export async function persistFetchedBrandAsset(input: {
+  website: string;
+  remoteUrl: string;
+  asset: 'logo' | 'icon';
+  contactUid?: string;
+  uploadedBy?: string | null;
+}): Promise<
+  | {
+      ok: true;
+      mediaId: string;
+      previewUrl: string;
+      logoUrl?: string;
+      iconUrl?: string;
+      logoSource?: 'upload';
+      iconSource?: 'upload';
+    }
+  | { ok: false; error: string }
+> {
+  const remoteUrl = input.remoteUrl.trim();
+  if (!remoteUrl) return { ok: false, error: 'No image URL from website.' };
+
+  const saved = await storeUpsertBrandIconMedia({
+    website: input.website,
+    asset: input.asset,
+    remoteUrl,
+    uploadedBy: input.uploadedBy ?? null,
+  });
+  if (!saved.ok) return saved;
+
+  const mediaId = saved.item.id;
+  const previewUrl = mediaLibraryThumbnailUrl(mediaId);
+  const uid = input.contactUid?.trim();
+
+  if (!uid) {
+    return input.asset === 'logo'
+      ? { ok: true, mediaId, previewUrl, logoUrl: previewUrl, logoSource: 'upload' }
+      : { ok: true, mediaId, previewUrl, iconUrl: previewUrl, iconSource: 'upload' };
+  }
+
+  const record = await storeGetMedia(mediaId);
+  if (!record) return { ok: false, error: 'Saved brand image not found.' };
+  const blob = brandingBlobFromMedia(record);
+  if (!blob.ok) return { ok: false, error: blob.error };
+  if (blob.kind !== 'raster') {
+    return { ok: false, error: 'Only PNG, JPEG, or WebP images can be used for contact branding.' };
+  }
+
+  if (input.asset === 'logo') {
+    const applied = await setClientPortalLogo(uid, {
+      dataBase64: blob.dataBase64,
+      mediaType: blob.mediaType,
+    });
+    if (!applied.ok) return applied;
+    return {
+      ok: true,
+      mediaId,
+      previewUrl,
+      logoUrl: applied.logoUrl,
+      logoSource: 'upload',
+    };
+  }
+
+  const applied = await setClientPortalIcon(uid, {
+    dataBase64: blob.dataBase64,
+    mediaType: blob.mediaType,
+  });
+  if (!applied.ok) return applied;
+  return {
+    ok: true,
+    mediaId,
+    previewUrl,
+    iconUrl: applied.iconUrl,
+    iconSource: 'upload',
+  };
+}
+
 /** Persist scraped website branding onto a saved contact portal. */
 export async function applyClientPortalScrapedBrand(
   contactUid: string,
   brand: ClientBrandInfo,
-  opts: ClientPortalScrapedBrandApply,
+  opts: ClientPortalScrapedBrandApply & { website?: string; uploadedBy?: string | null },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const uid = contactUid.trim();
   if (!uid) return { ok: false, error: 'Contact not found' };
 
-  const res = await getContact(uid);
-  if (!res.ok || res.data.archived) {
-    return { ok: false, error: res.ok ? 'Client not found' : res.error };
-  }
-
-  const portal = extractPortal(res.data) ?? {};
-  const next: ClientPortal = {
-    ...portal,
-    updatedAt: new Date().toISOString(),
-  };
-
+  const website = opts.website || brand.website || '';
   if (opts.logo && brand.logoUrl) {
-    next.logoUrl = brand.logoUrl;
-    next.logoSource = 'website';
-    delete next.logoData;
-    delete next.logoMediaType;
+    const logo = await persistFetchedBrandAsset({
+      website,
+      remoteUrl: brand.logoUrl,
+      asset: 'logo',
+      contactUid: uid,
+      uploadedBy: opts.uploadedBy,
+    });
+    if (!logo.ok) return logo;
   }
   if (opts.icon && brand.iconUrl) {
-    next.iconUrl = brand.iconUrl;
-    next.iconSource = 'website';
-    delete next.iconData;
-    delete next.iconMediaType;
-  }
-  if (opts.tagline && brand.tagline && !contactStringField(portal.tagline)) {
-    next.tagline = brand.tagline;
-  }
-  if (brand.website && !contactStringField(portal.website)) {
-    next.website = brand.website;
+    const icon = await persistFetchedBrandAsset({
+      website,
+      remoteUrl: brand.iconUrl,
+      asset: 'icon',
+      contactUid: uid,
+      uploadedBy: opts.uploadedBy,
+    });
+    if (!icon.ok) return icon;
   }
 
-  const saved = await setContactPortal(uid, next);
-  if (!saved.ok) return { ok: false, error: saved.error };
+  if (opts.tagline && brand.tagline) {
+    const res = await getContact(uid);
+    if (!res.ok || res.data.archived) {
+      return { ok: false, error: res.ok ? 'Client not found' : res.error };
+    }
+    const portal = extractPortal(res.data) ?? {};
+    if (!contactStringField(portal.tagline)) {
+      const saved = await setContactPortal(uid, {
+        ...portal,
+        tagline: brand.tagline,
+        updatedAt: new Date().toISOString(),
+      });
+      if (!saved.ok) return { ok: false, error: saved.error };
+    }
+  }
 
-  if (opts.logo && brand.logoUrl) {
-    void refreshPortalBrandColors(uid);
+  if (brand.website) {
+    const res = await getContact(uid);
+    if (res.ok && !res.data.archived) {
+      const portal = extractPortal(res.data) ?? {};
+      if (!contactStringField(portal.website)) {
+        await setContactPortal(uid, {
+          ...portal,
+          website: brand.website,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
   }
 
   return { ok: true };
@@ -324,6 +425,23 @@ export async function enrichClientPortalBrand(
     const brand = await fetchClientBrandFromWebsite(website);
     if (!brand?.logoUrl && !brand?.iconUrl && !brand?.tagline) return;
 
+    if (brand.logoUrl) {
+      await persistFetchedBrandAsset({
+        website,
+        remoteUrl: brand.logoUrl,
+        asset: 'logo',
+        contactUid: contactUid.trim(),
+      });
+    }
+    if (brand.iconUrl) {
+      await persistFetchedBrandAsset({
+        website,
+        remoteUrl: brand.iconUrl,
+        asset: 'icon',
+        contactUid: contactUid.trim(),
+      });
+    }
+
     // Re-read before write — address autocomplete can land while we scrape.
     const latestRes = await getContact(contactUid.trim());
     const latest = latestRes.ok ? extractPortal(latestRes.data) ?? portal : portal;
@@ -331,10 +449,6 @@ export async function enrichClientPortalBrand(
     const next: ClientPortal = {
       ...latest,
       website: latest.website || brand.website || website.replace(/\/$/, ''),
-      logoUrl: brand.logoUrl || latest.logoUrl,
-      logoSource: brand.logoUrl ? 'website' : latest.logoSource,
-      iconUrl: brand.iconUrl || latest.iconUrl,
-      iconSource: brand.iconUrl ? 'website' : latest.iconSource,
       tagline: latest.tagline || brand.tagline,
       address: latest.address,
       geo: latest.geo,

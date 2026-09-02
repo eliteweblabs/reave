@@ -23,7 +23,13 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const limitRaw = context.url.searchParams.get('limit');
   const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 200;
-  const items = await storeListMedia(Number.isFinite(limit) ? limit : 200);
+  const category = context.url.searchParams.get('category')?.trim() || undefined;
+  const excludeCategory = context.url.searchParams.get('excludeCategory')?.trim() || undefined;
+  const items = await storeListMedia({
+    limit: Number.isFinite(limit) ? limit : 200,
+    category,
+    excludeCategory,
+  });
   return jsonResponse({
     ok: true,
     items,

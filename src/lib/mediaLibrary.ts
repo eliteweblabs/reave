@@ -16,6 +16,11 @@ import { inferLogoUploadMediaType, isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES 
 import { BRAND_SVG_MAX_CHARS, sanitizeInlineSvg } from './brandSvg';
 import { workDir } from './workStore';
 
+/** Website-scraped contact logos/icons — kept out of the main library grid. */
+export const MEDIA_LIBRARY_CATEGORY_BRAND_ICON = 'brand-icon';
+
+export type MediaLibraryCategory = typeof MEDIA_LIBRARY_CATEGORY_BRAND_ICON | null;
+
 export interface MediaLibrarySummary {
   id: string;
   filename: string;
@@ -25,10 +30,17 @@ export interface MediaLibrarySummary {
   uploadedBy: string | null;
   createdAt: string;
   slug: string | null;
+  category: MediaLibraryCategory;
   url: string;
   thumbnailUrl: string;
   publicUrl: string;
 }
+
+export type MediaLibraryListOpts = {
+  limit?: number;
+  category?: string | null;
+  excludeCategory?: string | null;
+};
 
 export interface MediaLibraryRecord extends MediaLibrarySummary {
   dataBase64: string;
@@ -166,8 +178,11 @@ CREATE TABLE IF NOT EXISTS media_library (
 );
 CREATE INDEX IF NOT EXISTS media_library_created_idx ON media_library (created_at DESC);
 ALTER TABLE media_library ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE media_library ADD COLUMN IF NOT EXISTS category TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS media_library_slug_uidx
   ON media_library (slug) WHERE slug IS NOT NULL AND btrim(slug) <> '';
+CREATE INDEX IF NOT EXISTS media_library_category_idx
+  ON media_library (category, created_at DESC);
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -207,6 +222,29 @@ function normalizeSlugField(raw: unknown): string | null {
   return slug || null;
 }
 
+function normalizeCategoryField(raw: unknown): MediaLibraryCategory {
+  const value = String(raw ?? '').trim();
+  return value === MEDIA_LIBRARY_CATEGORY_BRAND_ICON ? MEDIA_LIBRARY_CATEGORY_BRAND_ICON : null;
+}
+
+export function isBrandIconMediaCategory(category: string | null | undefined): boolean {
+  return normalizeCategoryField(category) === MEDIA_LIBRARY_CATEGORY_BRAND_ICON;
+}
+
+export function domainFromWebsiteUrl(website: string): string {
+  try {
+    const host = new URL(website.trim()).hostname.replace(/^www\./i, '');
+    return host || website.trim();
+  } catch {
+    return website.trim();
+  }
+}
+
+export function brandIconMediaSlug(domain: string, asset: 'logo' | 'icon'): string {
+  const base = normalizeMediaSlug(domain) || 'site';
+  return `brand-${base}-${asset}`.slice(0, SLUG_MAX);
+}
+
 function normalizeSummary(raw: Record<string, unknown>): MediaLibrarySummary | null {
   const id = String(raw.id ?? '').trim();
   const filename = String(raw.filename ?? '').trim();
@@ -234,6 +272,7 @@ function normalizeSummary(raw: Record<string, unknown>): MediaLibrarySummary | n
     createdAt:
       String(raw.createdAt ?? raw.created_at ?? '').trim() || new Date().toISOString(),
     slug,
+    category: normalizeCategoryField(raw.category),
     ...recordUrls(id, slug),
   };
 }
@@ -286,6 +325,7 @@ function fileAddMedia(input: {
   altText?: string | null;
   uploadedBy?: string | null;
   slug?: string | null;
+  category?: MediaLibraryCategory;
 }): { ok: true; item: MediaLibrarySummary } | { ok: false; error: string } {
   const mediaType = input.mediaType.trim().toLowerCase();
   if (!isMediaLibraryMediaType(mediaType)) {
@@ -325,6 +365,7 @@ function fileAddMedia(input: {
     uploadedBy: input.uploadedBy?.trim() || null,
     createdAt: new Date().toISOString(),
     slug,
+    category: normalizeCategoryField(input.category),
     ...recordUrls(id, slug),
     dataBase64,
   };
@@ -383,11 +424,20 @@ function fileDeleteMedia(id: string): boolean {
   }
 }
 
-async function dbListMedia(limit = 200): Promise<MediaLibrarySummary[] | null> {
+async function dbListMedia(opts: MediaLibraryListOpts = {}): Promise<MediaLibrarySummary[] | null> {
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
-    const capped = Math.min(Math.max(1, limit), 500);
+    const capped = Math.min(Math.max(1, opts.limit ?? 200), 500);
+    const params: unknown[] = [capped];
+    let where = '';
+    if (opts.category) {
+      params.push(opts.category);
+      where = ` WHERE category = $${params.length}`;
+    } else if (opts.excludeCategory) {
+      params.push(opts.excludeCategory);
+      where = ` WHERE category IS DISTINCT FROM $${params.length}`;
+    }
     const { rows } = await pool.query<{
       id: string;
       filename: string;
@@ -397,10 +447,11 @@ async function dbListMedia(limit = 200): Promise<MediaLibrarySummary[] | null> {
       uploaded_by: string | null;
       created_at: string;
       slug: string | null;
+      category: string | null;
     }>(
-      `SELECT id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at, slug
-       FROM media_library ORDER BY created_at DESC LIMIT $1`,
-      [capped],
+      `SELECT id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at, slug, category
+       FROM media_library${where} ORDER BY created_at DESC LIMIT $1`,
+      params,
     );
     return rows.map((row) => {
       const slug = normalizeSlugField(row.slug);
@@ -413,6 +464,7 @@ async function dbListMedia(limit = 200): Promise<MediaLibrarySummary[] | null> {
         uploadedBy: row.uploaded_by,
         createdAt: row.created_at,
         slug,
+        category: normalizeCategoryField(row.category),
         ...recordUrls(row.id, slug),
       };
     });
@@ -436,8 +488,9 @@ async function dbGetMedia(id: string): Promise<MediaLibraryRecord | null> {
       uploaded_by: string | null;
       created_at: string;
       slug: string | null;
+      category: string | null;
     }>(
-      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at, slug
+      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at, slug, category
        FROM media_library WHERE id = $1`,
       [id.trim()],
     );
@@ -453,6 +506,7 @@ async function dbGetMedia(id: string): Promise<MediaLibraryRecord | null> {
       uploadedBy: row.uploaded_by,
       createdAt: row.created_at,
       slug,
+      category: normalizeCategoryField(row.category),
       ...recordUrls(row.id, slug),
       dataBase64: row.data_base64,
     };
@@ -478,8 +532,9 @@ async function dbGetMediaBySlug(slug: string): Promise<MediaLibraryRecord | null
       uploaded_by: string | null;
       created_at: string;
       slug: string | null;
+      category: string | null;
     }>(
-      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at, slug
+      `SELECT id, filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, created_at, slug, category
        FROM media_library WHERE slug = $1`,
       [wanted],
     );
@@ -495,6 +550,7 @@ async function dbGetMediaBySlug(slug: string): Promise<MediaLibraryRecord | null
       uploadedBy: row.uploaded_by,
       createdAt: row.created_at,
       slug: normalized,
+      category: normalizeCategoryField(row.category),
       ...recordUrls(row.id, normalized),
       dataBase64: row.data_base64,
     };
@@ -511,6 +567,7 @@ async function dbAddMedia(input: {
   altText?: string | null;
   uploadedBy?: string | null;
   slug?: string | null;
+  category?: MediaLibraryCategory;
 }): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string } | null> {
   const mediaType = input.mediaType.trim().toLowerCase();
   if (!isMediaLibraryMediaType(mediaType)) {
@@ -550,8 +607,8 @@ async function dbAddMedia(input: {
       }
     }
     const { rows } = await pool.query<{ id: string; created_at: string }>(
-      `INSERT INTO media_library (filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, slug)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO media_library (filename, media_type, size_bytes, data_base64, alt_text, uploaded_by, slug, category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, created_at`,
       [
         filename,
@@ -561,6 +618,7 @@ async function dbAddMedia(input: {
         input.altText?.trim() || null,
         input.uploadedBy?.trim() || null,
         slug,
+        normalizeCategoryField(input.category),
       ],
     );
     const row = rows[0];
@@ -576,6 +634,7 @@ async function dbAddMedia(input: {
         uploadedBy: input.uploadedBy?.trim() || null,
         createdAt: row.created_at,
         slug,
+        category: normalizeCategoryField(input.category),
         ...recordUrls(row.id, slug),
       },
     };
@@ -630,6 +689,7 @@ async function dbUpdateMedia(
       uploaded_by: string | null;
       created_at: string;
       slug: string | null;
+      category: string | null;
     }>(
       `UPDATE media_library
        SET media_type = $2,
@@ -637,7 +697,7 @@ async function dbUpdateMedia(
            data_base64 = $4,
            filename = COALESCE($5, filename)
        WHERE id = $1
-       RETURNING id, filename, alt_text, uploaded_by, created_at, slug`,
+       RETURNING id, filename, alt_text, uploaded_by, created_at, slug, category`,
       [id.trim(), mediaType, sizeBytes, dataBase64, filename],
     );
     const row = rows[0];
@@ -654,6 +714,7 @@ async function dbUpdateMedia(
         uploadedBy: row.uploaded_by,
         createdAt: row.created_at,
         slug,
+        category: normalizeCategoryField(row.category),
         ...recordUrls(row.id, slug),
       },
     };
@@ -675,12 +736,23 @@ async function dbDeleteMedia(id: string): Promise<boolean | null> {
   }
 }
 
-export async function storeListMedia(limit = 200): Promise<MediaLibrarySummary[]> {
+export async function storeListMedia(
+  opts: number | MediaLibraryListOpts = 200,
+): Promise<MediaLibrarySummary[]> {
+  const listOpts: MediaLibraryListOpts =
+    typeof opts === 'number' ? { limit: opts } : { ...opts };
+  const limit = listOpts.limit ?? 200;
   if (isMediaLibraryDbConfigured()) {
-    const rows = await dbListMedia(limit);
+    const rows = await dbListMedia({ ...listOpts, limit });
     if (rows) return rows;
   }
-  return fileListMedia().slice(0, limit);
+  let items = fileListMedia();
+  if (listOpts.category) {
+    items = items.filter((item) => item.category === listOpts.category);
+  } else if (listOpts.excludeCategory) {
+    items = items.filter((item) => item.category !== listOpts.excludeCategory);
+  }
+  return items.slice(0, limit);
 }
 
 export async function storeGetMedia(id: string): Promise<MediaLibraryRecord | null> {
@@ -720,6 +792,7 @@ export async function storeAddMedia(input: {
   altText?: string | null;
   uploadedBy?: string | null;
   slug?: string | null;
+  category?: MediaLibraryCategory;
 }): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string }> {
   if (isMediaLibraryDbConfigured()) {
     const result = await dbAddMedia(input);
@@ -816,9 +889,10 @@ export async function storeUpdateMediaMeta(
           uploaded_by: string | null;
           created_at: string;
           slug: string | null;
+          category: string | null;
         }>(
           `UPDATE media_library SET slug = $2, alt_text = $3 WHERE id = $1
-           RETURNING id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at, slug`,
+           RETURNING id, filename, media_type, size_bytes, alt_text, uploaded_by, created_at, slug, category`,
           [existing.id, slug, altText],
         );
         const row = rows[0];
@@ -835,6 +909,7 @@ export async function storeUpdateMediaMeta(
               uploadedBy: row.uploaded_by,
               createdAt: row.created_at,
               slug: nextSlug,
+              category: normalizeCategoryField(row.category),
               ...recordUrls(row.id, nextSlug),
             },
           };
@@ -854,11 +929,139 @@ export async function storeUpdateMediaMeta(
     ...existing,
     slug,
     altText,
+    category: existing.category,
     ...recordUrls(existing.id, slug),
   };
   writeFileSync(mediaRecordPath(existing.id), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
   const { dataBase64: _d, ...summary } = record;
   return { ok: true, item: summary };
+}
+
+const REMOTE_MEDIA_FETCH_TIMEOUT_MS = 8_000;
+
+function guessRemoteImageMediaType(buf: Buffer, fallback = 'image/png'): string {
+  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return 'image/png';
+  }
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (
+    buf.length >= 12 &&
+    buf.toString('ascii', 0, 4) === 'RIFF' &&
+    buf.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    return 'image/webp';
+  }
+  return fallback;
+}
+
+function extensionForMediaType(mediaType: string): string {
+  switch (mediaType.trim().toLowerCase()) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    default:
+      return 'png';
+  }
+}
+
+async function fetchRemoteMediaBytes(url: string): Promise<{ buffer: Buffer; mediaType: string } | null> {
+  const remote = url.trim();
+  if (!remote) return null;
+  try {
+    const parsed = new URL(remote);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+  } catch {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REMOTE_MEDIA_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(remote, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: { Accept: 'image/*,*/*;q=0.8' },
+    });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (!buf.length || buf.length > MEDIA_LIBRARY_MAX_BYTES) return null;
+    const headerType = res.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() || '';
+    const mediaType =
+      headerType && isLogoUploadMediaType(headerType)
+        ? headerType
+        : guessRemoteImageMediaType(buf);
+    if (!isLogoUploadMediaType(mediaType)) return null;
+    return { buffer: buf, mediaType };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Upsert a website-scraped logo/icon into the Brand Icons collection. */
+export async function storeUpsertBrandIconMedia(input: {
+  website: string;
+  asset: 'logo' | 'icon';
+  remoteUrl: string;
+  altText?: string | null;
+  uploadedBy?: string | null;
+}): Promise<{ ok: true; item: MediaLibrarySummary } | { ok: false; error: string }> {
+  const fetched = await fetchRemoteMediaBytes(input.remoteUrl);
+  if (!fetched) return { ok: false, error: 'Could not download image from website.' };
+
+  const domain = domainFromWebsiteUrl(input.website);
+  const slug = brandIconMediaSlug(domain, input.asset);
+  const ext = extensionForMediaType(fetched.mediaType);
+  const filename = `${normalizeMediaSlug(domain) || 'site'}-${input.asset}.${ext}`;
+  const altText =
+    input.altText?.trim() ||
+    `${domain} — ${input.asset === 'logo' ? 'logo' : 'icon'} (${input.website.replace(/^https?:\/\//i, '')})`;
+
+  const existing = await storeGetMediaBySlug(slug);
+  if (existing) {
+    const updated = await storeUpdateMedia(existing.id, {
+      mediaType: fetched.mediaType,
+      dataBase64: fetched.buffer.toString('base64'),
+      filename,
+    });
+    if (!updated.ok) return updated;
+    if (updated.item.category !== MEDIA_LIBRARY_CATEGORY_BRAND_ICON && isMediaLibraryDbConfigured()) {
+      try {
+        const pool = await ensureSchema();
+        await pool?.query(`UPDATE media_library SET category = $2, alt_text = $3 WHERE id = $1`, [
+          existing.id,
+          MEDIA_LIBRARY_CATEGORY_BRAND_ICON,
+          altText,
+        ]);
+      } catch {
+        /* best-effort */
+      }
+    }
+    return {
+      ok: true,
+      item: {
+        ...updated.item,
+        category: MEDIA_LIBRARY_CATEGORY_BRAND_ICON,
+        altText,
+      },
+    };
+  }
+
+  return storeAddMedia({
+    filename,
+    mediaType: fetched.mediaType,
+    dataBase64: fetched.buffer.toString('base64'),
+    altText,
+    uploadedBy: input.uploadedBy ?? null,
+    slug,
+    category: MEDIA_LIBRARY_CATEGORY_BRAND_ICON,
+  });
 }
 
 /** Branding uploads: raster max 2 MB, SVG max 200 KB. */

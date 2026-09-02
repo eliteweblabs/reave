@@ -15,11 +15,12 @@ const MEDIA_API = '/api/admin/media';
 const ACCEPT =
   'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf';
 
-/** @type {{ items: any[], search: string, filter: 'all'|'images'|'documents', loading: boolean, uploading: boolean, selectedId: string|null, detailOpen: boolean, dropFolder: { configured?: boolean, url?: string, host?: string, path?: string, username?: string|null, authSource?: string|null } | null }} */
+/** @type {{ items: any[], search: string, filter: 'all'|'images'|'documents', collection: 'library'|'brand-icons', loading: boolean, uploading: boolean, selectedId: string|null, detailOpen: boolean, dropFolder: { configured?: boolean, url?: string, host?: string, path?: string, username?: string|null, authSource?: string|null } | null }} */
 let state = {
   items: [],
   search: '',
   filter: 'all',
+  collection: 'library',
   loading: false,
   uploading: false,
   selectedId: null,
@@ -146,6 +147,15 @@ function renderEmptyState(isFiltered) {
       `<div class="ml-empty">` +
       `<div class="list-empty-state-icon">${iosIcon('search', 36)}</div>` +
       `<div class="list-empty-state-body">No media files found.</div>` +
+      `</div>`
+    );
+  }
+  if (state.collection === 'brand-icons') {
+    return (
+      `<div class="ml-empty">` +
+      `<div class="list-empty-state-icon">${iosIcon('image', 36)}</div>` +
+      `<div class="list-empty-state-body">No brand icons yet.</div>` +
+      `<p class="prof-hint prof-hint--block">Use Fetch from website on a contact to download their logo or icon here.</p>` +
       `</div>`
     );
   }
@@ -320,7 +330,10 @@ function renderPanel() {
   const items = filteredItems();
   const empty = !state.loading && items.length === 0;
   const isFiltered =
-    empty && (Boolean(state.search.trim()) || state.filter !== 'all') && state.items.length > 0;
+    empty &&
+    (Boolean(state.search.trim()) || state.filter !== 'all') &&
+    state.items.length > 0;
+  const isBrandIcons = state.collection === 'brand-icons';
   const uploadLabel = state.uploading ? 'Uploading…' : 'Add New';
   const selected = selectedItem();
 
@@ -329,20 +342,26 @@ function renderPanel() {
     `<div class="ml-header">` +
     `<div class="ml-header-row">` +
     `<div class="ml-header-copy">` +
-    `<h1 class="prof-title">Media Library</h1>` +
+    `<h1 class="prof-title">${isBrandIcons ? 'Brand Icons' : 'Media Library'}</h1>` +
+    (isBrandIcons
+      ? `<p class="prof-subtitle">Logos and icons fetched from client websites.</p>`
+      : '') +
     `</div>` +
     `<div class="ml-header-actions">` +
-    `<button type="button" class="de-btn de-btn-with-icon ml-upload-btn" id="ml-upload-trigger" ${state.uploading ? 'disabled' : ''}>` +
-    uploadBtnHtml(uploadLabel) +
-    `</button>` +
-    `<input type="file" id="ml-upload-input" class="ml-upload-input" accept="${ACCEPT}" multiple hidden />` +
+    (isBrandIcons
+      ? ''
+      : `<button type="button" class="de-btn de-btn-with-icon ml-upload-btn" id="ml-upload-trigger" ${state.uploading ? 'disabled' : ''}>` +
+        uploadBtnHtml(uploadLabel) +
+        `</button>` +
+        `<input type="file" id="ml-upload-input" class="ml-upload-input" accept="${ACCEPT}" multiple hidden />`) +
     `</div>` +
     `</div>` +
     `<div class="ml-toolbar">` +
+    `<div class="ml-toolbar-collections" id="ml-collection-host"></div>` +
     `<div class="ml-toolbar-filters" id="ml-filter-host"></div>` +
     `<input type="search" id="ml-search" class="ml-search prof-input" placeholder="Search media…" value="${escHtml(state.search)}" ${state.uploading ? 'disabled' : ''} />` +
     `</div>` +
-    renderDropFolderCard() +
+    (isBrandIcons ? '' : renderDropFolderCard()) +
     `</div>` +
     (state.loading
       ? `<div class="ml-grid ml-grid--loading"><p class="prof-hint">Loading…</p></div>`
@@ -358,11 +377,20 @@ async function fetchItems() {
   state.loading = true;
   renderAndBind();
   try {
-    const res = await adminFetch(MEDIA_API);
+    const qs =
+      state.collection === 'brand-icons'
+        ? '?limit=200&category=brand-icon'
+        : '?limit=200&excludeCategory=brand-icon';
+    const res = await adminFetch(`${MEDIA_API}${qs}`);
     const json = await readAdminJson(res);
     if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
     state.items = Array.isArray(json.items) ? json.items : [];
-    state.dropFolder = json.dropFolder && typeof json.dropFolder === 'object' ? json.dropFolder : null;
+    state.dropFolder =
+      state.collection === 'brand-icons'
+        ? null
+        : json.dropFolder && typeof json.dropFolder === 'object'
+          ? json.dropFolder
+          : null;
   } catch (e) {
     await osAlert({ title: 'Could not load media', bodyHtml: `<p>${escHtml(e.message || 'Please try again.')}</p>` });
     state.items = [];
@@ -544,6 +572,29 @@ function bindDetailDims(root) {
 }
 
 function bindPanelEvents(root) {
+  const collectionHost = root.querySelector('#ml-collection-host');
+  if (collectionHost) {
+    collectionHost.innerHTML = '';
+    const collectionPill = createSlidingPillSelect({
+      ariaLabel: 'Media collection',
+      value: state.collection,
+      options: [
+        { value: 'library', label: 'Library' },
+        { value: 'brand-icons', label: 'Brand Icons' },
+      ],
+      onChange: (value) => {
+        if (value !== 'library' && value !== 'brand-icons') return;
+        if (state.collection === value) return;
+        state.collection = value;
+        state.selectedId = null;
+        state.detailOpen = false;
+        if (value === 'brand-icons') state.filter = 'images';
+        void fetchItems();
+      },
+    });
+    collectionHost.appendChild(collectionPill.el);
+  }
+
   const filterHost = root.querySelector('#ml-filter-host');
   if (filterHost) {
     filterHost.innerHTML = '';

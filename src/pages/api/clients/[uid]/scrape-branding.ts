@@ -15,6 +15,7 @@ import {
   fetchClientBrandFromWebsite,
   guessClientWebsite,
   normalizeClientWebsiteInput,
+  persistFetchedBrandAsset,
   setClientPortalWebsite,
   websiteFromNotes,
 } from '../../../../lib/clientBrand';
@@ -38,6 +39,7 @@ function parseScrapeAsset(raw: unknown): ScrapeAsset {
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isContactApiConfigured()) {
     return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
@@ -123,12 +125,33 @@ export const POST: APIRoute = async (context) => {
     );
   }
 
-  const applied = await applyClientPortalScrapedBrand(uid, brand, {
-    logo: wantsLogo,
-    icon: wantsIcon,
-    tagline: asset === 'all',
-  });
-  if (!applied.ok) return jsonResponse({ ok: false, error: applied.error }, 502);
+  if (asset === 'all') {
+    const applied = await applyClientPortalScrapedBrand(uid, brand, {
+      logo: wantsLogo,
+      icon: wantsIcon,
+      tagline: true,
+      website,
+      uploadedBy: userId,
+    });
+    if (!applied.ok) return jsonResponse({ ok: false, error: applied.error }, 502);
+  } else {
+    const remoteUrl = asset === 'logo' ? brand.logoUrl : brand.iconUrl;
+    const saved = await persistFetchedBrandAsset({
+      website,
+      remoteUrl: remoteUrl || '',
+      asset,
+      contactUid: uid,
+      uploadedBy: userId,
+    });
+    if (!saved.ok) return jsonResponse({ ok: false, error: saved.error }, 502);
+    if (asset === 'logo' && brand.tagline) {
+      await applyClientPortalScrapedBrand(uid, brand, {
+        tagline: true,
+        website,
+        uploadedBy: userId,
+      });
+    }
+  }
 
   const after = await getContact(uid);
   if (!after.ok) return jsonResponse({ ok: false, error: after.error }, 502);

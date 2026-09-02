@@ -68,7 +68,7 @@ export function openMediaPicker(opts) {
 
     void (async () => {
       try {
-        const res = await adminFetch(`${MEDIA_API}?limit=200`);
+        const res = await adminFetch(`${MEDIA_API}?limit=200&excludeCategory=brand-icon`);
         const json = await readAdminJson(res);
         if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
         const allItems = Array.isArray(json.items) ? json.items : [];
