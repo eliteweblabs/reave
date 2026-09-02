@@ -371,7 +371,7 @@ export const DEFAULT_RULES: EmailRule[] = [
       'your package was shipped',
     ],
     matchMode: 'any',
-    fields: ['subject', 'body', 'from'],
+    fields: ['body'],
     notify: false,
     enabled: true,
   },
@@ -555,9 +555,8 @@ export function catalogPhraseOverlap(
 
 /**
  * Which DEFAULT_RULES row this persisted rule is the install copy of.
- * Shipment-tracked is a catalog row that *does* search `from` (Amazon
- * `shipment-tracking@`). Sender-only personal blocks also have `from` but
- * do not overlap catalog phrases — they must not steal the catalog slot.
+ * Sender-only personal blocks with `from` must not steal a catalog slot when
+ * they do not overlap catalog phrases.
  */
 export function matchingCatalogDefinition(rule: {
   status?: string;
@@ -591,7 +590,6 @@ export function matchingCatalogDefinition(rule: {
 
 /**
  * Repo catalog row (not a personal rule that happens to share a status like DELETE).
- * Match by definition — including catalog rows that search `from`.
  */
 export function isRepoCatalogRule(rule: {
   status?: string;

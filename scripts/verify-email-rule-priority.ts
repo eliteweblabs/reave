@@ -439,7 +439,8 @@ assert.equal(
     r.phrases.some((p) => /shipment\s*tracked/i.test(p)),
   );
   assert.ok(shipmentDef);
-  assert.ok((shipmentDef!.fields || []).includes('from'));
+  assert.ok((shipmentDef!.fields || []).includes('body'));
+  assert.ok(!(shipmentDef!.fields || []).includes('from'));
   const shipmentRow: EmailRuleRecord = {
     id: '11111111-1111-1111-1111-111111111111',
     title: 'Shipment tracked',
@@ -448,7 +449,7 @@ assert.equal(
     description: shipmentDef!.description,
     phrases: [...shipmentDef!.phrases],
     matchMode: 'any',
-    fields: ['subject', 'body', 'from'],
+    fields: ['body'],
     notify: false,
     enabled: true,
     sortOrder: 8,
@@ -589,10 +590,19 @@ assert.equal(
     emailMatchesRule(legacyShipment, {
       from: 'Amazon <shipment-tracking@amazon.com>',
       subject: 'Shipped',
-      text: 'Plain body',
+      text: 'Your package has shipped',
     }),
     true,
-    'legacy shipment rule ORs phrases across subject/body/from',
+    'shipment rule matches body shipping phrases',
+  );
+  assert.equal(
+    emailMatchesRule(legacyShipment, {
+      from: 'Amazon <shipment-tracking@amazon.com>',
+      subject: 'Shipped',
+      text: 'Plain body',
+    }),
+    false,
+    'shipment rule ignores from/subject without body phrase',
   );
 }
 

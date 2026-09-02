@@ -118,11 +118,7 @@ const REPO_CATALOG_STATUSES = new Set([
 function isRepoCatalogRuleClient(rule) {
   if (ruleScope(rule) !== 'universal') return false;
   const status = String(rule.status || '').toUpperCase();
-  if (!REPO_CATALOG_STATUSES.has(status)) return false;
-  const fields = rule.fields || [];
-  if (!fields.includes('from')) return true;
-  // Catalog shipment-tracked is the only default that searches `from`.
-  return (rule.phrases || []).some((p) => /shipment\s*[-]?track/i.test(String(p)));
+  return REPO_CATALOG_STATUSES.has(status);
 }
 
 function canDeleteRule(rule) {
