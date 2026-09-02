@@ -1,0 +1,867 @@
+---
+/**
+ * Mobile-first landing for tech / Salesforce consulting firms.
+ */
+import type { SiteLandingConfig } from "../../lib/siteContent";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { contactTelHref } from "../../lib/contactApi";
+import { Cloud } from "lucide-astro";
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+const company = await getCompanyConfig(Astro.request);
+const year = new Date().getFullYear();
+
+const phoneDisplay = (landing.contact?.phone || company.supportPhone || "").trim();
+const digits = contactTelHref(
+  landing.contact?.phoneHref?.replace(/^tel:/i, "") || phoneDisplay,
+);
+const phoneHref = digits ? `tel:${digits}` : "";
+const email = (landing.contact?.email || company.supportEmail || "").trim();
+const emailHref = email ? `mailto:${email}` : "";
+
+const logoSrc = (landing.heroLogo || "").trim();
+const services = landing.services;
+const serviceItems =
+  services?.items?.map((item) =>
+    typeof item === "string"
+      ? { label: item, description: undefined as string | undefined, icon: undefined as string | undefined }
+      : {
+          label: item.label,
+          description: item.description,
+          icon: item.icon,
+        },
+  ) ?? [];
+const numbers = landing.numbers;
+const reviews = landing.reviews;
+const about = landing.about;
+const contact = landing.contact;
+const inquiry = landing.inquiry;
+const team = landing.team;
+---
+
+<div class="tech">
+  <header class="tech-header">
+    {
+      logoSrc ? (
+        <a class="tech-header__logo" href="#top">
+          <img src={logoSrc} alt={landing.name || company.name} width="180" height="50" />
+        </a>
+      ) : (
+        <a class="tech-header__name" href="#top">{landing.name || company.name}</a>
+      )
+    }
+    <div class="tech-header__actions">
+      <a class="tech-header__login" href="/sign-in">Login</a>
+      <button
+        class="tech-menu"
+        type="button"
+        aria-label="Open menu"
+        aria-expanded="false"
+        aria-controls="tech-nav"
+        data-tech-menu
+      >
+        <span class="tech-menu__line"></span>
+        <span class="tech-menu__line"></span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tech-nav" id="tech-nav" data-tech-nav>
+    {services && <a href="#services">Services</a>}
+    {numbers && <a href="#numbers">Expertise</a>}
+    {reviews && <a href="#reviews">Clients</a>}
+    {team && <a href="#team">Team</a>}
+    {about && <a href="#about">About</a>}
+    <a href="#contact">Contact</a>
+    <a href="/sign-in">Login</a>
+  </nav>
+
+  <main id="top">
+    <section class="tech-hero">
+      <div class="tech-hero__inner">
+        {
+          logoSrc && (
+            <img class="tech-hero__logo" src={logoSrc} alt="" width="220" height="60" />
+          )
+        }
+        {landing.eyebrow && <p class="tech-eyebrow">{landing.eyebrow}</p>}
+        <h1>{landing.heroHeadline || landing.name}</h1>
+        {landing.heroBody && <p class="tech-lede">{landing.heroBody}</p>}
+        {landing.tagline && !landing.heroBody && <p class="tech-lede">{landing.tagline}</p>}
+        <div class="tech-actions">
+          {
+            emailHref && (
+              <a class="tech-btn tech-btn--primary" href={emailHref}>
+                Get in touch
+              </a>
+            )
+          }
+          {
+            phoneHref && (
+              <a class="tech-btn tech-btn--ghost" href={phoneHref}>
+                {phoneDisplay}
+              </a>
+            )
+          }
+        </div>
+        <p class="tech-salesforce" aria-label="Salesforce partner">
+          <Cloud size={20} strokeWidth={1.75} aria-hidden="true" />
+          Salesforce certified · Development · Consulting
+        </p>
+      </div>
+    </section>
+
+    {
+      serviceItems.length > 0 && (
+        <section class="tech-section" id="services">
+          <div class="tech-wrap">
+            <p class="tech-eyebrow">What we do</p>
+            <h2>{services?.heading || "Services"}</h2>
+            <div class="tech-services">
+              {
+                serviceItems.map((item) => (
+                  <article class="tech-service">
+                    {item.icon ? (
+                      <img class="tech-service__icon" src={item.icon} alt="" width="40" height="40" />
+                    ) : (
+                      <span class="tech-service__dot" aria-hidden="true"></span>
+                    )}
+                    <h3>{item.label}</h3>
+                    {item.description && <p>{item.description}</p>}
+                  </article>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    {
+      numbers && (
+        <section class="tech-section tech-section--dark" id="numbers">
+          <div class="tech-wrap">
+            <p class="tech-eyebrow tech-eyebrow--light">Expertise</p>
+            <h2>{numbers.heading}</h2>
+            {numbers.intro && <p class="tech-intro">{numbers.intro}</p>}
+            <div class="tech-stats">
+              {
+                numbers.stats.map((stat) => (
+                  <article>
+                    <strong>{stat.value}</strong>
+                    <span>{stat.label}</span>
+                  </article>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    {
+      reviews?.items?.length ? (
+        <section class="tech-section" id="reviews">
+          <div class="tech-wrap">
+            <p class="tech-eyebrow">Testimonials</p>
+            <h2>{reviews.heading}</h2>
+            {reviews.intro && <p class="tech-intro">{reviews.intro}</p>}
+            <div class="tech-reviews">
+              {
+                reviews.items.map((item) => (
+                  <article class="tech-review">
+                    {item.stars && <p class="tech-stars">{item.stars}</p>}
+                    <blockquote>“{item.quote}”</blockquote>
+                    <cite>{item.cite}</cite>
+                  </article>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+      ) : null
+    }
+
+    {
+      team?.members?.length ? (
+        <section class="tech-section tech-section--muted" id="team">
+          <div class="tech-wrap">
+            <p class="tech-eyebrow">Team</p>
+            <h2>{team.heading}</h2>
+            {team.intro && <p class="tech-intro">{team.intro}</p>}
+            <div class="tech-team">
+              {
+                team.members.map((member) => (
+                  <article class="tech-member">
+                    <h3>{member.name}</h3>
+                    <p class="tech-member__role">{member.role}</p>
+                    {member.bio && <p>{member.bio}</p>}
+                  </article>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+      ) : null
+    }
+
+    {
+      about && (
+        <section class="tech-section" id="about">
+          <div class="tech-wrap tech-about">
+            <div>
+              <p class="tech-eyebrow">About</p>
+              <h2>{about.heading}</h2>
+              {about.body?.map((para) => <p>{para}</p>)}
+              {
+                about.highlights?.length ? (
+                  <ul class="tech-highlights">
+                    {about.highlights.map((item) => <li>{item}</li>)}
+                  </ul>
+                ) : null
+              }
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    <section class="tech-section tech-section--contact" id="contact">
+      <div class="tech-wrap tech-contact">
+        <div>
+          <p class="tech-eyebrow">Contact</p>
+          <h2>{contact?.heading || "Start a project."}</h2>
+          <p class="tech-intro">
+            Call, email, or send a message — we’ll get back to you quickly.
+          </p>
+          <ul class="tech-contact-list">
+            {
+              phoneHref && (
+                <li>
+                  <strong>Phone</strong>
+                  <a href={phoneHref}>{phoneDisplay}</a>
+                </li>
+              )
+            }
+            {
+              email && (
+                <li>
+                  <strong>Email</strong>
+                  <a href={emailHref}>{email}</a>
+                </li>
+              )
+            }
+            {
+              contact?.officeLines?.length ? (
+                <li>
+                  <strong>Office</strong>
+                  <address>
+                    {
+                      contact.officeLines.map((line, i) => (
+                        <>
+                          {i > 0 && <br />}
+                          {line}
+                        </>
+                      ))
+                    }
+                  </address>
+                </li>
+              ) : null
+            }
+          </ul>
+        </div>
+
+        {
+          inquiry && (
+            <form class="tech-form" action="https://api.web3forms.com/submit" method="POST">
+              {
+                inquiry.web3formsAccessKey && (
+                  <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />
+                )
+              }
+              <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
+              <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
+              <h2>{inquiry.heading}</h2>
+              <p>{inquiry.intro}</p>
+              <label>
+                Name
+                <input type="text" name="name" required autocomplete="name" />
+              </label>
+              <label>
+                Email
+                <input type="email" name="email" required autocomplete="email" />
+              </label>
+              <label>
+                Phone
+                <input type="tel" name="phone" autocomplete="tel" />
+              </label>
+              <label>
+                Message
+                <textarea name="message" rows="5" required />
+              </label>
+              <button class="tech-btn tech-btn--primary" type="submit">
+                {inquiry.submitLabel || "Send message"}
+              </button>
+            </form>
+          )
+        }
+      </div>
+    </section>
+  </main>
+
+  <footer class="tech-footer">
+    <p>&copy; {year} {landing.footer || landing.name || company.name}</p>
+  </footer>
+</div>
+
+<script is:inline>
+  const toggle = document.querySelector("[data-tech-menu]");
+  const nav = document.querySelector("[data-tech-nav]");
+  const setOpen = (open) => {
+    toggle?.classList.toggle("is-open", open);
+    nav?.classList.toggle("is-open", open);
+    document.body.classList.toggle("tech-nav-open", open);
+    if (toggle) {
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    }
+  };
+  toggle?.addEventListener("click", () => setOpen(!toggle.classList.contains("is-open")));
+  nav?.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => setOpen(false));
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") setOpen(false);
+  });
+</script>
+
+<style>
+  .tech {
+    --tech-blue: #0176d3;
+    --tech-navy: #032d60;
+    --tech-sky: #eef4fb;
+    --tech-text: #181818;
+    --tech-muted: #5c5c5c;
+  }
+
+  .tech-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(255, 255, 255, 0.96);
+    border-bottom: 1px solid rgba(3, 45, 96, 0.08);
+    backdrop-filter: blur(8px);
+  }
+
+  .tech-header__logo img {
+    display: block;
+    height: 2rem;
+    width: auto;
+    max-width: 9rem;
+    object-fit: contain;
+  }
+
+  .tech-header__name {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--tech-navy);
+    text-decoration: none;
+  }
+
+  .tech-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .tech-header__login {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--tech-blue);
+    text-decoration: none;
+  }
+
+  .tech-menu {
+    position: relative;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .tech-menu__line {
+    position: absolute;
+    left: 0.55rem;
+    width: 1.4rem;
+    height: 2px;
+    background: var(--tech-navy);
+    transition: transform 0.3s ease;
+  }
+
+  .tech-menu__line:first-child { top: 0.95rem; }
+  .tech-menu__line:last-child { top: 1.45rem; }
+
+  .tech-menu.is-open .tech-menu__line:first-child {
+    transform: translateY(0.25rem) rotate(45deg);
+  }
+
+  .tech-menu.is-open .tech-menu__line:last-child {
+    transform: translateY(-0.25rem) rotate(-45deg);
+  }
+
+  .tech-nav {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    padding: 5rem 1.5rem 2rem;
+    background: #fff;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+  .tech-nav.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .tech-nav a {
+    font-size: clamp(1.35rem, 4vw, 1.75rem);
+    font-weight: 600;
+    color: var(--tech-navy);
+    text-decoration: none;
+  }
+
+  body.tech-nav-open { overflow: hidden; }
+
+  .tech-hero {
+    background:
+      radial-gradient(circle at 85% 15%, rgba(1, 118, 211, 0.35), transparent 45%),
+      linear-gradient(165deg, var(--tech-navy) 0%, #014486 55%, var(--tech-blue) 100%);
+    color: #fff;
+    padding: 3.5rem 1.25rem 4rem;
+  }
+
+  .tech-hero__inner {
+    max-width: 40rem;
+    margin: 0 auto;
+  }
+
+  .tech-hero__logo {
+    display: block;
+    height: 2.75rem;
+    width: auto;
+    max-width: 14rem;
+    margin-bottom: 1.5rem;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+  }
+
+  .tech-hero h1 {
+    margin: 0;
+    font-size: clamp(2rem, 6vw, 3rem);
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .tech-lede {
+    margin: 1rem 0 0;
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.88);
+    max-width: 36rem;
+  }
+
+  .tech-eyebrow {
+    margin: 0 0 0.65rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--tech-blue);
+  }
+
+  .tech-eyebrow--light { color: #7eb8f0; }
+
+  .tech-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.75rem;
+  }
+
+  .tech-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.85rem;
+    padding: 0.7rem 1.25rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .tech-btn--primary {
+    background: #fff;
+    color: var(--tech-navy);
+  }
+
+  .tech-btn--ghost {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.45);
+    color: #fff;
+  }
+
+  .tech-salesforce {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 2rem 0 0;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .tech-section {
+    padding: 3.5rem 0;
+  }
+
+  .tech-section--dark {
+    background: var(--tech-navy);
+    color: #fff;
+  }
+
+  .tech-section--dark h2 { color: #fff; }
+
+  .tech-section--muted {
+    background: var(--tech-sky);
+  }
+
+  .tech-section--contact {
+    background: #fff;
+    border-top: 1px solid rgba(3, 45, 96, 0.08);
+  }
+
+  .tech-wrap {
+    width: min(1080px, calc(100% - 2.5rem));
+    margin: 0 auto;
+  }
+
+  .tech-section h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.65rem, 4vw, 2.25rem);
+    line-height: 1.15;
+    color: var(--tech-navy);
+    letter-spacing: -0.02em;
+  }
+
+  .tech-intro {
+    margin: 0 0 1.5rem;
+    color: var(--tech-muted);
+    line-height: 1.6;
+    max-width: 38rem;
+  }
+
+  .tech-services {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .tech-service {
+    padding: 1.25rem 1.35rem;
+    background: #fff;
+    border: 1px solid rgba(3, 45, 96, 0.08);
+    border-radius: 0.85rem;
+    box-shadow: 0 8px 24px rgba(3, 45, 96, 0.04);
+  }
+
+  .tech-service__dot {
+    display: block;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-bottom: 0.75rem;
+    border-radius: 999px;
+    background: var(--tech-blue);
+  }
+
+  .tech-service h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1.05rem;
+    color: var(--tech-navy);
+  }
+
+  .tech-service p {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--tech-muted);
+  }
+
+  .tech-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    margin-top: 1.5rem;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  .tech-stats article {
+    padding: 1.35rem 1rem;
+    background: rgba(255, 255, 255, 0.04);
+    text-align: center;
+  }
+
+  .tech-stats strong {
+    display: block;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 700;
+    color: #7eb8f0;
+  }
+
+  .tech-stats span {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .tech-reviews {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .tech-review {
+    padding: 1.25rem 1.35rem;
+    background: var(--tech-sky);
+    border-radius: 0.85rem;
+  }
+
+  .tech-stars {
+    margin: 0 0 0.5rem;
+    color: #f5a623;
+    font-size: 0.9rem;
+  }
+
+  .tech-review blockquote {
+    margin: 0 0 0.75rem;
+    font-size: 0.98rem;
+    line-height: 1.55;
+    color: var(--tech-text);
+  }
+
+  .tech-review cite {
+    font-style: normal;
+    font-size: 0.85rem;
+    color: var(--tech-muted);
+  }
+
+  .tech-team {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .tech-member {
+    padding: 1.35rem;
+    background: #fff;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(3, 45, 96, 0.08);
+  }
+
+  .tech-member h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--tech-navy);
+  }
+
+  .tech-member__role {
+    margin: 0.25rem 0 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--tech-blue);
+  }
+
+  .tech-member p:last-child {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--tech-muted);
+  }
+
+  .tech-highlights {
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .tech-highlights li {
+    position: relative;
+    padding-left: 1rem;
+    font-size: 0.95rem;
+    color: var(--tech-muted);
+  }
+
+  .tech-highlights li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55rem;
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 999px;
+    background: var(--tech-blue);
+  }
+
+  .tech-contact {
+    display: grid;
+    gap: 2rem;
+  }
+
+  .tech-contact-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .tech-contact-list li {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid rgba(3, 45, 96, 0.08);
+  }
+
+  .tech-contact-list strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--tech-muted);
+  }
+
+  .tech-contact-list a {
+    color: var(--tech-blue);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  address {
+    font-style: normal;
+    line-height: 1.5;
+    color: var(--tech-text);
+  }
+
+  .tech-form {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1.35rem;
+    background: var(--tech-sky);
+    border-radius: 0.85rem;
+  }
+
+  .tech-form h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  .tech-form p {
+    margin: 0;
+    font-size: 0.92rem;
+    color: var(--tech-muted);
+  }
+
+  .tech-form label {
+    display: grid;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--tech-muted);
+  }
+
+  .tech-form input,
+  .tech-form textarea {
+    width: 100%;
+    min-height: 2.65rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid rgba(3, 45, 96, 0.12);
+    border-radius: 0.5rem;
+    background: #fff;
+    color: var(--tech-text);
+    font: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+  }
+
+  .tech-footer {
+    padding: 2rem 1.25rem 2.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--tech-muted);
+    background: var(--tech-sky);
+  }
+
+  @media (min-width: 640px) {
+    .tech-services {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tech-stats {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .tech-reviews {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .tech-team {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 900px) {
+    .tech-hero {
+      padding: 5rem 1.25rem 5.5rem;
+    }
+
+    .tech-services {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .tech-reviews {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .tech-contact {
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+  }
+</style>

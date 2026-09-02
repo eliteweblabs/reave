@@ -36,6 +36,7 @@ const siteContent = getSiteContent();
 const landing = siteContent.landing ?? {};
 const isEditorial = landing.variant === "editorial";
 const isService = landing.variant === "service";
+const isTech = landing.variant === "tech";
 const title = (titleProp ?? landing.title ?? company.name).trim();
 const pwaTitle = formatPwaAppTitle(company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
@@ -45,7 +46,7 @@ const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 const themeColor =
   themeColorProp ??
   landing.themeColor ??
-  (isEditorial ? "#f4efe6" : isService ? "#f4f7fb" : "#01061d");
+  (isEditorial ? "#f4efe6" : isService ? "#f4f7fb" : isTech ? "#eef4fb" : "#01061d");
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
@@ -54,7 +55,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${LOGO_ICON_OG_PATH}`
   : ogImageAbsolute;
 const htmlStyle =
-  isEditorial || isService
+  isEditorial || isService || isTech
     ? undefined
     : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary);
 ---
@@ -98,6 +99,11 @@ const htmlStyle =
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap"
         rel="stylesheet"
       />
+    ) : isTech ? (
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
     ) : (
       <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
@@ -105,7 +111,7 @@ const htmlStyle =
       />
     )}
   </head>
-  <body class={isEditorial ? "editorial-body" : isService ? "service-body" : "landing-body"}>
+  <body class={isEditorial ? "editorial-body" : isService ? "service-body" : isTech ? "tech-body" : "landing-body"}>
     <slot />
     <ScrollFadeIn />
     <CookieNotice />
@@ -159,6 +165,30 @@ const htmlStyle =
     user-select: text;
   }
   body.service-body a { color: inherit; }
+</style>
+) : isTech ? (
+<style is:global>
+  * { box-sizing: border-box; }
+  html, body.tech-body {
+    margin: 0;
+    min-height: 100%;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #181818;
+    background: #eef4fb;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body.tech-body :is(
+    input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    a[href^="mailto:"],
+    a[href^="tel:"]
+  ) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  body.tech-body a { color: inherit; }
 </style>
 ) : (
 <style is:global>

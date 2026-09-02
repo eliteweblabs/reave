@@ -1,0 +1,162 @@
+{
+  "key": "stratushub",
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [
+      { "href": "/#services", "label": "Services" },
+      { "href": "/#reviews", "label": "Clients" },
+      { "href": "/#team", "label": "Team" },
+      { "href": "/#contact", "label": "Contact" },
+      { "href": "/sign-in", "label": "Login" }
+    ],
+    "groups": [
+      {
+        "id": "site",
+        "label": "Site",
+        "links": [
+          { "href": "/#contact", "label": "Get in touch", "primary": true },
+          { "href": "/admin", "label": "Dashboard" }
+        ]
+      }
+    ],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "Stratus Hub",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true,
+    "ctas": [{ "href": "/#contact", "label": "Get in touch", "variant": "primary" }]
+  },
+  "landing": {
+    "variant": "tech",
+    "title": "Stratus Hub | Salesforce Development & Consulting",
+    "description": "Boutique Salesforce certified administrators, developers, and consultants. Custom cloud solutions, integrations, and training — productivity and knowledge, delivered.",
+    "themeColor": "#eef4fb",
+    "heroLogo": "/sites/stratushub/logo.png",
+    "eyebrow": "Salesforce · Cloud consulting",
+    "name": "Stratus Hub",
+    "role": "Technology consulting",
+    "tagline": "Productivity and Knowledge. Delivered.",
+    "heroHeadline": "Salesforce programming that fits your business.",
+    "heroBody": "Stratus Hub is a boutique shop of Salesforce certified administrators, developers, and consultants. We deliver administration, custom development, integrations, training, and managed services — Sales Cloud, Service Cloud, Marketing Cloud, and Pardot.",
+    "services": {
+      "heading": "Full-stack Salesforce expertise",
+      "items": [
+        {
+          "label": "Consult",
+          "description": "Process consulting and solution design — from a single automation to a full platform strategy. Implementation done right the first time, avoiding rework and wasted resources."
+        },
+        {
+          "label": "Implement",
+          "description": "Salesforce, Pardot, and complementary systems — migrated, configured, and customized for your business. Up and running in weeks, not months."
+        },
+        {
+          "label": "Develop",
+          "description": "Custom Apex, Lightning components, integrations, customer portals, and communities. Your business is unique — your Salesforce should be too."
+        },
+        {
+          "label": "Train",
+          "description": "Empower your team to grow the platform. Regular training turns Salesforce from a tool into a competitive advantage that pays for itself."
+        },
+        {
+          "label": "Manage",
+          "description": "Ongoing administration, enhancements, and release management so you can focus on running the business while we keep the platform sharp."
+        }
+      ]
+    },
+    "numbers": {
+      "heading": "Certified expertise, proven delivery",
+      "intro": "Administrators, developers, and consultants — one team for your entire Salesforce stack.",
+      "stats": [
+        { "value": "15+", "label": "Years in Salesforce" },
+        { "value": "5", "label": "Core service areas" },
+        { "value": "Apex", "label": "Custom development" },
+        { "value": "NH", "label": "Based in New Hampshire" }
+      ]
+    },
+    "reviews": {
+      "heading": "Clients we have the pleasure of working with",
+      "intro": "Selected testimonials from Salesforce and Pardot engagements.",
+      "items": [
+        {
+          "stars": "★★★★★",
+          "quote": "They collaborated with us to flush out requirements and create a custom solution tailored for our business. From front-end UX to back-end coding, they have the expertise to get the job done.",
+          "cite": "Joe Sinopoli · IT Project Manager, Linkage"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Knowledgeable and efficient at execution. Willing to share best practices and conduct themselves as business process consultants, not just programmers.",
+          "cite": "Amy Krane · Senior Director, Marketing, QPID"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "They helped customize our Salesforce to fit our specific business needs. Their knowledge of Salesforce is incredible!",
+          "cite": "Sarah Chaisson · Director of Operations, Lamacchia Realty"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "They essentially built a clinical trials management system for a fraction of the cost of competitors — exceeded any competitor's product in design, flexibility, reporting, and ease of use.",
+          "cite": "M. Leigh Cohen · Sr Manager Regulatory Compliance, Corona"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Seamlessly fills the technical gap — providing injections of know-how so we can keep projects advancing and maximize ROI without becoming a distraction to our small team.",
+          "cite": "J.D. Woods · CMO, Dotcom Distribution"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Extremely collaborative, responsive, and knowledgeable. Outcome driven and laser-focused on problem resolution.",
+          "cite": "Olive McRae · Director of Sales & Marketing, Cheng & Tsui"
+        }
+      ]
+    },
+    "team": {
+      "heading": "Our team is your team",
+      "intro": "Principal-led Salesforce development and consulting from New Hampshire.",
+      "members": [
+        {
+          "name": "Anthony Vello",
+          "role": "Principal and Founder",
+          "bio": "For more than 15 years, Anthony has helped companies of all sizes manage information productively — developing efficient techniques for enormous data sets and leading Salesforce implementations from conception to completion."
+        },
+        {
+          "name": "Tara Hamond",
+          "role": "Director of Development",
+          "bio": "Tara builds information systems that just work — applications with efficient workflows and better data organization that improve the lives of their users."
+        }
+      ]
+    },
+    "about": {
+      "heading": "Boutique Salesforce shop, enterprise-grade delivery",
+      "body": [
+        "Stratus Hub partners with small and mid-size businesses that need more from Salesforce than out-of-the-box configuration. We combine certified platform expertise with practical business consulting — so your CRM, marketing automation, and custom code actually match how you sell and serve customers.",
+        "Whether you need a greenfield implementation, a rescue project, or ongoing development capacity, we work as an extension of your team — responsive, collaborative, and focused on outcomes."
+      ],
+      "highlights": [
+        "Salesforce certified administrators and developers",
+        "Sales Cloud, Service Cloud, Marketing Cloud, and Pardot",
+        "Custom Apex, Lightning, integrations, and communities",
+        "Implementation, training, and managed services",
+        "Based in Manchester, New Hampshire"
+      ]
+    },
+    "contact": {
+      "heading": "Let's talk about your Salesforce project",
+      "phone": "(617) 752-3415",
+      "phoneHref": "tel:+16177523415",
+      "email": "myteam@stratushub.com",
+      "officeLines": ["PO Box 872", "Manchester, NH 03105"]
+    },
+    "inquiry": {
+      "heading": "Send a message",
+      "intro": "Tell us about your Salesforce goals — new implementation, custom development, or ongoing support."
+    },
+    "footer": "Stratus Hub · Salesforce consulting · Manchester, NH"
+  }
+}

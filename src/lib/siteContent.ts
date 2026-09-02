@@ -155,9 +155,10 @@ export type SiteLandingConfig = {
   /**
    * `editorial` = Campion-style scrolling site.
    * `service` = mobile call-first single page (trades / emergency).
+   * `tech` = mobile-first Salesforce / consulting landing.
    * Default keeps the original navy landing.
    */
-  variant?: "default" | "editorial" | "service";
+  variant?: "default" | "editorial" | "service" | "tech";
   photo?: {
     src: string;
     alt: string;
@@ -179,10 +180,16 @@ export type SiteLandingConfig = {
     label?: string;
     stickyLabel?: string;
   };
-  /** Plain service list for `service` landings (no map / directions). */
+  /** Plain service list for `service` / `tech` landings (no map / directions). */
   services?: {
     heading: string;
-    items: Array<string | { label: string; icon?: string }>;
+    items: Array<string | { label: string; icon?: string; description?: string }>;
+  };
+  /** Leadership bios for `tech` landings. */
+  team?: {
+    heading: string;
+    intro?: string;
+    members: Array<{ name: string; role: string; bio?: string }>;
   };
   /** Accepted payment methods + logos for `service` landings. */
   payments?: {

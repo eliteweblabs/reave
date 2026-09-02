@@ -1,0 +1,45 @@
+{
+  "features": [
+    "billing",
+    "client_portal",
+    "documents",
+    "digital_signature",
+    "email_marketing",
+    "portal_assistant",
+    "scheduling",
+    "time_tracking",
+    "website",
+    "content_management"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "email",
+    "rules",
+    "work",
+    "schedule",
+    "clients",
+    "media",
+    "analytics",
+    "finance"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "addons"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "homepageTemplate": "landing",
+  "siteContentKey": "stratushub",
+  "websiteRepo": "eliteweblabs/stratushub-site",
+  "moduleStatus": {
+    "website": "deployed"
+  }
+}
