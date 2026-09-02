@@ -18291,6 +18291,7 @@ async function createRuleFromEmailLab() {
     emailState.labPhrases.length > 1
       ? emailState.labPhrases.map((p) => p.field).filter(Boolean)
       : undefined;
+  const distinctLabFields = new Set(emailState.labPhrases.map((p) => p.field));
   const titleSource = phrases[0] || String(ev.subject || '').trim() || 'New rule';
   const fields = [...new Set(emailState.labPhrases.map((p) => p.field))];
   emailState.labCreating = true;
@@ -18308,11 +18309,14 @@ async function createRuleFromEmailLab() {
       description: '',
       phrases,
       phraseFields:
-        phraseFields && phraseFields.length === phrases.length && phrases.length > 1
+        phraseFields &&
+        phraseFields.length === phrases.length &&
+        phrases.length > 1 &&
+        distinctLabFields.size >= 2
           ? phraseFields
           : undefined,
       exceptPhrases: [],
-      matchMode: phrases.length > 1 ? 'all' : 'any',
+      matchMode: 'any',
       fields: fields.length ? fields : ['body'],
       notify: false,
       notifyPush: false,

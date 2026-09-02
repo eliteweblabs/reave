@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
   classifyEmail,
   DEFAULT_RULES,
+  emailMatchesRule,
   findKeywordCollidingRule,
   formatKeywordCollisionError,
   isCatalogMarketingDeleteRule,
@@ -542,6 +543,81 @@ assert.equal(
   assert.equal(on.status, 'UNMATCHED');
   assert.equal(on.notify, true);
 
+}
+
+{
+  const groupedRule: EmailRule = {
+    status: 'CUSTOM',
+    phrases: ['redditmail.com', 'shipment tracked', 'your order has shipped'],
+    phraseFields: ['from', 'body', 'body'],
+    matchMode: 'any',
+    fields: ['from', 'body'],
+    notify: false,
+    enabled: true,
+  };
+  assert.equal(
+    emailMatchesRule(groupedRule, {
+      from: 'noreply@redditmail.com',
+      subject: 'Hello',
+      text: 'Your order has shipped today',
+    }),
+    true,
+  );
+  assert.equal(
+    emailMatchesRule(groupedRule, {
+      from: 'noreply@redditmail.com',
+      subject: 'Hello',
+      text: 'Nothing shipping here',
+    }),
+    false,
+  );
+  assert.equal(
+    emailMatchesRule(groupedRule, {
+      from: 'other@example.com',
+      subject: 'Hello',
+      text: 'shipment tracked',
+    }),
+    false,
+  );
+}
+
+{
+  const legacyShipment = DEFAULT_RULES.find((r) =>
+    r.phrases.some((p) => /shipment\s*tracked/i.test(p)),
+  )!;
+  assert.equal(
+    emailMatchesRule(legacyShipment, {
+      from: 'Amazon <shipment-tracking@amazon.com>',
+      subject: 'Shipped',
+      text: 'Plain body',
+    }),
+    true,
+    'legacy shipment rule ORs phrases across subject/body/from',
+  );
+}
+
+{
+  const deleteRule = DEFAULT_RULES.find(
+    (r) => r.status === 'DELETE' && (r.exceptPhrases?.length ?? 0) > 0,
+  )!;
+  assert.equal(
+    emailMatchesRule(deleteRule, {
+      from: 'security@facebookmail.com',
+      subject: 'unusual sign-in detected',
+      text: 'Someone signed in to your account near Beverly.',
+    }),
+    true,
+    'except phrases in subject only do not veto',
+  );
+  assert.equal(
+    emailMatchesRule(deleteRule, {
+      from: 'security@facebookmail.com',
+      subject: 'New sign-in',
+      text: 'Someone signed in. unusual sign-in activity noted.',
+    }),
+    false,
+    'except phrases in body veto the match',
+  );
 }
 
 console.log('verify-email-rule-priority: ok');

@@ -75,6 +75,15 @@ export function phraseFieldsFromChips(chips) {
   return out;
 }
 
+/** Persist phraseFields only when chips span 2+ distinct fields. */
+export function explicitMultiFieldPhraseFields(chips) {
+  const phrases = phrasesFromChips(chips);
+  const phraseFields = phraseFieldsFromChips(chips);
+  if (phraseFields.length !== phrases.length || phrases.length < 2) return undefined;
+  if (new Set(phraseFields).size < 2) return undefined;
+  return phraseFields;
+}
+
 /** Unique chip fields in first-seen order. */
 export function fieldsFromChips(chips, fallback = ['subject', 'body']) {
   const out = [];
@@ -103,8 +112,8 @@ export function titleFromRulePhrases(phrases, fallback = 'New rule') {
 
 /**
  * Expand a stored rule into field-tagged chips.
- * When phraseFields aligns with phrases, one chip per pair. Otherwise one field
- * → one chip per phrase, or phrase × field for legacy multi-field rules.
+ * When phraseFields aligns with phrases (2+ distinct fields), one chip per pair.
+ * Otherwise one chip per phrase; legacy rules OR phrases across `fields`.
  */
 export function chipsFromRulePhrases(phrases, fields, phraseFields) {
   const list = (Array.isArray(phrases) ? phrases : [])
@@ -113,17 +122,14 @@ export function chipsFromRulePhrases(phrases, fields, phraseFields) {
   const paired = (Array.isArray(phraseFields) ? phraseFields : [])
     .map(normalizeChipField)
     .filter(Boolean);
-  if (paired.length === list.length && list.length >= 2) {
+  if (paired.length === list.length && list.length >= 2 && new Set(paired).size >= 2) {
     return list.map((text, i) => ({ id: newChipId(), field: paired[i], text }));
   }
   const flds = (Array.isArray(fields) && fields.length ? fields : ['subject'])
     .map(normalizeChipField)
     .filter((f, i, a) => a.indexOf(f) === i);
   const use = flds.length ? flds : ['subject'];
-  if (use.length === 1) {
-    return list.map((text) => ({ id: newChipId(), field: use[0], text }));
-  }
-  return list.flatMap((text) => use.map((field) => ({ id: newChipId(), field, text })));
+  return list.map((text) => ({ id: newChipId(), field: use[0], text }));
 }
 
 function renderChipListItems(listEl, chips, { disabled = false, tone = 'target', onRemove } = {}) {

@@ -28,13 +28,14 @@ function parseDraft(body: Record<string, unknown>): RuleApplyDraft {
         .filter((f): f is RuleField => f === 'from' || f === 'subject' || f === 'body')
     : undefined;
   const paired =
-    phraseFields && phraseFields.length === phrases.length && phrases.length > 1
+    phraseFields &&
+    phraseFields.length === phrases.length &&
+    phrases.length > 1 &&
+    new Set(phraseFields).size >= 2
       ? phraseFields
       : undefined;
   const matchMode =
-    paired || String(body.matchMode || body.match_mode || 'any').toLowerCase() === 'all'
-      ? 'all'
-      : 'any';
+    String(body.matchMode || body.match_mode || 'any').toLowerCase() === 'all' ? 'all' : 'any';
   return {
     phrases,
     phraseFields: paired,

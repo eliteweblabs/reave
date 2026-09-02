@@ -220,6 +220,7 @@ function normalizePhraseFields(raw: unknown, phraseCount: number): RuleField[] |
     .map((f) => String(f).trim().toLowerCase())
     .filter((f): f is RuleField => allowed.has(f as RuleField));
   if (out.length !== phraseCount) return undefined;
+  if (new Set(out).size < 2) return undefined;
   return out;
 }
 
@@ -1100,9 +1101,7 @@ export function sanitizeEmailRuleInput(input: RuleInput): SanitizeEmailRuleResul
       phrases,
       phraseFields: normalizePhraseFields(input.phraseFields, phrases.length),
       exceptPhrases,
-      matchMode: normalizePhraseFields(input.phraseFields, phrases.length)
-        ? 'all'
-        : normalizeMatchMode(input.matchMode),
+      matchMode: normalizeMatchMode(input.matchMode),
       fields: normalizeFields(input.fields),
       notify: notifyFields.notify,
       notifyPush: notifyFields.notifyPush,

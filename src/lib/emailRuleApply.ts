@@ -70,7 +70,9 @@ function normalizeDraft(raw: RuleApplyDraft): EmailRule | null {
           .filter((f): f is RuleField => f === 'from' || f === 'subject' || f === 'body')
       : undefined;
   const paired =
-    phraseFields && phraseFields.length === phrases.length ? phraseFields : undefined;
+    phraseFields && phraseFields.length === phrases.length && new Set(phraseFields).size >= 2
+      ? phraseFields
+      : undefined;
   return {
     status: String(raw.status || 'CUSTOM').trim() || 'CUSTOM',
     phrases,
@@ -78,7 +80,7 @@ function normalizeDraft(raw: RuleApplyDraft): EmailRule | null {
     exceptPhrases: (Array.isArray(raw.exceptPhrases) ? raw.exceptPhrases : [])
       .map((p) => String(p || '').trim())
       .filter(Boolean),
-    matchMode: paired ? 'all' : raw.matchMode === 'all' ? 'all' : 'any',
+    matchMode: raw.matchMode === 'all' ? 'all' : 'any',
     fields: fields.length ? fields : ['subject', 'body'],
     notify: false,
     enabled: true,

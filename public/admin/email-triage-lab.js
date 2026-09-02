@@ -109,35 +109,57 @@ function formatRulePhraseList(phrases, max = 4) {
 
 /**
  * SQL-ish WHEN line for a keyword rule card.
- * Reflects live matching: phrases/except share the selected fields haystack.
- * e.g. `When sender IS ['a@b.com'] AND NOT ['unsubscribe']`
- *      `When (subject OR body) CONTAINS ANY ['otp', 'login code', +3]`
+ * Multi-field chips: AND across field groups, OR within each group.
+ * Legacy: phrases OR/AND across the selected fields haystack.
  */
 export function formatRuleWhenClause(rule) {
-  const fields = (rule?.fields?.length ? rule.fields : ['subject', 'body']).map(ruleFieldLabel);
-  const fieldExpr = fields.length === 1 ? fields[0] : `(${fields.join(' OR ')})`;
   const phrases = (rule?.phrases || []).map((p) => String(p || '').trim()).filter(Boolean);
   const except = (rule?.exceptPhrases || []).map((p) => String(p || '').trim()).filter(Boolean);
-  const allMode = rule?.matchMode === 'all';
+  const rawFields = rule?.phraseFields;
+  const paired =
+    Array.isArray(rawFields) &&
+    rawFields.length === phrases.length &&
+    phrases.length >= 2 &&
+    new Set(rawFields.map((f) => String(f || '').trim().toLowerCase())).size >= 2
+      ? phrases.map((text, i) => ({
+          field: String(rawFields[i] || 'body').trim().toLowerCase(),
+          text,
+        }))
+      : null;
 
   let positive;
-  if (!phrases.length) {
-    positive = `${fieldExpr} (no phrases)`;
-  } else if (!allMode && fields.length === 1 && fields[0] === 'sender' && phrases.length === 1) {
-    positive = `sender IS ${formatRulePhraseList(phrases, 1)}`;
-  } else if (!allMode && phrases.length === 1) {
-    positive = `${fieldExpr} ${formatRulePhraseList(phrases, 1)}`;
+  if (paired) {
+    const byField = new Map();
+    for (const { field, text } of paired) {
+      const list = byField.get(field) ?? [];
+      list.push(text);
+      byField.set(field, list);
+    }
+    positive = [...byField.entries()]
+      .map(([field, list]) => {
+        const label = ruleFieldLabel(field);
+        if (list.length === 1) return `${label} ${formatRulePhraseList(list, 1)}`;
+        return `${label} CONTAINS ANY ${formatRulePhraseList(list)}`;
+      })
+      .join(' AND ');
   } else {
-    positive = `${fieldExpr} CONTAINS ${allMode ? 'ALL' : 'ANY'} ${formatRulePhraseList(phrases)}`;
+    const fields = (rule?.fields?.length ? rule.fields : ['subject', 'body']).map(ruleFieldLabel);
+    const fieldExpr = fields.length === 1 ? fields[0] : `(${fields.join(' OR ')})`;
+    const allMode = rule?.matchMode === 'all';
+    if (!phrases.length) {
+      positive = `${fieldExpr} (no phrases)`;
+    } else if (!allMode && fields.length === 1 && fields[0] === 'sender' && phrases.length === 1) {
+      positive = `sender IS ${formatRulePhraseList(phrases, 1)}`;
+    } else if (!allMode && phrases.length === 1) {
+      positive = `${fieldExpr} ${formatRulePhraseList(phrases, 1)}`;
+    } else {
+      positive = `${fieldExpr} CONTAINS ${allMode ? 'ALL' : 'ANY'} ${formatRulePhraseList(phrases)}`;
+    }
   }
 
   const parts = [`When ${positive}`];
   if (except.length) {
-    parts.push(
-      fields.length === 1
-        ? `AND NOT ${fields[0]} ${formatRulePhraseList(except)}`
-        : `AND NOT ${formatRulePhraseList(except)}`,
-    );
+    parts.push(`AND NOT body ${formatRulePhraseList(except)}`);
   }
   return parts.join(' ');
 }
@@ -383,43 +405,56 @@ export function createEmailTriageLab(deps) {
   }
 
   function ruleMatchesComposedEmail(rule) {
-    const paired =
-      Array.isArray(rule?.phraseFields) &&
-      rule.phraseFields.length === (rule?.phrases || []).length &&
-      (rule?.phrases || []).length >= 2
-        ? (rule.phrases || []).map((text, i) => ({
-            field: rule.phraseFields[i],
-            text: String(text || ''),
-          }))
-        : null;
-    if (paired) {
-      return paired.every(({ field, text }) => {
-        const phrase = String(text || '').trim().toLowerCase();
-        if (!phrase) return false;
-        if (field === 'from') return fromMatchHay(state.from).includes(phrase);
-        if (field === 'subject') return String(state.subject || '').toLowerCase().includes(phrase);
-        return String(state.text || '').toLowerCase().includes(phrase);
-      });
-    }
-    const fields = rule?.fields?.length ? rule.fields : ['subject', 'body'];
-    const hay = fields
-      .map((f) => {
-        if (f === 'from') return fromMatchHay(state.from);
-        if (f === 'subject') return String(state.subject || '').toLowerCase();
-        return String(state.text || '').toLowerCase();
-      })
-      .join('\n');
     const phrases = (rule?.phrases || [])
       .map((p) => String(p || '').trim().toLowerCase())
       .filter(Boolean);
     if (!phrases.length) return false;
-    const hits = phrases.map((p) => hay.includes(p));
-    const positive = rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
-    if (!positive) return false;
+
+    const rawFields = rule?.phraseFields;
+    const paired =
+      Array.isArray(rawFields) &&
+      rawFields.length === phrases.length &&
+      phrases.length >= 2 &&
+      new Set(rawFields.map((f) => String(f || '').trim().toLowerCase())).size >= 2
+        ? phrases.map((text, i) => ({
+            field: String(rawFields[i] || 'body').trim().toLowerCase(),
+            text,
+          }))
+        : null;
+
+    if (paired) {
+      const byField = new Map();
+      for (const { field, text } of paired) {
+        const list = byField.get(field) ?? [];
+        list.push(String(text || '').trim().toLowerCase());
+        byField.set(field, list);
+      }
+      for (const [field, fieldPhrases] of byField) {
+        let hay = '';
+        if (field === 'from') hay = fromMatchHay(state.from);
+        else if (field === 'subject') hay = String(state.subject || '').toLowerCase();
+        else hay = String(state.text || '').toLowerCase();
+        if (!fieldPhrases.some((p) => hay.includes(p))) return false;
+      }
+    } else {
+      const fields = rule?.fields?.length ? rule.fields : ['subject', 'body'];
+      const hay = fields
+        .map((f) => {
+          if (f === 'from') return fromMatchHay(state.from);
+          if (f === 'subject') return String(state.subject || '').toLowerCase();
+          return String(state.text || '').toLowerCase();
+        })
+        .join('\n');
+      const hits = phrases.map((p) => hay.includes(p));
+      const positive = rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
+      if (!positive) return false;
+    }
+
     const except = (rule?.exceptPhrases || [])
       .map((p) => String(p || '').trim().toLowerCase())
       .filter(Boolean);
-    return !except.some((p) => hay.includes(p));
+    const bodyHay = String(state.text || '').toLowerCase();
+    return !except.some((p) => bodyHay.includes(p));
   }
 
   function ruleMatchesComposeFilter(rule) {

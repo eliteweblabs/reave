@@ -52,6 +52,7 @@ import {
   chipsFromRulePhrases,
   phrasesFromChips,
   phraseFieldsFromChips,
+  explicitMultiFieldPhraseFields,
   fieldsFromChips,
   titleFromRulePhrases,
 } from './rule-chip-editor.js?v=20260829a';
@@ -1202,13 +1203,9 @@ function renderRuleEditPane(pane, opts = {}) {
     targetField: (rule.fields || []).length === 1 ? rule.fields[0] : matchChipSeed.at(-1)?.field || 'subject',
     exemptField: (rule.fields || []).length === 1 ? rule.fields[0] : exceptChipSeed.at(-1)?.field || 'subject',
     disabled: isCatalogReadOnly(rule),
-    onChange: () => {
-      if (matchChips.getChips().length > 1) matchModeIn.value = 'all';
-    },
   });
   const matchChips = chipPair.targets;
   const exceptChips = chipPair.exemptions;
-  if (matchChips.getChips().length > 1) matchModeIn.value = 'all';
 
   const scopeIn = document.createElement('input');
   scopeIn.type = 'hidden';
@@ -1708,13 +1705,12 @@ function collectRulePayload(inputs) {
   inputs.exceptChips?.commitDraft?.();
   const matchChipsList = inputs.matchChips?.getChips?.() || [];
   const phrases = phrasesFromChips(matchChipsList);
-  const phraseFields = phraseFieldsFromChips(matchChipsList);
   const exceptChips = inputs.exceptChips?.getChips?.() || [];
   const exceptPhrases = phrasesFromChips(exceptChips);
   const fields = fieldsFromChips(matchChipsList, inputs.originalFields);
-  const pairedFields =
-    phraseFields.length === phrases.length && phrases.length > 1 ? phraseFields : undefined;
-  const matchMode = phrases.length > 1 || pairedFields ? 'all' : inputs.matchModeIn?.value === 'all' ? 'all' : 'any';
+  const pairedFields = explicitMultiFieldPhraseFields(matchChipsList);
+  const matchMode =
+    inputs.matchModeIn?.value === 'all' ? 'all' : 'any';
   const notifyActions = [];
   inputs.notifyActionsWrap.querySelectorAll('[data-notify-action]').forEach((btn) => {
     if (ruleToggleOn(btn)) notifyActions.push(btn.dataset.notifyAction);

@@ -138,14 +138,14 @@ export interface EmailRule {
   /** Case-insensitive substrings; matched against the selected `fields`. */
   phrases: string[];
   /**
-   * Optional per-phrase field (same length/order as `phrases`). When set with
-   * 2+ entries, every phrase must match its field (AND) — not either/or in the
-   * combined haystack.
+   * Optional per-phrase field (same length/order as `phrases`). When 2+ distinct
+   * fields are present, each field group must match (AND) and any phrase within
+   * a group counts (OR). Omit for legacy rules that OR phrases across `fields`.
    */
   phraseFields?: RuleField[];
   /**
-   * Case-insensitive substrings that veto a match — if any appear in the
-   * selected `fields`, the rule does not fire (NOT / except clause).
+   * Case-insensitive substrings that veto a match — if any appear in the body,
+   * the rule does not fire (NOT / except clause).
    */
   exceptPhrases?: string[];
   /** "any" = at least one phrase, "all" = every phrase. */
@@ -697,17 +697,17 @@ function normalizePhraseList(raw: unknown): string[] {
   return raw.map((p) => String(p).trim()).filter(Boolean);
 }
 
-/** Phrases from `exceptPhrases` that appear in the rule's selected fields. */
+/** Phrases from `exceptPhrases` that appear in the message body. */
 export function blockedByExceptPhrases(rule: EmailRule, email: InboundEmail): string[] {
   const except = normalizePhraseList(rule.exceptPhrases);
   if (!except.length) return [];
-  const haystack = ruleHaystack(rule, email);
+  const haystack = fieldMatchValue(email, 'body');
   return except.filter((p) => haystack.includes(p.toLowerCase()));
 }
 
 export type RuleTargetPair = { field: RuleField; phrase: string };
 
-/** Per-field target pairs when phraseFields aligns with phrases (2+ chips). */
+/** Per-field target pairs when phraseFields aligns with phrases (2+ distinct fields). */
 export function ruleTargetPairs(
   rule: Pick<EmailRule, 'phrases' | 'phraseFields'>,
 ): RuleTargetPair[] | null {
@@ -720,13 +720,25 @@ export function ruleTargetPairs(
   for (let i = 0; i < phrases.length; i++) {
     const field = String(rawFields[i] || '').trim().toLowerCase();
     if (field !== 'from' && field !== 'subject' && field !== 'body') return null;
-    pairs.push({ field, phrase: phrases[i]! });
+    pairs.push({ field: field as RuleField, phrase: phrases[i]! });
   }
+  if (new Set(pairs.map((p) => p.field)).size < 2) return null;
   return pairs;
 }
 
-function matchesFieldPairedTargets(email: InboundEmail, pairs: RuleTargetPair[]): boolean {
-  return pairs.every(({ field, phrase }) => fieldMatchValue(email, field).includes(phrase));
+/** AND across field groups; OR among phrases sharing the same field. */
+export function matchesFieldGroupedTargets(email: InboundEmail, pairs: RuleTargetPair[]): boolean {
+  const byField = new Map<RuleField, string[]>();
+  for (const { field, phrase } of pairs) {
+    const list = byField.get(field) ?? [];
+    list.push(phrase);
+    byField.set(field, list);
+  }
+  for (const [field, phrases] of byField) {
+    const hay = fieldMatchValue(email, field);
+    if (!phrases.some((p) => hay.includes(p))) return false;
+  }
+  return true;
 }
 
 function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
@@ -742,7 +754,7 @@ function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
   if (rule.phrases.length === 0) return false;
   const paired = ruleTargetPairs(rule);
   if (paired) {
-    if (!matchesFieldPairedTargets(email, paired)) return false;
+    if (!matchesFieldGroupedTargets(email, paired)) return false;
     return blockedByExceptPhrases(rule, email).length === 0;
   }
   const haystack = ruleHaystack(rule, email);
