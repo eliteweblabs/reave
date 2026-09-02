@@ -87,7 +87,7 @@ The first step writes these onto `reave` (same keys live client installs already
 
 | Field | Variable | Default |
 |-------|----------|---------|
-| Install slug | `INSTALL_CONFIG` / `CALCOM_USERNAME` | `demo` |
+| Install slug | `INSTALL_CONFIG` / `CALCOM_USERNAME` | Derived from **company name** (e.g. Dr Paws Calls → `dr-paws-calls`) |
 | Site domain | `PUBLIC_SITE_DOMAIN` / `COMPANY_DOMAIN` | (empty) |
 | Post name | `POST_ALIAS` | `project` |
 | Company name | `COMPANY_NAME` (also prefills `EMAIL_FROM_NAME`) | (empty) |

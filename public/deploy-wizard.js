@@ -437,8 +437,34 @@
     );
   }
 
+  function derivedInstallSlug() {
+    const fromCompany = (companyName || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
+    if (fromCompany) return fromCompany;
+    const apex = (siteDomain || '')
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .split('/')[0]
+      .replace(/^www\./, '');
+    const label = apex.split('.')[0] || '';
+    if (label && !apex.endsWith('.reave.app')) {
+      const fromDomain = label.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+      if (fromDomain) return fromDomain;
+    }
+    return 'demo';
+  }
+
+  function syncInstallSlug() {
+    installSlug = derivedInstallSlug();
+  }
+
   function stagingPreviewHost() {
-    const slug = (installSlug || 'demo').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'demo';
+    const slug = derivedInstallSlug();
     return `${slug}.reave.app`;
   }
 
@@ -446,7 +472,7 @@
     const stagingHost = stagingPreviewHost();
     const apex = siteDomain.trim();
     const newProject = project === '__new__' || !project;
-    const projLabel = (projectName || companyName || installSlug || 'demo').trim() || 'demo';
+    const projLabel = (projectName || companyName || derivedInstallSlug()).trim() || 'demo';
     const hasNamecom = dnsAccess === 'namecom' && namecomUsername && namecomToken;
     const hasGoDaddy = dnsAccess === 'godaddy' && godaddyToken;
     const oneShot = (hasNamecom || hasGoDaddy) && apex;
@@ -526,23 +552,21 @@
       })
       .join('');
     const newSelected = project === '__new__' || !project ? ' selected' : '';
-    const nameHint = projectName || companyName || installSlug || 'barry-levine';
+    const nameHint = projectName || companyName || derivedInstallSlug() || 'new-install';
+    const slug = derivedInstallSlug();
     return (
       renderDnsAccessBlock() +
       `<div class="dw-identity-block">` +
       `<h2 class="dl-section-title">Install</h2>` +
       `<div class="dl-toolbar dw-identity">` +
-      `<label class="dl-field">` +
-      `<span class="dl-field-label">Install slug</span>` +
-      `<input id="dw-install" class="dl-input" type="text" maxlength="40" value="${esc(installSlug)}" />` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Company name</span>` +
+      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="Dr Paws Calls" value="${esc(companyName)}" />` +
       `</label>` +
+      `<p class="dl-meta">Install slug <code>${esc(slug)}</code> · staging host <code>${esc(slug)}.reave.app</code> — derived from the company name (config file <code>config-${esc(slug)}.json</code>).</p>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Post name</span>` +
       `<input id="dw-post" class="dl-input" type="text" maxlength="32" placeholder="project" value="${esc(postAlias)}" />` +
-      `</label>` +
-      `<label class="dl-field">` +
-      `<span class="dl-field-label">Company name</span>` +
-      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="acme co" value="${esc(companyName)}" />` +
       `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Admin username</span>` +
@@ -559,7 +583,7 @@
         : `<input id="dw-project" class="dl-input" type="text" placeholder="New project name" value="${esc(project === '__new__' ? '' : project)}" />`) +
       `</label>` +
       (project === '__new__' || !projectOptions
-        ? `<p class="dl-meta">New client installs always get their own Railway project — name defaults from company or slug below.</p>` +
+        ? `<p class="dl-meta">New client installs always get their own Railway project — name defaults from the company above.</p>` +
           `<label class="dl-field">` +
           `<span class="dl-field-label">Project name</span>` +
           `<input id="dw-project-name" class="dl-input" type="text" maxlength="64" placeholder="${esc(nameHint)}" value="${esc(projectName)}" />` +
@@ -1004,7 +1028,6 @@
   }
 
   function readIdentity() {
-    const installEl = root.querySelector('#dw-install');
     const domainEl = root.querySelector('#dw-domain');
     const dnsEl = root.querySelector('#dw-dns-access');
     const namecomUserEl = root.querySelector('#dw-namecom-user');
@@ -1021,7 +1044,6 @@
     const appEl = root.querySelector('#dw-app');
     const projectEl = root.querySelector('#dw-project');
     const envEl = root.querySelector('#dw-env');
-    if (installEl) installSlug = installEl.value.trim() || 'demo';
     if (domainEl) siteDomain = domainEl.value.trim();
     if (dnsEl) {
       const v = dnsEl.value;
@@ -1063,6 +1085,7 @@
       seed.practiceAreas = readChecks('dw-practice-areas');
       seed.practiceArea = seed.practiceAreas[0] || 'bankruptcy';
     }
+    syncInstallSlug();
   }
 
   function readVarInputs() {
@@ -1420,7 +1443,17 @@
         bind();
       }
     });
-    root.querySelector('#dw-install')?.addEventListener('input', () => {
+    root.querySelector('#dw-company')?.addEventListener('input', () => {
+      readIdentity();
+      if ((project === '__new__' || !project) && companyName && !projectName) {
+        projectName = companyName;
+      }
+      if (step === 0) {
+        render();
+        bind();
+      }
+    });
+    root.querySelector('#dw-domain')?.addEventListener('input', () => {
       readIdentity();
       if (step === 0) {
         render();

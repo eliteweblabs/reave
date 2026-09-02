@@ -28,6 +28,7 @@ import {
   normalizeSiteDomain,
   type DeployWizardExtraId,
   type DeployWizardPlan,
+  resolveDeployWizardInstallSlug,
   type DeployWizardDnsAccess,
 } from '../../../lib/deployWizardCatalog';
 import { buildDeployWizardPlanResolved } from '../../../lib/deployWizardStaging';

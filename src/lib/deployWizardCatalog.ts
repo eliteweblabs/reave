@@ -238,6 +238,7 @@ export function isDeployWizardNewProjectRef(project: string | undefined): boolea
 export function deployWizardDesiredProjectName(input: {
   projectName?: string;
   companyName?: string;
+  siteDomain?: string;
   installSlug?: string;
 }): string {
   const clean = (raw: string) => raw.replace(/\s+/g, ' ').trim().slice(0, 64);
@@ -245,8 +246,8 @@ export function deployWizardDesiredProjectName(input: {
   if (typed) return typed;
   const company = clean(input.companyName ?? '');
   if (company) return company;
-  const slug = clean((input.installSlug ?? '').replace(/-/g, ' '));
-  return slug || 'new-install';
+  const slug = resolveDeployWizardInstallSlug(input);
+  return slug.replace(/-/g, ' ') || 'new-install';
 }
 
 export function normalizeSiteDomain(raw: string | undefined): string {
@@ -331,6 +332,38 @@ export function deployWizardStagingHost(installSlug: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
   return `${slug || 'demo'}.reave.app`;
+}
+
+/** INSTALL_CONFIG slug derived from the company / install title (not typed separately). */
+export function deriveInstallSlugFromCompanyName(
+  companyName: string | undefined,
+  fallback = 'demo',
+): string {
+  const slug = (companyName ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+  return slug || fallback;
+}
+
+/** Resolve slug for a new wizard run — explicit installSlug only for re-apply / GitHub resume. */
+export function resolveDeployWizardInstallSlug(input: {
+  companyName?: string;
+  siteDomain?: string;
+  installSlug?: string;
+}): string {
+  const explicit = (input.installSlug ?? '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  if (explicit && explicit !== 'demo') return explicit.slice(0, 48) || 'demo';
+  const fromCompany = deriveInstallSlugFromCompanyName(input.companyName, '');
+  if (fromCompany) return fromCompany;
+  const domain = normalizeSiteDomain(input.siteDomain);
+  const label = domain.split('.')[0]?.replace(/^www\./, '') ?? '';
+  if (label && !domain.endsWith('.reave.app')) {
+    return deriveInstallSlugFromCompanyName(label.replace(/-/g, ' '), 'demo');
+  }
+  return 'demo';
 }
 
 /**
@@ -2056,11 +2089,15 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     return Boolean(extra && featureMatch(extra.whenFeatures, featureSet));
   });
   const appService = (input.appService?.trim() || DEPLOY_APP_SERVICE).slice(0, 64);
-  const installSlug = (input.installSlug?.trim() || 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'demo';
+  const companyName = (input.companyName ?? '').trim().slice(0, 120);
+  const installSlug = resolveDeployWizardInstallSlug({
+    companyName,
+    siteDomain: input.siteDomain,
+    installSlug: input.installSlug,
+  });
   const siteDomain = normalizeSiteDomain(input.siteDomain);
   const seed = normalizeDeployWizardSeed(input.seed);
   const postAlias = normalizePostAlias(input.postAlias || (isLawIndustrySlug(seed.industry) ? 'matter' : undefined));
-  const companyName = (input.companyName ?? '').trim().slice(0, 120);
   const ownerFirstName = normalizeDeployWizardPersonName(input.ownerFirstName);
   const ownerLastName = normalizeDeployWizardPersonName(input.ownerLastName);
   const ownerEmail = normalizeDeployWizardEmail(input.ownerEmail);
