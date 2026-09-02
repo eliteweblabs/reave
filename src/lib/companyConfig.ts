@@ -497,7 +497,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   );
   const fromEmail =
     canonicalizeReaveBrandEmail(
-      pick(stored?.fromEmail, serverEnv('COMPANY_FROM_EMAIL')),
+      pick(stored?.fromEmail, serverEnv('COMPANY_FROM_EMAIL'), serverEnv('EMAIL_FROM'), serverEnv('RESEND_FROM')),
     ) || (domain ? `noreply@${domain}` : '');
   const address = pick(stored?.address, serverEnv('BOOKING_DEFAULT_ADDRESS'));
   const geo = resolveCompanyGeo(stored);
