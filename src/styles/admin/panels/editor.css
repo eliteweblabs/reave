@@ -4348,8 +4348,8 @@ button.de-placeholder-action:active {
 #clients-editor .cl-branding-label {
   gap: 0.65rem;
 }
-#clients-editor .cl-branding-scrape-btn {
-  align-self: flex-start;
+#clients-editor .cl-branding-uploads .prof-logo-actions {
+  width: 100%;
 }
 #clients-editor .cl-hours-textarea,
 #clients-editor .cl-portal-body-textarea {

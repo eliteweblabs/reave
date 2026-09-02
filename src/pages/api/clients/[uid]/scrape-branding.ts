@@ -1,6 +1,6 @@
 /**
  * POST /api/clients/:uid/scrape-branding — fetch logo/tagline from the client website.
- * Body: { website?: string } — optional; saves the URL first when provided.
+ * Body: { website?: string, asset?: 'logo' | 'icon' | 'all' }
  */
 
 import type { APIRoute } from 'astro';
@@ -11,8 +11,10 @@ import {
   isContactApiConfigured,
 } from '../../../../lib/contactApi';
 import {
-  enrichClientPortalBrand,
+  applyClientPortalScrapedBrand,
+  fetchClientBrandFromWebsite,
   guessClientWebsite,
+  normalizeClientWebsiteInput,
   setClientPortalWebsite,
   websiteFromNotes,
 } from '../../../../lib/clientBrand';
@@ -26,6 +28,12 @@ import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
 
+type ScrapeAsset = 'logo' | 'icon' | 'all';
+
+function parseScrapeAsset(raw: unknown): ScrapeAsset {
+  if (raw === 'logo' || raw === 'icon') return raw;
+  return 'all';
+}
 
 export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
@@ -44,20 +52,29 @@ export const POST: APIRoute = async (context) => {
     // optional body
   }
 
+  const asset = parseScrapeAsset(body.asset);
+
   const before = await getContact(uid);
   if (!before.ok || before.data.archived) {
     return jsonResponse({ ok: false, error: before.ok ? 'Client not found' : before.error }, 404);
   }
 
   const beforePortal = extractPortal(before.data);
-  if (beforePortal?.logoSource === 'upload') {
+  if ((asset === 'logo' || asset === 'all') && beforePortal?.logoSource === 'upload') {
     return jsonResponse(
       { ok: false, error: 'Remove the uploaded logo first to scrape from the website.' },
       400,
     );
   }
+  if ((asset === 'icon' || asset === 'all') && beforePortal?.iconSource === 'upload') {
+    return jsonResponse(
+      { ok: false, error: 'Remove the uploaded icon first to scrape from the website.' },
+      400,
+    );
+  }
 
   const beforeLogo = resolveClientLogoUrl(beforePortal, uid);
+  const beforeIcon = resolveClientIconUrl(beforePortal, uid);
   const beforeTagline = contactStringField(beforePortal?.tagline);
 
   const websiteInput = typeof body.website === 'string' ? body.website.trim() : '';
@@ -77,8 +94,41 @@ export const POST: APIRoute = async (context) => {
     if (!website) {
       return jsonResponse({ ok: false, error: 'Add a website URL for this client first.' }, 400);
     }
-    await enrichClientPortalBrand(uid, { force: true });
   }
+
+  website = normalizeClientWebsiteInput(website);
+  const brand = await fetchClientBrandFromWebsite(website);
+  if (!brand) {
+    return jsonResponse(
+      { ok: false, error: `Couldn't fetch branding from ${website}.`, website },
+      502,
+    );
+  }
+
+  const wantsLogo = asset === 'logo' || asset === 'all';
+  const wantsIcon = asset === 'icon' || asset === 'all';
+  const hasLogo = wantsLogo && !!brand.logoUrl;
+  const hasIcon = wantsIcon && !!brand.iconUrl;
+  const hasTagline = asset === 'all' && !!brand.tagline;
+
+  if (!hasLogo && !hasIcon && !hasTagline) {
+    const label = asset === 'icon' ? 'icon' : 'logo';
+    return jsonResponse(
+      {
+        ok: false,
+        error: `Couldn't find an ${label} on ${website}.`,
+        website,
+      },
+      404,
+    );
+  }
+
+  const applied = await applyClientPortalScrapedBrand(uid, brand, {
+    logo: wantsLogo,
+    icon: wantsIcon,
+    tagline: asset === 'all',
+  });
+  if (!applied.ok) return jsonResponse({ ok: false, error: applied.error }, 502);
 
   const after = await getContact(uid);
   if (!after.ok) return jsonResponse({ ok: false, error: after.error }, 502);
@@ -90,18 +140,9 @@ export const POST: APIRoute = async (context) => {
 
   const foundLogo = !!logoUrl && logoUrl !== beforeLogo;
   const refreshedLogo = !!logoUrl && (foundLogo || !beforeLogo);
+  const foundIcon = !!iconUrl && iconUrl !== beforeIcon;
+  const refreshedIcon = !!iconUrl && (foundIcon || !beforeIcon);
   const foundTagline = !!tagline && tagline !== beforeTagline;
-
-  if (!logoUrl && !iconUrl && !foundTagline) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: `Couldn't find a logo on ${website}.`,
-        website,
-      },
-      404,
-    );
-  }
 
   return jsonResponse({
     ok: true,
@@ -112,11 +153,17 @@ export const POST: APIRoute = async (context) => {
     iconSource: portal?.iconSource,
     tagline,
     foundLogo: refreshedLogo,
+    foundIcon: refreshedIcon,
     foundTagline,
-    message: refreshedLogo
-      ? 'Logo fetched from website.'
-      : foundTagline
-        ? 'Updated tagline from website.'
-        : 'Website checked — logo unchanged.',
+    message:
+      asset === 'icon'
+        ? refreshedIcon
+          ? 'Icon fetched from website.'
+          : 'Website checked — icon unchanged.'
+        : refreshedLogo
+          ? 'Logo fetched from website.'
+          : foundTagline
+            ? 'Updated tagline from website.'
+            : 'Website checked — logo unchanged.',
   });
 };

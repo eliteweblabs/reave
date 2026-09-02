@@ -246,6 +246,61 @@ export async function fetchClientBrandFromWebsite(urlInput: string): Promise<Cli
   return brand;
 }
 
+export type ClientPortalScrapedBrandApply = {
+  logo?: boolean;
+  icon?: boolean;
+  tagline?: boolean;
+};
+
+/** Persist scraped website branding onto a saved contact portal. */
+export async function applyClientPortalScrapedBrand(
+  contactUid: string,
+  brand: ClientBrandInfo,
+  opts: ClientPortalScrapedBrandApply,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const uid = contactUid.trim();
+  if (!uid) return { ok: false, error: 'Contact not found' };
+
+  const res = await getContact(uid);
+  if (!res.ok || res.data.archived) {
+    return { ok: false, error: res.ok ? 'Client not found' : res.error };
+  }
+
+  const portal = extractPortal(res.data) ?? {};
+  const next: ClientPortal = {
+    ...portal,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (opts.logo && brand.logoUrl) {
+    next.logoUrl = brand.logoUrl;
+    next.logoSource = 'website';
+    delete next.logoData;
+    delete next.logoMediaType;
+  }
+  if (opts.icon && brand.iconUrl) {
+    next.iconUrl = brand.iconUrl;
+    next.iconSource = 'website';
+    delete next.iconData;
+    delete next.iconMediaType;
+  }
+  if (opts.tagline && brand.tagline && !contactStringField(portal.tagline)) {
+    next.tagline = brand.tagline;
+  }
+  if (brand.website && !contactStringField(portal.website)) {
+    next.website = brand.website;
+  }
+
+  const saved = await setContactPortal(uid, next);
+  if (!saved.ok) return { ok: false, error: saved.error };
+
+  if (opts.logo && brand.logoUrl) {
+    void refreshPortalBrandColors(uid);
+  }
+
+  return { ok: true };
+}
+
 /**
  * When a project is linked to a client, try to populate portal branding (logo, tagline, website).
  * Skips if logo is already set unless force is true. Never throws.

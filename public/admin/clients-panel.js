@@ -1211,7 +1211,7 @@ function clientBrandingPreviewUrl(url) {
 }
 
 function mountClientBrandingSection(parent, uid, draft, opts = {}) {
-  const disabled = !uid || !!opts.disabled;
+  const uploadsDisabled = !uid || !!opts.disabled;
   const onUpdate = typeof opts.onUpdate === 'function' ? opts.onUpdate : () => {};
   const getWebsite = typeof opts.getWebsite === 'function' ? opts.getWebsite : () => draft?.website || '';
 
@@ -1220,17 +1220,6 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   const title = document.createElement('span');
   title.textContent = 'Branding';
   wrap.appendChild(title);
-
-  const scrapeBtn = document.createElement('button');
-  scrapeBtn.type = 'button';
-  scrapeBtn.className = 'de-btn de-btn-secondary cl-branding-scrape-btn';
-  scrapeBtn.textContent = 'Fetch from website';
-  scrapeBtn.hidden = true;
-  wrap.appendChild(scrapeBtn);
-
-  const syncScrapeBtn = () => {
-    scrapeBtn.hidden = disabled || !getWebsite().trim();
-  };
 
   const uploads = document.createElement('div');
   uploads.className = 'prof-branding-uploads cl-branding-uploads';
@@ -1248,10 +1237,13 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<img id="cl-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
           `<button type="button" id="cl-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogo ? '' : ' hidden'}>×</button>` +
         `</div>` +
-        `<div id="cl-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo && !disabled ? ' hidden' : ''}>` +
-          `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
+        `<div id="cl-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo && !uploadsDisabled ? ' hidden' : ''}>` +
+          `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp"${uploadsDisabled ? ' disabled' : ''} />` +
         `</div>` +
-        `<button type="button" id="cl-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn"${disabled ? ' hidden' : ''}>Library</button>` +
+        `<div class="prof-logo-actions">` +
+          `<button type="button" id="cl-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn"${uploadsDisabled ? ' hidden' : ''}>Library</button>` +
+          `<button type="button" id="cl-logo-scrape" class="de-btn de-btn-secondary cl-branding-scrape-btn" hidden>Fetch from website</button>` +
+        `</div>` +
       `</div>` +
     `</div>` +
     `<div class="prof-branding-upload-item">` +
@@ -1261,33 +1253,76 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<img id="cl-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
           `<button type="button" id="cl-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasIcon ? '' : ' hidden'}>×</button>` +
         `</div>` +
-        `<div id="cl-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon && !disabled ? ' hidden' : ''}>` +
-          `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
+        `<div id="cl-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon && !uploadsDisabled ? ' hidden' : ''}>` +
+          `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp"${uploadsDisabled ? ' disabled' : ''} />` +
         `</div>` +
-        `<button type="button" id="cl-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn"${disabled ? ' hidden' : ''}>Library</button>` +
+        `<div class="prof-logo-actions">` +
+          `<button type="button" id="cl-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn"${uploadsDisabled ? ' hidden' : ''}>Library</button>` +
+          `<button type="button" id="cl-icon-scrape" class="de-btn de-btn-secondary cl-branding-scrape-btn" hidden>Fetch from website</button>` +
+        `</div>` +
       `</div>` +
     `</div>`;
 
   const hint = document.createElement('span');
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
-  hint.textContent = disabled
-    ? 'Save the contact first to upload logo and icon.'
-    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Upload a file, pick from the Media library, or fetch logos from the website URL.';
+  hint.textContent = uploadsDisabled
+    ? 'Fetch from website works before saving. Upload logo and icon after the contact is saved.'
+    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Upload a file, pick from the Media library, or fetch from the website URL.';
 
   wrap.appendChild(uploads);
   wrap.appendChild(hint);
   parent.appendChild(wrap);
-  syncScrapeBtn();
 
-  if (disabled || !uid) return wrap;
+  const logoPreviewWrap = wrap.querySelector('#cl-logo-preview-wrap');
+  const logoPreview = wrap.querySelector('#cl-logo-preview');
+  const logoFileWrap = wrap.querySelector('#cl-logo-file-wrap');
+  const logoRemove = wrap.querySelector('#cl-logo-remove');
+  const iconPreviewWrap = wrap.querySelector('#cl-icon-preview-wrap');
+  const iconPreview = wrap.querySelector('#cl-icon-preview');
+  const iconFileWrap = wrap.querySelector('#cl-icon-file-wrap');
+  const iconRemove = wrap.querySelector('#cl-icon-remove');
+  const logoScrapeBtn = wrap.querySelector('#cl-logo-scrape');
+  const iconScrapeBtn = wrap.querySelector('#cl-icon-scrape');
 
-  const refreshers = bindClientBrandingUploads(wrap, uid, onUpdate);
-  wrap.refreshBranding = (patch = {}) => {
-    refreshers.refreshLogo(patch.logoUrl ?? '', patch.logoSource);
-    refreshers.refreshIcon(patch.iconUrl ?? '', patch.iconSource);
+  const refreshLogo = (nextLogoUrl, logoSource) => {
+    const url = clientBrandingPreviewUrl(nextLogoUrl);
+    const has = !!url;
+    if (logoPreview instanceof HTMLImageElement) logoPreview.src = url;
+    logoPreviewWrap?.toggleAttribute('hidden', !has);
+    if (!uploadsDisabled) logoFileWrap?.toggleAttribute('hidden', has);
+    logoRemove?.toggleAttribute('hidden', !has);
   };
-  bindClientBrandingScrape(scrapeBtn, uid, getWebsite, onUpdate, refreshers);
-  wrap.syncScrapeBtn = syncScrapeBtn;
+
+  const refreshIcon = (nextIconUrl, iconSource) => {
+    const url = clientBrandingPreviewUrl(nextIconUrl);
+    const has = !!url;
+    if (iconPreview instanceof HTMLImageElement) iconPreview.src = url;
+    iconPreviewWrap?.toggleAttribute('hidden', !has);
+    if (!uploadsDisabled) iconFileWrap?.toggleAttribute('hidden', has);
+    iconRemove?.toggleAttribute('hidden', !has);
+  };
+
+  const syncFetchBtns = () => {
+    const show = !!getWebsite().trim();
+    for (const btn of [logoScrapeBtn, iconScrapeBtn]) {
+      if (!(btn instanceof HTMLButtonElement)) continue;
+      btn.hidden = !show;
+      btn.disabled = !show;
+    }
+  };
+
+  syncFetchBtns();
+  bindClientBrandingFetch(logoScrapeBtn, uid, getWebsite, 'logo', onUpdate, { refreshLogo, refreshIcon });
+  bindClientBrandingFetch(iconScrapeBtn, uid, getWebsite, 'icon', onUpdate, { refreshLogo, refreshIcon });
+  wrap.syncFetchBtns = syncFetchBtns;
+  wrap.refreshBranding = (patch = {}) => {
+    refreshLogo(patch.logoUrl ?? '', patch.logoSource);
+    refreshIcon(patch.iconUrl ?? '', patch.iconSource);
+  };
+
+  if (uploadsDisabled || !uid) return wrap;
+
+  bindClientBrandingUploads(wrap, uid, onUpdate, { refreshLogo, refreshIcon });
   return wrap;
 }
 
@@ -1440,36 +1475,12 @@ function mountClientPortalContentSection(parent, draft) {
   };
 }
 
-function bindClientBrandingUploads(root, uid, onUpdate) {
+function bindClientBrandingUploads(root, uid, onUpdate, refreshers) {
   const logoFile = root.querySelector('#cl-logo-file');
-  const logoFileWrap = root.querySelector('#cl-logo-file-wrap');
-  const logoPreviewWrap = root.querySelector('#cl-logo-preview-wrap');
-  const logoPreview = root.querySelector('#cl-logo-preview');
   const logoRemove = root.querySelector('#cl-logo-remove');
-
   const iconFile = root.querySelector('#cl-icon-file');
-  const iconFileWrap = root.querySelector('#cl-icon-file-wrap');
-  const iconPreviewWrap = root.querySelector('#cl-icon-preview-wrap');
-  const iconPreview = root.querySelector('#cl-icon-preview');
   const iconRemove = root.querySelector('#cl-icon-remove');
-
-  const refreshLogo = (logoUrl, logoSource) => {
-    const url = clientBrandingPreviewUrl(logoUrl);
-    const has = !!url;
-    if (logoPreview instanceof HTMLImageElement) logoPreview.src = url;
-    logoPreviewWrap?.toggleAttribute('hidden', !has);
-    logoFileWrap?.toggleAttribute('hidden', has);
-    logoRemove?.toggleAttribute('hidden', !has);
-  };
-
-  const refreshIcon = (iconUrl, iconSource) => {
-    const url = clientBrandingPreviewUrl(iconUrl);
-    const has = !!url;
-    if (iconPreview instanceof HTMLImageElement) iconPreview.src = url;
-    iconPreviewWrap?.toggleAttribute('hidden', !has);
-    iconFileWrap?.toggleAttribute('hidden', has);
-    iconRemove?.toggleAttribute('hidden', !has);
-  };
+  const { refreshLogo, refreshIcon } = refreshers;
 
   logoFile?.addEventListener('change', async () => {
     if (!(logoFile instanceof HTMLInputElement) || !logoFile.files?.length) return;
@@ -1590,7 +1601,9 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
   return { refreshLogo, refreshIcon };
 }
 
-function bindClientBrandingScrape(btn, uid, getWebsite, onUpdate, refreshers) {
+function bindClientBrandingFetch(btn, uid, getWebsite, asset, onUpdate, refreshers) {
+  if (!(btn instanceof HTMLButtonElement)) return;
+
   btn.addEventListener('click', async () => {
     const website = getWebsite().trim();
     if (!website) return;
@@ -1599,31 +1612,58 @@ function bindClientBrandingScrape(btn, uid, getWebsite, onUpdate, refreshers) {
     const prevLabel = btn.textContent;
     btn.textContent = 'Fetching…';
     try {
-      const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/scrape-branding`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ website }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
+      let json;
+      if (uid) {
+        const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/scrape-branding`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ website, asset }),
+        });
+        json = await res.json();
+      } else {
+        const res = await fetch('/api/clients/scrape-branding-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ website }),
+        });
+        json = await res.json();
+      }
+
+      if (!json.ok) {
         alert(json.error || 'Could not fetch branding from website.');
         return;
       }
 
-      refreshers.refreshLogo(json.logoUrl || '', json.logoSource);
-      refreshers.refreshIcon(json.iconUrl || '', json.iconSource);
-      onUpdate({
-        logoUrl: json.logoUrl || '',
-        iconUrl: json.iconUrl || '',
-        logoSource: json.logoSource,
-        iconSource: json.iconSource,
-        website: json.website || website,
-        tagline: json.tagline || '',
-      });
+      if (asset === 'logo') {
+        const logoUrl = json.logoUrl || '';
+        if (!logoUrl) {
+          alert(`Couldn't find a logo on ${website}.`);
+          return;
+        }
+        refreshers.refreshLogo(logoUrl, json.logoSource || 'website');
+        onUpdate({
+          logoUrl,
+          logoSource: json.logoSource || 'website',
+          website: json.website || website,
+          tagline: json.tagline || '',
+        });
+      } else {
+        const iconUrl = json.iconUrl || '';
+        if (!iconUrl) {
+          alert(`Couldn't find an icon on ${website}.`);
+          return;
+        }
+        refreshers.refreshIcon(iconUrl, json.iconSource || 'website');
+        onUpdate({
+          iconUrl,
+          iconSource: json.iconSource || 'website',
+          website: json.website || website,
+        });
+      }
     } catch {
       alert('Network error — please try again.');
     } finally {
-      btn.disabled = false;
+      btn.disabled = !getWebsite().trim();
       btn.textContent = prevLabel;
     }
   });
@@ -1711,12 +1751,19 @@ function renderNewClientForm(pane) {
   registerClientField(websiteInput, () => true);
 
   let kindPill = null;
+  let newClientBrandingWrap = null;
   const brandingHost = document.createElement('div');
   brandingHost.className = 'cl-new-branding-host';
   function syncNewClientBrandingVisibility() {
     if (!brandingHost.dataset.mounted) {
       brandingHost.dataset.mounted = '1';
-      mountClientBrandingSection(brandingHost, null, clientState.draft, { disabled: true });
+      newClientBrandingWrap = mountClientBrandingSection(brandingHost, null, clientState.draft, {
+        disabled: true,
+        getWebsite: () => websiteInput.value.trim(),
+        onUpdate: (patch) => {
+          Object.assign(clientState.draft, patch);
+        },
+      });
     }
   }
   kindPill = mountClientKindPill(fields, clientState.draft?.kind, () => {
@@ -1724,6 +1771,7 @@ function renderNewClientForm(pane) {
   });
   fields.appendChild(brandingHost);
   syncNewClientBrandingVisibility();
+  websiteInput.addEventListener('input', () => newClientBrandingWrap?.syncFetchBtns?.());
 
   const notesLabel = document.createElement('label');
   notesLabel.className = 'de-label cl-notes-label';
@@ -2017,7 +2065,7 @@ function renderEditClientForm(pane) {
       });
       const portalContent = mountClientPortalContentSection(brandingFields, clientState.draft);
       clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
-      websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
+      websiteInput.addEventListener('input', () => brandingWrap.syncFetchBtns?.());
       brandingBody.appendChild(brandingFields);
       brandingPanel.appendChild(brandingBody);
       scroll.appendChild(brandingPanel);
@@ -2336,6 +2384,13 @@ async function createClient(payload) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ website: payload.website.trim() }),
       });
+      if (clientState.draft?.logoUrl || clientState.draft?.iconUrl) {
+        await fetch(`/api/clients/${encodeURIComponent(uid)}/scrape-branding`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ website: payload.website.trim() }),
+        });
+      }
     }
     shell.finishCreateDrawer();
     await loadClientsTab({ clientUid: uid });
