@@ -24,6 +24,7 @@ cloud-agent-settings-export.json
 /.clerk/
 
 # Ephemeral per-install data (Postgres is production backend; never commit pooled JSON)
+**/.kap/
 src/knowledge/chats/*.md
 !src/knowledge/chats/.gitkeep
 src/knowledge/jobs/*.md
