@@ -1,0 +1,34 @@
+{
+  "key": "greenplanetpest",
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [
+      { "href": "/admin", "label": "Dashboard" },
+      { "href": "/#contact", "label": "Contact" }
+    ],
+    "groups": [
+      {
+        "id": "app",
+        "label": "Green Planet Pest Control",
+        "links": [
+          { "href": "/admin", "label": "Staff login", "primary": true },
+          { "href": "/#contact", "label": "Request service" }
+        ]
+      }
+    ],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "heroHeadlineHtml": "Eco-friendly pest control.<br class=\"home-hero-title-break\" />Massachusetts &amp; Rhode Island.",
+    "showHeroDemo": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": true,
+    "showLegalLinks": true,
+    "ctas": [
+      { "href": "/admin", "label": "Staff login", "variant": "ghost" },
+      { "href": "/#contact", "label": "Schedule service", "variant": "primary" }
+    ]
+  }
+}

@@ -396,11 +396,12 @@ const ALL_INDUSTRIES = [
   'law',
   'lawyers',
   'marketers',
+  'pest-control',
   'plumbing',
   'real-estate-agents',
 ] as const;
 
-const TRADE_INDUSTRIES = ['general', 'plumbing', 'electricians'] as const;
+const TRADE_INDUSTRIES = ['general', 'plumbing', 'electricians', 'pest-control'] as const;
 const CREATIVE_INDUSTRIES = ['artists', 'creators', 'designers', 'marketers'] as const;
 const WEB_INDUSTRIES = [
   'artists',
@@ -412,6 +413,7 @@ const WEB_INDUSTRIES = [
   'law',
   'lawyers',
   'marketers',
+  'pest-control',
   'plumbing',
   'electricians',
   'real-estate-agents',

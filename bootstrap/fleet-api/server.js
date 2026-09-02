@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('./db');
-const { safeCompare } = require('../lib/safeCompare');
-const { checkRateLimit, clientIp } = require('../lib/rateLimit');
+const { safeCompare } = require('./lib/safeCompare');
+const { checkRateLimit, clientIp } = require('./lib/rateLimit');
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
