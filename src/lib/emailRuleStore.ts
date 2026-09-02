@@ -817,8 +817,6 @@ function catalogDefKey(def: EmailRule): string {
  * Existing install row for one DEFAULT_RULES definition.
  * Status alone is not unique (two DELETE rules, two AUTO_ARCHIVED rules) —
  * match by phrase overlap so sign-in DELETE cannot steal the marketing row.
- * Catalog shipment-tracked searches `from`; sender-only personal blocks
- * that also have `from` are excluded when the definition does not.
  */
 function findCatalogRecord(
   rules: EmailRuleRecord[],
@@ -847,9 +845,8 @@ function findCatalogRecord(
 }
 
 /**
- * One catalog definition → one row. A seed bug used to insert a new
- * shipment-tracked copy on every load because that definition searches `from`.
- * Keep the most-used / oldest row and fold hit counts onto it.
+ * One catalog definition → one row. A seed bug used to insert duplicate
+ * catalog copies on every load. Keep the most-used / oldest row and fold hit counts onto it.
  */
 function collapseCatalogClones(rules: EmailRuleRecord[]): {
   rules: EmailRuleRecord[];

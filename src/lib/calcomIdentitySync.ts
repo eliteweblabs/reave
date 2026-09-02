@@ -147,8 +147,12 @@ async function applyRailwayIdentity(
         : '';
     const bookingDesired: Record<string, string> = {
       CALCOM_USERNAME: railwayRef(appService, 'CALCOM_USERNAME'),
+      CALCOM_DATABASE_URL: railwayRef(CALCOM_POSTGRES, 'DATABASE_URL'),
     };
-    if (mapbox) bookingDesired.MAPBOX_ACCESS_TOKEN = mapbox;
+    if (mapbox) {
+      bookingDesired.MAPBOX_ACCESS_TOKEN = mapbox;
+      bookingDesired.MAPBOX_TOKEN = mapbox;
+    }
     const bookingApply = await ensureVars(CALCOM_BOOKING, bookingDesired, bookingExisting, project);
     updated.push(...bookingApply.updated.map((n) => `${CALCOM_BOOKING}.${n}`));
     skipped.push(...bookingApply.skipped.map((n) => `${CALCOM_BOOKING}.${n}`));

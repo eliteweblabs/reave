@@ -1103,6 +1103,23 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['scheduling'],
   }),
   v({
+    name: 'CALCOM_DATABASE_URL',
+    service: 'calcom-booking-api',
+    kind: 'reference',
+    value: railwayRef('calcom-postgres', 'DATABASE_URL'),
+    description: 'Cal.com Postgres — booking-api reads CALCOM_DATABASE_URL (not DATABASE_URL alone).',
+    features: ['scheduling'],
+  }),
+  v({
+    name: 'MAPBOX_TOKEN',
+    service: 'calcom-booking-api',
+    kind: 'reference',
+    value: railwayRef(DEPLOY_APP_SERVICE, 'PUBLIC_MAPBOX_ACCESS_TOKEN'),
+    description: 'Geocode job-site addresses — server reads MAPBOX_TOKEN.',
+    features: ['scheduling'],
+    required: false,
+  }),
+  v({
     name: 'DATABASE_DIRECT_URL',
     service: 'calcom-booking-api',
     kind: 'reference',
