@@ -120,8 +120,14 @@ function isRepoCatalogRuleClient(rule) {
   return REPO_CATALOG_STATUSES.has(status);
 }
 
-function canDeleteRule(rule) {
-  if (isRepoCatalogRuleClient(rule) || isCatalogReadOnly(rule)) return false;
+function isCatalogRuleRecord(rule) {
+  if (rule?.catalog === true) return true;
+  return isRepoCatalogRuleClient(rule);
+}
+
+/** Swipe/context delete — personal rules hard-delete; catalog rules turn off. */
+function canRemoveRule(rule) {
+  if (isCatalogReadOnly(rule)) return false;
   return true;
 }
 
@@ -493,8 +499,8 @@ function createRuleListItem(rule, activeId) {
 }
 
 function createRuleSwipeRow(rule, activeId) {
-  const actions = canDeleteRule(rule)
-    ? [swipeDeleteAction({ onClick: () => deleteRule(rule.id) })]
+  const actions = canRemoveRule(rule)
+    ? [swipeDeleteAction({ onClick: () => removeRule(rule.id) })]
     : [];
   return createSwipeRow(createRuleListItem(rule, activeId), actions);
 }
@@ -1152,10 +1158,10 @@ function renderRuleEditPane(pane, opts = {}) {
     const hits = document.createElement('span');
     hits.className = 're-lab-rule-hits';
     hits.textContent = ruleHitsSubline(rule) || (isCatalogReadOnly(rule) ? 'Catalog rule' : 'Edit rule');
-    if (canDeleteRule(rule)) {
+    if (canRemoveRule(rule)) {
       actions.append(hits, paneDeleteIcon({
         label: 'Delete rule',
-        onClick: () => deleteRule(rule.id),
+        onClick: () => removeRule(rule.id),
       }));
     } else {
       actions.append(hits);
@@ -1167,12 +1173,12 @@ function renderRuleEditPane(pane, opts = {}) {
       back: inDrawer ? null : ruleEditorBack(),
       title: titleFromRulePhrases(rule.phrases, rule.title || rule.status || 'Rule'),
       subtitle: ruleHitsSubline(rule),
-      icons: inDrawer || !canDeleteRule(rule)
+      icons: inDrawer || !canRemoveRule(rule)
         ? []
         : [
             paneDeleteIcon({
               label: 'Delete rule',
-              onClick: () => deleteRule(rule.id),
+              onClick: () => removeRule(rule.id),
             }),
           ],
     });
@@ -1746,6 +1752,38 @@ function serializeRulePayload(payload) {
   return JSON.stringify(payload);
 }
 
+function ruleRecordToPayload(rule, overrides = {}) {
+  const fields = rule.fields?.length ? rule.fields : ['subject', 'body'];
+  return {
+    title: titleFromRulePhrases(rule.phrases, rule.title || rule.status || 'Rule'),
+    scope: ruleScope(rule),
+    status: String(rule.status || 'CUSTOM').trim().toUpperCase(),
+    description: String(rule.description || '').trim(),
+    phrases: Array.isArray(rule.phrases) ? rule.phrases : [],
+    phraseFields: rule.phraseFields,
+    exceptPhrases: Array.isArray(rule.exceptPhrases) ? rule.exceptPhrases : [],
+    matchMode: rule.matchMode === 'all' ? 'all' : 'any',
+    fields,
+    notify: rule.notify === true,
+    notifyPush: rule.notifyPush === true,
+    notifyDashboard: rule.notifyDashboard === true,
+    notifyActions: Array.isArray(rule.notifyActions) ? rule.notifyActions : [],
+    enabled: rule.enabled !== false,
+    forwardTo: rule.forwardTo || null,
+    createProject: rule.createProject === true,
+    expiresAt: rule.expiresAt || null,
+    ...overrides,
+  };
+}
+
+function setRuleEnabledLocally(id, enabled) {
+  const rule = ruleState.rules.find((r) => String(r.id) === String(id));
+  if (!rule) return;
+  rule.enabled = enabled;
+  renderRulesEditor();
+  if (String(ruleState.activeId) === String(id)) renderRulesPane();
+}
+
 function syncRuleListItem(id, payload, savedRule) {
   const rule = ruleState.rules.find((r) => r.id === id);
   if (rule) Object.assign(rule, payload, savedRule || {});
@@ -1998,30 +2036,93 @@ async function bulkDeleteRules(ids) {
   const snapshots = unique
     .map((id) => {
       const idx = ruleState.rules.findIndex((r) => String(r.id) === String(id));
-      return idx === -1 ? null : { idx, rule: ruleState.rules[idx] };
+      return idx === -1 ? null : { idx, rule: { ...ruleState.rules[idx] } };
     })
     .filter(Boolean);
   if (!snapshots.length) return;
   await queueUndoableDelete({
     key: `delete:rules:${unique.join(',')}`,
     ids: unique.map((id) => `rule:${id}`),
-    hide: () => removeRulesLocally(unique),
+    hide: () => hideRulesLocally(unique),
     restore: () => restoreRulesLocally(snapshots),
     commit: async () => {
       for (const id of unique) {
+        const rule = ruleState.rules.find((r) => String(r.id) === String(id));
+        if (!rule) continue;
         try {
-          const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: '{}',
-          });
-          if (!res.ok) continue;
+          if (isCatalogRuleRecord(rule)) {
+            await commitDisableRule(rule);
+          } else {
+            const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: '{}',
+            });
+            if (!res.ok) continue;
+          }
         } catch {
           /* continue */
         }
       }
     },
   });
+}
+
+function hideRulesLocally(ids) {
+  const idSet = new Set(ids.map(String));
+  ruleState.rules = ruleState.rules
+    .map((rule) => {
+      if (!idSet.has(String(rule.id))) return rule;
+      if (isCatalogRuleRecord(rule)) return { ...rule, enabled: false };
+      return null;
+    })
+    .filter(Boolean);
+  renderRulesEditor();
+}
+
+async function commitDisableRule(rule) {
+  const payload = ruleRecordToPayload(rule, { enabled: false });
+  const res = await fetch(`/api/email/rules/${encodeURIComponent(rule.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  syncRuleListItem(rule.id, payload, data.rule);
+}
+
+async function disableRule(id) {
+  const idx = ruleState.rules.findIndex((r) => String(r.id) === String(id));
+  const rule = idx === -1 ? null : ruleState.rules[idx];
+  if (!rule || !isCatalogRuleRecord(rule)) return;
+  const prevEnabled = rule.enabled !== false;
+  const wasActive = String(ruleState.activeId) === String(id);
+  await queueUndoableDelete({
+    key: `disable:rule:${id}`,
+    ids: [`rule:${id}`],
+    hide: () => setRuleEnabledLocally(id, false),
+    restore: () => {
+      setRuleEnabledLocally(id, prevEnabled);
+      if (wasActive) void openRuleEditor(id);
+    },
+    commit: async () => {
+      await commitDisableRule(rule);
+    },
+    onCommitError: (e) => {
+      alert(`Delete failed: ${e.message}`);
+    },
+  });
+}
+
+async function removeRule(id) {
+  const rule = ruleState.rules.find((r) => String(r.id) === String(id));
+  if (!rule || !canRemoveRule(rule)) return;
+  if (isCatalogRuleRecord(rule)) {
+    await disableRule(id);
+    return;
+  }
+  await deleteRule(id);
 }
 
 async function deleteRule(id) {

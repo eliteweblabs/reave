@@ -13,6 +13,7 @@ import {
   storeListEmailRules,
   storeSetNotifyOnUnmatched,
 } from '../../../lib/emailRuleStore';
+import { isRepoCatalogRule } from '../../../lib/emailRules';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../lib/apiResponse';
 
@@ -28,6 +29,10 @@ export async function GET(context: APIContext): Promise<Response> {
   return jsonResponse({
     ok: true,
     ...config,
+    rules: config.rules.map((rule) => ({
+      ...rule,
+      catalog: isRepoCatalogRule(rule),
+    })),
     storage: emailRulesStorageBackend(),
     pipeline: {
       inbound: 'POST /api/email/inbound (Resend webhook)',
