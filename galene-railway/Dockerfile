@@ -1,7 +1,7 @@
 # Galene + coturn — single container for Railway (HTTP signaling + TCP TURN relay)
 ARG GALENE_VERSION=master
 
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 ARG GALENE_VERSION
 ARG TARGETOS=linux
