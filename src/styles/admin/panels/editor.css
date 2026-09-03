@@ -4036,6 +4036,32 @@ button.de-placeholder-action:active {
 }
 .cl-portal-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 
+.cl-crater-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+  max-width: 340px;
+  min-height: var(--control-h);
+  padding: 0 0.65rem;
+}
+.cl-crater-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.cl-crater-status[data-tone='due'] { color: #f87171; }
+.cl-crater-status[data-tone='paid'],
+.cl-crater-status[data-tone='neutral'] { color: #86efac; }
+.cl-crater-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+}
+
 .cl-map-section {
   margin-top: 0.35rem;
 }

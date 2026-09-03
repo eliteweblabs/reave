@@ -41,7 +41,7 @@ import {
   type TodoStatus,
 } from '../../todoStore';
 import { getContactDeleteBlockers, executeContactDelete } from '../../contactDeleteGuard';
-import { syncContactToCrater } from '../../contactCraterSync';
+import { syncContactToCrater, pushContactToCrater, getContactCraterStatus } from '../../contactCraterSync';
 import { setClientPortalWebsite } from '../../clientBrand';
 import { enrichContactAddressFromPlaces } from '../../contactAddressFromPlaces';
 import {
@@ -448,6 +448,61 @@ async function handle_delete_contact(args: Record<string, unknown>, _ctx: ToolCo
   });
 }
 
+async function handle_push_contact_to_crater(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!hasFeature('billing') || !isCraterConfigured()) {
+    return JSON.stringify({ error: 'Crater billing is not configured' });
+  }
+
+  const uidRaw = typeof args.uid === 'string' ? args.uid.trim() : '';
+  const nameRaw = typeof args.name === 'string' ? args.name.trim() : '';
+  let contactRes;
+  if (uidRaw) {
+    contactRes = await getContact(uidRaw);
+  } else if (nameRaw) {
+    const resolved = await resolveContactEnhanced({ name: nameRaw });
+    if (!resolved.ok) return JSON.stringify({ error: resolved.error, status: resolved.status });
+    if (resolved.match !== 'exact' && resolved.match !== 'likely') {
+      return JSON.stringify({
+        error: 'Contact not uniquely resolved — pass uid or a more specific name',
+        match: resolved.match,
+        candidates: resolved.candidates?.slice(0, 5),
+      });
+    }
+    if (!resolved.contact?.uid) {
+      return JSON.stringify({ error: 'Contact not found' });
+    }
+    contactRes = await getContact(resolved.contact.uid);
+  } else {
+    return JSON.stringify({ error: 'Provide uid or name' });
+  }
+
+  if (!contactRes.ok) return JSON.stringify({ error: contactRes.error, status: contactRes.status });
+
+  if (args.status_only === true) {
+    const status = await getContactCraterStatus(contactRes.data);
+    return JSON.stringify({ uid: contactRes.data.uid, ...status });
+  }
+
+  const pushed = await pushContactToCrater(contactRes.data, { updateIfExists: true });
+  if (!pushed.ok) return JSON.stringify({ error: pushed.error, reason: pushed.reason });
+
+  return JSON.stringify({
+    success: true,
+    uid: contactRes.data.uid,
+    created: pushed.created,
+    already_in_crater: !pushed.created,
+    synced: !pushed.created ? pushed.synced : undefined,
+    customer_id: pushed.customerId,
+    customer_name: pushed.customerName,
+    admin_url: pushed.adminUrl ?? null,
+    message: pushed.created
+      ? `Added ${pushed.customerName} to Crater`
+      : pushed.synced
+        ? `${pushed.customerName} is already in Crater — profile refreshed`
+        : `${pushed.customerName} is already in Crater`,
+  });
+}
+
 export const contactsModule: AgentToolModule = {
   id: 'contacts',
   enabled: (ctx) => isContactApiConfigured(),
@@ -600,7 +655,31 @@ export const contactsModule: AgentToolModule = {
                   additionalProperties: false,
                 },
               },
-            }
+            },
+            ...(hasFeature('billing') && isCraterConfigured()
+              ? [
+                  {
+                    type: 'function' as const,
+                    function: {
+                      name: 'push_contact_to_crater',
+                      description:
+                        'Push a reave contact into Crater as a billing customer (or refresh an existing match). Use before manual invoicing in Crater so names/emails stay aligned. Not gated by contact type — any contact with a name or company can be pushed. Pass status_only:true to check link status without creating.',
+                      parameters: {
+                        type: 'object',
+                        properties: {
+                          uid: { type: 'string', description: 'Contact uid (preferred)' },
+                          name: { type: 'string', description: 'Contact name when uid is unknown' },
+                          status_only: {
+                            type: 'boolean',
+                            description: 'When true, only report whether the contact is already in Crater',
+                          },
+                        },
+                        additionalProperties: false,
+                      },
+                    },
+                  },
+                ]
+              : []),
     ];
   },
   handlers: {
@@ -609,5 +688,6 @@ export const contactsModule: AgentToolModule = {
     'create_contact': handle_create_contact,
     'update_contact': handle_update_contact,
     'delete_contact': handle_delete_contact,
+    'push_contact_to_crater': handle_push_contact_to_crater,
   },
 };

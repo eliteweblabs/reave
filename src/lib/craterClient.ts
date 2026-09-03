@@ -190,6 +190,54 @@ export async function craterSearchCustomers(
   return { ok: true, data: { count: customers.length, customers } };
 }
 
+export type CreatedCraterCustomer = {
+  success: boolean;
+  customer_id: number;
+  name: string;
+  contact_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  admin_url?: string;
+};
+
+/** Public Crater admin URL for a customer record. */
+export function craterCustomerAdminUrl(customerId: number): string | null {
+  const base = baseUrl();
+  if (!base) return null;
+  const id = Number(customerId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  return `${base}/admin/customers/${encodeURIComponent(String(id))}/edit`;
+}
+
+export async function craterCreateCustomer(input: {
+  name: string;
+  contact_name?: string;
+  email?: string | null;
+  phone?: string | null;
+}): Promise<CraterResult<CreatedCraterCustomer>> {
+  const name = input.name?.trim();
+  if (!name) return { ok: false, error: 'name is required' };
+
+  const body: Record<string, string> = { name };
+  if (input.contact_name?.trim()) body.contact_name = input.contact_name.trim();
+  if (input.email?.trim()) body.email = input.email.trim();
+  if (input.phone?.trim()) body.phone = input.phone.trim();
+
+  const res = await craterFetch<CreatedCraterCustomer>('/api/custom/create-customer', {
+    method: 'POST',
+    body,
+  });
+  if (!res.ok) {
+    if (res.status === 409 && res.error) {
+      // Route may return existing customer_id in the JSON body — caller can link.
+      return res;
+    }
+    return res;
+  }
+  const adminUrl = res.data.admin_url ?? craterCustomerAdminUrl(res.data.customer_id) ?? undefined;
+  return { ok: true, data: { ...res.data, admin_url: adminUrl } };
+}
+
 export async function craterUpdateCustomer(
   customerId: number,
   input: {

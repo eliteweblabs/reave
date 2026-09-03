@@ -224,7 +224,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260830a';
+} from './clients-panel.js?v=20260903a';
 import { mountClientSetupWizard, reopenClientSetupWizard } from './client-setup-panel.js?v=20260831a';
 import {
   ensureShakePermission,

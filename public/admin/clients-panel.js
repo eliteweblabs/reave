@@ -133,6 +133,95 @@ function visibleClientKinds(currentKind) {
   return CLIENT_KINDS.filter((k) => k !== 'personal' || showPersonal() || currentKind === 'personal');
 }
 
+function billingFeatureEnabled() {
+  return (
+    Array.isArray(window.__installConfig?.features) &&
+    window.__installConfig.features.includes('billing')
+  );
+}
+
+function mountClientCraterRow(parent, uid) {
+  if (!billingFeatureEnabled()) return null;
+
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label cl-crater-row';
+  wrap.textContent = 'Crater';
+
+  const field = document.createElement('div');
+  field.className = 'control-field cl-crater-field';
+
+  const status = document.createElement('span');
+  status.className = 'cl-crater-status';
+  status.textContent = 'Checking…';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'de-btn de-btn-secondary cl-crater-btn';
+  btn.hidden = true;
+
+  field.appendChild(status);
+  field.appendChild(btn);
+  wrap.appendChild(field);
+  parent.appendChild(wrap);
+
+  let rowState = { matched: false, adminUrl: null };
+
+  async function refresh() {
+    status.textContent = 'Checking…';
+    status.dataset.tone = 'none';
+    btn.hidden = true;
+    btn.disabled = false;
+    try {
+      const res = await adminFetch(`/api/clients/${encodeURIComponent(uid)}/crater`);
+      const data = await readApiJson(res);
+      if (!res.ok || !data.ok) {
+        status.textContent = data.error || 'Crater unavailable';
+        return;
+      }
+      rowState = {
+        matched: !!data.matched,
+        adminUrl: data.adminUrl || null,
+      };
+      status.textContent = data.label || (data.matched ? 'In Crater' : 'Not in Crater');
+      status.dataset.tone = data.tone || (data.matched ? 'neutral' : 'none');
+      if (data.matched && data.adminUrl) {
+        btn.textContent = 'Open in Crater';
+        btn.hidden = false;
+        btn.onclick = () => window.open(data.adminUrl, '_blank', 'noopener,noreferrer');
+      } else if (!data.matched && data.configured !== false) {
+        btn.textContent = 'Add to Crater';
+        btn.hidden = false;
+        btn.onclick = () => pushToCrater();
+      }
+    } catch {
+      status.textContent = 'Crater check failed';
+    }
+  }
+
+  async function pushToCrater() {
+    btn.disabled = true;
+    status.textContent = 'Adding to Crater…';
+    try {
+      const res = await adminFetch(`/api/clients/${encodeURIComponent(uid)}/crater`, {
+        method: 'POST',
+      });
+      const data = await readApiJson(res);
+      if (!res.ok || !data.ok) {
+        status.textContent = data.error || 'Could not add to Crater';
+        btn.disabled = false;
+        return;
+      }
+      await refresh();
+    } catch {
+      status.textContent = 'Could not add to Crater';
+      btn.disabled = false;
+    }
+  }
+
+  refresh();
+  return { refresh, pushToCrater, getState: () => rowState };
+}
+
 function clientKindTagHtml(c) {
   const kind = clientKindFromRecord(c);
   if (kind === 'personal') {
@@ -1882,6 +1971,8 @@ function renderEditClientForm(pane) {
         onClick: () => askAgentAboutClient(uid),
       });
 
+      const craterRowRef = { current: null };
+
       const overflowBtn = createOverflowMenuBtn({
         label: 'Contact actions',
         className: 'cl-detail-overflow-btn',
@@ -1905,6 +1996,20 @@ function renderEditClientForm(pane) {
                   },
                   shareTitle: `${clientDisplayLabel(clientState.draft)} — portal`,
                 }),
+            });
+          }
+          if (billingFeatureEnabled()) {
+            const crater = craterRowRef.current?.getState?.() || {};
+            items.push({
+              label: crater.matched ? 'Open in Crater' : 'Add to Crater',
+              iconKey: 'receipt',
+              action: () => {
+                if (crater.matched && crater.adminUrl) {
+                  window.open(crater.adminUrl, '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                craterRowRef.current?.pushToCrater?.();
+              },
             });
           }
           items.push({
@@ -1997,6 +2102,8 @@ function renderEditClientForm(pane) {
       const kindPill = mountClientKindPill(profileFields, clientState.draft.kind, () => {
         queueAutosaveRef();
       });
+      const craterRow = mountClientCraterRow(profileFields, uid);
+      craterRowRef.current = craterRow;
       let queueAutosaveRef = () => {};
       let saveNowRef = async () => {};
       const addressClearActions = { fn: null };

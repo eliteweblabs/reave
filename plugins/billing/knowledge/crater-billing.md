@@ -37,6 +37,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | POST | `/api/custom/invoice/{id}/items` | `add_invoice_items` |
 | PUT | `/api/custom/invoice/{invoiceId}/items/{itemId}` | _(edit one line: name / description / qty / price)_ |
 | GET | `/api/custom/customers?q=` | `search_customers` |
+| POST | `/api/custom/create-customer` | _(reave.app push contact → Crater; paste `crater-create-customer.route.php`)_ |
 | PUT | `/api/custom/customer/{id}` | _(reave.app contact → Crater sync on client edit)_ |
 | GET | `/api/custom/line-items?q=` | `search_line_items` |
 | POST | `/api/custom/record-payment` | `record_payment` |
