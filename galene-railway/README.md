@@ -39,7 +39,7 @@ See [docs/JITSI-ALTERNATIVE.md](docs/JITSI-ALTERNATIVE.md) if you need Jitsi any
 
 6. **TCP proxy for TURN** (required for reliable video on most networks):
    - Service → **Settings** → **Networking** → **TCP Proxy**
-   - Application port: **`1194`**
+   - Application port: **`3478`**
    - Copy the public `host:port` Railway shows (e.g. `maglev.proxy.rlwy.net:57891`)
    - Add variable: `GALENE_TURN_PUBLIC=maglev.proxy.rlwy.net:57891`
    - Redeploy
@@ -62,7 +62,7 @@ Without a volume, rooms and secrets are recreated on each deploy (fine for demos
 | Variable | Description |
 |----------|-------------|
 | `GALENE_ADMIN_PASSWORD` | Admin password for `GALENE_ADMIN_USERNAME` (default `admin`) |
-| `GALENE_TURN_PUBLIC` | Public `hostname:port` from Railway **TCP Proxy** (port **1194** inside container) |
+| `GALENE_TURN_PUBLIC` | Public `hostname:port` from Railway **TCP Proxy** (application port **3478** inside container) |
 
 ### Strongly recommended
 
@@ -89,7 +89,7 @@ Without a volume, rooms and secrets are recreated on each deploy (fine for demos
 | `GALENE_DEFAULT_GROUP` | `meet` | Default room name |
 | `GALENE_RELAY_ONLY` | `1` | Force TURN relay (keep `1` on Railway) |
 | `GALENE_UDP_MUX_PORT` | `50000` | Single UDP mux port for SFU media inside container |
-| `GALENE_TURN_LISTEN_PORT` | `1194` | coturn TCP listen port (match TCP proxy app port) |
+| `GALENE_TURN_LISTEN_PORT` | `3478` | coturn TCP listen port (match TCP proxy app port) |
 
 ## Local testing
 
@@ -136,7 +136,7 @@ Or edit JSON under `/data/groups/` on the volume.
 
 ## Railway limitations
 
-- **No inbound UDP** — this image uses **TURN over TCP** only. You must add the TCP proxy on port **1194** and set `GALENE_TURN_PUBLIC`.
+- **No inbound UDP** — this image uses **TURN over TCP** only. You must add the TCP proxy on port **3478** and set `GALENE_TURN_PUBLIC`.
 - **Single region** — all participants relay through that region; fine for small teams, not a global SFU fleet.
 - **TCP media** — slightly higher latency than UDP; acceptable for meetings, less ideal for large broadcasts.
 

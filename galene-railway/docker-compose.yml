@@ -3,7 +3,7 @@ services:
     build: .
     ports:
       - "8080:8080"
-      - "1194:1194"
+      - "1194:3478"
     environment:
       PORT: "8080"
       GALENE_PUBLIC_URL: "http://localhost:8080/"
