@@ -4,6 +4,7 @@
  */
 import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { getSiteContent } from "../../lib/siteContent";
 import { contactTelHref } from "../../lib/contactApi";
 import "../../styles/vet-landing.css";
 
@@ -13,6 +14,8 @@ interface Props {
 
 const { landing } = Astro.props;
 const company = await getCompanyConfig(Astro.request);
+const siteContent = getSiteContent();
+const showSignIn = siteContent.nav.showSignIn !== false;
 const contact = landing.contact ?? {};
 const inquiry = landing.inquiry;
 const about = landing.about ?? {};
@@ -65,7 +68,7 @@ const contactLabel = landing.callCta?.label || "Contact us";
 ---
 
 <div class="vet" data-vet-root>
-  <a class="vet-login" href="/sign-in">Login</a>
+  {showSignIn ? <a class="vet-login" href="/sign-in">Login</a> : null}
 
   <header class="vet-header">
     <div class="vet-header__inner">
@@ -147,7 +150,7 @@ const contactLabel = landing.callCta?.label || "Contact us";
                     <h3 class="vet-service__name">{service.name}</h3>
                     {service.blurb && <p class="vet-service__blurb">{service.blurb}</p>}
                     <a class="vet-service__link" href={service.bookHref}>
-                      Learn more
+                      {service.bookHref?.includes("#") ? "Contact us" : "Learn more"}
                     </a>
                   </article>
                 ))

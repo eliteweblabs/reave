@@ -5,7 +5,7 @@
     "links": [],
     "groups": [],
     "showDemoCta": false,
-    "showSignIn": true
+    "showSignIn": false
   },
   "homepage": {
     "template": "landing",
@@ -35,27 +35,31 @@
     },
     "services": {
       "heading": "Services",
-      "intro": "Mobile veterinary care that comes to you — wellness, urgent visits, and the everyday care your pets need.",
+      "intro": "Scheduling an appointment ensures your pet receives the highest standard of care. Contact Paws Calls today to provide your loyal companion with expert attention tailored to their unique health needs.",
       "items": [
         {
-          "label": "House-call visits",
-          "description": "Full veterinary exams and treatment plans in your home — less stress for pets, less hassle for you."
+          "label": "Wellness Exams & Sick Visits",
+          "description": "Paws Calls provides comprehensive in-home wellness and sick visits, allowing your pet to receive high-quality veterinary care in the comfort and familiarity of home. Each visit includes a thorough physical examination, administration of necessary vaccinations, and careful evaluation of any health concerns — helping your pet remain healthy, relaxed, and stress-free. Our in-home services include all core and recommended vaccines, heartworm testing, flea and tick prevention, and customized wellness plans covering routine blood work and nutrition guidance.",
+          "bookHref": "#inquiry"
         },
         {
-          "label": "Wellness & vaccines",
-          "description": "Routine checkups, vaccines, and preventive care coordinated around your schedule."
+          "label": "Pain Management",
+          "description": "We offer compassionate and effective pain management solutions for pets experiencing chronic or debilitating conditions, with a special focus on geriatric patients. Our veterinarian uses comprehensive pain-scoring assessments to accurately evaluate your pet's comfort level and develop individual treatment plans. We provide pain-relief consultations and prioritize educating owners on recognizing signs of discomfort — helping you manage your pet's pain while improving their comfort, mobility, and overall quality of life.",
+          "bookHref": "#inquiry"
         },
         {
-          "label": "Urgent care appointments",
-          "description": "Same-day urgent visits when something is off and you need a vet who can come to you."
+          "label": "End of Life Care",
+          "description": "We offer compassionate end-of-life care for pets, providing pain management and adapting environments to keep them comfortable during their final months. This service helps pet owners navigate the difficult process of saying goodbye to their beloved pets.",
+          "bookHref": "#inquiry"
         }
       ]
     },
     "about": {
-      "heading": "Care at home",
+      "heading": "Dr. Kara M. Ryczek",
       "body": [
-        "Paws Calls brings veterinary care to your door. We serve pets across Western Massachusetts and Connecticut with house-call visits that skip the waiting room and keep your companion calm.",
-        "Call or email to schedule — we are now offering urgent care appointments."
+        "Dr. Ryczek has been practicing veterinary medicine for over 25 years. She earned a Bachelor of Science in Biology from Trinity College and a Doctor of Veterinary Medicine from the Cummings School of Veterinary Medicine at Tufts University. She then completed a post-doctoral 13-month rotating internship at VCA South Shore Animal Hospital in South Weymouth, MA — covering medical, surgical, cardiac, ophthalmic, dental, and emergency cases.",
+        "Dr. Ryczek has since worked in both private practices and emergency/critical care hospitals. After relocating back to Longmeadow, MA, she founded Paws Calls in 2020 — providing exceptional in-home veterinary services that prioritize both our care for pets and convenience for their owners.",
+        "Dr. Ryczek remains based in Longmeadow, where she lives with her two children, one yellow lab, and two feline friends. Outside of work, she enjoys running, coaching, reading, cooking, and traveling with her children."
       ]
     },
     "inquiry": {
@@ -75,6 +79,7 @@
     "pack": {
       "nav": [
         { "href": "#services", "label": "Services" },
+        { "href": "#about", "label": "About" },
         { "href": "#contact", "label": "Contact" }
       ],
       "social": {
@@ -82,8 +87,8 @@
       },
       "hero": {
         "mainAlt": "Veterinarian gently examining a small dog during a checkup",
-        "aboutImage": "/sites/drpawscalls/hero/about.jpg",
-        "aboutAlt": "Veterinary team providing a wellness exam for a dog"
+        "aboutImage": "/sites/drpawscalls/hero/dr-ryczek.webp",
+        "aboutAlt": "Dr. Kara M. Ryczek, veterinarian and founder of Paws Calls"
       }
     }
   }
