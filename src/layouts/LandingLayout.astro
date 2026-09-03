@@ -4,9 +4,10 @@ import ViewportMeta from "../components/ViewportMeta.astro";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
 import { shareSafeText } from "../lib/shareSafeText";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
-import { getSiteContent } from "../lib/siteContent";
+import { getSiteContent, siteLandingOgImage } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from "../lib/ogImageSize";
 import CookieNotice from "../components/CookieNotice.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
@@ -43,8 +44,10 @@ const title = (titleProp ?? landing.title ?? company.name).trim();
 const pwaTitle = formatPwaAppTitle(company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
 const shareTitle = shareSafeText(landing.name ?? company.name);
-const ogImage = ogImageProp ?? landing.ogImage ?? companyOgImageUrl(company);
+const ogImage = ogImageProp ?? siteLandingOgImage(siteContent) ?? landing.ogImage ?? companyOgImageUrl(company);
 const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
+const isLandingOg = Boolean(siteLandingOgImage(siteContent) || landing.ogImage);
+const ogImageAlt = shareSafeText(landing.name ?? company.name);
 const themeColor =
   themeColorProp ??
   landing.themeColor ??
@@ -82,8 +85,9 @@ const htmlStyle =
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageSafe} />
-    {(isEditorial || isCompanyOg) && <meta property="og:image:width" content="1200" />}
-    {(isEditorial || isCompanyOg) && <meta property="og:image:height" content="630" />}
+    {(isEditorial || isCompanyOg || isLandingOg) && <meta property="og:image:width" content={String(OG_IMAGE_WIDTH)} />}
+    {(isEditorial || isCompanyOg || isLandingOg) && <meta property="og:image:height" content={String(OG_IMAGE_HEIGHT)} />}
+    {isLandingOg && <meta property="og:image:alt" content={ogImageAlt} />}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={shareTitle} />
     <meta name="twitter:description" content={description} />

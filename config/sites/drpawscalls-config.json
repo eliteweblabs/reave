@@ -29,6 +29,7 @@
     "heroBody": "Compassionate veterinary care where your pet is most comfortable — at home. House calls across Western Massachusetts and Connecticut.",
     "heroLogo": "/sites/drpawscalls/logo.png",
     "heroImage": "/sites/drpawscalls/hero/dr-ryczek.webp",
+    "ogImage": "/sites/drpawscalls/og.png",
     "scheduleUrl": "/form/schedule",
     "callCta": {
       "label": "Contact us"

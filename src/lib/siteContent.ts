@@ -706,6 +706,27 @@ export function getSiteContent(opts?: { industry?: string | null }): SiteContent
   return loadSiteContentByKey(resolveSiteContentKey(opts?.industry));
 }
 
+/** Static OG card from site config (client landing installs). */
+export function siteLandingOgImage(site?: SiteContentConfig): string | undefined {
+  const ref = site?.landing?.ogImage?.trim();
+  return ref || undefined;
+}
+
+/** Favicon bundle co-located with `/sites/{slug}/og.png` when present. */
+export function siteLandingFaviconUrls(
+  site?: SiteContentConfig,
+): { png32: string; png16: string; appleTouchIcon: string } | null {
+  const ref = site?.landing?.ogImage?.trim() || site?.landing?.heroLogo?.trim();
+  if (!ref?.startsWith('/sites/')) return null;
+  const dir = ref.slice(0, ref.lastIndexOf('/'));
+  if (!dir) return null;
+  return {
+    png32: `${dir}/favicon-32.png`,
+    png16: `${dir}/favicon-16.png`,
+    appleTouchIcon: `${dir}/apple-touch-icon.png`,
+  };
+}
+
 export function isSitePageAllowed(pathname: string, site?: SiteContentConfig): boolean {
   const config = site ?? getSiteContent();
   const path = normalizePagePath(pathname);

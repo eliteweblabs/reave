@@ -13,7 +13,7 @@ import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import { shareSafeText } from "../lib/shareSafeText";
-import { isMarketingPagePath, getSiteContent } from "../lib/siteContent";
+import { isMarketingPagePath, getSiteContent, siteLandingOgImage } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import ViewportMeta from "../components/ViewportMeta.astro";
 import CookieNotice from "../components/CookieNotice.astro";
@@ -66,7 +66,7 @@ const company = await getCompanyConfig(Astro.request);
 const themeColor = themeColorProp ?? "#ffffff";
 const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
-const ogImage = ogImageProp ?? companyOgImageUrl(company);
+const ogImage = ogImageProp ?? siteLandingOgImage(siteContent) ?? companyOgImageUrl(company);
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 /**
@@ -95,6 +95,8 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${LOGO_ICON_OG_PATH}`
   : ogImageAbsolute;
 const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
+const isLandingOg = Boolean(siteLandingOgImage(siteContent));
+const ogImageAlt = shareSafeText(siteContent.landing?.name ?? company.name);
 const fullBleed = fullBleedProp ?? isIndexPage;
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
@@ -145,8 +147,9 @@ try {
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImageSafe} />
-		{isCompanyOg && <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />}
-		{isCompanyOg && <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />}
+		{(isCompanyOg || isLandingOg) && <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />}
+		{(isCompanyOg || isLandingOg) && <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />}
+		{isLandingOg && <meta property="og:image:alt" content={ogImageAlt} />}
 		{shareSiteName && <meta property="og:site_name" content={shareSiteName} />}
 
 		<!-- Twitter Card -->

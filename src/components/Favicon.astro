@@ -5,9 +5,12 @@
  * first letter of the company name when nothing is configured.
  */
 import { getCompanyConfig, companyFaviconUrls } from "../lib/companyConfig";
+import { getSiteContent, siteLandingFaviconUrls } from "../lib/siteContent";
 
 const company = await getCompanyConfig(Astro.request);
-const favicons = companyFaviconUrls(company);
+const siteContent = getSiteContent();
+const siteFavicons = siteLandingFaviconUrls(siteContent);
+const favicons = siteFavicons ?? companyFaviconUrls(company);
 ---
 
 {favicons.svg && <link rel="icon" href={favicons.svg} type="image/svg+xml" />}
