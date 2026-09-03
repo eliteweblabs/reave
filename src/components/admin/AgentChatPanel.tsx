@@ -2810,7 +2810,11 @@ function ChatMessages() {
 }
 
 function storedMessagesKey(messages: readonly StoredChatMessage[]): string {
-  return messages.map((m) => `${m.role}:${m.content}`).join('\n---\n');
+  if (!messages.length) return '';
+  const last = messages[messages.length - 1];
+  const contentLen =
+    typeof last.content === 'string' ? last.content.length : JSON.stringify(last.content).length;
+  return `${messages.length}:${last.role}:${last.created_at ?? ''}:${contentLen}`;
 }
 
 /**

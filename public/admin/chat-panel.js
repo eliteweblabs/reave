@@ -59,8 +59,20 @@ export function initChatPanel(deps) {
 
 export const DEFAULT_SESSION_TITLE = 'New session';
 const LEGACY_DEFAULT_SESSION_TITLE = 'New chat';
+/** Keep in sync with DEPLOY_FAILURE_TITLE_PREFIX in src/lib/agentSituationalContext.ts */
+const DEPLOY_FAILURE_TITLE_PREFIX = 'Deploy failed —';
 /** Keep in sync with MAX_CHAT_TITLE_LENGTH in src/lib/chatTypes.ts */
 const MAX_CHAT_TITLE_LENGTH = 120;
+
+/** System deploy-repair Sessions — not normal user chats to auto-restore on tab open. */
+export function isDeployFailureTitle(title) {
+  return (title || '').trim().toLowerCase().startsWith(DEPLOY_FAILURE_TITLE_PREFIX.toLowerCase());
+}
+
+function shouldSkipAutoRestoreThread(threadId) {
+  const meta = chatState.threads.find((t) => t.id === threadId);
+  return meta ? isDeployFailureTitle(meta.title) : false;
+}
 
 const CH_SPINNER_SVG =
   '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
@@ -1346,7 +1358,7 @@ async function loadChatsTab(opts = {}) {
     }
     chatState.pendingDraft = savedDraft;
     chatState.pendingAutoSend = savedAutoSend;
-    if (wasSending) {
+    if (wasSending || !savedMessages.length) {
       chatState.sending = false;
       await openChat(savedActiveId, { force: true });
     } else {
@@ -1365,7 +1377,19 @@ async function loadChatsTab(opts = {}) {
 
   const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
   pendingChatDeepLinkId = null;
-  const restoreId = deepChatId || chatState.activeId || readChatLastActiveId();
+  let restoreId = deepChatId || chatState.activeId || readChatLastActiveId();
+  // Deploy-failure repair threads stay in the sidebar but should not hijack a
+  // fresh tab open — only explicit deep links (push / ?chat=) reopen them.
+  if (restoreId && !deepChatId && shouldSkipAutoRestoreThread(restoreId)) {
+    clearChatLastActiveId();
+    if (chatState.activeId === restoreId) {
+      chatState.activeId = null;
+      chatState.messages = [];
+      chatState.title = '';
+      chatState.linkedJobs = [];
+    }
+    restoreId = null;
+  }
 
   if (restoreId) {
     if (chatState.activeId && chatState.activeId !== restoreId) {
@@ -2159,6 +2183,23 @@ function renderChatPane() {
   }
   unmountChatThreadRoot(root);
   pane.innerHTML = '';
+
+  if (chatState.activeId && !chatState.messages.length && !chatState.paneLoading) {
+    const meta = chatState.threads.find((t) => t.id === chatState.activeId);
+    if (meta?.last_role) {
+      chatState.paneLoading = true;
+      pane.appendChild(shell.buildChatPaneHeader());
+      const loading = document.createElement('div');
+      loading.className = 'de-loading ch-pane-loading';
+      loading.textContent = 'Loading session…';
+      pane.appendChild(loading);
+      root.classList.add('ch-pane-active');
+      shell.syncTopbarPanelContext();
+      shell.syncFooterNav();
+      void openChat(chatState.activeId, { force: true });
+      return;
+    }
+  }
 
   if (!chatState.activeId) {
     shell.appendEmptyDetailPane(pane, {
