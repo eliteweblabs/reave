@@ -54,6 +54,7 @@ src/knowledge/project-outbound-emails.json
 src/knowledge/auto-email-response-drafts.json
 src/knowledge/email-scheduled.json
 src/knowledge/app-settings.json
+src/knowledge/site-health-fleet.json
 src/knowledge/.media/
 
 .playwright-mcp/

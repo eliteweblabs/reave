@@ -33,6 +33,7 @@ import {
   type SiteHealthFleet,
   type SiteHealthSummary,
 } from './siteHealthScore';
+import { loadPersistedSiteHealthFleet, savePersistedSiteHealthFleet } from './siteHealthStore';
 
 export type {
   SiteHealthFleet,
@@ -54,10 +55,33 @@ const SEO_PROBE_CONCURRENCY = 3;
 
 let healthCache: { at: number; fleet: SiteHealthFleet } | null = null;
 let healthInflight: Promise<SiteHealthFleet> | null = null;
+let healthHydratePromise: Promise<void> | null = null;
 
-/** Drop cached grades after wiring or manual refresh. */
+/** Drop in-memory grades after wiring or manual refresh (persisted copy kept until next scan). */
 export function invalidateSiteHealthFleetCache(): void {
   healthCache = null;
+}
+
+/** Load last scan from Postgres / knowledge file into memory when empty. */
+export async function hydrateSiteHealthFleetCache(): Promise<void> {
+  if (healthCache) return;
+  if (healthHydratePromise) {
+    await healthHydratePromise;
+    return;
+  }
+  healthHydratePromise = (async () => {
+    try {
+      const fleet = await loadPersistedSiteHealthFleet();
+      if (fleet && !healthCache) {
+        healthCache = { at: fleet.checkedAt, fleet };
+      }
+    } catch (e) {
+      console.warn('[site-health] hydrate failed:', e instanceof Error ? e.message : e);
+    } finally {
+      healthHydratePromise = null;
+    }
+  })();
+  await healthHydratePromise;
 }
 
 export function peekCachedSiteHealthFleet(
@@ -239,6 +263,9 @@ export async function buildSiteHealthFleet(
       sites,
     };
     healthCache = { at: checkedAt, fleet };
+    void savePersistedSiteHealthFleet(fleet).catch((e) => {
+      console.warn('[site-health] persist failed:', e instanceof Error ? e.message : e);
+    });
     return fleet;
   })();
 

@@ -19,6 +19,7 @@ import { mergeDashboardSiteCards } from '../../../../lib/analyticsSiteMerge';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import {
   buildSiteHealthFleet,
+  hydrateSiteHealthFleetCache,
   peekCachedSiteHealthFleet,
 } from '../../../../lib/siteHealthGrade';
 import {
@@ -100,6 +101,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const full = url.searchParams.get('full') === '1' || url.searchParams.get('full') === 'true';
   const fresh = url.searchParams.get('fresh') === '1';
 
+  await hydrateSiteHealthFleetCache();
   let fleet = peekCachedSiteHealthFleet({ allowStale: true });
   const host = hostnameFromWebsite(siteId) || normalizeMonitorHost(siteId) || siteId;
   let cachedRow = fleet?.sites?.[host];

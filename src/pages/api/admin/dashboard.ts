@@ -40,7 +40,7 @@ import {
 import { isPlausibleConfigured } from '../../../lib/plausibleClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { jsonResponse } from '../../../lib/apiResponse';
-import { peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
+import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
 import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
 
@@ -214,6 +214,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { billing, billingError, billingConfigured } = billingSlice;
   const { analytics, analyticsConfigured } = analyticsSlice;
 
+  await hydrateSiteHealthFleetCache();
   const siteHealth: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
 
   const firstName = dashboardGreetingFirstName(context);

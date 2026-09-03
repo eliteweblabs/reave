@@ -15,6 +15,7 @@ import { mergeDashboardSiteCards } from '../../../../lib/analyticsSiteMerge';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import {
   buildSiteHealthFleet,
+  hydrateSiteHealthFleetCache,
   invalidateSiteHealthFleetCache,
   peekCachedSiteHealthFleet,
 } from '../../../../lib/siteHealthGrade';
@@ -54,6 +55,7 @@ export async function POST(context: APIContext): Promise<Response> {
     analytics: card.analytics,
   }));
 
+  await hydrateSiteHealthFleetCache();
   let siteHealth = peekCachedSiteHealthFleet({ allowStale: true });
   if (!siteHealth) {
     siteHealth = await buildSiteHealthFleet(cardInputs).catch(() => null);

@@ -16,6 +16,7 @@ import { mergeDashboardSiteCards } from '../../../../lib/analyticsSiteMerge';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import {
   buildSiteHealthFleet,
+  hydrateSiteHealthFleetCache,
   peekCachedSiteHealthFleet,
 } from '../../../../lib/siteHealthGrade';
 
@@ -45,6 +46,7 @@ export async function GET(context: APIContext): Promise<Response> {
     return jsonResponse({ ok: false, error: 'Sites module is not enabled' }, 404);
   }
 
+  await hydrateSiteHealthFleetCache();
   const cached = peekCachedSiteHealthFleet({ allowStale: true });
   if (cached) {
     const fresh = peekCachedSiteHealthFleet();
