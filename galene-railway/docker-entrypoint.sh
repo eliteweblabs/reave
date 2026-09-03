@@ -160,6 +160,12 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
   background: var(--reave-primary) !important;
   display: flex !important;
   align-items: center !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+#left-sidebar .users-header {
+  min-width: 0 !important;
 }
 .navbar,
 .navbar .container,
@@ -186,23 +192,25 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
 #left-sidebar .galene-header,
 .galene-header {
   display: block !important;
+  flex: 1 1 auto !important;
   width: 100% !important;
   max-width: 100% !important;
-  min-height: 2rem !important;
-  line-height: 1 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  line-height: 0 !important;
   font-size: 0 !important;
   color: transparent !important;
   overflow: hidden !important;
 }
 .galene-header .reave-wordmark,
 #title.navbar-brand .reave-wordmark {
-  display: block;
-  max-height: 2rem;
-  max-width: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  object-position: left center;
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: 2.25rem !important;
+  object-fit: contain !important;
+  object-position: left center !important;
 }
 #title.navbar-brand {
   display: block !important;
