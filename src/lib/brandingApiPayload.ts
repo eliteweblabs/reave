@@ -10,7 +10,7 @@ import {
   resolveCompanyBrandColors,
 } from './companyBrandColors';
 import { companyBrandingVersion, getCompanyConfig, type CompanyConfig } from './companyConfig';
-import { BRANDING_LOGO_API_PATH } from './companyLogo';
+import { BRANDING_LOGO_ALT_PATH, BRANDING_LOGO_API_PATH } from './companyLogo';
 import { getStoredCompanyConfig } from './companyConfigStore';
 import { siteBaseUrl } from './contactApi';
 
@@ -20,6 +20,8 @@ export type BrandingApiPayload = {
   logoSource: CompanyConfig['logoSource'];
   /** Absolute PNG URL for white email headers; null when admin wordmark is hidden or unset. */
   logoEmailUrl: string | null;
+  /** Absolute PNG URL for dark UI chrome (Galene sidebar, dark nav); null when unset. */
+  logoDarkUrl: string | null;
   /** Company display name for integrations (not deployment owner PII). */
   contactName: string | null;
   /** Public company support/from email — never the owner's personal address. */
@@ -41,13 +43,16 @@ export type BrandingApiPayload = {
   };
 };
 
-export function brandingLogoEmailUrl(company: CompanyConfig, base: string): string | null {
-  if (company.logoSource === 'hidden') return null;
-
-  const hasAdminWordmark =
+function brandingWordmarkAvailable(company: CompanyConfig): boolean {
+  if (company.logoSource === 'hidden') return false;
+  return (
     company.logoSource === 'admin' &&
-    (company.logoHasRaster || Boolean(company.logoSvg?.trim()));
-  if (!hasAdminWordmark) return null;
+    (company.logoHasRaster || Boolean(company.logoSvg?.trim()))
+  );
+}
+
+export function brandingLogoEmailUrl(company: CompanyConfig, base: string): string | null {
+  if (!brandingWordmarkAvailable(company)) return null;
 
   const origin = base.replace(/\/+$/, '');
   const params = new URLSearchParams({ email: '1' });
@@ -55,6 +60,19 @@ export function brandingLogoEmailUrl(company: CompanyConfig, base: string): stri
   if (version) params.set('v', version);
 
   return `${origin}${BRANDING_LOGO_API_PATH}?${params.toString()}`;
+}
+
+/** Light ink on transparent — for dark backgrounds (Galene, purple nav). */
+export function brandingLogoDarkUrl(company: CompanyConfig, base: string): string | null {
+  if (!brandingWordmarkAvailable(company)) return null;
+
+  const origin = base.replace(/\/+$/, '');
+  const params = new URLSearchParams();
+  const version = companyBrandingVersion(company);
+  if (version) params.set('v', version);
+
+  const qs = params.toString();
+  return `${origin}${BRANDING_LOGO_ALT_PATH}${qs ? `?${qs}` : ''}`;
 }
 
 export async function buildBrandingApiPayload(context: APIContext): Promise<BrandingApiPayload> {
@@ -72,6 +90,7 @@ export async function buildBrandingApiPayload(context: APIContext): Promise<Bran
     name: company.name,
     logoSource: company.logoSource,
     logoEmailUrl: brandingLogoEmailUrl(company, base),
+    logoDarkUrl: brandingLogoDarkUrl(company, base),
     contactName,
     contactEmail,
     primary: colors.primary,

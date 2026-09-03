@@ -28,7 +28,7 @@ Self-hosted [Galene](https://galene.org/) on Railway at **meet.{apex}** (service
 
 ## Branding
 
-On container start, `docker-entrypoint.sh` pulls `GET {REAVE_APP_URL}/api/branding`, writes `/reave-brand.css`, downloads the email PNG logo to `/reave-logo.png`, and links the stylesheet from `galene.html` / `index.html`.
+On container start, `docker-entrypoint.sh` pulls `GET {REAVE_APP_URL}/api/branding`, writes `/reave-brand.css`, downloads **`logoDarkUrl`** (light wordmark for dark chrome) to `/reave-logo.png`, injects `<img class="reave-wordmark">` into `galene.html`, and links the stylesheet.
 
 ## Admin UI
 

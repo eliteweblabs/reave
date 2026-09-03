@@ -140,13 +140,18 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
     PRIMARY="$(jq -r '.primary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
     SECONDARY="$(jq -r '.secondary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
     COMPANY_NAME="$(jq -r '.name // empty' "${BRAND_JSON}" 2>/dev/null || true)"
-    LOGO_URL="$(jq -r '.logoEmailUrl // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+    LOGO_URL="$(jq -r '.logoDarkUrl // .logoEmailUrl // empty' "${BRAND_JSON}" 2>/dev/null || true)"
     if [ -n "${PRIMARY}" ]; then
       cat > "${BRAND_CSS}" <<EOF
 /* Generated from ${REAVE_ORIGIN}/api/branding — do not edit on the volume */
 :root {
   --reave-primary: ${PRIMARY};
   --reave-secondary: ${SECONDARY:-${PRIMARY}};
+}
+.users-header {
+  background: var(--reave-primary) !important;
+  display: flex !important;
+  align-items: center !important;
 }
 .navbar,
 .navbar .container,
@@ -170,24 +175,51 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
   background-color: var(--reave-secondary) !important;
   border-color: var(--reave-secondary) !important;
 }
-.galene-header,
-#title.navbar-brand {
+#left-sidebar .galene-header,
+.galene-header {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 2rem !important;
+  line-height: 1 !important;
   font-size: 0 !important;
-  min-height: 2.5rem;
-  background-repeat: no-repeat;
-  background-position: left center;
-  background-size: contain;
+  color: transparent !important;
+  overflow: hidden !important;
+}
+.galene-header .reave-wordmark,
+#title.navbar-brand .reave-wordmark {
+  display: block;
+  max-height: 2rem;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+}
+#title.navbar-brand {
+  display: block !important;
+  min-height: 2.5rem !important;
 }
 EOF
+      LOGO_OK=0
       if [ -n "${LOGO_URL}" ]; then
-        if curl -fsS "${LOGO_URL}" -o "${BRAND_LOGO}" 2>/dev/null; then
-          printf '\n.galene-header,\n#title.navbar-brand {\n  background-image: url("/reave-logo.png");\n}\n' >> "${BRAND_CSS}"
+        if curl -fsSL "${LOGO_URL}" -o "${BRAND_LOGO}" 2>/dev/null; then
+          LOGO_OK=1
+        fi
+      fi
+      if [ "${LOGO_OK}" = "1" ]; then
+        if [ -f "${GALENE_STATIC}/galene.html" ]; then
+          sed -i 's#<div class="galene-header">.*</div>#<div class="galene-header"><img src="/reave-logo.png" alt="" class="reave-wordmark" /></div>#' "${GALENE_STATIC}/galene.html" 2>/dev/null || true
+        fi
+        if [ -f "${GALENE_STATIC}/index.html" ]; then
+          sed -i 's#<h1 id="title" class="navbar-brand">.*</h1>#<h1 id="title" class="navbar-brand"><img src="/reave-logo.png" alt="" class="reave-wordmark" /></h1>#' "${GALENE_STATIC}/index.html" 2>/dev/null || true
         fi
       fi
       for html in galene.html index.html; do
         target="${GALENE_STATIC}/${html}"
         if [ -f "${target}" ] && ! grep -q 'reave-brand.css' "${target}" 2>/dev/null; then
           sed -i 's#<link rel="stylesheet" type="text/css" href="/galene.css"/>#&\n    <link rel="stylesheet" type="text/css" href="/reave-brand.css"/>#' "${target}" 2>/dev/null || true
+          sed -i 's#<link rel="stylesheet" href="/mainpage.css">#&\n    <link rel="stylesheet" type="text/css" href="/reave-brand.css"/>#' "${target}" 2>/dev/null || true
         fi
       done
       echo "REΛVe branding applied from ${REAVE_ORIGIN}/api/branding"
