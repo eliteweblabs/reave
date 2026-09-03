@@ -2530,7 +2530,7 @@ html.reave-agent-asleep
   }
   body.chat-compose-focused #chat-panel.ch-pane-active .ch-messages,
   body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport {
-    padding-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
   }
 }
 
