@@ -322,6 +322,15 @@ assert.ok(coreHosts.includes('inbound'));
 assert.ok(coreHosts.includes('clerk'));
 assert.ok(!coreHosts.includes('ap'));
 assert.ok(!coreHosts.includes('cal'));
+assert.ok(!coreHosts.includes('meet'));
+
+const meetPlan = buildDeployWizardPlan({
+  features: ['video_meet'],
+  siteDomain: 'acme.com',
+});
+assert.ok(meetPlan.services.some((s) => s.id === 'galene'));
+assert.ok(meetPlan.variables.some((v) => v.name === 'GALENE_API_BASE_URL' && v.filled.includes('${{ galene.')));
+assert.ok(meetPlan.domains.some((d) => d.host === 'meet' && d.fqdn === 'meet.acme.com' && d.target === 'galene'));
 
 const billedDns = buildDeployWizardPlan({
   features: ['billing', 'scheduling'],

@@ -84,6 +84,12 @@ interface ImportMetaEnv {
   CRATER_API_BASE_URL?: string;
   /** Mirror of Crater's CRATER_API_TOKEN; sent as X-Crater-Api-Token */
   CRATER_API_TOKEN?: string;
+  /** Galene public host (meet.{domain}) — admin Meet tab + /galene-api/v0/ client */
+  GALENE_API_BASE_URL?: string;
+  /** Galene admin API password (HTTP Basic with GALENE_ADMIN_USERNAME) */
+  GALENE_ADMIN_PASSWORD?: string;
+  /** Galene admin username (default admin) */
+  GALENE_ADMIN_USERNAME?: string;
   /** Railway public API (GraphQL). Create at railway.com/account/tokens — needs permission to create projects. */
   RAILWAY_API_TOKEN?: string;
   /** Optional default Railway project UUID for list_railway_domains (else match by name "Reave App") */

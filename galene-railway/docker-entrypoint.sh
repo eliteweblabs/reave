@@ -129,6 +129,73 @@ fi
 
 rm -f "${GALENE_DATA}/ice-servers.json"
 
+# REΛVe branding — pull logo + palette from the main app (same pattern as Crater).
+REAVE_APP_URL="${REAVE_APP_URL:-}"
+if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  BRAND_JSON="$(mktemp)"
+  BRAND_CSS="${GALENE_STATIC}/reave-brand.css"
+  BRAND_LOGO="${GALENE_STATIC}/reave-logo.png"
+  REAVE_ORIGIN="$(printf '%s' "${REAVE_APP_URL}" | sed -E 's#/$##')"
+  if curl -fsS "${REAVE_ORIGIN}/api/branding" -o "${BRAND_JSON}" 2>/dev/null; then
+    PRIMARY="$(jq -r '.primary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+    SECONDARY="$(jq -r '.secondary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+    COMPANY_NAME="$(jq -r '.name // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+    LOGO_URL="$(jq -r '.logoEmailUrl // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+    if [ -n "${PRIMARY}" ]; then
+      cat > "${BRAND_CSS}" <<EOF
+/* Generated from ${REAVE_ORIGIN}/api/branding — do not edit on the volume */
+:root {
+  --reave-primary: ${PRIMARY};
+  --reave-secondary: ${SECONDARY:-${PRIMARY}};
+}
+.navbar,
+.navbar .container,
+.navbar .container-fluid,
+.navbar .container-lg,
+.navbar .container-md,
+.navbar .container-sm,
+.navbar .container-xl {
+  background: var(--reave-primary) !important;
+}
+.topnav .navbar-brand,
+#title.navbar-brand {
+  color: #fff !important;
+}
+.btn-primary {
+  background-color: var(--reave-primary) !important;
+  border-color: var(--reave-primary) !important;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--reave-secondary) !important;
+  border-color: var(--reave-secondary) !important;
+}
+.galene-header,
+#title.navbar-brand {
+  font-size: 0 !important;
+  min-height: 2.5rem;
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
+}
+EOF
+      if [ -n "${LOGO_URL}" ]; then
+        if curl -fsS "${LOGO_URL}" -o "${BRAND_LOGO}" 2>/dev/null; then
+          printf '\n.galene-header,\n#title.navbar-brand {\n  background-image: url("/reave-logo.png");\n}\n' >> "${BRAND_CSS}"
+        fi
+      fi
+      for html in galene.html index.html; do
+        target="${GALENE_STATIC}/${html}"
+        if [ -f "${target}" ] && ! grep -q 'reave-brand.css' "${target}" 2>/dev/null; then
+          sed -i 's#<link rel="stylesheet" type="text/css" href="/galene.css"/>#&\n    <link rel="stylesheet" type="text/css" href="/reave-brand.css"/>#' "${target}" 2>/dev/null || true
+        fi
+      done
+      echo "REΛVe branding applied from ${REAVE_ORIGIN}/api/branding"
+    fi
+  fi
+  rm -f "${BRAND_JSON}"
+fi
+
 GALENE_UDP_MUX_PORT="${GALENE_UDP_MUX_PORT:-50000}"
 
 echo "=============================================="
