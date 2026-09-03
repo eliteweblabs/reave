@@ -9201,6 +9201,15 @@ function bindSocialHandleInputs(root) {
   });
 }
 
+function socialFieldLabel(platform) {
+  return (
+    `<span class="soc-field-label">` +
+      socialPlatformIcon(platform.id) +
+      `<span class="soc-field-label-text">${escHtml(platform.label)}</span>` +
+    `</span>`
+  );
+}
+
 function socialLinkFieldRow(platform, company) {
   const stored = company?.[platform.field] || '';
   const handle = sanitizeSocialHandleInput(stored, platform);
@@ -9216,7 +9225,7 @@ function socialLinkFieldRow(platform, company) {
   return (
     `<div class="soc-field-row" data-soc-platform="${escHtml(platform.id)}">` +
       `<div class="prof-field soc-field">` +
-        `<label for="social-${escHtml(platform.id)}">${escHtml(platform.label)}</label>` +
+        `<label for="social-${escHtml(platform.id)}">${socialFieldLabel(platform)}</label>` +
         `<div class="soc-affix">` +
           (prefix ? `<span class="soc-affix-prefix">${escHtml(prefix)}</span>` : '') +
           `<input id="social-${escHtml(platform.id)}" name="${escHtml(platform.field)}" type="text" value="${escHtml(handle)}" placeholder="${escHtml(platform.placeholder || 'yourcompany')}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-soc-platform-id="${escHtml(platform.id)}" ${extraAttrs} />` +
@@ -9339,7 +9348,7 @@ function renderSocialsPanel(company, connections) {
             .map(
               (p) =>
                 `<div class="soc-hidden-item">` +
-                  `<span>${escHtml(p.label)}</span>` +
+                  `<span class="soc-hidden-id">${socialPlatformIcon(p.id)}<span>${escHtml(p.label)}</span></span>` +
                   `<button type="button" class="prof-btn-secondary soc-field-restore" data-soc-restore="${escHtml(p.id)}">Restore</button>` +
                 `</div>`,
             )

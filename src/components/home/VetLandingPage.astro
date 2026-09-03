@@ -29,15 +29,29 @@ const reviewCarouselItems = reviewsBlock?.items.length
   ? [...reviewsBlock.items, ...reviewsBlock.items]
   : [];
 const social = landing.pack?.social ?? {};
+const SOCIAL_ICON_META: Record<string, { slug: string; color: string }> = {
+  instagram: { slug: "instagram", color: "#e1306c" },
+  facebook: { slug: "facebook", color: "#1877f2" },
+  twitter: { slug: "x", color: "#1d9bf0" },
+  linkedin: { slug: "linkedin", color: "#0a66c2" },
+  youtube: { slug: "youtube", color: "#ff0000" },
+  tiktok: { slug: "tiktok", color: "#ff0050" },
+  google: { slug: "google", color: "#4285f4" },
+};
 const socialLinks = [
-  social.instagramUrl ? { label: "Instagram", href: social.instagramUrl } : null,
-  social.facebookUrl ? { label: "Facebook", href: social.facebookUrl } : null,
-  social.twitterUrl ? { label: "X", href: social.twitterUrl } : null,
-  social.linkedinUrl ? { label: "LinkedIn", href: social.linkedinUrl } : null,
-  social.youtubeUrl ? { label: "YouTube", href: social.youtubeUrl } : null,
-  social.tiktokUrl ? { label: "TikTok", href: social.tiktokUrl } : null,
-  social.mapsUrl ? { label: "Google", href: social.mapsUrl } : null,
-].filter((link): link is { label: string; href: string } => Boolean(link?.href));
+  social.instagramUrl ? { id: "instagram", label: "Instagram", href: social.instagramUrl } : null,
+  social.facebookUrl ? { id: "facebook", label: "Facebook", href: social.facebookUrl } : null,
+  social.twitterUrl ? { id: "twitter", label: "X", href: social.twitterUrl } : null,
+  social.linkedinUrl ? { id: "linkedin", label: "LinkedIn", href: social.linkedinUrl } : null,
+  social.youtubeUrl ? { id: "youtube", label: "YouTube", href: social.youtubeUrl } : null,
+  social.tiktokUrl ? { id: "tiktok", label: "TikTok", href: social.tiktokUrl } : null,
+  social.mapsUrl ? { id: "google", label: "Google", href: social.mapsUrl } : null,
+]
+  .filter((link): link is { id: string; label: string; href: string } => Boolean(link?.href))
+  .map((link) => ({
+    ...link,
+    icon: SOCIAL_ICON_META[link.id] ?? { slug: "google", color: "#4285f4" },
+  }));
 const year = new Date().getFullYear();
 
 const brandName = landing.name || company.name || "Book";
@@ -390,8 +404,18 @@ const contactLabel = landing.callCta?.label || "Contact us";
         socialLinks.length ? (
           <nav class="vet-footer__social" aria-label="Social">
             {socialLinks.map((link) => (
-              <a href={link.href} target={link.href.startsWith("#") ? undefined : "_blank"} rel={link.href.startsWith("#") ? undefined : "noreferrer"}>
-                {link.label}
+              <a
+                class="vet-social-link"
+                href={link.href}
+                aria-label={link.label}
+                target={link.href.startsWith("#") ? undefined : "_blank"}
+                rel={link.href.startsWith("#") ? undefined : "noreferrer"}
+              >
+                <span
+                  class="vet-social-icon"
+                  style={`--soc-color:${link.icon.color};--soc-icon:url('${SIMPLE_ICONS_CDN(link.icon.slug)}')`}
+                  aria-hidden="true"
+                />
               </a>
             ))}
           </nav>
@@ -417,31 +441,39 @@ const contactLabel = landing.callCta?.label || "Contact us";
   reviewsBlock?.items.length ? (
     <script is:inline>
       (function () {
-        const scroller = document.getElementById("vet-reviews-scroller");
-        if (!scroller) return;
-        const track = scroller.querySelector(".vet-reviews__track");
-        if (!track) return;
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        function initVetReviewsScroller() {
+          const scroller = document.getElementById("vet-reviews-scroller");
+          if (!scroller) return;
+          const track = scroller.querySelector(".vet-reviews__track");
+          if (!track) return;
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-        const halfWidth = () => track.scrollWidth / 2;
-        let userUntil = 0;
+          const halfWidth = () => track.scrollWidth / 2;
+          let userUntil = 0;
 
-        const pause = () => {
-          userUntil = Date.now() + 4500;
-        };
-        scroller.addEventListener("pointerdown", pause);
-        scroller.addEventListener("wheel", pause, { passive: true });
-        scroller.addEventListener("touchstart", pause, { passive: true });
+          const pause = () => {
+            userUntil = Date.now() + 4500;
+          };
+          scroller.addEventListener("pointerdown", pause);
+          scroller.addEventListener("wheel", pause, { passive: true });
+          scroller.addEventListener("touchstart", pause, { passive: true });
 
-        function tick() {
-          if (Date.now() > userUntil) {
-            scroller.scrollLeft += 0.32;
-            const half = halfWidth();
-            if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
+          function tick() {
+            if (Date.now() > userUntil && scroller.scrollWidth > scroller.clientWidth + 1) {
+              scroller.scrollLeft += 0.32;
+              const half = halfWidth();
+              if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
+            }
+            requestAnimationFrame(tick);
           }
           requestAnimationFrame(tick);
         }
-        requestAnimationFrame(tick);
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", initVetReviewsScroller, { once: true });
+        } else {
+          initVetReviewsScroller();
+        }
       })();
     </script>
   ) : null

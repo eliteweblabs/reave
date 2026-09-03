@@ -959,6 +959,27 @@
 .soc-field-row .soc-field {
   margin: 0;
 }
+.soc-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.soc-field-label .soc-icon {
+  width: 18px;
+  height: 18px;
+}
+.soc-field-label-text {
+  line-height: 1.2;
+}
+.soc-hidden-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.soc-hidden-id .soc-icon {
+  width: 16px;
+  height: 16px;
+}
 .soc-affix {
   display: flex;
   align-items: stretch;
