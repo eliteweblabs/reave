@@ -70,6 +70,12 @@
       "subject": "New inquiry from dr-paws-calls.reave.app",
       "submitLabel": "Send message"
     },
+    "reviews": {
+      "heading": "What pet families are saying",
+      "intro": "Reviews from our Google listing.",
+      "googleMapsUrl": "https://maps.app.goo.gl/6TG3Sz4SWwU9RLMR7",
+      "googlePlaceQuery": "Paws Calls mobile pet veterinarian Longmeadow Massachusetts"
+    },
     "contact": {
       "heading": "Contact",
       "phone": "(617) 797-3070",
@@ -81,10 +87,18 @@
       "nav": [
         { "href": "#services", "label": "Services" },
         { "href": "#about", "label": "About" },
+        { "href": "#reviews", "label": "Reviews" },
         { "href": "#contact", "label": "Contact", "primary": true }
       ],
       "social": {
-        "city": "Serving Western Mass & Connecticut"
+        "city": "Serving Western Mass & Connecticut",
+        "mapsUrl": "https://maps.app.goo.gl/6TG3Sz4SWwU9RLMR7",
+        "instagramUrl": "#",
+        "facebookUrl": "#",
+        "twitterUrl": "#",
+        "linkedinUrl": "#",
+        "youtubeUrl": "#",
+        "tiktokUrl": "#"
       },
       "hero": {
         "mainAlt": "Dr. Kara M. Ryczek, veterinarian and founder of Paws Calls",

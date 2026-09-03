@@ -177,6 +177,11 @@ export type SiteLandingPackConfig = {
     instagram?: string;
     hashtag?: string;
     instagramUrl?: string;
+    facebookUrl?: string;
+    twitterUrl?: string;
+    linkedinUrl?: string;
+    youtubeUrl?: string;
+    tiktokUrl?: string;
     mapsUrl?: string;
     city?: string;
   };
@@ -330,7 +335,12 @@ export type SiteLandingConfig = {
   reviews?: {
     heading: string;
     intro?: string;
-    items: SiteLandingReview[];
+    items?: SiteLandingReview[];
+    /** Google Maps / Business profile link for “see all reviews”. */
+    googleMapsUrl?: string;
+    googlePlaceId?: string;
+    /** Text search fallback when the maps URL has no place id. */
+    googlePlaceQuery?: string;
   };
   about?: {
     heading: string;

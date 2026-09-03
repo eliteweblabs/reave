@@ -458,6 +458,65 @@ a.vet-btn-secondary,
   align-items: center;
 }
 
+.vet-reviews {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.75rem;
+  padding-bottom: 0.25rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.vet-review {
+  flex: 0 0 min(88vw, 22rem);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1.375rem;
+  border-radius: var(--vet-radius);
+  border: 1px solid var(--vet-border);
+  background: var(--vet-bg);
+}
+
+.vet-review__stars {
+  margin: 0;
+  color: var(--vet-accent);
+  font-size: 0.9375rem;
+  letter-spacing: 0.08em;
+}
+
+.vet-review__quote {
+  margin: 0;
+  flex: 1;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--vet-ink);
+}
+
+.vet-review__cite {
+  font-style: normal;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--vet-muted);
+}
+
+.vet-reviews__more {
+  margin: 1.25rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.vet-reviews__more a {
+  color: var(--vet-accent);
+  font-weight: 600;
+}
+
+.vet-reviews__more a:hover {
+  text-decoration: underline;
+}
+
 .vet-about__photo {
   border-radius: calc(var(--vet-radius) + 0.25rem);
   overflow: hidden;
@@ -532,6 +591,22 @@ a.vet-btn-secondary,
 
 .vet-footer__links a:hover {
   color: var(--vet-ink);
+}
+
+.vet-footer__social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.vet-footer__social a {
+  color: var(--vet-muted);
+}
+
+.vet-footer__social a:hover {
+  color: var(--vet-accent);
 }
 
 .vet-footer__note {

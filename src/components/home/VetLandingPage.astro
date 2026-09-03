@@ -7,6 +7,7 @@ import { getCompanyConfig } from "../../lib/companyConfig";
 import { getSiteContent } from "../../lib/siteContent";
 import { contactTelHref } from "../../lib/contactApi";
 import PawIcon from "../icons/PawIcon.astro";
+import { loadSiteLandingReviews } from "../../lib/siteLandingGoogleReviews";
 import "../../styles/vet-landing.css";
 
 interface Props {
@@ -21,6 +22,17 @@ const contact = landing.contact ?? {};
 const inquiry = landing.inquiry;
 const about = landing.about ?? {};
 const services = landing.services;
+const reviewsBlock = await loadSiteLandingReviews(landing.reviews);
+const social = landing.pack?.social ?? {};
+const socialLinks = [
+  social.instagramUrl ? { label: "Instagram", href: social.instagramUrl } : null,
+  social.facebookUrl ? { label: "Facebook", href: social.facebookUrl } : null,
+  social.twitterUrl ? { label: "X", href: social.twitterUrl } : null,
+  social.linkedinUrl ? { label: "LinkedIn", href: social.linkedinUrl } : null,
+  social.youtubeUrl ? { label: "YouTube", href: social.youtubeUrl } : null,
+  social.tiktokUrl ? { label: "TikTok", href: social.tiktokUrl } : null,
+  social.mapsUrl ? { label: "Google", href: social.mapsUrl } : null,
+].filter((link): link is { label: string; href: string } => Boolean(link?.href));
 const year = new Date().getFullYear();
 
 const brandName = landing.name || company.name || "Book";
@@ -200,6 +212,38 @@ const contactLabel = landing.callCta?.label || "Contact us";
       ) : null
     }
 
+    {
+      reviewsBlock?.items.length ? (
+        <section id="reviews" class="vet-section vet-section--surface">
+          <div class="vet-section__inner">
+            <p class="vet-section__eyebrow">Reviews</p>
+            <h2 class="vet-section__title">{reviewsBlock.heading}</h2>
+            {reviewsBlock.intro && <p class="vet-section__intro">{reviewsBlock.intro}</p>}
+            <div class="vet-reviews" tabindex="0" aria-label="Client reviews">
+              {
+                reviewsBlock.items.map((item) => (
+                  <article class="vet-review">
+                    {item.stars && <p class="vet-review__stars" aria-hidden="true">{item.stars}</p>}
+                    <blockquote class="vet-review__quote">“{item.quote}”</blockquote>
+                    <cite class="vet-review__cite">{item.cite}</cite>
+                  </article>
+                ))
+              }
+            </div>
+            {
+              reviewsBlock.mapsUrl ? (
+                <p class="vet-reviews__more">
+                  <a href={reviewsBlock.mapsUrl} target="_blank" rel="noreferrer">
+                    See all reviews on Google
+                  </a>
+                </p>
+              ) : null
+            }
+          </div>
+        </section>
+      ) : null
+    }
+
     <section id="contact" class="vet-section vet-section--surface">
       <div class="vet-section__inner">
         <p class="vet-section__eyebrow">Get in touch</p>
@@ -292,6 +336,17 @@ const contactLabel = landing.callCta?.label || "Contact us";
         {email ? <a href={`mailto:${email}`}>{email}</a> : null}
         {location ? <span>{location}</span> : null}
       </div>
+      {
+        socialLinks.length ? (
+          <nav class="vet-footer__social" aria-label="Social">
+            {socialLinks.map((link) => (
+              <a href={link.href} target={link.href.startsWith("#") ? undefined : "_blank"} rel={link.href.startsWith("#") ? undefined : "noreferrer"}>
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        ) : null
+      }
       {
         phoneHref ? (
           <div class="vet-footer__actions">
