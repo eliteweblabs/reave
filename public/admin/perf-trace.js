@@ -46,9 +46,7 @@ function isTracing(name) {
   if (scope === 'all') return true;
   return (
     name.startsWith('chat:') ||
-    name.startsWith('admin:boot') ||
-    name.startsWith('admin:tab-order') ||
-    name.startsWith('admin:activate-chats')
+    name.startsWith('admin:')
   );
 }
 
@@ -150,6 +148,29 @@ export function traceSummary() {
   return entries;
 }
 
+function markMs(name) {
+  const entry = performance.getEntriesByName(name, 'mark')[0];
+  return entry ? Math.round(entry.startTime) : null;
+}
+
+export function reportPreBootTiming() {
+  if (!scope) return;
+  const page = markMs('reave:admin:page');
+  const evalStart = markMs('reave:admin:os-map-loader:eval-start');
+  const evalEnd = markMs('reave:admin:os-map-loader:eval-end');
+  const traceStartMs = markMs('reave:trace:start');
+  const meta = {
+    pageToTraceMs: page != null && traceStartMs != null ? traceStartMs - page : null,
+    pageToLoaderEvalMs: page != null && evalEnd != null ? evalEnd - page : null,
+    loaderParseMs: evalStart != null && evalEnd != null ? evalEnd - evalStart : null,
+    domContentLoadedMs: null,
+  };
+  const nav = performance.getEntriesByType('navigation')[0];
+  if (nav?.domContentLoadedEventEnd) meta.domContentLoadedMs = Math.round(nav.domContentLoadedEventEnd);
+  log('pre-boot (untraced JS parse / download)', meta);
+  hudLine('pre-boot gap', meta);
+}
+
 export function initPerfTrace() {
   persistScopeFromUrl();
   scope = readScope();
@@ -172,6 +193,7 @@ window.__reaveTrace = {
   start: traceStart,
   async: traceAsync,
   summary: traceSummary,
+  preBoot: reportPreBootTiming,
 };
 
 export { enabled as perfTraceEnabled };

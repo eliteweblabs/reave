@@ -130,7 +130,7 @@ import {
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
-import { traceStart, traceAsync } from './perf-trace.js';
+import { traceStart, traceAsync, reportPreBootTiming } from './perf-trace.js';
 import {
   captureFilterTabsScroll,
   mountFilterTabsScroll,
@@ -260,7 +260,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260903a';
+} from './chat-panel.js?v=20260903b';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -322,6 +322,10 @@ import {
   applyMediaToTarget,
 } from './media-picker.js?v=20260813b';
 import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260826a';
+
+if (typeof performance !== 'undefined') {
+  performance.mark('reave:admin:os-map-loader:eval-end');
+}
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -19202,6 +19206,7 @@ let adminBootStarted = false;
 async function boot() {
   if (adminBootStarted) return;
   adminBootStarted = true;
+  reportPreBootTiming();
   const endBoot = traceStart('admin:boot');
   const tabOrder = await traceAsync('admin:tab-order', () => resolveTabOrder());
   cachedTabOrder = tabOrder;

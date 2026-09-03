@@ -1046,7 +1046,28 @@ let chatState = {
   // Thread ids with an in-flight agent run (own tab + polled background runs
   // in other threads/tabs) — drives the sidebar "working…" spinner.
   runningIds: new Set(),
+  /** Sidebar shown; pane waits on GET /api/chats/:id + React bundle. */
+  paneLoading: false,
 };
+
+let agentChatBundlePromise = null;
+
+function loadAgentChatBundle() {
+  if (window.__reaveAgentChat) return Promise.resolve();
+  if (agentChatBundlePromise) return agentChatBundlePromise;
+  const url = window.__reaveAgentChatMountUrl;
+  if (!url) {
+    return Promise.reject(new Error('Agent chat bundle URL missing — hard-refresh the page'));
+  }
+  agentChatBundlePromise = traceAsync('chat:load-react-bundle', () =>
+    import(/* @vite-ignore */ url).then(() => {
+      if (!window.__reaveAgentChat) {
+        throw new Error('Agent chat API missing after bundle load');
+      }
+    }),
+  );
+  return agentChatBundlePromise;
+}
 
 /**
  * Keep the mobile keyboard open across the async "new chat" create+mount.
@@ -1260,7 +1281,9 @@ async function loadChatsTab(opts = {}) {
     endLoad({ skipped: 'no-root' });
     return;
   }
-  await traceAsync('chat:author-icons', () => ensureContactAuthorIconsReady());
+
+  const bundleP = loadAgentChatBundle().catch(() => undefined);
+  const iconsP = traceAsync('chat:author-icons', () => ensureContactAuthorIconsReady());
 
   // Fix #1: when returning to the Chats tab and the live React chat tree is
   // already mounted for the current thread, keep it instead of tearing it down.
@@ -1296,7 +1319,8 @@ async function loadChatsTab(opts = {}) {
 
   mountPanelSkeleton(root, 'list', 'Loading sessions…', { contentSelector: '.ch-sidebar' });
   try {
-    chatState.threads = await fetchChatThreads();
+    const [, threads] = await Promise.all([iconsP, fetchChatThreads()]);
+    chatState.threads = threads;
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     endLoad({ ok: false, err: e.message });
@@ -1351,9 +1375,17 @@ async function loadChatsTab(opts = {}) {
       return;
     }
     chatState.sending = false;
-    await openChat(restoreId, { force: true });
-    endLoad({ path: 'restore', restoreId, threads: chatState.threads.length });
+    const threadMeta = chatState.threads.find((t) => t.id === restoreId);
+    chatState.activeId = restoreId;
+    chatState.title = threadMeta?.title || '';
+    chatState.messages = [];
+    chatState.linkedJobs = threadMeta?.linked_jobs || [];
+    chatState.paneLoading = true;
+    renderChatPanel();
+    endLoad({ path: 'restore-interactive', restoreId, threads: chatState.threads.length });
     traceSummary();
+    await bundleP;
+    await openChat(restoreId, { force: true });
     return;
   }
 
@@ -2090,6 +2122,18 @@ function mountChatThreadRoot(threadHost) {
   endMount({ ok: true });
 }
 
+async function mountChatThreadRootAsync(threadHost) {
+  if (chatState.paneLoading) return;
+  try {
+    await loadAgentChatBundle();
+  } catch (e) {
+    threadHost.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    disarmComposerKeyboardBridge();
+    return;
+  }
+  mountChatThreadRoot(threadHost);
+}
+
 function renderChatPane() {
   const root = getChatPanel();
   if (!root) return;
@@ -2117,6 +2161,17 @@ function renderChatPane() {
 
   pane.appendChild(shell.buildChatPaneHeader());
 
+  if (chatState.paneLoading) {
+    const loading = document.createElement('div');
+    loading.className = 'de-loading ch-pane-loading';
+    loading.textContent = 'Loading session…';
+    pane.appendChild(loading);
+    root.classList.add('ch-pane-active');
+    shell.syncTopbarPanelContext();
+    shell.syncFooterNav();
+    return;
+  }
+
   const threadHost = document.createElement('div');
   threadHost.className = 'ch-thread-root';
   threadHost.id = 'ch-thread-root';
@@ -2125,12 +2180,19 @@ function renderChatPane() {
   root.classList.add('ch-pane-active');
   shell.syncTopbarPanelContext();
   shell.syncFooterNav();
-  mountChatThreadRoot(threadHost);
+  void mountChatThreadRootAsync(threadHost);
 }
 
 function renderChatPanel() {
+  const endRender = traceStart('chat:render-panel', {
+    threads: chatState.threads.length,
+    paneLoading: chatState.paneLoading === true,
+  });
   const root = getChatPanel();
-  if (!root) return;
+  if (!root) {
+    endRender({ skipped: 'no-root' });
+    return;
+  }
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
   const savedFilterScroll = shell.captureFilterTabsScroll?.(root) ?? 0;
   unmountChatThreadRoot(root);
@@ -2143,6 +2205,7 @@ function renderChatPanel() {
   root.appendChild(pane);
   renderChatPane();
   shell.finishSidebarListScroll(root, savedSidebarScroll);
+  endRender({ visible: visibleChatThreads().length });
 }
 
 async function startNewChat(opts = {}) {
@@ -2171,6 +2234,8 @@ async function startNewChat(opts = {}) {
     chatState.autoFocusComposer = true;
     chatState.disposableChatId = opts.disposable === false ? null : thread.id;
     rememberChatActiveId(thread.id);
+    chatState.paneLoading = false;
+    await loadAgentChatBundle();
     renderChatPanel();
   } catch (e) {
     disarmComposerKeyboardBridge();
@@ -2202,6 +2267,7 @@ async function openChat(id, opts = {}) {
       },
       { id },
     );
+    chatState.paneLoading = false;
     chatState.activeId = id;
     chatState.title = data.thread.title;
     chatState.messages = data.thread.messages || [];

@@ -24,10 +24,13 @@ const {
 const deployStatusClient = getDeployStatusClientSummary();
 /** public/ scripts bypass middleware, so the ?v= token is their only cache bust. */
 const assetVersion = __PUBLIC_ASSET_VERSION__;
+/** Deferred until the chats tab loads — keeps ~500KB React off the critical admin boot path. */
+import agentChatMountUrl from "../../admin/agent-chat-mount.tsx?url";
 ---
 
 <script is:inline>
   (function () {
+    if (typeof performance !== 'undefined') performance.mark('reave:admin:page');
     function showAdminLoadError(detail) {
       if (document.getElementById('admin-boot-error')) return;
       var banner = document.createElement('div');
@@ -59,8 +62,8 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
     });
   })();
 </script>
-<script>
-  import '../../admin/agent-chat-mount.tsx';
+<script is:inline define:vars={{ agentChatMountUrl }}>
+  window.__reaveAgentChatMountUrl = agentChatMountUrl;
 </script>
 <script is:inline type="module" src={`/admin/perf-trace.js?v=${assetVersion}`}></script>
 <script is:inline type="module" src={`/admin/push-client.js?v=${assetVersion}`}></script>
@@ -74,5 +77,6 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
   window.__craterFinanceUrl = craterFinanceUrl;
   window.__githubRepo = githubRepo;
   window.__deployStatus = deployStatusClient;
+  if (typeof performance !== 'undefined') performance.mark('reave:admin:os-map-loader:eval-start');
 </script>
 <script is:inline type="module" src={`/admin/os-map-loader.js?v=${assetVersion}`}></script>
