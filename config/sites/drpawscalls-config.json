@@ -28,7 +28,7 @@
     "heroHeadline": "At Home Veterinary Services for your Pets",
     "heroBody": "Compassionate veterinary care where your pet is most comfortable — at home. House calls across Western Massachusetts and Connecticut.",
     "heroLogo": "/sites/drpawscalls/logo.png",
-    "heroImage": "/sites/drpawscalls/hero/main.jpg",
+    "heroImage": "/sites/drpawscalls/hero/dr-ryczek.webp",
     "scheduleUrl": "/form/schedule",
     "callCta": {
       "label": "Contact us"
@@ -86,9 +86,9 @@
         "city": "Serving Western Mass & Connecticut"
       },
       "hero": {
-        "mainAlt": "Veterinarian gently examining a small dog during a checkup",
-        "aboutImage": "/sites/drpawscalls/hero/dr-ryczek.webp",
-        "aboutAlt": "Dr. Kara M. Ryczek, veterinarian and founder of Paws Calls"
+        "mainAlt": "Dr. Kara M. Ryczek, veterinarian and founder of Paws Calls",
+        "aboutImage": "/sites/drpawscalls/hero/main.jpg",
+        "aboutAlt": "Veterinarian gently examining a small dog during a checkup"
       }
     }
   }

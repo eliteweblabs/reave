@@ -235,7 +235,7 @@ const contactLabel = landing.callCta?.label || "Contact us";
                 <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
 
                 <div class="vet-form__row">
-                  <label for="vet-name">Name</label>
+                  <label for="vet-name">Full Name</label>
                   <input type="text" id="vet-name" name="name" required autocomplete="name" />
                 </div>
 
@@ -245,10 +245,13 @@ const contactLabel = landing.callCta?.label || "Contact us";
                 </div>
 
                 <div class="vet-form__row">
-                  <label for="vet-phone">
-                    Phone <span class="vet-form__optional">(optional)</span>
-                  </label>
-                  <input type="tel" id="vet-phone" name="phone" autocomplete="tel" />
+                  <label for="vet-city">City / Town</label>
+                  <input type="text" id="vet-city" name="city_town" required autocomplete="address-level2" />
+                </div>
+
+                <div class="vet-form__row">
+                  <label for="vet-pet-details">Pet Details</label>
+                  <input type="text" id="vet-pet-details" name="pet_details" required />
                 </div>
 
                 <div class="vet-form__row">
