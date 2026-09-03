@@ -292,21 +292,18 @@ const contactLabel = landing.callCta?.label || "Contact us";
         {email ? <a href={`mailto:${email}`}>{email}</a> : null}
         {location ? <span>{location}</span> : null}
       </div>
+      {
+        phoneHref ? (
+          <div class="vet-footer__actions">
+            <a class="vet-btn-secondary vet-footer__btn" href={phoneHref}>Call</a>
+            <a class="vet-btn-primary vet-footer__btn" href={contactHref}>
+              <PawIcon size={14} />
+              Contact
+            </a>
+          </div>
+        ) : null
+      }
       {landing.footer && <p class="vet-footer__note">{landing.footer}</p>}
     </div>
   </footer>
-
-  {
-    phoneHref ? (
-      <nav class="vet-dock" aria-label="Quick contact">
-        <div class="vet-dock__grid">
-          <a class="vet-dock__btn vet-dock__call" href={phoneHref}>Call</a>
-          <a class="vet-dock__btn vet-dock__contact" href={contactHref}>
-            <PawIcon size={14} />
-            {contactLabel}
-          </a>
-        </div>
-      </nav>
-    ) : null
-  }
 </div>

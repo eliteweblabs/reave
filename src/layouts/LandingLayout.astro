@@ -145,13 +145,15 @@ const htmlStyle =
   body.vet-body :is(
     input:not([type="button"]):not([type="submit"]):not([type="reset"]),
     textarea,
-    a[href^="mailto:"],
-    a[href^="tel:"]
+    a[href^="mailto:"]:not(.vet-btn-primary):not(.vet-btn-secondary),
+    a[href^="tel:"]:not(.vet-btn-primary):not(.vet-btn-secondary)
   ) {
     -webkit-user-select: text;
     user-select: text;
   }
-  body.vet-body a { color: inherit; }
+  body.vet-body a:not(.vet-btn-primary):not(.vet-btn-secondary):not(.vet-header__nav-btn) {
+    color: inherit;
+  }
 </style>
 ) : isPack ? (
 <style is:global>
