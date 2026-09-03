@@ -175,6 +175,9 @@ const LEGACY_DEFAULT_CHAT_TITLE = 'New chat';
 /** ~two lines in the chat sidebar list at 0.82rem / 1.35 line-height. */
 export const MAX_CHAT_TITLE_LENGTH = 120;
 
+/** Max messages returned to the admin UI — full history stays in Postgres for the agent. */
+export const CHAT_UI_MESSAGE_CAP = 48;
+
 export function isDefaultChatTitle(title: string): boolean {
   const t = title.trim();
   return t === DEFAULT_CHAT_TITLE || t === LEGACY_DEFAULT_CHAT_TITLE;

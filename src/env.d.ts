@@ -112,6 +112,8 @@ interface ImportMetaEnv {
   RAILWAY_WEBHOOK_INGRESS_KEY?: string;
   /** Set to 1 to auto-investigate Railway deploy failures (repo lock + agent). Default: off. */
   RAILWAY_INCIDENT_HANDLER?: string;
+  /** Set to 1 to auto-run the agent on deploy-failure webhooks. Default: off — alerts log only. */
+  DEPLOY_FAILURE_AUTO_REPAIR?: string;
   /** Kap plugin upload auth (X-Kap-Key / Bearer). View at /r/{token}. */
   KAP_UPLOAD_KEY?: string;
   /** Cloudinary — Kap uploads land here when all three are set (see bootstrap/kap-railway). */

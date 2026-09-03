@@ -1,27 +1,32 @@
-# Railway deploy → admin repair chat (automatic)
+# Railway deploy → admin repair chat (log-only by default)
 
 When Railway posts a **deployment failure** webhook to Reave:
 
 1. **Deploy indicator** — red “failed” state (chat is **not** locked — previous deploy stays live)
-2. **New repair chat** — opens with the failure summary + Railway build/deploy logs
-3. **Auto-fix** — agent runs immediately (“go fix it”; usually typo / lockfile / collision). No phone push.
+2. **Repair Session** — one thread per service; later failures append to the same title (`Deploy failed — <service>`)
+3. **Log only** — a short alert is appended. **No agent run** unless you opt in.
 
-When **`RAILWAY_INCIDENT_HANDLER=1`**, the heavier loop also runs:
+## Auto-repair (opt-in)
+
+Set **`DEPLOY_FAILURE_AUTO_REPAIR=1`** on the Reave App service to restore the old behavior: fetch Railway logs, post the repair playbook, and auto-run the agent.
+
+Leave it **unset** (default) if you do not want deploy webhooks to burn tokens or grow repair threads with agent turns.
+
+When **`RAILWAY_INCIDENT_HANDLER=1`** (also opt-in), the heavier loop can run **only if** `DEPLOY_FAILURE_AUTO_REPAIR=1`:
 
 1. **Repo lock** — one active incident per GitHub repo (duplicate webhooks/emails suppressed)
 2. **Agent playbook** — `read_knowledge slug "railway-build-failure-triage"`
 3. **Verify loop** — re-checks deploy health ~90s after a fix commit
 4. **Close** — `✅ RESOLVED` deletes inbox email; `🚨 UNRESOLVED` pushes to phone (email path only)
 
-`RAILWAY_INCIDENT_HANDLER` is optional. Repair chat + auto-fix always run when `AGENT_ALERT_USER_ID` is set.
-
 ## Setup
 
 1. **Astro env (Reave App service)**
    - `RAILWAY_WEBHOOK_INGRESS_KEY` — long random string; same value in the webhook URL `?key=`.
    - `AGENT_ALERT_USER_ID` — your Clerk user id (repair chats land under this user).
-   - `RAILWAY_API_TOKEN` — so the webhook path can dump build/deploy logs into the chat.
-   - `RAILWAY_INCIDENT_HANDLER=1` — optional repo lock + verify loop.
+   - `RAILWAY_API_TOKEN` — needed only when auto-repair is on (log fetch into the chat).
+   - `DEPLOY_FAILURE_AUTO_REPAIR=1` — optional; off by default.
+   - `RAILWAY_INCIDENT_HANDLER=1` — optional repo lock + verify loop (requires auto-repair for agent runs).
    - `DATABASE_URL` — required for deploy-incident dedup when the incident handler is on.
 
 2. **Railway project webhook** (configure on **each** Railway project that should drive the header deploy bulb)
@@ -38,3 +43,4 @@ When **`RAILWAY_INCIDENT_HANDLER=1`**, the heavier loop also runs:
 - Failed deploys do **not** pause the composer — only in-flight deploys do.
 - Stale incidents (>45 min) auto-expire so a new alert can acquire the repo lock.
 - Email path: see `src/knowledge/email-rules.md` for Resend inbound setup.
+- Opening a long repair Session in the browser only loads the **last 48 messages** — full history remains in Postgres for `get_chat`.

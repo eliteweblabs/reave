@@ -1060,6 +1060,8 @@ let chatState = {
   runningIds: new Set(),
   /** Sidebar shown; pane waits on GET /api/chats/:id + React bundle. */
   paneLoading: false,
+  /** Guard — only one automatic refetch when shell has title but no messages. */
+  refetchAttemptedId: null,
 };
 
 let agentChatApiPromise = null;
@@ -2102,8 +2104,9 @@ function mountChatThreadRoot(threadHost) {
           cache: 'no-store',
         });
         const data = await readApiJson(res);
-        chatState.messages = data.thread.messages || [];
-        chatState.title = data.thread.title;
+    chatState.messages = data.thread.messages || [];
+    chatState.title = data.thread.title;
+    if (chatState.messages.length) chatState.refetchAttemptedId = null;
         const host = getChatPanel()?.querySelector('#ch-thread-root');
         if (host && window.__reaveAgentChat?.syncMessages) {
           window.__reaveAgentChat.syncMessages(host, chatState.messages);
@@ -2186,7 +2189,8 @@ function renderChatPane() {
 
   if (chatState.activeId && !chatState.messages.length && !chatState.paneLoading) {
     const meta = chatState.threads.find((t) => t.id === chatState.activeId);
-    if (meta?.last_role) {
+    if (meta?.last_role && chatState.refetchAttemptedId !== chatState.activeId) {
+      chatState.refetchAttemptedId = chatState.activeId;
       chatState.paneLoading = true;
       pane.appendChild(shell.buildChatPaneHeader());
       const loading = document.createElement('div');
@@ -2289,6 +2293,7 @@ async function startNewChat(opts = {}) {
     chatState.composeDirty = false;
     chatState.autoFocusComposer = true;
     chatState.disposableChatId = opts.disposable === false ? null : thread.id;
+    chatState.refetchAttemptedId = null;
     rememberChatActiveId(thread.id);
     chatState.paneLoading = false;
     await waitForAgentChatApi();
@@ -2327,6 +2332,7 @@ async function openChat(id, opts = {}) {
     chatState.activeId = id;
     chatState.title = data.thread.title;
     chatState.messages = data.thread.messages || [];
+    if (chatState.messages.length) chatState.refetchAttemptedId = null;
     chatState.linkedJobs = data.thread.linked_jobs || [];
     chatState.composeDirty = false;
     chatState.disposableChatId = null;

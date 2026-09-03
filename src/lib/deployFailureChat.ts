@@ -1,17 +1,26 @@
 /**
  * Open (or continue) a dedicated repair chat when a Railway deploy fails.
- * One Session per service — later failures append and keep fixing.
+ * One Session per service — later failures append here for reference.
+ *
+ * Auto-repair (agent runs without owner input) is **off by default**.
+ * Set DEPLOY_FAILURE_AUTO_REPAIR=1 on Railway to opt in.
  */
 import { isAnthropicLlmConfigured } from './anthropicEndpoint';
 import { postToSystemAlertsThread } from './systemAlertsThread';
 import { formatRailwayLogsSummary, railwayGetLogs } from './railwayAgentApi';
 import { createLogger } from './logger';
+import { serverEnv } from './serverEnv';
 import {
   deployFailureAlertTitle,
   deployFailureServiceName,
 } from './agentSituationalContext';
 
 const log = createLogger('deploy-failure-chat');
+
+/** Opt-in only — owner must set DEPLOY_FAILURE_AUTO_REPAIR=1 to auto-run the agent. */
+export function isDeployFailureAutoRepairEnabled(): boolean {
+  return serverEnv('DEPLOY_FAILURE_AUTO_REPAIR') === '1';
+}
 
 /** Same high-tier model the incident handler uses for auto-repair. */
 export const DEPLOY_FAILURE_REPAIR_MODEL = 'claude-opus-4-6';
@@ -31,7 +40,7 @@ export type DeployFailureChatInput = {
   /** Extra playbook lines (incident lock, mandatory markers, etc.). */
   playbookExtra?: string;
   model?: string;
-  /** Default true — owner should not need to nudge the agent. */
+  /** Default follows DEPLOY_FAILURE_AUTO_REPAIR (off unless explicitly set to 1). */
   autoRun?: boolean;
   /** Log the alert only — skip Railway log fetch (duplicate webhook append). */
   appendOnly?: boolean;
@@ -98,9 +107,18 @@ function buildRepairPrompt(opts: {
   return lines.join('\n');
 }
 
+/** Compact alert when auto-repair is off — log the failure, do not invoke the agent. */
+function buildAlertOnlyMessage(baseMessage: string): string {
+  return [
+    baseMessage.trim(),
+    '',
+    '(Deploy failure logged. Auto-repair is off — open this Session and send a message when you want the agent to investigate.)',
+  ].join('\n');
+}
+
 /**
- * Opens or continues the one repair Session for this service, with logs,
- * then auto-runs the agent (unless autoRun is false).
+ * Opens or continues the one repair Session for this service.
+ * Auto-runs the agent only when DEPLOY_FAILURE_AUTO_REPAIR=1 (and LLM is configured).
  */
 export async function openDeployFailureRepairChat(
   input: DeployFailureChatInput,
@@ -110,9 +128,11 @@ export async function openDeployFailureRepairChat(
     message: input.message,
   });
   const reuseTitle = deployFailureAlertTitle(service);
+  const wantsAutoRun =
+    isDeployFailureAutoRepairEnabled() && input.autoRun !== false;
 
-  const logs = input.appendOnly
-    ? '(Duplicate webhook — logs omitted. See earlier turns in this Session.)'
+  const logs = input.appendOnly || !wantsAutoRun
+    ? '(Logs not fetched — auto-repair is off or duplicate webhook. Use get_railway_logs in this Session if needed.)'
     : await fetchFailureLogs({
         project: input.project,
         service: input.service || service,
@@ -126,15 +146,16 @@ export async function openDeployFailureRepairChat(
         '',
         input.message.trim(),
       ].join('\n')
-    : buildRepairPrompt({
-        baseMessage: input.message,
-        logs,
-        playbookExtra: input.playbookExtra,
-        service,
-      });
+    : wantsAutoRun
+      ? buildRepairPrompt({
+          baseMessage: input.message,
+          logs,
+          playbookExtra: input.playbookExtra,
+          service,
+        })
+      : buildAlertOnlyMessage(input.message);
 
   const llmReady = isAnthropicLlmConfigured();
-  const wantsAutoRun = input.autoRun !== false;
   if (wantsAutoRun && !llmReady) {
     message = [
       message,
@@ -150,7 +171,7 @@ export async function openDeployFailureRepairChat(
     model: input.model ?? DEPLOY_FAILURE_REPAIR_MODEL,
     bypassSleep: true,
     reuseTitle,
-    repairRun: true,
+    repairRun: wantsAutoRun,
     repairService: service,
     // No phone push — build failures stay in the one repair Session.
   });
@@ -161,7 +182,7 @@ export async function openDeployFailureRepairChat(
     service,
     reused: result.reused,
     suppressed: result.suppressed,
-    autoRun: input.autoRun !== false,
+    autoRun: wantsAutoRun && llmReady,
   });
 
   return result;

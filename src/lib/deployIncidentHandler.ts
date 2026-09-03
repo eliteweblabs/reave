@@ -5,7 +5,7 @@
  * repo are suppressed so the agent never runs parallel repairs.
  */
 import { isAgentLlmBlockedReply } from './anthropicMessages';
-import { openDeployFailureRepairChat, DEPLOY_FAILURE_REPAIR_MODEL } from './deployFailureChat';
+import { openDeployFailureRepairChat, DEPLOY_FAILURE_REPAIR_MODEL, isDeployFailureAutoRepairEnabled } from './deployFailureChat';
 import { isDockerImageRailwayService } from './agentSituationalContext';
 import { resolveDeployTarget, deployDedupKey, type DeployServiceTarget } from './deployServiceMap';
 import {
@@ -242,7 +242,7 @@ async function runInvestigation(opts: {
       emailId: opts.emailId,
       playbookExtra,
       model: DEPLOY_FAILURE_REPAIR_MODEL,
-      autoRun: serverEnv('AGENT_ALERT_AUTO_RUN') !== '0',
+      autoRun: isDeployFailureAutoRepairEnabled(),
     });
 
     if (!agentReply) {

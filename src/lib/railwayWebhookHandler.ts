@@ -69,7 +69,7 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   if (body.timestamp) lines.push(`Time: ${body.timestamp}`);
   lines.push(
     '',
-    'Auto-repair chat will open with Railway logs — agent should fix without waiting.',
+    'Logged to the deploy-failure Session for this service. Auto-repair is off unless DEPLOY_FAILURE_AUTO_REPAIR=1.',
   );
   return lines.join('\n');
 }
@@ -78,8 +78,9 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
  * Railway project webhook → admin repair chat + deploy indicator.
  *
  * Deploy failures open one repair Session per service (reused on later
- * crashes) with Railway logs and auto-run the agent. Full incident lock +
- * verify loop runs when RAILWAY_INCIDENT_HANDLER=1. No phone push.
+ * crashes) and log the alert. Agent auto-repair runs only when
+ * DEPLOY_FAILURE_AUTO_REPAIR=1. Full incident lock + verify loop runs when
+ * RAILWAY_INCIDENT_HANDLER=1. No phone push.
  *
  * Deploy success resumes the registered admin chat (same thread, with
  * history) so mid-task workflows continue after the deploy lands.
@@ -180,7 +181,6 @@ export async function handleRailwayWebhook(opts: {
     service: body.resource?.service?.name,
     environment: env,
     deploymentId,
-    autoRun: true,
   });
 
   return {
