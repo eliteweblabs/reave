@@ -245,14 +245,12 @@ const contactLabel = landing.callCta?.label || "Contact us";
             </div>
             {reviewsBlock.intro && <p class="vet-section__intro">{reviewsBlock.intro}</p>}
           </div>
-          <div class="vet-reviews-viewport">
-            <div
-              class="vet-reviews"
-              id="vet-reviews-scroller"
-              tabindex="0"
-              aria-label="Client reviews — swipe to browse"
-            >
-              <div class="vet-reviews__track">
+          <div
+            class="vet-reviews-viewport"
+            id="vet-reviews-marquee"
+            style={`--vet-reviews-duration: ${Math.max(reviewsBlock.items.length * 16, 55)}s`}
+          >
+            <div class="vet-reviews__track">
                 {
                   reviewCarouselItems.map((item) => {
                     const href = item.href || reviewsBlock.mapsUrl;
@@ -290,7 +288,6 @@ const contactLabel = landing.callCta?.label || "Contact us";
                   })
                 }
               </div>
-            </div>
           </div>
           {
             reviewsBlock.mapsUrl ? (
@@ -441,38 +438,39 @@ const contactLabel = landing.callCta?.label || "Contact us";
   reviewsBlock?.items.length ? (
     <script is:inline>
       (function () {
-        function initVetReviewsScroller() {
-          const scroller = document.getElementById("vet-reviews-scroller");
-          if (!scroller) return;
-          const track = scroller.querySelector(".vet-reviews__track");
-          if (!track) return;
-          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        function initVetReviewsMarquee() {
+          const viewport = document.getElementById("vet-reviews-marquee");
+          const track = viewport?.querySelector(".vet-reviews__track");
+          if (!viewport || !track) return;
 
-          const halfWidth = () => track.scrollWidth / 2;
-          let userUntil = 0;
-
-          const pause = () => {
-            userUntil = Date.now() + 4500;
-          };
-          scroller.addEventListener("pointerdown", pause);
-          scroller.addEventListener("wheel", pause, { passive: true });
-          scroller.addEventListener("touchstart", pause, { passive: true });
-
-          function tick() {
-            if (Date.now() > userUntil && scroller.scrollWidth > scroller.clientWidth + 1) {
-              scroller.scrollLeft += 0.32;
-              const half = halfWidth();
-              if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
-            }
-            requestAnimationFrame(tick);
+          if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            viewport.classList.add("vet-reviews-viewport--manual");
+            return;
           }
-          requestAnimationFrame(tick);
+
+          let resumeTimer = 0;
+          const pause = () => {
+            track.style.animationPlayState = "paused";
+            clearTimeout(resumeTimer);
+            resumeTimer = window.setTimeout(() => {
+              track.style.animationPlayState = "running";
+            }, 5000);
+          };
+
+          viewport.addEventListener("pointerenter", () => {
+            track.style.animationPlayState = "paused";
+          });
+          viewport.addEventListener("pointerleave", () => {
+            track.style.animationPlayState = "running";
+          });
+          viewport.addEventListener("touchstart", pause, { passive: true });
+          viewport.addEventListener("wheel", pause, { passive: true });
         }
 
         if (document.readyState === "loading") {
-          document.addEventListener("DOMContentLoaded", initVetReviewsScroller, { once: true });
+          document.addEventListener("DOMContentLoaded", initVetReviewsMarquee, { once: true });
         } else {
-          initVetReviewsScroller();
+          initVetReviewsMarquee();
         }
       })();
     </script>

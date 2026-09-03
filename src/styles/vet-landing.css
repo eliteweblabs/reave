@@ -497,18 +497,23 @@ a.vet-btn-secondary,
 .vet-reviews-viewport {
   width: 100%;
   margin-top: 1.75rem;
+  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
-.vet-reviews {
+.vet-reviews-viewport--manual {
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  overscroll-behavior-x: contain;
 }
 
-.vet-reviews::-webkit-scrollbar {
+.vet-reviews-viewport--manual::-webkit-scrollbar {
   display: none;
+}
+
+.vet-reviews-viewport--manual .vet-reviews__track {
+  animation: none;
+  transform: none;
 }
 
 .vet-reviews__track {
@@ -516,6 +521,34 @@ a.vet-btn-secondary,
   gap: 1rem;
   width: max-content;
   padding-inline: 1.25rem;
+  will-change: transform;
+  animation: vet-reviews-marquee var(--vet-reviews-duration, 70s) linear infinite;
+}
+
+@keyframes vet-reviews-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vet-reviews-viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .vet-reviews-viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .vet-reviews__track {
+    animation: none;
+    transform: none;
+  }
 }
 
 .vet-review {
