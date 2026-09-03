@@ -321,19 +321,21 @@ function useAgentRunStatus(
 
     const poll = async () => {
       if (streamedProgress) return;
+      if (typeof window !== 'undefined' && window.__reaveShouldSkipAdminPoll?.()) return;
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
           cache: 'no-store',
         });
         if (!res.ok || cancelled) return;
+        window.__reaveNoteAdminNetworkSuccess?.();
         const data = (await res.json()) as { progress?: AgentProgress | null };
         if (!cancelled && !streamedProgress) {
           setPolledProgress((prev) =>
             sameAgentProgressUi(prev, data.progress) ? prev : (data.progress ?? null),
           );
         }
-      } catch {
-        /* ignore transient poll errors */
+      } catch (e) {
+        window.__reaveNoteAdminNetworkFailure?.(e);
       }
     };
 

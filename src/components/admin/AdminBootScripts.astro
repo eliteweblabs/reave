@@ -51,6 +51,10 @@ import agentChatMountUrl from "../../admin/agent-chat-mount.tsx?url";
     });
     window.addEventListener('unhandledrejection', function (e) {
       var msg = String((e.reason && e.reason.message) || e.reason || '');
+      if (msg.indexOf('sw.js load failed') !== -1 || msg.indexOf('/admin/sw.js') !== -1) {
+        e.preventDefault();
+        return;
+      }
       if (
         msg.indexOf('admin-ui') === -1 &&
         msg.indexOf('os-map-loader') === -1 &&

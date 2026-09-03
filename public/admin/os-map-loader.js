@@ -129,7 +129,7 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
 import { traceStart, traceAsync, reportPreBootTiming } from './perf-trace.js';
 import {
   captureFilterTabsScroll,
@@ -260,7 +260,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260903b';
+} from './chat-panel.js?v=20260903c';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -12453,6 +12453,7 @@ function syncEmailTabBadges() {
 }
 
 async function refreshFooterBadgesQuiet() {
+  if (shouldSkipAdminPoll()) return;
   try {
     const [badgeRes, inboxRes] = await Promise.all([
       adminFetch('/api/admin/badges'),

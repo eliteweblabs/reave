@@ -3,7 +3,11 @@
  */
 
 import { buildAdminNotice } from './admin-notice.js?v=20260828a';
-import { companyStaffAvatarUrl } from './shared.js?v=20260810a';
+import {
+  companyStaffAvatarUrl,
+  shouldSkipAdminPoll,
+  noteAdminNetworkFailure,
+} from './shared.js?v=20260903a';
 
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -13,6 +17,10 @@ const PWA_INSTALLED_KEY = 'reave-pwa-installed';
 let setupAlertResizeObs = null;
 /** Stashed Chromium install event from `beforeinstallprompt`. */
 let deferredInstallPrompt = null;
+/** Block SW register retries after deploy-window failures. */
+let swRegisterBlockedUntil = 0;
+/** Only reload once when a new SW we requested actually took control. */
+let swUpdatePending = false;
 
 function syncSetupAlertInset() {
   const root = document.getElementById('admin-setup-alerts');
@@ -259,12 +267,22 @@ function dismissAlert(key) {
 
 export async function registerAdminServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
+  if (shouldSkipAdminPoll()) return null;
+  if (swRegisterBlockedUntil > Date.now()) return null;
   try {
     const reg = await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
-    void reg.update();
+    try {
+      await reg.update();
+      swUpdatePending = true;
+    } catch (e) {
+      noteAdminNetworkFailure(e);
+    }
+    swRegisterBlockedUntil = 0;
     return reg;
   } catch (e) {
     console.warn('[push] SW register failed', e);
+    noteAdminNetworkFailure(e);
+    swRegisterBlockedUntil = Date.now() + 60_000;
     return null;
   }
 }
@@ -978,7 +996,7 @@ if (typeof document !== 'undefined') {
 
   let reloadedForSwUpdate = false;
   navigator.serviceWorker?.addEventListener('controllerchange', () => {
-    if (reloadedForSwUpdate) return;
+    if (!swUpdatePending || reloadedForSwUpdate) return;
     reloadedForSwUpdate = true;
     window.location.reload();
   });

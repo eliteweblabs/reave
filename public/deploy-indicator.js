@@ -150,6 +150,9 @@
   async function refreshDeployDot() {
     const dot = deployDotEl();
     if (!dot || deployAuthDenied) return;
+    if (typeof window.__reaveShouldSkipAdminPoll === 'function' && window.__reaveShouldSkipAdminPoll()) {
+      return;
+    }
 
     const allowed = canPollDeployIndicator();
     if (allowed === false) {
@@ -186,7 +189,8 @@
             : DEPLOY_POLL_MS_LIVE;
       maybePlayDeployLiveTone(tone);
       publishDeployIndicator(data.deploy);
-    } catch {
+    } catch (e) {
+      window.__reaveNoteAdminNetworkFailure?.(e);
       const keepOpen = dot.classList.contains('tooltip-open');
       dot.hidden = false;
       dot.className = `topbar-deploy-dot topbar-deploy-dot--alert tt-left${keepOpen ? ' tooltip-open' : ''}`;

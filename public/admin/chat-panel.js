@@ -40,7 +40,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260829a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260815a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput, shouldSkipAdminPoll, noteAdminNetworkFailure, noteAdminNetworkSuccess } from './shared.js?v=20260903a';
 import { traceStart, traceAsync, traceSummary } from './perf-trace.js';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
@@ -1051,9 +1051,13 @@ let chatState = {
 };
 
 let agentChatBundlePromise = null;
+let agentChatBundleBlockedUntil = 0;
 
 function loadAgentChatBundle() {
   if (window.__reaveAgentChat) return Promise.resolve();
+  if (Date.now() < agentChatBundleBlockedUntil) {
+    return Promise.reject(new Error('Chat UI loading paused — retrying shortly'));
+  }
   if (agentChatBundlePromise) return agentChatBundlePromise;
   const url = window.__reaveAgentChatMountUrl;
   if (!url) {
@@ -1064,8 +1068,14 @@ function loadAgentChatBundle() {
       if (!window.__reaveAgentChat) {
         throw new Error('Agent chat API missing after bundle load');
       }
+      noteAdminNetworkSuccess();
     }),
-  );
+  ).catch((e) => {
+    agentChatBundlePromise = null;
+    noteAdminNetworkFailure(e);
+    agentChatBundleBlockedUntil = Date.now() + 15_000;
+    throw e;
+  });
   return agentChatBundlePromise;
 }
 
@@ -1827,9 +1837,11 @@ let chatRunningPollTimer = null;
  * lights up the "unread" dot once a background report finishes).
  */
 async function refreshChatRunningIndicatorsQuiet() {
+  if (shouldSkipAdminPoll()) return;
   try {
     const res = await fetch('/api/chats/running', { cache: 'no-store' });
     if (!res.ok) return;
+    noteAdminNetworkSuccess();
     const data = await res.json();
     const nextIds = new Set(Array.isArray(data.running) ? data.running : []);
     let justFinished = false;
@@ -1839,8 +1851,8 @@ async function refreshChatRunningIndicatorsQuiet() {
     chatState.runningIds = nextIds;
     applyChatRunningIndicators();
     if (justFinished) void refreshChatsListQuiet();
-  } catch {
-    /* ignore transient poll errors */
+  } catch (e) {
+    noteAdminNetworkFailure(e);
   }
 }
 

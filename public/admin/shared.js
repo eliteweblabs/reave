@@ -59,16 +59,52 @@ export function bindClerkSsrSessionSync(opts = {}) {
 }
 
 /** Dashboard fetch — always send session cookies; re-auth on 401. */
+let adminDegradedUntil = 0;
+let adminFailStreak = 0;
+
+/** Back off background polls while the server is redeploying or unreachable. */
+export function shouldSkipAdminPoll() {
+  return Date.now() < adminDegradedUntil;
+}
+
+export function noteAdminNetworkFailure(err) {
+  if (err?.message === 'Session expired') return;
+  adminFailStreak = Math.min(adminFailStreak + 1, 8);
+  const ms = Math.min(120_000, 1500 * 2 ** (adminFailStreak - 1));
+  adminDegradedUntil = Date.now() + ms;
+}
+
+export function noteAdminNetworkSuccess() {
+  adminFailStreak = 0;
+  adminDegradedUntil = 0;
+}
+
+if (typeof window !== 'undefined') {
+  window.__reaveShouldSkipAdminPoll = shouldSkipAdminPoll;
+  window.__reaveNoteAdminNetworkFailure = noteAdminNetworkFailure;
+  window.__reaveNoteAdminNetworkSuccess = noteAdminNetworkSuccess;
+}
+
 export async function adminFetch(url, opts = {}) {
-  const res = await fetch(url, {
-    credentials: 'same-origin',
-    cache: 'no-store',
-    ...opts,
-    headers: {
-      Accept: 'application/json',
-      ...(opts.headers || {}),
-    },
-  });
+  if (shouldSkipAdminPoll()) {
+    throw new Error('Admin offline — retrying shortly');
+  }
+  let res;
+  try {
+    res = await fetch(url, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      ...opts,
+      headers: {
+        Accept: 'application/json',
+        ...(opts.headers || {}),
+      },
+    });
+  } catch (e) {
+    noteAdminNetworkFailure(e);
+    throw e;
+  }
+  if (res.ok) noteAdminNetworkSuccess();
   if (res.status === 401) {
     const signInSheet = document.getElementById('sign-in-sheet');
     if (signInSheet && window.IosSheet?.open) {
