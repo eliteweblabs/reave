@@ -5457,4 +5457,5 @@ export {
   flushClientVaultSave,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
+  deleteWork,
 };

@@ -150,6 +150,7 @@ import {
   workClientSubline,
   syncWorkAuditingPoll,
   stopWorkAuditingPoll,
+  deleteWork,
 } from './work-panel.js?v=20260830a';
 import {
   initTodoPanel,
@@ -10767,6 +10768,10 @@ function keyboardShortcutBlocked() {
   return false;
 }
 
+function isDeleteShortcutKey(ev) {
+  return ev.key === 'Delete' || ev.key === 'Backspace';
+}
+
 function deleteKeyboardShortcutAvailable() {
   if (activeKey === 'chats' || activeKey === 'knowledge') {
     return !!chatState.activeId;
@@ -10774,6 +10779,10 @@ function deleteKeyboardShortcutAvailable() {
   if (activeKey === 'email') {
     if (emailState.composing || isEmailMailFolder(emailState.inboxFilter)) return false;
     return !!emailState.activeId;
+  }
+  if (activeKey === 'work') {
+    const slug = workState.activeSlug;
+    return !!slug && slug !== '__new__';
   }
   return false;
 }
@@ -10787,6 +10796,11 @@ async function handleDeleteKeyboardShortcut() {
   if (activeKey === 'email') {
     const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
     if (ev) await deleteEmail(ev);
+    return;
+  }
+  if (activeKey === 'work') {
+    const slug = workState.activeSlug;
+    if (slug && slug !== '__new__') await deleteWork(slug);
   }
 }
 
@@ -10809,7 +10823,8 @@ function initKeyboardShortcuts() {
       return;
     }
 
-    if (ev.key !== 'Delete') return;
+    if (!isDeleteShortcutKey(ev)) return;
+    if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (keyboardShortcutBlocked()) return;
     if (searchOverlayOpen) return;
     if (isEditableKeyboardTarget(ev.target)) return;
