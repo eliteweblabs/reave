@@ -35,7 +35,6 @@ RUN apk add --no-cache \
   curl \
   jq \
   openssl \
-  tini \
   tzdata
 
 RUN addgroup -S galene && adduser -S -G galene galene
@@ -65,4 +64,4 @@ WORKDIR /opt/galene
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
   CMD curl -fsS "http://127.0.0.1:${PORT:-8080}/" >/dev/null || exit 1
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
