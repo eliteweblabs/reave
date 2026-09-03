@@ -233,6 +233,8 @@ export type CompanyConfig = {
   hoursLines: string[];
   /** Push company hours onto Cal.com Working Hours when saving. */
   syncHoursToCalcom: boolean;
+  /** Push company hours onto Google Business Profile when saving. */
+  syncHoursToGbp: boolean;
 };
 
 function trim(s: string | null | undefined): string {
@@ -558,6 +560,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     businessHours: parseStoredBusinessHours(stored?.businessHours) ?? null,
     hoursLines: formatWeekHours(parseStoredBusinessHours(stored?.businessHours)),
     syncHoursToCalcom: stored?.syncHoursToCalcom === true,
+    syncHoursToGbp: stored?.syncHoursToGbp === true,
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
@@ -667,6 +670,7 @@ export type CompanyConfigInput = {
   businessHours?: BusinessHours | string | null;
   /** Push company hours onto Cal.com Working Hours when saving. */
   syncHoursToCalcom?: boolean | string | null;
+  syncHoursToGbp?: boolean | string | null;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -774,6 +778,11 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.syncHoursToCalcom !== undefined) {
     const raw = input.syncHoursToCalcom;
     out.syncHoursToCalcom =
+      raw === true || raw === 'true' || raw === '1' || raw === 'on';
+  }
+  if (input.syncHoursToGbp !== undefined) {
+    const raw = input.syncHoursToGbp;
+    out.syncHoursToGbp =
       raw === true || raw === 'true' || raw === '1' || raw === 'on';
   }
   return out;

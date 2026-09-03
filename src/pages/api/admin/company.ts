@@ -15,6 +15,7 @@ import {
   syncCalcomHoursFromReave,
   syncCalcomIdentityFromReave,
 } from '../../../lib/calcomIdentitySync';
+import { syncGbpHoursFromReave } from '../../../lib/gbpHoursSync';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import { jsonResponse } from '../../../lib/apiResponse';
@@ -102,6 +103,7 @@ export async function POST(context: APIContext): Promise<Response> {
   invalidateOfficeCoordsCache();
   void syncCalcomIdentityFromReave({ force: true, request: context.request })
     .then(() => syncCalcomHoursFromReave({ request: context.request }))
+    .then(() => syncGbpHoursFromReave({ request: context.request }))
     .catch(() => undefined);
 
   const company = await getCompanyConfig(context.request);

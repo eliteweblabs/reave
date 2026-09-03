@@ -95,6 +95,8 @@ export type StoredCompanyConfig = {
   businessHours?: BusinessHours | null;
   /** When true, saving hours also updates Cal.com Working Hours / Availability. */
   syncHoursToCalcom?: boolean | null;
+  /** When true, saving hours also updates Google Business Profile regularHours. */
+  syncHoursToGbp?: boolean | null;
   updatedAt?: string | null;
 };
 
@@ -167,6 +169,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_media_type TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS email_font TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS business_hours TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_calcom BOOLEAN;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_gbp BOOLEAN;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -322,6 +325,18 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
             o.sync_hours_to_calcom === 'false'
           ? false
           : null,
+    syncHoursToGbp:
+      o.syncHoursToGbp === true ||
+      o.syncHoursToGbp === 'true' ||
+      o.sync_hours_to_gbp === true ||
+      o.sync_hours_to_gbp === 'true'
+        ? true
+        : o.syncHoursToGbp === false ||
+            o.syncHoursToGbp === 'false' ||
+            o.sync_hours_to_gbp === false ||
+            o.sync_hours_to_gbp === 'false'
+          ? false
+          : null,
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -411,6 +426,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     email_font: string | null;
     business_hours: string | null;
     sync_hours_to_calcom: boolean | null;
+    sync_hours_to_gbp: boolean | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -424,7 +440,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
             brand_primary, brand_secondary, icon_background, portal_outreach_notice,
-            og_data, og_media_type, email_font, business_hours, sync_hours_to_calcom, updated_at
+            og_data, og_media_type, email_font, business_hours, sync_hours_to_calcom, sync_hours_to_gbp, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -491,6 +507,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     emailFont: row.email_font,
     businessHours: parseStoredBusinessHoursJson(row.business_hours),
     syncHoursToCalcom: row.sync_hours_to_calcom,
+    syncHoursToGbp: row.sync_hours_to_gbp,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -558,6 +575,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        email_font = $56,
        business_hours = $57,
        sync_hours_to_calcom = $58,
+       sync_hours_to_gbp = $59,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -621,6 +639,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.emailFont ?? null,
       config.businessHours ? JSON.stringify(config.businessHours) : null,
       config.syncHoursToCalcom === true,
+      config.syncHoursToGbp === true,
     ],
   );
   if ((result.rowCount ?? 0) > 0) return true;

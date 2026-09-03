@@ -5,10 +5,11 @@ import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 import { postTitle, postLower, postNew, postSave, postTitleLabel, postAlias, postCountLabel } from '/admin/post-alias.js?v=20260805a';
 import {
   bindCompanyListing,
+  handleGbpOAuthReturn,
   renderCompanyHoursSection,
   renderGoogleListingPreviewSection,
   refreshGoogleListingPreview,
-} from '/admin/company-listing.js?v=20260901a';
+} from '/admin/company-listing.js?v=20260903a';
 
 function companyBrand() {
   return (
@@ -7383,6 +7384,13 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
           payload.syncHoursToCalcom === '1' ||
           payload.syncHoursToCalcom === 'on';
       }
+      if (payload.syncHoursToGbp != null) {
+        payload.syncHoursToGbp =
+          payload.syncHoursToGbp === true ||
+          payload.syncHoursToGbp === 'true' ||
+          payload.syncHoursToGbp === '1' ||
+          payload.syncHoursToGbp === 'on';
+      }
       const res = await fetch('/api/admin/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -7409,6 +7417,7 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   bindCompanyBrandColors(root);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
   bindCompanyListing(root, { onHoursChange: () => void companyAutosave.flush?.() });
+  handleGbpOAuthReturn(root, new URLSearchParams(window.location.search));
 }
 
 function bindCompanyBrandColors(root) {

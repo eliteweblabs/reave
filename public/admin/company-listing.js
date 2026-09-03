@@ -1,7 +1,7 @@
 /**
  * Company panel — structured hours repeater + Google Business Profile preview.
  */
-import { escHtml, formatPhoneInput } from './shared.js?v=20260810a';
+import { escHtml, formatPhoneInput, adminFetch, readAdminJson } from './shared.js?v=20260810a';
 
 const MINUTES_PER_DAY = 24 * 60;
 const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -167,11 +167,13 @@ export function renderCompanyHoursSection(company) {
   const hours = parseStoredBusinessHours(company?.businessHours);
   const alwaysOpen = hours?.alwaysOpen === true;
   const syncToCalcom = company?.syncHoursToCalcom === true;
+  const syncToGbp = company?.syncHoursToGbp === true;
   const rows = rowsFromHours(hours);
   const hoursJson = hours ? JSON.stringify(hours) : '';
   return (
     `<input type="hidden" id="company-businessHours" name="businessHours" value="${escHtml(hoursJson)}" />` +
     `<input type="hidden" id="company-syncHoursToCalcom" name="syncHoursToCalcom" value="${syncToCalcom ? 'true' : 'false'}" />` +
+    `<input type="hidden" id="company-syncHoursToGbp" name="syncHoursToGbp" value="${syncToGbp ? 'true' : 'false'}" />` +
     `<div class="co-hours-toggles">` +
       `<label class="co-hours-always">` +
         `<input type="checkbox" id="company-hours-always-open" class="co-hours-always-input"${alwaysOpen ? ' checked' : ''} />` +
@@ -181,14 +183,20 @@ export function renderCompanyHoursSection(company) {
         `<input type="checkbox" id="company-hours-sync-calcom" class="co-hours-sync-calcom-input"${syncToCalcom ? ' checked' : ''} />` +
         `<span>Sync to Cal.com</span>` +
       `</label>` +
+      `<label class="co-hours-always">` +
+        `<input type="checkbox" id="company-hours-sync-gbp" class="co-hours-sync-gbp-input"${syncToGbp ? ' checked' : ''} />` +
+        `<span>Sync to Google Business Profile</span>` +
+      `</label>` +
     `</div>` +
+    `<div id="company-gbp-connect" class="co-gbp-connect" aria-live="polite"></div>` +
     `<div id="company-hours-repeater" class="co-hours-repeater${alwaysOpen ? ' is-always-open' : ''}">` +
       rows.map(renderHoursRow).join('') +
     `</div>` +
     `<div class="co-hours-actions">` +
       `<button type="button" id="company-hours-copy-weekdays" class="de-btn de-btn-secondary">Copy Mon to weekdays</button>` +
+      `<button type="button" id="company-gbp-sync-now" class="de-btn de-btn-secondary" hidden>Push hours to Google now</button>` +
     `</div>` +
-    `<span class="prof-hint prof-hint--block">Structured hours feed directory listings and visit planning. Turn on Sync to Cal.com to push the same windows onto booking availability. Google uses Sunday as day 0 — we store the same shape.</span>`
+    `<span class="prof-hint prof-hint--block">Structured hours feed directory listings and visit planning. Turn on Sync to Cal.com or Google Business Profile to push the same windows live. Google uses Sunday as day 0 — we store the same shape.</span>`
   );
 }
 
@@ -369,7 +377,9 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
   const repeater = root.querySelector('#company-hours-repeater');
   const alwaysInput = root.querySelector('#company-hours-always-open');
   const syncCalcomInput = root.querySelector('#company-hours-sync-calcom');
+  const syncGbpInput = root.querySelector('#company-hours-sync-gbp');
   const syncCalcomHidden = root.querySelector('#company-syncHoursToCalcom');
+  const syncGbpHidden = root.querySelector('#company-syncHoursToGbp');
   const copyBtn = root.querySelector('#company-hours-copy-weekdays');
   if (!(repeater instanceof HTMLElement)) return;
 
@@ -386,6 +396,15 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
       syncCalcomHidden.value =
         syncCalcomInput instanceof HTMLInputElement && syncCalcomInput.checked ? 'true' : 'false';
       syncCalcomHidden.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    onHoursChange?.();
+  };
+
+  const emitSyncGbp = () => {
+    if (syncGbpHidden instanceof HTMLInputElement) {
+      syncGbpHidden.value =
+        syncGbpInput instanceof HTMLInputElement && syncGbpInput.checked ? 'true' : 'false';
+      syncGbpHidden.dispatchEvent(new Event('change', { bubbles: true }));
     }
     onHoursChange?.();
   };
@@ -408,6 +427,10 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
 
   if (syncCalcomInput instanceof HTMLInputElement) {
     syncCalcomInput.addEventListener('change', emitSyncCalcom);
+  }
+
+  if (syncGbpInput instanceof HTMLInputElement) {
+    syncGbpInput.addEventListener('change', emitSyncGbp);
   }
 
   if (copyBtn instanceof HTMLButtonElement) {
@@ -444,4 +467,167 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
   }
 
   refreshGoogleListingPreview(root);
+  void bindGbpConnect(root);
 }
+
+function renderGbpConnectPanel(status) {
+  if (!status?.oauthConfigured) {
+    return (
+      `<p class="prof-hint prof-hint--block">Set <code>GOOGLE_CLIENT_ID</code> and ` +
+      `<code>GOOGLE_CLIENT_SECRET</code> on the server to connect Google Business Profile.</p>`
+    );
+  }
+
+  if (!status.connected) {
+    return (
+      `<div class="co-gbp-connect-row">` +
+        `<a class="prof-btn-secondary" href="${escHtml(status.connectUrl || '/api/admin/google-business/connect')}">Connect Google Business Profile</a>` +
+        `<span class="prof-hint">Sign in with the Google account that manages this listing.</span>` +
+      `</div>`
+    );
+  }
+
+  const api = status.apiAccess || {};
+  let apiLine = '';
+  if (!api.ok) {
+    const applyUrl = 'https://developers.google.com/my-business/content/prereqs';
+    apiLine =
+      `<p class="prof-hint prof-hint--block co-gbp-connect-warn">${escHtml(api.message || 'Google Business Profile API is not ready yet.')} ` +
+      `<a href="${applyUrl}" target="_blank" rel="noopener noreferrer">Apply for Basic API Access</a>.</p>`;
+  }
+
+  const account = status.accountLabel
+    ? `<span class="prof-hint">Connected as ${escHtml(status.accountLabel)}.</span>`
+    : '';
+
+  const locations = Array.isArray(status.locations) ? status.locations : [];
+  let locationBlock = '';
+  if (locations.length > 1) {
+    const options = locations
+      .map((loc) => {
+        const selected = loc.name === status.selectedLocationId ? ' selected' : '';
+        return `<option value="${escHtml(loc.name || '')}"${selected}>${escHtml(loc.label || loc.title || loc.name || 'Location')}</option>`;
+      })
+      .join('');
+    locationBlock =
+      `<label class="co-gbp-location-label">Listing to sync` +
+      `<select id="company-gbp-location" class="co-gbp-location-select">${options}</select></label>`;
+  } else if (status.selectedLocationLabel) {
+    locationBlock = `<span class="prof-hint">Sync target: ${escHtml(status.selectedLocationLabel)}</span>`;
+  } else if (locations.length === 1) {
+    locationBlock = `<span class="prof-hint">Sync target: ${escHtml(locations[0].label || locations[0].title || 'Primary location')}</span>`;
+  } else if (api.ok) {
+    locationBlock = `<span class="prof-hint">No managed locations found on this Google account yet.</span>`;
+  }
+
+  return (
+    `<div class="co-gbp-connect-row">` +
+      account +
+      locationBlock +
+      apiLine +
+    `</div>`
+  );
+}
+
+export async function refreshGbpConnectPanel(root) {
+  const host = root.querySelector('#company-gbp-connect');
+  const syncBtn = root.querySelector('#company-gbp-sync-now');
+  if (!(host instanceof HTMLElement)) return;
+
+  host.innerHTML = `<span class="prof-hint">Checking Google Business Profile…</span>`;
+  try {
+    const res = await adminFetch('/api/admin/google-business/status');
+    const json = await readAdminJson(res);
+    host.innerHTML = renderGbpConnectPanel(json);
+    if (syncBtn instanceof HTMLButtonElement) {
+      const ready =
+        json.connected &&
+        json.apiAccess?.ok &&
+        (json.selectedLocationId || (json.locations?.length === 1 && json.locations[0]?.name));
+      syncBtn.hidden = !ready;
+    }
+    const select = host.querySelector('#company-gbp-location');
+    if (select instanceof HTMLSelectElement) {
+      select.addEventListener('change', async () => {
+        const locationId = select.value;
+        if (!locationId) return;
+        select.disabled = true;
+        try {
+          const saveRes = await adminFetch('/api/admin/google-business/location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locationId }),
+          });
+          await readAdminJson(saveRes);
+          await refreshGbpConnectPanel(root);
+        } catch (e) {
+          host.insertAdjacentHTML(
+            'beforeend',
+            `<p class="prof-hint prof-hint--block co-gbp-connect-warn">${escHtml(e?.message || 'Could not save location.')}</p>`,
+          );
+          select.disabled = false;
+        }
+      });
+    }
+  } catch (e) {
+    host.innerHTML = `<p class="prof-hint prof-hint--block co-gbp-connect-warn">${escHtml(e?.message || 'Could not load Google Business Profile status.')}</p>`;
+  }
+}
+
+export function bindGbpConnect(root) {
+  const syncBtn = root.querySelector('#company-gbp-sync-now');
+  if (syncBtn instanceof HTMLButtonElement) {
+    syncBtn.addEventListener('click', async () => {
+      syncBtn.disabled = true;
+      try {
+        const res = await adminFetch('/api/admin/google-business/sync-hours', { method: 'POST' });
+        const json = await readAdminJson(res);
+        if (!json.ok && !json.skipped) {
+          throw new Error(json.reason || 'Sync failed');
+        }
+        syncBtn.textContent = json.skipped ? 'Nothing to sync' : 'Hours pushed';
+        window.setTimeout(() => {
+          syncBtn.textContent = 'Push hours to Google now';
+          syncBtn.disabled = false;
+        }, 2200);
+      } catch (e) {
+        syncBtn.textContent = 'Sync failed';
+        syncBtn.disabled = false;
+        window.setTimeout(() => {
+          syncBtn.textContent = 'Push hours to Google now';
+        }, 2200);
+      }
+    });
+  }
+  return refreshGbpConnectPanel(root);
+}
+
+/** Surface OAuth return params after redirect from Google. */
+export function handleGbpOAuthReturn(root, params) {
+  const host = root.querySelector('#company-gbp-connect');
+  if (!(host instanceof HTMLElement)) return;
+  if (params.get('gbp_connected') === '1') {
+    host.insertAdjacentHTML(
+      'afterbegin',
+      `<p class="prof-hint co-gbp-connect-ok">Google Business Profile connected.</p>`,
+    );
+  }
+  const err = params.get('gbp_error');
+  if (err) {
+    const messages = {
+      not_configured: 'Google OAuth is not configured on the server.',
+      denied: 'Google sign-in was cancelled.',
+      missing_code: 'Google did not return an authorization code.',
+      state_mismatch: 'OAuth state mismatch — try connecting again.',
+      exchange_failed: 'Could not exchange the Google authorization code.',
+      api_not_approved:
+        params.get('gbp_detail') ||
+        'Business Profile API is not approved on this Cloud project yet.',
+    };
+    host.insertAdjacentHTML(
+      'afterbegin',
+      `<p class="prof-hint prof-hint--block co-gbp-connect-warn">${escHtml(messages[err] || err)}</p>`,
+    );
+  }
+}
+

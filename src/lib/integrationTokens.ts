@@ -18,6 +18,7 @@ export type IntegrationSubject = 'agency' | `contact:${string}`;
 
 export type IntegrationProvider =
   | 'google_webmaster'
+  | 'google_business_profile'
   | 'bing_webmaster'
   | 'plausible_client';
 
