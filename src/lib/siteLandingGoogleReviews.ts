@@ -19,7 +19,7 @@ type GoogleReview = {
   rating?: number;
   text?: { text?: string };
   originalText?: { text?: string };
-  authorAttribution?: { displayName?: string };
+  authorAttribution?: { displayName?: string; uri?: string };
 };
 
 function starsForRating(rating: number | undefined): string {
@@ -78,47 +78,81 @@ async function resolvePlaceId(config: SiteLandingReviewsConfig): Promise<string 
   return details?.placeId ?? null;
 }
 
-function mapGoogleReview(review: GoogleReview): SiteLandingReview | null {
+function mapGoogleReview(review: GoogleReview, mapsUrl?: string): SiteLandingReview | null {
   const quote = (review.text?.text || review.originalText?.text || '').trim();
   if (!quote) return null;
   const author = review.authorAttribution?.displayName?.trim() || 'Google reviewer';
+  const href = review.authorAttribution?.uri?.trim() || mapsUrl?.trim() || undefined;
   return {
     quote,
     cite: author,
     stars: starsForRating(review.rating),
+    href,
   };
 }
 
-/** Static config items are fallback; live Google reviews win when the API returns them. */
+function reviewDedupeKey(item: SiteLandingReview): string {
+  return item.quote.trim().toLowerCase().slice(0, 120);
+}
+
+/** Live Google reviews first; static config fills gaps. Dedupes by quote prefix. */
+function mergeLandingReviews(
+  fallback: SiteLandingReview[],
+  live: SiteLandingReview[],
+  mapsUrl?: string,
+): SiteLandingReview[] {
+  const defaultHref = mapsUrl?.trim() || undefined;
+  const withHref = (item: SiteLandingReview): SiteLandingReview => ({
+    ...item,
+    href: item.href?.trim() || defaultHref,
+  });
+
+  const seen = new Set<string>();
+  const out: SiteLandingReview[] = [];
+
+  for (const item of [...live.map(withHref), ...fallback.map(withHref)]) {
+    const key = reviewDedupeKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+
+  return out;
+}
+
+/** Static config items supplement live Google reviews; both are shown when available. */
 export async function loadSiteLandingReviews(
   config: SiteLandingReviewsConfig | undefined,
 ): Promise<{ heading: string; intro?: string; items: SiteLandingReview[]; mapsUrl?: string } | null> {
   if (!config?.heading) return null;
 
   const fallbackItems = config.items ?? [];
-  const mapsUrl = config.googleMapsUrl;
+  const mapsUrl = config.googleMapsUrl?.trim() || undefined;
 
+  let liveItems: SiteLandingReview[] = [];
   const placeId = await resolvePlaceId(config);
   if (placeId) {
     const raw = await fetchGoogleReviews(placeId);
-    const liveItems = raw
-      .map(mapGoogleReview)
+    liveItems = raw
+      .map((review) => mapGoogleReview(review, mapsUrl))
       .filter((item): item is SiteLandingReview => item !== null);
-    if (liveItems.length) {
-      return {
-        heading: config.heading,
-        intro: config.intro,
-        items: liveItems,
-        mapsUrl,
-      };
-    }
+  }
+
+  const items = mergeLandingReviews(fallbackItems, liveItems, mapsUrl);
+  if (items.length) {
+    return {
+      heading: config.heading,
+      intro: config.intro,
+      items,
+      mapsUrl,
+    };
   }
 
   if (fallbackItems.length) {
     return {
       heading: config.heading,
       intro: config.intro,
-      items: fallbackItems,
+      items: mergeLandingReviews(fallbackItems, [], mapsUrl),
       mapsUrl,
     };
   }

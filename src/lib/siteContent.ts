@@ -143,6 +143,8 @@ export type SiteLandingReview = {
   quote: string;
   cite: string;
   stars?: string;
+  /** Link to the review on Google (or other source). */
+  href?: string;
 };
 
 export type SiteLandingPackPhoto = {

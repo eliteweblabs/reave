@@ -8,6 +8,7 @@ import { getSiteContent } from "../../lib/siteContent";
 import { contactTelHref } from "../../lib/contactApi";
 import PawIcon from "../icons/PawIcon.astro";
 import { loadSiteLandingReviews } from "../../lib/siteLandingGoogleReviews";
+import { SIMPLE_ICONS_CDN } from "../../lib/platformStack";
 import "../../styles/vet-landing.css";
 
 interface Props {
@@ -23,6 +24,10 @@ const inquiry = landing.inquiry;
 const about = landing.about ?? {};
 const services = landing.services;
 const reviewsBlock = await loadSiteLandingReviews(landing.reviews);
+const googleIconUrl = SIMPLE_ICONS_CDN("google");
+const reviewCarouselItems = reviewsBlock?.items.length
+  ? [...reviewsBlock.items, ...reviewsBlock.items]
+  : [];
 const social = landing.pack?.social ?? {};
 const socialLinks = [
   social.instagramUrl ? { label: "Instagram", href: social.instagramUrl } : null,
@@ -214,32 +219,77 @@ const contactLabel = landing.callCta?.label || "Contact us";
 
     {
       reviewsBlock?.items.length ? (
-        <section id="reviews" class="vet-section vet-section--surface">
-          <div class="vet-section__inner">
+        <section id="reviews" class="vet-section vet-section--surface vet-section--reviews">
+          <div class="vet-section__inner vet-reviews__header">
             <p class="vet-section__eyebrow">Reviews</p>
-            <h2 class="vet-section__title">{reviewsBlock.heading}</h2>
-            {reviewsBlock.intro && <p class="vet-section__intro">{reviewsBlock.intro}</p>}
-            <div class="vet-reviews" tabindex="0" aria-label="Client reviews">
-              {
-                reviewsBlock.items.map((item) => (
-                  <article class="vet-review">
-                    {item.stars && <p class="vet-review__stars" aria-hidden="true">{item.stars}</p>}
-                    <blockquote class="vet-review__quote">“{item.quote}”</blockquote>
-                    <cite class="vet-review__cite">{item.cite}</cite>
-                  </article>
-                ))
-              }
+            <div class="vet-reviews__title-row">
+              <h2 class="vet-section__title">{reviewsBlock.heading}</h2>
+              <p class="vet-reviews__google-badge" aria-label="Reviews sourced from Google">
+                <img class="vet-reviews__google-mark" src={googleIconUrl} alt="" width="18" height="18" decoding="async" />
+                <span>Google™</span>
+              </p>
             </div>
-            {
-              reviewsBlock.mapsUrl ? (
+            {reviewsBlock.intro && <p class="vet-section__intro">{reviewsBlock.intro}</p>}
+          </div>
+          <div class="vet-reviews-viewport">
+            <div
+              class="vet-reviews"
+              id="vet-reviews-scroller"
+              tabindex="0"
+              aria-label="Client reviews — swipe to browse"
+            >
+              <div class="vet-reviews__track">
+                {
+                  reviewCarouselItems.map((item) => {
+                    const href = item.href || reviewsBlock.mapsUrl;
+                    const CardTag = href ? "a" : "article";
+                    return (
+                      <CardTag
+                        class="vet-review"
+                        {...(href
+                          ? {
+                              href,
+                              target: "_blank",
+                              rel: "noopener noreferrer",
+                              "aria-label": `Read ${item.cite}'s review on Google`,
+                            }
+                          : {})}
+                      >
+                        <div class="vet-review__head">
+                          {item.stars && <p class="vet-review__stars" aria-hidden="true">{item.stars}</p>}
+                          <img
+                            class="vet-review__google"
+                            src={googleIconUrl}
+                            alt=""
+                            width="16"
+                            height="16"
+                            decoding="async"
+                          />
+                        </div>
+                        <blockquote class="vet-review__quote">“{item.quote}”</blockquote>
+                        <footer class="vet-review__foot">
+                          <cite class="vet-review__cite">{item.cite}</cite>
+                          {href ? <span class="vet-review__source">View on Google™</span> : null}
+                        </footer>
+                      </CardTag>
+                    );
+                  })
+                }
+              </div>
+            </div>
+          </div>
+          {
+            reviewsBlock.mapsUrl ? (
+              <div class="vet-section__inner">
                 <p class="vet-reviews__more">
-                  <a href={reviewsBlock.mapsUrl} target="_blank" rel="noreferrer">
-                    See all reviews on Google
+                  <a class="vet-reviews__more-link" href={reviewsBlock.mapsUrl} target="_blank" rel="noopener noreferrer">
+                    <img class="vet-reviews__google-mark" src={googleIconUrl} alt="" width="16" height="16" decoding="async" />
+                    <span>See all reviews on Google™</span>
                   </a>
                 </p>
-              ) : null
-            }
-          </div>
+              </div>
+            ) : null
+          }
         </section>
       ) : null
     }
@@ -362,3 +412,37 @@ const contactLabel = landing.callCta?.label || "Contact us";
     </div>
   </footer>
 </div>
+
+{
+  reviewsBlock?.items.length ? (
+    <script is:inline>
+      (function () {
+        const scroller = document.getElementById("vet-reviews-scroller");
+        if (!scroller) return;
+        const track = scroller.querySelector(".vet-reviews__track");
+        if (!track) return;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+        const halfWidth = () => track.scrollWidth / 2;
+        let userUntil = 0;
+
+        const pause = () => {
+          userUntil = Date.now() + 4500;
+        };
+        scroller.addEventListener("pointerdown", pause);
+        scroller.addEventListener("wheel", pause, { passive: true });
+        scroller.addEventListener("touchstart", pause, { passive: true });
+
+        function tick() {
+          if (Date.now() > userUntil) {
+            scroller.scrollLeft += 0.32;
+            const half = halfWidth();
+            if (half > 0 && scroller.scrollLeft >= half) scroller.scrollLeft -= half;
+          }
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      })();
+    </script>
+  ) : null
+}
