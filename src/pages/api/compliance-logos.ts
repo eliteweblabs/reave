@@ -1,15 +1,19 @@
 /**
  * GET /api/compliance-logos — public list of regulatory / accessibility marks.
  *
- * Files live in `public/logos/compliance/`; drop a logo there and it shows up here.
+ * Curated in `src/lib/complianceLogos.ts`. Simple Icons slugs only when the
+ * official mark exists in that package; everything else is text-only.
  */
 import type { APIRoute } from 'astro';
-import { listComplianceLogos } from '../../lib/complianceLogos';
+import { complianceLogoIconSrc, listComplianceLogos } from '../../lib/complianceLogos';
 import { jsonResponse } from '../../lib/apiResponse';
 
 export const prerender = false;
 
 export const GET: APIRoute = async () => {
-  const logos = listComplianceLogos();
+  const logos = listComplianceLogos().map((logo) => ({
+    ...logo,
+    iconSrc: complianceLogoIconSrc(logo),
+  }));
   return jsonResponse({ ok: true, logos }, 200, { cache: 'public, max-age=300' });
 };

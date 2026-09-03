@@ -1,28 +1,37 @@
 /**
  * Regulatory / accessibility compliance marks for marketing and sales collateral.
  *
- * Drop SVG or PNG files into `public/logos/compliance/` — they appear automatically
- * in GET /api/compliance-logos and any UI that reads this list (site footer today;
- * audit sales-sheet left column later).
+ * **Never hand-draw or AI-generate compliance logos.** Most standards have no
+ * Simple Icons entry — render those as text-only badges. Use `simpleIconSlug`
+ * only when the slug is the real mark in Simple Icons (confirm at simpleicons.org).
  *
- * Filename → label: `ada.svg` → "ADA", `wcag-2-1-aa.svg` → "WCAG 2.1 AA".
- * Optional sidecar `{slug}.json` with `{ "name": "Custom label" }` overrides the label.
+ * `simple-icons` also ships `ada`, but that is the Ada *programming language* —
+ * do not use it for Americans with Disabilities Act.
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { SIMPLE_ICONS_CDN } from './platformStack';
 import { projectRoot } from './projectRoot';
 
 export type ComplianceLogo = {
   slug: string;
   name: string;
-  src: string;
-  width: number;
-  height: number;
+  /** Verified Simple Icons slug for an official mark — omit for text-only. */
+  simpleIconSlug?: string;
 };
 
-const IMAGE_EXT = new Set(['.svg', '.png', '.webp', '.jpg', '.jpeg', '.gif']);
-const PUBLIC_DIR = join(projectRoot(), 'public', 'logos', 'compliance');
-const PUBLIC_URL_PREFIX = '/logos/compliance';
+/** Curated marks shown in the site footer and GET /api/compliance-logos. */
+const COMPLIANCE_MARKS: ComplianceLogo[] = [
+  { slug: 'ada', name: 'ADA' },
+  { slug: 'ccpa', name: 'CCPA' },
+  { slug: 'eu', name: 'EU', simpleIconSlug: 'europeanunion' },
+  { slug: 'gdpr', name: 'GDPR' },
+  { slug: 'hipaa', name: 'HIPAA' },
+  { slug: 'pci-dss', name: 'PCI DSS' },
+  { slug: 'section-508', name: 'Section 508' },
+  { slug: 'soc-2', name: 'SOC 2' },
+  { slug: 'wcag-2-1-aa', name: 'WCAG 2.1 AA' },
+];
 
 const ACRONYMS = new Set([
   'ada',
@@ -39,15 +48,6 @@ const ACRONYMS = new Set([
   'aa',
   'aaa',
 ]);
-
-function isImageFile(name: string): boolean {
-  if (name.startsWith('.')) return false;
-  return IMAGE_EXT.has(extname(name).toLowerCase());
-}
-
-function slugFromFilename(filename: string): string {
-  return filename.replace(/\.[^.]+$/, '').trim().toLowerCase();
-}
 
 function titleCaseWord(word: string): string {
   const lower = word.toLowerCase();
@@ -70,42 +70,20 @@ export function complianceNameFromSlug(slug: string): string {
     .trim();
 }
 
-function readSidecarName(slug: string): string | undefined {
-  const path = join(PUBLIC_DIR, `${slug}.json`);
-  if (!existsSync(path)) return undefined;
-  try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as { name?: unknown };
-    const name = String(raw.name ?? '').trim();
-    return name || undefined;
-  } catch {
-    return undefined;
-  }
+export function complianceLogoIconSrc(logo: ComplianceLogo): string | undefined {
+  if (!logo.simpleIconSlug) return undefined;
+  return SIMPLE_ICONS_CDN(logo.simpleIconSlug);
 }
 
-export function complianceLogosDir(): string {
-  return PUBLIC_DIR;
+/** Simple Icons SVG path for verification scripts. */
+export function simpleIconsSvgPath(slug: string): string {
+  return join(projectRoot(), 'node_modules', 'simple-icons', 'icons', `${slug}.svg`);
 }
 
-/** Lists every image in `public/logos/compliance/`, sorted by slug. */
+export function simpleIconsSlugExists(slug: string): boolean {
+  return existsSync(simpleIconsSvgPath(slug));
+}
+
 export function listComplianceLogos(): ComplianceLogo[] {
-  if (!existsSync(PUBLIC_DIR)) return [];
-
-  const logos = readdirSync(PUBLIC_DIR)
-    .filter(isImageFile)
-    .map((filename) => {
-      const slug = slugFromFilename(filename);
-      if (!slug) return null;
-      const name = readSidecarName(slug) ?? complianceNameFromSlug(slug);
-      return {
-        slug,
-        name,
-        src: `${PUBLIC_URL_PREFIX}/${encodeURIComponent(filename)}`,
-        width: 24,
-        height: 24,
-      } satisfies ComplianceLogo;
-    })
-    .filter((logo): logo is ComplianceLogo => Boolean(logo));
-
-  logos.sort((a, b) => a.slug.localeCompare(b.slug, 'en', { sensitivity: 'base' }));
-  return logos;
+  return COMPLIANCE_MARKS.map((mark) => ({ ...mark }));
 }
