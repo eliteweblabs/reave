@@ -1,0 +1,12 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Optional: attach a volume in the Railway dashboard at /data for room config,
+# recordings, and persisted TURN/admin secrets across redeploys.

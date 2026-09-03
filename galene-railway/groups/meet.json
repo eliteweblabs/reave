@@ -1,0 +1,19 @@
+{
+  "displayName": "Meeting Room",
+  "description": "Default public room — override via GALENE_GROUP_PASSWORD or edit on the /data volume.",
+  "public": true,
+  "max-clients": 40,
+  "allow-recording": true,
+  "autolock": false,
+  "unrestricted-tokens": true,
+  "users": {
+    "host": {
+      "password": "meet",
+      "permissions": "op"
+    }
+  },
+  "wildcard-user": {
+    "password": {"type": "wildcard"},
+    "permissions": "present"
+  }
+}

@@ -1,0 +1,5 @@
+.env
+data/
+recordings/
+*.pem
+.DS_Store

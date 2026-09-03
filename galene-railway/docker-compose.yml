@@ -1,0 +1,21 @@
+services:
+  galene:
+    build: .
+    ports:
+      - "8080:8080"
+      - "1194:1194"
+    environment:
+      PORT: "8080"
+      GALENE_PUBLIC_URL: "http://localhost:8080/"
+      GALENE_ADMIN_USERNAME: admin
+      GALENE_ADMIN_PASSWORD: local-admin
+      GALENE_GROUP_PASSWORD: local-host
+      GALENE_TURN_PUBLIC: "localhost:1194"
+      GALENE_TURN_USERNAME: galene
+      GALENE_TURN_PASSWORD: local-turn
+      GALENE_RELAY_ONLY: "1"
+    volumes:
+      - galene-data:/data
+
+volumes:
+  galene-data:
