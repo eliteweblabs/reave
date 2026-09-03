@@ -141,6 +141,14 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
     SECONDARY="$(jq -r '.secondary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
     COMPANY_NAME="$(jq -r '.name // empty' "${BRAND_JSON}" 2>/dev/null || true)"
     LOGO_URL="$(jq -r '.logoDarkUrl // .logoEmailUrl // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+    if [ -z "${LOGO_URL}" ] && [ "$(jq -r '.logoSource // empty' "${BRAND_JSON}" 2>/dev/null || true)" = "admin" ]; then
+      LOGO_V="$(jq -r '.stored.primary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+      if [ -n "${LOGO_V}" ]; then
+        LOGO_URL="${REAVE_ORIGIN}/branding/logo.alt.png?v=$(printf '%s' "${LOGO_V}" | sed 's/ /+/g')"
+      else
+        LOGO_URL="${REAVE_ORIGIN}/branding/logo.alt.png"
+      fi
+    fi
     if [ -n "${PRIMARY}" ]; then
       cat > "${BRAND_CSS}" <<EOF
 /* Generated from ${REAVE_ORIGIN}/api/branding — do not edit on the volume */
