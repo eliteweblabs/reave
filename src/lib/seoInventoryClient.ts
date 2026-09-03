@@ -77,6 +77,11 @@ export type SeoInventoryResponse =
         types: string[];
         count: number;
       };
+      internal_links: {
+        total: number;
+        serviceLike: number;
+        samplePaths: string[];
+      };
     }
   | { ok: false; error: string };
 
@@ -193,6 +198,38 @@ function estimateSitemapUrls(body: string): number | null {
   const sitemapMatches = body.match(/<sitemap\b/gi);
   if (sitemapMatches?.length) return sitemapMatches.length;
   return null;
+}
+
+const SERVICE_PATH_RE =
+  /\/(services?|service-area|locations?|areas?|treatments?|specialt(y|ies)|practice-areas?|our-work|portfolio|menu|pricing|about|contact|team|staff|departments?|programs?|classes|courses?|products?|shop|solutions?|industries|capabilities|expertise|what-we-do|offerings?)(\/|$)/i;
+
+function countHomepageInternalLinks(
+  $: cheerio.CheerioAPI,
+  finalUrl: URL,
+): { total: number; serviceLike: number; samplePaths: string[] } {
+  const seen = new Set<string>();
+  const samplePaths: string[] = [];
+  let serviceLike = 0;
+  $('a[href]').each((_, el) => {
+    const href = ($(el).attr('href') || '').trim();
+    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+    let resolved: URL;
+    try {
+      resolved = new URL(href, finalUrl);
+    } catch {
+      return;
+    }
+    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') return;
+    if (resolved.hostname.replace(/^www\./, '') !== finalUrl.hostname.replace(/^www\./, '')) return;
+    const path = resolved.pathname.replace(/\/+$/, '') || '/';
+    if (seen.has(path)) return;
+    seen.add(path);
+    if (SERVICE_PATH_RE.test(path) || (path !== '/' && path.split('/').filter(Boolean).length >= 2)) {
+      serviceLike += 1;
+      if (samplePaths.length < 5) samplePaths.push(path);
+    }
+  });
+  return { total: seen.size, serviceLike, samplePaths };
 }
 
 /** True when User-agent: * (or empty) has Disallow: / or /*. */
@@ -340,6 +377,7 @@ export async function seoInventory(urlInput: string): Promise<SeoInventoryRespon
   const manifestResolved = resolveHref(finalUrl, manifestHref);
 
   const schemaTypes = parseJsonLdTypes(pageFetch.text);
+  const internalLinks = countHomepageInternalLinks($, finalUrl);
 
   // Parallel: robots.txt, sitemap candidates, manifest JSON, default /favicon.ico
   const origin = `${finalUrl.protocol}//${finalUrl.host}`;
@@ -692,6 +730,7 @@ export async function seoInventory(urlInput: string): Promise<SeoInventoryRespon
       types: schemaTypes,
       count: schemaTypes.length,
     },
+    internal_links: internalLinks,
   };
 }
 

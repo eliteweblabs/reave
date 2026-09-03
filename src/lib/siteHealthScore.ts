@@ -7,6 +7,8 @@ import type {
   UptimeMonitorForFleetMerge,
 } from './analyticsSiteMerge';
 
+import type { SiteReadinessSummary } from './siteReadinessChecklist';
+
 export type SiteHealthIssueCode =
   | 'down'
   | 'robots_blocked'
@@ -26,6 +28,7 @@ export type SiteHealthSummary = {
   score: number | null;
   criticalCount: number;
   issues: SiteHealthIssue[];
+  readiness?: SiteReadinessSummary | null;
   checkedAt: number;
   stale?: boolean;
 };

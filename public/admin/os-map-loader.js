@@ -3810,6 +3810,7 @@ function mergeDashboardSiteCards(monitors, analyticsSites) {
 function dashboardSiteCardMeta(card, opts = {}) {
   const analyticsLive = opts.analyticsLive === true;
   const analyticsLoading = opts.analyticsLoading === true;
+  const health = opts.health || null;
   const uptimePart = card.monitor ? uptimeMonitorTileMeta(card.monitor).label : null;
   let analyticsPart = null;
   if (card.analytics) {
@@ -3821,7 +3822,12 @@ function dashboardSiteCardMeta(card, opts = {}) {
   } else if (analyticsLive) {
     analyticsPart = 'not wired';
   }
-  const parts = [uptimePart, analyticsPart].filter(Boolean);
+  const readiness = health?.readiness;
+  const readinessPart =
+    readiness && readiness.totalCount
+      ? `${readiness.okCount}/${readiness.totalCount} ready`
+      : null;
+  const parts = [readinessPart, uptimePart, analyticsPart].filter(Boolean);
   return parts.length ? parts.join(' · ') : '—';
 }
 
@@ -3842,6 +3848,49 @@ function siteHealthForCard(card, siteHealth) {
   return sites[card.siteId] || null;
 }
 
+const SITE_READINESS_SIGNALS = [
+  { key: 'schema_markup', icon: 'star', label: 'Schema markup' },
+  { key: 'page_speed', icon: 'zap', label: 'Page speed' },
+  { key: 'search_console', icon: 'search', label: 'Search Console' },
+  { key: 'xml_sitemap', icon: 'file-text', label: 'XML sitemap' },
+  { key: 'internal_linking', icon: 'link', label: 'Internal linking' },
+  { key: 'analytics', icon: 'bar-chart-2', label: 'Analytics' },
+];
+
+function readinessItemForKey(health, key) {
+  const items = health?.readiness?.items;
+  if (!Array.isArray(items)) return null;
+  return items.find((item) => item.id === key) || null;
+}
+
+function readinessSignalState(key, health, card, fleet, opts = {}) {
+  const item = readinessItemForKey(health, key);
+  if (item) {
+    if (item.status === 'ok') return 'ok';
+    if (item.status === 'warn') return 'warn';
+    if (item.status === 'crit') return 'crit';
+    if (item.status === 'pending') return 'unknown';
+    return 'unknown';
+  }
+  // Legacy fallback while health scan is in flight
+  if (key === 'search_console' || key === 'xml_sitemap') {
+    return siteHealthSignalState(key === 'search_console' ? 'gsc' : 'robots', health, card, fleet, opts);
+  }
+  if (key === 'analytics') {
+    return siteHealthSignalState('analytics', health, card, fleet, opts);
+  }
+  return 'unknown';
+}
+
+function readinessSignalTitle(key, state, health) {
+  const item = readinessItemForKey(health, key);
+  if (item) return `${item.label}: ${item.detail}`;
+  const sig = SITE_READINESS_SIGNALS.find((s) => s.key === key);
+  if (state === 'unknown') return `${sig?.label || key} — checking…`;
+  return sig?.label || key;
+}
+
+/** @deprecated legacy wiring icons — kept for fleet auto-wire helper */
 const SITE_HEALTH_SIGNALS = [
   { key: 'robots', icon: 'file-text', label: 'robots.txt' },
   { key: 'gsc', icon: 'search', label: 'Search Console' },
@@ -3930,9 +3979,9 @@ function siteHealthSignalTitle(key, state, health, card, opts = {}) {
 }
 
 function dashboardSiteHealthSignalsHtml(health, card, fleet, opts = {}) {
-  const parts = SITE_HEALTH_SIGNALS.map((sig) => {
-    const state = siteHealthSignalState(sig.key, health, card, fleet, opts);
-    const title = siteHealthSignalTitle(sig.key, state, health, card, opts);
+  const parts = SITE_READINESS_SIGNALS.map((sig) => {
+    const state = readinessSignalState(sig.key, health, card, fleet, opts);
+    const title = readinessSignalTitle(sig.key, state, health, card, opts);
     return (
       `<span class="dash-site-signal dash-site-signal--${state}" title="${escHtml(title)}" aria-label="${escHtml(title)}">` +
         `${iosIcon(sig.icon, 11)}` +
@@ -5865,7 +5914,7 @@ function renderAdminDashboard(data, opts = {}) {
       value: siteHealth ? (critical ?? 0) : '—',
       label: 'Site issues',
       hint: siteHealth
-        ? `${graded} graded · robots / Search Console / wiring`
+        ? `${graded} graded · schema / speed / GSC / sitemap / links`
         : 'scanning in background',
       tone: critical > 0 ? 'failed' : siteHealth ? 'live' : 'muted',
       muted: !siteHealth,
@@ -5887,6 +5936,7 @@ function renderAdminDashboard(data, opts = {}) {
       const meta = dashboardSiteCardMeta(card, {
         analyticsLive,
         analyticsLoading,
+        health,
       });
       const grade = health?.grade ? String(health.grade).toUpperCase() : '';
       const gradeClass = grade

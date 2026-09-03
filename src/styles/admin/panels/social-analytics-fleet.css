@@ -717,6 +717,59 @@
   font-weight: 600;
 }
 
+/* ── Sites readiness checklist (dashboard + detail) ── */
+.site-ready-section {
+  margin-top: 0.25rem;
+}
+.site-ready-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.site-ready-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.site-ready-table th:nth-child(3),
+.site-ready-table th:nth-child(4),
+.site-ready-table td:nth-child(3),
+.site-ready-table td:nth-child(4) {
+  white-space: nowrap;
+}
+.site-ready-detail {
+  max-width: 22rem;
+  white-space: normal;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.site-ready-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.site-ready-badge--ok {
+  background: color-mix(in srgb, #22c55e 18%, transparent);
+  color: #16a34a;
+}
+.site-ready-badge--warn {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+  color: #d97706;
+}
+.site-ready-badge--crit {
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+  color: #dc2626;
+}
+.site-ready-badge--unknown,
+.site-ready-badge--pending {
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  color: var(--muted);
+}
+
 /* ── Socials → API access (OAuth connect) ── */
 .soc-conn-list {
   display: flex;

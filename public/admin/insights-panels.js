@@ -404,7 +404,62 @@ function bindAnalyticsControls(root, view = 'detail') {
   });
 }
 
-function renderAnalyticsDashboard(root, d, status) {
+function readinessStatusLabel(status) {
+  if (status === 'ok') return 'Likely Good';
+  if (status === 'warn') return 'Needs Attention';
+  if (status === 'crit') return 'Not Started';
+  if (status === 'pending') return 'Scanning…';
+  return 'Not Verified';
+}
+
+function readinessStatusClass(status) {
+  if (status === 'ok') return 'site-ready--ok';
+  if (status === 'warn') return 'site-ready--warn';
+  if (status === 'crit') return 'site-ready--crit';
+  if (status === 'pending') return 'site-ready--pending';
+  return 'site-ready--unknown';
+}
+
+function renderSiteReadinessReport(readiness, opts = {}) {
+  const items = Array.isArray(readiness?.items) ? readiness.items : [];
+  if (!items.length) {
+    return (
+      `<section class="ana-section site-ready-section">` +
+        `<h2 class="soc-section-title">Website readiness</h2>` +
+        `<p class="dash-empty">${escHtml(opts.loading ? 'Scanning site checklist…' : 'Checklist not available yet.')}</p>` +
+      `</section>`
+    );
+  }
+  const summary = `${readiness.okCount}/${readiness.totalCount} items look good`;
+  const rows = items
+    .map(
+      (item) =>
+        `<tr class="${readinessStatusClass(item.status)}">` +
+          `<td class="ana-table-label">${escHtml(item.label)}</td>` +
+          `<td><span class="site-ready-badge site-ready-badge--${escHtml(item.status)}">${escHtml(readinessStatusLabel(item.status))}</span></td>` +
+          `<td>${escHtml(item.effort || '—')}</td>` +
+          `<td>${escHtml(item.impact || '—')}</td>` +
+          `<td class="site-ready-detail">${escHtml(item.detail || '')}</td>` +
+        `</tr>`,
+    )
+    .join('');
+  return (
+    `<section class="ana-section site-ready-section">` +
+      `<div class="site-ready-head">` +
+        `<h2 class="soc-section-title">Website readiness</h2>` +
+        `<p class="site-ready-sub">${escHtml(summary)} · engagement above · full audit items below</p>` +
+      `</div>` +
+      `<div class="ana-table-wrap">` +
+        `<table class="ana-table site-ready-table">` +
+          `<thead><tr><th>Item</th><th>Status</th><th>Effort</th><th>Impact</th><th>Details</th></tr></thead>` +
+          `<tbody>${rows}</tbody>` +
+        `</table>` +
+      `</div>` +
+    `</section>`
+  );
+}
+
+function renderAnalyticsDashboard(root, d, status, readiness = null, readinessLoading = false) {
   const rangeLabel = ANALYTICS_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
   const siteId = d?.siteId || '';
   const dashboardUrl = d?.dashboardUrl || '';
@@ -493,9 +548,10 @@ function renderAnalyticsDashboard(root, d, status) {
 
   const pages = analyticsBreakdownTable('Top pages', Array.isArray(d?.topPages) ? d.topPages : [], 'Page');
   const sources = analyticsBreakdownTable('Top sources', Array.isArray(d?.topSources) ? d.topSources : [], 'Source');
+  const readinessEl = renderSiteReadinessReport(readiness, { loading: readinessLoading });
 
   root.innerHTML =
-    `<div class="social-scroll">` + header + statsEl + chart + pages + sources + `</div>`;
+    `<div class="social-scroll">` + header + statsEl + chart + readinessEl + pages + sources + `</div>`;
   bindAnalyticsControls(root, 'detail');
 }
 
@@ -625,15 +681,26 @@ async function loadAnalyticsTab(opts = {}) {
 
     const params = new URLSearchParams({ range: String(analyticsRangeDays), source: analyticsSource });
     if (analyticsSiteId) params.set('site_id', analyticsSiteId);
-    const [dashRes, statusRes] = await Promise.all([
+    const readinessParams = new URLSearchParams({ site_id: analyticsSiteId, full: '1' });
+    const [dashRes, statusRes, readinessRes] = await Promise.all([
       fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
       fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),
+      analyticsSiteId
+        ? fetch(`/api/admin/sites/readiness?${readinessParams}`, { cache: 'no-store' })
+        : Promise.resolve(null),
     ]);
     const data = await dashRes.json();
     const statusData = await statusRes.json().catch(() => ({}));
+    const readinessData = readinessRes ? await readinessRes.json().catch(() => ({})) : null;
     analyticsStatus = statusData?.ok ? statusData : null;
     if (!dashRes.ok || !data.ok) throw new Error(data.error || `HTTP ${dashRes.status}`);
-    renderAnalyticsDashboard(root, data.dashboard, analyticsStatus);
+    renderAnalyticsDashboard(
+      root,
+      data.dashboard,
+      analyticsStatus,
+      readinessData?.ok ? readinessData.readiness : null,
+      Boolean(analyticsSiteId && !readinessData?.ok),
+    );
   } catch (e) {
     root.innerHTML =
       `<div class="social-scroll">` +

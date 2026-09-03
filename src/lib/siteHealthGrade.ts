@@ -1,9 +1,9 @@
 /**
  * Sites fleet health grades — lightweight critical checks with a long SWR cache.
  *
- * Not a full website audit. Probes robots.txt + Search Console coverage and
- * folds in uptime / Plausible signals already on the dashboard. Expensive
- * Lighthouse / full seo_inventory stays on the audit playbook.
+ * Probes seo_inventory (schema, sitemap, internal links), Search Console coverage,
+ * uptime, and Plausible wiring for dashboard tiles. PageSpeed and full link crawls
+ * run on the Sites detail view only.
  */
 import {
   agencySubject,
@@ -15,13 +15,15 @@ import {
 } from './googleWebmasterAuth';
 import {
   gscListSites,
+  gscListSitemaps,
   gscPropertyCandidates,
   type GscSiteEntry,
 } from './googleSearchConsoleClient';
-import { robotsTxtBlocksAll } from './seoInventoryClient';
+import { seoInventory, type SeoInventoryResponse } from './seoInventoryClient';
 import { hostnameFromWebsite } from './plausibleClient';
 import { isApexPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
 import { hasFeature } from './features';
+import { buildSiteReadinessChecklist } from './siteReadinessChecklist';
 import type {
   AnalyticsAccountRow,
   UptimeMonitorForFleetMerge,
@@ -49,8 +51,7 @@ export type SiteHealthCardInput = {
 };
 
 const HEALTH_TTL_MS = 45 * 60_000;
-const ROBOTS_TIMEOUT_MS = 5_000;
-const PROBE_CONCURRENCY = 4;
+const SEO_PROBE_CONCURRENCY = 3;
 
 let healthCache: { at: number; fleet: SiteHealthFleet } | null = null;
 let healthInflight: Promise<SiteHealthFleet> | null = null;
@@ -79,27 +80,25 @@ export function peekCachedSiteHealthFleet(
   return healthCache.fleet;
 }
 
-async function probeRobotsTxt(
+async function probeSeoInventory(
   siteId: string,
   website?: string | null,
-): Promise<{ present: boolean; blocksAll: boolean } | null> {
+): Promise<Extract<SeoInventoryResponse, { ok: true }> | null> {
   const host = hostnameFromWebsite(website || '') || normalizeMonitorHost(siteId) || siteId;
   if (!host) return null;
-  const url = `https://${host.replace(/^www\./, '')}/robots.txt`;
-  try {
-    const res = await fetch(url, {
-      headers: { Accept: 'text/plain,*/*', 'User-Agent': 'reave-sites-health/1.0' },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(ROBOTS_TIMEOUT_MS),
-    });
-    if (res.status === 404) return { present: false, blocksAll: false };
-    if (!res.ok) return null;
-    const text = await res.text();
-    if (!text.trim()) return { present: false, blocksAll: false };
-    return { present: true, blocksAll: robotsTxtBlocksAll(text) };
-  } catch {
-    return null;
-  }
+  const url = `https://${host.replace(/^www\./, '')}/`;
+  const result = await seoInventory(url);
+  return result.ok ? result : null;
+}
+
+function gscPropertyUrl(entries: GscSiteEntry[] | null, siteId: string): string | null {
+  if (!entries) return null;
+  const candidates = new Set(gscPropertyCandidates(siteId).map((c) => c.toLowerCase()));
+  const match = entries.find((e) => {
+    const url = (e.siteUrl || '').trim().toLowerCase();
+    return url && candidates.has(url);
+  });
+  return match?.siteUrl?.trim() || null;
 }
 
 async function agencyGoogleConnected(): Promise<boolean | null> {
@@ -168,9 +167,28 @@ export async function buildSiteHealthFleet(
       }
     }
 
-    const robotsResults = await mapPool(apexCards, PROBE_CONCURRENCY, (card) =>
-      probeRobotsTxt(card.siteId, card.website || card.analytics?.website),
+    const seoResults = await mapPool(apexCards, SEO_PROBE_CONCURRENCY, (card) =>
+      probeSeoInventory(card.siteId, card.website || card.analytics?.website),
     );
+
+    const gscSitemapCounts = new Map<string, number | null>();
+    if (googleConnected && gscEntries) {
+      await mapPool(apexCards, 2, async (card) => {
+        const siteId =
+          hostnameFromWebsite(card.siteId) || normalizeMonitorHost(card.siteId) || card.siteId;
+        const propertyUrl = gscPropertyUrl(gscEntries, siteId);
+        if (!propertyUrl) {
+          gscSitemapCounts.set(siteId, null);
+          return;
+        }
+        try {
+          const sitemaps = await gscListSitemaps(propertyUrl, agencySubject());
+          gscSitemapCounts.set(siteId, sitemaps.length);
+        } catch {
+          gscSitemapCounts.set(siteId, null);
+        }
+      });
+    }
 
     const checkedAt = Date.now();
     const sites: Record<string, SiteHealthSummary> = {};
@@ -178,19 +196,38 @@ export async function buildSiteHealthFleet(
       const card = apexCards[i]!;
       const siteId =
         hostnameFromWebsite(card.siteId) || normalizeMonitorHost(card.siteId) || card.siteId;
+      const seo = seoResults[i] ?? null;
+      const robots = seo
+        ? {
+            present: seo.robots_txt.present,
+            blocksAll: seo.robots_txt.blocks_all,
+          }
+        : null;
+      const gscHasProperty = googleConnected ? gscHasApex(gscEntries, siteId) : null;
       const issues = collectInstantSiteHealthIssues({
         monitor: card.monitor,
         analytics: card.analytics,
         googleConnected,
-        gscHasProperty: googleConnected ? gscHasApex(gscEntries, siteId) : null,
-        robots: robotsResults[i] ?? null,
+        gscHasProperty,
+        robots,
       });
       const scored = scoreSiteHealthIssues(issues);
+      const readiness = buildSiteReadinessChecklist({
+        seo,
+        issues,
+        googleConnected,
+        gscHasProperty,
+        gscSitemapCount: gscSitemapCounts.get(siteId) ?? null,
+        analytics: card.analytics,
+        monitor: card.monitor,
+        checkedAt,
+      });
       sites[siteId] = {
         grade: scored.grade,
         score: scored.score,
         criticalCount: scored.criticalCount,
         issues,
+        readiness,
         checkedAt,
       };
     }
