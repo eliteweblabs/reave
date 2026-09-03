@@ -4,6 +4,7 @@ import EditorialLandingPage from "./EditorialLandingPage.astro";
 import PackLandingPage from "./PackLandingPage.astro";
 import ServiceLandingPage from "./ServiceLandingPage.astro";
 import TechLandingPage from "./TechLandingPage.astro";
+import VetLandingPage from "./VetLandingPage.astro";
 
 interface Props {
   landing: SiteLandingConfig;
@@ -20,10 +21,13 @@ const isEditorial = landing.variant === "editorial";
 const isPack = landing.variant === "pack";
 const isService = landing.variant === "service";
 const isTech = landing.variant === "tech";
+const isVet = landing.variant === "vet";
 ---
 
 {
-  isPack ? (
+  isVet ? (
+    <VetLandingPage landing={landing} />
+  ) : isPack ? (
     <PackLandingPage landing={landing} />
   ) : isEditorial ? (
     <EditorialLandingPage landing={landing} />

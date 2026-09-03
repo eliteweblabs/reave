@@ -1,0 +1,252 @@
+---
+/**
+ * Clean mobile-vet landing — tandem.vet–inspired layout, config-driven copy.
+ */
+import type { SiteLandingConfig } from "../../lib/siteContent";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { contactTelHref } from "../../lib/contactApi";
+import "../../styles/vet-landing.css";
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+const company = await getCompanyConfig(Astro.request);
+const contact = landing.contact ?? {};
+const about = landing.about ?? {};
+const services = landing.services;
+const year = new Date().getFullYear();
+
+const brandName = landing.name || company.name || "Book";
+const logoSrc =
+  (landing.heroLogo || "").trim() ||
+  (company.logoPath && company.logoSource !== "hidden"
+    ? `${company.logoPath}${company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : ""}`
+    : "");
+
+const phoneDisplay = (contact.phone || company.supportPhone || "").trim();
+const phoneDigits = contactTelHref(
+  contact.phoneHref?.replace(/^tel:/i, "") || phoneDisplay,
+);
+const phoneHref = phoneDigits ? `tel:${phoneDigits}` : "";
+const phonePretty = phoneDisplay || phoneDigits;
+const email = (contact.email || company.supportEmail || "").trim();
+const scheduleUrl = landing.scheduleUrl || "/form/schedule";
+const heroImage = landing.heroImage || landing.pack?.hero?.mainImage || "";
+const aboutImage = landing.pack?.hero?.aboutImage || heroImage;
+
+const navLinks = landing.pack?.nav?.length
+  ? landing.pack.nav
+  : [
+      { href: "#services", label: "Services" },
+      { href: "#contact", label: "Contact" },
+    ];
+
+const serviceItems =
+  services?.items?.map((item) => {
+    if (typeof item === "string") {
+      return { name: item, blurb: "", bookHref: scheduleUrl };
+    }
+    return {
+      name: item.label,
+      blurb: item.description || "",
+      bookHref: item.bookHref || scheduleUrl,
+    };
+  }) ?? [];
+
+const location =
+  landing.pack?.social?.city ||
+  contact.officeLines?.join(" · ") ||
+  "";
+const contactHref = email ? `mailto:${email}` : scheduleUrl;
+const contactLabel = landing.callCta?.label || "Contact us";
+---
+
+<div class="vet" data-vet-root>
+  <a class="vet-login" href="/sign-in">Login</a>
+
+  <header class="vet-header">
+    <div class="vet-header__inner">
+      <a class="vet-header__brand" href="#top" aria-label={brandName}>
+        {
+          logoSrc ? (
+            <img class="vet-header__logo" src={logoSrc} alt={brandName} width="180" height="62" />
+          ) : (
+            <span>{brandName}</span>
+          )
+        }
+      </a>
+      <nav class="vet-header__nav" aria-label="Site">
+        {navLinks.map((link) => (
+          <a href={link.href}>{link.label}</a>
+        ))}
+      </nav>
+      <a class="vet-header__cta" href={contactHref}>{contactLabel}</a>
+    </div>
+  </header>
+
+  <main>
+    <section id="top" class="vet-hero">
+      <div class="vet-hero__inner">
+        <div>
+          {
+            landing.eyebrow && landing.tagline ? (
+              <p class="vet-hero__badge">
+                {landing.eyebrow} — {landing.tagline}
+              </p>
+            ) : landing.eyebrow ? (
+              <p class="vet-hero__badge">{landing.eyebrow}</p>
+            ) : null
+          }
+          <h1 class="vet-hero__title">{landing.heroHeadline || brandName}</h1>
+          {
+            landing.heroBody && (
+              <p class="vet-hero__lede">{landing.heroBody}</p>
+            )
+          }
+          <div class="vet-hero__actions">
+            <a class="vet-btn-primary" href={contactHref}>{contactLabel}</a>
+            {
+              phoneHref ? (
+                <a class="vet-btn-secondary" href={phoneHref}>
+                  {phonePretty}
+                </a>
+              ) : null
+            }
+          </div>
+        </div>
+        {
+          heroImage ? (
+            <div class="vet-hero__visual">
+              <img
+                src={heroImage}
+                alt={landing.pack?.hero?.mainAlt || brandName}
+                width="640"
+                height="800"
+                loading="eager"
+              />
+            </div>
+          ) : null
+        }
+      </div>
+    </section>
+
+    {
+      serviceItems.length ? (
+        <section id="services" class="vet-section vet-section--surface">
+          <div class="vet-section__inner">
+            <p class="vet-section__eyebrow">What we offer</p>
+            <h2 class="vet-section__title">{services?.heading || "Services"}</h2>
+            {services?.intro && <p class="vet-section__intro">{services.intro}</p>}
+            <div class="vet-services">
+              {
+                serviceItems.map((service) => (
+                  <article class="vet-service">
+                    <h3 class="vet-service__name">{service.name}</h3>
+                    {service.blurb && <p class="vet-service__blurb">{service.blurb}</p>}
+                    <a class="vet-service__link" href={service.bookHref}>
+                      Learn more
+                    </a>
+                  </article>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+      ) : null
+    }
+
+    {
+      about.body?.length || aboutImage ? (
+        <section id="about" class="vet-section">
+          <div class="vet-section__inner vet-about">
+            {
+              aboutImage ? (
+                <div class="vet-about__photo">
+                  <img
+                    src={aboutImage}
+                    alt={landing.pack?.hero?.aboutAlt || brandName}
+                    loading="lazy"
+                  />
+                </div>
+              ) : null
+            }
+            <div>
+              <p class="vet-section__eyebrow">About</p>
+              <h2 class="vet-section__title">{about.heading || brandName}</h2>
+              {
+                about.body?.map((para) => (
+                  <p class="vet-section__intro">{para}</p>
+                ))
+              }
+            </div>
+          </div>
+        </section>
+      ) : null
+    }
+
+    <section id="contact" class="vet-section vet-section--surface">
+      <div class="vet-section__inner">
+        <p class="vet-section__eyebrow">Get in touch</p>
+        <h2 class="vet-section__title">{contact.heading || "Contact"}</h2>
+        <div class="vet-contact-grid">
+          {
+            location ? (
+              <div class="vet-contact-card">
+                <p class="vet-contact-card__label">Location</p>
+                <p class="vet-contact-card__value">{location}</p>
+              </div>
+            ) : null
+          }
+          {
+            email ? (
+              <div class="vet-contact-card">
+                <p class="vet-contact-card__label">Email</p>
+                <p class="vet-contact-card__value">
+                  <a href={`mailto:${email}`}>{email}</a>
+                </p>
+              </div>
+            ) : null
+          }
+          {
+            phonePretty ? (
+              <div class="vet-contact-card">
+                <p class="vet-contact-card__label">Phone</p>
+                <p class="vet-contact-card__value">
+                  <a href={phoneHref}>{phonePretty}</a>
+                </p>
+              </div>
+            ) : null
+          }
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vet-footer">
+    <div class="vet-footer__inner">
+      <div class="vet-footer__brand">
+        {logoSrc ? <img class="vet-footer__logo" src={logoSrc} alt="" width="120" height="41" /> : null}
+        <p class="vet-footer__note">&copy; {year} {brandName}</p>
+      </div>
+      <div class="vet-footer__links">
+        {phoneHref ? <a href={phoneHref}>{phonePretty}</a> : null}
+        {email ? <a href={`mailto:${email}`}>{email}</a> : null}
+        {location ? <span>{location}</span> : null}
+      </div>
+      {landing.footer && <p class="vet-footer__note">{landing.footer}</p>}
+    </div>
+  </footer>
+
+  {
+    phoneHref ? (
+      <nav class="vet-dock" aria-label="Quick contact">
+        <div class="vet-dock__grid">
+          <a class="vet-dock__btn vet-dock__call" href={phoneHref}>Call</a>
+          <a class="vet-dock__btn vet-dock__contact" href={contactHref}>{contactLabel}</a>
+        </div>
+      </nav>
+    ) : null
+  }
+</div>

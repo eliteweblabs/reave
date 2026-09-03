@@ -201,9 +201,10 @@ export type SiteLandingConfig = {
    * `service` = mobile call-first single page (trades / emergency).
    * `tech` = mobile-first Salesforce / consulting landing.
    * `pack` = PDX Paws–style neighborhood service site (marquee, cards, wall).
+   * `vet` = clean mobile-vet landing (tandem.vet–inspired).
    * Default keeps the original navy landing.
    */
-  variant?: "default" | "editorial" | "service" | "tech" | "pack";
+  variant?: "default" | "editorial" | "service" | "tech" | "pack" | "vet";
   photo?: {
     src: string;
     alt: string;

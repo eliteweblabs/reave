@@ -38,6 +38,7 @@ const isEditorial = landing.variant === "editorial";
 const isPack = landing.variant === "pack";
 const isService = landing.variant === "service";
 const isTech = landing.variant === "tech";
+const isVet = landing.variant === "vet";
 const title = (titleProp ?? landing.title ?? company.name).trim();
 const pwaTitle = formatPwaAppTitle(company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
@@ -47,7 +48,7 @@ const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 const themeColor =
   themeColorProp ??
   landing.themeColor ??
-  (isPack ? "#1c1410" : isEditorial ? "#f4efe6" : isService ? "#f4f7fb" : isTech ? "#2f4a2c" : "#01061d");
+  (isVet ? "#fafafa" : isPack ? "#1c1410" : isEditorial ? "#f4efe6" : isService ? "#f4f7fb" : isTech ? "#2f4a2c" : "#01061d");
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
@@ -56,7 +57,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${LOGO_ICON_OG_PATH}`
   : ogImageAbsolute;
 const htmlStyle =
-  isEditorial || isService || isTech || isPack
+  isEditorial || isService || isTech || isPack || isVet
     ? undefined
     : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary);
 ---
@@ -110,6 +111,11 @@ const htmlStyle =
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;600;700&display=swap"
         rel="stylesheet"
       />
+    ) : isVet ? (
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
     ) : (
       <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
@@ -117,14 +123,37 @@ const htmlStyle =
       />
     )}
   </head>
-  <body class={isPack ? "pack-body" : isEditorial ? "editorial-body" : isService ? "service-body" : isTech ? "tech-body" : "landing-body"}>
+  <body class={isVet ? "vet-body" : isPack ? "pack-body" : isEditorial ? "editorial-body" : isService ? "service-body" : isTech ? "tech-body" : "landing-body"}>
     <slot />
     <ScrollFadeIn />
     <CookieNotice />
   </body>
 </html>
 
-{isPack ? (
+{isVet ? (
+<style is:global>
+  * { box-sizing: border-box; }
+  html, body.vet-body {
+    margin: 0;
+    min-height: 100%;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    background: #fafafa;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body.vet-body :is(
+    input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    a[href^="mailto:"],
+    a[href^="tel:"]
+  ) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  body.vet-body a { color: inherit; }
+</style>
+) : isPack ? (
 <style is:global>
   * { box-sizing: border-box; }
   html, body.pack-body {
