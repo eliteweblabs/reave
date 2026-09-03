@@ -71,7 +71,10 @@ async function resolvePlaceId(config: SiteLandingReviewsConfig): Promise<string 
   const query = config.googlePlaceQuery?.trim();
   if (!query) return null;
 
-  const details = await searchPlaceDetails(query, { near: 'Western Massachusetts' });
+  const details = await searchPlaceDetails(query, {
+    near: 'Western Massachusetts',
+    locationBias: 'Longmeadow, MA',
+  });
   return details?.placeId ?? null;
 }
 
@@ -86,35 +89,41 @@ function mapGoogleReview(review: GoogleReview): SiteLandingReview | null {
   };
 }
 
-/** Static config items win; otherwise pull live from Google Places when configured. */
+/** Static config items are fallback; live Google reviews win when the API returns them. */
 export async function loadSiteLandingReviews(
   config: SiteLandingReviewsConfig | undefined,
 ): Promise<{ heading: string; intro?: string; items: SiteLandingReview[]; mapsUrl?: string } | null> {
   if (!config?.heading) return null;
 
-  if (config.items?.length) {
+  const fallbackItems = config.items ?? [];
+  const mapsUrl = config.googleMapsUrl;
+
+  const placeId = await resolvePlaceId(config);
+  if (placeId) {
+    const raw = await fetchGoogleReviews(placeId);
+    const liveItems = raw
+      .map(mapGoogleReview)
+      .filter((item): item is SiteLandingReview => item !== null);
+    if (liveItems.length) {
+      return {
+        heading: config.heading,
+        intro: config.intro,
+        items: liveItems,
+        mapsUrl,
+      };
+    }
+  }
+
+  if (fallbackItems.length) {
     return {
       heading: config.heading,
       intro: config.intro,
-      items: config.items,
-      mapsUrl: config.googleMapsUrl,
+      items: fallbackItems,
+      mapsUrl,
     };
   }
 
-  const placeId = await resolvePlaceId(config);
-  if (!placeId) {
-    return config.googleMapsUrl
-      ? { heading: config.heading, intro: config.intro, items: [], mapsUrl: config.googleMapsUrl }
-      : null;
-  }
-
-  const raw = await fetchGoogleReviews(placeId);
-  const items = raw.map(mapGoogleReview).filter((item): item is SiteLandingReview => item !== null);
-
-  return {
-    heading: config.heading,
-    intro: config.intro,
-    items,
-    mapsUrl: config.googleMapsUrl,
-  };
+  return mapsUrl
+    ? { heading: config.heading, intro: config.intro, items: [], mapsUrl }
+    : null;
 }

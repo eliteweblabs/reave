@@ -74,7 +74,35 @@
       "heading": "What pet families are saying",
       "intro": "Reviews from our Google listing.",
       "googleMapsUrl": "https://maps.app.goo.gl/6TG3Sz4SWwU9RLMR7",
-      "googlePlaceQuery": "Paws Calls mobile pet veterinarian Longmeadow Massachusetts"
+      "googlePlaceId": "ChIJjXVvSQDn5okRW9Kljecj8hU",
+      "googlePlaceQuery": "Paws Calls mobile pet veterinarian Longmeadow Massachusetts",
+      "items": [
+        {
+          "quote": "We love Dr. Ryczek. We adopted 2 bonded dogs in 2020 so vet visits were challenging during the pandemic. Even for routine visits, it's so much easier to have your vet come to you. Yes, you will pay a bit more but it's worth it for us. Dr. Ryczek is also very responsive to texts and emails which is helpful. We can send photos or videos to help diagnose issues that don't require a visit. She is patient and takes her time. I don't know what we'd do without her.",
+          "cite": "Peggy K",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "I reached out to Dr. Ryczek a few years back when it was too difficult to get my dog in the car. She immediately got back to me and was over to meet my dog within a few days. She ALWAYS answered my text & calls and having an in-home vet was a life changer. Just a few weeks ago my family & I had to make the tough decision of putting our beloved boxer down. Kara & her assistant were AMAZING. They explained every step with such grace and compassion. They also gave myself and my family all the time we needed to say goodbye to our Bindy. Kara is incredibly knowledgeable and kind, and the convenience of having her come to our home for well/sick visits and euthanasia reduced the stress on our dog and ourselves.",
+          "cite": "Jenn K",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "Kara originally came to our house for a wellness check a couple weeks ago and then again this week to help us say goodbye to our 14 year old boxer girl who was struggling. She was very easy to work with and responsive with all of our questions prior to the visit. We really appreciated her compassion during one of our hardest days. 10/10 would recommend.",
+          "cite": "Erika Szulak",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "Kara came the same day for our yellow lab's euthanasia. She messaged us back right away and was very compassionate and professional. It made the overall process a lot easier for me and my family. Highly recommend.",
+          "cite": "Emily R",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "Kara was wonderful to work with and helped make our cats final moments as peaceful as realistically possible. I'm so grateful that we were able to say goodbye in his favorite place.",
+          "cite": "Stephen Vaccaro",
+          "stars": "★★★★★"
+        }
+      ]
     },
     "contact": {
       "heading": "Contact",
