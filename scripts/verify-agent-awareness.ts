@@ -23,6 +23,9 @@ import {
   titlesMatchAlert,
 } from '../src/lib/agentSituationalContext.ts';
 
+import { isDeployFailureAutoRepairEnabled } from '../src/lib/deployFailureChat.ts';
+
+assert.equal(isDeployFailureAutoRepairEnabled(), false, 'auto-repair off unless DEPLOY_FAILURE_AUTO_REPAIR=1');
 assert.equal(deployFailureAlertTitle('calcom-web-app'), 'Deploy failed — calcom-web-app');
 assert.equal(deployFailureAlertTitle('  '), 'Deploy failed — service');
 assert.equal(deployFailureAlertTitle('?'), 'Deploy failed — service');

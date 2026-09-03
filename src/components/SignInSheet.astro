@@ -201,6 +201,17 @@ const clerkAppearance = {
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
   /** One SSR sync reload after client sign-in — never a loop. */
   const SSR_SYNC_KEY = 'reave-clerk-ssr-sync-once';
+  let halfSessionAutoClearAttempted = false;
+
+  function onLoginPage() {
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    return (
+      path === '/admin/login' ||
+      path === '/sign-in' ||
+      authPath === '/admin/login' ||
+      authPath === '/sign-in'
+    );
+  }
 
   function serverHasStaffSession() {
     return Boolean(document.body?.dataset?.userId?.trim());
@@ -296,17 +307,43 @@ const clerkAppearance = {
     const btn = document.getElementById('sign-in-stuck-sign-out');
     if (btn && !btn.dataset.bound) {
       btn.dataset.bound = '1';
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        clearSsrSyncMark();
-        try {
-          await window.Clerk?.signOut?.({ redirectUrl: authPath });
-        } catch (err) {
-          console.warn('[reave] signOut failed', err);
-          window.location.assign(authPath);
-        }
-      });
+      btn.addEventListener('click', () => void clearHalfSessionAndShowSignIn(true));
     }
+  }
+
+  /**
+   * Drop a client-only Clerk session (common after clearing cache / cookies).
+   * On login pages we do this automatically; elsewhere the user taps the button.
+   */
+  async function clearHalfSessionAndShowSignIn(fromUser = false) {
+    if (!fromUser && halfSessionAutoClearAttempted) {
+      showStuckSession();
+      return;
+    }
+    if (!fromUser) halfSessionAutoClearAttempted = true;
+
+    const btn = document.getElementById('sign-in-stuck-sign-out');
+    if (btn) btn.disabled = true;
+    clearSsrSyncMark();
+    const root = document.getElementById('sign-in-clerk-root');
+    const stuck = document.getElementById('sign-in-session-stuck');
+    if (stuck) stuck.hidden = true;
+    if (root) root.hidden = false;
+    window[AUTH_MOUNT_KEY] = false;
+    try {
+      await window.Clerk?.signOut?.();
+    } catch (err) {
+      console.warn('[reave] half-session signOut failed', err);
+      if (fromUser) window.location.assign(authPath);
+      else showStuckSession();
+      return;
+    }
+    if (btn) btn.disabled = false;
+    if (window.Clerk?.user) {
+      showStuckSession();
+      return;
+    }
+    mountClerkAuth();
   }
 
   function mountClerkAuth() {
@@ -323,10 +360,14 @@ const clerkAppearance = {
       return;
     }
 
-    // Client session without SSR userId: sync once, else stuck UI (never remount SignIn).
+    // Client session without SSR userId: sync once, else clear stale session on login pages.
     if (clerk.user && !serverHasStaffSession()) {
       window[AUTH_MOUNT_KEY] = true;
       if (reloadOnceForSsrCookie()) return;
+      if (onLoginPage()) {
+        void clearHalfSessionAndShowSignIn();
+        return;
+      }
       showStuckSession();
       return;
     }
@@ -366,6 +407,8 @@ const clerkAppearance = {
   }
 
   function onClerkReady() {
+    // Fresh login visit after cache clear — allow one SSR cookie sync attempt.
+    if (onLoginPage() && !serverHasStaffSession()) clearSsrSyncMark();
     mountClerkAuth();
     bindClerkSsrSessionSync({ autoOpenSignIn });
   }

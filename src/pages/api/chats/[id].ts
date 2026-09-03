@@ -16,7 +16,9 @@ import {
   isDefaultChatTitle,
   serializeChatMessageContent,
   titleFromMessage,
+  CHAT_UI_MESSAGE_CAP,
 } from '../../../lib/chatTypes';
+import { isDeployFailureTitle } from '../../../lib/agentSituationalContext';
 import {
   resolveChatThreadOwnerUserId,
   storeGetChatThreadForOwner,
@@ -276,8 +278,25 @@ export async function GET(context: APIContext): Promise<Response> {
   const thread = await storeGetChatThreadForOwner(userId, id);
   if (!thread) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
   const linked_jobs = await listJobsForItem('chat', id);
-  const [withAuthor] = await enrichChatThreadsWithAuthors([{ ...thread, linked_jobs }]);
-  return jsonResponse({ ok: true, thread: withAuthor });
+  let messages = thread.messages;
+  let messages_truncated = false;
+  // Deploy-failure repair threads can grow huge — cap what the browser renders.
+  const cap =
+    isDeployFailureTitle(thread.title) || messages.length > CHAT_UI_MESSAGE_CAP * 2
+      ? CHAT_UI_MESSAGE_CAP
+      : null;
+  if (cap != null && messages.length > cap) {
+    messages = messages.slice(-cap);
+    messages_truncated = true;
+  }
+  const [withAuthor] = await enrichChatThreadsWithAuthors([{ ...thread, messages, linked_jobs }]);
+  return jsonResponse({
+    ok: true,
+    thread: withAuthor,
+    ...(messages_truncated
+      ? { messages_truncated: true, messages_total: thread.messages.length }
+      : {}),
+  });
 }
 
 export async function POST(context: APIContext): Promise<Response> {

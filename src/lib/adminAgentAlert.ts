@@ -707,7 +707,6 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
       source: 'email',
       message,
       emailId: opts.emailId,
-      autoRun: true,
     });
     return;
   }
