@@ -7,7 +7,7 @@
  * installation is that repo only.
  */
 import { randomBytes } from 'node:crypto';
-import type { DeployWizardSeedInput, DeployWizardDnsAccess } from './deployWizardCatalog';
+import type { DeployWizardClientSetup, DeployWizardSeedInput, DeployWizardDnsAccess } from './deployWizardCatalog';
 import { GITHUB_WEBSITE_OWNER, defaultWebsiteRepoSlug } from './websiteEditorRepo';
 
 const GITHUB_API = 'https://api.github.com';
@@ -68,6 +68,7 @@ export type DeployWizardGithubAppApplyBody = {
   ownerPhone?: string;
   timezone?: string;
   seed?: Partial<DeployWizardSeedInput>;
+  client?: Partial<DeployWizardClientSetup>;
   project: string;
   projectName?: string;
   environment: string;

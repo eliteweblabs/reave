@@ -25,6 +25,8 @@ import {
   isDeployWizardSeedIndustryId,
   mergeDeployWizardSeedIndustries,
   normalizeDeployWizardSeed,
+  normalizeDeployWizardClient,
+  type DeployWizardClientSetup,
   normalizeSiteDomain,
   type DeployWizardExtraId,
   type DeployWizardPlan,
@@ -107,6 +109,28 @@ function presentHostSecrets(plan: DeployWizardPlan): DeployWizardPlan {
   };
 }
 
+function parseClient(body: Record<string, unknown>, seed: ReturnType<typeof parseSeed>): DeployWizardClientSetup {
+  const raw = body.client;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return normalizeDeployWizardClient(null, seed);
+  }
+  const client = raw as Record<string, unknown>;
+  return normalizeDeployWizardClient(
+    {
+      tagline: typeof client.tagline === 'string' ? client.tagline : undefined,
+      address: typeof client.address === 'string' ? client.address : undefined,
+      supportEmail: typeof client.supportEmail === 'string' ? client.supportEmail : undefined,
+      supportPhone: typeof client.supportPhone === 'string' ? client.supportPhone : undefined,
+      brandPrimary: typeof client.brandPrimary === 'string' ? client.brandPrimary : undefined,
+      brandSecondary: typeof client.brandSecondary === 'string' ? client.brandSecondary : undefined,
+      logoUrl: typeof client.logoUrl === 'string' ? client.logoUrl : undefined,
+      logoData: typeof client.logoData === 'string' ? client.logoData : undefined,
+      logoMediaType: typeof client.logoMediaType === 'string' ? client.logoMediaType : undefined,
+    },
+    seed,
+  );
+}
+
 function parseSeed(body: Record<string, unknown>) {
   const raw = body.seed;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return normalizeDeployWizardSeed();
@@ -120,9 +144,10 @@ function parseSeed(body: Record<string, unknown>) {
       : undefined;
   return normalizeDeployWizardSeed({
     industry: typeof seed.industry === 'string' && isDeployWizardSeedIndustryId(seed.industry) ? seed.industry : 'none',
-    inbox: seed.inbox !== false,
-    todos: seed.todos !== false,
-    schedule: seed.schedule !== false,
+    inbox: seed.inbox === true,
+    todos: seed.todos === true,
+    schedule: seed.schedule === true,
+    knowledge: seed.knowledge === true,
     practiceAddress: typeof seed.practiceAddress === 'string' ? seed.practiceAddress : undefined,
     courtGateMode: gateMode,
     courtRadiusMi: typeof seed.courtRadiusMi === 'number' ? seed.courtRadiusMi : undefined,
@@ -285,6 +310,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const ownerPhone = typeof body.ownerPhone === 'string' ? body.ownerPhone : undefined;
   const timezone = typeof body.timezone === 'string' ? body.timezone : undefined;
   const seed = parseSeed(body);
+  const client = parseClient(body, seed);
   const dnsAccess = parseDnsAccess(body);
   const namecom = parseNamecomCreds(body);
   const godaddyToken = typeof body.godaddyToken === 'string' ? body.godaddyToken.trim() : '';
@@ -307,6 +333,7 @@ export async function POST(context: APIContext): Promise<Response> {
     ownerPhone,
     timezone,
     seed,
+    client,
   });
   const values = parseValues(body);
   const publicPlan = presentHostSecrets(plan);
@@ -345,6 +372,7 @@ export async function POST(context: APIContext): Promise<Response> {
     ownerPhone,
     timezone,
     seed,
+    client,
     project,
     projectName,
     environment,

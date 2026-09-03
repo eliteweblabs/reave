@@ -6,6 +6,7 @@
  *
  * @see https://docs.railway.com/guides/variables#reference-variables
  */
+import { normalizeBrandColorHex } from './companyBrandColors';
 import {
   FEATURE_BLURBS,
   FEATURE_LABELS,
@@ -1789,7 +1790,9 @@ export type DeployWizardPlanInput = {
   ownerPhone?: string;
   /** IANA timezone (BOOKING_TIMEZONE + Profile). Default America/New_York. */
   timezone?: string;
-  /** Sample inbox / todos / schedule for industries we do not have live access to yet. */
+  /** Company identity + branding from the Client step. */
+  client?: Partial<DeployWizardClientSetup>;
+  /** Optional sample inbox / todos / schedule / knowledge for industries we do not have live access to yet. */
   seed?: Partial<DeployWizardSeedInput>;
 };
 
@@ -1900,12 +1903,30 @@ export function mergeDeployWizardSeedIndustries(
   ];
 }
 
+export type DeployWizardClientSetup = {
+  /** Business tagline / short description. */
+  tagline?: string;
+  /** Office street address — Mapbox pin, bookings, and company panel. */
+  address?: string;
+  supportEmail?: string;
+  supportPhone?: string;
+  brandPrimary?: string;
+  brandSecondary?: string;
+  /** Public logo URL (overrides default /branding/logo.png). */
+  logoUrl?: string;
+  /** Small inline logo upload — written as INSTALL_LOGO_DATA on apply. */
+  logoData?: string;
+  logoMediaType?: string;
+};
+
 export type DeployWizardSeedInput = {
   industry: DeployWizardSeedIndustryId;
   inbox: boolean;
   todos: boolean;
   schedule: boolean;
-  /** Office street address — Mapbox pin for the court radius / county gate. */
+  /** Industry knowledge docs + law court gate (optional). */
+  knowledge: boolean;
+  /** @deprecated use client.address — kept for API compat */
   practiceAddress?: string;
   courtGateMode?: 'radius' | 'counties' | 'state';
   courtRadiusMi?: number;
@@ -1914,6 +1935,33 @@ export type DeployWizardSeedInput = {
   practiceArea?: string;
   practiceAreas?: string[];
 };
+
+export function normalizeDeployWizardClient(
+  raw?: Partial<DeployWizardClientSetup> | null,
+  seed?: Partial<DeployWizardSeedInput> | null,
+): DeployWizardClientSetup {
+  const address = (raw?.address || seed?.practiceAddress || '').trim().slice(0, 200);
+  const brandPrimary = normalizeBrandColorHex((raw?.brandPrimary || '').trim()) || undefined;
+  const brandSecondary = normalizeBrandColorHex((raw?.brandSecondary || '').trim()) || undefined;
+  const logoData = (raw?.logoData || '').trim();
+  const logoMediaType = (raw?.logoMediaType || '').trim().slice(0, 80);
+  return {
+    tagline: (raw?.tagline || '').trim().slice(0, 240) || undefined,
+    address: address || undefined,
+    supportEmail: normalizeDeployWizardEmail(raw?.supportEmail) || undefined,
+    supportPhone: normalizeDeployWizardPhone(raw?.supportPhone) || undefined,
+    brandPrimary,
+    brandSecondary,
+    logoUrl: (raw?.logoUrl || '').trim().slice(0, 500) || undefined,
+    logoData: logoData && logoData.length <= 24_000 ? logoData : undefined,
+    logoMediaType:
+      logoData && /^image\/(png|jpeg|jpg|webp|gif|svg\+xml)$/i.test(logoMediaType)
+        ? logoMediaType
+        : logoData
+          ? 'image/png'
+          : undefined,
+  };
+}
 
 function normalizeSeedPracticeAreas(raw?: Partial<DeployWizardSeedInput> | null): string[] {
   const fromArr = Array.isArray(raw?.practiceAreas) ? raw.practiceAreas : [];
@@ -1934,9 +1982,10 @@ export function normalizeDeployWizardSeed(raw?: Partial<DeployWizardSeedInput> |
   const practiceAreas = normalizeSeedPracticeAreas(raw);
   return {
     industry,
-    inbox: on && raw?.inbox !== false,
-    todos: on && raw?.todos !== false,
-    schedule: on && raw?.schedule !== false,
+    inbox: on && raw?.inbox === true,
+    todos: on && raw?.todos === true,
+    schedule: on && raw?.schedule === true,
+    knowledge: on && raw?.knowledge === true,
     practiceAddress: (raw?.practiceAddress || '').trim().slice(0, 200) || undefined,
     courtGateMode:
       raw?.courtGateMode === 'counties' || raw?.courtGateMode === 'state' || raw?.courtGateMode === 'radius'
@@ -2033,6 +2082,7 @@ export type DeployWizardPlan = {
   ownerEmail: string;
   ownerPhone: string;
   timezone: string;
+  client: DeployWizardClientSetup;
   seed: DeployWizardSeedInput;
   features: FeatureId[];
   extras: DeployWizardExtraId[];
@@ -2114,6 +2164,8 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
   });
   const siteDomain = normalizeSiteDomain(input.siteDomain);
   const seed = normalizeDeployWizardSeed(input.seed);
+  const client = normalizeDeployWizardClient(input.client, seed);
+  const officeAddress = client.address || seed.practiceAddress;
   const postAlias = normalizePostAlias(input.postAlias || (isLawIndustrySlug(seed.industry) ? 'matter' : undefined));
   const ownerFirstName = normalizeDeployWizardPersonName(input.ownerFirstName);
   const ownerLastName = normalizeDeployWizardPersonName(input.ownerLastName);
@@ -2170,6 +2222,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'PLANNED_SITE_DOMAIN') filled = '';
     if (raw.name === 'EMAIL_FROM_NAME' && companyName) filled = companyName;
     if (raw.name === 'RESEND_FROM' && siteDomain) filled = deployWizardResendFrom(siteDomain);
+    if (raw.name === 'COMPANY_LOGO_URL' && client.logoUrl) filled = client.logoUrl;
     if (raw.name === 'VAPID_SUBJECT' && ownerEmail) filled = `mailto:${ownerEmail}`;
     else if (raw.name === 'VAPID_SUBJECT' && siteDomain) filled = `mailto:admin@${siteDomain}`;
     if (appService !== DEPLOY_APP_SERVICE && filled) {
@@ -2194,22 +2247,109 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     });
   }
 
-  if (seed.industry !== 'none') {
+  const pushLiteral = (row: { name: string; value: string; description: string }) => {
+    const dedupe = `${appService}:${row.name}`;
+    if (seen.has(dedupe)) return;
+    seen.add(dedupe);
+    variables.push({
+      name: row.name,
+      service: appService,
+      kind: 'literal',
+      description: row.description,
+      required: false,
+      filled: row.value,
+      value: row.value,
+      needsInput: false,
+      inheritFromHost: false,
+      rolledOnApply: false,
+      provisionedOnApply: false,
+    });
+  };
+
+  const bootstrapVars: Array<{ name: string; value: string; description: string }> = [];
+  if (companyName || officeAddress || client.supportEmail || client.supportPhone || client.tagline || client.brandPrimary || client.brandSecondary || client.logoUrl || client.logoData) {
+    bootstrapVars.push({
+      name: 'INSTALL_BOOTSTRAP',
+      value: '1',
+      description: 'First admin visit writes company name, address, branding, and contact info from wizard env.',
+    });
+  }
+  if (officeAddress) {
+    bootstrapVars.push({
+      name: 'BOOKING_DEFAULT_ADDRESS',
+      value: officeAddress,
+      description: 'Office address — Mapbox pin, bookings, driving directions, and company panel.',
+    });
+    bootstrapVars.push({
+      name: 'COMPANY_ADDRESS',
+      value: officeAddress,
+      description: 'Same office address for company bootstrap.',
+    });
+  }
+  if (client.tagline) {
+    bootstrapVars.push({
+      name: 'COMPANY_DESCRIPTION',
+      value: client.tagline,
+      description: 'Company tagline from the deploy wizard.',
+    });
+  }
+  if (client.supportEmail) {
+    bootstrapVars.push({
+      name: 'COMPANY_SUPPORT_EMAIL',
+      value: client.supportEmail,
+      description: 'Public support / contact email.',
+    });
+  }
+  if (client.supportPhone) {
+    bootstrapVars.push({
+      name: 'COMPANY_SUPPORT_PHONE',
+      value: client.supportPhone,
+      description: 'Public support phone.',
+    });
+  }
+  if (client.brandPrimary) {
+    bootstrapVars.push({
+      name: 'COMPANY_BRAND_PRIMARY',
+      value: client.brandPrimary,
+      description: 'Primary brand color (hex).',
+    });
+  }
+  if (client.brandSecondary) {
+    bootstrapVars.push({
+      name: 'COMPANY_BRAND_SECONDARY',
+      value: client.brandSecondary,
+      description: 'Secondary brand color (hex).',
+    });
+  }
+  if (client.logoData) {
+    bootstrapVars.push(
+      {
+        name: 'INSTALL_LOGO_DATA',
+        value: client.logoData,
+        description: 'Inline logo uploaded in the deploy wizard (base64).',
+      },
+      {
+        name: 'INSTALL_LOGO_MEDIA_TYPE',
+        value: client.logoMediaType || 'image/png',
+        description: 'MIME type for INSTALL_LOGO_DATA.',
+      },
+    );
+  }
+  for (const row of bootstrapVars) pushLiteral(row);
+
+  const wantsSampleSeed =
+    seed.industry !== 'none' && (seed.inbox || seed.todos || seed.schedule || seed.knowledge);
+
+  if (wantsSampleSeed) {
     const seedVars: Array<{ name: string; value: string; description: string }> = [
       { name: 'DEMO_INDUSTRY', value: seed.industry, description: 'Sample-data industry slug from Admin → Industries.' },
-      { name: 'SEED_ON_BOOT', value: '1', description: 'First admin visit seeds inbox, todos, and schedule.' },
-      { name: 'SEED_INBOX', value: seed.inbox ? '1' : '0', description: 'Seed a sample inbox when live email is not connected yet.' },
+      { name: 'SEED_ON_BOOT', value: '1', description: 'First admin visit runs selected sample-data seeds.' },
+      { name: 'SEED_INBOX', value: seed.inbox ? '1' : '0', description: 'Seed sample inbox messages.' },
       { name: 'SEED_TODOS', value: seed.todos ? '1' : '0', description: 'Seed sample todos / matters.' },
       { name: 'SEED_SCHEDULE', value: seed.schedule ? '1' : '0', description: 'Seed sample calendar bookings.' },
+      { name: 'SEED_KNOWLEDGE', value: seed.knowledge ? '1' : '0', description: 'Seed industry knowledge docs (+ law court gate).' },
     ];
-    if (isLawIndustrySlug(seed.industry)) {
-      if (seed.practiceAddress) {
-        seedVars.push({
-          name: 'BOOKING_DEFAULT_ADDRESS',
-          value: seed.practiceAddress,
-          description: 'Office address from Google Places — Mapbox geocodes this pin for the court radius / county gate.',
-        });
-      }
+    if (isLawIndustrySlug(seed.industry) && seed.knowledge) {
       seedVars.push(
         {
           name: 'COURT_GATE_MODE',
@@ -2244,24 +2384,13 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
         });
       }
     }
-    for (const row of seedVars) {
-      const dedupe = `${appService}:${row.name}`;
-      if (seen.has(dedupe)) continue;
-      seen.add(dedupe);
-      variables.push({
-        name: row.name,
-        service: appService,
-        kind: 'literal',
-        description: row.description,
-        required: false,
-        filled: row.value,
-        value: row.value,
-        needsInput: false,
-        inheritFromHost: false,
-        rolledOnApply: false,
-        provisionedOnApply: false,
-      });
-    }
+    for (const row of seedVars) pushLiteral(row);
+  } else if (seed.industry !== 'none') {
+    pushLiteral({
+      name: 'DEMO_INDUSTRY',
+      value: seed.industry,
+      description: 'Industry slug for playbooks and agent context (no sample rows seeded).',
+    });
   }
 
   const sharedKeys = [...new Set(variables.filter((x) => x.service === 'shared').map((x) => x.name))];
@@ -2296,6 +2425,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     ownerEmail,
     ownerPhone,
     timezone,
+    client,
     seed,
     features,
     extras,

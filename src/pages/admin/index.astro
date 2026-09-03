@@ -25,6 +25,7 @@ import { ensureModuleAudienceLoaded, getModuleAudienceMap } from "../../lib/modu
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
 import { githubRepoSlug } from "../../lib/githubClient";
+import { ensureInstallBootstrap } from "../../lib/installBootstrap";
 import { ensureInstallSeed, shouldSeedOnBoot } from "../../lib/installSeed";
 import { ensureSeededInboxClearedOnLiveEmail } from "../../lib/seededInboxCleanup";
 import { resolveStaffMember } from "../../lib/staffAuth";
@@ -80,6 +81,7 @@ if (userId && !canAccessAdmin) {
 }
 if (isOwner) {
   void ensureOwnerProfileFromEnv(Astro);
+  void ensureInstallBootstrap();
 }
 if (isOwner && shouldSeedOnBoot()) {
   void ensureInstallSeed();

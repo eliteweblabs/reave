@@ -5,6 +5,7 @@
   const { MODULE_STATUS: STATUS, escHtml: esc, renderStatusLegend } = window.ModuleLoaderShared;
 
   const STEPS = [
+    { id: 'client', label: 'Client' },
     { id: 'modules', label: 'Modules' },
     { id: 'services', label: 'Services' },
     { id: 'variables', label: 'Variables' },
@@ -26,11 +27,23 @@
   let included = [];
   let extrasCatalog = [];
   let seedIndustries = [];
+  let client = {
+    tagline: '',
+    address: '',
+    supportEmail: '',
+    supportPhone: '',
+    brandPrimary: '',
+    brandSecondary: '',
+    logoUrl: '',
+    logoData: '',
+    logoMediaType: '',
+  };
   let seed = {
     industry: 'none',
-    inbox: true,
-    todos: true,
-    schedule: true,
+    inbox: false,
+    todos: false,
+    schedule: false,
+    knowledge: false,
     practiceAddress: '',
     courtGateMode: 'radius',
     courtRadiusMi: 60,
@@ -178,8 +191,8 @@
   }
 
   function placesEls() {
-    const input = root.querySelector('#dw-practice-address');
-    const list = root.querySelector('#dw-practice-address-list');
+    const input = root.querySelector('#dw-client-address');
+    const list = root.querySelector('#dw-client-address-list');
     if (!(input instanceof HTMLInputElement) || !(list instanceof HTMLElement)) return null;
     return { input, list };
   }
@@ -226,6 +239,7 @@
     const els = placesEls();
     if (!els) return;
     els.input.value = description;
+    client.address = description;
     seed.practiceAddress = description;
     hidePlacesList();
   }
@@ -268,7 +282,8 @@
     const els = placesEls();
     if (!els) return;
     els.input.addEventListener('input', () => {
-      seed.practiceAddress = els.input.value.trim();
+      client.address = els.input.value.trim();
+      seed.practiceAddress = client.address;
       placesHighlight = -1;
       schedulePlacesSearch();
     });
@@ -559,11 +574,7 @@
       `<div class="dw-identity-block">` +
       `<h2 class="dl-section-title">Install</h2>` +
       `<div class="dl-toolbar dw-identity">` +
-      `<label class="dl-field dw-field--wide">` +
-      `<span class="dl-field-label">Company name</span>` +
-      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="Dr Paws Calls" value="${esc(companyName)}" />` +
-      `</label>` +
-      `<p class="dl-meta">Install slug <code>${esc(slug)}</code> · staging host <code>${esc(slug)}.reave.app</code> — derived from the company name (config file <code>config-${esc(slug)}.json</code>).</p>` +
+      `<p class="dl-meta">Company name is on the Client step. Slug <code>${esc(slug)}</code> · config <code>config-${esc(slug)}.json</code>.</p>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Post name</span>` +
       `<input id="dw-post" class="dl-input" type="text" maxlength="32" placeholder="project" value="${esc(postAlias)}" />` +
@@ -627,13 +638,14 @@
   function renderModules() {
     const toggleCount = toggleableModules().length;
     const selectedCount = [...selectedIds].length;
+    const slug = derivedInstallSlug();
     return (
       renderIdentity() +
+      `<p class="dl-meta">Install slug <code>${esc(slug)}</code> · staging <code>${esc(slug)}.reave.app</code></p>` +
       `<div class="dl-toolbar-actions dw-module-actions">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
       `</div>` +
-      renderSeed() +
       `<p class="dl-meta">${included.length} core · ${selectedCount} modules selected</p>` +
       renderStatusLegend({ deployedLabel: 'Deployed' }) +
       `<div class="dl-sections">` +
@@ -761,9 +773,6 @@
     for (const extra of extras) {
       if (typeof extra === 'string') selectedExtras.add(extra);
     }
-    seed.inbox = playbook.seedInbox !== false;
-    seed.todos = playbook.seedTodos !== false;
-    seed.schedule = playbook.seedSchedule !== false;
     if (typeof playbook.postAlias === 'string' && playbook.postAlias.trim()) {
       postAlias = playbook.postAlias.trim();
     } else if ((industryId === 'law' || industryId === 'law-firm' || industryId === 'legal') && postAlias === 'project') {
@@ -771,9 +780,9 @@
     }
   }
 
-  function renderSeed() {
+  function renderClient() {
     const options = (seedIndustries.length ? seedIndustries : [
-      { id: 'none', label: 'No sample data' },
+      { id: 'none', label: 'No industry playbook' },
       { id: 'law', label: 'Law firm' },
       { id: 'plumbing', label: 'Plumbing' },
       { id: 'general', label: 'General contractor' },
@@ -783,24 +792,99 @@
         return `<option value="${esc(row.id)}"${selected}>${esc(row.label)}</option>`;
       })
       .join('');
-    const on = seed.industry !== 'none';
+    const sampleOn = seed.industry !== 'none';
+    const lawIndustry = seed.industry === 'law' || seed.industry === 'law-firm' || seed.industry === 'legal';
+    const logoPreview = client.logoData
+      ? `data:${client.logoMediaType || 'image/png'};base64,${client.logoData}`
+      : client.logoUrl || '';
     return (
-      `<section class="dl-section" data-section="seed">` +
-      `<h2 class="dl-section-title">Sample data</h2>` +
-      `<p class="dl-callout">Industry playbooks come from Admin → Industries — modules, extras, sample data, and notes. <strong>Law firm</strong> still adds court knowledge options; office address uses Google Places.</p>` +
-      (currentPlaybookNotes()
-        ? `<p class="dl-callout dw-playbook-notes">${esc(currentPlaybookNotes())}</p>`
-        : '') +
+      `<section class="dl-section" data-section="client">` +
+      `<h2 class="dl-section-title">Client setup</h2>` +
+      `<p class="dl-callout">Identity and branding apply on first sign-in — even when sample data is off. Pick an industry for playbooks and optional demo rows.</p>` +
       `<div class="dw-identity">` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Company name</span>` +
+      `<input id="dw-company" class="dl-input" type="text" maxlength="120" placeholder="Dr Paws Calls" value="${esc(companyName)}" />` +
+      `</label>` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Tagline</span>` +
+      `<input id="dw-tagline" class="dl-input" type="text" maxlength="240" placeholder="Short description for emails and the portal" value="${esc(client.tagline)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Support email</span>` +
+      `<input id="dw-support-email" class="dl-input" type="email" maxlength="254" placeholder="hello@client.com" value="${esc(client.supportEmail)}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Support phone</span>` +
+      `<input id="dw-support-phone" class="dl-input" type="tel" inputmode="tel" placeholder="+1 (555) 000-0000" value="${esc(formatOwnerPhone(client.supportPhone))}" />` +
+      `</label>` +
+      `<label class="dl-field dw-field--wide dw-places">` +
+      `<span class="dl-field-label">Office address</span>` +
+      `<input id="dw-client-address" class="dl-input" type="text" maxlength="200" placeholder="Start typing an address…" value="${esc(client.address || '')}" autocomplete="off" autocorrect="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dw-client-address-list" />` +
+      `<div id="dw-client-address-list" class="dw-places-list" hidden role="listbox"></div>` +
+      `</label>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Industry</span>` +
       `<select id="dw-seed-industry" class="dl-select">${options}</select>` +
       `</label>` +
       `</div>` +
-      ((seed.industry === 'law' || seed.industry === 'law-firm' || seed.industry === 'legal')
+      `<div class="dw-identity-block">` +
+      `<h2 class="dl-section-title">Branding</h2>` +
+      `<div class="dw-brand-row">` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Primary color</span>` +
+      `<input id="dw-brand-primary" class="dl-input dw-color-input" type="color" value="${esc(client.brandPrimary || '#6366f1')}" />` +
+      `</label>` +
+      `<label class="dl-field">` +
+      `<span class="dl-field-label">Secondary color</span>` +
+      `<input id="dw-brand-secondary" class="dl-input dw-color-input" type="color" value="${esc(client.brandSecondary || '#8b5cf6')}" />` +
+      `</label>` +
+      `</div>` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Logo URL</span>` +
+      `<input id="dw-logo-url" class="dl-input" type="url" maxlength="500" placeholder="https://…/logo.png" value="${esc(client.logoUrl)}" />` +
+      `</label>` +
+      `<label class="dl-field dw-field--wide">` +
+      `<span class="dl-field-label">Or upload logo</span>` +
+      `<input id="dw-logo-file" class="dl-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" />` +
+      `<span class="dl-meta">PNG/JPEG/WebP under ~150 KB. Stored on the install at first sign-in.</span>` +
+      (logoPreview
+        ? `<img class="dw-logo-preview" src="${logoPreview.startsWith('data:') ? logoPreview : esc(logoPreview)}" alt="" />`
+        : '') +
+      `</label>` +
+      `</div>` +
+      `<div class="dw-identity-block">` +
+      `<h2 class="dl-section-title">Sample data <span class="dl-meta">(optional)</span></h2>` +
+      (currentPlaybookNotes()
+        ? `<p class="dl-callout dw-playbook-notes">${esc(currentPlaybookNotes())}</p>`
+        : '') +
+      (sampleOn
+        ? `<div class="dw-extras">` +
+          [
+            ['inbox', 'Inbox', 'Sample client mail and notices'],
+            ['schedule', 'Calendar', 'Sample bookings and hearings'],
+            ['todos', 'Todos', 'Sample matters and deadlines'],
+            ['knowledge', 'Knowledge', 'Industry docs + law court gate'],
+          ]
+            .map(([key, label, blurb]) => {
+              const checked = Boolean(seed[key]);
+              return (
+                `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}" data-seed="${esc(key)}">` +
+                `<div class="dl-tile-body">` +
+                `<h3 class="dl-tile-label">${esc(label)}</h3>` +
+                `<p class="dl-tile-blurb">${esc(blurb)}</p>` +
+                `</div>` +
+                `<div class="dl-tile-foot">${renderSwitch(checked, key, 'data-seed-id')}</div>` +
+                `</article>`
+              );
+            })
+            .join('') +
+          `</div>`
+        : `<p class="dl-meta">Choose an industry above to enable optional sample rows.</p>`) +
+      (lawIndustry && seed.knowledge
         ? `<div class="dw-identity">` +
           `<label class="dl-field">` +
-          `<span class="dl-field-label">Knowledge aggregation</span>` +
+          `<span class="dl-field-label">Court knowledge gate</span>` +
           `<select id="dw-court-gate" class="dl-select">` +
           courtGateModes
             .map((row) => {
@@ -809,11 +893,6 @@
             })
             .join('') +
           `</select>` +
-          `</label>` +
-          `<label class="dl-field dw-places">` +
-          `<span class="dl-field-label">Office address</span>` +
-          `<input id="dw-practice-address" class="dl-input" type="text" maxlength="200" placeholder="Start typing an address…" value="${esc(seed.practiceAddress || '')}" autocomplete="off" autocorrect="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dw-practice-address-list" />` +
-          `<div id="dw-practice-address-list" class="dw-places-list" hidden role="listbox"></div>` +
           `</label>` +
           ((seed.courtGateMode || 'radius') === 'radius'
             ? `<label class="dl-field">` +
@@ -843,28 +922,7 @@
           `</label>` +
           `</div>`
         : '') +
-      (on
-        ? `<div class="dw-extras">` +
-          [
-            ['inbox', 'Inbox', 'Sample client mail, opposing counsel, and court notices'],
-            ['todos', 'Todos', 'Matters and deadlines for the next week'],
-            ['schedule', 'Schedule', 'Consults, closings, and hearings on the calendar'],
-          ]
-            .map(([key, label, blurb]) => {
-              const checked = Boolean(seed[key]);
-              return (
-                `<article class="dl-tile${checked ? ' dl-tile--selected' : ''}" data-seed="${esc(key)}">` +
-                `<div class="dl-tile-body">` +
-                `<h3 class="dl-tile-label">${esc(label)}</h3>` +
-                `<p class="dl-tile-blurb">${esc(blurb)}</p>` +
-                `</div>` +
-                `<div class="dl-tile-foot">${renderSwitch(checked, key, 'data-seed-id')}</div>` +
-                `</article>`
-              );
-            })
-            .join('') +
-          `</div>`
-        : '') +
+      `</div>` +
       `</section>`
     );
   }
@@ -998,7 +1056,7 @@
       `<div class="dw-nav">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-back"${step === 0 ? ' disabled' : ''}>Back</button>` +
       `<button type="button" class="dl-btn dl-btn--primary" id="dw-next"${step >= STEPS.length - 1 ? ' hidden' : ''}>` +
-      (step === 0 ? 'Continue to services' : step === 1 ? 'Continue to variables' : 'Review plan') +
+      (step === 0 ? 'Continue to modules' : step === 1 ? 'Continue to services' : step === 2 ? 'Continue to variables' : 'Review plan') +
       `</button>` +
       `</div>`
     );
@@ -1019,22 +1077,63 @@
             : '') +
           `</div>`
         : '') +
-      (step === 0 ? renderModules() : '') +
-      (step === 1 ? renderServices() : '') +
-      (step === 2 ? renderVariables() : '') +
-      (step === 3 ? renderReview() : '') +
+      (step === 0 ? renderClient() : '') +
+      (step === 1 ? renderModules() : '') +
+      (step === 2 ? renderServices() : '') +
+      (step === 3 ? renderVariables() : '') +
+      (step === 4 ? renderReview() : '') +
       renderNav() +
       `</div>`;
   }
 
+  function readClient() {
+    const companyEl = root.querySelector('#dw-company');
+    const taglineEl = root.querySelector('#dw-tagline');
+    const supportEmailEl = root.querySelector('#dw-support-email');
+    const supportPhoneEl = root.querySelector('#dw-support-phone');
+    const addrEl = root.querySelector('#dw-client-address');
+    const primaryEl = root.querySelector('#dw-brand-primary');
+    const secondaryEl = root.querySelector('#dw-brand-secondary');
+    const logoUrlEl = root.querySelector('#dw-logo-url');
+    const seedEl = root.querySelector('#dw-seed-industry');
+    const radiusEl = root.querySelector('#dw-court-radius');
+    const gateEl = root.querySelector('#dw-court-gate');
+    const areasEl = root.querySelector('#dw-practice-areas');
+
+    if (companyEl) companyName = companyEl.value.trim();
+    if (taglineEl) client.tagline = taglineEl.value.trim();
+    if (supportEmailEl) client.supportEmail = supportEmailEl.value.trim();
+    if (supportPhoneEl) client.supportPhone = formatOwnerPhone(supportPhoneEl.value.trim());
+    if (addrEl) {
+      client.address = addrEl.value.trim();
+      seed.practiceAddress = client.address;
+    }
+    if (primaryEl) client.brandPrimary = primaryEl.value.trim();
+    if (secondaryEl) client.brandSecondary = secondaryEl.value.trim();
+    if (logoUrlEl) client.logoUrl = logoUrlEl.value.trim();
+    if (seedEl) seed = { ...seed, industry: seedEl.value || 'none' };
+    if (gateEl) seed.courtGateMode = gateEl.value || 'radius';
+    if (radiusEl) {
+      const radius = Number(radiusEl.value);
+      seed.courtRadiusMi = Number.isFinite(radius) && radius > 0 ? radius : 60;
+    }
+    seed.courtCounties = readChecks('dw-court-counties');
+    seed.courtStates = readChecks('dw-court-states');
+    if (areasEl) {
+      seed.practiceAreas = readChecks('dw-practice-areas');
+      seed.practiceArea = seed.practiceAreas[0] || 'bankruptcy';
+    }
+    syncInstallSlug();
+  }
+
   function readIdentity() {
+    readClient();
     const domainEl = root.querySelector('#dw-domain');
     const dnsEl = root.querySelector('#dw-dns-access');
     const namecomUserEl = root.querySelector('#dw-namecom-user');
     const namecomTokenEl = root.querySelector('#dw-namecom-token');
     const godaddyTokenEl = root.querySelector('#dw-godaddy-token');
     const postEl = root.querySelector('#dw-post');
-    const companyEl = root.querySelector('#dw-company');
     const adminEl = root.querySelector('#dw-admin');
     const ownerFirstEl = root.querySelector('#dw-owner-first');
     const ownerLastEl = root.querySelector('#dw-owner-last');
@@ -1053,7 +1152,6 @@
     if (namecomTokenEl) namecomToken = namecomTokenEl.value.trim();
     if (godaddyTokenEl) godaddyToken = godaddyTokenEl.value.trim();
     if (postEl) postAlias = postEl.value.trim() || 'project';
-    if (companyEl) companyName = companyEl.value.trim();
     if (adminEl) adminUsername = adminEl.value.trim();
     if (ownerFirstEl) ownerFirstName = ownerFirstEl.value.trim();
     if (ownerLastEl) ownerLastName = ownerLastEl.value.trim();
@@ -1065,26 +1163,6 @@
     const projectNameEl = root.querySelector('#dw-project-name');
     if (projectNameEl) projectName = projectNameEl.value.trim();
     if (envEl) environment = envEl.value.trim() || 'production';
-    const seedEl = root.querySelector('#dw-seed-industry');
-    if (seedEl) seed = { ...seed, industry: seedEl.value || 'none' };
-    const addrEl = root.querySelector('#dw-practice-address');
-    const radiusEl = root.querySelector('#dw-court-radius');
-    const countiesEl = root.querySelector('#dw-court-counties');
-    const statesEl = root.querySelector('#dw-court-states');
-    const areasEl = root.querySelector('#dw-practice-areas');
-    const gateEl = root.querySelector('#dw-court-gate');
-    if (addrEl) seed.practiceAddress = addrEl.value.trim();
-    if (gateEl) seed.courtGateMode = gateEl.value || 'radius';
-    if (radiusEl) {
-      const radius = Number(radiusEl.value);
-      seed.courtRadiusMi = Number.isFinite(radius) && radius > 0 ? radius : 60;
-    }
-    if (countiesEl) seed.courtCounties = readChecks('dw-court-counties');
-    if (statesEl) seed.courtStates = readChecks('dw-court-states');
-    if (areasEl) {
-      seed.practiceAreas = readChecks('dw-practice-areas');
-      seed.practiceArea = seed.practiceAreas[0] || 'bankruptcy';
-    }
     syncInstallSlug();
   }
 
@@ -1120,6 +1198,7 @@
         ownerPhone,
         timezone,
         seed,
+        client,
         values,
       }),
     });
@@ -1158,7 +1237,7 @@
     readIdentity();
     readVarInputs();
     error = '';
-    if (step === 0 || step === 1 || step === 2) {
+    if (step === 0 || step === 1 || step === 2 || step === 3) {
       try {
         await fetchPlan();
       } catch (e) {
@@ -1252,6 +1331,7 @@
           ownerPhone,
           timezone,
           seed,
+          client,
           project,
           projectName,
           environment,
@@ -1424,21 +1504,21 @@
     });
     root.querySelector('#dw-godaddy-token')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 0) {
+      if (step === 1) {
         render();
         bind();
       }
     });
     root.querySelector('#dw-namecom-user')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 0) {
+      if (step === 1) {
         render();
         bind();
       }
     });
     root.querySelector('#dw-namecom-token')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 0) {
+      if (step === 1) {
         render();
         bind();
       }
@@ -1455,14 +1535,14 @@
     });
     root.querySelector('#dw-domain')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 0) {
+      if (step === 1) {
         render();
         bind();
       }
     });
     root.querySelector('#dw-domain')?.addEventListener('change', () => {
       readIdentity();
-      if (step === 1) void goNextFromExtras();
+      if (step === 2) void goNextFromExtras();
     });
     root.querySelector('#dw-copy')?.addEventListener('click', async () => {
       const text = root.querySelector('#dw-cli')?.value || cli;
@@ -1475,7 +1555,6 @@
     root.querySelector('#dw-apply')?.addEventListener('click', () => {
       void applyPlan();
     });
-    bindPlacesAddress();
     const ownerPhoneEl = root.querySelector('#dw-owner-phone');
     if (ownerPhoneEl instanceof HTMLInputElement) {
       ownerPhoneEl.addEventListener('input', () => {
@@ -1498,6 +1577,30 @@
       applyIndustryPlaybook(seed.industry);
       render();
       bind();
+    });
+    bindPlacesAddress();
+    root.querySelector('#dw-logo-file')?.addEventListener('change', (ev) => {
+      const file = ev.target.files?.[0];
+      if (!file) return;
+      if (file.size > 180_000) {
+        error = 'Logo must be under ~150 KB.';
+        render();
+        bind();
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        const match = /^data:([^;]+);base64,(.+)$/.exec(result);
+        if (!match) return;
+        client.logoMediaType = match[1];
+        client.logoData = match[2];
+        client.logoUrl = '';
+        error = '';
+        render();
+        bind();
+      };
+      reader.readAsDataURL(file);
     });
     root.querySelectorAll('[data-seed-id]').forEach((btn) => {
       btn.addEventListener('click', (e) => {

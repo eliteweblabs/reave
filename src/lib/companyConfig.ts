@@ -505,7 +505,10 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   const geo = resolveCompanyGeo(stored);
   const fonts = resolveBrandFonts(stored);
   const emailFont = normalizeEmailFontId(stored?.emailFont);
-  const brandColors = resolveCompanyBrandColors(stored?.brandPrimary, stored?.brandSecondary);
+  const brandColors = resolveCompanyBrandColors(
+    pick(stored?.brandPrimary, serverEnv('COMPANY_BRAND_PRIMARY')),
+    pick(stored?.brandSecondary, serverEnv('COMPANY_BRAND_SECONDARY')),
+  );
   const vapiAssistantId = pick(
     stored?.vapiAssistantId,
     serverEnv('VAPI_ASSISTANT_ID'),

@@ -290,6 +290,22 @@ interface ImportMetaEnv {
   CALENDAR_REMINDERS_ENABLED?: string;
   /** Default job-site address when callers omit one (optional). Also the Mapbox office pin for the court gate. */
   BOOKING_DEFAULT_ADDRESS?: string;
+  /** Duplicate of office address for company bootstrap. */
+  COMPANY_ADDRESS?: string;
+  COMPANY_DESCRIPTION?: string;
+  COMPANY_SUPPORT_EMAIL?: string;
+  COMPANY_SUPPORT_PHONE?: string;
+  COMPANY_BRAND_PRIMARY?: string;
+  COMPANY_BRAND_SECONDARY?: string;
+  INSTALL_BOOTSTRAP?: string;
+  INSTALL_LOGO_DATA?: string;
+  INSTALL_LOGO_MEDIA_TYPE?: string;
+  SEED_KNOWLEDGE?: string;
+  SEED_INBOX?: string;
+  SEED_TODOS?: string;
+  SEED_SCHEDULE?: string;
+  SEED_ON_BOOT?: string;
+  DEMO_INDUSTRY?: string;
   /** Miles from the Mapbox office pin used to pull courthouses (law installs). */
   COURT_RADIUS_MI?: string;
   /** Comma-separated counties for the court gate (law installs). */

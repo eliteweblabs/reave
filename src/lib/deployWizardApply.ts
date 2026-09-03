@@ -77,6 +77,7 @@ export async function planFromGithubAppApply(
     ownerPhone: apply.ownerPhone,
     timezone: apply.timezone,
     seed: apply.seed,
+    client: apply.client,
   });
 }
 

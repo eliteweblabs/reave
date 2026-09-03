@@ -374,7 +374,7 @@ assert.equal(anthropicKeySourceForApply('', ''), '');
 
 const lawSeed = buildDeployWizardPlan({
   features: ['website'],
-  seed: { industry: 'law', inbox: true, todos: true, schedule: true },
+  seed: { industry: 'law', inbox: true, todos: true, schedule: true, knowledge: true },
 });
 assert.equal(lawSeed.seed.industry, 'law');
 assert.equal(isDeployWizardSeedIndustryId('salon'), true);
@@ -516,6 +516,25 @@ assert.equal(lawSeed.variables.find((v) => v.name === 'COURT_RADIUS_MI')?.filled
 assert.equal(lawSeed.variables.find((v) => v.name === 'PRACTICE_AREA')?.filled, 'bankruptcy');
 assert.equal(lawSeed.variables.find((v) => v.name === 'COURT_GATE_MODE')?.filled, 'radius');
 assert.equal(lawSeed.variables.find((v) => v.name === 'BOOKING_DEFAULT_ADDRESS'), undefined);
+assert.equal(lawSeed.variables.find((v) => v.name === 'SEED_KNOWLEDGE')?.filled, '0');
+
+const clientBootstrap = buildDeployWizardPlan({
+  features: ['website'],
+  companyName: 'Acme Law',
+  client: {
+    address: '1 Main St, Boston, MA',
+    supportEmail: 'hello@acme.test',
+    supportPhone: '+16175550100',
+    brandPrimary: '#112233',
+    brandSecondary: '#445566',
+    tagline: 'Boston attorneys',
+  },
+});
+assert.equal(clientBootstrap.variables.find((v) => v.name === 'INSTALL_BOOTSTRAP')?.filled, '1');
+assert.equal(clientBootstrap.variables.find((v) => v.name === 'BOOKING_DEFAULT_ADDRESS')?.filled, '1 Main St, Boston, MA');
+assert.equal(clientBootstrap.variables.find((v) => v.name === 'COMPANY_SUPPORT_EMAIL')?.filled, 'hello@acme.test');
+assert.equal(clientBootstrap.variables.find((v) => v.name === 'COMPANY_BRAND_PRIMARY')?.filled, '#112233');
+
 const lawPin = buildDeployWizardPlan({
   features: ['website'],
   seed: {
@@ -523,6 +542,7 @@ const lawPin = buildDeployWizardPlan({
     inbox: true,
     todos: true,
     schedule: true,
+    knowledge: true,
     practiceAddress: '123 Cabot St, Beverly, MA 01915',
     courtGateMode: 'counties',
     courtRadiusMi: 60,

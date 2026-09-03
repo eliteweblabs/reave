@@ -4,6 +4,7 @@
  */
 import { getDemoSetupStatus, isDemoMode } from './demoMode';
 import { runDemoSeed } from './demoSeedRunner';
+import { ensureInstallBootstrap } from './installBootstrap';
 import { isEmailApiConfigured, ensureSeededInboxClearedOnLiveEmail } from './seededInboxCleanup';
 import { seedIndustryKnowledge } from './seedIndustryKnowledge';
 import { serverEnv } from './serverEnv';
@@ -17,21 +18,40 @@ export function installSeedIndustry(): string {
   return serverEnv('DEMO_INDUSTRY')?.trim() || 'general';
 }
 
-function envOn(name: string, fallback = true): boolean {
+function envOn(name: string, fallback = false): boolean {
   const raw = serverEnv(name)?.trim().toLowerCase();
   if (!raw) return fallback;
-  return raw !== '0' && raw !== 'false' && raw !== 'no';
+  return raw === '1' || raw === 'true' || raw === 'yes';
+}
+
+function wantsSampleDataSeed(): boolean {
+  if (!shouldSeedOnBoot()) return false;
+  return (
+    envOn('SEED_INBOX') ||
+    envOn('SEED_TODOS') ||
+    envOn('SEED_SCHEDULE') ||
+    envOn('SEED_KNOWLEDGE')
+  );
 }
 
 let running: Promise<{ ok: boolean; detail: string }> | null = null;
 
 export async function ensureInstallSeed(): Promise<{ ok: boolean; detail: string; skipped?: boolean }> {
+  await ensureInstallBootstrap().catch((e) => console.warn('[install-bootstrap] failed', e));
+
   if (!shouldSeedOnBoot()) return { ok: true, skipped: true, detail: 'SEED_ON_BOOT is off' };
+  if (!wantsSampleDataSeed()) {
+    return { ok: true, skipped: true, detail: 'Sample seed toggles are off' };
+  }
   if (running) return running;
 
   running = (async () => {
     const industry = installSeedIndustry();
-    const knowledge = await seedIndustryKnowledge(industry);
+    let knowledgeDetail = 'Knowledge seed skipped';
+    if (envOn('SEED_KNOWLEDGE')) {
+      const knowledge = await seedIndustryKnowledge(industry);
+      knowledgeDetail = knowledge.detail;
+    }
 
     const status = await getDemoSetupStatus();
     if (status.seeded) {
@@ -41,29 +61,29 @@ export async function ensureInstallSeed(): Promise<{ ok: boolean; detail: string
       return {
         ok: true,
         skipped: true,
-        detail: knowledge.seeded.length
-          ? `Sample data already present; ${knowledge.detail}`
-          : 'Sample data already present',
+        detail: `Sample data already present. ${knowledgeDetail}`,
       };
     }
     if (!status.checks.find((c) => c.id === 'database')?.ok) {
       return { ok: false, detail: 'DATABASE_URL is not ready for sample data' };
     }
 
-    const skipInbox =
-      !envOn('SEED_INBOX', true) || (isEmailApiConfigured() && !isDemoMode());
+    const skipInbox = !envOn('SEED_INBOX') || (isEmailApiConfigured() && !isDemoMode());
     const result = runDemoSeed({
       industry,
-      withBookings: envOn('SEED_SCHEDULE', true),
+      withBookings: envOn('SEED_SCHEDULE'),
       skipInbox,
-      skipTodos: !envOn('SEED_TODOS', true),
-      skipSchedule: !envOn('SEED_SCHEDULE', true),
+      skipTodos: !envOn('SEED_TODOS'),
+      skipSchedule: !envOn('SEED_SCHEDULE'),
     });
     if (!result.ok) return { ok: false, detail: result.error };
     await ensureSeededInboxClearedOnLiveEmail().catch((e) =>
       console.warn('[install-seed] seeded inbox cleanup failed', e),
     );
-    return { ok: true, detail: `Seeded ${industry} sample data. ${knowledge.detail}` };
+    return {
+      ok: true,
+      detail: `Seeded ${industry} sample data. ${knowledgeDetail}`,
+    };
   })();
 
   try {
