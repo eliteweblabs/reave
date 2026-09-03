@@ -1050,33 +1050,36 @@ let chatState = {
   paneLoading: false,
 };
 
-let agentChatBundlePromise = null;
-let agentChatBundleBlockedUntil = 0;
+let agentChatApiPromise = null;
 
-function loadAgentChatBundle() {
+/** Wait for the Vite-built agent-chat-mount module (script tag in AdminBootScripts). */
+function waitForAgentChatApi() {
   if (window.__reaveAgentChat) return Promise.resolve();
-  if (Date.now() < agentChatBundleBlockedUntil) {
-    return Promise.reject(new Error('Chat UI loading paused — retrying shortly'));
-  }
-  if (agentChatBundlePromise) return agentChatBundlePromise;
-  const url = window.__reaveAgentChatMountUrl;
-  if (!url) {
-    return Promise.reject(new Error('Agent chat bundle URL missing — hard-refresh the page'));
-  }
-  agentChatBundlePromise = traceAsync('chat:load-react-bundle', () =>
-    import(/* @vite-ignore */ url).then(() => {
-      if (!window.__reaveAgentChat) {
-        throw new Error('Agent chat API missing after bundle load');
-      }
-      noteAdminNetworkSuccess();
+  if (agentChatApiPromise) return agentChatApiPromise;
+  agentChatApiPromise = traceAsync('chat:wait-react-api', () =>
+    new Promise((resolve, reject) => {
+      const started = performance.now();
+      const tick = () => {
+        if (window.__reaveAgentChat) {
+          noteAdminNetworkSuccess();
+          resolve(undefined);
+          return;
+        }
+        if (performance.now() - started > 30_000) {
+          agentChatApiPromise = null;
+          reject(new Error('Session UI failed to load. Hard-refresh the page.'));
+          return;
+        }
+        requestAnimationFrame(tick);
+      };
+      tick();
     }),
   ).catch((e) => {
-    agentChatBundlePromise = null;
+    agentChatApiPromise = null;
     noteAdminNetworkFailure(e);
-    agentChatBundleBlockedUntil = Date.now() + 15_000;
     throw e;
   });
-  return agentChatBundlePromise;
+  return agentChatApiPromise;
 }
 
 /**
@@ -1292,7 +1295,7 @@ async function loadChatsTab(opts = {}) {
     return;
   }
 
-  const bundleP = loadAgentChatBundle().catch(() => undefined);
+  const bundleP = waitForAgentChatApi().catch(() => undefined);
   const iconsP = traceAsync('chat:author-icons', () => ensureContactAuthorIconsReady());
 
   // Fix #1: when returning to the Chats tab and the live React chat tree is
@@ -2137,7 +2140,7 @@ function mountChatThreadRoot(threadHost) {
 async function mountChatThreadRootAsync(threadHost) {
   if (chatState.paneLoading) return;
   try {
-    await loadAgentChatBundle();
+    await waitForAgentChatApi();
   } catch (e) {
     threadHost.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     disarmComposerKeyboardBridge();
@@ -2247,7 +2250,7 @@ async function startNewChat(opts = {}) {
     chatState.disposableChatId = opts.disposable === false ? null : thread.id;
     rememberChatActiveId(thread.id);
     chatState.paneLoading = false;
-    await loadAgentChatBundle();
+    await waitForAgentChatApi();
     renderChatPanel();
   } catch (e) {
     disarmComposerKeyboardBridge();

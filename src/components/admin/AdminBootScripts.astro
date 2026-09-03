@@ -24,8 +24,6 @@ const {
 const deployStatusClient = getDeployStatusClientSummary();
 /** public/ scripts bypass middleware, so the ?v= token is their only cache bust. */
 const assetVersion = __PUBLIC_ASSET_VERSION__;
-/** Deferred until the chats tab loads — keeps ~500KB React off the critical admin boot path. */
-import agentChatMountUrl from "../../admin/agent-chat-mount.tsx?url";
 ---
 
 <script is:inline>
@@ -66,8 +64,8 @@ import agentChatMountUrl from "../../admin/agent-chat-mount.tsx?url";
     });
   })();
 </script>
-<script is:inline define:vars={{ agentChatMountUrl }}>
-  window.__reaveAgentChatMountUrl = agentChatMountUrl;
+<script>
+  import '../../admin/agent-chat-mount.tsx';
 </script>
 <script is:inline type="module" src={`/admin/perf-trace.js?v=${assetVersion}`}></script>
 <script is:inline type="module" src={`/admin/push-client.js?v=${assetVersion}`}></script>
