@@ -18,7 +18,10 @@ import {
 } from './salesSheetDirectories';
 import { IPHONE_FRAME_SRC, isPlacesMissFinding } from './salesSheetPlacesView';
 import { dummyPsiMobile, renderPsiMobileHtml, type PsiMobileCard } from './salesSheetPsi';
-import type { LetterGrade } from './auditReportCard';
+import {
+  summarizeEntityContinuity,
+  type EntityContinuityResult,
+} from './entityContinuity';
 import { salesSheetPreparedStat, type SalesSheetFinding, type SalesSheetHeroStat } from './auditSalesSheet';
 
 export type SalesSheetExhibitKind =
@@ -49,6 +52,8 @@ export type SalesSheetExhibitOpts = {
   listedDirectories?: readonly string[];
   /** Live site-link + name-search verdicts for the industry icon group. */
   directoryChecks?: DirectoryCheck[];
+  /** SEO entity graph score — NAP, sameAs, GBP↔site, cross-links. */
+  entityContinuity?: EntityContinuityResult;
   /** Which 24-icon pack to draw. Only `general` ships today. */
   directoryIconGroup?: string | null;
   /** Live PageSpeed Insights mobile card for the Site Speed exhibit. */
@@ -305,6 +310,51 @@ function iphoneCss(): string {
   min-height: 0;
   box-sizing: border-box;
   padding: 0 5px 8%;
+}
+.ss-phone-entity {
+  flex: 0 0 auto;
+  margin: 0 0 3px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 0.5px solid #e5e5ea;
+}
+.ss-phone-entity-title {
+  margin: 0 0 2px;
+  font-size: 5.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: #1d1d1f;
+}
+.ss-phone-entity-overall {
+  font-weight: 650;
+  color: #007aff;
+}
+.ss-phone-entity-row {
+  display: flex;
+  gap: 3px;
+  align-items: flex-start;
+  margin: 1px 0;
+}
+.ss-phone-entity-grade {
+  flex: 0 0 auto;
+  width: 8px;
+  font-size: 5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #1d1d1f;
+}
+.ss-phone-entity-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 4.5px;
+  line-height: 1.25;
+  color: #3a3a3c;
+}
+.ss-phone-entity-copy strong {
+  font-weight: 650;
+  color: #1d1d1f;
 }
 .ss-phone-h {
   margin: 0 0 4px;
@@ -1155,6 +1205,27 @@ function directoryLegendHtml(): string {
   ).join('')}</div>`;
 }
 
+function continuityPillarHtml(
+  label: string,
+  pillar: { grade: string; score: number; summary: string },
+): string {
+  const grade = escapeHtml(pillar.grade);
+  return `<div class="ss-phone-entity-row" data-grade="${grade}">
+    <span class="ss-phone-entity-grade">${grade}</span>
+    <span class="ss-phone-entity-copy"><strong>${escapeHtml(label)}</strong> ${escapeHtml(pillar.summary)}</span>
+  </div>`;
+}
+
+function entityContinuityHeaderHtml(result: EntityContinuityResult): string {
+  return `<div class="ss-phone-entity" aria-label="Entity continuity">
+    <p class="ss-phone-entity-title">Brand continuity <span class="ss-phone-entity-overall">${escapeHtml(result.overall.grade)} · ${result.overall.score}</span></p>
+    ${continuityPillarHtml('NAP', result.nap)}
+    ${continuityPillarHtml('GBP ↔ site', result.gbpSite)}
+    ${continuityPillarHtml('Profiles', result.crossLinks)}
+    ${continuityPillarHtml('Schema sameAs', result.sameAs)}
+  </div>`;
+}
+
 function directoriesScreen(_host: string, finding: SalesSheetFinding, opts: SalesSheetExhibitOpts): string {
   const slugs = directorySlugsForGroup(opts.directoryIconGroup);
   const checks =
@@ -1168,7 +1239,9 @@ function directoriesScreen(_host: string, finding: SalesSheetFinding, opts: Sale
           }),
           slugs,
         );
+  const continuity = opts.entityContinuity ? entityContinuityHeaderHtml(opts.entityContinuity) : '';
   return `<div class="ss-phone-body">
+      ${continuity}
       <div class="ss-phone-dirs" data-icon-group="${escapeHtml(opts.directoryIconGroup || 'general')}">${checks.map(directoryTileHtml).join('')}</div>
     </div>`;
 }
@@ -1318,6 +1391,7 @@ export function renderPortalDirectoriesExhibitHtml(opts: {
   directoryChecks: DirectoryCheck[];
   website?: string;
   businessName?: string;
+  entityContinuity?: EntityContinuityResult;
   /** @deprecated Ignored — portal no longer uses the iPhone frame. */
   frameSrc?: string;
   directoryIconGroup?: string | null;
@@ -1325,7 +1399,9 @@ export function renderPortalDirectoriesExhibitHtml(opts: {
   const finding: SalesSheetFinding = {
     id: DIRECTORY_COVERAGE_FINDING.id,
     categoryLabel: DIRECTORY_COVERAGE_FINDING.categoryLabel,
-    problem: summarizeDirectoryChecks(opts.directoryChecks),
+    problem: opts.entityContinuity
+      ? summarizeEntityContinuity(opts.entityContinuity)
+      : summarizeDirectoryChecks(opts.directoryChecks),
     solution: DIRECTORY_COVERAGE_FINDING.solution,
   };
   const slugs = directorySlugsForGroup(opts.directoryIconGroup);

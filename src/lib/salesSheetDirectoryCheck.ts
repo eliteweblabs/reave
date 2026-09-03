@@ -24,6 +24,8 @@ const DIRECTORY_SITES =
 export async function checkDirectoryCoverage(opts: {
   website?: string;
   businessName?: string;
+  /** Practitioner / owner — also searched on social sites (personal LinkedIn, etc.). */
+  ownerName?: string;
   googlePlacesListed?: boolean | null;
   html?: string;
   pageUrl?: string;
@@ -31,6 +33,7 @@ export async function checkDirectoryCoverage(opts: {
   search?: (query: string) => Promise<BraveSearchResult[]>;
 }): Promise<DirectoryCheck[]> {
   const name = (opts.businessName || '').trim();
+  const ownerName = (opts.ownerName || '').trim();
   let html = opts.html || '';
   let pageUrl = opts.pageUrl || '';
   const website = (opts.website || '').trim();
@@ -68,11 +71,18 @@ export async function checkDirectoryCoverage(opts: {
           return res.ok ? res.results : [];
         };
     const queries = [`"${name}" (${SOCIAL_SITES})`, `"${name}" (${DIRECTORY_SITES})`];
+    if (ownerName && ownerName.toLowerCase() !== name.toLowerCase()) {
+      queries.unshift(`"${ownerName}" (${SOCIAL_SITES})`);
+    }
     const rows = (await Promise.all(queries.map((q) => run(q).catch(() => [] as BraveSearchResult[])))).flat();
     for (const row of rows) {
       const slug = slugFromProfileUrl(row.url);
       if (!slug || linked.has(slug)) continue;
-      if (profileLooksLikeBusiness(row, stems, name)) found.add(slug);
+      const blob = `${row.title || ''} ${row.url || ''} ${row.description || ''}`.toLowerCase();
+      const ownerHit =
+        ownerName.length >= 3 &&
+        blob.includes(ownerName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim());
+      if (profileLooksLikeBusiness(row, stems, name) || ownerHit) found.add(slug);
     }
   }
 

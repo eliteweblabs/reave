@@ -139,8 +139,10 @@ export type DirectoryCoverageOpts = {
 export const DIRECTORY_COVERAGE_FINDING = {
   id: 'directories',
   categoryLabel: 'Directories',
-  problem: 'Most of the places customers look still have no listing — or no link from the website.',
-  solution: 'Link every live profile from the site, then claim the rest so a name search finds you.',
+  problem:
+    'Brand continuity is weak — NAP, Google Business Profile, schema sameAs, or profile links do not corroborate the same entity.',
+  solution:
+    'Align name, address, and phone everywhere; add LocalBusiness schema with sameAs; link every official profile from the site.',
 };
 
 export function isDirectoryCoverageFinding(finding: { id?: string; categoryLabel?: string }): boolean {

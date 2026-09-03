@@ -74,10 +74,9 @@ import {
   directoryIconGroupById,
   parseDirectoryIconGroup,
   pinDirectoryCoverageFirst,
-  summarizeDirectoryChecks,
 } from '../../lib/salesSheetDirectories';
-import { checkDirectoryCoverage } from '../../lib/salesSheetDirectoryCheck';
 import { isSocialCoveredByDirectories } from '../../lib/salesSheetCascade';
+import { scoreEntityContinuity, summarizeEntityContinuity } from '../../lib/entityContinuity';
 
 const { userId } = Astro.locals.auth();
 if (!userId) {
@@ -180,6 +179,15 @@ const near =
 const category = (params.get('category') || '').trim();
 const placesQuery = (input.contact.company || input.contact.name || '').trim();
 const businessName = (input.contact.company || input.contact.name || '').trim();
+const ownerName =
+  input.contact.company &&
+  input.contact.name &&
+  input.contact.company.trim().toLowerCase() !== input.contact.name.trim().toLowerCase()
+    ? input.contact.name.trim()
+    : '';
+const contactPhone = (input.contact.phone || contactPortal?.fields?.find((f) => /^phone$/i.test(f.label || ''))?.value || '').trim();
+const contactAddress = (contactPortal?.address || '').trim();
+const placeId = contactPortal?.geo?.placeId || contactPortal?.placesListing?.placeId || '';
 
 if (!selectedAudit) logRender('Dummy fixture');
 if (wantBadLogo) logRender('Bad logo callout on');
@@ -309,7 +317,8 @@ if (!shotNote) shotNote = 'Four iPhone exhibits from the top cascade hits.';
 logRender(`Four phones: ${findings.map((f) => `${f.categoryLabel} (${f.id})`).join(', ') || '(none)'}`);
 logRender(`Icon group: ${iconGroupMeta.label}`);
 
-let directoryChecks = undefined as Awaited<ReturnType<typeof checkDirectoryCoverage>> | undefined;
+let directoryChecks = undefined as Awaited<ReturnType<typeof scoreEntityContinuity>>['crossLinks']['checks'] | undefined;
+let entityContinuity = undefined as Awaited<ReturnType<typeof scoreEntityContinuity>> | undefined;
 let speedPsi: PsiMobileCard | undefined;
 const skipPsi = params.get('psi') === '0';
 const hasSpeedExhibit = findings.some((finding) => salesSheetExhibitKind(finding) === 'speed');
@@ -319,11 +328,15 @@ const siteLooksLive =
   !/^https?:\/\/(?:localhost|127\.0\.0\.1)\b/i.test(input.website);
 
 if (input.website.trim()) {
-  logRender(`Checking directory links on ${input.website}…`);
-  const dirPromise = checkDirectoryCoverage({
+  logRender(`Checking entity continuity on ${input.website}…`);
+  const continuityPromise = scoreEntityContinuity({
     website: input.website,
     businessName,
+    ownerName,
+    contactPhone,
+    contactAddress,
     googlePlacesListed: !notListed,
+    placeId,
     iconGroup,
   });
   const psiPromise =
@@ -335,9 +348,10 @@ if (input.website.trim()) {
           error: e instanceof Error ? e.message : String(e),
         }))
       : Promise.resolve(null);
-  const [dirResult, psiResult] = await Promise.all([dirPromise, psiPromise]);
-  directoryChecks = dirResult;
-  const summary = summarizeDirectoryChecks(directoryChecks);
+  const [continuityResult, psiResult] = await Promise.all([continuityPromise, psiPromise]);
+  entityContinuity = continuityResult;
+  directoryChecks = continuityResult.crossLinks.checks;
+  const summary = summarizeEntityContinuity(continuityResult);
   findings = findings.map((finding) =>
     salesSheetExhibitKind(finding) === 'directories' ? { ...finding, problem: summary } : finding,
   );
@@ -376,6 +390,7 @@ const exhibitPhones = findings.map((finding) => {
     googlePlacesListed: !notListed,
     directoryNotes,
     directoryChecks: kind === 'directories' ? directoryChecks : undefined,
+    entityContinuity: kind === 'directories' ? entityContinuity : undefined,
     directoryIconGroup: iconGroup,
     psi: kind === 'speed' ? speedPsi : undefined,
   });
