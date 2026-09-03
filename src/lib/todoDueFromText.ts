@@ -152,6 +152,11 @@ function ymd(date: CivilDate): string {
   return `${date.y}-${String(date.m).padStart(2, '0')}-${String(date.d).padStart(2, '0')}`;
 }
 
+/** Owner-local calendar date for Siri defaults (dashboard "Today" list requires a due date). */
+export function todayYmdInTimeZone(timeZone: string, now = new Date()): string {
+  return ymd(zonedNow(now, timeZone.trim() || DEFAULT_TZ));
+}
+
 function monthNumber(raw: string): number | null {
   const n = MONTHS[raw.toLowerCase().replace(/\.$/, '')];
   return n ?? null;

@@ -21,7 +21,8 @@
  * - status: { action: "status" } — quick health check
  * - add_todo / create_todo: { action: "add_todo", title: string, due_date?, priority? }
  *   Title is scanned for a spoken date/time (tomorrow, Friday at 3, August 15, …)
- *   and that value is stored as due_date when due_date is omitted.
+ *   and that value is stored as due_date when due_date is omitted. With no date found,
+ *   defaults to due today. Priority defaults to urgent (explicit priority still wins).
  * - list_todos: { action: "list_todos", status?, priority?, limit? }
  * - update_todo: { action: "update_todo", id? | title?, title?, due_date?, priority?, status? }
  * - complete_todo / done_todo / mark_todo_done: { action: "complete_todo", id? | title? }
@@ -106,6 +107,7 @@ import {
   extractTodoDueFromText,
   formatSiriTodoDue,
   isStructuredTodoDue,
+  todayYmdInTimeZone,
 } from '../../../lib/todoDueFromText';
 import { jsonResponse } from '../../../lib/apiResponse';
 
@@ -832,7 +834,7 @@ async function handleAddTodo(
   const priorityRaw = String(params.priority ?? '').trim().toLowerCase();
   const priority = priorityRaw
     ? normalizeTodoPriority(priorityRaw)
-    : ('normal' as TodoPriority);
+    : ('urgent' as TodoPriority);
   if (priorityRaw && !priority) {
     return { ok: false, error: 'invalid priority', text: 'Priority must be low, normal, high, or urgent.' };
   }
@@ -853,6 +855,9 @@ async function handleAddTodo(
       title = extracted.title;
       due_date = extracted.due_date;
     }
+  }
+  if (!due_date) {
+    due_date = todayYmdInTimeZone(timeZone);
   }
 
   const result = await storeCreateTodo({

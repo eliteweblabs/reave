@@ -385,7 +385,7 @@ Client: Acme Corp
 **Parameters**:
 - `title` (required): Task text. Aliases: `todo`, `text`, `query`. Dates and times in the title (`tomorrow`, `Friday at 3`, `August 15`) are parsed automatically and stripped from the stored title.
 - `due_date` (optional): Deadline (`YYYY-MM-DD` or ISO). Alias: `due`. Spoken values like `tomorrow` also work. An explicit `due_date` wins over a date found in the title.
-- `priority` (optional): `low`, `normal`, `high`, `urgent` (default: `normal`)
+- `priority` (optional): `low`, `normal`, `high`, `urgent` (default: `urgent` for Siri — surfaces on the dashboard home)
 
 **Also accepts**: `"action": "create_todo"`
 
@@ -395,7 +395,9 @@ Client: Acme Corp
 Added to-do: Call the accountant about Q2 taxes · high · due Aug 15
 ```
 
-Dictating `"Call the plumber tomorrow at 3"` stores title `Call the plumber` due tomorrow at 3 PM (owner time zone) and replies `Added to-do: Call the plumber · due tomorrow at 3 PM`.
+Dictating `"Call the plumber tomorrow at 3"` stores title `Call the plumber` due tomorrow at 3 PM (owner time zone) and replies `Added to-do: Call the plumber · urgent · due tomorrow at 3 PM`.
+
+With no date in the title or `due_date`, Siri stores the item as **urgent** and **due today** so it appears on the dashboard home.
 
 **Siri phrase**: "add a to-do" or "new to-do"
 

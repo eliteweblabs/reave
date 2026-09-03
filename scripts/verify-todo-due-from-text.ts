@@ -7,6 +7,7 @@ import {
   extractTodoDueFromText,
   formatSiriTodoDue,
   isStructuredTodoDue,
+  todayYmdInTimeZone,
   zonedLocalToIso,
 } from '../src/lib/todoDueFromText.ts';
 
@@ -168,6 +169,8 @@ function at(y: number, m: number, d: number, h: number, min = 0) {
 assert.equal(isStructuredTodoDue('2026-08-15'), true);
 assert.equal(isStructuredTodoDue('2026-08-15T15:00:00.000Z'), true);
 assert.equal(isStructuredTodoDue('tomorrow'), false);
+
+assert.equal(todayYmdInTimeZone(TZ, NOW), '2026-08-14');
 
 assert.equal(
   formatSiriTodoDue('2026-08-15', { now: NOW, timeZone: TZ }),
