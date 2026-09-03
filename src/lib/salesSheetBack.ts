@@ -490,8 +490,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  width: 84%;
-  max-width: 84%;
+  width: 63%;
+  max-width: 63%;
   pointer-events: none;
 }
 .ss-sheet-back .ss-back-icon .doc-brand,
@@ -502,7 +502,7 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   display: block;
   width: 100%;
   height: auto;
-  max-height: clamp(52px, 16cqh, 112px);
+  max-height: clamp(39px, 12cqh, 84px);
   max-width: 100%;
   margin: 0 auto;
   object-fit: contain;
@@ -705,6 +705,8 @@ function backPageCss(orientation: SalesSheetBackOrientation): string {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  /* Transparent PNG uses dark ink — flip to white on the dark avatar tile. */
+  filter: brightness(0) invert(1);
 }
 .ss-sheet-back .ss-back-chat-q,
 .ss-sheet-back .ss-back-chat-a {
