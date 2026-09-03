@@ -62,6 +62,7 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
 <script>
   import '../../admin/agent-chat-mount.tsx';
 </script>
+<script is:inline type="module" src={`/admin/perf-trace.js?v=${assetVersion}`}></script>
 <script is:inline type="module" src={`/admin/push-client.js?v=${assetVersion}`}></script>
 <script is:inline src={`/ios-sheet.js?v=${assetVersion}`} defer></script>
 <script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo, deployStatusClient, postAlias: companyBrand.postAlias }}>

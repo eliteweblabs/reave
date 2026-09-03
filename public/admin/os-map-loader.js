@@ -130,6 +130,7 @@ import {
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs } from './shared.js?v=20260810a';
+import { traceStart, traceAsync } from './perf-trace.js';
 import {
   captureFilterTabsScroll,
   mountFilterTabsScroll,
@@ -259,7 +260,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260829a';
+} from './chat-panel.js?v=20260903a';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -19201,7 +19202,8 @@ let adminBootStarted = false;
 async function boot() {
   if (adminBootStarted) return;
   adminBootStarted = true;
-  const tabOrder = await resolveTabOrder();
+  const endBoot = traceStart('admin:boot');
+  const tabOrder = await traceAsync('admin:tab-order', () => resolveTabOrder());
   cachedTabOrder = tabOrder;
   buildTabs(tabOrder);
   initTopbarMenus();
@@ -19224,6 +19226,7 @@ async function boot() {
   initModelSelector();
   syncCanvasVisibility();
   if (userId) {
+    if (MAP?.type === 'chats') traceStart('admin:activate-chats')();
     activateMapPanel();
   } else {
     bindClerkSsrSessionSync();
@@ -19262,6 +19265,7 @@ async function boot() {
       /* ignore */
     }
   }
+  endBoot({ tab: MAP?.type || activeKey });
 }
 
 boot().catch(showBootError);

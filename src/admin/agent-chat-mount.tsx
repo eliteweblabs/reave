@@ -21,7 +21,15 @@ function renderMount(el: HTMLElement, props: AgentChatPanelProps) {
 }
 
 export function mountAgentChat(el: HTMLElement, props: AgentChatPanelProps) {
+  const end =
+    typeof window !== 'undefined'
+      ? window.__reaveTrace?.start?.('chat:react-mount-inner', {
+          threadId: props.threadId,
+          messages: props.initialMessages?.length ?? 0,
+        })
+      : undefined;
   renderMount(el, props);
+  end?.({ ok: true });
 }
 
 export function updateAgentChat(el: HTMLElement, props: Partial<AgentChatPanelProps>) {
@@ -58,6 +66,11 @@ declare global {
       update: typeof updateAgentChat;
       syncMessages: typeof syncAgentChatMessages;
       unmount: typeof unmountAgentChat;
+    };
+    __reaveTrace?: {
+      enabled?: () => boolean;
+      start?: (name: string, meta?: Record<string, unknown>) => (endMeta?: Record<string, unknown>) => number;
+      summary?: () => unknown[];
     };
   }
 }

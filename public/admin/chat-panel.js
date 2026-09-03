@@ -41,6 +41,7 @@ import {
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260829a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput } from './shared.js?v=20260815a';
+import { traceStart, traceAsync, traceSummary } from './perf-trace.js';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { queueUndoableDelete, filterHiddenUntilCommit } from './shake-undo.js?v=20260824a';
@@ -1220,17 +1221,20 @@ function sortChatThreads(threads) {
 }
 
 async function fetchChatThreads() {
-  const [activeRes, archivedRes] = await Promise.all([
-    fetch('/api/chats', { cache: 'no-store' }),
-    fetch('/api/chats?archived=1', { cache: 'no-store' }),
-  ]);
-  const activeData = await activeRes.json();
-  const archivedData = await archivedRes.json();
-  if (!activeRes.ok) throw new Error(activeData.error || `HTTP ${activeRes.status}`);
-  if (!archivedRes.ok) throw new Error(archivedData.error || `HTTP ${archivedRes.status}`);
-  const active = (activeData.threads || []).map((t) => ({ ...t, archived: false }));
-  const archived = (archivedData.threads || []).map((t) => ({ ...t, archived: true }));
-  return filterHiddenUntilCommit(sortChatThreads([...active, ...archived]), (t) => `chat:${t.id}`);
+  return traceAsync('chat:fetch-threads', async () => {
+    const [activeRes, archivedRes] = await Promise.all([
+      fetch('/api/chats', { cache: 'no-store' }),
+      fetch('/api/chats?archived=1', { cache: 'no-store' }),
+    ]);
+    const activeData = await activeRes.json();
+    const archivedData = await archivedRes.json();
+    if (!activeRes.ok) throw new Error(activeData.error || `HTTP ${activeRes.status}`);
+    if (!archivedRes.ok) throw new Error(archivedData.error || `HTTP ${archivedRes.status}`);
+    const active = (activeData.threads || []).map((t) => ({ ...t, archived: false }));
+    const archived = (archivedData.threads || []).map((t) => ({ ...t, archived: true }));
+    const threads = filterHiddenUntilCommit(sortChatThreads([...active, ...archived]), (t) => `chat:${t.id}`);
+    return threads;
+  });
 }
 
 function getChatPanel() { return document.getElementById('chat-panel'); }
@@ -1250,9 +1254,13 @@ function formatChatDate(iso) {
 }
 
 async function loadChatsTab(opts = {}) {
+  const endLoad = traceStart('chat:load-tab', { keepSession: opts.keepSession === true });
   const root = getChatPanel();
-  if (!root) return;
-  await ensureContactAuthorIconsReady();
+  if (!root) {
+    endLoad({ skipped: 'no-root' });
+    return;
+  }
+  await traceAsync('chat:author-icons', () => ensureContactAuthorIconsReady());
 
   // Fix #1: when returning to the Chats tab and the live React chat tree is
   // already mounted for the current thread, keep it instead of tearing it down.
@@ -1273,6 +1281,7 @@ async function loadChatsTab(opts = {}) {
     root.classList.add('ch-pane-active');
     syncChatSidebarActiveState({ scroll: true });
     void refreshChatsListQuiet();
+    endLoad({ preserved: true, activeId: chatState.activeId });
     return;
   }
 
@@ -1290,6 +1299,7 @@ async function loadChatsTab(opts = {}) {
     chatState.threads = await fetchChatThreads();
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    endLoad({ ok: false, err: e.message });
     return;
   }
 
@@ -1311,6 +1321,8 @@ async function loadChatsTab(opts = {}) {
     const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
     pendingChatDeepLinkId = null;
     if (deepChatId && deepChatId !== savedActiveId) openChat(deepChatId).catch(() => {});
+    endLoad({ path: 'keep-session', threads: chatState.threads.length, activeId: savedActiveId });
+    traceSummary();
     return;
   }
 
@@ -1320,8 +1332,8 @@ async function loadChatsTab(opts = {}) {
 
   if (restoreId) {
     if (chatState.activeId && chatState.activeId !== restoreId) {
-      await finalizeChatTitleIfNeeded(chatState.activeId);
-      await abandonDisposableChat(chatState.activeId);
+      await traceAsync('chat:finalize-prev', () => finalizeChatTitleIfNeeded(chatState.activeId));
+      await traceAsync('chat:abandon-prev', () => abandonDisposableChat(chatState.activeId));
     }
     if (!chatState.threads.some((t) => t.id === restoreId)) {
       clearChatLastActiveId();
@@ -1334,16 +1346,20 @@ async function loadChatsTab(opts = {}) {
       chatState.sending = false;
       getChatPanel()?.classList.remove('ch-pane-active');
       renderChatPanel();
+      endLoad({ path: 'restore-missing', restoreId, threads: chatState.threads.length });
+      traceSummary();
       return;
     }
     chatState.sending = false;
     await openChat(restoreId, { force: true });
+    endLoad({ path: 'restore', restoreId, threads: chatState.threads.length });
+    traceSummary();
     return;
   }
 
   if (chatState.activeId) {
-    await finalizeChatTitleIfNeeded(chatState.activeId);
-    await abandonDisposableChat(chatState.activeId);
+    await traceAsync('chat:finalize-prev', () => finalizeChatTitleIfNeeded(chatState.activeId));
+    await traceAsync('chat:abandon-prev', () => abandonDisposableChat(chatState.activeId));
   }
   chatState.activeId = null;
   chatState.messages = [];
@@ -1354,6 +1370,8 @@ async function loadChatsTab(opts = {}) {
   chatState.sending = false;
   getChatPanel()?.classList.remove('ch-pane-active');
   renderChatPanel();
+  endLoad({ path: 'empty', threads: chatState.threads.length });
+  traceSummary();
 }
 
 function formatLinkedJobsSub(jobs) {
@@ -1961,11 +1979,16 @@ function unmountChatThreadRoot(root) {
 }
 
 function mountChatThreadRoot(threadHost) {
+  const endMount = traceStart('chat:react-mount', {
+    threadId: chatState.activeId,
+    messages: chatState.messages?.length || 0,
+  });
   const chatApi = window.__reaveAgentChat;
   if (!chatApi) {
     threadHost.innerHTML =
       '<div class="de-loading de-error">Session UI failed to load. Hard-refresh the page.</div>';
     disarmComposerKeyboardBridge();
+    endMount({ ok: false, err: 'no-chat-api' });
     return;
   }
   const pendingDraft = chatState.pendingDraft;
@@ -2064,6 +2087,7 @@ function mountChatThreadRoot(threadHost) {
       });
     },
   });
+  endMount({ ok: true });
 }
 
 function renderChatPane() {
@@ -2161,14 +2185,23 @@ async function openChat(id, opts = {}) {
     syncChatSidebarActiveState({ scroll: true });
     return;
   }
+  const endOpen = traceStart('chat:open', { id, force });
+  const root = getChatPanel();
+  root?.classList.add('ch-opening');
   try {
     const prevId = chatState.activeId;
     if (prevId && prevId !== id) {
-      await finalizeChatTitleIfNeeded(prevId);
-      await abandonDisposableChat(prevId);
+      await traceAsync('chat:open:finalize-prev', () => finalizeChatTitleIfNeeded(prevId));
+      await traceAsync('chat:open:abandon-prev', () => abandonDisposableChat(prevId));
     }
-    const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { cache: 'no-store' });
-    const data = await readApiJson(res);
+    const data = await traceAsync(
+      'chat:open:fetch-thread',
+      async () => {
+        const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { cache: 'no-store' });
+        return readApiJson(res);
+      },
+      { id },
+    );
     chatState.activeId = id;
     chatState.title = data.thread.title;
     chatState.messages = data.thread.messages || [];
@@ -2183,9 +2216,15 @@ async function openChat(id, opts = {}) {
       chatState.threads[idx] = { ...chatState.threads[idx], linked_jobs: chatState.linkedJobs };
     }
     syncChatSidebarActiveState({ scroll: true });
+    const endRender = traceStart('chat:open:render-pane');
     renderChatPane();
+    endRender();
+    endOpen({ ok: true, messages: chatState.messages.length, title: chatState.title });
   } catch (e) {
+    endOpen({ ok: false, err: e.message });
     alert(`Could not load session: ${e.message}`);
+  } finally {
+    root?.classList.remove('ch-opening');
   }
 }
 

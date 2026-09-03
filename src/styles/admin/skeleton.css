@@ -67,6 +67,7 @@
 
 .sk-list-item {
   pointer-events: none;
+  cursor: wait;
 }
 
 .sk-list-icon {

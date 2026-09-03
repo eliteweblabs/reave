@@ -8,6 +8,12 @@
   background: var(--bg);
   z-index: 10;
 }
+#chat-panel.ch-opening {
+  cursor: wait;
+}
+#chat-panel.ch-opening .ch-list-item {
+  pointer-events: none;
+}
 .ch-sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
