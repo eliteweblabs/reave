@@ -349,6 +349,81 @@
   color: var(--vet-accent);
 }
 
+.vet-inquiry {
+  margin-top: 2.5rem;
+  padding: 1.75rem;
+  border-radius: var(--vet-radius);
+  border: 1px solid var(--vet-border);
+  background: var(--vet-bg);
+}
+
+.vet-inquiry__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.vet-inquiry__intro {
+  margin: 0.625rem 0 1.5rem;
+  max-width: 40rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--vet-muted);
+}
+
+.vet-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 36rem;
+}
+
+.vet-form__row {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.vet-form__row label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--vet-ink);
+}
+
+.vet-form__optional {
+  color: var(--vet-muted);
+  font-weight: 400;
+}
+
+.vet-form input,
+.vet-form textarea {
+  width: 100%;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--vet-border);
+  border-radius: 0.625rem;
+  background: var(--vet-surface);
+  color: var(--vet-ink);
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vet-form input:focus,
+.vet-form textarea:focus {
+  outline: none;
+  border-color: rgb(217 122 57 / 0.45);
+  box-shadow: 0 0 0 3px rgb(217 122 57 / 0.12);
+}
+
+.vet-form textarea {
+  resize: vertical;
+  min-height: 7rem;
+}
+
+.vet-form .vet-btn-primary {
+  justify-self: start;
+  border: 0;
+  cursor: pointer;
+}
+
 .vet-about {
   display: grid;
   gap: 2rem;

@@ -14,6 +14,7 @@ interface Props {
 const { landing } = Astro.props;
 const company = await getCompanyConfig(Astro.request);
 const contact = landing.contact ?? {};
+const inquiry = landing.inquiry;
 const about = landing.about ?? {};
 const services = landing.services;
 const year = new Date().getFullYear();
@@ -59,7 +60,7 @@ const location =
   landing.pack?.social?.city ||
   contact.officeLines?.join(" · ") ||
   "";
-const contactHref = email ? `mailto:${email}` : scheduleUrl;
+const contactHref = inquiry?.web3formsAccessKey ? "#inquiry" : email ? `mailto:${email}` : scheduleUrl;
 const contactLabel = landing.callCta?.label || "Contact us";
 ---
 
@@ -220,6 +221,45 @@ const contactLabel = landing.callCta?.label || "Contact us";
             ) : null
           }
         </div>
+        {
+          inquiry?.web3formsAccessKey ? (
+            <div class="vet-inquiry" id="inquiry">
+              <h3 class="vet-inquiry__title">{inquiry.heading}</h3>
+              <p class="vet-inquiry__intro">{inquiry.intro}</p>
+              <form class="vet-form" action="https://api.web3forms.com/submit" method="POST">
+                <input type="hidden" name="access_key" value={inquiry.web3formsAccessKey} />
+                <input type="hidden" name="subject" value={inquiry.subject || "New website inquiry"} />
+                <input type="checkbox" name="botcheck" class="hidden" style="display:none" />
+
+                <div class="vet-form__row">
+                  <label for="vet-name">Name</label>
+                  <input type="text" id="vet-name" name="name" required autocomplete="name" />
+                </div>
+
+                <div class="vet-form__row">
+                  <label for="vet-email">Email</label>
+                  <input type="email" id="vet-email" name="email" required autocomplete="email" />
+                </div>
+
+                <div class="vet-form__row">
+                  <label for="vet-phone">
+                    Phone <span class="vet-form__optional">(optional)</span>
+                  </label>
+                  <input type="tel" id="vet-phone" name="phone" autocomplete="tel" />
+                </div>
+
+                <div class="vet-form__row">
+                  <label for="vet-message">Message</label>
+                  <textarea id="vet-message" name="message" rows="5" required />
+                </div>
+
+                <button class="vet-btn-primary" type="submit">
+                  {inquiry.submitLabel || "Send message"}
+                </button>
+              </form>
+            </div>
+          ) : null
+        }
       </div>
     </section>
   </main>
