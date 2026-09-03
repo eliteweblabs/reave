@@ -31,15 +31,13 @@ FROM alpine:3.21
 
 RUN apk add --no-cache \
   ca-certificates \
-  coturn \
   curl \
   jq \
   openssl \
   tzdata
 
-RUN addgroup -S galene && adduser -S -G galene galene
-
-RUN mkdir -p /opt/galene/static /data /data/recordings /groups /etc/coturn \
+RUN mkdir -p /opt/galene/static /data /data/recordings /groups \
+  && addgroup -S galene && adduser -S -G galene galene \
   && chown -R galene:galene /data /groups /opt/galene
 
 COPY --from=builder /out/galene /opt/galene/galene
