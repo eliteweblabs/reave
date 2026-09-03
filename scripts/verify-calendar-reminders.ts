@@ -9,7 +9,10 @@ import {
   formatCalendarReminderOffsets,
   formatReminderOffsetLabel,
   inferCalendarReminderStartMs,
+  isExpiredMeetingNotice,
   isExpiringMeetingNotice,
+  meetingNoticeExpireAtMs,
+  MEETING_NOTICE_EXPIRE_HOLD_MS,
   normalizeCalendarReminderMinutesInput,
   parseCalendarReminderOffsets,
   parseCalendarReminderTag,
@@ -100,6 +103,26 @@ assert.equal(
     receivedAt: '2026-08-13T15:45:00.000Z',
   }),
   Date.parse('2026-08-13T16:00:00.000Z'),
+);
+
+const meetingStart = Date.parse('2026-08-13T16:00:00.000Z');
+assert.equal(
+  meetingNoticeExpireAtMs({ type: 'meeting', bookingStart: '2026-08-13T16:00:00.000Z' }),
+  meetingStart + MEETING_NOTICE_EXPIRE_HOLD_MS,
+);
+assert.equal(
+  isExpiredMeetingNotice(
+    { type: 'meeting', bookingStart: '2026-08-13T16:00:00.000Z' },
+    meetingStart + MEETING_NOTICE_EXPIRE_HOLD_MS,
+  ),
+  true,
+);
+assert.equal(
+  isExpiredMeetingNotice(
+    { type: 'meeting', bookingStart: '2026-08-13T16:00:00.000Z' },
+    meetingStart,
+  ),
+  false,
 );
 
 console.log('ok: calendar reminders');

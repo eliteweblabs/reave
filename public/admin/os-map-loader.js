@@ -3506,8 +3506,7 @@ function projectMatchAttachmentBit(item) {
   return 'no attachments';
 }
 
-const MEETING_EXPIRED_LABEL = 'Meeting Notification expired';
-const MEETING_EXPIRED_HOLD_MS = 2200;
+const MEETING_NOTICE_EXPIRE_HOLD_MS = 2200;
 const meetingExpiredHoldTimers = new Map();
 
 function isExpiringMeetingNotice(item) {
@@ -3532,41 +3531,73 @@ function meetingNoticeStartMs(item) {
   return created + offset * 60_000;
 }
 
-function meetingNoticeStorageKey(id) {
-  return `reave-meeting-expired:${id}`;
+function meetingNoticeExpireAtMs(item) {
+  const start = meetingNoticeStartMs(item);
+  if (!Number.isFinite(start)) return NaN;
+  return start + MEETING_NOTICE_EXPIRE_HOLD_MS;
 }
 
-function hasShownMeetingExpired(id) {
-  if (!id) return false;
-  try {
-    return sessionStorage.getItem(meetingNoticeStorageKey(id)) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function rememberMeetingExpired(id) {
-  if (!id) return;
-  try {
-    sessionStorage.setItem(meetingNoticeStorageKey(id), '1');
-  } catch {
-    /* private mode */
-  }
+function isMeetingNoticePastHold(item) {
+  const expireAt = meetingNoticeExpireAtMs(item);
+  return Number.isFinite(expireAt) && expireAt <= Date.now();
 }
 
 function isDashboardViewActive() {
   return MAP?.type === 'dashboard' && document.visibilityState === 'visible';
 }
 
-function applyMeetingExpiredCopy(alert) {
-  const strong = alert.querySelector('.admin-setup-alert-copy strong');
-  if (strong) strong.textContent = MEETING_EXPIRED_LABEL;
-  alert.dataset.meetingExpired = '1';
+function reviewAlertItemFromElement(alert) {
+  const alertId = alert.getAttribute('data-review-alert-id') || '';
+  const emailId = alert.getAttribute('data-review-email-id') || '';
+  const engagementId = alert.getAttribute('data-review-engagement-id') || '';
+  const commentId = alert.getAttribute('data-review-comment-id') || '';
+  const tag = alert.getAttribute('data-review-alert-tag') || '';
+  if (!alertId && !emailId && !engagementId && !commentId) return null;
+  return {
+    ...(alertId ? { alertId } : {}),
+    ...(emailId ? { emailId } : {}),
+    ...(engagementId ? { engagementId } : {}),
+    ...(commentId ? { commentId } : {}),
+    ...(tag ? { tag } : {}),
+  };
+}
+
+function fadeOutReviewAlert(alert, onDone) {
+  alert.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+  alert.style.opacity = '0';
+  alert.style.transform = 'translateY(-6px)';
+  window.setTimeout(() => {
+    onDone?.();
+    if (alert.isConnected) {
+      const wrap = alert.closest('.dash-review-alerts');
+      alert.remove();
+      if (wrap && wrap.children.length === 0) wrap.remove();
+    }
+  }, 380);
+}
+
+async function dismissExpiredMeetingNotice(item) {
+  if (!item) return;
+  removeReviewAlertBannerForItem(item);
+  syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  void closeOsNotificationsForReview(item);
+  try {
+    await commitDismissReviewNotification(item);
+  } catch (e) {
+    console.warn('[meeting-notice] auto-dismiss failed', e);
+  }
 }
 
 function clearMeetingExpiryHolds() {
   for (const timer of meetingExpiredHoldTimers.values()) window.clearTimeout(timer);
   meetingExpiredHoldTimers.clear();
+}
+
+function fadeOutExpiredMeetingAlert(alert) {
+  if (alert.dataset.meetingFading === '1') return;
+  alert.dataset.meetingFading = '1';
+  const item = reviewAlertItemFromElement(alert);
+  fadeOutReviewAlert(alert, () => void dismissExpiredMeetingNotice(item));
 }
 
 function syncMeetingNoticeExpiry() {
@@ -3578,31 +3609,28 @@ function syncMeetingNoticeExpiry() {
   }
   const now = Date.now();
   alerts.forEach((alert) => {
-    const id = alert.getAttribute('data-meeting-notice-id') || '';
     const start = Date.parse(alert.getAttribute('data-meeting-start') || '');
     if (!Number.isFinite(start)) return;
-    if (alert.dataset.meetingExpired === '1' || hasShownMeetingExpired(id)) {
-      applyMeetingExpiredCopy(alert);
-      rememberMeetingExpired(id);
+    const expireAt = start + MEETING_NOTICE_EXPIRE_HOLD_MS;
+    const id = alert.getAttribute('data-meeting-notice-id') || alert;
+
+    if (expireAt <= now) {
+      fadeOutExpiredMeetingAlert(alert);
       return;
     }
-    if (meetingExpiredHoldTimers.has(id || alert)) return;
-    const waitMs = start > now ? start - now + MEETING_EXPIRED_HOLD_MS : MEETING_EXPIRED_HOLD_MS;
+
+    if (meetingExpiredHoldTimers.has(id)) return;
+    const waitMs = expireAt - now;
     const timer = window.setTimeout(() => {
-      meetingExpiredHoldTimers.delete(id || alert);
+      meetingExpiredHoldTimers.delete(id);
       if (!alert.isConnected || !isDashboardViewActive()) return;
-      applyMeetingExpiredCopy(alert);
-      rememberMeetingExpired(id);
+      fadeOutExpiredMeetingAlert(alert);
     }, waitMs);
-    meetingExpiredHoldTimers.set(id || alert, timer);
+    meetingExpiredHoldTimers.set(id, timer);
   });
 }
 
 function reviewAlertCopyHtml(item) {
-  const meetingId = isExpiringMeetingNotice(item) ? reviewNotificationUndoKey(item) : '';
-  if (meetingId && hasShownMeetingExpired(meetingId)) {
-    return `<strong>${escHtml(MEETING_EXPIRED_LABEL)}</strong>`;
-  }
   if (item?.type === 'project_match') {
     const when = formatReviewAlertWhen(item.receivedAt);
     const projectName = projectMatchDisplayName(item);
@@ -5514,6 +5542,10 @@ function buildReviewAlertBanners(notifications) {
   const wrap = document.createElement('div');
   wrap.className = 'dash-review-alerts';
   for (const item of filterPendingDismissNotifications(notifications)) {
+    if (isExpiringMeetingNotice(item) && isMeetingNoticePastHold(item)) {
+      void dismissExpiredMeetingNotice(item);
+      continue;
+    }
     wrap.appendChild(buildReviewAlertBanner(item));
   }
   syncOtpCountdownTimers();

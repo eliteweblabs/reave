@@ -99,6 +99,39 @@ export function resolveMeetingNoticeStartMs(item: {
   return inferCalendarReminderStartMs({ tag: item.tag, createdAt: item.receivedAt });
 }
 
+/** Grace after meeting start before a live dashboard card fades out. */
+export const MEETING_NOTICE_EXPIRE_HOLD_MS = 2200;
+
+export function meetingNoticeExpireAtMs(item: {
+  type?: string | null;
+  alertKind?: string | null;
+  bookingStart?: string | null;
+  proposedMeetingStart?: string | null;
+  tag?: string | null;
+  receivedAt?: string | null;
+}): number | null {
+  const startMs = resolveMeetingNoticeStartMs(item);
+  if (startMs == null) return null;
+  return startMs + MEETING_NOTICE_EXPIRE_HOLD_MS;
+}
+
+/** True once the meeting slot (+ hold) has passed — card should not stay on the dashboard. */
+export function isExpiredMeetingNotice(
+  item: {
+    type?: string | null;
+    alertKind?: string | null;
+    bookingStart?: string | null;
+    proposedMeetingStart?: string | null;
+    tag?: string | null;
+    receivedAt?: string | null;
+  },
+  nowMs = Date.now(),
+): boolean {
+  const expireAt = meetingNoticeExpireAtMs(item);
+  if (expireAt == null) return false;
+  return expireAt <= nowMs;
+}
+
 export function calendarReminderUrl(bookingUid: string): string {
   return `/admin?tab=schedule&booking=${encodeURIComponent(bookingUid.trim())}`;
 }

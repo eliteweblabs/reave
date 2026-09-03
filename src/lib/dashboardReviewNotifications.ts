@@ -3,11 +3,16 @@
  * Keep badge polling, push sync, and GET /api/admin/dashboard aligned.
  */
 
+import {
+  isExpiredMeetingNotice,
+  isExpiringMeetingNotice,
+} from './calendarReminderLogic';
 import { dedupeDashboardNotificationsByEmail } from './dashboardNotificationDedupe';
 import { listReviewNotifications } from './emailAutomation';
 import { listReceiptExpenseNotifications } from './emailReceiptExpense';
 import { storeListEmailInbox, type EmailInboxRecord } from './emailInboxStore';
 import { listEngagementNotifications } from './engagementNotifications';
+import { scheduleHealExpiredMeetingNotifications } from './meetingNoticeExpiry';
 import {
   healStaleWorkNotificationSlugs,
   partitionNotificationsByExistingWork,
@@ -68,7 +73,17 @@ export async function loadDashboardReviewNotifications(
     mergedNotifications,
     validWorkSlugs,
   );
-  return { notifications: kept, staleSlugs };
+  const notifications: DashboardReviewNotification[] = [];
+  const expiredMeetings: DashboardReviewNotification[] = [];
+  for (const item of kept) {
+    if (isExpiringMeetingNotice(item) && isExpiredMeetingNotice(item)) {
+      expiredMeetings.push(item);
+    } else {
+      notifications.push(item);
+    }
+  }
+  scheduleHealExpiredMeetingNotifications(expiredMeetings);
+  return { notifications, staleSlugs };
 }
 
 export function scheduleHealStaleDashboardReviewSlugs(staleSlugs: Set<string>): void {
