@@ -6,6 +6,7 @@ import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { getSiteContent } from "../../lib/siteContent";
 import { contactTelHref } from "../../lib/contactApi";
+import PawIcon from "../icons/PawIcon.astro";
 import "../../styles/vet-landing.css";
 
 interface Props {
@@ -87,6 +88,7 @@ const contactLabel = landing.callCta?.label || "Contact us";
             class:list={{ "vet-header__nav-btn": link.primary }}
             href={link.href}
           >
+            {link.primary ? <PawIcon size={14} /> : null}
             {link.label}
           </a>
         ))}
@@ -114,7 +116,10 @@ const contactLabel = landing.callCta?.label || "Contact us";
             )
           }
           <div class="vet-hero__actions">
-            <a class="vet-btn-primary" href={contactHref}>{contactLabel}</a>
+            <a class="vet-btn-primary" href={contactHref}>
+              <PawIcon />
+              {contactLabel}
+            </a>
             {
               phoneHref ? (
                 <a class="vet-btn-secondary" href={phoneHref}>
@@ -153,7 +158,8 @@ const contactLabel = landing.callCta?.label || "Contact us";
                   <article class="vet-service">
                     <h3 class="vet-service__name">{service.name}</h3>
                     {service.blurb && <p class="vet-service__blurb">{service.blurb}</p>}
-                    <a class="vet-service__link" href={service.bookHref}>
+                    <a class="vet-btn-primary vet-service__cta" href={service.bookHref}>
+                      <PawIcon />
                       {service.bookHref?.includes("#") ? "Contact us" : "Learn more"}
                     </a>
                   </article>
@@ -264,6 +270,7 @@ const contactLabel = landing.callCta?.label || "Contact us";
                 </div>
 
                 <button class="vet-btn-primary" type="submit">
+                  <PawIcon />
                   {inquiry.submitLabel || "Send message"}
                 </button>
               </form>
@@ -294,7 +301,10 @@ const contactLabel = landing.callCta?.label || "Contact us";
       <nav class="vet-dock" aria-label="Quick contact">
         <div class="vet-dock__grid">
           <a class="vet-dock__btn vet-dock__call" href={phoneHref}>Call</a>
-          <a class="vet-dock__btn vet-dock__contact" href={contactHref}>{contactLabel}</a>
+          <a class="vet-dock__btn vet-dock__contact" href={contactHref}>
+            <PawIcon size={14} />
+            {contactLabel}
+          </a>
         </div>
       </nav>
     ) : null
