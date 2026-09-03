@@ -3516,6 +3516,12 @@ button.de-placeholder-action:active {
   color: #3fb950;
   font-weight: 600;
 }
+.wk-time-head-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
 .wk-time-list {
   display: flex;
   flex-direction: column;

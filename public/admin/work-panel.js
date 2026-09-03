@@ -1385,6 +1385,33 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
   let saveTimer = null;
   let saving = false;
 
+  const timeLogHasFocus = () => Boolean(logHost.querySelector('.wk-time-row input:focus'));
+
+  const updateSavingIndicator = () => {
+    const actions = logHost.querySelector('.wk-time-actions');
+    if (!actions) return;
+    let status = actions.querySelector('.wk-time-save-status');
+    if (saving) {
+      if (!status) {
+        status = document.createElement('span');
+        status.className = 'wk-time-save-status';
+        actions.appendChild(status);
+      }
+      status.textContent = 'Saving…';
+    } else if (status) {
+      status.remove();
+    }
+  };
+
+  const copyTimeForInvoice = () =>
+    entries
+      .filter((e) => Number(e.hours) > 0)
+      .map((e) => {
+        const note = (e.note || '').trim() || 'Time worked';
+        return `${formatWorkTimeHours(Number(e.hours))}h — ${note}`;
+      })
+      .join('\n');
+
   const render = () => {
     logHost.innerHTML = '';
 
@@ -1397,10 +1424,23 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
 
     const totalHours = entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
     if (totalHours > 0) {
+      const headMeta = document.createElement('div');
+      headMeta.className = 'wk-time-head-meta';
+
       const total = document.createElement('span');
       total.className = 'wk-time-total';
       total.textContent = `${formatWorkTimeHours(totalHours)}h total`;
-      head.appendChild(total);
+      headMeta.appendChild(total);
+
+      const copyBtn = createCopyIconBtn({
+        label: 'Copy time for invoice',
+        className: 'ios-icon-btn wk-time-copy',
+        getText: copyTimeForInvoice,
+        onError: () =>
+          shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
+      });
+      headMeta.appendChild(copyBtn);
+      head.appendChild(headMeta);
     }
     logHost.appendChild(head);
 
@@ -1449,19 +1489,23 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
         entry.hours = hoursInput.value;
         scheduleSave();
       });
-      hoursInput.addEventListener('blur', () => {
+      hoursInput.addEventListener('blur', (ev) => {
+        if (row.contains(ev.relatedTarget)) return;
         const parsed = Number(String(entry.hours).trim());
         if (Number.isFinite(parsed) && parsed > 0) {
           entry.hours = Math.round(parsed * 100) / 100;
           hoursInput.value = String(entry.hours);
         }
-        void saveEntries();
+        scheduleSave();
       });
       noteInput.addEventListener('input', () => {
         entry.note = noteInput.value;
         scheduleSave();
       });
-      noteInput.addEventListener('blur', () => void saveEntries());
+      noteInput.addEventListener('blur', (ev) => {
+        if (row.contains(ev.relatedTarget)) return;
+        scheduleSave();
+      });
 
       row.append(hoursInput, noteInput, removeBtn);
       list.appendChild(row);
@@ -1505,51 +1549,11 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
 
     logHost.appendChild(actions);
 
-    const billable = entries.filter((e) => Number(e.hours) > 0);
-    if (billable.length) {
-      const bill = document.createElement('div');
-      bill.className = 'wk-billable-section wk-time-billable';
-
-      const billHead = document.createElement('div');
-      billHead.className = 'wk-billable-head';
-      const billLabel = document.createElement('span');
-      billLabel.className = 'wk-billable-label';
-      billLabel.textContent = 'Ready to invoice';
-      billHead.appendChild(billLabel);
-
-      const copyBtn = createCopyIconBtn({
-        label: 'Copy time for invoice',
-        className: 'ios-icon-btn wk-billable-copy',
-        getText: () =>
-          billable
-            .map((e) => {
-              const note = (e.note || '').trim() || 'Time worked';
-              return `${formatWorkTimeHours(Number(e.hours))}h — ${note}`;
-            })
-            .join('\n'),
-        onError: () =>
-          shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
-      });
-      billHead.appendChild(copyBtn);
-      bill.appendChild(billHead);
-
-      const billList = document.createElement('ul');
-      billList.className = 'wk-billable-list';
-      for (const entry of billable) {
-        const li = document.createElement('li');
-        li.className = 'wk-billable-item';
-        const note = (entry.note || '').trim() || 'Time worked';
-        li.textContent = `${formatWorkTimeHours(Number(entry.hours))}h — ${note}`;
-        billList.appendChild(li);
-      }
-      bill.appendChild(billList);
-
+    if (entries.some((e) => Number(e.hours) > 0)) {
       const hint = document.createElement('p');
-      hint.className = 'wk-billable-hint';
+      hint.className = 'wk-billable-hint wk-time-hint';
       hint.textContent = `Bill ${opts.clientName || opts.title || 'this contact'} using hours as quantity on each line item.`;
-      bill.appendChild(hint);
-
-      logHost.appendChild(bill);
+      logHost.appendChild(hint);
     }
   };
 
@@ -1568,7 +1572,8 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       .filter((e) => Number.isFinite(e.hours) && e.hours > 0);
 
     saving = true;
-    render();
+    if (timeLogHasFocus()) updateSavingIndicator();
+    else render();
 
     try {
       const res = await fetch(`/api/work/${encodeURIComponent(slug)}/time`, {
@@ -1589,7 +1594,8 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
       shell.osAlert({ title: 'Could not save time', bodyHtml: escHtml(e.message) });
     } finally {
       saving = false;
-      render();
+      if (timeLogHasFocus()) updateSavingIndicator();
+      else render();
     }
   };
 
