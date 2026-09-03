@@ -13,7 +13,6 @@ import { companyBrandingVersion, getCompanyConfig, type CompanyConfig } from './
 import { BRANDING_LOGO_API_PATH } from './companyLogo';
 import { getStoredCompanyConfig } from './companyConfigStore';
 import { siteBaseUrl } from './contactApi';
-import { getDeploymentOwnerProfile } from './deploymentOwner';
 
 export type BrandingApiPayload = {
   ok: true;
@@ -21,9 +20,9 @@ export type BrandingApiPayload = {
   logoSource: CompanyConfig['logoSource'];
   /** Absolute PNG URL for white email headers; null when admin wordmark is hidden or unset. */
   logoEmailUrl: string | null;
-  /** Deployment owner full name (Admin → Profile first + last). */
+  /** Company display name for integrations (not deployment owner PII). */
   contactName: string | null;
-  /** Owner email, falling back to company support/from addresses. */
+  /** Public company support/from email — never the owner's personal address. */
   contactEmail: string | null;
   primary: string;
   secondary: string;
@@ -65,10 +64,8 @@ export async function buildBrandingApiPayload(context: APIContext): Promise<Bran
   const colors = resolveCompanyBrandColors(stored?.brandPrimary, stored?.brandSecondary);
   const storedPrimary = normalizeBrandColorHex(stored?.brandPrimary);
   const storedSecondary = normalizeBrandColorHex(stored?.brandSecondary);
-  const owner = await getDeploymentOwnerProfile(context);
-  const contactName = owner?.fullName?.trim() || null;
-  const contactEmail =
-    owner?.email?.trim() || company.supportEmail?.trim() || company.fromEmail?.trim() || null;
+  const contactName = company.name?.trim() || null;
+  const contactEmail = company.supportEmail?.trim() || company.fromEmail?.trim() || null;
 
   return {
     ok: true,

@@ -115,13 +115,14 @@ export function mergePortalVaultData(opts: {
   return [...incomingWithSecrets, ...preserved];
 }
 
-/** Strip vault passwords for API responses when the viewer lacks vault access. */
+/** Strip vault secrets for API responses when the viewer lacks vault access. */
 export function maskVaultSecrets(entries: VaultEntry[] | undefined | null): VaultEntry[] {
   if (!Array.isArray(entries)) return [];
   return entries.map((entry) => {
-    if (!entry.password?.trim()) return { ...entry };
     const masked = { ...entry };
-    delete masked.password;
+    if (masked.password?.trim()) delete masked.password;
+    if (masked.value?.trim()) delete masked.value;
+    if (masked.username?.trim()) delete masked.username;
     return masked;
   });
 }

@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import {
   applyIncomingVaultEntries,
+  maskVaultSecrets,
   mergePortalDocuments,
   mergePortalVaultData,
   normalizeVaultEntries,
@@ -146,6 +147,18 @@ const c = { id: 'c', label: 'DNS', value: 'A 1.2.3.4' };
   assert.equal(merged?.length, 1);
   assert.equal(merged?.[0]?.id, 'a');
   assert.equal(merged?.[0]?.password, 'one');
+}
+
+{
+  const masked = maskVaultSecrets([
+    { id: 'x', label: 'Vault', username: 'admin', password: 'pw', value: 'secret', url: 'https://example.com' },
+  ]);
+  assert.equal(masked.length, 1);
+  assert.equal(masked[0].label, 'Vault');
+  assert.equal(masked[0].url, 'https://example.com');
+  assert.equal(masked[0].password, undefined);
+  assert.equal(masked[0].username, undefined);
+  assert.equal(masked[0].value, undefined);
 }
 
 console.log('ok: vault merge preserves concurrent items and honors known deletes');

@@ -2,6 +2,10 @@
  * Shared admin client utilities — imported by os-map-loader.js and panel modules.
  */
 
+import { escHtml } from '../shared/htmlEscape.js';
+
+export { escHtml };
+
 const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
 
 /** Strip sign-in redirect params so return URLs cannot loop on auth=sign-in. */
@@ -111,16 +115,6 @@ export async function readApiJson(res) {
   }
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
-}
-
-export function escHtml(str) {
-  // Keep in sync with public/shared/htmlEscape.js / src/lib/htmlEscape.ts
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /** Shimmer skeleton — `kind`: 'list' | 'dashboard-home' | 'dashboard'. */

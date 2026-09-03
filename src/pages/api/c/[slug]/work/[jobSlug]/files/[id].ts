@@ -5,7 +5,7 @@
 
 import type { APIRoute } from 'astro';
 import { loadPortalJob } from '../../../../../../../lib/portalWorkAuth';
-import { storeGetProjectFile, projectFileResponseHeaders } from '../../../../../../../lib/projectFiles';
+import { storeGetProjectFile, projectFileResponseHeaders, isSafeProjectFileId } from '../../../../../../../lib/projectFiles';
 
 export const prerender = false;
 
@@ -13,7 +13,7 @@ export const GET: APIRoute = async ({ params }) => {
   const contactUid = (params.slug ?? '').trim();
   const jobSlug = (params.jobSlug ?? '').trim();
   const id = (params.id ?? '').trim();
-  if (!contactUid || !jobSlug || !id) {
+  if (!contactUid || !jobSlug || !id || !isSafeProjectFileId(id)) {
     return new Response('Not found', { status: 404 });
   }
 
