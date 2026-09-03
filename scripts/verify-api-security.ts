@@ -7,6 +7,8 @@
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import assert from 'node:assert/strict';
+import { isSafeProjectFileId } from '../src/lib/safeProjectFileId.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const errors: string[] = [];
@@ -90,3 +92,8 @@ if (errors.length) {
 }
 
 console.log('API security verify passed.');
+
+assert.ok(isSafeProjectFileId('550e8400-e29b-41d4-a716-446655440000'));
+assert.ok(!isSafeProjectFileId('../../../etc/passwd'));
+assert.ok(!isSafeProjectFileId('not-a-uuid'));
+console.log('Project file id guard passed.');

@@ -2,27 +2,7 @@
  * Mapbox map for the admin Fleet tab — multi-vehicle markers.
  */
 
-const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
-const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
-
-let mapboxLoadPromise = null;
-
-function ensureMapboxCss() {
-  if (document.querySelector('link[data-fl-mapbox-css]')) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = MAPBOX_CSS;
-  link.setAttribute('data-fl-mapbox-css', '1');
-  document.head.appendChild(link);
-}
-
-async function loadMapboxGl() {
-  ensureMapboxCss();
-  if (!mapboxLoadPromise) {
-    mapboxLoadPromise = import(/* @vite-ignore */ MAPBOX_JS).then((mod) => mod.default || mod);
-  }
-  return mapboxLoadPromise;
-}
+import { ensureMapboxCss, loadMapboxGl } from './mapbox-loader.js';
 
 function statusColor(status) {
   if (status === 'active') return '#22c55e';

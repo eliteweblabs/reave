@@ -4,11 +4,7 @@
  */
 
 import { escHtml, readAdminJson, showPersonal } from './shared.js?v=20260810a';
-
-const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
-const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
-const LEAFLET_CSS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
-const LEAFLET_JS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/+esm';
+import { LEAFLET_CSS, LEAFLET_JS, MAPBOX_CSS, MAPBOX_JS, ensureStylesheet } from './mapbox-loader.js';
 
 const CLIENT_KINDS = ['professional', 'service', 'proposed', 'personal'];
 const CLIENT_KIND_LABELS = {
@@ -27,15 +23,6 @@ const KIND_COLORS = {
 
 let mapboxLoadPromise = null;
 let leafletLoadPromise = null;
-
-function ensureStylesheet(href, attr) {
-  if (document.querySelector(`link[${attr}]`)) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = href;
-  link.setAttribute(attr, '1');
-  document.head.appendChild(link);
-}
 
 function resolveMapboxGl(mod) {
   const candidates = [mod?.default, mod, mod?.mapboxgl, mod?.default?.default];

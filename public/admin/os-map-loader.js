@@ -1,5 +1,6 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT, isSpecialAdminPage } from '/admin/os-map-data.js';
 import { createClientMap } from '/admin/client-map.js?v=20260804b';
+import { attachAutosuggestKeyboardNav } from '/admin/autosuggest.js';
 import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 import { postTitle, postLower, postNew, postSave, postTitleLabel, postAlias, postCountLabel } from '/admin/post-alias.js?v=20260805a';
 import {
@@ -639,50 +640,6 @@ function finishSidebarListScroll(root, savedScrollTop = 0) {
     const activeEl = list.querySelector('.ch-list-item.active, .em-list-item.active');
     if (activeEl) scrollSidebarListItemIntoView(list, activeEl);
   });
-}
-
-// Shared arrow-key navigation for autosuggest dropdowns.
-function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
-  if (!input || !dropdown) return () => {};
-  const optionSelector = options.optionSelector || 'button';
-  const onClose = typeof options.onClose === 'function' ? options.onClose : null;
-
-  function isOpen() {
-    // Fixed-position dropdowns have offsetParent === null; display is the source of truth.
-    return dropdown.style.display !== 'none';
-  }
-  function getOptions() {
-    return [...dropdown.querySelectorAll(optionSelector)].filter((el) => !el.disabled);
-  }
-  function setActive(opts, idx) {
-    opts.forEach((el, i) => el.classList.toggle('active', i === idx));
-    if (idx >= 0) opts[idx]?.scrollIntoView({ block: 'nearest' });
-  }
-  const onKeyDown = (ev) => {
-    if (!isOpen()) return;
-    const opts = getOptions();
-    if (!opts.length) return;
-    const currentIdx = opts.findIndex((el) => el.classList.contains('active'));
-    if (ev.key === 'ArrowDown') {
-      ev.preventDefault();
-      setActive(opts, currentIdx < 0 ? 0 : (currentIdx + 1) % opts.length);
-    } else if (ev.key === 'ArrowUp') {
-      ev.preventDefault();
-      setActive(opts, currentIdx <= 0 ? opts.length - 1 : currentIdx - 1);
-    } else if (ev.key === 'Enter') {
-      if (currentIdx >= 0) {
-        ev.preventDefault();
-        opts[currentIdx].click();
-      }
-    } else if (ev.key === 'Escape') {
-      if (onClose) {
-        ev.preventDefault();
-        onClose();
-      }
-    }
-  };
-  input.addEventListener('keydown', onKeyDown);
-  return () => input.removeEventListener('keydown', onKeyDown);
 }
 
 function todoChipHtml(checked) {

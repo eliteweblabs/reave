@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { storeDeleteProjectFile, storeGetProjectFile, projectFileResponseHeaders } from '../../../../../lib/projectFiles';
+import { storeDeleteProjectFile, storeGetProjectFile, projectFileResponseHeaders, isSafeProjectFileId } from '../../../../../lib/projectFiles';
 import { isSafeWorkSlug, storeReadWork } from '../../../../../lib/workStore';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../../lib/apiResponse';
@@ -20,7 +20,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const slug = context.params.slug?.trim() ?? '';
   const id = context.params.id?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
-  if (!id) return jsonResponse({ ok: false, error: 'Missing file id' }, 400);
+  if (!id || !isSafeProjectFileId(id)) return jsonResponse({ ok: false, error: 'Invalid file id' }, 400);
   if (!(await storeReadWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const file = await storeGetProjectFile(slug, id);
@@ -42,7 +42,7 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const slug = context.params.slug?.trim() ?? '';
   const id = context.params.id?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return jsonResponse({ ok: false, error: 'Invalid slug' }, 400);
-  if (!id) return jsonResponse({ ok: false, error: 'Missing file id' }, 400);
+  if (!id || !isSafeProjectFileId(id)) return jsonResponse({ ok: false, error: 'Invalid file id' }, 400);
   if (!(await storeReadWork(slug))) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   const deleted = await storeDeleteProjectFile(slug, id);

@@ -5,9 +5,7 @@
 
 import { adminFetch, readAdminJson, escHtml } from './shared.js?v=20260810a';
 import { iosIcon } from './admin-ui.js?v=20260825h';
-
-const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
-const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
+import { MAPBOX_CSS, MAPBOX_JS, ensureStylesheet } from './mapbox-loader.js';
 const TOPOJSON_JS = 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm';
 const ATLAS_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json';
 
@@ -78,15 +76,6 @@ const POSTAL_TO_FIPS_ID = Object.fromEntries(
 let mapboxLoadPromise = null;
 let atlasLoadPromise = null;
 let live = null;
-
-function ensureStylesheet(href, attr) {
-  if (document.querySelector(`link[${attr}]`)) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = href;
-  link.setAttribute(attr, '1');
-  document.head.appendChild(link);
-}
 
 function resolveMapboxGl(mod) {
   const candidates = [mod?.default, mod, mod?.mapboxgl, mod?.default?.default];

@@ -5,13 +5,14 @@
 
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
 import { isSafeWorkSlug, workDir } from './workStore';
 import { serverEnv } from './serverEnv';
 import { sanitizeContentDispositionFilename } from './sanitizeFilename';
+import { isSafeProjectFileId } from './safeProjectFileId';
 
 export type ProjectFileSource = 'chat' | 'admin' | 'agent' | 'email' | 'client';
 
@@ -33,6 +34,8 @@ export interface ProjectFileRecord extends ProjectFileSummary {
 }
 
 export const PROJECT_FILE_MAX_BYTES = 10 * 1024 * 1024;
+
+export { isSafeProjectFileId, PROJECT_FILE_ID_RE } from './safeProjectFileId';
 
 const IMAGE_MEDIA_TYPES = new Set([
   'image/jpeg',
@@ -222,8 +225,15 @@ function jobFilesDir(slug: string): string {
   return dir;
 }
 
-function fileRecordPath(slug: string, id: string): string {
-  return join(jobFilesDir(slug), `${id}.json`);
+function fileRecordPath(slug: string, id: string): string | null {
+  const safeId = id.trim();
+  if (!isSafeProjectFileId(safeId)) return null;
+  const dir = jobFilesDir(slug);
+  const path = join(dir, `${safeId}.json`);
+  const resolved = resolve(path);
+  const resolvedDir = resolve(dir);
+  if (resolved !== resolvedDir && !resolved.startsWith(resolvedDir + sep)) return null;
+  return path;
 }
 
 function normalizeSummary(
@@ -279,9 +289,9 @@ function fileListProjectFiles(slug: string): ProjectFileSummary[] {
 }
 
 function fileGetProjectFile(slug: string, id: string): ProjectFileRecord | null {
-  if (!isSafeWorkSlug(slug) || !id.trim()) return null;
+  if (!isSafeWorkSlug(slug) || !isSafeProjectFileId(id)) return null;
   const path = fileRecordPath(slug, id.trim());
-  if (!existsSync(path)) return null;
+  if (!path || !existsSync(path)) return null;
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
     const summary = normalizeSummary(parsed, slug);
@@ -331,15 +341,17 @@ function fileAddProjectFile(
     url: projectFileUrl(slug, id),
     dataBase64,
   };
-  writeFileSync(fileRecordPath(slug, id), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+  const recordPath = fileRecordPath(slug, id);
+  if (!recordPath) return { ok: false, error: 'Invalid file id' };
+  writeFileSync(recordPath, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
   const { dataBase64: _d, ...summary } = record;
   return { ok: true, file: summary };
 }
 
 function fileDeleteProjectFile(slug: string, id: string): boolean {
-  if (!isSafeWorkSlug(slug) || !id.trim()) return false;
+  if (!isSafeWorkSlug(slug) || !isSafeProjectFileId(id)) return false;
   const path = fileRecordPath(slug, id.trim());
-  if (!existsSync(path)) return false;
+  if (!path || !existsSync(path)) return false;
   try {
     unlinkSync(path);
     return true;
@@ -521,7 +533,7 @@ export async function storeGetProjectFile(
   slug: string,
   id: string,
 ): Promise<ProjectFileRecord | null> {
-  if (!isSafeWorkSlug(slug) || !id.trim()) return null;
+  if (!isSafeWorkSlug(slug) || !isSafeProjectFileId(id)) return null;
   if (isProjectFilesDbConfigured()) {
     const row = await dbGetProjectFile(slug, id);
     if (row) return row;
@@ -577,7 +589,7 @@ async function maybeArchiveProjectFileToMediaLibrary(input: {
 }
 
 export async function storeDeleteProjectFile(slug: string, id: string): Promise<boolean> {
-  if (!isSafeWorkSlug(slug) || !id.trim()) return false;
+  if (!isSafeWorkSlug(slug) || !isSafeProjectFileId(id)) return false;
   if (isProjectFilesDbConfigured()) {
     const result = await dbDeleteProjectFile(slug, id);
     if (result != null) return result;

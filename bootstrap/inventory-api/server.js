@@ -12,7 +12,7 @@ app.use(express.json({ limit: '1mb' }));
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
 const API_KEY = process.env.API_KEY || '';
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? (process.env.NODE_ENV === 'production' ? '' : '*');
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ?? '';
 const APP_NAME = process.env.APP_NAME || 'inventory-api';
 
 if (!API_KEY) {

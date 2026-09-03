@@ -51,6 +51,7 @@ import { navigateToWork, workClientSubline } from './work-panel.js?v=20260830a';
 import { navigateToClient, geocodeClientAddressPreview } from './clients-panel.js?v=20260830a';
 import { createClientMap } from './client-map.js?v=20260821c';
 import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
+import { attachAutosuggestKeyboardNav } from './autosuggest.js';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
 let shell = {};
@@ -853,53 +854,6 @@ function mountScheduleAddressAutocomplete(addressInput) {
 
 function isAddressPickerSheetOpen() {
   return !!document.getElementById('address-picker-backdrop')?.classList.contains('open');
-}
-
-// Shared arrow-key navigation for autosuggest dropdowns. The active option is
-// tracked purely via the `.active` class in the DOM so it self-heals when the
-// dropdown re-renders on each new search.
-function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
-  if (!input || !dropdown) return () => {};
-  const optionSelector = options.optionSelector || 'button';
-  const onClose = typeof options.onClose === 'function' ? options.onClose : null;
-
-  function isOpen() {
-    if (typeof options.isOpen === 'function') return options.isOpen();
-    // Fixed-position dropdowns have offsetParent === null; display is the source of truth.
-    return dropdown.style.display !== 'none';
-  }
-  function getOptions() {
-    return [...dropdown.querySelectorAll(optionSelector)].filter((el) => !el.disabled);
-  }
-  function setActive(opts, idx) {
-    opts.forEach((el, i) => el.classList.toggle('active', i === idx));
-    if (idx >= 0) opts[idx]?.scrollIntoView({ block: 'nearest' });
-  }
-  const onKeyDown = (ev) => {
-    if (!isOpen()) return;
-    const opts = getOptions();
-    if (!opts.length) return;
-    const currentIdx = opts.findIndex((el) => el.classList.contains('active'));
-    if (ev.key === 'ArrowDown') {
-      ev.preventDefault();
-      setActive(opts, currentIdx < 0 ? 0 : (currentIdx + 1) % opts.length);
-    } else if (ev.key === 'ArrowUp') {
-      ev.preventDefault();
-      setActive(opts, currentIdx <= 0 ? opts.length - 1 : currentIdx - 1);
-    } else if (ev.key === 'Enter') {
-      if (currentIdx >= 0) {
-        ev.preventDefault();
-        opts[currentIdx].click();
-      }
-    } else if (ev.key === 'Escape') {
-      if (onClose) {
-        ev.preventDefault();
-        onClose();
-      }
-    }
-  };
-  input.addEventListener('keydown', onKeyDown);
-  return () => input.removeEventListener('keydown', onKeyDown);
 }
 
 const SCHED_DROPDOWN_MAX_HEIGHT = 220;
