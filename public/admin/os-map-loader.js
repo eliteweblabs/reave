@@ -17886,6 +17886,10 @@ function exitEmailLabMode(opts = {}) {
   emailState.labPhrases = [];
   emailState.labCreating = false;
   emailState.labDetail = null;
+  labSelecting = false;
+  labSelectionSource = null;
+  window.clearTimeout(labCommitTimer);
+  labCommitTimer = 0;
   if (opts.silent) return;
   if (emailState.activeId && getEmailPanel()?.querySelector('.ch-pane')) {
     renderEmailPane();
@@ -17941,7 +17945,6 @@ function addEmailLabPhrase(text, field) {
     if (isLabHighlightAdjustment(prev, next)) {
       last.text = phrase;
       refreshEmailLabBar();
-      clearEmailLabSelections();
       return true;
     }
   }
@@ -17951,7 +17954,6 @@ function addEmailLabPhrase(text, field) {
   if (dup) return false;
   emailState.labPhrases.push({ text: phrase, field });
   refreshEmailLabBar();
-  clearEmailLabSelections();
   return true;
 }
 
@@ -17988,24 +17990,56 @@ function captureLabWindowSelection(winOrDoc, field, detail) {
 let labSelecting = false;
 let labCommitTimer = 0;
 let labDocSelectionBound = false;
+/** @type {Document | null} */
+let labSelectionSource = null;
 
-function captureIframeLabSelection() {
+function getEmailLabBodyFrameDoc() {
   const frame = emailState.labDetail?.querySelector('.em-detail-body-frame');
-  if (!(frame instanceof HTMLIFrameElement)) return false;
+  if (!(frame instanceof HTMLIFrameElement)) return null;
   try {
     const doc = frame.contentDocument;
-    if (!doc || iframeDocLooksEmpty(doc)) return false;
-    return captureLabWindowSelection(doc, 'body');
+    if (!doc || iframeDocLooksEmpty(doc)) return null;
+    return doc;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function labDocFromEventTarget(ev) {
+  const t = ev?.currentTarget;
+  if (t?.nodeType === 9) return t;
+  if (t?.ownerDocument) return t.ownerDocument;
+  return document;
+}
+
+function labSelectionDocHasText(doc) {
+  const sel = selectionFromContext(doc);
+  return Boolean(sel && !sel.isCollapsed && String(sel.toString() || '').trim());
+}
+
+function captureLabSelectionFromSource() {
+  if (!emailState.labMode || labSelecting) return false;
+  const detail = emailState.labDetail;
+  if (!detail) return false;
+
+  const tryDoc = (doc, field) => {
+    if (!doc || !labSelectionDocHasText(doc)) return false;
+    return captureLabWindowSelection(doc, field, detail);
+  };
+
+  const frameDoc = getEmailLabBodyFrameDoc();
+  const source = labSelectionSource;
+  labSelectionSource = null;
+
+  if (source === frameDoc) return tryDoc(frameDoc, 'body');
+  if (source && source !== document) return tryDoc(source, null);
+  if (tryDoc(document, null)) return true;
+  return tryDoc(frameDoc, 'body');
 }
 
 function captureAllLabSelections() {
   if (!emailState.labMode || labSelecting) return;
-  const detail = emailState.labDetail;
-  if (detail) captureLabWindowSelection(document, null, detail);
-  captureIframeLabSelection();
+  captureLabSelectionFromSource();
 }
 
 function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-lab-bar]')) {
@@ -18072,40 +18106,46 @@ function markLabSelecting(ev) {
   const el = ev?.target instanceof Element ? ev.target : null;
   const detail = emailState.labDetail;
   const fromIframe = ev?.currentTarget && ev.currentTarget !== document;
+  if (!fromIframe && el?.closest('.em-detail-body-frame, .em-detail-body-html')) return;
   if (!fromIframe && detail && el && !detail.contains(el)) return;
+  labSelectionSource = labDocFromEventTarget(ev);
   labSelecting = true;
   window.clearTimeout(labCommitTimer);
 }
 
+function scheduleLabCommit(delay = 0) {
+  window.clearTimeout(labCommitTimer);
+  labCommitTimer = window.setTimeout(() => {
+    labCommitTimer = 0;
+    commitLabSelectionNow();
+  }, delay);
+}
+
 function commitLabSelectionNow() {
   if (labSelecting || !emailState.labMode) return;
-  captureAllLabSelections();
+  const frameDoc = getEmailLabBodyFrameDoc();
+  const hadSelection =
+    labSelectionDocHasText(document) || (frameDoc ? labSelectionDocHasText(frameDoc) : false);
+  captureLabSelectionFromSource();
+  if (hadSelection) clearEmailLabSelections();
 }
 
 function finishLabSelecting(opts = {}) {
   const wasSelecting = labSelecting;
   labSelecting = false;
-  window.clearTimeout(labCommitTimer);
   if (!wasSelecting && labEventOnChrome(opts.event)) return;
-  const delay = Number(opts.delay) || 0;
-  if (delay) {
-    labCommitTimer = window.setTimeout(commitLabSelectionNow, delay);
-    return;
-  }
-  commitLabSelectionNow();
+  if (opts.event) labSelectionSource = labDocFromEventTarget(opts.event);
+  scheduleLabCommit(Number(opts.delay) || 0);
 }
 
 function onLabKeyUp(ev) {
   if (!emailState.labMode || labSelecting) return;
   const key = String(ev.key || '');
-  if (
-    key === 'Shift' ||
-    key.startsWith('Arrow') ||
-    key === 'a' ||
-    key === 'A' ||
-    key === 'End' ||
-    key === 'Home'
-  ) {
+  if (key === 'Shift') {
+    finishLabSelecting();
+    return;
+  }
+  if ((key === 'a' || key === 'A') && (ev.ctrlKey || ev.metaKey)) {
     finishLabSelecting();
   }
 }
@@ -18114,10 +18154,13 @@ function bindEmailLabReleaseListeners(target) {
   const flagEl = target?.documentElement || target;
   if (!flagEl || flagEl.dataset?.emailLabReleaseBound === '1') return;
   flagEl.dataset.emailLabReleaseBound = '1';
-  target.addEventListener('pointerdown', markLabSelecting);
-  target.addEventListener('mousedown', markLabSelecting);
-  target.addEventListener('pointerup', (ev) => finishLabSelecting({ event: ev }));
-  target.addEventListener('mouseup', (ev) => finishLabSelecting({ event: ev }));
+  if (window.PointerEvent) {
+    target.addEventListener('pointerdown', markLabSelecting);
+    target.addEventListener('pointerup', (ev) => finishLabSelecting({ event: ev }));
+  } else {
+    target.addEventListener('mousedown', markLabSelecting);
+    target.addEventListener('mouseup', (ev) => finishLabSelecting({ event: ev }));
+  }
   target.addEventListener('touchend', (ev) => finishLabSelecting({ event: ev, delay: 80 }));
 }
 
@@ -18150,11 +18193,7 @@ function bindEmailLabDetail(detail) {
   emailState.labDetail = detail;
   if (!labDocSelectionBound) {
     labDocSelectionBound = true;
-    document.addEventListener('pointerdown', markLabSelecting);
-    document.addEventListener('mousedown', markLabSelecting);
-    document.addEventListener('pointerup', (ev) => finishLabSelecting({ event: ev }));
-    document.addEventListener('mouseup', (ev) => finishLabSelecting({ event: ev }));
-    document.addEventListener('touchend', (ev) => finishLabSelecting({ event: ev, delay: 80 }));
+    bindEmailLabReleaseListeners(document);
     document.addEventListener('keyup', onLabKeyUp);
   }
   if (detail.dataset.emailLabDetailBound === '1') return;
