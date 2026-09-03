@@ -22,7 +22,6 @@ import {
 import { seoInventory, type SeoInventoryResponse } from './seoInventoryClient';
 import { hostnameFromWebsite } from './plausibleClient';
 import { isApexPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
-import { hasFeature } from './features';
 import { buildSiteReadinessChecklist } from './siteReadinessChecklist';
 import type {
   AnalyticsAccountRow,
@@ -50,7 +49,7 @@ export type SiteHealthCardInput = {
   analytics?: AnalyticsAccountRow | null;
 };
 
-const HEALTH_TTL_MS = 45 * 60_000;
+const HEALTH_TTL_MS = 60 * 60_000;
 const SEO_PROBE_CONCURRENCY = 3;
 
 let healthCache: { at: number; fleet: SiteHealthFleet } | null = null;
@@ -251,12 +250,3 @@ export async function buildSiteHealthFleet(
   }
 }
 
-/** Kick a background rebuild when Sites is enabled and cache is missing/stale. */
-export function scheduleSiteHealthFleetRefresh(cards: SiteHealthCardInput[]): void {
-  if (!hasFeature('analytic_audit') && !hasFeature('uptime_monitoring')) return;
-  if (!cards.length) return;
-  const fresh = peekCachedSiteHealthFleet();
-  void buildSiteHealthFleet(cards, { fresh: !fresh }).catch((e) => {
-    console.error('[site-health] refresh failed:', e instanceof Error ? e.message : e);
-  });
-}

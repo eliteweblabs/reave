@@ -3058,6 +3058,16 @@ function formatReviewAlertWhen(iso) {
   }
 }
 
+function formatDashHealthCheckedHint(checkedAt) {
+  if (!checkedAt) return 'tap Scan sites to check';
+  const iso =
+    typeof checkedAt === 'number'
+      ? new Date(checkedAt).toISOString()
+      : String(checkedAt || '');
+  const when = formatReviewAlertWhen(iso);
+  return when ? `checked ${when}` : 'tap Scan sites to refresh';
+}
+
 function parseSenderDisplayName(from) {
   const raw = String(from || '').trim();
   const named = raw.match(/^(.+?)\s*<[^>]+>$/);
@@ -3905,24 +3915,6 @@ const SITE_HEALTH_SIGNALS = [
 function siteHealthIssueCodes(health) {
   if (!health || !Array.isArray(health.issues)) return new Set();
   return new Set(health.issues.map((i) => i.code).filter(Boolean));
-}
-
-/** True when fleet cards or health grades show Plausible/GSC gaps worth auto-wiring. */
-function dashboardFleetNeedsWiring(data, siteCards) {
-  if (!siteCards?.length) return false;
-  const health = data?.siteHealth;
-  if (health?.sites) {
-    for (const row of Object.values(health.sites)) {
-      for (const issue of row?.issues || []) {
-        if (issue.code === 'plausible_unregistered' || issue.code === 'gsc_missing') return true;
-      }
-    }
-  }
-  const analyticsLive = data?.analyticsConfigured === true;
-  return siteCards.some((card) => {
-    if (card.analytics) return card.analytics.registered !== true;
-    return analyticsLive;
-  });
 }
 
 function dashboardSiteCardsFromPayload(data) {
@@ -5919,8 +5911,8 @@ function renderAdminDashboard(data, opts = {}) {
       value: siteHealth ? (critical ?? 0) : '—',
       label: 'Site issues',
       hint: siteHealth
-        ? `${graded} graded · schema / speed / GSC / sitemap / links`
-        : 'scanning in background',
+        ? `${graded} graded · ${formatDashHealthCheckedHint(siteHealth.checkedAt ?? stats.siteHealthCheckedAt)}`
+        : 'tap Scan sites below',
       tone: critical > 0 ? 'failed' : siteHealth ? 'live' : 'muted',
       muted: !siteHealth,
       onClick: () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }),
@@ -5932,6 +5924,26 @@ function renderAdminDashboard(data, opts = {}) {
   const showFleetGrid =
     siteCards.length > 0 && (uptimeConfigured || analyticsLive || analyticsPreview);
   if (showFleetGrid) {
+    const fleetHead = document.createElement('div');
+    fleetHead.className = 'dash-fleet-head';
+    const scanBtn = document.createElement('button');
+    scanBtn.type = 'button';
+    scanBtn.id = 'dash-site-scan-btn';
+    scanBtn.className = 'dash-fleet-scan-btn';
+    scanBtn.innerHTML =
+      `<span class="dash-fleet-scan-icon" aria-hidden="true">${iosIcon('refresh', 14)}</span>` +
+      `<span class="dash-fleet-scan-label">Scan sites</span>`;
+    scanBtn.title = 'Check schema, speed, Search Console, sitemap, and links';
+    scanBtn.addEventListener('click', () => void refreshDashboardSiteHealth({ force: true }));
+    fleetHead.appendChild(scanBtn);
+    const fleetHint = document.createElement('span');
+    fleetHint.className = 'dash-fleet-head-hint';
+    fleetHint.textContent = siteHealth
+      ? formatDashHealthCheckedHint(siteHealth.checkedAt ?? stats.siteHealthCheckedAt)
+      : 'Readiness checks run on demand — not on page load';
+    fleetHead.appendChild(fleetHint);
+    mount.appendChild(fleetHead);
+
     const list = document.createElement('ul');
     list.className = 'dash-uptime-grid dash-fleet-grid';
     const analyticsLoading = analyticsLive && !analyticsPreview && !analyticsError;
@@ -6048,44 +6060,84 @@ function renderAdminDashboard(data, opts = {}) {
   if (!opts.skipHydrate && analyticsLive && !analyticsPreview && !analyticsError) {
     void hydrateDashboardAnalytics();
   }
-  if (!opts.skipHydrate && siteCards.length && !siteHealth) {
-    void hydrateDashboardSiteHealth();
-  }
-  if (!opts.skipHydrate && dashboardFleetNeedsWiring(data, siteCards)) {
-    void hydrateDashboardSiteWiring();
+  if (!opts.skipHydrate && siteCards.length) {
+    scheduleDashboardSiteHealthIdleRefresh(
+      siteHealth?.checkedAt ?? stats.siteHealthCheckedAt ?? null,
+    );
   }
 }
 
 let dashboardSiteHealthHydrateGen = 0;
-let dashboardSiteWireRuns = 0;
-const DASHBOARD_SITE_WIRE_MAX = 2;
+let dashboardSiteHealthScanBusy = false;
+let dashboardSiteHealthAutoTimer = null;
+const SITE_HEALTH_AUTO_INTERVAL_MS = 60 * 60 * 1000;
 
-async function hydrateDashboardSiteWiring() {
-  if (dashboardSiteWireRuns >= DASHBOARD_SITE_WIRE_MAX) return;
-  dashboardSiteWireRuns += 1;
-  try {
-    const res = await adminFetch('/api/admin/sites/wire', { method: 'POST' });
-    const payload = await readAdminJson(res, 'site wire');
-    if (MAP?.type !== 'dashboard') return;
-    if (!payload.wired) return;
-    void hydrateDashboardAnalytics();
-    void hydrateDashboardSiteHealth();
-  } catch {
-    /* background wiring — silent */
+function setDashboardSiteScanBusy(busy) {
+  const btn = document.getElementById('dash-site-scan-btn');
+  if (!btn) return;
+  btn.classList.toggle('dash-fleet-scan-btn--busy', busy);
+  btn.disabled = busy;
+  btn.setAttribute('aria-busy', busy ? 'true' : 'false');
+  const label = btn.querySelector('.dash-fleet-scan-label');
+  if (label) label.textContent = busy ? 'Scanning…' : 'Scan sites';
+}
+
+function scheduleDashboardSiteHealthIdleRefresh(checkedAt) {
+  if (dashboardSiteHealthAutoTimer != null) {
+    clearTimeout(dashboardSiteHealthAutoTimer);
+    dashboardSiteHealthAutoTimer = null;
+  }
+  if (!checkedAt) return;
+  const age = Date.now() - Number(checkedAt);
+  if (!Number.isFinite(age) || age >= SITE_HEALTH_AUTO_INTERVAL_MS) return;
+  const delay = Math.max(SITE_HEALTH_AUTO_INTERVAL_MS - age, 60_000);
+  dashboardSiteHealthAutoTimer = window.setTimeout(() => {
+    dashboardSiteHealthAutoTimer = null;
+    runDashboardSiteHealthIdleRefresh();
+  }, delay);
+}
+
+function runDashboardSiteHealthIdleRefresh() {
+  if (MAP?.type !== 'dashboard') return;
+  if (document.visibilityState !== 'visible') return;
+  if (dashboardSiteHealthScanBusy) return;
+  const checkedAt =
+    lastDashboardPayload?.siteHealth?.checkedAt ??
+    lastDashboardPayload?.stats?.siteHealthCheckedAt ??
+    null;
+  if (checkedAt && Date.now() - Number(checkedAt) < SITE_HEALTH_AUTO_INTERVAL_MS) {
+    scheduleDashboardSiteHealthIdleRefresh(checkedAt);
+    return;
+  }
+  const run = () => void refreshDashboardSiteHealth({ force: true });
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(run, { timeout: 120_000 });
+  } else {
+    window.setTimeout(run, 5000);
   }
 }
 
-async function hydrateDashboardSiteHealth() {
+async function refreshDashboardSiteHealth(opts = {}) {
+  const force = opts.force === true;
+  if (dashboardSiteHealthScanBusy) return;
+  dashboardSiteHealthScanBusy = true;
+  setDashboardSiteScanBusy(true);
   const gen = ++dashboardSiteHealthHydrateGen;
   try {
-    const res = await adminFetch('/api/admin/sites/health');
+    const res = await adminFetch('/api/admin/sites/health', {
+      method: force ? 'POST' : 'GET',
+    });
     const payload = await readAdminJson(res, 'site health');
     if (gen !== dashboardSiteHealthHydrateGen) return;
     if (MAP?.type !== 'dashboard') return;
-    if (!payload.ok || !payload.siteHealth) {
+    if (!payload.ok) {
       throw new Error(payload.error || `HTTP ${res.status}`);
     }
     if (!lastDashboardPayload) return;
+    if (!payload.siteHealth) {
+      if (force) throw new Error('Site scan returned no data');
+      return;
+    }
     const health = payload.siteHealth;
     lastDashboardPayload = {
       ...lastDashboardPayload,
@@ -6097,12 +6149,16 @@ async function hydrateDashboardSiteHealth() {
       },
     };
     renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
-    const cards = dashboardSiteCardsFromPayload(lastDashboardPayload);
-    if (dashboardFleetNeedsWiring(lastDashboardPayload, cards)) {
-      void hydrateDashboardSiteWiring();
+    scheduleDashboardSiteHealthIdleRefresh(health.checkedAt ?? null);
+  } catch (e) {
+    if (gen !== dashboardSiteHealthHydrateGen) return;
+    if (MAP?.type !== 'dashboard') return;
+    console.warn('[dashboard] site scan failed', e);
+  } finally {
+    if (gen === dashboardSiteHealthHydrateGen) {
+      dashboardSiteHealthScanBusy = false;
+      setDashboardSiteScanBusy(false);
     }
-  } catch {
-    /* background grade — leave cards without letters until next load */
   }
 }
 

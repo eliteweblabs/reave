@@ -40,12 +40,7 @@ import {
 import { isPlausibleConfigured } from '../../../lib/plausibleClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { jsonResponse } from '../../../lib/apiResponse';
-import { mergeDashboardSiteCards } from '../../../lib/analyticsSiteMerge';
-import {
-  peekCachedSiteHealthFleet,
-  scheduleSiteHealthFleetRefresh,
-  type SiteHealthFleet,
-} from '../../../lib/siteHealthGrade';
+import { peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
 import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
 
@@ -219,17 +214,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { billing, billingError, billingConfigured } = billingSlice;
   const { analytics, analyticsConfigured } = analyticsSlice;
 
-  const siteCards = mergeDashboardSiteCards(uptimeMonitors, analytics?.sites ?? []);
-  const siteHealthCached = peekCachedSiteHealthFleet({ allowStale: true });
-  scheduleSiteHealthFleetRefresh(
-    siteCards.map((card) => ({
-      siteId: card.siteId,
-      website: card.analytics?.website ?? null,
-      monitor: card.monitor,
-      analytics: card.analytics,
-    })),
-  );
-  const siteHealth: SiteHealthFleet | null = siteHealthCached;
+  const siteHealth: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
 
   const firstName = dashboardGreetingFirstName(context);
   const sleepDeferred = await storeListSleepDeferredEmails(50);

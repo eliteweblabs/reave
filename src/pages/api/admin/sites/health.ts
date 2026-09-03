@@ -48,31 +48,10 @@ export async function GET(context: APIContext): Promise<Response> {
   const cached = peekCachedSiteHealthFleet({ allowStale: true });
   if (cached) {
     const fresh = peekCachedSiteHealthFleet();
-    if (!fresh) {
-      const cards = await loadFleetCards(context);
-      void buildSiteHealthFleet(
-        cards.map((card) => ({
-          siteId: card.siteId,
-          website: card.analytics?.website ?? null,
-          monitor: card.monitor,
-          analytics: card.analytics,
-        })),
-        { fresh: true },
-      ).catch(() => undefined);
-    }
-    return jsonResponse({ ok: true, siteHealth: cached });
+    return jsonResponse({ ok: true, siteHealth: cached, stale: !fresh });
   }
 
-  const cards = await loadFleetCards(context);
-  const siteHealth = await buildSiteHealthFleet(
-    cards.map((card) => ({
-      siteId: card.siteId,
-      website: card.analytics?.website ?? null,
-      monitor: card.monitor,
-      analytics: card.analytics,
-    })),
-  );
-  return jsonResponse({ ok: true, siteHealth });
+  return jsonResponse({ ok: true, siteHealth: null });
 }
 
 export async function POST(context: APIContext): Promise<Response> {

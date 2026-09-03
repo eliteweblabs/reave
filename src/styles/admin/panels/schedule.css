@@ -59,6 +59,44 @@
   border: 1px solid var(--panel-border);
   background: var(--surface-muted);
 }
+.dash-fleet-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin: 0.35rem 0 0.55rem;
+}
+.dash-fleet-scan-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--surface-muted);
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.dash-fleet-scan-btn:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--surface-hover-strong);
+  color: var(--fg);
+}
+.dash-fleet-scan-btn:disabled {
+  opacity: 0.72;
+  cursor: progress;
+}
+.dash-fleet-scan-btn--busy .dash-fleet-scan-icon {
+  animation: dash-uptime-spin 0.9s linear infinite;
+}
+.dash-fleet-head-hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
 .dash-fleet-grid .dash-fleet-tile {
   min-height: var(--dash-fleet-tile-min-h);
   justify-content: flex-start;
