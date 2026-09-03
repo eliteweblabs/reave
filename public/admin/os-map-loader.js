@@ -64,8 +64,9 @@ function applyCompanyBrandingToMaps() {
   }
   if (MAPS.meet) {
     const galene = window.__galeneMeetUrl?.trim().replace(/\/$/, '');
-    if (galene) MAPS.meet.link = `${galene}/group/meet/`;
-    else if (domain) MAPS.meet.link = `https://meet.${domain}/group/meet/`;
+    if (galene) MAPS.meet.roomUrl = `${galene}/group/meet/`;
+    else if (domain) MAPS.meet.roomUrl = `https://meet.${domain}/group/meet/`;
+    delete MAPS.meet.link;
   }
 }
 
@@ -211,6 +212,7 @@ import {
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';
+import { loadMeetTab } from './meet-panel.js?v=20260903a';
 import {
   initClientsPanel,
   clientState,
@@ -879,6 +881,7 @@ function isPanelMapKey(key) {
     t === 'analytics' ||
     t === 'fleet' ||
     t === 'dscr' ||
+    t === 'meet' ||
     t === 'modules' ||
     t === 'chats' ||
     t === 'email' ||
@@ -957,6 +960,8 @@ function activateMapPanel(opts = {}) {
     loadFleetTab();
   } else if (MAP.type === 'dscr') {
     loadDscrTab();
+  } else if (MAP.type === 'meet') {
+    loadMeetTab();
   } else if (MAP.type === 'modules') {
     loadModulesTab({ feature: opts.moduleFeature });
   } else if (MAP.type === 'chats') {
@@ -1034,6 +1039,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
   setPanelDisplay('fleet-panel', MAP.type === 'fleet' ? 'flex' : 'none');
   setPanelDisplay('dscr-panel', MAP.type === 'dscr' ? 'flex' : 'none');
+  setPanelDisplay('meet-panel', MAP.type === 'meet' ? 'flex' : 'none');
   setPanelDisplay('modules-panel', MAP.type === 'modules' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
@@ -2038,7 +2044,7 @@ function effectiveTabOrder(order) {
       }
       continue;
     }
-    if (key === 'finance' || key === 'meet') continue;
+    if (key === 'finance') continue;
     out.push(key);
   }
   return out;
@@ -10287,10 +10293,10 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #punchlist-editor, #media-panel, #modules-panel, #dscr-panel, #search-overlay';
+  '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #punchlist-editor, #media-panel, #modules-panel, #dscr-panel, #meet-panel, #search-overlay';
 /** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
-  '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ml-panel-scroll, .dscr-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
+  '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ml-panel-scroll, .dscr-panel-scroll, .meet-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 

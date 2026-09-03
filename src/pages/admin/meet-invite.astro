@@ -1,0 +1,210 @@
+---
+/**
+ * Popup target for Galene “Share link” — creates a guest invite and copies the URL.
+ */
+import ViewportMeta from "../../components/ViewportMeta.astro";
+import Favicon from "../../components/Favicon.astro";
+import { companyHtmlStyleAttr } from "../../lib/companyBrandColors";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import { resolveStaffMember } from "../../lib/staffAuth";
+import { hasFeature } from "../../lib/features";
+import { galeneCreateInvite, isGaleneConfigured } from "../../lib/galeneClient";
+
+export const prerender = false;
+
+Astro.response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  const returnTo = Astro.url.pathname + Astro.url.search;
+  return Astro.redirect(`/admin/login?redirect_url=${encodeURIComponent(returnTo)}`);
+}
+
+const isOwner = await isDeploymentOwner(Astro);
+const staff = !isOwner ? await resolveStaffMember(Astro, userId) : null;
+const canAccess = isOwner || Boolean(staff && staff.status === "active");
+if (!canAccess) {
+  Astro.response.status = 403;
+}
+
+const company = await getCompanyConfig(Astro.request);
+const groupParam = (Astro.url.searchParams.get("group") ?? "meet").trim().toLowerCase();
+const group = groupParam.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "meet";
+
+let inviteUrl = "";
+let inviteExpires = "";
+let error = "";
+
+if (!hasFeature("video_meet")) {
+  error = "Video meet is not enabled on this install.";
+} else if (!isGaleneConfigured()) {
+  error = "Galene is not configured yet (GALENE_API_BASE_URL / GALENE_ADMIN_PASSWORD).";
+} else {
+  const result = await galeneCreateInvite({ group });
+  if (result.ok) {
+    inviteUrl = result.data.url;
+    inviteExpires = result.data.expires ?? "";
+  } else {
+    error = result.error;
+  }
+}
+---
+
+<!doctype html>
+<html lang="en" style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}>
+  <head>
+    <meta charset="utf-8" />
+    <ViewportMeta />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Share meeting link — {company.name}</title>
+    <Favicon />
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #111;
+        color: #f5f5f5;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        box-sizing: border-box;
+      }
+      .meet-invite-card {
+        width: min(100%, 26rem);
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 1.25rem 1.35rem 1.35rem;
+      }
+      .meet-invite-card h1 {
+        margin: 0 0 0.35rem;
+        font-size: 1.15rem;
+      }
+      .meet-invite-card p {
+        margin: 0 0 0.85rem;
+        font-size: 0.9rem;
+        line-height: 1.45;
+        color: #bbb;
+      }
+      .meet-invite-url {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        font: 0.8rem/1.4 ui-monospace, monospace;
+        padding: 0.65rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid #444;
+        background: #0d0d0d;
+        color: #eee;
+        word-break: break-all;
+        margin-bottom: 0.85rem;
+      }
+      .meet-invite-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .meet-invite-btn {
+        appearance: none;
+        border: none;
+        border-radius: 8px;
+        padding: 0.55rem 0.95rem;
+        font: 600 0.88rem system-ui, sans-serif;
+        cursor: pointer;
+      }
+      .meet-invite-btn--primary {
+        background: var(--brand-primary, #2563eb);
+        color: #fff;
+      }
+      .meet-invite-btn--ghost {
+        background: transparent;
+        color: #ccc;
+        border: 1px solid #444;
+      }
+      .meet-invite-status {
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        color: #8f8;
+      }
+      .meet-invite-error {
+        color: #f99;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="meet-invite-card">
+      {error ? (
+        <>
+          <h1>Could not create link</h1>
+          <p class="meet-invite-error">{error}</p>
+          <div class="meet-invite-actions">
+            <button type="button" class="meet-invite-btn meet-invite-btn--ghost" id="meet-invite-close">Close</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h1>Guest link ready</h1>
+          <p>
+            Send this link to join <strong>{group}</strong> — no username or password. One-time secure token.
+            {inviteExpires ? ` Valid until ${new Date(inviteExpires).toLocaleString()}.` : " Valid for 7 days."}
+          </p>
+          <textarea class="meet-invite-url" id="meet-invite-url" readonly rows="3">{inviteUrl}</textarea>
+          <div class="meet-invite-actions">
+            <button type="button" class="meet-invite-btn meet-invite-btn--primary" id="meet-invite-copy">Copy link</button>
+            <button type="button" class="meet-invite-btn meet-invite-btn--ghost" id="meet-invite-close">Close</button>
+          </div>
+          <p class="meet-invite-status" id="meet-invite-status" hidden></p>
+        </>
+      )}
+    </main>
+    <script is:inline define:vars={{ inviteUrl, error }}>
+      (function () {
+        var closeBtn = document.getElementById('meet-invite-close');
+        var copyBtn = document.getElementById('meet-invite-copy');
+        var urlEl = document.getElementById('meet-invite-url');
+        var statusEl = document.getElementById('meet-invite-status');
+
+        function closeWin() {
+          try {
+            window.close();
+          } catch (e) {}
+        }
+
+        if (closeBtn) closeBtn.addEventListener('click', closeWin);
+
+        async function copyLink() {
+          var text = inviteUrl || (urlEl && urlEl.value) || '';
+          if (!text) return;
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(text);
+            } else if (urlEl) {
+              urlEl.focus();
+              urlEl.select();
+              document.execCommand('copy');
+            }
+            if (statusEl) {
+              statusEl.hidden = false;
+              statusEl.textContent = 'Copied — paste into text or email.';
+            }
+            if (copyBtn) copyBtn.textContent = 'Copied';
+          } catch (e) {
+            if (statusEl) {
+              statusEl.hidden = false;
+              statusEl.textContent = 'Select the link and copy manually.';
+            }
+          }
+        }
+
+        if (copyBtn) copyBtn.addEventListener('click', copyLink);
+
+        if (!error && inviteUrl) {
+          void copyLink();
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -244,6 +244,55 @@ EOF
   rm -f "${BRAND_JSON}"
 fi
 
+# Share guest link — opens reave.app popup (Clerk auth) to mint Galene ?token= invite.
+if [ -n "${REAVE_APP_URL:-}" ]; then
+  REAVE_ORIGIN="$(printf '%s' "${REAVE_APP_URL}" | sed -E 's#/$##')"
+  cat > "${GALENE_STATIC}/reave-meet-share.js" <<EOF
+(function () {
+  var REAVE = '${REAVE_ORIGIN}';
+  function groupFromPath() {
+    var m = window.location.pathname.match(/\\/group\\/([^/]+)/);
+    return m ? decodeURIComponent(m[1]) : 'meet';
+  }
+  function sharePopup() {
+    var g = encodeURIComponent(groupFromPath());
+    window.open(
+      REAVE + '/admin/meet-invite?group=' + g,
+      'reave-meet-share',
+      'width=460,height=360,noopener,noreferrer'
+    );
+  }
+  function addBtn(parent, className, label) {
+    if (!parent || parent.querySelector('.reave-share-btn')) return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = className + ' reave-share-btn';
+    btn.textContent = label;
+    btn.addEventListener('click', sharePopup);
+    parent.appendChild(btn);
+  }
+  function mount() {
+    addBtn(document.querySelector('header nav.topnav, header .topnav'), 'btn btn-default btn-sm', 'Share link');
+    var form = document.getElementById('loginform') || document.getElementById('groupform');
+    if (form) {
+      var wrap = document.createElement('p');
+      wrap.className = 'reave-share-wrap';
+      addBtn(wrap, 'btn btn-default', 'Share guest link');
+      form.insertAdjacentElement('afterend', wrap);
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+  else mount();
+})();
+EOF
+  for html in galene.html index.html; do
+    target="${GALENE_STATIC}/${html}"
+    if [ -f "${target}" ] && ! grep -q 'reave-meet-share.js' "${target}" 2>/dev/null; then
+      sed -i 's#</body>#    <script src="/reave-meet-share.js"></script>\n  </body>#' "${target}" 2>/dev/null || true
+    fi
+  done
+fi
+
 GALENE_UDP_MUX_PORT="${GALENE_UDP_MUX_PORT:-50000}"
 
 echo "=============================================="

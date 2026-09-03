@@ -496,7 +496,7 @@ export const MAPS = {
   addons:    { id: 'addons',    title: 'Add-ons',    icon: '🧩',  type: 'addons',        nodes: [],             edges: [],             groups: [] },
   'ai-services': { id: 'ai-services', title: 'AI Services', icon: '✨', type: 'ai-services', nodes: [], edges: [], groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰' },
-  meet:      { id: 'meet',      title: 'Meet',       icon: '📹' },
+  meet:      { id: 'meet',      title: 'Meet',       icon: '📹', type: 'meet', nodes: [], edges: [], groups: [] },
 };
 
 /** Footer / home tabs keep the wordmark. Keep in sync with src/lib/adminSpecialPages.ts. */

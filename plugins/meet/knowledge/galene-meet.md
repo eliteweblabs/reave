@@ -32,7 +32,14 @@ On container start, `docker-entrypoint.sh` pulls `GET {REAVE_APP_URL}/api/brandi
 
 ## Admin UI
 
-Footer tab **Meet** opens the Galene host (`window.__galeneMeetUrl` or `https://meet.{domain}`).
+Footer tab **Meet** opens the invite panel (`?tab=meet`):
+
+- **Share guest link** — creates a Galene stateful token URL (`?token=…`) valid 7 days; guest joins without username/password.
+- **Open room** — moderator login (`host` + `GALENE_GROUP_PASSWORD`).
+
+On **meet.{domain}**, a **Share guest link** button opens the same flow (reave.app popup; sign in once if prompted).
+
+Popup: `/admin/meet-invite?group=meet` — auto-copies the link.
 
 ## Agent tools
 
