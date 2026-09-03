@@ -89,8 +89,9 @@ else
 fi
 
 DEFAULT_GROUP_FILE="${GALENE_GROUPS}/${GALENE_DEFAULT_GROUP}.json"
+GROUP_PASSWORD="${GALENE_GROUP_PASSWORD:-meet}"
+
 if [ ! -f "${DEFAULT_GROUP_FILE}" ]; then
-  GROUP_PASSWORD="${GALENE_GROUP_PASSWORD:-meet}"
   cat > "${DEFAULT_GROUP_FILE}" <<EOF
 {
   "displayName": "Meeting Room",
@@ -113,6 +114,11 @@ if [ ! -f "${DEFAULT_GROUP_FILE}" ]; then
 }
 EOF
   echo "Default room /group/${GALENE_DEFAULT_GROUP}/ — moderator: host / ${GROUP_PASSWORD}"
+elif [ -n "${GALENE_GROUP_PASSWORD:-}" ] && command -v jq >/dev/null 2>&1; then
+  tmp="$(mktemp)"
+  jq --arg pw "${GROUP_PASSWORD}" \
+    '.users.host.password = $pw' "${DEFAULT_GROUP_FILE}" > "${tmp}"
+  mv "${tmp}" "${DEFAULT_GROUP_FILE}"
 fi
 
 # Public TURN address — only when Railway TCP proxy is active.
