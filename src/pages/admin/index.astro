@@ -90,6 +90,7 @@ if (isOwner && shouldSeedOnBoot()) {
 }
 const mapboxAccessToken = canAccessAdmin ? getPublicMapboxAccessToken() || '' : '';
 const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
+const galeneMeetUrl = serverEnv('GALENE_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
 const githubRepo = githubRepoSlug();
 const requestedTab =
   Astro.url.searchParams.get("tab") || Astro.url.searchParams.get("map");
@@ -135,6 +136,7 @@ const bootDashboard = canAccessAdmin && (!requestedTab || requestedTab === "dash
           installConfigClient={installConfigClient}
           mapboxAccessToken={mapboxAccessToken}
           craterFinanceUrl={craterFinanceUrl}
+          galeneMeetUrl={galeneMeetUrl}
           githubRepo={githubRepo}
         />
       </>

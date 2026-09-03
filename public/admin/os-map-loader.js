@@ -62,6 +62,11 @@ function applyCompanyBrandingToMaps() {
     if (crater) MAPS.finance.link = crater;
     else if (domain) MAPS.finance.link = `https://ap.${domain}`;
   }
+  if (MAPS.meet) {
+    const galene = window.__galeneMeetUrl?.trim().replace(/\/$/, '');
+    if (galene) MAPS.meet.link = `${galene}/group/meet/`;
+    else if (domain) MAPS.meet.link = `https://meet.${domain}/group/meet/`;
+  }
 }
 
 applyCompanyBrandingToMaps();
@@ -388,6 +393,7 @@ const MAP_ICON_KEYS = {
   fleet: 'truck',
   modules: 'puzzle',
   finance: 'wallet',
+  meet: 'video',
   profile: 'user',
   team: 'users',
   company: 'building-2',
@@ -513,6 +519,8 @@ const NAV_ICON_PATHS = {
   'trending-up': '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
   'trending-down': '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
   wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  /* IOS_ICONS.video — keep in sync with public/admin/admin-ui.js */
+  video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
   database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
   'help-circle': '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   'external-link': '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
@@ -2030,7 +2038,7 @@ function effectiveTabOrder(order) {
       }
       continue;
     }
-    if (key === 'finance') continue;
+    if (key === 'finance' || key === 'meet') continue;
     out.push(key);
   }
   return out;
@@ -2735,6 +2743,11 @@ function formatDashCount(amount) {
 
 function openFinanceCrater() {
   const href = MAPS.finance?.link;
+  if (href) window.open(href, '_blank', 'noopener,noreferrer');
+}
+
+function openMeetGalene() {
+  const href = MAPS.meet?.link;
   if (href) window.open(href, '_blank', 'noopener,noreferrer');
 }
 

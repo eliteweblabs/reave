@@ -11,6 +11,7 @@ import { isCanonicalReaveInstall } from './installConfig';
 
 import { billingPlugin } from '../../plugins/billing/manifest';
 import { carddavPlugin } from '../../plugins/carddav/manifest';
+import { meetPlugin } from '../../plugins/meet/manifest';
 import { clientPortalPlugin } from '../../plugins/client-portal/manifest';
 import { codeDevPlugin } from '../../plugins/code-dev/manifest';
 import { devInfraPlugin } from '../../plugins/dev-infra/manifest';
@@ -48,6 +49,7 @@ import { websitePlugin } from '../../plugins/website/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
+  meetPlugin,
   carddavPlugin,
   clientPortalPlugin,
   codeDevPlugin,

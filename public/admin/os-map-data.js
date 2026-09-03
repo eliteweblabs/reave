@@ -41,6 +41,7 @@ const SYSTEM_NODES = [
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.example.com · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
+  { id: 'galene', title: 'Galene', sub: 'meet.example.com · video rooms (FEATURES: video_meet)', icon: '📹', hue: 210, status: true, group: 'reave', x: 880, y: 480 },
   { id: 'portal', title: 'Client Portal', sub: '/c/:uid · vault · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
   { id: 'documents', title: 'Dynamic Documents', sub: 'templates · fill · send / print (FEATURES: documents)', icon: '📄', hue: 25, status: true, group: 'reave', x: 760, y: 360 },
   { id: 'digital_signature', title: 'Digital Signature', sub: 'e-sign · ESIGN/UETA audit · POST /api/doc/:uid/sign (FEATURES: digital_signature)', icon: '✍️', hue: 8, status: true, group: 'reave', x: 760, y: 448 },
@@ -143,6 +144,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'railway_gql', label: 'GraphQL · /railway' },
   { from: 'astro', to: 'kinsta_api', label: 'agent · Kinsta WP' },
   { from: 'astro', to: 'crater', label: 'billing · time → invoice' },
+  { from: 'astro', to: 'galene', label: 'video_meet · rooms + invites' },
   { from: 'astro', to: 'time_tracking', label: '/api/work/timer · /time' },
   { from: 'time_tracking', to: 'app_pg', label: 'job_time_entries · active_timers' },
   { from: 'siri', to: 'time_tracking', label: 'start/stop', dashed: true },
@@ -254,7 +256,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'social_lead_scanner', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'galene', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'social_lead_scanner', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['openrouter', 'omniroute', 'anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
@@ -494,6 +496,7 @@ export const MAPS = {
   addons:    { id: 'addons',    title: 'Add-ons',    icon: '🧩',  type: 'addons',        nodes: [],             edges: [],             groups: [] },
   'ai-services': { id: 'ai-services', title: 'AI Services', icon: '✨', type: 'ai-services', nodes: [], edges: [], groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰' },
+  meet:      { id: 'meet',      title: 'Meet',       icon: '📹' },
 };
 
 /** Footer / home tabs keep the wordmark. Keep in sync with src/lib/adminSpecialPages.ts. */
@@ -512,7 +515,7 @@ const ADMIN_SETTINGS_PAGE_SET = new Set(ADMIN_SETTINGS_PAGE_KEYS);
  * Styles: src/styles/admin/special-page.css. Standalone: AdminSpecialLayout.astro.
  */
 export function isSpecialAdminPage(key, map = MAPS[key]) {
-  if (!key || key === 'finance') return false;
+  if (!key || key === 'finance' || key === 'meet') return false;
   if (!map || map.link) return false;
   if (map.special === true) return true;
   if (map.special === false) return false;

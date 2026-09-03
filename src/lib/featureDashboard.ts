@@ -34,6 +34,7 @@ export const FEATURE_DASHBOARD: Partial<Record<FeatureId, FeatureDashboardDef>> 
   email_marketing: { dashboard: true, icon: 'send' },
   documents: { dashboard: true, icon: 'file-text' },
   billing: { dashboard: true, icon: 'wallet' },
+  video_meet: { dashboard: true, icon: 'video' },
   analytic_audit: { dashboard: true, icon: 'bar-chart-2' },
   deploy_wizard: { dashboard: true, icon: 'sparkles' },
   site_audits: { dashboard: true, icon: 'receipt' },

@@ -4,6 +4,7 @@
     "web_handoff",
     "portal_assistant",
     "billing",
+    "video_meet",
     "site_audits",
     "analytic_audit",
     "site_monitoring",
@@ -58,7 +59,8 @@
     "reviews",
     "media",
     "analytics",
-    "finance"
+    "finance",
+    "meet"
   ],
   "profileMenu": [
     "profile",
