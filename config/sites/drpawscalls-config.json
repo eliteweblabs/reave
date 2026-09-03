@@ -88,8 +88,8 @@
       },
       "hero": {
         "mainAlt": "Dr. Kara M. Ryczek, veterinarian and founder of Paws Calls",
-        "aboutImage": "/sites/drpawscalls/hero/main.jpg",
-        "aboutAlt": "Veterinarian gently examining a small dog during a checkup"
+        "aboutImage": "/sites/drpawscalls/hero/about.webp",
+        "aboutAlt": "Dr. Kara M. Ryczek providing in-home veterinary care"
       }
     }
   }
