@@ -144,7 +144,8 @@ set -- /opt/galene/galene \
   -udp-range "${GALENE_UDP_MUX_PORT}"
 
 if [ -n "${TURN_PUBLIC}" ]; then
-  set -- "$@" -turn "${TURN_PUBLIC}"
+  # Listen on the Railway TCP proxy application port; clients reach us via GALENE_TURN_PUBLIC.
+  set -- "$@" -turn ":${GALENE_TURN_LISTEN_PORT}"
 else
   set -- "$@" -turn ""
 fi
