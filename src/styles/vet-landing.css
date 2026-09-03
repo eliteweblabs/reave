@@ -224,15 +224,15 @@ a.vet-btn-secondary,
   position: relative;
   border-radius: calc(var(--vet-radius) + 0.25rem);
   overflow: hidden;
-  background: #eef0f3;
-  box-shadow: 0 24px 48px rgb(26 27 31 / 0.08);
+  line-height: 0;
 }
 
 .vet-hero__visual img {
+  display: block;
   width: 100%;
-  height: auto;
   aspect-ratio: 4 / 5;
   object-fit: cover;
+  object-position: center top;
 }
 
 @media (min-width: 900px) {
@@ -461,12 +461,12 @@ a.vet-btn-secondary,
 .vet-about__photo {
   border-radius: calc(var(--vet-radius) + 0.25rem);
   overflow: hidden;
-  background: #eef0f3;
+  line-height: 0;
 }
 
 .vet-about__photo img {
+  display: block;
   width: 100%;
-  height: auto;
   aspect-ratio: 4 / 3;
   object-fit: cover;
 }
