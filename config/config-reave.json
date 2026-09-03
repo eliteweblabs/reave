@@ -34,6 +34,7 @@
     "deploy_wizard",
     "credit_check",
     "social_inbox",
+    "social_lead_scanner",
     "google_workspace"
   ],
   "footerNav": [
@@ -53,6 +54,7 @@
     "schedule",
     "clients",
     "social",
+    "social-leads",
     "reviews",
     "media",
     "analytics",

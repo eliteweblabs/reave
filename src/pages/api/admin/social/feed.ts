@@ -13,6 +13,7 @@ import {
 } from '../../../../lib/social/feed.ts';
 import { upsertActivityReply } from '../../../../lib/social/activityStore.ts';
 import { updateOnlineReview } from '../../../../lib/onlineReviewsStore.ts';
+import { updateSocialLeadScannerHit } from '../../../../lib/socialLeadScannerStore.ts';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
@@ -76,6 +77,16 @@ export async function POST(context: APIContext): Promise<Response> {
       });
       if (!review) return jsonResponse({ ok: false, error: 'Review not found' }, 404);
       return jsonResponse({ ok: true, review });
+    }
+
+    if (id.startsWith('lead:')) {
+      const hitId = id.slice('lead:'.length);
+      const hit = await updateSocialLeadScannerHit(hitId, {
+        replyDraft,
+        status,
+      });
+      if (!hit) return jsonResponse({ ok: false, error: 'Lead not found' }, 404);
+      return jsonResponse({ ok: true, hit });
     }
 
     const saved = await upsertActivityReply({

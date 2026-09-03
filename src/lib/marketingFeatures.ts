@@ -309,6 +309,12 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
+    id: 'social-lead-scanner',
+    label: 'Agentic Social Lead Scanner',
+    modules: ['social_lead_scanner'],
+    kind: 'capability',
+  },
+  {
     id: 'google_workspace',
     label: 'Google™ Workspace',
     modules: ['google_workspace'],

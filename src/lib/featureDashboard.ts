@@ -29,6 +29,7 @@ export type DashboardCard = {
  */
 export const FEATURE_DASHBOARD: Partial<Record<FeatureId, FeatureDashboardDef>> = {
   social_inbox: { dashboard: true, icon: 'share' },
+  social_lead_scanner: { dashboard: true, icon: 'search' },
   online_reviews: { dashboard: true, icon: 'star' },
   email_marketing: { dashboard: true, icon: 'send' },
   documents: { dashboard: true, icon: 'file-text' },

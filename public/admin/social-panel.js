@@ -291,7 +291,7 @@ function createSocialListItem(item) {
   btn.className = 'ch-list-item' + (item.id === socialState.activeId ? ' active' : '');
   btn.dataset.id = item.id;
   const kind = KIND_LABELS[item.kind] || item.kind;
-  const demo = item.live ? '' : '<span class="soc-chip soc-chip--demo">Sample</span>';
+  const demo = item.live ? (item.source === 'lead' ? '<span class="soc-chip soc-chip--live">Lead</span>' : item.source === 'review' ? '' : '') : '<span class="soc-chip soc-chip--demo">Sample</span>';
   const rating = item.kind === 'review' ? starsHtml(item.rating) : '';
   btn.innerHTML =
     platformIcon(item.platform) +

@@ -20,3 +20,6 @@ Use official platform APIs and business accounts only. Do not scrape. Google
 Places and Yelp have display and caching rules; owner replies usually need
 the Business Profile / partner APIs, not Places. Counsel should review before
 a public sale.
+
+See also **Agentic Social Lead Scanner** (`social_lead_scanner`) — keyword
+monitoring on social networks with cron polling and a lead inbox.

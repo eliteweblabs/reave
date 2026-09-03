@@ -34,6 +34,7 @@ import { inventoryPlugin } from '../../plugins/inventory/manifest';
 import { materialsPlugin } from '../../plugins/materials/manifest';
 import { onlineReviewsPlugin } from '../../plugins/online-reviews/manifest';
 import { socialInboxPlugin } from '../../plugins/social-inbox/manifest';
+import { socialLeadScannerPlugin } from '../../plugins/social-lead-scanner/manifest';
 import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 import { contentManagementPlugin } from '../../plugins/content-management/manifest';
 import { stockPhotosPlugin } from '../../plugins/stock-photos/manifest';
@@ -71,6 +72,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   materialsPlugin,
   onlineReviewsPlugin,
   socialInboxPlugin,
+  socialLeadScannerPlugin,
   waybackMachinePlugin,
   contentManagementPlugin,
   stockPhotosPlugin,

@@ -61,6 +61,7 @@ const FEATURE_IDS_LIST = [
   'credit_check',
   'materials_pricing',
   'social_inbox',
+  'social_lead_scanner',
   'google_workspace',
   'hosting_core_os',
   'hosting_growth',
@@ -115,6 +116,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'catalog',
   'vapi',
   'lead-scanner',
+  'social-leads',
   'dscr',
   'fleet',
   'reviews',
@@ -499,6 +501,9 @@ function clientFooterNav(config: InstallConfig): FooterNavKey[] {
   }
   if (!config.features.includes('social_inbox')) {
     nav = nav.filter((key) => key !== 'social');
+  }
+  if (!config.features.includes('social_lead_scanner')) {
+    nav = nav.filter((key) => key !== 'social-leads');
   }
   if (!config.features.includes('online_reviews')) {
     nav = nav.filter((key) => key !== 'reviews');

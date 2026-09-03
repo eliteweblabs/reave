@@ -295,6 +295,7 @@ import {
   initOnlineReviewsPanel,
   loadOnlineReviewsTab,
 } from './online-reviews-panel.js?v=20260813a';
+import { loadSocialLeadScannerTab } from './social-lead-scanner-panel.js?v=20260903a';
 import {
   initMediaPanel,
   loadMediaTab,
@@ -392,6 +393,7 @@ const MAP_ICON_KEYS = {
   industries: 'target',
   vapi: 'mic',
   'lead-scanner': 'radar',
+  'social-leads': 'search',
   dscr: 'calculator',
   deploy: 'sparkles',
   'sales-sheet': 'receipt',
@@ -928,6 +930,8 @@ function activateMapPanel(opts = {}) {
     loadSocialTab();
   } else if (MAP.type === 'reviews') {
     loadOnlineReviewsTab();
+  } else if (MAP.type === 'social-leads') {
+    loadSocialLeadScannerTab();
   } else if (MAP.type === 'media') {
     loadMediaTab();
   } else if (MAP.type === 'analytics') {
@@ -1012,6 +1016,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
   setPanelDisplay('social-panel', MAP.type === 'social' ? 'flex' : 'none');
   setPanelDisplay('online-reviews-panel', MAP.type === 'reviews' ? 'flex' : 'none');
+  setPanelDisplay('social-leads-panel', MAP.type === 'social-leads' ? 'flex' : 'none');
   setPanelDisplay('media-panel', MAP.type === 'media' ? 'flex' : 'none');
   setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
   setPanelDisplay('fleet-panel', MAP.type === 'fleet' ? 'flex' : 'none');
@@ -18902,6 +18907,7 @@ function canOpenMapKey(key) {
   const features = window.__installConfig?.features;
   const has = (id) => Array.isArray(features) && features.includes(id);
   if (key === 'social') return has('social_inbox');
+  if (key === 'social-leads') return has('social_lead_scanner');
   if (key === 'reviews') return has('online_reviews');
   return true;
 }

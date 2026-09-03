@@ -58,6 +58,7 @@ const FEATURE_MOD_ICONS: Record<string, string> = {
   real_estate_data: 'map-pin',
   scheduling: 'calendar',
   social_inbox: 'share',
+  social_lead_scanner: 'search',
   time_tracking: 'stopwatch',
   website: 'image',
   content_management: 'image',

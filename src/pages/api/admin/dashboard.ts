@@ -26,6 +26,8 @@ import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler'
 import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
 import { ensureCalcomIdentityScheduler } from '../../../lib/calcomIdentitySync';
 import { ensureCalendarReminderScheduler } from '../../../lib/calendarReminderScheduler';
+import { ensureOnlineReviewsScheduler } from '../../../lib/onlineReviewsScheduler';
+import { ensureSocialLeadScannerScheduler } from '../../../lib/socialLeadScannerScheduler';
 import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
@@ -168,6 +170,8 @@ export async function GET(context: APIContext): Promise<Response> {
   await ensureSeededInboxClearedOnLiveEmail().catch(() => undefined);
   ensureCalendarReminderScheduler();
   ensureCalcomIdentityScheduler();
+  ensureOnlineReviewsScheduler();
+  ensureSocialLeadScannerScheduler();
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 
   const [{ threads }, events, inboxDigest, jobs, deploy] = await Promise.all([

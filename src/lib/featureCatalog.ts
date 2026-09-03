@@ -46,6 +46,7 @@ export const FEATURE_IDS = [
   'credit_check',
   'materials_pricing',
   'social_inbox',
+  'social_lead_scanner',
   'google_workspace',
   'hosting_core_os',
   'hosting_growth',
@@ -158,6 +159,26 @@ export const FEATURE_MARKETING: Partial<
       blurb: 'Google Search Console, GA4, & IndexNow on the same Sites surface.',
     },
   ],
+  social_lead_scanner: [
+    {
+      id: 'social_keyword_watch',
+      label: 'Keyword Watchlist',
+      href: '/modules',
+      blurb: 'Monitor phrases like “need a plumber” across chosen networks.',
+    },
+    {
+      id: 'social_lead_cron',
+      label: 'Scheduled Scan',
+      href: '/modules',
+      blurb: 'Cron poll checks platforms on an interval you control.',
+    },
+    {
+      id: 'social_lead_inbox',
+      label: 'Lead Inbox',
+      href: '/modules',
+      blurb: 'Matched posts land in Social Leads — draft replies in Reave.',
+    },
+  ],
   online_reviews: [
     { id: 'google_reviews_triage', label: 'Google™ Reviews Triage', href: '/modules' },
     { id: 'apple_maps_reviews_triage', label: 'Apple Maps Reviews Triage', href: '/modules' },
@@ -264,6 +285,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   credit_check: 'Credit Check',
   materials_pricing: 'Materials Pricing',
   social_inbox: 'Agentic Social Media',
+  social_lead_scanner: 'Agentic Social Lead Scanner',
   google_workspace: 'Google™ Workspace',
   hosting_core_os: 'Core OS Hosting',
   hosting_growth: 'Growth Hosting',
@@ -322,6 +344,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Live retail prices from Home Depot & Lowe’s. If a local supplier lists prices online, we can pull them too, apply a discount rate, or build quotes from past materials prices. Requires the billing module.',
   social_inbox:
     'One feed for Facebook, Instagram, LinkedIn, YouTube, TikTok, & the networks you choose — plus Google & Yelp reviews. The agent can draft replies; you post on the network.',
+  social_lead_scanner:
+    'Watch keywords on Facebook, Instagram, X, LinkedIn, Reddit, Bluesky, & Threads — cron scans land matched posts in a lead inbox with agent-drafted replies.',
   google_workspace:
     'Gmail MX, SPF, DKIM, DMARC, & Workspace domain admin — point a client domain at Google mail without asking them to paste records.',
   hosting_core_os:
@@ -356,6 +380,7 @@ export const FEATURE_VISIBILITY: Partial<Record<FeatureId, FeatureVisibility>> =
  */
 export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'social_inbox',
+  'social_lead_scanner',
   'materials_pricing',
   'website',
   'billing',

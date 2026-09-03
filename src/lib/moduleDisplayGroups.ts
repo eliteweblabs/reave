@@ -48,7 +48,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
   {
     id: 'social',
     title: 'Social',
-    features: ['social_inbox', 'online_reviews'],
+    features: ['social_inbox', 'online_reviews', 'social_lead_scanner'],
   },
   {
     id: 'e_commerce',

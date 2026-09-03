@@ -54,6 +54,7 @@ const SYSTEM_NODES = [
   { id: 'newsletter', title: 'Newsletter Engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
   { id: 'online_reviews', title: 'Reviews Triage', sub: 'Google™ · Apple Maps · Yelp · Facebook · Tripadvisor · Trustpilot · Glassdoor (FEATURES: online_reviews)', icon: '⭐', brand: 'google', hue: 48, status: true, group: 'reave', x: 640, y: 732 },
   { id: 'social_feed', title: 'Agentic Social Media', sub: 'Paid add-on · Modules purchase · /api/admin/social/feed (FEATURES: social_inbox)', icon: '📣', hue: 330, status: true, group: 'reave', x: 880, y: 768 },
+  { id: 'social_lead_scanner', title: 'Agentic Social Lead Scanner', sub: 'Keyword cron · /api/admin/social-lead-scanner (FEATURES: social_lead_scanner)', icon: '🔍', hue: 312, status: true, group: 'reave', x: 880, y: 820 },
   { id: 'analytic_audit', title: 'Sites', sub: 'Uptime · Plausible · GSC · health grades (FEATURES: analytic_audit → uptime_monitoring)', icon: '📊', brand: 'google', hue: 145, status: true, group: 'reave', x: 640, y: 804 },
   { id: 'seo_directory', title: 'SEO Directory API Kit', sub: 'second-tier citations · BrightLocal Citation Builder (FEATURES: seo_directory)', icon: '📂', hue: 200, status: true, group: 'reave', x: 640, y: 876 },
   { id: 'event_ticketing', title: 'Event Ticketing', sub: 'reference · ticket sales · QR check-in (FEATURES: event_ticketing · request)', icon: '🎟️', hue: 330, status: true, ghost: true, group: 'reave', x: 640, y: 948 },
@@ -190,6 +191,8 @@ const SYSTEM_EDGES = [
   { from: 'online_reviews', to: 'google_places', label: 'Places API sync', dashed: true },
   { from: 'astro', to: 'social_feed', label: '/api/admin/social/feed', dashed: true },
   { from: 'social_feed', to: 'online_reviews', label: 'reviews in feed', dashed: true },
+  { from: 'social_lead_scanner', to: 'social_feed', label: 'leads in feed', dashed: true },
+  { from: 'social_lead_scanner', to: 'app_pg', label: 'keyword hits', dashed: true },
   { from: 'social_feed', to: 'app_pg', label: 'reply drafts', dashed: true },
   { from: 'social_feed', to: 'instagram_oauth', label: 'Connect Instagram', dashed: true },
   { from: 'astro', to: 'seo_directory', label: '/api/admin/seo-directory', dashed: true },
@@ -251,7 +254,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'social_lead_scanner', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['openrouter', 'omniroute', 'anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
@@ -470,6 +473,7 @@ export const MAPS = {
   schedule:  { id: 'schedule',  title: 'Schedule',   icon: '📅',  type: 'schedule',      nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Contacts',   icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   social:    { id: 'social',    title: 'Social',     icon: '📣',  type: 'social',        nodes: [],             edges: [],             groups: [] },
+  'social-leads': { id: 'social-leads', title: 'Social Leads', icon: '🔍', type: 'social-leads', nodes: [], edges: [], groups: [] },
   reviews:   { id: 'reviews',   title: 'Reviews',    icon: '⭐',  type: 'reviews',       nodes: [],             edges: [],             groups: [] },
   media:     { id: 'media',     title: 'Media Library', icon: '🖼️', type: 'media',     nodes: [],             edges: [],             groups: [] },
   analytics: { id: 'analytics', title: 'Sites',      icon: '📈',  type: 'analytics',     nodes: [],             edges: [],             groups: [] },

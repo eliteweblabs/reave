@@ -25,6 +25,7 @@ import {
   isGooglePlacesConfigured,
   syncGoogleReviews,
 } from '../../../lib/onlineReviewsSync';
+import { ensureOnlineReviewsScheduler } from '../../../lib/onlineReviewsScheduler';
 import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
@@ -42,6 +43,8 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
   const blocked = featureGate();
   if (blocked) return blocked;
+
+  ensureOnlineReviewsScheduler();
 
   const statusParam = context.url.searchParams.get('status')?.trim() || 'inbox';
   const reviewId = context.url.searchParams.get('id')?.trim() || null;

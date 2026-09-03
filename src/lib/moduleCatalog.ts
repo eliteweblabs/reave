@@ -441,6 +441,7 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   email_marketing: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'real-estate-agents', 'entrepreneurs'],
   auto_email_response: ALL_INDUSTRIES,
   social_inbox: ['marketers', 'hair-stylists', 'artists', 'creators', 'designers', 'real-estate-agents'],
+  social_lead_scanner: ['marketers', 'hair-stylists', 'creators', 'designers', 'real-estate-agents', 'general-contractors'],
   online_reviews: ['hair-stylists', 'marketers', 'general', 'plumbing', 'electricians', 'artists', 'creators'],
   site_audits: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'general', 'plumbing', 'entrepreneurs'],
   analytic_audit: WEB_INDUSTRIES,

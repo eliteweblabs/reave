@@ -45,6 +45,7 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   credit_check: { amount: 300, interval: 'once', currency: 'usd' },
   materials_pricing: { amount: 200, interval: 'once', currency: 'usd' },
   social_inbox: { amount: 200, interval: 'once', currency: 'usd' },
+  social_lead_scanner: { amount: 225, interval: 'once', currency: 'usd' },
   google_workspace: { amount: 200, interval: 'once', currency: 'usd' },
   hosting_core_os: { amount: 600, interval: 'year', currency: 'usd' },
   hosting_growth: { amount: 900, interval: 'year', currency: 'usd' },

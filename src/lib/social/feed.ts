@@ -10,6 +10,10 @@
 import type { CompanyConfig } from '../companyConfig.ts';
 import { hasFeature } from '../features.ts';
 import {
+  listSocialLeadScannerHits,
+  type SocialLeadScannerHit,
+} from '../socialLeadScannerStore.ts';
+import {
   listOnlineReviews,
   type OnlineReview,
   type ReviewPlatform,
@@ -62,7 +66,7 @@ export interface SocialFeedItem {
   replyDraft: string;
   replyText: string;
   live: boolean;
-  source: 'review' | 'social';
+  source: 'review' | 'social' | 'lead';
   reviewId: string | null;
   canReply: boolean;
 }
@@ -291,6 +295,29 @@ function sampleItemsForAccount(account: SocialAccount): SocialFeedItem[] {
   return items;
 }
 
+function leadHitToItem(hit: SocialLeadScannerHit): SocialFeedItem {
+  const meta = networkMeta(hit.platform);
+  return {
+    id: `lead:${hit.id}`,
+    platform: hit.platform,
+    platformLabel: meta.label,
+    kind: 'mention',
+    authorName: hit.authorName || 'Unknown',
+    authorHandle: hit.authorHandle || handleFromAuthorName(hit.authorName || 'Unknown'),
+    text: hit.text,
+    url: hit.url,
+    createdAt: hit.detectedAt,
+    rating: null,
+    status: hit.status,
+    replyDraft: hit.replyDraft || '',
+    replyText: '',
+    live: true,
+    source: 'lead',
+    reviewId: null,
+    canReply: true,
+  };
+}
+
 function reviewToItem(review: OnlineReview): SocialFeedItem {
   const platform = REVIEW_TO_FEED[review.platform];
   const meta = networkMeta(platform);
@@ -434,7 +461,17 @@ export async function buildSocialFeed(
     }
   }
 
-  const allItems = [...reviewItems, ...socialItems].sort(
+  let leadItems: SocialFeedItem[] = [];
+  if (hasFeature('social_lead_scanner')) {
+    try {
+      const hits = await listSocialLeadScannerHits({ limit: 200 });
+      leadItems = hits.map(leadHitToItem);
+    } catch {
+      leadItems = [];
+    }
+  }
+
+  const allItems = [...reviewItems, ...leadItems, ...socialItems].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
@@ -468,6 +505,6 @@ export async function buildSocialFeed(
     items,
     counts,
     composeHint:
-      'In-app publish is not live yet — copy your post and open the network, or reply from the item. Google reviews sync into this same inbox.',
+      'In-app publish is not live yet — copy your post and open the network, or reply from the item. Google reviews sync into this same inbox. Keyword-matched social leads appear here when Agentic Social Lead Scanner is on.',
   };
 }

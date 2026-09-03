@@ -103,8 +103,9 @@ function renderSettingsBlock() {
     `</label>` +
     `<label class="prof-check-row">` +
     `<input type="checkbox" id="or-sync-enabled"${cfg.syncEnabled !== false ? ' checked' : ''} />` +
-    `<span>Enable Google sync</span>` +
+    `<span>Enable automatic Google sync</span>` +
     `</label>` +
+    `<p class="prof-hint">When enabled, the server polls Google every ~2 hours (or your <code>ONLINE_REVIEWS_POLL_MINUTES</code> setting). Use Sync now for an immediate pull.</p>` +
     `<p class="prof-hint">${escHtml(lastSync)}</p>` +
     `<div class="or-settings-actions">` +
     `<button type="button" class="de-btn de-btn--secondary" id="or-save-config">Save settings</button>` +
