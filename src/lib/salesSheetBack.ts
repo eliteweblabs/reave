@@ -41,6 +41,12 @@ export type SalesSheetBackModule = {
   icon: string;
 };
 
+/** Print-only copy — static placeholders, not live contact data. */
+const SALES_SHEET_MODULE_BLURBS: Partial<Record<string, string>> = {
+  google_workspace:
+    'A branded email (you@yourcompany.com) looks more professional than a free Gmail™ address.',
+};
+
 /** Sale-sheet add-ons → their dashboard / footer IOS_ICONS key. */
 const FEATURE_MOD_ICONS: Record<string, string> = {
   billing: 'receipt',
@@ -119,7 +125,9 @@ export function salesSheetBackModules(rows: readonly CatalogRow[]): SalesSheetBa
     .map((row) => ({
       feature: row.feature,
       label: row.label,
-      blurb: salesSheetBlurb(row.blurb || ''),
+      blurb: salesSheetBlurb(
+        SALES_SHEET_MODULE_BLURBS[row.feature] ?? row.blurb ?? '',
+      ),
       priceLabel: (row.priceLabel || '').trim(),
       icon: iconKeyForModule(row.feature),
     }))
@@ -268,6 +276,11 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Escape for print HTML — &#64; keeps Cloudflare from obfuscating example addresses. */
+function escPrintText(s: string): string {
+  return esc(s).replace(/@/g, '&#64;');
+}
+
 function reaveIconPngHtml(src: string): string {
   return `<img class="ss-back-reave-icon" src="${esc(src)}" alt="" />`;
 }
@@ -289,7 +302,7 @@ function modulesHtml(modules: SalesSheetBackModule[]): string {
     .map((mod) => {
       const blurb = (mod.blurb || '').trim();
       const price = (mod.priceLabel || '').trim();
-      const blurbHtml = blurb ? `<span class="ss-back-mod-blurb">${esc(blurb)}</span>` : '';
+      const blurbHtml = blurb ? `<span class="ss-back-mod-blurb">${escPrintText(blurb)}</span>` : '';
       const priceHtml = price ? `<span class="ss-back-mod-price">${esc(price)}</span>` : '';
       return `<li class="ss-back-mod" data-mod="${esc(mod.feature)}" data-icon="${esc(mod.icon)}">
   ${moduleIconHtml(mod.icon)}

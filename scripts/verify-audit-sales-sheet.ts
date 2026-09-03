@@ -788,7 +788,7 @@ await test('gate leftover space lists catalog modules with the sale-sheet toggle
   assert.ok(modules.find((row) => row.feature === 'social_inbox')?.icon === 'share');
   assert.ok(modules.find((row) => row.feature === 'billing')?.blurb?.trim());
   const workspace = modules.find((row) => row.feature === 'google_workspace');
-  assert.ok(workspace?.blurb?.includes('Google mail'));
+  assert.ok(workspace?.blurb?.includes('you@yourcompany.com'));
   assert.ok((workspace?.blurb?.length || 0) < 160);
   assert.ok(modules.some((row) => row.feature === 'billing'));
   assert.ok(modules.some((row) => row.feature === 'google_workspace'));
@@ -811,6 +811,8 @@ await test('gate leftover space lists catalog modules with the sale-sheet toggle
   assert.match(back, /ss-back-mod-list/);
   assert.match(back, /data-mod="billing"/);
   assert.match(back, /data-mod="google_workspace"/);
+  assert.match(back, /you&#64;yourcompany\.com/);
+  assert.doesNotMatch(back, /__cf_email__|\[email protected\]/);
   assert.doesNotMatch(back, /data-mod="deploy_wizard"/);
   assert.ok(back.indexOf('data-ss-col="modules"') < back.indexOf('data-ss-col="builds"'));
   assert.doesNotMatch(back, />Modules</);
