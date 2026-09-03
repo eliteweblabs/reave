@@ -83,10 +83,14 @@ const contactLabel = landing.callCta?.label || "Contact us";
       </a>
       <nav class="vet-header__nav" aria-label="Site">
         {navLinks.map((link) => (
-          <a href={link.href}>{link.label}</a>
+          <a
+            class:list={{ "vet-header__nav-btn": link.primary }}
+            href={link.href}
+          >
+            {link.label}
+          </a>
         ))}
       </nav>
-      <a class="vet-header__cta" href={contactHref}>{contactLabel}</a>
     </div>
   </header>
 

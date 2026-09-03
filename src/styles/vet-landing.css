@@ -68,6 +68,7 @@
   display: none;
   align-items: center;
   gap: 2rem;
+  margin-left: auto;
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--vet-muted);
@@ -77,19 +78,20 @@
   color: var(--vet-ink);
 }
 
-.vet-header__cta {
+.vet-header__nav-btn {
   flex-shrink: 0;
   border-radius: 999px;
-  background: var(--vet-ink);
-  color: #fff;
+  background: var(--vet-accent);
+  color: #fff !important;
   padding: 0.5625rem 1.125rem;
   font-size: 0.875rem;
   font-weight: 600;
   transition: background 0.15s ease;
 }
 
-.vet-header__cta:hover {
-  background: #32343a;
+.vet-header__nav-btn:hover {
+  background: var(--vet-accent-hover);
+  color: #fff !important;
 }
 
 @media (min-width: 768px) {

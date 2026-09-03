@@ -80,7 +80,7 @@
       "nav": [
         { "href": "#services", "label": "Services" },
         { "href": "#about", "label": "About" },
-        { "href": "#contact", "label": "Contact" }
+        { "href": "#contact", "label": "Contact", "primary": true }
       ],
       "social": {
         "city": "Serving Western Mass & Connecticut"

@@ -180,7 +180,7 @@ export type SiteLandingPackConfig = {
     mapsUrl?: string;
     city?: string;
   };
-  nav?: Array<{ href: string; label: string }>;
+  nav?: SiteNavLink[];
   cancellation?: string;
   booking?: {
     sheetTitle?: string;
