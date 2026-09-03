@@ -12968,7 +12968,6 @@ initRulesPanel({
   companyBrand,
   setActiveMap,
   navigateToEmail,
-  askAgentAboutRule,
   syncAdminTabUrl,
 });
 
@@ -13208,47 +13207,6 @@ function buildAgentContentPrompt(intro, metaLines, body) {
   return lines.join('\n');
 }
 
-
-async function askAgentAboutRule(rule) {
-  try {
-    const lines = [
-      'Help me understand and improve this email triage rule:',
-      '',
-      `Title: ${rule.title || rule.status}`,
-      `Status tag: ${rule.status}`,
-    ];
-    if (rule.description) lines.push(`Description: ${rule.description}`);
-    const fields = rule.fields?.length ? rule.fields : ['subject', 'body'];
-    if (rule.phrases && rule.phrases.length > 0) {
-      lines.push('', 'Match chips:');
-      for (const phrase of rule.phrases) {
-        for (const field of fields) {
-          const label = field === 'from' ? 'email' : field;
-          lines.push(`  - ${label}: ${phrase}`);
-        }
-      }
-    }
-    if (rule.exceptPhrases && rule.exceptPhrases.length > 0) {
-      lines.push('', 'Except:');
-      for (const phrase of rule.exceptPhrases) {
-        lines.push(`  - ${phrase}`);
-      }
-    }
-    lines.push('', `Enabled: ${rule.enabled !== false ? 'Yes' : 'No'}`);
-    lines.push(`Send alert: ${rule.notify ? 'Yes' : 'No'}`);
-    lines.push(
-      `Expires: ${
-        rule.expiresAt
-          ? `${formatRuleExpiresLabel(rule.expiresAt)}${isRuleExpired(rule) ? ' (expired)' : ''}`
-          : 'Indefinite'
-      }`,
-    );
-    lines.push('', 'Please suggest improvements or explain how this rule works.');
-    await askAgentWithPrompt(lines.join('\n'));
-  } catch (e) {
-    osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
-  }
-}
 
 
 

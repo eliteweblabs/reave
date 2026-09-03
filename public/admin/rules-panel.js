@@ -25,7 +25,6 @@ import {
   bindSwipeListScroll,
   bindListMultiSelect,
   showContextMenu,
-  swipeAgentAction,
   swipeArchiveAction,
   swipeDeleteAction,
   swipeJunkAction,
@@ -494,12 +493,9 @@ function createRuleListItem(rule, activeId) {
 }
 
 function createRuleSwipeRow(rule, activeId) {
-  const actions = [swipeAgentAction(() => shell.askAgentAboutRule?.(rule))];
-  if (canDeleteRule(rule)) {
-    actions.push(swipeDeleteAction({
-      onClick: () => deleteRule(rule.id),
-    }));
-  }
+  const actions = canDeleteRule(rule)
+    ? [swipeDeleteAction({ onClick: () => deleteRule(rule.id) })]
+    : [];
   return createSwipeRow(createRuleListItem(rule, activeId), actions);
 }
 
