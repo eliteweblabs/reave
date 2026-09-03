@@ -3988,6 +3988,200 @@ function dashboardSiteHealthSignalsHtml(health, card, fleet, opts = {}) {
   return `<div class="dash-site-signals" aria-hidden="false">${parts.join('')}</div>`;
 }
 
+function dashboardReadinessPopoverStatus(state) {
+  if (state === 'ok') return 'Likely good';
+  if (state === 'warn') return 'Needs attention';
+  if (state === 'crit') return 'Issue';
+  if (state === 'pending') return 'Scanning…';
+  return 'Not scanned';
+}
+
+function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) {
+  const title = card.label || card.siteId;
+  const domain = card.siteId;
+  const grade = health?.grade ? String(health.grade).toUpperCase() : '—';
+  const uptimeMeta = card.monitor ? uptimeMonitorTileMeta(card.monitor) : null;
+  let uptimeLabel = 'Not monitored';
+  if (uptimeMeta) {
+    if (uptimeMeta.paused) uptimeLabel = 'Paused';
+    else if (uptimeMeta.offline) uptimeLabel = 'Down';
+    else uptimeLabel = uptimeMeta.label || 'Up';
+  }
+  let analyticsLabel = '—';
+  if (card.analytics) {
+    analyticsLabel = card.analytics.registered
+      ? `${formatDashCount(card.analytics.visitors)} / 30d`
+      : 'Not wired';
+  } else if (opts.analyticsLoading) {
+    analyticsLabel = 'Loading…';
+  } else if (opts.analyticsLive) {
+    analyticsLabel = 'Not wired';
+  }
+  const readiness = health?.readiness;
+  const readySummary = readiness?.totalCount
+    ? `${readiness.okCount}/${readiness.totalCount} ready`
+    : 'Scan sites to check';
+
+  const readinessRows = SITE_READINESS_SIGNALS.map((sig) => {
+    const state = readinessSignalState(sig.key, health, card, siteHealth, opts);
+    const item = readinessItemForKey(health, sig.key);
+    const detail = item?.detail || readinessSignalTitle(sig.key, state, health, card, opts);
+    return (
+      `<li class="dash-fleet-popover-row">` +
+        `<span class="dash-fleet-popover-row-icon">${iosIcon(sig.icon, 12)}</span>` +
+        `<span class="dash-fleet-popover-row-label">${escHtml(sig.label)}</span>` +
+        `<span class="dash-fleet-popover-row-status dash-fleet-popover-row-status--${state}">${escHtml(dashboardReadinessPopoverStatus(state))}</span>` +
+        `<span class="dash-fleet-popover-row-detail">${escHtml(detail)}</span>` +
+      `</li>`
+    );
+  }).join('');
+
+  const issues = Array.isArray(health?.issues) ? health.issues.filter((i) => i?.label) : [];
+  const issuesHtml = issues.length
+    ? `<div class="dash-fleet-popover-issues"><strong>Issues</strong>${escHtml(issues.map((i) => i.label).join(' · '))}</div>`
+    : '';
+
+  return (
+    `<div class="dash-fleet-popover-head">` +
+      `<div class="dash-fleet-popover-title">${escHtml(title)}</div>` +
+      `<div class="dash-fleet-popover-domain">${escHtml(domain)}</div>` +
+    `</div>` +
+    `<dl class="dash-fleet-popover-summary">` +
+      `<dt>Grade</dt><dd>${escHtml(grade)}</dd>` +
+      `<dt>Readiness</dt><dd>${escHtml(readySummary)}</dd>` +
+      `<dt>Uptime</dt><dd>${escHtml(uptimeLabel)}</dd>` +
+      `<dt>Visitors</dt><dd>${escHtml(analyticsLabel)}</dd>` +
+    `</dl>` +
+    `<ul class="dash-fleet-popover-section">${readinessRows}</ul>` +
+    issuesHtml
+  );
+}
+
+let dashFleetPopEl = null;
+let dashFleetPopAnchor = null;
+let dashFleetPopShowTimer = null;
+let dashFleetPopHideTimer = null;
+
+function ensureDashFleetPopover() {
+  if (dashFleetPopEl && dashFleetPopEl.isConnected) return dashFleetPopEl;
+  dashFleetPopEl = document.createElement('div');
+  dashFleetPopEl.id = 'dash-fleet-popover';
+  dashFleetPopEl.className = 'dash-fleet-popover';
+  dashFleetPopEl.hidden = true;
+  dashFleetPopEl.setAttribute('role', 'tooltip');
+  dashFleetPopEl.addEventListener('pointerenter', () => {
+    if (dashFleetPopHideTimer) {
+      clearTimeout(dashFleetPopHideTimer);
+      dashFleetPopHideTimer = null;
+    }
+  });
+  dashFleetPopEl.addEventListener('pointerleave', () => scheduleHideDashFleetPopover());
+  document.body.appendChild(dashFleetPopEl);
+  return dashFleetPopEl;
+}
+
+function clearDashFleetPopoverTimers() {
+  if (dashFleetPopShowTimer) {
+    clearTimeout(dashFleetPopShowTimer);
+    dashFleetPopShowTimer = null;
+  }
+  if (dashFleetPopHideTimer) {
+    clearTimeout(dashFleetPopHideTimer);
+    dashFleetPopHideTimer = null;
+  }
+}
+
+function hideDashFleetPopover() {
+  clearDashFleetPopoverTimers();
+  if (!dashFleetPopEl) return;
+  dashFleetPopEl.hidden = true;
+  dashFleetPopEl.innerHTML = '';
+  dashFleetPopAnchor = null;
+}
+
+function onDashFleetPopoverScrollOrResize() {
+  if (dashFleetPopAnchor && dashFleetPopEl && !dashFleetPopEl.hidden) {
+    positionDashFleetPopover(dashFleetPopAnchor);
+  }
+}
+
+if (!window.__dashFleetPopBound) {
+  window.__dashFleetPopBound = true;
+  window.addEventListener('scroll', onDashFleetPopoverScrollOrResize, true);
+  window.addEventListener('resize', onDashFleetPopoverScrollOrResize);
+  window.visualViewport?.addEventListener('scroll', onDashFleetPopoverScrollOrResize);
+  window.visualViewport?.addEventListener('resize', onDashFleetPopoverScrollOrResize);
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') hideDashFleetPopover();
+  });
+}
+
+function positionDashFleetPopover(anchor) {
+  const pop = ensureDashFleetPopover();
+  const pad = 10;
+  const gap = 6;
+  pop.hidden = false;
+  pop.style.visibility = 'hidden';
+  pop.style.left = '0';
+  pop.style.top = '0';
+  const popRect = pop.getBoundingClientRect();
+  const rect = anchor.getBoundingClientRect();
+  let top = rect.bottom + gap;
+  if (top + popRect.height > window.innerHeight - pad) {
+    top = rect.top - gap - popRect.height;
+  }
+  top = Math.max(pad, Math.min(top, window.innerHeight - pad - popRect.height));
+  let left = rect.left + rect.width / 2 - popRect.width / 2;
+  left = Math.max(pad, Math.min(left, window.innerWidth - pad - popRect.width));
+  pop.style.left = `${Math.round(left)}px`;
+  pop.style.top = `${Math.round(top)}px`;
+  pop.style.visibility = 'visible';
+}
+
+function showDashFleetPopover(anchor, html) {
+  if (!(anchor instanceof Element) || !html) return;
+  clearDashFleetPopoverTimers();
+  const pop = ensureDashFleetPopover();
+  pop.innerHTML = html;
+  dashFleetPopAnchor = anchor;
+  positionDashFleetPopover(anchor);
+  pop.hidden = false;
+}
+
+function scheduleHideDashFleetPopover() {
+  if (dashFleetPopHideTimer) clearTimeout(dashFleetPopHideTimer);
+  dashFleetPopHideTimer = setTimeout(() => {
+    dashFleetPopHideTimer = null;
+    hideDashFleetPopover();
+  }, 80);
+}
+
+function attachDashboardFleetTilePopover(btn, html) {
+  if (!btn || !html) return;
+  btn.addEventListener('pointerenter', () => {
+    if (dashFleetPopHideTimer) {
+      clearTimeout(dashFleetPopHideTimer);
+      dashFleetPopHideTimer = null;
+    }
+    if (dashFleetPopShowTimer) clearTimeout(dashFleetPopShowTimer);
+    dashFleetPopShowTimer = setTimeout(() => {
+      dashFleetPopShowTimer = null;
+      showDashFleetPopover(btn, html);
+    }, 220);
+  });
+  btn.addEventListener('pointerleave', (ev) => {
+    if (dashFleetPopShowTimer) {
+      clearTimeout(dashFleetPopShowTimer);
+      dashFleetPopShowTimer = null;
+    }
+    const related = ev.relatedTarget;
+    if (related instanceof Node && dashFleetPopEl?.contains(related)) return;
+    scheduleHideDashFleetPopover();
+  });
+  btn.addEventListener('focus', () => showDashFleetPopover(btn, html));
+  btn.addEventListener('blur', () => scheduleHideDashFleetPopover());
+}
+
 function getUptimeSyncSitesButton() {
   return document.querySelector(UPTIME_SYNC_SITES_BTN_SELECTOR);
 }
@@ -5698,6 +5892,7 @@ function renderAdminDashboard(data, opts = {}) {
   }
   const mount = pullRefreshContentRoot(scroll);
   mount.replaceChildren();
+  hideDashFleetPopover();
 
   const stats = data?.stats || {};
   const scheduleLive = data?.schedulingConfigured === true;
@@ -5969,7 +6164,10 @@ function renderAdminDashboard(data, opts = {}) {
         `dash-uptime-tile dash-fleet-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}` +
         (health?.criticalCount > 0 ? ' dash-uptime-tile--health-warn' : '');
       const issueHint = health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
-      btn.title = [card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — ');
+      btn.setAttribute(
+        'aria-label',
+        [card.label || card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — '),
+      );
       btn.innerHTML =
         `<div class="dash-uptime-name-row">` +
           `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
@@ -5978,6 +6176,13 @@ function renderAdminDashboard(data, opts = {}) {
         `</div>` +
         `<div class="dash-uptime-meta">${escHtml(meta)}</div>` +
         signalsHtml;
+      attachDashboardFleetTilePopover(
+        btn,
+        buildDashboardSiteCardPopoverHtml(card, health, siteHealth, {
+          analyticsLive,
+          analyticsLoading,
+        }),
+      );
       btn.addEventListener('click', () => {
         setActiveMap('analytics', { force: true, analyticsSiteId: card.siteId });
       });
