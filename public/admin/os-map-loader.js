@@ -8628,7 +8628,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `</div>` +
             `<div class="prof-font-preview" aria-hidden="true">` +
               `<p class="prof-font-preview-secondary">THE BUSINESS OS</p>` +
-              `<p class="prof-font-preview-primary">Runs your whole business</p>` +
+              `<p class="prof-font-preview-primary">Run your whole business</p>` +
               `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
             `</div>` +
             `<span id="company-font-hint" class="prof-hint prof-hint--block">Uses the homepage address below — same idea as fetching logos from the source site.</span>`,
