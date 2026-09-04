@@ -330,6 +330,10 @@ async function runInvestigation(opts: {
  * Returns suppressed:true when another incident already holds the repo lock.
  */
 export async function handleDeployFailure(input: DeployFailureInput): Promise<DeployFailureResult> {
+  if (!isDeployFailureAutoRepairEnabled()) {
+    return { handled: false, suppressed: true, reason: 'auto_repair_off' };
+  }
+
   if (!isRailwayIncidentHandlerEnabled()) {
     log.info('incident handler disabled — skipping auto-investigation', {
       source: input.source,

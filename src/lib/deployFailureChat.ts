@@ -2,7 +2,7 @@
  * Open (or continue) a dedicated repair chat when a Railway deploy fails.
  * One Session per service — later failures append here for reference.
  *
- * Auto-repair (agent runs without owner input) is **off by default**.
+ * No-op when auto-repair is off — webhooks only update the deploy indicator.
  * Set DEPLOY_FAILURE_AUTO_REPAIR=1 on Railway to opt in.
  */
 import { isAnthropicLlmConfigured } from './anthropicEndpoint';
@@ -107,22 +107,21 @@ function buildRepairPrompt(opts: {
   return lines.join('\n');
 }
 
-/** Compact alert when auto-repair is off — log the failure, do not invoke the agent. */
-function buildAlertOnlyMessage(baseMessage: string): string {
-  return [
-    baseMessage.trim(),
-    '',
-    '(Deploy failure logged. Auto-repair is off — open this Session and send a message when you want the agent to investigate.)',
-  ].join('\n');
-}
-
 /**
  * Opens or continues the one repair Session for this service.
- * Auto-runs the agent only when DEPLOY_FAILURE_AUTO_REPAIR=1 (and LLM is configured).
+ * Auto-runs the agent (DEPLOY_FAILURE_AUTO_REPAIR=1 must be set — caller checks).
  */
 export async function openDeployFailureRepairChat(
   input: DeployFailureChatInput,
 ): Promise<{ threadId?: string; agentReply?: string; reused?: boolean; suppressed?: boolean }> {
+  if (!isDeployFailureAutoRepairEnabled()) {
+    log.info('repair chat skipped — auto-repair off', {
+      source: input.source,
+      service: deployFailureServiceName({ service: input.service, message: input.message }),
+    });
+    return { suppressed: true };
+  }
+
   const service = deployFailureServiceName({
     service: input.service,
     message: input.message,
@@ -131,8 +130,8 @@ export async function openDeployFailureRepairChat(
   const wantsAutoRun =
     isDeployFailureAutoRepairEnabled() && input.autoRun !== false;
 
-  const logs = input.appendOnly || !wantsAutoRun
-    ? '(Logs not fetched — auto-repair is off or duplicate webhook. Use get_railway_logs in this Session if needed.)'
+  const logs = input.appendOnly
+    ? '(Duplicate webhook — logs omitted. See earlier turns in this Session.)'
     : await fetchFailureLogs({
         project: input.project,
         service: input.service || service,
@@ -146,14 +145,12 @@ export async function openDeployFailureRepairChat(
         '',
         input.message.trim(),
       ].join('\n')
-    : wantsAutoRun
-      ? buildRepairPrompt({
-          baseMessage: input.message,
-          logs,
-          playbookExtra: input.playbookExtra,
-          service,
-        })
-      : buildAlertOnlyMessage(input.message);
+    : buildRepairPrompt({
+        baseMessage: input.message,
+        logs,
+        playbookExtra: input.playbookExtra,
+        service,
+      });
 
   const llmReady = isAnthropicLlmConfigured();
   if (wantsAutoRun && !llmReady) {

@@ -688,6 +688,10 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
 
   if (isRailway) {
     const message = await formatAlertMessage(opts);
+    const { isDeployFailureAutoRepairEnabled } = await import('./deployFailureChat');
+    if (!isDeployFailureAutoRepairEnabled()) {
+      return;
+    }
     const { handleDeployFailure, isRailwayIncidentHandlerEnabled } = await import(
       './deployIncidentHandler'
     );

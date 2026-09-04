@@ -1,3 +1,4 @@
+import { isDeployFailureAutoRepairEnabled } from './deployFailureChat';
 import { handleDeployFailure, isRailwayIncidentHandlerEnabled } from './deployIncidentHandler';
 import { clearDeployStarted, markDeployFailed, markDeployStarted } from './deployStatus';
 import { markDeployActivity } from './siteMonitoring';
@@ -69,7 +70,7 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   if (body.timestamp) lines.push(`Time: ${body.timestamp}`);
   lines.push(
     '',
-    'Logged to the deploy-failure Session for this service. Auto-repair is off unless DEPLOY_FAILURE_AUTO_REPAIR=1.',
+    'Deploy indicator updated. Set DEPLOY_FAILURE_AUTO_REPAIR=1 to open a repair Session and auto-run the agent.',
   );
   return lines.join('\n');
 }
@@ -77,10 +78,9 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
 /**
  * Railway project webhook → admin repair chat + deploy indicator.
  *
- * Deploy failures open one repair Session per service (reused on later
- * crashes) and log the alert. Agent auto-repair runs only when
- * DEPLOY_FAILURE_AUTO_REPAIR=1. Full incident lock + verify loop runs when
- * RAILWAY_INCIDENT_HANDLER=1. No phone push.
+ * Deploy failures update the header indicator only unless
+ * DEPLOY_FAILURE_AUTO_REPAIR=1 (then one repair Session per service, agent
+ * auto-run, optional RAILWAY_INCIDENT_HANDLER repo lock). No phone push.
  *
  * Deploy success resumes the registered admin chat (same thread, with
  * history) so mid-task workflows continue after the deploy lands.
@@ -144,6 +144,10 @@ export async function handleRailwayWebhook(opts: {
   const failedSha =
     typeof body.details?.commitHash === 'string' ? body.details.commitHash : null;
   await markDeployFailed(`Deploy failed — ${svc} (${proj})`, failedSha);
+
+  if (!isDeployFailureAutoRepairEnabled()) {
+    return { ok: true, status: 200, message: 'indicator_only:auto_repair_off' };
+  }
 
   const text = formatRailwayDeployAlert(body);
   if (!serverEnv('AGENT_ALERT_USER_ID')?.trim()) {

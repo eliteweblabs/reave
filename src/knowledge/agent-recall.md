@@ -31,4 +31,4 @@ Each run injects:
 
 This is not the knowledge playbook store. Playbooks stay in Knowledge (`write_knowledge`). Recall is the short “already know this” list.
 
-Deploy-failure repairs are one Session per Railway service. Later crashes append a **short log line** to that same chat. Auto-repair is **off by default** (`DEPLOY_FAILURE_AUTO_REPAIR=1` to opt in) — do not auto-run the agent on webhooks unless the owner explicitly enabled it.
+Deploy-failure repairs are one Session per Railway service when **`DEPLOY_FAILURE_AUTO_REPAIR=1`**. With auto-repair off (default), webhooks only flip the deploy indicator — no Session is created and the agent is not invoked.

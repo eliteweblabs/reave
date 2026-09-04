@@ -1,16 +1,18 @@
-# Railway deploy → admin repair chat (log-only by default)
+# Railway deploy → admin repair chat (opt-in)
 
 When Railway posts a **deployment failure** webhook to Reave:
 
 1. **Deploy indicator** — red “failed” state (chat is **not** locked — previous deploy stays live)
-2. **Repair Session** — one thread per service; later failures append to the same title (`Deploy failed — <service>`)
-3. **Log only** — a short alert is appended. **No agent run** unless you opt in.
+2. **Nothing else by default** — no repair Session, no agent run, no token burn
 
 ## Auto-repair (opt-in)
 
-Set **`DEPLOY_FAILURE_AUTO_REPAIR=1`** on the Reave App service to restore the old behavior: fetch Railway logs, post the repair playbook, and auto-run the agent.
+Set **`DEPLOY_FAILURE_AUTO_REPAIR=1`** on the Reave App service to enable repair Sessions:
 
-Leave it **unset** (default) if you do not want deploy webhooks to burn tokens or grow repair threads with agent turns.
+- One thread per service; later failures append to the same title (`Deploy failed — <service>`)
+- Fetches Railway logs, posts the repair playbook, and auto-runs the agent
+
+Leave it **unset** (default) if you only want the header deploy dot to turn red.
 
 When **`RAILWAY_INCIDENT_HANDLER=1`** (also opt-in), the heavier loop can run **only if** `DEPLOY_FAILURE_AUTO_REPAIR=1`:
 
