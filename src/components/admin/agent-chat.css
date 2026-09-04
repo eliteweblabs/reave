@@ -963,17 +963,101 @@
 }
 
 @media (max-width: 639px) {
+  .aui-root {
+    --aui-composer-stack: 2.75rem;
+  }
+
   .aui-empty-state {
     justify-content: flex-start;
     padding-top: 2.5rem;
+    gap: 1rem;
+  }
+
+  .aui-viewport {
+    padding-bottom: 0.35rem;
+  }
+
+  .aui-compose-footer {
+    padding: 0.2rem 0.55rem calc(var(--footer-nav-h) + 0.15rem);
+    border-top: none;
+    background: var(--bg);
+  }
+
+  .aui-disclaimer {
+    display: none;
+  }
+
+  .aui-composer-shell {
+    gap: 0.3rem;
+  }
+
+  .aui-composer-shell-centered {
+    padding: 0 0.55rem;
+  }
+
+  .aui-composer-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'attachments attachments attachments'
+      'attach input send';
+    align-items: center;
+    gap: 0.2rem 0.35rem;
+    padding: 0.3rem 0.4rem;
+    border-radius: 1.35rem;
+  }
+
+  .aui-composer-card-running {
+    padding-block: 0.3rem;
+  }
+
+  .aui-composer-attachments {
+    grid-area: attachments;
+  }
+
+  .aui-input {
+    grid-area: input;
+    min-height: 1.35em;
+    max-height: 2.5rem;
+    line-height: 1.35;
+    overflow-y: auto;
+  }
+
+  .aui-composer-toolbar {
+    display: contents;
+  }
+
+  .aui-composer-hint {
+    display: none;
+  }
+
+  .aui-composer-attach {
+    grid-area: attach;
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .aui-composer-actions {
+    grid-area: send;
+    gap: 0.35rem;
+  }
+
+  .aui-composer-send {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .aui-composer-stop {
+    font-size: 0.76rem;
+    white-space: nowrap;
   }
 
   body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport {
-    padding-bottom: 0.75rem;
+    padding-bottom: 0.25rem;
   }
 
   body.chat-compose-focused #chat-panel.ch-pane-active .aui-compose-footer {
-    padding-bottom: calc(var(--chat-compose-bottom, 0px) + 0.35rem);
+    padding: 0.15rem 0.55rem calc(var(--chat-compose-bottom, 0px) + 0.1rem);
   }
 
   body.chat-compose-focused .admin-footer-nav {
