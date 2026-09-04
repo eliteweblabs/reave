@@ -135,6 +135,7 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
   BRAND_JSON="$(mktemp)"
   BRAND_CSS="${GALENE_STATIC}/reave-brand.css"
   BRAND_LOGO="${GALENE_STATIC}/reave-logo.png"
+  BRAND_OG="${GALENE_STATIC}/reave-og.png"
   REAVE_ORIGIN="$(printf '%s' "${REAVE_APP_URL}" | sed -E 's#/$##')"
   if curl -fsS "${REAVE_ORIGIN}/api/branding" -o "${BRAND_JSON}" 2>/dev/null; then
     PRIMARY="$(jq -r '.primary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
@@ -148,6 +149,23 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
       else
         LOGO_URL="${REAVE_ORIGIN}/api/branding/logo.alt"
       fi
+    fi
+    # OG share card — same PNG as Crater invoice previews (/api/branding/og.png).
+    if curl -fsSL "${REAVE_ORIGIN}/api/branding/og.png" -o "${BRAND_OG}" 2>/dev/null; then
+      OG_PUBLIC="${PUBLIC_URL%/}/reave-og.png"
+      OG_TITLE="${COMPANY_NAME:-Video meeting}"
+      case "${OG_TITLE}" in
+        *" — Video meeting"*) ;;
+        *) OG_TITLE="${OG_TITLE} — Video meeting" ;;
+      esac
+      OG_TITLE_ESC="$(printf '%s' "${OG_TITLE}" | sed 's/[&/\]/\\&/g')"
+      for html in galene.html index.html; do
+        target="${GALENE_STATIC}/${html}"
+        if [ -f "${target}" ] && ! grep -q 'property="og:image"' "${target}" 2>/dev/null; then
+          sed -i "s#</head>#    <meta property=\"og:type\" content=\"website\"/>\n    <meta property=\"og:title\" content=\"${OG_TITLE_ESC}\"/>\n    <meta property=\"og:description\" content=\"Join a secure video meeting.\"/>\n    <meta property=\"og:image\" content=\"${OG_PUBLIC}\"/>\n    <meta property=\"og:image:width\" content=\"1200\"/>\n    <meta property=\"og:image:height\" content=\"630\"/>\n    <meta name=\"twitter:card\" content=\"summary_large_image\"/>\n    <meta name=\"twitter:image\" content=\"${OG_PUBLIC}\"/>\n  </head>#" "${target}" 2>/dev/null || true
+        fi
+      done
+      echo "REΛVe OG card applied (${OG_PUBLIC})"
     fi
     if [ -n "${PRIMARY}" ]; then
       cat > "${BRAND_CSS}" <<EOF
