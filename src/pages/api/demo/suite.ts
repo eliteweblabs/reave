@@ -14,7 +14,7 @@ import {
   parseDemoSuiteFromSearchParams,
   serializeDemoSuite,
 } from '../../../lib/demoSuite';
-import { jsonResponse } from '../../../lib/apiResponse';
+import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
@@ -62,18 +62,16 @@ export async function POST(context: APIContext): Promise<Response> {
   let parsed = parseDemoSuiteFromSearchParams(url.searchParams);
 
   if (!parsed) {
-    try {
-      const body = (await context.request.json()) as { suite?: unknown };
-      if (body.suite && typeof body.suite === 'object') {
-        const s = body.suite as Record<string, unknown>;
-        const params = new URLSearchParams();
-        params.set('demo', `tier-${s.tier ?? 1}`);
-        params.set('modules', `[${(s.moduleIds as string[] | undefined)?.join(',') ?? ''}]`);
-        params.set('industry', String(s.industry ?? 'general'));
-        parsed = parseDemoSuiteFromSearchParams(params);
-      }
-    } catch {
-      return jsonResponse({ error: 'Invalid JSON' }, 400);
+    const bodyParsed = await readJsonBody(context.request);
+    if (bodyParsed instanceof Response) return bodyParsed;
+    const body = bodyParsed.body;
+    if (body.suite && typeof body.suite === 'object') {
+      const s = body.suite as Record<string, unknown>;
+      const params = new URLSearchParams();
+      params.set('demo', `tier-${s.tier ?? 1}`);
+      params.set('modules', `[${(s.moduleIds as string[] | undefined)?.join(',') ?? ''}]`);
+      params.set('industry', String(s.industry ?? 'general'));
+      parsed = parseDemoSuiteFromSearchParams(params);
     }
   }
 

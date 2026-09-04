@@ -46,6 +46,10 @@ function checkFile(filePath: string): void {
     errors.push(`${rel}: local json() helper — use jsonResponse from src/lib/apiResponse.ts`);
   }
 
+  if (/const json = \(body[^)]*\)\s*=>/.test(source)) {
+    errors.push(`${rel}: local json() arrow helper — use jsonResponse from src/lib/apiResponse.ts`);
+  }
+
   if (
     rel.startsWith('src/pages/api/admin/') &&
     !ADMIN_AUTH_ALLOWLIST.has(rel) &&

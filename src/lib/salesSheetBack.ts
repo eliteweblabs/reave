@@ -6,6 +6,7 @@
  * chat-bubble objections above the client marks), front cover (full logo dead
  * center + diagnostic). Same HTML for every client.
  */
+import { escapeHtml } from './htmlEscape';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { BRANDING_ICON_PATH } from './companyLogo';
@@ -269,21 +270,13 @@ export function salesSheetStackLogos(overrides: SalesSheetBackLogo[] = []): Sale
   return overrides.length ? overrides : salesSheetClientLogos();
 }
 
-function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 /** Escape for print HTML — &#64; keeps Cloudflare from obfuscating example addresses. */
 function escPrintText(s: string): string {
-  return esc(s).replace(/@/g, '&#64;');
+  return escapeHtml(s).replace(/@/g, '&#64;');
 }
 
 function reaveIconPngHtml(src: string): string {
-  return `<img class="ss-back-reave-icon" src="${esc(src)}" alt="" />`;
+  return `<img class="ss-back-reave-icon" src="${escapeHtml(src)}" alt="" />`;
 }
 
 function stackLogoHtml(logo: SalesSheetBackLogo): string {
@@ -292,8 +285,8 @@ function stackLogoHtml(logo: SalesSheetBackLogo): string {
     logo.scale != null && logo.scale > 0 && logo.scale !== 1
       ? ` style="--logo-scale: ${logo.scale}"`
       : '';
-  return `<li class="ss-stack-item" data-stack="${esc(slug)}"${scaleStyle}>
-  <img class="ss-stack-logo" src="${esc(logo.src)}" alt="${esc(logo.name)}" />
+  return `<li class="ss-stack-item" data-stack="${escapeHtml(slug)}"${scaleStyle}>
+  <img class="ss-stack-logo" src="${escapeHtml(logo.src)}" alt="${escapeHtml(logo.name)}" />
 </li>`;
 }
 
@@ -304,10 +297,10 @@ function modulesHtml(modules: SalesSheetBackModule[]): string {
       const blurb = (mod.blurb || '').trim();
       const price = (mod.priceLabel || '').trim();
       const blurbHtml = blurb ? `<span class="ss-back-mod-blurb">${escPrintText(blurb)}</span>` : '';
-      const priceHtml = price ? `<span class="ss-back-mod-price">${esc(price)}</span>` : '';
-      return `<li class="ss-back-mod" data-mod="${esc(mod.feature)}" data-icon="${esc(mod.icon)}">
+      const priceHtml = price ? `<span class="ss-back-mod-price">${escapeHtml(price)}</span>` : '';
+      return `<li class="ss-back-mod" data-mod="${escapeHtml(mod.feature)}" data-icon="${escapeHtml(mod.icon)}">
   ${moduleIconHtml(mod.icon)}
-  <span class="ss-back-mod-copy"><span class="ss-back-mod-label">${esc(mod.label)}</span>${blurbHtml}</span>
+  <span class="ss-back-mod-copy"><span class="ss-back-mod-label">${escapeHtml(mod.label)}</span>${blurbHtml}</span>
   ${priceHtml}
 </li>`;
     })
@@ -318,7 +311,7 @@ function modulesHtml(modules: SalesSheetBackModule[]): string {
 }
 
 function chatUserAvatarHtml(slug: string): string {
-  return `<span class="ss-back-chat-avatar ss-back-chat-avatar--user" aria-hidden="true"><img src="/api/media/${esc(slug)}" alt="" /></span>`;
+  return `<span class="ss-back-chat-avatar ss-back-chat-avatar--user" aria-hidden="true"><img src="/api/media/${escapeHtml(slug)}" alt="" /></span>`;
 }
 
 function chatReaveAvatarHtml(src: string): string {
@@ -331,10 +324,10 @@ function backCoverQaHtml(iconSrc: string): string {
     return `<div class="ss-back-chat-pair" data-qa="${i + 1}">
   <div class="ss-back-chat-row ss-back-chat-row--q">
     ${chatUserAvatarHtml(face)}
-    <p class="ss-back-chat-q">${esc(item.q)}</p>
+    <p class="ss-back-chat-q">${escapeHtml(item.q)}</p>
   </div>
   <div class="ss-back-chat-row ss-back-chat-row--a">
-    <p class="ss-back-chat-a">${esc(item.a)}</p>
+    <p class="ss-back-chat-a">${escapeHtml(item.a)}</p>
     ${chatReaveAvatarHtml(iconSrc)}
   </div>
 </div>`;
@@ -793,10 +786,10 @@ export function renderSalesSheetBackHtml(opts: {
   const name = (opts.company?.name || 'This platform').trim();
   const stack = salesSheetStackLogos(opts.stackLogos);
   const stackItems = stack.map(stackLogoHtml).join('');
-  const fallbackMark = `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+  const fallbackMark = `<span class="doc-onepager-logo-name">${escapeHtml(name)}</span>`;
   const iconSrc = (opts.iconSrc || '').trim() || SALES_SHEET_ICON_PNG;
   const logoHtml = (opts.logoHtml || '').trim() || fallbackMark;
-  const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${esc(client)}</li>`).join('');
+  const localItems = SALES_SHEET_LOCAL_CLIENTS.map((client) => `<li>${escapeHtml(client)}</li>`).join('');
   const moduleTiles = modulesHtml(opts.modules || []);
 
   return `
@@ -810,7 +803,7 @@ export function renderSalesSheetBackHtml(opts: {
       <section class="ss-back-col ss-back-col--builds" data-ss-col="builds">
         <p class="ss-back-kicker">Custom builds</p>
         <p class="ss-back-builds">
-          Built by operators, for operators. ${esc(name)} ships about 90% of
+          Built by operators, for operators. ${escapeHtml(name)} ships about 90% of
           the operating system on day one — one login instead of the SaaS pile.
           The last 10% is a custom build. We specialize in saving clients time
           by automating the work they still do by hand.

@@ -23,13 +23,7 @@ import { signatureHtmlForEmail } from './userEmailSignature';
 import type { EmailInlineImage } from './emailComposeImages';
 import type { EmailBodyBlock } from './emailShortcodes';
 
-function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { escapeHtml } from './htmlEscape';
 
 function emailAbsoluteUrl(path: string, base: string): string {
   if (!path) return '';
@@ -100,13 +94,13 @@ export async function brandedEmailHtml(opts: {
     emailFont.category === 'serif' ? 'serif' : emailFont.category === 'mono' ? 'monospace' : 'sans-serif';
 
   const logoHeaderHtml = logoUrl
-    ? `<img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="140" height="36"
+    ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(brandName)}" width="140" height="36"
            style="display:block;max-width:180px;width:auto;height:32px;border:0;outline:none;text-decoration:none" />`
-    : `<span style="display:inline-block;color:#111111;font-family:${fontStack};font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">${esc(brandName)}</span>`;
+    : `<span style="display:inline-block;color:#111111;font-family:${fontStack};font-size:18px;font-weight:700;letter-spacing:-0.02em;line-height:1.2">${escapeHtml(brandName)}</span>`;
 
   const footerIconHtml = iconUrl
-    ? `<a href="${esc(homeUrl)}" style="text-decoration:none;display:inline-block">
-         <img src="${esc(iconUrl)}" alt="" width="28" height="28"
+    ? `<a href="${escapeHtml(homeUrl)}" style="text-decoration:none;display:inline-block">
+         <img src="${escapeHtml(iconUrl)}" alt="" width="28" height="28"
               style="display:block;width:28px;height:28px;border:0;outline:none;margin:0 auto 10px" />
        </a>`
     : '';
@@ -116,11 +110,11 @@ export async function brandedEmailHtml(opts: {
         <td style="padding:8px 0 20px" align="${align}">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0"${align === 'center' ? ' align="center" style="margin:0 auto"' : ''}>
             <tr>
-              <td class="email-cta" align="center" bgcolor="${esc(cta.primary)}"
-                  style="border-radius:999px;background-color:${esc(cta.primary)};background-image:${esc(cta.gradient)};box-shadow:${esc(cta.shadow)}">
-                <a href="${esc(url)}"
+              <td class="email-cta" align="center" bgcolor="${escapeHtml(cta.primary)}"
+                  style="border-radius:999px;background-color:${escapeHtml(cta.primary)};background-image:${escapeHtml(cta.gradient)};box-shadow:${escapeHtml(cta.shadow)}">
+                <a href="${escapeHtml(url)}"
                    style="display:inline-block;padding:13px 30px;border-radius:999px;color:#ffffff;font-family:${fontStack};font-size:15px;font-weight:600;letter-spacing:0.01em;line-height:1;text-decoration:none;text-align:center">
-                  ${esc(label)}
+                  ${escapeHtml(label)}
                 </a>
               </td>
             </tr>
@@ -137,7 +131,7 @@ export async function brandedEmailHtml(opts: {
         return ctaButtonHtml(block.href, block.title, block.align === 'left' ? 'left' : 'center');
       }
       const align = block.align === 'center' ? 'center' : 'left';
-      return `<tr><td style="padding:0 0 16px;text-align:${align}" align="${align}"><p class="email-text" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:15px;line-height:1.65;text-align:${align}">${esc(block.text).replace(/\n/g, '<br>')}</p></td></tr>`;
+      return `<tr><td style="padding:0 0 16px;text-align:${align}" align="${align}"><p class="email-text" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:15px;line-height:1.65;text-align:${align}">${escapeHtml(block.text).replace(/\n/g, '<br>')}</p></td></tr>`;
     })
     .join('\n');
 
@@ -150,7 +144,7 @@ export async function brandedEmailHtml(opts: {
       qrHtml = `
       <tr>
         <td style="padding:0 0 20px" align="center">
-          <p class="email-note" style="margin:0 0 10px;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">${esc(qrLabel)}</p>
+          <p class="email-note" style="margin:0 0 10px;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">${escapeHtml(qrLabel)}</p>
           <img src="${qrSrc}" alt="QR code" width="168" height="168"
                style="display:block;width:168px;height:168px;margin:0 auto;border:1px solid #e5e5e5;border-radius:8px" />
         </td>
@@ -166,10 +160,10 @@ export async function brandedEmailHtml(opts: {
             ${opts.metaRows
               .map(([label, value, href]) => {
                 const valueCell = href
-                  ? `<a href="${esc(href)}" class="email-link email-meta-value" style="color:${esc(brandLink)};font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${esc(value)}</a>`
-                  : `<span class="email-meta-value" style="color:#1a1a1a;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</span>`;
+                  ? `<a href="${escapeHtml(href)}" class="email-link email-meta-value" style="color:${escapeHtml(brandLink)};font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${escapeHtml(value)}</a>`
+                  : `<span class="email-meta-value" style="color:#1a1a1a;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${escapeHtml(value)}</span>`;
                 return `<tr>
-                    <td class="email-meta-label" style="padding:8px 16px 8px 0;font-family:${fontStack};font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
+                    <td class="email-meta-label" style="padding:8px 16px 8px 0;font-family:${fontStack};font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${escapeHtml(label)}</td>
                     <td style="padding:8px 0">${valueCell}</td>
                   </tr>`;
               })
@@ -179,14 +173,14 @@ export async function brandedEmailHtml(opts: {
       : '';
 
   const noteHtml = opts.note
-    ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
+    ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">${escapeHtml(opts.note)}</p></td></tr>`
     : '';
 
   const inlineImagesHtml = (opts.inlineImages || [])
     .filter((img) => img.cid.trim())
     .map(
       (img) =>
-        `<tr><td style="padding:0 0 16px"><img src="cid:${esc(img.cid)}" alt="${esc(img.alt || 'Image')}" width="480" style="display:block;max-width:100%;height:auto;border:0;outline:none;border-radius:8px" /></td></tr>`,
+        `<tr><td style="padding:0 0 16px"><img src="cid:${escapeHtml(img.cid)}" alt="${escapeHtml(img.alt || 'Image')}" width="480" style="display:block;max-width:100%;height:auto;border:0;outline:none;border-radius:8px" /></td></tr>`,
     )
     .join('\n');
 
@@ -197,12 +191,12 @@ export async function brandedEmailHtml(opts: {
   const complianceHtml =
     opts.unsubscribeUrl || opts.footerAddress
       ? `<tr><td style="padding:18px 0 0"><p class="email-note" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.6">${
-          opts.footerAddress ? `${esc(opts.footerAddress)}<br />` : ''
+          opts.footerAddress ? `${escapeHtml(opts.footerAddress)}<br />` : ''
         }${
           opts.unsubscribeUrl
-            ? `You're receiving this because you're a contact of ${esc(brandName)}. <a href="${esc(
+            ? `You're receiving this because you're a contact of ${escapeHtml(brandName)}. <a href="${escapeHtml(
                 opts.unsubscribeUrl,
-              )}" class="email-link" style="color:${esc(brandLink)};text-decoration:underline">Unsubscribe</a>.`
+              )}" class="email-link" style="color:${escapeHtml(brandLink)};text-decoration:underline">Unsubscribe</a>.`
             : ''
         }</p></td></tr>`
       : '';
@@ -217,7 +211,7 @@ export async function brandedEmailHtml(opts: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>${esc(brandName)}</title>
+  <title>${escapeHtml(brandName)}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
   <!--[if mso]>
   <style type="text/css">
@@ -242,7 +236,7 @@ export async function brandedEmailHtml(opts: {
 
           <tr>
             <td style="padding:22px 28px 8px" align="left">
-              <a href="${esc(homeUrl)}" style="text-decoration:none;display:inline-block">
+              <a href="${escapeHtml(homeUrl)}" style="text-decoration:none;display:inline-block">
                 ${logoHeaderHtml}
               </a>
             </td>
@@ -256,7 +250,7 @@ export async function brandedEmailHtml(opts: {
                   opts.greeting !== false && opts.firstName?.trim()
                     ? `<tr>
                   <td style="padding:0 0 20px;font-family:${fontStack}">
-                    <p class="email-greeting" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName.trim())},</p>
+                    <p class="email-greeting" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:16px;font-weight:600;line-height:1.4">Hi ${escapeHtml(opts.firstName.trim())},</p>
                   </td>
                 </tr>`
                     : ''
@@ -283,7 +277,7 @@ export async function brandedEmailHtml(opts: {
                 Baked in Boston
               </p>
               <p class="email-footer-text" style="margin:0;color:#999;font-family:${fontStack};font-size:12px;line-height:1.5">
-                Sent by <a href="${esc(homeUrl)}" class="email-link" style="color:${esc(brandLink)};font-family:${fontStack};text-decoration:none">${esc(brandName)}</a>
+                Sent by <a href="${escapeHtml(homeUrl)}" class="email-link" style="color:${escapeHtml(brandLink)};font-family:${fontStack};text-decoration:none">${escapeHtml(brandName)}</a>
               </p>
             </td>
           </tr>
