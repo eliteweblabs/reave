@@ -11,7 +11,7 @@
  * ensureShakePermission() from the dismiss tap/swipe before queueing.
  */
 
-import { createTimingRing, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260825h';
+import { createTimingRing, iosIcon, restartTimingRing, stopTimingRing } from './admin-ui.js?v=20260825h';
 
 const UNDO_WINDOW_MS = 5000;
 const SHAKE_THRESHOLD = 18;
@@ -137,8 +137,9 @@ function hideUndoToast() {
   toast.classList.remove('ch-toast-visible');
   toast.setAttribute('aria-hidden', 'true');
   toast.inert = true;
-  toast.onclick = null;
-  if (document.activeElement === toast) toast.blur();
+  if (toast.contains(document.activeElement)) {
+    document.activeElement?.blur?.();
+  }
   clearTimeout(toastTimer);
   /* Drop the node after the fade so an invisible pill cannot sit over the header. */
   toastTimer = setTimeout(() => {
@@ -152,10 +153,10 @@ function hideUndoToast() {
 function showUndoToast(onUndo) {
   let toast = document.getElementById('ch-undo-toast');
   if (!toast) {
-    toast = document.createElement('button');
-    toast.type = 'button';
+    toast = document.createElement('div');
     toast.id = 'ch-undo-toast';
     toast.className = 'ch-toast ch-undo-toast';
+    toast.setAttribute('role', 'group');
     toast.setAttribute('aria-hidden', 'true');
     toast.inert = true;
     document.body.appendChild(toast);
@@ -163,20 +164,38 @@ function showUndoToast(onUndo) {
 
   stopTimingRing(toast);
   toast.replaceChildren();
-  toast.setAttribute('aria-label', 'Undo');
+  toast.setAttribute('aria-label', 'Undo available');
   toast.removeAttribute('aria-hidden');
   toast.inert = false;
+
+  const undoBtn = document.createElement('button');
+  undoBtn.type = 'button';
+  undoBtn.className = 'ch-undo-action';
+  undoBtn.setAttribute('aria-label', 'Undo');
 
   const ring = createTimingRing({ size: 20, durationMs: UNDO_WINDOW_MS, autoplay: false });
   const label = document.createElement('span');
   label.className = 'ch-undo-label';
   label.textContent = 'Undo';
-  toast.append(ring, label);
-  toast.onclick = (e) => {
+  undoBtn.append(ring, label);
+  undoBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
     onUndo();
-  };
+  });
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'ch-undo-dismiss';
+  dismissBtn.setAttribute('aria-label', 'Dismiss');
+  dismissBtn.innerHTML = iosIcon('x', 12);
+  dismissBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    void flushPendingCommit();
+  });
+
+  toast.append(undoBtn, dismissBtn);
   toast.classList.remove('ch-toast-anchored');
   toast.style.left = '';
   toast.style.top = '';

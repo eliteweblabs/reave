@@ -953,7 +953,7 @@ body.admin-split-view #chat-panel .ch-compose {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.1rem;
   /* Hidden leftover must not steal taps or flash the iOS tap-highlight. */
   pointer-events: none;
   visibility: hidden;
@@ -962,7 +962,7 @@ body.admin-split-view #chat-panel .ch-compose {
   bottom: auto;
   z-index: 11000;
   transform: translateX(-50%) translateY(-0.5rem);
-  padding: 0.48rem 1rem;
+  padding: 0.35rem 0.35rem 0.35rem 0.48rem;
   border: none;
   border-radius: 999px;
   font-family: var(--font-primary);
@@ -973,8 +973,61 @@ body.admin-split-view #chat-panel .ch-compose {
   background: var(--brand-gradient);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
   transition: opacity 0.18s, transform 0.18s, visibility 0s linear 0.18s;
+}
+.ch-undo-action {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.12rem 0.28rem;
+  border: none;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: inherit;
+  line-height: 1;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ch-undo-action:hover {
+  filter: brightness(1.06);
+}
+.ch-undo-action:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+.ch-undo-dismiss {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  color: #ff4d4f;
+  background: rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ch-undo-dismiss:hover {
+  background: rgba(255, 255, 255, 0.36);
+  color: #ff3b30;
+}
+.ch-undo-dismiss:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+.ch-undo-dismiss svg {
+  display: block;
 }
 .ch-undo-toast .timing-ring-host,
 .ch-undo-toast .timing-ring {
@@ -994,12 +1047,14 @@ body.admin-split-view #chat-panel .ch-compose {
   transition: opacity 0.18s, transform 0.18s, visibility 0s;
 }
 .ch-undo-toast.ch-toast-visible:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.03);
   transform: translateX(-50%) translateY(-1px);
 }
+.ch-undo-toast:focus-within {
+  outline: none;
+}
 .ch-undo-toast:focus-visible {
-  outline: 2px solid var(--fg);
-  outline-offset: 2px;
+  outline: none;
 }
 .ch-context-menu {
   position: fixed;
