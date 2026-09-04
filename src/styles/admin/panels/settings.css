@@ -1581,6 +1581,8 @@
   overflow-wrap: anywhere;
   word-break: break-word;
   cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
 }
 .prof-sig-surface b,
 .prof-sig-surface strong {
@@ -1604,6 +1606,7 @@
 .prof-sig-figure {
   margin: 0.5rem 0;
   line-height: 0;
+  display: block;
 }
 .prof-sig-img {
   display: block;
@@ -1613,6 +1616,7 @@
   height: auto;
   object-fit: contain;
   border-radius: 6px;
+  pointer-events: none;
 }
 .prof-sig-preview-card {
   border: 1px solid var(--panel-border);

@@ -8,10 +8,57 @@ import { clerkClient } from '@clerk/astro/server';
 import { clerkSecretKey } from './clerkClient';
 import { escHtml } from './escHtml';
 
-const SIG_IMG_STYLE =
-  'display:block;margin:0 0 6px 0;max-width:160px;height:auto;border:0;outline:none;text-decoration:none';
+export const SIG_IMG_MAX_WIDTH = 160;
+export const SIG_IMG_MAX_HEIGHT = 64;
 const SIG_LOGO_WRAP_STYLE = 'margin:0;padding:0;line-height:0';
 const SIG_TEXT_BLOCK_STYLE = 'margin:0;padding:0;line-height:1.45';
+
+function parsePx(raw: string | undefined | null): number | null {
+  if (!raw) return null;
+  const n = parseInt(String(raw).replace(/px$/i, ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** Display size for signature logos — matches the editor preview box. */
+export function clampSignatureImageSize(
+  width: number,
+  height: number,
+): { width: number; height: number } {
+  if (!width || !height) {
+    return { width: SIG_IMG_MAX_WIDTH, height: Math.round(SIG_IMG_MAX_HEIGHT * 0.5) };
+  }
+  const scale = Math.min(SIG_IMG_MAX_WIDTH / width, SIG_IMG_MAX_HEIGHT / height, 1);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+function signatureImageEmailStyle(width: number): string {
+  return `display:block;margin:0 0 6px 0;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none`;
+}
+
+/** Email clients honor width/height attributes — CSS max-width alone is ignored. */
+function applySignatureImageEmailAttrs($img: cheerio.Cheerio<cheerio.Element>): void {
+  const attrW = parsePx($img.attr('width'));
+  const attrH = parsePx($img.attr('height'));
+  let width = attrW;
+  let height = attrH;
+
+  if (!width || !height) {
+    const style = $img.attr('style') || '';
+    const maxW = style.match(/(?:^|;\s*)max-width:\s*(\d+)px/i);
+    width = width || parsePx(maxW?.[1]) || SIG_IMG_MAX_WIDTH;
+    height = height || Math.round(width * 0.4);
+  }
+
+  const sized = clampSignatureImageSize(width!, height!);
+  $img
+    .removeAttr('class')
+    .attr('width', String(sized.width))
+    .attr('height', String(sized.height))
+    .attr('style', signatureImageEmailStyle(sized.width));
+}
 
 async function fetchClerkUserPublicMetadata(userId: string): Promise<Record<string, string>> {
   const secretKey = clerkSecretKey();
@@ -114,9 +161,7 @@ export function normalizeSignatureHtmlForEmail(html: string): string {
   });
 
   root.find('img').each((_, img) => {
-    $(img)
-      .removeAttr('class')
-      .attr('style', SIG_IMG_STYLE);
+    applySignatureImageEmailAttrs($(img));
   });
 
   root.find('div, p').each((_, el) => {

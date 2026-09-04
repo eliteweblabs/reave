@@ -7,6 +7,8 @@ import { setDeBtnLabel, createSlidingPillSelect, iosIcon } from './admin-ui.js?v
 
 const SIG_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const SIG_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const SIG_IMG_MAX_WIDTH = 160;
+const SIG_IMG_MAX_HEIGHT = 64;
 
 function absoluteSiteUrl(path) {
   const v = (path || '').trim();
@@ -37,6 +39,74 @@ function normalizeSignatureHtml(raw) {
     .join('<br />');
 }
 
+function parsePx(value) {
+  if (!value) return null;
+  const n = parseInt(String(value).replace(/px$/i, ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function clampSignatureImageSize(width, height) {
+  if (!width || !height) {
+    return { width: SIG_IMG_MAX_WIDTH, height: Math.round(SIG_IMG_MAX_HEIGHT * 0.5) };
+  }
+  const scale = Math.min(SIG_IMG_MAX_WIDTH / width, SIG_IMG_MAX_HEIGHT / height, 1);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+function signatureImageEmailStyle(width) {
+  return `display:block;margin:0 0 6px 0;width:${width}px;max-width:${width}px;height:auto;border:0;outline:none;text-decoration:none`;
+}
+
+/** Set width/height attrs so email clients match the editor preview size. */
+function applySignatureImageEmailAttrs(img) {
+  const attrW = parsePx(img.getAttribute('width'));
+  const attrH = parsePx(img.getAttribute('height'));
+  let width = attrW;
+  let height = attrH;
+
+  if (!width || !height) {
+    const nw = img.naturalWidth || 0;
+    const nh = img.naturalHeight || 0;
+    if (nw && nh) {
+      ({ width, height } = clampSignatureImageSize(nw, nh));
+    } else {
+      const style = img.getAttribute('style') || '';
+      const maxW = style.match(/(?:^|;\s*)max-width:\s*(\d+)px/i);
+      width = parsePx(maxW?.[1]) || SIG_IMG_MAX_WIDTH;
+      height = height || Math.round(width * 0.4);
+      ({ width, height } = clampSignatureImageSize(width, height));
+    }
+  } else {
+    ({ width, height } = clampSignatureImageSize(width, height));
+  }
+
+  img.setAttribute('width', String(width));
+  img.setAttribute('height', String(height));
+  img.style.cssText = signatureImageEmailStyle(width);
+}
+
+function finalizeSignatureImage(img) {
+  const apply = () => {
+    const { width, height } = clampSignatureImageSize(
+      img.naturalWidth || parsePx(img.getAttribute('width')) || SIG_IMG_MAX_WIDTH,
+      img.naturalHeight || parsePx(img.getAttribute('height')) || SIG_IMG_MAX_HEIGHT,
+    );
+    img.setAttribute('width', String(width));
+    img.setAttribute('height', String(height));
+    img.style.maxWidth = `${width}px`;
+    img.style.width = `${width}px`;
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    img.className = 'prof-sig-img';
+    img.draggable = false;
+  };
+  if (img.complete && img.naturalWidth) apply();
+  else img.addEventListener('load', apply, { once: true });
+}
+
 function isEmptySignatureBlock(el) {
   if (el.querySelector('img')) return false;
   const text = (el.textContent || '').replace(/\u00a0/g, ' ').trim();
@@ -45,12 +115,56 @@ function isEmptySignatureBlock(el) {
   return !inner || /^(<br\s*\/?>)+$/i.test(inner);
 }
 
+/** Undo email-normalized markup so contenteditable stays editable. */
+function prepareSignatureHtmlForEditor(html) {
+  const root = document.createElement('div');
+  root.innerHTML = sanitizeSignatureHtmlClient(normalizeSignatureHtml(html));
+
+  root.querySelectorAll('figure, .prof-sig-figure').forEach((node) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'prof-sig-figure';
+    wrap.removeAttribute('contenteditable');
+    wrap.innerHTML = node.innerHTML;
+    node.replaceWith(wrap);
+  });
+
+  root.querySelectorAll('div, p').forEach((el) => {
+    const img = el.querySelector(':scope > img');
+    const onlyImg =
+      img &&
+      el.children.length === 1 &&
+      !(el.textContent || '').replace(/\u00a0/g, '').trim();
+    if (onlyImg) {
+      const wrap = document.createElement('div');
+      wrap.className = 'prof-sig-figure';
+      wrap.appendChild(img);
+      el.replaceWith(wrap);
+    } else if (!el.classList.contains('prof-sig-figure')) {
+      el.removeAttribute('style');
+      el.removeAttribute('contenteditable');
+      el.removeAttribute('class');
+    }
+  });
+
+  root.querySelectorAll('img').forEach((img) => {
+    if (!img.closest('.prof-sig-figure')) {
+      const wrap = document.createElement('div');
+      wrap.className = 'prof-sig-figure';
+      img.parentNode?.insertBefore(wrap, img);
+      wrap.appendChild(img);
+    }
+    finalizeSignatureImage(img);
+  });
+
+  return root.innerHTML.trim();
+}
+
 /** Mirror server normalizeSignatureHtmlForEmail — tight spacing for email clients. */
 function normalizeSignatureHtmlForEmail(html) {
   const root = document.createElement('div');
   root.innerHTML = sanitizeSignatureHtmlClient(html);
 
-  root.querySelectorAll('figure').forEach((fig) => {
+  root.querySelectorAll('figure, .prof-sig-figure').forEach((fig) => {
     const wrap = document.createElement('div');
     wrap.style.margin = '0';
     wrap.style.padding = '0';
@@ -60,9 +174,7 @@ function normalizeSignatureHtmlForEmail(html) {
   });
 
   root.querySelectorAll('img').forEach((img) => {
-    img.removeAttribute('class');
-    img.style.cssText =
-      'display:block;margin:0 0 6px 0;max-width:160px;height:auto;border:0;outline:none;text-decoration:none';
+    applySignatureImageEmailAttrs(img);
   });
 
   [...root.querySelectorAll('div, p')].forEach((el) => {
@@ -130,22 +242,27 @@ function insertNodeAtCursor(node, surface) {
 }
 
 function wrapSignatureImage(img) {
-  const fig = document.createElement('figure');
-  fig.className = 'prof-sig-figure';
-  fig.contentEditable = 'false';
-  img.className = 'prof-sig-img';
-  img.style.maxWidth = '160px';
-  img.style.height = 'auto';
-  img.style.display = 'block';
-  fig.appendChild(img);
-  return fig;
+  const wrap = document.createElement('div');
+  wrap.className = 'prof-sig-figure';
+  wrap.appendChild(img);
+  finalizeSignatureImage(img);
+  return wrap;
+}
+
+function ensureEditableLineAfter(node) {
+  if (node.nextElementSibling) return;
+  const line = document.createElement('div');
+  line.appendChild(document.createElement('br'));
+  node.after(line);
 }
 
 function insertSignatureImage(surface, url, alt = 'Logo') {
   const img = document.createElement('img');
   img.src = url;
   img.alt = alt;
-  insertNodeAtCursor(wrapSignatureImage(img), surface);
+  const wrap = wrapSignatureImage(img);
+  insertNodeAtCursor(wrap, surface);
+  ensureEditableLineAfter(wrap);
 }
 
 function resolveSignatureImageFile(file) {
@@ -251,7 +368,7 @@ export function bindProfileSignatureEditor(root, opts = {}) {
   surface.setAttribute('role', 'textbox');
   surface.setAttribute('aria-multiline', 'true');
   surface.dataset.placeholder = 'Your name\nTitle\nPhone | email';
-  surface.innerHTML = normalizeSignatureHtml(opts.initialHtml || hidden.value);
+  surface.innerHTML = prepareSignatureHtmlForEditor(opts.initialHtml || hidden.value);
 
   const preview = document.createElement('div');
   preview.className = 'prof-sig-preview';
@@ -316,7 +433,10 @@ export function bindProfileSignatureEditor(root, opts = {}) {
     surface.hidden = !editing;
     preview.hidden = editing;
     if (!editing) refreshPreview();
-    else syncFormatState();
+    else {
+      syncFormatState();
+      surface.focus();
+    }
   }
 
   async function ingestImageFile(file) {
@@ -361,6 +481,13 @@ export function bindProfileSignatureEditor(root, opts = {}) {
   companyBtn?.addEventListener('click', () => {
     insertSignatureImage(surface, companyLogoUrl, 'Company logo');
     syncHidden();
+  });
+
+  surface.addEventListener('mousedown', (e) => {
+    if (e.target === surface) {
+      e.preventDefault();
+      surface.focus();
+    }
   });
 
   surface.addEventListener('input', () => {

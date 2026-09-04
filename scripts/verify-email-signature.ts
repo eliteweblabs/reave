@@ -4,15 +4,16 @@
  */
 import assert from 'node:assert/strict';
 import {
+  clampSignatureImageSize,
   normalizeSignatureHtmlForEmail,
   signatureHtmlForEmail,
   signatureToPlainText,
 } from '../src/lib/userEmailSignature.ts';
 
 const editorHtml =
-  '<figure class="prof-sig-figure" contenteditable="false">' +
-  '<img class="prof-sig-img" src="https://example.com/logo.png" alt="Logo" style="max-width:160px">' +
-  '</figure><div><br></div><div><b>Thomas Reave</b></div><div>thomas@reave.app</div>' +
+  '<div class="prof-sig-figure">' +
+  '<img class="prof-sig-img" src="https://example.com/logo.png" alt="Logo" width="320" height="128" style="max-width:160px">' +
+  '</div><div><br></div><div><b>Thomas Reave</b></div><div>thomas@reave.app</div>' +
   '<div>+1-617-706-0805</div>';
 
 const normalized = normalizeSignatureHtmlForEmail(editorHtml);
@@ -20,7 +21,13 @@ assert.doesNotMatch(normalized, /<figure/i, 'figures are replaced for email');
 assert.doesNotMatch(normalized, /prof-sig/i, 'editor classes are stripped');
 assert.doesNotMatch(normalized, /<div><br\s*\/?><\/div>/i, 'empty br-only rows are removed');
 assert.match(normalized, /margin:0 0 6px 0/, 'logo gets tight bottom margin');
+assert.match(normalized, /width="160"/, 'logo gets explicit width for email clients');
+assert.match(normalized, /height="/, 'logo gets explicit height for email clients');
 assert.match(normalized, /Thomas Reave/, 'name is preserved');
+
+const sized = clampSignatureImageSize(320, 128);
+assert.equal(sized.width, 160);
+assert.ok(sized.height <= 64);
 
 const viaPublic = signatureHtmlForEmail(editorHtml);
 assert.equal(viaPublic, normalized, 'signatureHtmlForEmail uses normalization');

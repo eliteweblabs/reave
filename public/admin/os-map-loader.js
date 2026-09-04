@@ -7545,7 +7545,7 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
 
 function bindProfileForm(root) {
   bindFormattedPhoneInputs(root);
-  bindAutosaveForm(root, {
+  const autosave = bindAutosaveForm(root, {
     formSelector: '#profile-form',
     alertEl: root.querySelector('#profile-alert'),
     async save(payload) {
@@ -7559,6 +7559,9 @@ function bindProfileForm(root) {
       return { ok: res.ok, error: json.error };
     },
   });
+  const form = root.querySelector('#profile-form');
+  if (form) form.__profileAutosaveResync = autosave.resync;
+  return autosave;
 }
 
 let companyMapController = null;
@@ -8573,7 +8576,7 @@ function renderProfileOnlyPanel(profile) {
             'Appended to outbound emails you send from the inbox. Stored on your account, not company settings.',
             `<div class="prof-field prof-field--signature">` +
               `<div id="profile-signature-editor"></div>` +
-              `<textarea id="profile-emailSignature" name="emailSignature" hidden>${escHtml(p.emailSignature || '')}</textarea>` +
+              `<textarea id="profile-emailSignature" name="emailSignature" hidden data-copy-button="off"></textarea>` +
               `<span class="prof-hint">Select text to bold or italic. Drag a logo in, or use Upload / Library / Company logo. Switch to Preview to see how it looks in email.</span></div>`,
           ) +
         `</form>` +
@@ -9487,6 +9490,7 @@ async function loadProfileTab() {
       initialHtml: profileData.profile?.emailSignature || '',
       companyLogoUrl: companyData?.ok ? companyLogoPreviewUrl(companyData.company) : '',
     });
+    root.querySelector('#profile-form')?.__profileAutosaveResync?.();
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +
