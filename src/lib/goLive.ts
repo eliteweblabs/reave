@@ -13,7 +13,7 @@ import {
 import { applyDeployWizardDns } from './deployWizardDns';
 import { applyDeployWizardPublicOrigin, isDeployWizardReaveStagingHost } from './deployWizardStaging';
 import { ensureClientCloudflareZone, provisionNamecomNameservers, provisionGoDaddyNameservers } from './clientDomainProvision';
-import { isCloudflareConfigured } from './cloudflareClient';
+import { clerkMigratePrimaryDomain } from './clerkClient';
 import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
 import { CATALOG_BASELINE_FEATURES } from './moduleCatalog';
 import { isNamecomConfigured } from './namecomClient';
@@ -300,17 +300,37 @@ export async function executeGoLive(opts: {
     return { ok: false, error: origin.error, steps };
   }
 
+  pushStep({ id: 'clerk', label: 'Clerk domain', status: 'running' });
+  say(`Moving Clerk primary domain to ${apex}…`);
+  const clerkVars: Record<string, string> = {};
+  const clerk = await clerkMigratePrimaryDomain(apex);
+  if (!clerk.ok && !clerk.skipped) {
+    pushStep({ id: 'clerk', label: 'Clerk domain', status: 'error', detail: clerk.error });
+    return { ok: false, error: clerk.error || 'Clerk domain migration failed', steps };
+  }
+  if (clerk.publishableKey) {
+    clerkVars.PUBLIC_CLERK_PUBLISHABLE_KEY = clerk.publishableKey;
+  }
+  pushStep({
+    id: 'clerk',
+    label: 'Clerk domain',
+    status: 'done',
+    detail: clerk.skipped ? `Already on ${apex}` : `Primary domain + /__clerk on ${apex}`,
+  });
+
   const resendFrom = deployWizardResendFrom(apex);
+  const originVars: Record<string, string> = { ...clerkVars };
   if (resendFrom) {
+    originVars.RESEND_FROM = resendFrom;
+    originVars.EMAIL_FROM = resendFrom;
+    originVars.PLANNED_SITE_DOMAIN = apex;
+  }
+  if (Object.keys(originVars).length) {
     await railwaySetVariables({
       project: ctx.projectId,
       environment: ctx.environment,
       service: ctx.appService,
-      variables: {
-        RESEND_FROM: resendFrom,
-        EMAIL_FROM: resendFrom,
-        PLANNED_SITE_DOMAIN: apex,
-      },
+      variables: originVars,
       skip_deploys: false,
     });
   }
