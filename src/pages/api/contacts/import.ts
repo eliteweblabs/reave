@@ -2,8 +2,13 @@ import type { APIContext } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
 import { parseVCard } from '../../../lib/carddav/vcard';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
+
+/** Cap import uploads — keeps memory bounded on large vCard/CSV files. */
+const CONTACT_IMPORT_MAX_BYTES = 2 * 1024 * 1024; // 2 MiB
+const CONTACT_IMPORT_MAX_ROWS = 500;
 
 /**
  * Parse CSV format: name,email,phone,company,notes
@@ -92,27 +97,30 @@ function parseVCards(content: string): Array<{
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const json = (body: object, status = 200) =>
-    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
   let formData: FormData;
   try {
     formData = await context.request.formData();
   } catch {
-    return json({ ok: false, error: 'Invalid form data' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid form data' }, 400);
   }
 
   const file = formData.get('file');
   if (!file || !(file instanceof File)) {
-    return json({ ok: false, error: 'file is required' }, 400);
+    return jsonResponse({ ok: false, error: 'file is required' }, 400);
+  }
+
+  if (file.size > CONTACT_IMPORT_MAX_BYTES) {
+    return jsonResponse(
+      { ok: false, error: `File too large (max ${CONTACT_IMPORT_MAX_BYTES / (1024 * 1024)} MB)` },
+      413,
+    );
   }
 
   const updateExisting = formData.get('updateExisting') === 'true';
@@ -121,7 +129,7 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     content = await file.text();
   } catch {
-    return json({ ok: false, error: 'Failed to read file' }, 400);
+    return jsonResponse({ ok: false, error: 'Failed to read file' }, 400);
   }
 
   let parsedContacts: Array<{
@@ -138,11 +146,18 @@ export async function POST(context: APIContext): Promise<Response> {
   } else if (fileName.endsWith('.csv')) {
     parsedContacts = parseCSV(content);
   } else {
-    return json({ ok: false, error: 'Unsupported file type. Use .vcf or .csv files.' }, 400);
+    return jsonResponse({ ok: false, error: 'Unsupported file type. Use .vcf or .csv files.' }, 400);
   }
 
   if (parsedContacts.length === 0) {
-    return json({ ok: false, error: 'No valid contacts found in file' }, 400);
+    return jsonResponse({ ok: false, error: 'No valid contacts found in file' }, 400);
+  }
+
+  if (parsedContacts.length > CONTACT_IMPORT_MAX_ROWS) {
+    return jsonResponse(
+      { ok: false, error: `Too many contacts (max ${CONTACT_IMPORT_MAX_ROWS} per import)` },
+      400,
+    );
   }
 
   const results = {
@@ -201,5 +216,5 @@ export async function POST(context: APIContext): Promise<Response> {
     }
   }
 
-  return json({ ok: true, results }, 200);
+  return jsonResponse({ ok: true, results });
 };
