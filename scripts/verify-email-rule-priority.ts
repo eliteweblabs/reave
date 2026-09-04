@@ -373,6 +373,34 @@ assert.equal(deletedOrJunkedEmailBlocksNotification({ category: 'alert', status:
   assert.equal(classifyEmail(facebookLogin, DEFAULT_RULES).notify, false);
 }
 
+{
+  const gscMarketing = {
+    from: 'Google Search Console <sc-noreply@google.com>',
+    subject: 'Improve Google presence for example.com',
+    text:
+      'Domain verification status. Share access with co-workers. ' +
+      'Add people to Search Console. Property reference 20079900.',
+  };
+  assert.equal(looksLikeOtpEmail(gscMarketing), false);
+  assert.equal(classifyEmail(gscMarketing, DEFAULT_RULES).status, 'UNMATCHED');
+
+  const googleOtp = {
+    from: 'Google <noreply@google.com>',
+    subject: 'Your verification code',
+    text: 'G-482901 is your Google verification code. It expires in 10 minutes.',
+  };
+  assert.equal(looksLikeOtpEmail(googleOtp), true);
+  assert.equal(classifyEmail(googleOtp, DEFAULT_RULES).status, 'VERIFICATION_CODE');
+
+  const eightDigitOtp = {
+    from: 'Bank <security@bank.com>',
+    subject: 'Your security code',
+    text: 'Your security code is 12345678. Do not share it.',
+  };
+  assert.equal(looksLikeOtpEmail(eightDigitOtp), true);
+  assert.equal(classifyEmail(eightDigitOtp, DEFAULT_RULES).status, 'VERIFICATION_CODE');
+}
+
 assert.equal(
   isJunkClassification({ category: 'junk', action: 'junk', status: 'DELETE' }),
   true,

@@ -14,9 +14,13 @@ export type VerificationCodeExtract = {
   code: string;
 };
 
+/** Site/domain verification — not login OTP (Search Console, DNS, ownership). */
+const NON_OTP_VERIFICATION =
+  /\b(?:domain|site|property|dns|email|ownership|business|google\s+presence)\s+verification\b/i;
+
 /** Strong OTP phrasing — avoid bare "access"/"pin" (footers, "shipping", etc.). */
 const OTP_CONTEXT =
-  /\b(?:verification(?:\s+code)?|one[-\s]?time(?:\s+(?:code|password|passcode))?|security\s+code|login\s+code|sign[-\s]?in\s+code|access\s+code|auth(?:entication)?\s+code|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)\b/i;
+  /\b(?:verification\s+code|one[-\s]?time(?:\s+(?:code|password|passcode))?|security\s+code|login\s+code|sign[-\s]?in\s+code|access\s+code|auth(?:entication)?\s+code|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)\b/i;
 
 /** OTP-ish subject lines from services that bury the code in HTML. */
 const OTP_SUBJECT =
@@ -41,9 +45,15 @@ const LOOSE_DIGIT_CODE = /\b(\d{3}[\s-]+\d{3}|\d{2}(?:[\s-]+\d{2}){2}|\d{4,8})\b
  * Requires real OTP phrases — bare "security"/"login" false-positive on social mail.
  */
 const NEAR_KEYWORD = new RegExp(
-  String.raw`(?:verification(?:\s+code)?|one[-\s]?time(?:\s+(?:code|password|passcode))?|security\s+code|login\s+code|sign[-\s]?in\s+code|access\s+code|auth(?:entication)?\s+code|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)[\s\S]{0,120}?\b(\d{3}[\s-]+\d{3}|\d{2}(?:[\s-]+\d{2}){2}|\d{4,8})\b`,
+  String.raw`(?:verification\s+code|one[-\s]?time(?:\s+(?:code|password|passcode))?|security\s+code|login\s+code|sign[-\s]?in\s+code|access\s+code|auth(?:entication)?\s+code|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)[\s\S]{0,120}?\b(\d{3}[\s-]+\d{3}|\d{2}(?:[\s-]+\d{2}){2}|\d{4,8})\b`,
   'i',
 );
+
+/** Marketing / product mail that sometimes embeds long numeric IDs. */
+const NON_OTP_SENDER_RES: RegExp[] = [
+  /^sc-noreply@google\.com$/i,
+  /^search-console-noreply@google\.com$/i,
+];
 
 /**
  * Auth-only senders — short OTP mail may be just digits with little wording.
@@ -176,7 +186,12 @@ export function isStrictAuthOtpSender(from?: string): boolean {
   return matchesSenderPatterns(email, STRICT_AUTH_OTP_SENDER_RES);
 }
 
-function normalizeCode(raw: string): string | null {
+type NormalizeCodeOpts = {
+  /** Weak proximity/digit-grab patterns — cap at 6 (7–8 digit OTPs need explicit phrasing). */
+  maxDigits?: number;
+};
+
+function normalizeCode(raw: string, opts?: NormalizeCodeOpts): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
@@ -184,9 +199,11 @@ function normalizeCode(raw: string): string | null {
   if (google) return google[1];
 
   const compact = trimmed.replace(/[\s-]/g, '');
+  const maxDigits = opts?.maxDigits ?? 8;
   if (/^\d{4,8}$/.test(compact)) {
     // Skip likely years when 4 digits.
     if (compact.length === 4 && /^20\d{2}$/.test(compact)) return null;
+    if (compact.length > maxDigits) return null;
     return compact;
   }
 
@@ -210,15 +227,24 @@ function scoreCode(code: string): number {
 }
 
 function hasOtpContext(text: string): boolean {
+  if (NON_OTP_VERIFICATION.test(text) && !OTP_CONTEXT.test(text) && !LEADING_CODE.test(text)) {
+    return false;
+  }
   return OTP_CONTEXT.test(text) || LEADING_CODE.test(text) || GOOGLE_CODE.test(text);
 }
 
-function collectFromPattern(text: string, re: RegExp): string[] {
+function isNonOtpSender(from?: string): boolean {
+  const email = parseSenderEmailAddress(from);
+  if (!email) return false;
+  return matchesSenderPatterns(email, NON_OTP_SENDER_RES);
+}
+
+function collectFromPattern(text: string, re: RegExp, opts?: NormalizeCodeOpts): string[] {
   const out: string[] = [];
   const flags = re.flags.includes('g') ? re.flags : `${re.flags}g`;
   const global = new RegExp(re.source, flags);
   for (const m of text.matchAll(global)) {
-    const code = normalizeCode(m[1] ?? '');
+    const code = normalizeCode(m[1] ?? '', opts);
     if (code) out.push(code);
   }
   return out;
@@ -238,12 +264,15 @@ function pickBestCode(candidates: string[], minScore = 40): VerificationCodeExtr
   return { code: best };
 }
 
+/** Weak patterns may grab property IDs — 7–8 digit OTPs are rare (~3% of SMS OTPs). */
+const WEAK_PATTERN_NORMALIZE: NormalizeCodeOpts = { maxDigits: 6 };
+
 function tryPatterns(text: string, minScore = 40): VerificationCodeExtract | null {
   const candidates = [
     ...collectFromPattern(text, GOOGLE_CODE),
     ...collectFromPattern(text, CODE_AFTER_LABEL),
     ...collectFromPattern(text, LEADING_CODE),
-    ...collectFromPattern(text, NEAR_KEYWORD),
+    ...collectFromPattern(text, NEAR_KEYWORD, WEAK_PATTERN_NORMALIZE),
   ];
   return pickBestCode(candidates, minScore);
 }
@@ -254,7 +283,7 @@ function tryLooseSenderPatterns(text: string): VerificationCodeExtract | null {
   if (!trimmed || trimmed.length > 2000) return null;
   const candidates: string[] = [];
   for (const m of trimmed.matchAll(LOOSE_DIGIT_CODE)) {
-    const code = normalizeCode(m[1] ?? '');
+    const code = normalizeCode(m[1] ?? '', WEAK_PATTERN_NORMALIZE);
     if (code) candidates.push(code);
   }
   return pickBestCode(candidates, 40);
@@ -269,6 +298,7 @@ export type OtpEmailProbe = {
 
 /** True when content or sender strongly indicates a one-time code email. */
 export function looksLikeOtpEmail(opts: OtpEmailProbe): boolean {
+  if (isNonOtpSender(opts.from)) return false;
   const subject = (opts.subject ?? '').trim();
   const body = plainBody(opts.text, opts.html);
   const combined = [subject, body].filter(Boolean).join('\n');
@@ -282,6 +312,7 @@ export function looksLikeOtpEmail(opts: OtpEmailProbe): boolean {
 
 /** Return a verification code when the message looks like an OTP email. */
 export function extractVerificationCodeFromEmail(opts: OtpEmailProbe): VerificationCodeExtract | null {
+  if (isNonOtpSender(opts.from)) return null;
   const subject = (opts.subject ?? '').trim();
   const body = plainBody(opts.text, opts.html);
   const combined = [subject, body].filter(Boolean).join('\n');

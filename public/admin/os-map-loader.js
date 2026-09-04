@@ -18893,15 +18893,20 @@ function renderEmailPane() {
   detail.className = 'em-detail' + (isEmailLabModeFor(ev) ? ' em-detail--lab' : '');
   const summaryText = emailDetailSummaryText(ev);
   const projectLabel = ev.jobTitle || ev.jobSlug;
-  let detailHtml =
-    `<div class="em-item-row">` +
-    `<span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
+  const showOtpCard = Boolean(ev.verificationCode);
+  const showAuthCard = !showOtpCard && isAuthLinkEmailRecord(ev);
+  const detailRowInner =
+    (showOtpCard || showAuthCard
+      ? ''
+      : `<span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
     emailForwardedChipHtml(ev) +
     (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))
       ? emailProjectContextHtml(ev)
       : '') +
-    (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
-    `</div>`;
+    (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '');
+  let detailHtml = detailRowInner.trim()
+    ? `<div class="em-item-row">${detailRowInner}</div>`
+    : '';
   if (ev.verificationCode) {
     const expiryHtml = ev.deleteAfterAt
       ? `Auto-deletes in <span class="admin-otp-countdown em-otp-countdown" data-otp-expires="${escHtml(ev.deleteAfterAt)}">—</span> · `
