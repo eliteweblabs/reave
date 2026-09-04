@@ -213,14 +213,16 @@ function ensureHud() {
   const hud = document.createElement('div');
   hud.id = HUD_ID;
   hud.setAttribute('aria-label', 'Performance trace');
-  hud.style.cssText =
-    'position:fixed;right:0.65rem;bottom:0.65rem;z-index:99998;display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem;';
+  hud.style.cssText = 'position:fixed;right:0.65rem;bottom:0.65rem;z-index:99998;';
+
+  const hit = document.createElement('div');
+  hit.style.cssText = 'position:relative;display:inline-flex;';
 
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
   panel.setAttribute('aria-hidden', 'true');
   panel.style.cssText =
-    'max-width:min(24rem,calc(100vw - 1.3rem));max-height:45vh;overflow:auto;padding:0.45rem 0.55rem;border-radius:8px;' +
+    'position:absolute;right:0;bottom:calc(100% + 0.35rem);max-width:min(24rem,calc(100vw - 1.3rem));max-height:45vh;overflow:auto;padding:0.45rem 0.55rem;border-radius:8px;' +
     'background:rgba(15,23,42,0.96);color:#e2e8f0;font:500 0.68rem/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;' +
     'border:1px solid rgba(148,163,184,0.35);box-shadow:0 8px 24px rgba(0,0,0,0.35);' +
     'opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity 0.15s ease,visibility 0.15s ease,transform 0.15s ease;pointer-events:none;';
@@ -260,15 +262,16 @@ function ensureHud() {
     btn.setAttribute('aria-expanded', 'false');
   };
 
-  hud.addEventListener('mouseenter', showPanel);
-  hud.addEventListener('mouseleave', hidePanel);
-  hud.addEventListener('focusin', showPanel);
-  hud.addEventListener('focusout', (e) => {
-    if (!hud.contains(e.relatedTarget)) hidePanel();
+  hit.addEventListener('mouseenter', showPanel);
+  hit.addEventListener('mouseleave', hidePanel);
+  hit.addEventListener('focusin', showPanel);
+  hit.addEventListener('focusout', (e) => {
+    if (!hit.contains(e.relatedTarget)) hidePanel();
   });
 
-  hud.appendChild(panel);
-  hud.appendChild(btn);
+  hit.appendChild(panel);
+  hit.appendChild(btn);
+  hud.appendChild(hit);
   document.body?.appendChild(hud);
   return hud;
 }
