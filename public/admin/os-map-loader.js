@@ -15514,7 +15514,7 @@ function fillEmailSidebarList(list) {
       isSent
         ? createSentListItem(ev)
         : isDraft
-          ? createDraftListItem(ev)
+          ? createDraftSwipeRow(ev)
           : isScheduled
             ? createScheduledListItem(ev)
             : createEmailSwipeRow(ev),
@@ -15611,7 +15611,11 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  if (!isSent && !isDraft && !isScheduled) {
+  if (isDraft) {
+    bindListMultiSelect(list, {
+      onBulkDelete: bulkDeleteEmailDrafts,
+    });
+  } else if (!isSent && !isScheduled) {
     bindListMultiSelect(list, {
       onBulkArchive: bulkArchiveEmails,
       onBulkDelete: bulkDeleteEmails,
@@ -15760,6 +15764,21 @@ function createDraftListItem(ev) {
     `</span>`;
   item.addEventListener('click', () => void openDraftEvent(ev.id));
   return item;
+}
+
+function buildDraftSwipeActions(ev) {
+  return [
+    swipeDeleteAction({
+      label: 'Delete',
+      onClick: () => deleteEmailDraft(ev),
+    }),
+  ];
+}
+
+function createDraftSwipeRow(ev) {
+  return createSwipeRow(createDraftListItem(ev), buildDraftSwipeActions(ev), {
+    contextMenuTitle: 'This draft only',
+  });
 }
 
 function createScheduledListItem(ev) {
@@ -16918,17 +16937,74 @@ async function saveActiveEmailDraft(silent = true) {
   }
 }
 
-async function deleteEmailDraftById(id) {
-  if (!id) return;
+async function deleteEmailDraftById(id, { silent = true } = {}) {
+  if (!id) return false;
   try {
     const res = await adminFetch(`/api/email/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' });
     const data = await readAdminJson(res, 'Delete draft');
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     emailState.draftEvents = (emailState.draftEvents || []).filter((d) => d.id !== id);
+    if (emailState.activeDraftId === id) emailState.activeDraftId = null;
+    if (emailState.activeId === id) emailState.activeId = null;
+    return true;
   } catch (e) {
     if (e.message === 'Session expired') throw e;
-    console.warn('[email] draft delete failed', e);
+    if (!silent) {
+      await osAlert({ title: 'Could not delete draft', bodyHtml: escHtml(e.message) });
+    } else {
+      console.warn('[email] draft delete failed', e);
+    }
+    return false;
   }
+}
+
+function clearEmailDraftComposeState() {
+  emailState.composing = false;
+  emailState.activeDraftId = null;
+  emailState.activeId = null;
+  emailState.compose = emptyEmailCompose();
+  emailState.sending = false;
+  rememberOpenEmailDraft(null);
+  getEmailPanel()?.classList.remove('em-pane-active');
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
+}
+
+async function deleteEmailDraft(ev) {
+  const id = typeof ev === 'string' ? ev : ev?.id;
+  if (!id) return;
+  closeOpenSwipeRow();
+  const draft = (emailState.draftEvents || []).find((d) => d.id === id);
+  const label = draft?.subject?.trim() || '(no subject)';
+  const ok = await osConfirm({
+    title: 'Delete draft?',
+    bodyHtml: `<p>Delete <strong>${escHtml(label)}</strong>? This cannot be undone.</p>`,
+    confirmLabel: 'Delete',
+  });
+  if (!ok) return;
+  const wasComposing = emailState.composing && emailState.activeDraftId === id;
+  const deleted = await deleteEmailDraftById(id, { silent: false });
+  if (!deleted) return;
+  if (wasComposing) clearEmailDraftComposeState();
+  renderEmailPanel({ preserveSidebar: emailState.inboxFilter === 'draft' });
+}
+
+async function bulkDeleteEmailDrafts(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const unique = [...new Set(ids.filter(Boolean))];
+  const ok = await osConfirm({
+    title: 'Delete drafts?',
+    bodyHtml: `<p>Delete ${unique.length} draft${unique.length === 1 ? '' : 's'}? This cannot be undone.</p>`,
+    confirmLabel: 'Delete',
+  });
+  if (!ok) return;
+  for (const id of unique) {
+    await deleteEmailDraftById(id, { silent: true });
+  }
+  if (emailState.activeDraftId && unique.includes(emailState.activeDraftId)) {
+    clearEmailDraftComposeState();
+  }
+  renderEmailPanel({ preserveSidebar: true });
 }
 
 async function leaveEmailCompose() {
@@ -17564,15 +17640,27 @@ async function writeEmailComposeWithAgent(btn) {
 }
 
 function renderEmailComposePane(pane) {
-  const composeTitle = emailState.replyToId
-    ? emailState.replyMode === 'reply-all'
-      ? 'Reply all'
-      : 'Reply'
-    : 'New message';
+  const composeTitle = emailState.activeDraftId
+    ? 'Continue writing email'
+    : emailState.replyToId
+      ? emailState.replyMode === 'reply-all'
+        ? 'Reply all'
+        : 'Reply'
+      : 'New message';
+  const composeHeaderIcons = [];
+  if (emailState.activeDraftId) {
+    composeHeaderIcons.push(
+      paneDeleteIcon({
+        label: 'Delete draft',
+        onClick: () => void deleteEmailDraft(emailState.activeDraftId),
+      }),
+    );
+  }
   pane.appendChild(
     createPaneHeader({
       back: { label: 'Back to inbox', onClick: () => void closeEmailCompose() },
       title: composeTitle,
+      icons: composeHeaderIcons.length ? composeHeaderIcons : undefined,
     }).root,
   );
 
