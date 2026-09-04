@@ -8,7 +8,6 @@ import {
   BRANDING_LOGO_PATH,
   BRANDING_ICON_PATH,
   BRANDING_OG_PATH,
-  BRANDING_APPLE_TOUCH_PATH,
   FAVICON_SVG_PATH,
   normalizePublicLogoPath,
 } from './companyLogo';
@@ -389,7 +388,7 @@ export function companyFaviconUrls(company: CompanyConfig): CompanyFaviconUrls {
     svg: trim(company.iconSvg) ? versionedRootIcon(FAVICON_SVG_PATH, version) : '',
     png32: versionedRootIcon('/favicon-32x32.png', version),
     png16: versionedRootIcon('/favicon-16x16.png', version),
-    appleTouchIcon: versionedRootIcon(BRANDING_APPLE_TOUCH_PATH, version),
+    appleTouchIcon: brandIconUrl(BRAND_ICON_SIZES.appleTouchIcon, version),
     png192: brandIconUrl(BRAND_ICON_SIZES.png192, version),
     png512: brandIconUrl(BRAND_ICON_SIZES.png512, version),
   };
@@ -449,7 +448,7 @@ export function deckQuantumHeroMask(company: CompanyConfig): string | null {
   return '/reave-logo-mask.png';
 }
 
-/** Static logo image for the deck preloader intro resolve (default /branding/logo.png). */
+/** Static logo image for the deck preloader intro resolve (default /api/branding/logo). */
 export function deckQuantumHeroLogo(company: CompanyConfig): string | null {
   if (company.logoSource === 'hidden') return null;
   return companyLogoUrl(company.logoPath, company.logoVersion) || SITE.logoPath;

@@ -6,7 +6,7 @@ import { shareSafeText } from "../lib/shareSafeText";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getSiteContent, siteLandingOgImage } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
-import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import { BRANDING_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from "../lib/ogImageSize";
 import CookieNotice from "../components/CookieNotice.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
@@ -57,7 +57,7 @@ const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
 const ogImageAbsolute = ogImage.startsWith("http") ? ogImage : `${origin}${ogImage}`;
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
-  ? `${origin}${LOGO_ICON_OG_PATH}`
+  ? `${origin}${BRANDING_OG_PATH}`
   : ogImageAbsolute;
 const htmlStyle =
   isEditorial || isService || isTech || isPack || isVet

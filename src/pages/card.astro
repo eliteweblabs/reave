@@ -24,7 +24,7 @@ import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
 import { companyOgImageUrl, getCompanyConfig } from '../lib/companyConfig';
 import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
 import { contactTelHref } from '../lib/contactApi';
-import { LOGO_ICON_OG_PATH } from '../lib/companyLogo';
+import { BRANDING_OG_PATH } from '../lib/companyLogo';
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
 import { requestOrigin } from '../lib/requestOrigin';
 import { shareSafeText } from '../lib/shareSafeText';
@@ -84,7 +84,7 @@ const canonical = company.domain
 const ogImage = companyOgImageUrl(company);
 const ogImageAbsolute = ogImage.startsWith('http') ? ogImage : `${origin}${ogImage}`;
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
-  ? `${origin}${LOGO_ICON_OG_PATH}`
+  ? `${origin}${BRANDING_OG_PATH}`
   : ogImageAbsolute;
 ---
 

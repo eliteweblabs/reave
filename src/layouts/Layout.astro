@@ -7,7 +7,7 @@ import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import SiteBackground from "../components/SiteBackground.astro";
 import { SITE } from "../config/site";
-import { BRANDING_OG_PATH, LOGO_ICON_OG_PATH } from "../lib/companyLogo";
+import { BRANDING_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from "../lib/ogImageSize";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
@@ -92,7 +92,7 @@ const ogImageAbsolute = ogImage.startsWith("http")
   : `${origin}${ogImage}`;
 /** Animated GIFs are a poor OG preview — fall back to the static logo mark. */
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
-  ? `${origin}${LOGO_ICON_OG_PATH}`
+  ? `${origin}${BRANDING_OG_PATH}`
   : ogImageAbsolute;
 const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 const isLandingOg = Boolean(siteLandingOgImage(siteContent));

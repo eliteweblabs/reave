@@ -41,7 +41,7 @@ import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH, formatPortalPageTitle } from '../../lib/portalOgImage';
 import { requestOrigin } from '../../lib/requestOrigin';
 import { projectPortalUrl, auditPortalUrl } from '../../lib/contactApi';
-import { LOGO_ICON_OG_PATH } from '../../lib/companyLogo';
+import { BRANDING_OG_PATH } from '../../lib/companyLogo';
 import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
 import PortalAuditPanel from '../../components/PortalAuditPanel.astro';
 import { buildAuditReportCard, isAuditJob } from '../../lib/auditReportCard';
@@ -420,10 +420,10 @@ const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
 const themeColor = '#ffffff';
 const portalUrl = uid ? `${origin}/c/${encodeURIComponent(uid)}` : origin;
 const ogDescription = clientTagline || `${brandTitle} client portal`;
-const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : LOGO_ICON_OG_PATH;
+const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : BRANDING_OG_PATH;
 const ogImageAbsolute = ogImagePath.startsWith('http') ? ogImagePath : `${origin}${ogImagePath}`;
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
-  ? `${origin}${LOGO_ICON_OG_PATH}`
+  ? `${origin}${BRANDING_OG_PATH}`
   : ogImageAbsolute;
 
 // ?submit — show a focused data-submission form instead of the full portal.

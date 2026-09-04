@@ -11,13 +11,13 @@ export function svgHasExternalRasterRefs(svg: string): boolean {
   return /<image\b[^>]*(?:xlink:)?href\s*=\s*["'](?!#|data:)[^"']+["']/i.test(svg);
 }
 
-/** Illustrator / legacy export filenames → root-relative /public assets. */
+/** Illustrator / legacy export filenames → dynamic branding API paths. */
 const SVG_RASTER_ALIASES: Record<string, string> = {
-  'content-1.png': '/reave-icon.png',
-  'content-1.jpg': '/reave-icon.png',
-  'content-1.jpeg': '/reave-icon.png',
-  'reave-icon-1.png': '/reave-icon.png',
-  'reave-logo-1.png': '/reave-logo-1.png',
+  'content-1.png': '/api/branding/icon?size=512',
+  'content-1.jpg': '/api/branding/icon?size=512',
+  'content-1.jpeg': '/api/branding/icon?size=512',
+  'reave-icon-1.png': '/api/branding/icon?size=512',
+  'reave-logo-1.png': '/api/branding/logo',
 };
 
 function resolveSvgRasterHref(href: string): string {
@@ -29,7 +29,7 @@ function resolveSvgRasterHref(href: string): string {
   return href.startsWith('/') ? href : `/${file}`;
 }
 
-/** Rewrite relative raster refs in pasted SVGs to root-absolute /public paths. */
+/** Rewrite relative raster refs in pasted SVGs to branding API paths. */
 export function resolveSvgAssetUrls(svg: string): string {
   return svg.replace(
     /(\s(?:xlink:)?href\s*=\s*(["']))([^"']+)\2/gi,

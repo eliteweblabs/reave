@@ -135,7 +135,7 @@ async function rasterizeWordmark(source: BrandMarkSource, maxHeight: number): Pr
 }
 
 /**
- * Wide wordmark PNG for email headers and generic /branding/logo.png.
+ * Wide wordmark PNG for email headers and /api/branding/logo.
  * Admin company config only — no letter-tile fallback.
  */
 export async function renderCompanyLogoWordmarkPng(

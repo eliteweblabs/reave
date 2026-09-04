@@ -7072,7 +7072,7 @@ function companyLogoPreviewUrl(company) {
   if (svgUrl) return svgUrl;
   if (hasUploadedCompanyLogoPng(company)) {
     const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
-    return `/branding/logo.png${v}`;
+    return `/api/branding/logo${v}`;
   }
   if (company?.logoSource === 'admin' && company.logoPath && company.logoSource !== 'hidden') {
     const path = String(company.logoPath);
@@ -7105,7 +7105,7 @@ function hasUploadedCompanyLogoPng(company) {
   const path = String(company?.logoPath || '');
   return (
     company?.logoSource === 'admin' &&
-    (path.includes('/branding/logo.png') || path.includes('/api/branding/logo'))
+    (path.includes('/api/branding/logo'))
   );
 }
 

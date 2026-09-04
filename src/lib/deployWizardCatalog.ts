@@ -587,7 +587,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'COMPANY_LOGO_URL',
     service: DEPLOY_APP_SERVICE,
     kind: 'reference',
-    value: `${railwayLocalRef('PUBLIC_SITE_URL')}/branding/logo.png`,
+    value: `${railwayLocalRef('PUBLIC_SITE_URL')}/api/branding/logo`,
     description: 'Public wordmark PNG. Crater mail uses ${{ reave.COMPANY_LOGO_URL }}.',
   }),
   v({
@@ -2021,7 +2021,7 @@ export type DeployWizardClientSetup = {
   supportPhone?: string;
   brandPrimary?: string;
   brandSecondary?: string;
-  /** Public logo URL (overrides default /branding/logo.png). */
+  /** Public logo URL (overrides default /api/branding/logo). */
   logoUrl?: string;
   /** Small inline logo upload — written as INSTALL_LOGO_DATA on apply. */
   logoData?: string;

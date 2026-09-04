@@ -115,6 +115,17 @@ const HOME_SECTION_REDIRECTS: Record<string, string> = {
   "/services": "contact",
 };
 
+/** Retired /branding/* disk routes → /api/branding/* (301 preserves query string). */
+const BRANDING_LEGACY_REDIRECTS: Record<string, string> = {
+  "/branding/logo.png": "/api/branding/logo",
+  "/branding/logo.alt.png": "/api/branding/logo.alt",
+  "/branding/logo.svg": "/api/branding/logo.svg",
+  "/branding/icon.svg": "/api/branding/icon.svg",
+  "/branding/icon.png": "/api/branding/icon?size=192",
+  "/branding/apple-touch-icon.png": "/api/branding/icon?size=180",
+  "/branding/apple-touch-icon-precomposed.png": "/api/branding/icon?size=180",
+};
+
 const appHandler = async (
   context: Parameters<MiddlewareHandler>[0],
   next: Parameters<MiddlewareHandler>[1],
@@ -193,6 +204,20 @@ const appHandler = async (
     );
   }
 
+  const brandingLegacy = BRANDING_LEGACY_REDIRECTS[normalizedPath];
+  if (brandingLegacy) {
+    const target = new URL(brandingLegacy, url.origin);
+    url.searchParams.forEach((value, key) => {
+      if (!target.searchParams.has(key)) target.searchParams.set(key, value);
+    });
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: target.toString() },
+      }),
+    );
+  }
+
   if (pathname.replace(/\/$/, "") === "" && url.searchParams.get("section") === "about") {
     return applySecurityHeaders(
       new Response(null, {
@@ -245,7 +270,6 @@ const appHandler = async (
       !isBrowserIconPath &&
       !normalizedPath.startsWith("/admin/") &&
       !normalizedPath.startsWith("/api/") &&
-      !normalizedPath.startsWith("/branding/") &&
       !normalizedPath.startsWith("/c/") &&
       !normalizedPath.startsWith("/doc/") &&
       !normalizedPath.startsWith("/focus") &&

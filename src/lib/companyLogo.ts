@@ -1,37 +1,22 @@
 import { BRAND_SVG_MAX_CHARS, sanitizeInlineSvg } from './brandSvg';
 
-/** Public wordmark — same path on every install. Bytes come from company config. */
-export const BRANDING_LOGO_PATH = '/branding/logo.png';
+/** Wordmark PNG — rasterized from admin company config. */
+export const BRANDING_LOGO_PATH = '/api/branding/logo';
 
 /** Wordmark adapted for dark backgrounds — rasterized from admin company config. */
-export const BRANDING_LOGO_ALT_PATH = '/branding/logo.alt.png';
+export const BRANDING_LOGO_ALT_PATH = '/api/branding/logo.alt';
 
-/** Public square mark — same path on every install. */
-export const BRANDING_ICON_FILE_PATH = '/branding/icon.png';
+/** Wordmark SVG from admin paste. Email clients should use the PNG route. */
+export const BRANDING_LOGO_SVG_PATH = '/api/branding/logo.svg';
 
-/** Public wordmark SVG. Email clients should use the PNG. */
-export const BRANDING_LOGO_SVG_PATH = '/branding/logo.svg';
-
-/** Public square SVG. */
-export const BRANDING_ICON_SVG_PATH = '/branding/icon.svg';
-
-/** Safari / Home Screen icon — new path so a cached letter tile is dropped. */
-export const BRANDING_APPLE_TOUCH_PATH = '/branding/apple-touch-icon.png';
+/** Square mark SVG from admin paste. */
+export const BRANDING_ICON_SVG_PATH = '/api/branding/icon.svg';
 
 /** SVG favicon — preferred tab icon when admin has an icon mark. */
 export const FAVICON_SVG_PATH = '/favicon.svg';
 
-/** Legacy API path — same PNG as BRANDING_LOGO_PATH. */
-export const BRANDING_LOGO_API_PATH = '/api/branding/logo';
-
-/** Static OG fallback when a GIF URL is unsuitable for link previews. */
-export const LOGO_ICON_OG_PATH = '/logo-icon-og.png';
-
 /** Runtime OG image — admin icon/logo PNG or SVG, or first letter of company name. */
 export const BRANDING_OG_PATH = '/api/branding/og.png';
-
-/** Transparent AV mark for header profile icon and staff comment avatars. */
-export const LOGO_ICON_AVATAR_PATH = '/logo-icon-avatar.png';
 
 /** Public URL for uploaded square brand icons (favicons, avatars, PWA). */
 export const BRANDING_ICON_PATH = '/api/branding/icon';
@@ -122,15 +107,16 @@ export async function parseCompanyOgUpload(
   return parseCompanyBrandUpload(file);
 }
 
-/** Static logo paths removed from /public but still stored in company config. */
+/** Stale logo paths still stored in company config or third-party integrations. */
 const LEGACY_PUBLIC_LOGO_PATHS: Record<string, string> = {
   '/logo.png': BRANDING_LOGO_PATH,
   '/reave-logo.png': BRANDING_LOGO_PATH,
   '/reave-logo-1.png': BRANDING_LOGO_PATH,
-  '/api/branding/logo': BRANDING_LOGO_PATH,
+  '/branding/logo.png': BRANDING_LOGO_PATH,
+  '/branding/logo.alt.png': BRANDING_LOGO_ALT_PATH,
 };
 
-/** Map stale admin logo paths to current public assets (path only, no query). */
+/** Map stale admin logo paths to current API routes (path only, no query). */
 export function normalizePublicLogoPath(path: string): string {
   const trimmed = path.trim();
   if (!trimmed) return trimmed;

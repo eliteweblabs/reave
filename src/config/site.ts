@@ -14,8 +14,8 @@ export const SITE = {
   /** Fallback meta description when company details are not configured yet. */
   description: "Automated client communication platform",
 
-  /** Fallback wordmark — same path on every install (/branding/logo.png). */
-  logoPath: "/branding/logo.png",
+  /** Fallback wordmark — same API path on every install. */
+  logoPath: "/api/branding/logo",
 
   /** Default OG / Twitter card — admin share image, else generated from logo/icon. */
   ogImage: BRANDING_OG_PATH,

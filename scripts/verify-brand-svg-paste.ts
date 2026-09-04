@@ -23,7 +23,7 @@ const {
   setStoredCompanyConfig,
 } = await import('../src/lib/companyConfigStore.ts');
 
-const WORDMARK = readFileSync('public/logos/reave-app-wordmark.svg', 'utf8');
+const WORDMARK = readFileSync('scripts/fixtures/reave-app-wordmark.svg', 'utf8');
 
 {
   assert.ok(WORDMARK.length < BRAND_SVG_MAX_CHARS, 'wordmark exceeds the paste cap');

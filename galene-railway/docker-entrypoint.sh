@@ -144,9 +144,9 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
     if [ -z "${LOGO_URL}" ] && [ "$(jq -r '.logoSource // empty' "${BRAND_JSON}" 2>/dev/null || true)" = "admin" ]; then
       LOGO_V="$(jq -r '.stored.primary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
       if [ -n "${LOGO_V}" ]; then
-        LOGO_URL="${REAVE_ORIGIN}/branding/logo.alt.png?v=$(printf '%s' "${LOGO_V}" | sed 's/ /+/g')"
+        LOGO_URL="${REAVE_ORIGIN}/api/branding/logo.alt?v=$(printf '%s' "${LOGO_V}" | sed 's/ /+/g')"
       else
-        LOGO_URL="${REAVE_ORIGIN}/branding/logo.alt.png"
+        LOGO_URL="${REAVE_ORIGIN}/api/branding/logo.alt"
       fi
     fi
     if [ -n "${PRIMARY}" ]; then

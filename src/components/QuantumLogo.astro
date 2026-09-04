@@ -5,7 +5,7 @@ export interface Props {
    * WebGL uses `logoSrc` only.
    */
   heroMask?: string;
-  /** Full-color logo PNG the animation resolves into (default /branding/logo.png). */
+  /** Full-color logo PNG the animation resolves into (default /api/branding/logo). */
   logoSrc: string;
   /** Canvas host element id. */
   hostId?: string;
@@ -116,7 +116,7 @@ const {
     const host = document.getElementById(hostId);
     if (!host) return () => {};
 
-    const logoSrc = stack.dataset.logoSrc || "/branding/logo.png";
+    const logoSrc = stack.dataset.logoSrc || "/api/branding/logo";
     const introRush = stack.dataset.introRush === "true";
     const introDuration = Number(stack.dataset.introDuration) || 4;
 

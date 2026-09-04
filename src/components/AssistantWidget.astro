@@ -31,7 +31,7 @@ export interface Props {
   mockOnly?: boolean;
   /** Composer placeholder inside the sheet. */
   inputPlaceholder?: string;
-  /** Header avatar image (defaults to /assistant-avatar.jpg). */
+  /** Header avatar image (defaults to the admin brand mark). */
   avatarSrc?: string;
   /** Hide the floating FAB (footer dock / custom trigger opens the sheet). */
   hideFab?: boolean;
@@ -55,7 +55,7 @@ const {
   contactSelector = '#contact, [data-home-section="contact"]',
   mockOnly = false,
   inputPlaceholder = 'Ask a question…',
-  avatarSrc = '/assistant-avatar.jpg',
+  avatarSrc = '/api/branding/icon?size=192&transparent=1',
   hideFab = false,
 } = Astro.props;
 

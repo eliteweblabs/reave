@@ -62,8 +62,8 @@ async function sampleCenter(buf: Buffer): Promise<[number, number, number]> {
 }
 
 assert.equal(BRANDING_OG_PATH, '/api/branding/og.png');
-assert.equal(BRANDING_LOGO_PATH, '/branding/logo.png');
-assert.equal(BRANDING_LOGO_ALT_PATH, '/branding/logo.alt.png');
+assert.equal(BRANDING_LOGO_PATH, '/api/branding/logo');
+assert.equal(BRANDING_LOGO_ALT_PATH, '/api/branding/logo.alt');
 
 {
   const svg =

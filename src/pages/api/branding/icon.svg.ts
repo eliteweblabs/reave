@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { brandingEtag, companyIconSvgMarkup } from '../../lib/brandImageRender';
-import { getStoredCompanyConfig } from '../../lib/companyConfigStore';
+import { brandingEtag, companyIconSvgMarkup } from '../../../lib/brandImageRender';
+import { getStoredCompanyConfig } from '../../../lib/companyConfigStore';
 
 export const prerender = false;
 

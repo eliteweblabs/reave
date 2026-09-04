@@ -1,6 +1,6 @@
 /**
  * Shared GET handler for company logo wordmark PNG routes.
- * Used by /branding/logo.png and /api/branding/logo (legacy alias).
+ * Served at /api/branding/logo.
  */
 import type { APIContext } from 'astro';
 import { analyzeLogoContrast, adaptLogoContrast } from './logoContrastAdapt';
@@ -49,7 +49,7 @@ export async function brandingLogoPngGet(context: APIContext): Promise<Response>
   });
 }
 
-/** Wordmark for dark backgrounds — /branding/logo.alt.png */
+/** Wordmark for dark backgrounds — /api/branding/logo.alt */
 export async function brandingLogoAltPngGet(context: APIContext): Promise<Response> {
   const { request } = context;
   const stored = await getStoredCompanyConfig();

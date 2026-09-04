@@ -233,7 +233,7 @@ assert.equal(calSupport?.filled, '${{ reave.EMAIL_FROM }}');
 const iconUrl = billed.variables.find((v) => v.service === 'reave' && v.name === 'COMPANY_ICON_URL');
 assert.equal(iconUrl?.filled, '${{PUBLIC_SITE_URL}}/api/branding/icon?size=192');
 const logoUrl = billed.variables.find((v) => v.service === 'reave' && v.name === 'COMPANY_LOGO_URL');
-assert.equal(logoUrl?.filled, '${{PUBLIC_SITE_URL}}/branding/logo.png');
+assert.equal(logoUrl?.filled, '${{PUBLIC_SITE_URL}}/api/branding/logo');
 const craterLogo = billed.variables.find((v) => v.service === 'crater' && v.name === 'COMPANY_LOGO_URL');
 assert.equal(craterLogo?.filled, '${{ reave.COMPANY_LOGO_URL }}');
 const calUser = billed.variables.find((v) => v.service === 'reave' && v.name === 'CALCOM_USERNAME');

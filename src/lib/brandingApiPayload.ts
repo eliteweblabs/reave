@@ -10,7 +10,7 @@ import {
   resolveCompanyBrandColors,
 } from './companyBrandColors';
 import { companyBrandingVersion, getCompanyConfig, type CompanyConfig } from './companyConfig';
-import { BRANDING_LOGO_ALT_PATH, BRANDING_LOGO_API_PATH } from './companyLogo';
+import { BRANDING_LOGO_ALT_PATH, BRANDING_LOGO_PATH } from './companyLogo';
 import { getStoredCompanyConfig } from './companyConfigStore';
 import { siteBaseUrl } from './contactApi';
 
@@ -59,7 +59,7 @@ export function brandingLogoEmailUrl(company: CompanyConfig, base: string): stri
   const version = companyBrandingVersion(company);
   if (version) params.set('v', version);
 
-  return `${origin}${BRANDING_LOGO_API_PATH}?${params.toString()}`;
+  return `${origin}${BRANDING_LOGO_PATH}?${params.toString()}`;
 }
 
 /** Light ink on transparent — for dark backgrounds (Galene, purple nav). */
