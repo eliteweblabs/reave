@@ -41,6 +41,7 @@ import { isPlausibleConfigured } from '../../../lib/plausibleClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { jsonResponse } from '../../../lib/apiResponse';
 import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
+import { annotateSiteHealthFleet, loadSiteFleetIgnoreState } from '../../../lib/siteFleetIgnore';
 import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
 
@@ -215,7 +216,9 @@ export async function GET(context: APIContext): Promise<Response> {
   const { analytics, analyticsConfigured } = analyticsSlice;
 
   await hydrateSiteHealthFleetCache();
-  const siteHealth: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
+  const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
+  const siteFleetIgnore = await loadSiteFleetIgnoreState();
+  const siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);
 
   const firstName = dashboardGreetingFirstName(context);
   const sleepDeferred = await storeListSleepDeferredEmails(50);
@@ -283,6 +286,7 @@ export async function GET(context: APIContext): Promise<Response> {
     analyticsConfigured,
     analytics,
     siteHealth,
+    siteFleetIgnore,
     uptime,
     uptimeMonitors,
     uptimeAccount,

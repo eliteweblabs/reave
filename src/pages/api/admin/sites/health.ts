@@ -20,6 +20,7 @@ import {
   invalidateSiteHealthFleetCache,
   peekCachedSiteHealthFleet,
 } from '../../../../lib/siteHealthGrade';
+import { annotateSiteHealthFleet, loadSiteFleetIgnoreState } from '../../../../lib/siteFleetIgnore';
 import { wireFleetSites } from '../../../../lib/siteWiring';
 
 export const prerender = false;
@@ -49,13 +50,15 @@ export async function GET(context: APIContext): Promise<Response> {
   }
 
   await hydrateSiteHealthFleetCache();
+  const ignore = await loadSiteFleetIgnoreState();
   const cached = peekCachedSiteHealthFleet({ allowStale: true });
   if (cached) {
     const fresh = peekCachedSiteHealthFleet();
-    return jsonResponse({ ok: true, siteHealth: cached, stale: !fresh });
+    const siteHealth = annotateSiteHealthFleet(cached, ignore);
+    return jsonResponse({ ok: true, siteHealth, siteFleetIgnore: ignore, stale: !fresh });
   }
 
-  return jsonResponse({ ok: true, siteHealth: null });
+  return jsonResponse({ ok: true, siteHealth: null, siteFleetIgnore: ignore });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -73,15 +76,17 @@ export async function POST(context: APIContext): Promise<Response> {
     monitor: card.monitor,
     analytics: card.analytics,
   }));
+  const ignore = await loadSiteFleetIgnoreState();
   let siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true });
-  const wireResult = await wireFleetSites(cardInputs, siteHealth);
+  const wireResult = await wireFleetSites(cardInputs, siteHealth, ignore);
   if (wireResult.wired > 0) {
     invalidateSiteHealthFleetCache();
     siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true });
   }
   return jsonResponse({
     ok: true,
-    siteHealth,
+    siteHealth: annotateSiteHealthFleet(siteHealth, ignore),
+    siteFleetIgnore: ignore,
     refreshed: true,
     wired: wireResult.wired,
     wireErrors: wireResult.errors.length ? wireResult.errors : undefined,

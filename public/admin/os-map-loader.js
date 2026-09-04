@@ -3895,6 +3895,30 @@ function siteHealthForCard(card, siteHealth) {
   return sites[card.siteId] || null;
 }
 
+function siteFleetIgnoreFromPayload(data) {
+  return data?.siteFleetIgnore?.sites && typeof data.siteFleetIgnore.sites === 'object'
+    ? data.siteFleetIgnore.sites
+    : {};
+}
+
+function siteFleetIgnoreEntry(data, siteId) {
+  const sites = siteFleetIgnoreFromPayload(data);
+  return sites?.[siteId] || null;
+}
+
+function isDashboardSiteIgnored(card, health, data) {
+  if (health?.ignored === true) return true;
+  return Boolean(siteFleetIgnoreEntry(data, card?.siteId));
+}
+
+function dashboardSiteIgnoredReason(card, health, data) {
+  if (typeof health?.ignoreReason === 'string' && health.ignoreReason.trim()) {
+    return health.ignoreReason.trim();
+  }
+  const entry = siteFleetIgnoreEntry(data, card?.siteId);
+  return typeof entry?.reason === 'string' ? entry.reason.trim() : '';
+}
+
 const SITE_READINESS_SIGNALS = [
   { key: 'schema_markup', icon: 'star', label: 'Schema markup' },
   { key: 'page_speed', icon: 'zap', label: 'Page speed' },
@@ -4031,7 +4055,9 @@ function dashboardReadinessPopoverStatus(state) {
 function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) {
   const title = card.label || card.siteId;
   const domain = card.siteId;
-  const grade = health?.grade ? String(health.grade).toUpperCase() : '—';
+  const ignored = isDashboardSiteIgnored(card, health, opts.dashboardData);
+  const ignoreReason = dashboardSiteIgnoredReason(card, health, opts.dashboardData);
+  const grade = ignored ? '—' : health?.grade ? String(health.grade).toUpperCase() : '—';
   const uptimeMeta = card.monitor ? uptimeMonitorTileMeta(card.monitor) : null;
   let uptimeLabel = 'Not monitored';
   if (uptimeMeta) {
@@ -4069,8 +4095,24 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
   }).join('');
 
   const issues = Array.isArray(health?.issues) ? health.issues.filter((i) => i?.label) : [];
-  const issuesHtml = issues.length
+  const issuesHtml = issues.length && !ignored
     ? `<div class="dash-fleet-popover-issues"><strong>Issues</strong>${escHtml(issues.map((i) => i.label).join(' · '))}</div>`
+    : '';
+
+  const ignoreHtml =
+    `<div class="dash-fleet-popover-ignore">` +
+      `<label class="dash-fleet-popover-ignore-toggle">` +
+        `<input type="checkbox" data-fleet-ignore-toggle data-site-id="${escHtml(domain)}"${ignored ? ' checked' : ''}>` +
+        `<span>Ignore site issues</span>` +
+      `</label>` +
+      `<input type="text" class="dash-fleet-popover-ignore-reason" data-fleet-ignore-reason data-site-id="${escHtml(domain)}"` +
+        ` placeholder="Reason (optional)" value="${escHtml(ignoreReason)}" maxlength="240"` +
+        `${ignored ? '' : ' disabled'}>` +
+      `<p class="dash-fleet-popover-ignore-note">Excluded from Site issues count and auto-wiring. Does not change hosting or uptime.</p>` +
+    `</div>`;
+
+  const ignoredBanner = ignored
+    ? `<div class="dash-fleet-popover-ignored-banner">${escHtml(ignoreReason || 'Ignored — do not touch')}</div>`
     : '';
 
   return (
@@ -4078,6 +4120,7 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
       `<div class="dash-fleet-popover-title">${escHtml(title)}</div>` +
       `<div class="dash-fleet-popover-domain">${escHtml(domain)}</div>` +
     `</div>` +
+    ignoredBanner +
     `<dl class="dash-fleet-popover-summary">` +
       `<dt>Grade</dt><dd>${escHtml(grade)}</dd>` +
       `<dt>Readiness</dt><dd>${escHtml(readySummary)}</dd>` +
@@ -4085,7 +4128,8 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
       `<dt>Visitors</dt><dd>${escHtml(analyticsLabel)}</dd>` +
     `</dl>` +
     `<ul class="dash-fleet-popover-section">${readinessRows}</ul>` +
-    issuesHtml
+    issuesHtml +
+    ignoreHtml
   );
 }
 
@@ -4108,8 +4152,73 @@ function ensureDashFleetPopover() {
     }
   });
   dashFleetPopEl.addEventListener('pointerleave', () => scheduleHideDashFleetPopover());
+  ensureDashFleetPopoverIgnoreHandlers(dashFleetPopEl);
   document.body.appendChild(dashFleetPopEl);
   return dashFleetPopEl;
+}
+
+let dashFleetIgnoreSaveTimer = null;
+
+function ensureDashFleetPopoverIgnoreHandlers(pop) {
+  if (!pop || pop.dataset.fleetIgnoreBound === '1') return;
+  pop.dataset.fleetIgnoreBound = '1';
+  pop.addEventListener('change', (ev) => {
+    const target = ev.target;
+    if (!(target instanceof HTMLInputElement) || !target.matches('[data-fleet-ignore-toggle]')) return;
+    ev.stopPropagation();
+    const siteId = target.getAttribute('data-site-id') || '';
+    const reasonEl = pop.querySelector(`[data-fleet-ignore-reason][data-site-id="${CSS.escape(siteId)}"]`);
+    if (reasonEl instanceof HTMLInputElement) {
+      reasonEl.disabled = !target.checked;
+      if (!target.checked) reasonEl.value = '';
+    }
+    void saveDashboardSiteFleetIgnore(siteId, target.checked, reasonEl instanceof HTMLInputElement ? reasonEl.value : '');
+  });
+  pop.addEventListener(
+    'input',
+    (ev) => {
+      const target = ev.target;
+      if (!(target instanceof HTMLInputElement) || !target.matches('[data-fleet-ignore-reason]')) return;
+      ev.stopPropagation();
+      const siteId = target.getAttribute('data-site-id') || '';
+      const toggle = pop.querySelector(`[data-fleet-ignore-toggle][data-site-id="${CSS.escape(siteId)}"]`);
+      if (!(toggle instanceof HTMLInputElement) || !toggle.checked) return;
+      if (dashFleetIgnoreSaveTimer) clearTimeout(dashFleetIgnoreSaveTimer);
+      dashFleetIgnoreSaveTimer = setTimeout(() => {
+        dashFleetIgnoreSaveTimer = null;
+        void saveDashboardSiteFleetIgnore(siteId, true, target.value);
+      }, 450);
+    },
+    true,
+  );
+}
+
+async function saveDashboardSiteFleetIgnore(siteId, ignored, reason) {
+  if (!siteId) return;
+  try {
+    const res = await adminFetch('/api/admin/sites/ignore', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteId, ignored, reason: reason || undefined }),
+    });
+    const payload = await readAdminJson(res, 'site ignore');
+    if (!payload.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+    if (!lastDashboardPayload) return;
+    lastDashboardPayload = {
+      ...lastDashboardPayload,
+      siteFleetIgnore: payload.ignore || lastDashboardPayload.siteFleetIgnore,
+      siteHealth: payload.siteHealth || lastDashboardPayload.siteHealth,
+      stats: {
+        ...(lastDashboardPayload.stats || {}),
+        siteHealthCritical: payload.siteHealth?.criticalSites ?? null,
+      },
+    };
+    if (MAP?.type === 'dashboard') {
+      renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+    }
+  } catch (e) {
+    console.warn('[dashboard] site ignore save failed', e);
+  }
 }
 
 function clearDashFleetPopoverTimers() {
@@ -6177,25 +6286,32 @@ function renderAdminDashboard(data, opts = {}) {
     for (const card of siteCards) {
       const { offline, paused } = dashboardSiteCardTone(card);
       const health = siteHealthForCard(card, siteHealth);
+      const ignored = isDashboardSiteIgnored(card, health, data);
       const meta = dashboardSiteCardMeta(card, {
         analyticsLive,
         analyticsLoading,
         health,
       });
-      const grade = health?.grade ? String(health.grade).toUpperCase() : '';
+      const grade =
+        ignored || !health?.grade ? '' : String(health.grade).toUpperCase();
       const gradeClass = grade
         ? `dash-site-grade dash-site-grade--${grade.toLowerCase()}`
         : '';
-      const signalsHtml = dashboardSiteHealthSignalsHtml(health, card, siteHealth, {
-        analyticsLive,
-        analyticsLoading,
-      });
+      const signalsHtml = ignored
+        ? `<div class="dash-site-signals dash-site-signals--ignored" aria-hidden="false"><span class="dash-site-ignored-label">Ignored</span></div>`
+        : dashboardSiteHealthSignalsHtml(health, card, siteHealth, {
+            analyticsLive,
+            analyticsLoading,
+          });
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className =
-        `dash-uptime-tile dash-fleet-tile${offline ? ' dash-uptime-tile--down' : ''}${paused ? ' dash-uptime-tile--paused' : ''}` +
-        (health?.criticalCount > 0 ? ' dash-uptime-tile--health-warn' : '');
-      const issueHint = health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
+        `dash-uptime-tile dash-fleet-tile${offline && !ignored ? ' dash-uptime-tile--down' : ''}${paused && !ignored ? ' dash-uptime-tile--paused' : ''}` +
+        (ignored ? ' dash-uptime-tile--ignored' : '') +
+        (health?.criticalCount > 0 && !ignored ? ' dash-uptime-tile--health-warn' : '');
+      const issueHint = ignored
+        ? dashboardSiteIgnoredReason(card, health, data) || 'Ignored — do not touch'
+        : health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
       btn.setAttribute(
         'aria-label',
         [card.label || card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — '),
@@ -6213,6 +6329,7 @@ function renderAdminDashboard(data, opts = {}) {
         buildDashboardSiteCardPopoverHtml(card, health, siteHealth, {
           analyticsLive,
           analyticsLoading,
+          dashboardData: data,
         }),
       );
       btn.addEventListener('click', () => {
@@ -6379,6 +6496,7 @@ async function refreshDashboardSiteHealth(opts = {}) {
     lastDashboardPayload = {
       ...lastDashboardPayload,
       siteHealth: health,
+      siteFleetIgnore: payload.siteFleetIgnore || lastDashboardPayload.siteFleetIgnore,
       stats: {
         ...(lastDashboardPayload.stats || {}),
         siteHealthCritical: health.criticalSites ?? null,

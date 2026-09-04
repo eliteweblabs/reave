@@ -19,6 +19,7 @@ import {
   invalidateSiteHealthFleetCache,
   peekCachedSiteHealthFleet,
 } from '../../../../lib/siteHealthGrade';
+import { annotateSiteHealthFleet, loadSiteFleetIgnoreState } from '../../../../lib/siteFleetIgnore';
 import { wireFleetSites } from '../../../../lib/siteWiring';
 
 export const prerender = false;
@@ -56,16 +57,24 @@ export async function POST(context: APIContext): Promise<Response> {
   }));
 
   await hydrateSiteHealthFleetCache();
+  const ignore = await loadSiteFleetIgnoreState();
   let siteHealth = peekCachedSiteHealthFleet({ allowStale: true });
   if (!siteHealth) {
     siteHealth = await buildSiteHealthFleet(cardInputs).catch(() => null);
   }
 
-  const result = await wireFleetSites(cardInputs, siteHealth);
+  const result = await wireFleetSites(cardInputs, siteHealth, ignore);
   if (result.wired > 0) {
     invalidateSiteHealthFleetCache();
     void buildSiteHealthFleet(cardInputs, { fresh: true }).catch(() => undefined);
   }
 
-  return jsonResponse(result);
+  return jsonResponse({
+    ...result,
+    siteFleetIgnore: ignore,
+    siteHealth: annotateSiteHealthFleet(
+      peekCachedSiteHealthFleet({ allowStale: true }) ?? siteHealth,
+      ignore,
+    ),
+  });
 }

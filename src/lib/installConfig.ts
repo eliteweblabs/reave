@@ -183,6 +183,8 @@ export type InstallConfig = {
    * footerNav (e.g. analytics-only: __system__, dashboard, analytics, profile, company).
    */
   adminLite?: boolean;
+  /** Default ignored fleet sites merged into persisted ignore store (official install). */
+  siteFleetIgnoreSeeds?: Array<{ siteId: string; reason?: string }>;
 };
 
 export type InstallConfigClient = Pick<
@@ -423,7 +425,26 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     moduleStatus: normalizeModuleStatus(o.moduleStatus),
     opsInstall: o.opsInstall === true ? true : undefined,
     adminLite: o.adminLite === true ? true : undefined,
+    siteFleetIgnoreSeeds: normalizeSiteFleetIgnoreSeeds(o.siteFleetIgnoreSeeds),
   };
+}
+
+function normalizeSiteFleetIgnoreSeeds(
+  raw: unknown,
+): InstallConfig['siteFleetIgnoreSeeds'] {
+  if (!Array.isArray(raw)) return undefined;
+  const out: NonNullable<InstallConfig['siteFleetIgnoreSeeds']> = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const siteId = String((row as { siteId?: string }).siteId || '').trim();
+    if (!siteId) continue;
+    const reason =
+      typeof (row as { reason?: string }).reason === 'string'
+        ? (row as { reason: string }).reason.trim().slice(0, 240)
+        : undefined;
+    out.push(reason ? { siteId, reason } : { siteId });
+  }
+  return out.length ? out : undefined;
 }
 
 /** Drop Railway / Kinsta / Cloudflare / shell tools on client installs. */

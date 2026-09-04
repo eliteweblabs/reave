@@ -75,5 +75,10 @@
   "homepageVoice": false,
   "chatFocusSkin": true,
   "siteContentKey": "reave",
-  "opsInstall": true
+  "opsInstall": true,
+  "siteFleetIgnoreSeeds": [
+    { "siteId": "mavsafe.com", "reason": "Legal hold — do not touch" },
+    { "siteId": "allautofinancial.com", "reason": "Legal hold — do not touch" },
+    { "siteId": "creedlounge.com", "reason": "Legal hold — do not touch" }
+  ]
 }

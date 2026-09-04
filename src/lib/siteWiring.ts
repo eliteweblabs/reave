@@ -13,6 +13,7 @@ import { seoInventory } from './seoInventoryClient';
 import type { SiteHealthCardInput } from './siteHealthGrade';
 import type { SiteHealthFleet, SiteHealthIssueCode } from './siteHealthScore';
 import type { SiteReadinessItem } from './siteReadinessChecklist';
+import { isSiteFleetIgnored, type SiteFleetIgnoreState } from './siteFleetIgnore';
 
 export type SiteWireActionResult = {
   siteId: string;
@@ -72,6 +73,7 @@ async function agencyGoogleConnected(): Promise<boolean> {
 export async function wireFleetSites(
   cards: SiteHealthCardInput[],
   siteHealth: SiteHealthFleet | null,
+  ignore: SiteFleetIgnoreState | null = null,
 ): Promise<SiteWireFleetResult> {
   const results: SiteWireActionResult[] = [];
   const errors: string[] = [];
@@ -84,6 +86,7 @@ export async function wireFleetSites(
   for (const card of cards) {
     const host = siteHost(card);
     if (!host) continue;
+    if (isSiteFleetIgnored(ignore, host)) continue;
 
     const codes = issueCodes(siteHealth, host);
     const gscItem = readinessItem(siteHealth, host, 'search_console');

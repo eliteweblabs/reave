@@ -31,6 +31,9 @@ export type SiteHealthSummary = {
   readiness?: SiteReadinessSummary | null;
   checkedAt: number;
   stale?: boolean;
+  /** Dashboard-only: excluded from Site issues count and agent fix runs. */
+  ignored?: boolean;
+  ignoreReason?: string;
 };
 
 export type SiteHealthFleet = {
@@ -38,6 +41,8 @@ export type SiteHealthFleet = {
   googleConnected: boolean | null;
   siteCount: number;
   criticalSites: number;
+  /** Count of sites flagged ignore (legal hold / do not touch). */
+  ignoredSites?: number;
   sites: Record<string, SiteHealthSummary>;
 };
 
