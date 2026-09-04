@@ -8,7 +8,7 @@ import { getSiteContent } from "../../lib/siteContent";
 import { contactTelHref } from "../../lib/contactApi";
 import PawIcon from "../icons/PawIcon.astro";
 import { loadSiteLandingReviews } from "../../lib/siteLandingGoogleReviews";
-import { SIMPLE_ICONS_CDN } from "../../lib/platformStack";
+import { SIMPLE_ICONS_CDN, socialBrandIconUrl } from "../../lib/platformStack";
 import "../../styles/vet-landing.css";
 
 interface Props {
@@ -29,28 +29,15 @@ const reviewCarouselItems = reviewsBlock?.items.length
   ? [...reviewsBlock.items, ...reviewsBlock.items]
   : [];
 const social = landing.pack?.social ?? {};
-const SOCIAL_ICON_META: Record<string, { slug: string; color: string }> = {
-  instagram: { slug: "instagram", color: "#e1306c" },
-  facebook: { slug: "facebook", color: "#1877f2" },
-  twitter: { slug: "x", color: "#1d9bf0" },
-  linkedin: { slug: "linkedin", color: "#0a66c2" },
-  youtube: { slug: "youtube", color: "#ff0000" },
-  tiktok: { slug: "tiktok", color: "#ff0050" },
-  google: { slug: "google", color: "#4285f4" },
-};
 const socialLinks = [
   social.instagramUrl ? { id: "instagram", label: "Instagram", href: social.instagramUrl } : null,
   social.facebookUrl ? { id: "facebook", label: "Facebook", href: social.facebookUrl } : null,
-  social.twitterUrl ? { id: "twitter", label: "X", href: social.twitterUrl } : null,
   social.linkedinUrl ? { id: "linkedin", label: "LinkedIn", href: social.linkedinUrl } : null,
-  social.youtubeUrl ? { id: "youtube", label: "YouTube", href: social.youtubeUrl } : null,
-  social.tiktokUrl ? { id: "tiktok", label: "TikTok", href: social.tiktokUrl } : null,
-  social.mapsUrl ? { id: "google", label: "Google", href: social.mapsUrl } : null,
 ]
   .filter((link): link is { id: string; label: string; href: string } => Boolean(link?.href))
   .map((link) => ({
     ...link,
-    icon: SOCIAL_ICON_META[link.id] ?? { slug: "google", color: "#4285f4" },
+    iconSrc: socialBrandIconUrl(link.id),
   }));
 const year = new Date().getFullYear();
 
@@ -388,31 +375,22 @@ const contactLabel = landing.callCta?.label || "Contact us";
 
   <footer class="vet-footer">
     <div class="vet-footer__inner">
-      <div class="vet-footer__brand">
-        {logoSrc ? <img class="vet-footer__logo" src={logoSrc} alt="" width="120" height="41" /> : null}
-        <p class="vet-footer__note">&copy; {year} {brandName}</p>
-      </div>
-      <div class="vet-footer__links">
-        {phoneHref ? <a href={phoneHref}>{phonePretty}</a> : null}
-        {email ? <a href={`mailto:${email}`}>{email}</a> : null}
-        {location ? <span>{location}</span> : null}
-      </div>
+      {logoSrc ? <img class="vet-footer__logo" src={logoSrc} alt="" width="120" height="41" /> : null}
+      <p class="vet-footer__note">&copy; {year} {brandName}</p>
+      {location ? <p class="vet-footer__location">{location}</p> : null}
       {
         socialLinks.length ? (
           <nav class="vet-footer__social" aria-label="Social">
             {socialLinks.map((link) => (
               <a
-                class="vet-social-link"
+                class:list={["vet-social-link", link.id === "linkedin" && "vet-social-link--linkedin"]}
                 href={link.href}
                 aria-label={link.label}
                 target={link.href.startsWith("#") ? undefined : "_blank"}
                 rel={link.href.startsWith("#") ? undefined : "noreferrer"}
               >
-                <span
-                  class="vet-social-icon"
-                  style={`--soc-color:${link.icon.color};--soc-icon:url('${SIMPLE_ICONS_CDN(link.icon.slug)}')`}
-                  aria-hidden="true"
-                />
+                <!-- simple-icons: instagram / facebook / linkedin (pinned v13) -->
+                <img class="vet-social-icon" src={link.iconSrc} alt="" width="20" height="20" loading="lazy" decoding="async" />
               </a>
             ))}
           </nav>

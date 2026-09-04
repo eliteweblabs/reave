@@ -33,8 +33,8 @@ const CLERK_SRC = ['https://*.clerk.accounts.dev', 'https://*.clerk.com', ...cle
 /** Clerk bot protection (Turnstile) — without these the sign-up CAPTCHA never mounts. */
 const CLERK_CAPTCHA_SRC = 'https://challenges.cloudflare.com https://*.protect.clerk.com';
 
-/** Deploy-wizard GitHub App manifest POSTs to github.com (org + user app-new). */
-export const CSP_FORM_ACTION = "'self' https://github.com";
+/** Deploy-wizard GitHub App manifest POSTs to github.com; client landings use Web3Forms. */
+export const CSP_FORM_ACTION = "'self' https://github.com https://api.web3forms.com";
 
 const CSP_VALUE = [
   "default-src 'self'",

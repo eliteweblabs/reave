@@ -160,9 +160,11 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
   background: var(--reave-primary) !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: center !important;
   box-sizing: border-box !important;
   width: 100% !important;
   overflow: hidden !important;
+  padding-inline: 0.65rem !important;
 }
 #left-sidebar .users-header {
   min-width: 0 !important;
@@ -177,7 +179,8 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
   background: var(--reave-primary) !important;
 }
 .topnav .navbar-brand,
-#title.navbar-brand {
+#title.navbar-brand,
+#title.reave-header-brand {
   color: #fff !important;
 }
 .btn-primary {
@@ -201,20 +204,149 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
   font-size: 0 !important;
   color: transparent !important;
   overflow: hidden !important;
+  text-align: center !important;
 }
 .galene-header .reave-wordmark,
-#title.navbar-brand .reave-wordmark {
+#title.navbar-brand .reave-wordmark,
+#title.reave-header-brand .reave-wordmark,
+.reave-wordmark--header {
   display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
+  width: auto !important;
+  max-width: min(11rem, 100%) !important;
   height: auto !important;
-  max-height: 2.25rem !important;
+  max-height: 1.8rem !important;
+  margin-inline: auto !important;
   object-fit: contain !important;
-  object-position: left center !important;
+  object-position: center center !important;
 }
-#title.navbar-brand {
-  display: block !important;
-  min-height: 2.5rem !important;
+#title.navbar-brand,
+#title.reave-header-brand {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 1 1 auto !important;
+  min-height: 2rem !important;
+  margin: 0 !important;
+}
+#header {
+  display: flex !important;
+  align-items: center !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+.topnav .reave-share-btn {
+  border-radius: 0.5rem !important;
+  font-size: 0.8125rem !important;
+  padding: 0.35rem 0.75rem !important;
+}
+.reave-share-wrap {
+  margin-top: 1rem !important;
+  text-align: center !important;
+}
+.reave-share-wrap .reave-share-btn {
+  width: 100% !important;
+}
+/* Connect lobby — hide empty chat and user sidebar until joined */
+.app:has(#login-container:not(.invisible)) #left,
+.app:has(#login-container:not(.invisible)) #resizer,
+html.reave-meet-login #left,
+html.reave-meet-login #resizer {
+  display: none !important;
+}
+.app:has(#login-container:not(.invisible)) #left-sidebar,
+html.reave-meet-login #left-sidebar {
+  min-width: 0 !important;
+  max-width: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+}
+.app:has(#login-container:not(.invisible)) .full-width,
+html.reave-meet-login .full-width {
+  width: 100vw !important;
+}
+.app:has(#login-container:not(.invisible)) #mainrow .coln-right,
+html.reave-meet-login #mainrow .coln-right {
+  flex: 1 1 100% !important;
+  max-width: 100% !important;
+}
+.app:has(#login-container:not(.invisible)) #mutebutton,
+.app:has(#login-container:not(.invisible)) #presentbutton,
+.app:has(#login-container:not(.invisible)) #unpresentbutton,
+html.reave-meet-login #mutebutton,
+html.reave-meet-login #presentbutton,
+html.reave-meet-login #unpresentbutton {
+  display: none !important;
+}
+.app:has(#login-container:not(.invisible)) #sidebarCollapse,
+html.reave-meet-login #sidebarCollapse {
+  display: none !important;
+}
+.app:has(#login-container:not(.invisible)) .header-title,
+html.reave-meet-login .header-title:not(.reave-header-brand) {
+  flex: 1 1 auto !important;
+  text-align: center !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  padding-inline: 0.5rem !important;
+}
+.app:has(#login-container:not(.invisible)) .login-container,
+html.reave-meet-login .login-container {
+  background: #eef1f5 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 1.5rem !important;
+  overflow: auto !important;
+}
+.app:has(#login-container:not(.invisible)) .login-box,
+html.reave-meet-login .login-box {
+  margin: 0 auto !important;
+  width: min(22rem, 100%) !important;
+  height: auto !important;
+  padding: 1.75rem !important;
+  border-radius: 0.75rem !important;
+  border: 1px solid #dde3ea !important;
+  box-shadow: 0 10px 36px rgba(15, 23, 42, 0.08) !important;
+  background: #fff !important;
+}
+.app:has(#login-container:not(.invisible)) .login-box h2,
+html.reave-meet-login .login-box h2 {
+  margin-bottom: 1.25rem !important;
+}
+.app:has(#login-container:not(.invisible)) #header,
+html.reave-meet-login #header {
+  justify-content: center !important;
+  width: 100% !important;
+}
+.app:has(#login-container:not(.invisible)) #title.reave-header-brand,
+html.reave-meet-login #title.reave-header-brand {
+  justify-content: center !important;
+}
+.app:has(#login-container:not(.invisible)) #peers,
+.app:has(#login-container:not(.invisible)) #video-container,
+.app:has(#login-container:not(.invisible)) #expand-video,
+html.reave-meet-login #peers,
+html.reave-meet-login #video-container,
+html.reave-meet-login #expand-video {
+  display: none !important;
+  visibility: hidden !important;
+}
+html.reave-meet-login nav.topnav {
+  position: relative !important;
+  justify-content: center !important;
+}
+html.reave-meet-login #header {
+  position: absolute !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  flex: 0 1 auto !important;
+}
+html.reave-meet-login .nav-menu {
+  position: absolute !important;
+  right: 0.75rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
 }
 EOF
       LOGO_OK=0
@@ -272,13 +404,15 @@ if [ -n "${REAVE_APP_URL:-}" ]; then
     parent.appendChild(btn);
   }
   function mount() {
-    addBtn(document.querySelector('header nav.topnav, header .topnav'), 'btn btn-default btn-sm', 'Share link');
+    var nav = document.querySelector('header nav.topnav, header .topnav');
     var form = document.getElementById('loginform') || document.getElementById('groupform');
     if (form) {
       var wrap = document.createElement('p');
       wrap.className = 'reave-share-wrap';
       addBtn(wrap, 'btn btn-default', 'Share guest link');
       form.insertAdjacentElement('afterend', wrap);
+    } else {
+      addBtn(nav, 'btn btn-default btn-sm', 'Share link');
     }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
@@ -287,10 +421,88 @@ if [ -n "${REAVE_APP_URL:-}" ]; then
 EOF
   for html in galene.html index.html; do
     target="${GALENE_STATIC}/${html}"
-    if [ -f "${target}" ] && ! grep -q 'reave-meet-share.js' "${target}" 2>/dev/null; then
-      sed -i 's#</body>#    <script src="/reave-meet-share.js"></script>\n  </body>#' "${target}" 2>/dev/null || true
+    if [ -f "${target}" ]; then
+      if ! grep -q 'reave-meet-ui.js' "${target}" 2>/dev/null; then
+        sed -i 's#</body>#    <script src="/reave-meet-ui.js"></script>\n  </body>#' "${target}" 2>/dev/null || true
+      fi
+      if ! grep -q 'reave-meet-share.js' "${target}" 2>/dev/null; then
+        sed -i 's#</body>#    <script src="/reave-meet-share.js"></script>\n  </body>#' "${target}" 2>/dev/null || true
+      fi
     fi
   done
+  cat > "${GALENE_STATIC}/reave-meet-ui.js" <<'UIJS'
+(function () {
+  function loginVisible() {
+    var login = document.getElementById('login-container');
+    return !!(login && !login.classList.contains('invisible'));
+  }
+
+  function syncMeetChrome() {
+    var onLogin = loginVisible();
+    document.documentElement.classList.toggle('reave-meet-login', onLogin);
+    document.documentElement.classList.toggle('reave-meet-connected', !onLogin);
+
+    var left = document.getElementById('left');
+    var resizer = document.getElementById('resizer');
+    var sidebar = document.getElementById('left-sidebar');
+    if (onLogin) {
+      if (left) left.style.display = 'none';
+      if (resizer) resizer.style.display = 'none';
+      if (sidebar) {
+        sidebar.style.minWidth = '0';
+        sidebar.style.maxWidth = '0';
+      }
+    } else {
+      if (left) left.style.display = '';
+      if (resizer) resizer.style.display = '';
+      if (sidebar) {
+        sidebar.style.minWidth = '';
+        sidebar.style.maxWidth = '';
+      }
+    }
+
+    var title = document.getElementById('title');
+    if (!title) return;
+
+    if (onLogin) {
+      if (!title.dataset.reaveTitle) {
+        title.dataset.reaveTitle = (title.textContent || '').trim();
+      }
+      if (!title.querySelector('.reave-wordmark')) {
+        title.classList.add('reave-header-brand');
+        title.classList.remove('header-title');
+        title.innerHTML = '<img src="/reave-logo.png" alt="" class="reave-wordmark reave-wordmark--header" />';
+      }
+    } else if (title.dataset.reaveTitle) {
+      title.textContent = title.dataset.reaveTitle;
+      title.classList.remove('reave-header-brand');
+      title.classList.add('header-title');
+    }
+  }
+
+  function observeLogin() {
+    var login = document.getElementById('login-container');
+    if (!login) return;
+    syncMeetChrome();
+    new MutationObserver(syncMeetChrome).observe(login, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
+
+  function boot() {
+    observeLogin();
+    window.setTimeout(syncMeetChrome, 0);
+    window.setTimeout(syncMeetChrome, 300);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+UIJS
 fi
 
 GALENE_UDP_MUX_PORT="${GALENE_UDP_MUX_PORT:-50000}"

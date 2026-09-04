@@ -4,7 +4,7 @@
  * Backend API — https://api.clerk.com/v1  (per-app, requires CLERK_SECRET_KEY)
  * Clerk does not allow system-level access. Clerk Pro does not provide a platform key.
  */
-import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual, isClerkProxyOptOut, normalizeClerkProxyUrl } from './clerkProxyUrl';
+import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual, DEFAULT_CLERK_FRONTEND_PROXY_PATH, isClerkProxyOptOut, normalizeClerkProxyUrl } from './clerkProxyUrl';
 import { serverEnv } from './serverEnv';
 
 const CLERK_API_BASE = 'https://api.clerk.com/v1';
@@ -622,6 +622,68 @@ function clerkHostnameFromProxyUrl(proxyUrl: string): string {
   } catch {
     return '';
   }
+}
+
+/** Production publishable key for `clerk.{apex}` (Clerk encoding after domain change). */
+export function clerkPublishableKeyForDomain(apex: string): string | undefined {
+  const host = apex.trim().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]?.toLowerCase();
+  if (!host || !/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(host)) return undefined;
+  return `pk_live_${Buffer.from(`clerk.${host}$`).toString('base64')}`;
+}
+
+/**
+ * Move a client install's Clerk primary domain to the live apex and register
+ * same-origin `/__clerk`. Required after go-live — staging keys encode
+ * `clerk.{slug}.reave.app` and break sign-in on the client domain.
+ */
+export async function clerkMigratePrimaryDomain(apex: string): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  publishableKey?: string;
+  error?: string;
+}> {
+  if (!secretKey()) {
+    return { ok: false, skipped: true, error: 'CLERK_SECRET_KEY not configured' };
+  }
+  if (clerkPublishableKey()?.startsWith('pk_test_')) {
+    return { ok: true, skipped: true };
+  }
+
+  const host = apex.trim().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0]?.toLowerCase();
+  if (!host) return { ok: false, error: 'invalid apex' };
+
+  const proxyUrl = normalizeClerkProxyUrl(`https://${host}${DEFAULT_CLERK_FRONTEND_PROXY_PATH}`);
+  const listed = await backendGet('/domains');
+  if (!listed.ok) {
+    return { ok: false, error: clerkApiErrorMessage(listed.body, listed.status) };
+  }
+  const rows = clerkDomainRows(listed.body);
+  const primary = rows.find((row) => row.is_satellite === false) ?? rows[0];
+  if (!primary?.id) {
+    return { ok: false, error: 'no Clerk domain to migrate' };
+  }
+
+  const primaryName = clerkDomainName(primary);
+  if (primaryName === host && clerkProxyUrlsEqual(primary.proxy_url, proxyUrl)) {
+    const publishableKey = clerkPublishableKeyForDomain(host);
+    return { ok: true, skipped: true, publishableKey };
+  }
+
+  const patched = await backendPatch(`/domains/${primary.id}`, {
+    name: host,
+    proxy_url: proxyUrl,
+  });
+  if (!patched.ok) {
+    return { ok: false, error: clerkApiErrorMessage(patched.body, patched.status) };
+  }
+
+  const changed = await backendPost('/instance/change_domain', { home_url: `https://${host}` });
+  if (!changed.ok && changed.status !== 202) {
+    return { ok: false, error: clerkApiErrorMessage(changed.body, changed.status) };
+  }
+
+  const publishableKey = clerkPublishableKeyForDomain(host);
+  return publishableKey ? { ok: true, publishableKey } : { ok: true };
 }
 
 function clerkDomainName(row: ClerkDomainRow): string {
