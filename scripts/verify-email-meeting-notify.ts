@@ -24,6 +24,7 @@ import {
 } from '../src/lib/emailReviewPending.ts';
 import {
   inboundStatesMeetingDate,
+  looksLikeConfirmedAppointment,
   sanitizeInboundMeetingProposal,
 } from '../src/lib/emailMeetingParse.ts';
 import { shouldSendInboxPush } from '../src/lib/emailNotifyPolicy.ts';
@@ -221,5 +222,63 @@ const telnyx = sanitizeInboundMeetingProposal({
   receivedAt: RECEIVED_AT,
 });
 assert.equal(telnyx.proposedMeetingStart, null, 'deadlines and IP octets are not appointments');
+
+// 8. Best Buy-style confirmation — appointment language but no parseable date/time in body.
+const BESTBUY_SUBJECT = 'Your appointment is scheduled.';
+const BESTBUY_BODY = `We're all set for your 20-minute appointment. Check in at the Geek Squad Service Desk five minutes early.
+
+Confirmation Number: VQS327W2H`;
+
+const bestBuy = sanitizeInboundMeetingProposal({
+  category: 'review',
+  proposedMeetingStart: null,
+  schedulingNote: '',
+  subject: BESTBUY_SUBJECT,
+  bodyText: BESTBUY_BODY,
+  receivedAt: RECEIVED_AT,
+});
+assert.equal(
+  looksLikeConfirmedAppointment(`${BESTBUY_SUBJECT}\n${BESTBUY_BODY}`),
+  true,
+  'Best Buy "your appointment is scheduled" must read as confirmed',
+);
+assert.equal(
+  bestBuy.proposedMeetingStart,
+  null,
+  'no invented time when the vendor omits date/time from the body',
+);
+assert.ok(
+  bestBuy.schedulingNote.includes('Best Buy'),
+  'confirmed appointment without time still earns a scheduling note',
+);
+
+const bestBuyNotified = inboxRecord({
+  from: 'BestBuyInfo@emailinfo.bestbuy.com',
+  subject: BESTBUY_SUBJECT,
+  bodyText: BESTBUY_BODY,
+  bodySnippet: BESTBUY_BODY.slice(0, 200),
+  summary: 'Best Buy Geek Squad appointment scheduled.',
+  action: 'review',
+  automationKind: 'meeting_request',
+  proposedMeetingStart: null,
+  schedulingNote: bestBuy.schedulingNote,
+  routeNote: 'Meeting request needs your review',
+});
+assert.equal(
+  isMeetingRequestPendingReview(bestBuyNotified),
+  true,
+  'Best Buy confirmation must surface a dashboard meeting card',
+);
+assert.equal(
+  shouldSendInboxPush({
+    category: bestBuyNotified.category,
+    action: bestBuyNotified.action,
+    ruleNotify: false,
+    ruleStatus: bestBuyNotified.status,
+    automationKind: bestBuyNotified.automationKind,
+  }),
+  true,
+  'confirmed appointment must notify even when no keyword rule matched',
+);
 
 console.log('ok: inbound meetings notify the dashboard and phone, and archive on confirm');

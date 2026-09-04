@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import {
   inboundHasClockTime,
+  looksLikeConfirmedAppointment,
   looksLikeMeetingIntent,
   parseAllClockTimes,
   parseExplicitMeetingDateTime,
@@ -95,5 +96,17 @@ assert.equal(proposedMeetingTimeMatchesSource(real.proposedMeetingStart!, 'Can w
 
 const july = parseExplicitMeetingDateTime('Wednesday, July 22, 2026 at 2:00 PM', new Date('2026-07-01T12:00:00Z'));
 assert.ok(july);
+
+const bestBuyConfirmed = sanitizeInboundMeetingProposal({
+  category: 'review',
+  proposedMeetingStart: null,
+  subject: 'Your appointment is scheduled.',
+  bodyText:
+    "We're all set for your 20-minute appointment. Check in at the Geek Squad Service Desk five minutes early.",
+  receivedAt: ref.toISOString(),
+});
+assert.equal(looksLikeConfirmedAppointment('Your appointment is scheduled.'), true);
+assert.equal(bestBuyConfirmed.proposedMeetingStart, null);
+assert.ok(bestBuyConfirmed.schedulingNote.includes('Best Buy'));
 
 console.log('ok: email meeting parse does not invent times from alerts');

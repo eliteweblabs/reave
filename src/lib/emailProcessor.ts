@@ -45,6 +45,7 @@ import {
   MEETING_SKIP_CATEGORIES,
   inboundMeetingEvidence,
   inboundStatesMeetingDate,
+  looksLikeConfirmedAppointment,
   parseProposedMeetingStart,
   sanitizeInboundMeetingProposal,
 } from './emailMeetingParse';
@@ -383,6 +384,7 @@ function applyMeetingProposal(opts: {
   schedulingNote: string;
   subject: string;
   bodyText: string;
+  bodyHtml?: string;
   receivedAt: string;
 }): { proposedMeetingStart: string | null; schedulingNote: string; discardedReason: string | null } {
   return sanitizeInboundMeetingProposal({
@@ -391,6 +393,7 @@ function applyMeetingProposal(opts: {
     schedulingNote: opts.schedulingNote,
     subject: opts.subject,
     bodyText: opts.bodyText,
+    bodyHtml: opts.bodyHtml,
     receivedAt: opts.receivedAt,
   });
 }
@@ -1368,13 +1371,20 @@ export async function processInboundEmail(
   // and when Claude is off — but the inbox card and /schedule still read a real
   // appointment out of the body. Recover it here so every path stores the same
   // meeting, and the owner gets one notification instead of a silent inbox row.
-  // Stricter than the AI paths: the sender has to name the day too.
+  // Stricter than the AI paths for scheduling asks: the sender has to name the day
+  // too. Vendor confirmations ("Your appointment is scheduled") run without that gate.
+  const meetingEvidence = inboundMeetingEvidence({
+    subject: email.subject,
+    bodyText,
+    bodyHtml: email.html,
+  });
+  const confirmedAppointment = looksLikeConfirmedAppointment(meetingEvidence);
   if (
     !proposedMeetingStart &&
     !schedulingNote &&
     !suppressedAsJunk &&
     !MEETING_SKIP_CATEGORIES.has(category) &&
-    inboundStatesMeetingDate(inboundMeetingEvidence({ subject: email.subject, bodyText }))
+    (inboundStatesMeetingDate(meetingEvidence) || confirmedAppointment)
   ) {
     const recovered = applyMeetingProposal({
       category,
@@ -1382,15 +1392,20 @@ export async function processInboundEmail(
       schedulingNote: '',
       subject: email.subject ?? '',
       bodyText,
+      bodyHtml: email.html,
       receivedAt,
     });
-    if (recovered.proposedMeetingStart) {
+    if (recovered.proposedMeetingStart || recovered.schedulingNote) {
       proposedMeetingStart = recovered.proposedMeetingStart;
       schedulingNote = recovered.schedulingNote;
       pushAudit(
         'meeting',
-        'Meeting time read from the email',
-        `${proposedMeetingStart} — appointment language plus a clock time in the message`,
+        recovered.proposedMeetingStart
+          ? 'Meeting time read from the email'
+          : 'Confirmed appointment — review to add to calendar',
+        recovered.proposedMeetingStart
+          ? `${proposedMeetingStart} — appointment language plus a clock time in the message`
+          : recovered.schedulingNote,
       );
     }
   }
@@ -1541,7 +1556,7 @@ export async function processInboundEmail(
     !needsExplain &&
     !skipAutoBook &&
     !suppressedAsJunk &&
-    proposedMeetingStart &&
+    (proposedMeetingStart || schedulingNote) &&
     !MEETING_SKIP_CATEGORIES.has(category) &&
     action !== 'project_reply' &&
     action !== 'filed' &&

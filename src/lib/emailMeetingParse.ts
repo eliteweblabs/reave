@@ -4,6 +4,8 @@
  * IP octets, street numbers, or date-only deadlines.
  */
 
+import { htmlToPlainText } from './emailBody';
+
 const DEFAULT_MEETING_DISPLAY_TZ = 'America/New_York';
 
 function meetingDisplayTimeZone(): string {
@@ -82,10 +84,24 @@ export function parseAllClockTimes(text: string): ClockHit[] {
   return hits;
 }
 
+/** Vendor/store mail confirming an appointment — not a scheduling ask. */
+export function looksLikeConfirmedAppointment(text: string): boolean {
+  const source = String(text || '');
+  if (!source.trim()) return false;
+  return (
+    /\b(?:your\s+)?appointment\s+(?:is\s+)?(?:scheduled|confirmed)\b/i.test(source) ||
+    /\bappointment\s+has\s+been\s+scheduled\b/i.test(source) ||
+    /\bcarry-in\s+appointment\b/i.test(source) ||
+    /\b(?:service|store|geek\s+squad)\s+appointment\b/i.test(source) ||
+    (/\bwe'?re\s+all\s+set\s+for\s+your\b/i.test(source) && /\bappointment\b/i.test(source))
+  );
+}
+
 /** Sender is asking to meet — not "scheduled a launch" or "10% of calls". */
 export function looksLikeMeetingIntent(text: string): boolean {
   const source = String(text || '');
   if (!source.trim()) return false;
+  if (looksLikeConfirmedAppointment(source)) return true;
   return (
     /\b(meetings?\b|meet\b|appointment\b|calendly\b|facetime\b|google meet\b|zoom\b)/i.test(source) ||
     /\bget together\b/i.test(source) ||
@@ -102,12 +118,26 @@ export function looksLikeMeetingIntent(text: string): boolean {
   );
 }
 
+function confirmedAppointmentSchedulingNote(evidence: string): string {
+  const duration = evidence.match(/\b(\d+)[\s-]*minute\s+appointment\b/i);
+  const dur = duration ? `${duration[1]}-minute ` : '';
+  if (/\bbest\s*buy\b/i.test(evidence) || /\bgeek\s+squad\b/i.test(evidence)) {
+    return `Best Buy ${dur}appointment — check email for date/time`;
+  }
+  if (/\bapple\b/i.test(evidence) && /\bcarry-in\b/i.test(evidence)) {
+    return `Apple carry-in ${dur}appointment — check email for date/time`;
+  }
+  return `${dur}Appointment confirmed — check email for date/time`.trim();
+}
+
 export function inboundMeetingEvidence(input: {
   subject?: string | null;
   bodyText?: string | null;
   bodySnippet?: string | null;
+  bodyHtml?: string | null;
 }): string {
-  return [input.subject, input.bodyText, input.bodySnippet].filter(Boolean).join('\n');
+  const htmlPlain = input.bodyHtml?.trim() ? htmlToPlainText(input.bodyHtml) : '';
+  return [input.subject, input.bodyText, input.bodySnippet, htmlPlain].filter(Boolean).join('\n');
 }
 
 export function inboundHasClockTime(text: string): boolean {
@@ -343,6 +373,7 @@ export function sanitizeInboundMeetingProposal(input: {
   subject?: string | null;
   bodyText?: string | null;
   bodySnippet?: string | null;
+  bodyHtml?: string | null;
   receivedAt?: string | null;
 }): {
   proposedMeetingStart: string | null;
@@ -371,14 +402,16 @@ export function sanitizeInboundMeetingProposal(input: {
     subject: input.subject,
     bodyText: input.bodyText,
     bodySnippet: input.bodySnippet,
+    bodyHtml: input.bodyHtml,
   });
+  const confirmed = looksLikeConfirmedAppointment(evidence);
   if (!looksLikeMeetingIntent(evidence)) {
     return {
       ...empty,
       discardedReason: hadProposal ? 'no meeting language in the email' : null,
     };
   }
-  if (!inboundHasClockTime(evidence)) {
+  if (!confirmed && !inboundHasClockTime(evidence)) {
     return {
       ...empty,
       discardedReason: hadProposal ? 'no clock time in the email — deadlines are not meetings' : null,
@@ -389,7 +422,7 @@ export function sanitizeInboundMeetingProposal(input: {
   if (start && !proposedMeetingTimeMatchesSource(start, evidence)) {
     start = null;
   }
-  if (!start) {
+  if (!start && inboundHasClockTime(evidence)) {
     start = resolveProposedMeetingStart({
       proposedMeetingStart: null,
       bodyText: evidence,
@@ -399,16 +432,25 @@ export function sanitizeInboundMeetingProposal(input: {
   if (start && !proposedMeetingTimeMatchesSource(start, evidence)) {
     start = null;
   }
-  if (!start) {
+  if (start) {
     return {
-      ...empty,
-      discardedReason: hadProposal ? 'proposed time was not stated in the email' : null,
+      proposedMeetingStart: start,
+      schedulingNote: String(input.schedulingNote || '').trim(),
+      discardedReason: null,
+    };
+  }
+
+  if (confirmed) {
+    return {
+      proposedMeetingStart: null,
+      schedulingNote:
+        String(input.schedulingNote || '').trim() || confirmedAppointmentSchedulingNote(evidence),
+      discardedReason: null,
     };
   }
 
   return {
-    proposedMeetingStart: start,
-    schedulingNote: String(input.schedulingNote || '').trim(),
-    discardedReason: null,
+    ...empty,
+    discardedReason: hadProposal ? 'proposed time was not stated in the email' : null,
   };
 }

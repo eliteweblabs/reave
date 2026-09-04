@@ -7,6 +7,7 @@ import type { EmailInboxRecord } from './emailInboxStore';
 import {
   inboundHasClockTime,
   inboundMeetingEvidence,
+  looksLikeConfirmedAppointment,
   looksLikeMeetingIntent,
 } from './emailMeetingParse';
 
@@ -118,10 +119,12 @@ export function isMeetingRequestPendingReview(
     bodyText: record.bodyText,
     bodySnippet: record.bodySnippet,
   });
-  if (!inboundHasClockTime(evidence) || !looksLikeMeetingIntent(evidence)) return false;
+  const confirmedAppointment = looksLikeConfirmedAppointment(evidence);
   if (record.automationKind === 'meeting_request' || record.automationKind === 'meeting_conflict') {
+    if (!looksLikeMeetingIntent(evidence) && !confirmedAppointment) return false;
     return Boolean(record.proposedMeetingStart || record.schedulingNote);
   }
+  if (!inboundHasClockTime(evidence) || !looksLikeMeetingIntent(evidence)) return false;
   return isLegacyMeetingRequestPendingReview(record);
 }
 
