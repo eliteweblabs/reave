@@ -27,6 +27,8 @@ export type InstallIdentity = {
   username: string;
   email: string;
   iconUrl: string;
+  /** Company tagline / description — pushed to Cal.com bio when present. */
+  bio: string;
 };
 
 export { parseEmailAddress, slugifyCalcomUsername } from './installIdentityFormat';
@@ -99,5 +101,6 @@ export async function resolveInstallIdentity(request?: Request): Promise<Install
     username: resolveCalcomUsernameSync() || slugifyCalcomUsername(company.name) || 'bookings',
     email: resolveEmail(company),
     iconUrl: resolveInstallIconUrl(request, company),
+    bio: company.description?.trim() || '',
   };
 }

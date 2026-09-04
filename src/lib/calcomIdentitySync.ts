@@ -1,10 +1,10 @@
 /**
- * Push reave.app install identity (icon, username, email, name) onto Cal.com.
+ * Push reave.app install identity (icon, username, email, name, bio) onto Cal.com.
  *
  * Two paths, both sourced from the always-on `reave` node:
  *  1. Railway references on calcom-web-app (`${{ reave.EMAIL_FROM }}`, …)
  *     — wizard apply, or pickup when the sibling appears later.
- *  2. Cal.com `users` row (avatar / username / email / name). When the
+ *  2. Cal.com `users` row (avatar / username / email / name / bio). When the
  *     database is empty we INSERT the owner + default event types — signup
  *     is disabled, so there is no onboarding form to finish. Stock Cal.com
  *     does not read a username/avatar env var.
@@ -17,6 +17,7 @@ import { resolveInstallIdentity, type InstallIdentity } from './installIdentity'
 import { createLogger } from './logger';
 import { serverEnv } from './serverEnv';
 import { getCompanyConfig } from './companyConfig';
+import { hasFeature } from './features';
 import {
   ensureCalcomOwnerEventTypes,
   provisionCalcomOwner,
@@ -197,7 +198,7 @@ async function syncCalcomUserProfile(
   identity: InstallIdentity,
   project?: string,
 ): Promise<{ updated: boolean; created?: boolean; userId?: number; reason?: string }> {
-  if (!identity.username && !identity.email && !identity.name && !identity.iconUrl) {
+  if (!identity.username && !identity.email && !identity.name && !identity.iconUrl && !identity.bio) {
     return { updated: false, reason: 'install identity is empty' };
   }
 
@@ -272,6 +273,7 @@ async function syncCalcomUserProfile(
     add('username', identity.username);
     add('name', identity.name);
     add('email', identity.email);
+    add('bio', identity.bio);
     if (cols.has('avatarUrl')) add('"avatarUrl"', identity.iconUrl);
     else if (cols.has('avatar')) add('avatar', identity.iconUrl);
 
@@ -343,17 +345,17 @@ export async function syncCalcomIdentityFromReave(opts?: {
 }
 
 /**
- * When Company → Hours has “Sync to Cal.com” on, push business hours onto
- * the Cal.com owner’s Working Hours / Availability rows.
+ * Push Company → Hours onto the Cal.com owner’s Working Hours / Availability
+ * rows whenever scheduling is enabled (no separate toggle in admin).
  */
 export async function syncCalcomHoursFromReave(opts?: {
   request?: Request;
   project?: string;
 }): Promise<CalcomHoursSyncResult> {
-  const company = await getCompanyConfig(opts?.request);
-  if (!company.syncHoursToCalcom) {
-    return { ok: true, skipped: true, reason: 'sync to Cal.com is off' };
+  if (!hasFeature('scheduling')) {
+    return { ok: true, skipped: true, reason: 'scheduling is not enabled' };
   }
+  const company = await getCompanyConfig(opts?.request);
   if (!company.businessHours) {
     return { ok: true, skipped: true, reason: 'no company hours to sync' };
   }

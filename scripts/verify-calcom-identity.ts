@@ -70,7 +70,7 @@ const quoted = buildParameterizedInsert('"EventType"', ['userId', 'slug'], [1, '
 assert.equal(quoted.sql, 'INSERT INTO "EventType" ("userId", slug) VALUES ($1, $2) RETURNING id');
 
 const cols = ownerUserColumnValues(
-  { name: 'CAP Design Group', username: 'jk', email: 'jk@jasonkahan.com', iconUrl: 'https://example.com/icon.png' },
+  { name: 'CAP Design Group', username: 'jk', email: 'jk@jasonkahan.com', iconUrl: 'https://example.com/icon.png', bio: 'Design studio' },
   'America/New_York',
 );
 assert.equal(cols.username, 'jk');
@@ -84,6 +84,7 @@ const skipEmpty = await provisionCalcomOwner((async () => ({ rows: [] })) as Sql
   username: '',
   email: 'jk@jasonkahan.com',
   iconUrl: '',
+  bio: '',
 }, 'America/New_York');
 assert.equal(skipEmpty.created, false);
 assert.match(skipEmpty.reason || '', /username/);
@@ -93,6 +94,7 @@ const skipNoEmail = await provisionCalcomOwner((async () => ({ rows: [] })) as S
   username: 'jk',
   email: '',
   iconUrl: '',
+  bio: '',
 }, 'America/New_York');
 assert.equal(skipNoEmail.created, false);
 assert.match(skipNoEmail.reason || '', /email/);
@@ -132,7 +134,7 @@ const fake = (async (sql: string, values?: unknown[]) => {
 
 const created = await provisionCalcomOwner(
   fake,
-  { name: 'CAP Design Group', username: 'jk', email: 'jk@jasonkahan.com', iconUrl: '' },
+  { name: 'CAP Design Group', username: 'jk', email: 'jk@jasonkahan.com', iconUrl: '', bio: '' },
   'America/New_York',
 );
 assert.equal(created.created, true);

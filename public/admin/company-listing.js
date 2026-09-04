@@ -166,22 +166,16 @@ function renderHoursRow(row) {
 export function renderCompanyHoursSection(company) {
   const hours = parseStoredBusinessHours(company?.businessHours);
   const alwaysOpen = hours?.alwaysOpen === true;
-  const syncToCalcom = company?.syncHoursToCalcom === true;
   const syncToGbp = company?.syncHoursToGbp === true;
   const rows = rowsFromHours(hours);
   const hoursJson = hours ? JSON.stringify(hours) : '';
   return (
     `<input type="hidden" id="company-businessHours" name="businessHours" value="${escHtml(hoursJson)}" />` +
-    `<input type="hidden" id="company-syncHoursToCalcom" name="syncHoursToCalcom" value="${syncToCalcom ? 'true' : 'false'}" />` +
     `<input type="hidden" id="company-syncHoursToGbp" name="syncHoursToGbp" value="${syncToGbp ? 'true' : 'false'}" />` +
     `<div class="co-hours-toggles">` +
       `<label class="co-hours-always">` +
         `<input type="checkbox" id="company-hours-always-open" class="co-hours-always-input"${alwaysOpen ? ' checked' : ''} />` +
         `<span>Open 24 hours</span>` +
-      `</label>` +
-      `<label class="co-hours-always">` +
-        `<input type="checkbox" id="company-hours-sync-calcom" class="co-hours-sync-calcom-input"${syncToCalcom ? ' checked' : ''} />` +
-        `<span>Sync to Cal.com</span>` +
       `</label>` +
       `<label class="co-hours-always">` +
         `<input type="checkbox" id="company-hours-sync-gbp" class="co-hours-sync-gbp-input"${syncToGbp ? ' checked' : ''} />` +
@@ -196,7 +190,7 @@ export function renderCompanyHoursSection(company) {
       `<button type="button" id="company-hours-copy-weekdays" class="de-btn de-btn-secondary">Copy Mon to weekdays</button>` +
       `<button type="button" id="company-gbp-sync-now" class="de-btn de-btn-secondary" hidden>Push hours to Google now</button>` +
     `</div>` +
-    `<span class="prof-hint prof-hint--block">Structured hours feed directory listings and visit planning. Turn on Sync to Cal.com or Google Business Profile to push the same windows live. Google uses Sunday as day 0 — we store the same shape.</span>`
+    `<span class="prof-hint prof-hint--block">Structured hours feed directory listings, visit planning, and booking availability. Turn on Sync to Google Business Profile when you want the same windows on Maps. Google uses Sunday as day 0 — we store the same shape.</span>`
   );
 }
 
@@ -376,9 +370,7 @@ function readRowsFromDom(repeater) {
 export function bindCompanyListing(root, { onHoursChange } = {}) {
   const repeater = root.querySelector('#company-hours-repeater');
   const alwaysInput = root.querySelector('#company-hours-always-open');
-  const syncCalcomInput = root.querySelector('#company-hours-sync-calcom');
   const syncGbpInput = root.querySelector('#company-hours-sync-gbp');
-  const syncCalcomHidden = root.querySelector('#company-syncHoursToCalcom');
   const syncGbpHidden = root.querySelector('#company-syncHoursToGbp');
   const copyBtn = root.querySelector('#company-hours-copy-weekdays');
   if (!(repeater instanceof HTMLElement)) return;
@@ -388,15 +380,6 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
     repeater.classList.toggle('is-always-open', alwaysOpen);
     const rows = readRowsFromDom(repeater);
     syncHiddenHours(root, rows, alwaysOpen);
-    onHoursChange?.();
-  };
-
-  const emitSyncCalcom = () => {
-    if (syncCalcomHidden instanceof HTMLInputElement) {
-      syncCalcomHidden.value =
-        syncCalcomInput instanceof HTMLInputElement && syncCalcomInput.checked ? 'true' : 'false';
-      syncCalcomHidden.dispatchEvent(new Event('change', { bubbles: true }));
-    }
     onHoursChange?.();
   };
 
@@ -423,10 +406,6 @@ export function bindCompanyListing(root, { onHoursChange } = {}) {
 
   if (alwaysInput instanceof HTMLInputElement) {
     alwaysInput.addEventListener('change', emitHours);
-  }
-
-  if (syncCalcomInput instanceof HTMLInputElement) {
-    syncCalcomInput.addEventListener('change', emitSyncCalcom);
   }
 
   if (syncGbpInput instanceof HTMLInputElement) {

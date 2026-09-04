@@ -32,7 +32,8 @@ stage: 3
   - `NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=${{ reave.EMAIL_FROM }}`
   - `RESEND_API_KEY=${{ reave.RESEND_API_KEY }}`
   - `EMAIL_SERVER_PASSWORD` — Railway reference to `reave.RESEND_API_KEY` (host `smtp.resend.com` / port `465` / user `resend`)
-- On **reave**, `CALCOM_DATABASE_URL=${{ calcom-postgres.DATABASE_URL }}` so a later Cal.com deploy still gets icon / username / email from company settings (`GET /api/install/identity`) and can insert the owner user
+- On **reave**, `CALCOM_DATABASE_URL=${{ calcom-postgres.DATABASE_URL }}` so a later Cal.com deploy still gets icon / username / email / bio from company settings (`GET /api/install/identity`) and can insert the owner user
+- On **calcom-web-app**, do not edit profile fields in Cal.com admin — name, icon, email, tagline, and hours are managed in REΛVE → Company and sync automatically
 - On **calcom-booking-api**, `CALCOM_USERNAME=${{ reave.CALCOM_USERNAME }}` and `MAPBOX_ACCESS_TOKEN=${{ reave.PUBLIC_MAPBOX_ACCESS_TOKEN }}`
 - Enable `scheduling` in install config `features[]`
 - Add `schedule` to `footerNav` if not present

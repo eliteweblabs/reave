@@ -136,6 +136,7 @@ export function ownerUserColumnValues(
     hideBranding: true,
     avatarUrl: identity.iconUrl || null,
     avatar: identity.iconUrl || null,
+    bio: identity.bio || null,
   };
 }
 

@@ -7728,13 +7728,6 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
           }
         }
       }
-      if (payload.syncHoursToCalcom != null) {
-        payload.syncHoursToCalcom =
-          payload.syncHoursToCalcom === true ||
-          payload.syncHoursToCalcom === 'true' ||
-          payload.syncHoursToCalcom === '1' ||
-          payload.syncHoursToCalcom === 'on';
-      }
       if (payload.syncHoursToGbp != null) {
         payload.syncHoursToGbp =
           payload.syncHoursToGbp === true ||
@@ -8803,14 +8796,15 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
         `<form id="company-form" class="prof-form">` +
           profSection(
             'Identity',
-            'Name and tagline shown on client pages, emails, documents, and legal.',
+            'Name and tagline shown on client pages, emails, documents, legal, and your public booking page.',
             `<div class="prof-field"><label for="company-name">Display name</label>` +
             `<input id="company-name" name="name" type="text" value="${escHtml(c.name || '')}" placeholder="Acme Corp" autocomplete="organization" /></div>` +
             `<div class="prof-field"><label for="company-legalName">Legal name</label>` +
             `<input id="company-legalName" name="legalName" type="text" value="${escHtml(c.legalName || '')}" placeholder="Acme Corporation LLC" />` +
             `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
             `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
-            `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>`,
+            `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" />` +
+            `<span class="prof-hint">Also appears as the bio on your booking page when scheduling is enabled.</span></div>`,
           ) +
           profSection(
             'Location',
@@ -8821,7 +8815,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
           ) +
           profSection(
             'Hours of operation',
-            'Weekly schedule for Google Business Profile and Apple Business Connect feeds.',
+            'Weekly schedule for directories, visit planning, and booking availability.',
             renderCompanyHoursSection(c),
           ) +
           profSection(
@@ -8858,6 +8852,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                   }) +
                 `</div>` +
                 `<span id="company-icon-fallback-hint" class="prof-hint"${usesLogoAsIconFallback(c) ? '' : ' hidden'}>Favicons and avatars use the logo until you add an icon.</span>` +
+                `<span class="prof-hint prof-hint--block">Also used as the avatar on your public booking page.</span>` +
               `</div>` +
             `</div>` +
             `<span class="prof-hint prof-hint--block">Pick a PNG, JPEG, WebP, or SVG from the Media library, or upload a file here. An SVG file fills the paste fields below.</span>`,
@@ -8978,7 +8973,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `</div>` +
             `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
             `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" />` +
-            `<span class="prof-hint">Used when <code>RESEND_FROM</code> is not set. Support email and phone appear as Call / Text / Email on client portal pages.</span></div>`,
+            `<span class="prof-hint">Used when <code>RESEND_FROM</code> is not set. Also used for booking confirmations when scheduling is enabled. Support email and phone appear as Call / Text / Email on client portal pages.</span></div>`,
           ) +
           profSection(
             'Listing preview',
