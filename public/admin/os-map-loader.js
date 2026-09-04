@@ -3707,7 +3707,12 @@ function reviewAlertCopyHtml(item) {
   const bodyHtml =
     body && body.toLowerCase() !== headline.toLowerCase() ? `<p>${escHtml(body)}</p>` : '';
   const auditHtml = isReceiptExpenseNotification(item) ? classificationAuditTrailHtml(item) : '';
-  return `<strong>${headlineLine}</strong>${bodyHtml}${auditHtml}`;
+  const sender =
+    isReceiptExpenseNotification(item) && item.from
+      ? senderLabelForReviewAlert(item.from, item.contactName)
+      : '';
+  const senderHtml = sender ? `<p class="admin-otp-sender">${escHtml(sender)}</p>` : '';
+  return `<strong>${headlineLine}</strong>${bodyHtml}${senderHtml}${auditHtml}`;
 }
 
 /** Expandable decision path for receipt / classification notifications. */

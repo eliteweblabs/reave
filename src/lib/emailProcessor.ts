@@ -79,6 +79,7 @@ import {
 import {
   auditForMatchedRule,
   classificationAuditStep,
+  contactAuditDecision,
   findShipmentArchiveRule,
   type ClassificationAuditStep,
   type ClassificationRuleLink,
@@ -603,16 +604,9 @@ export async function processInboundEmail(
       console.error('[email] rule hit increment failed', e);
     });
   }
+  const contactAudit = contactAuditDecision(knownContact, from, contactName);
   const classificationAudit: ClassificationAuditStep[] = [
-    classificationAuditStep(
-      'contact',
-      knownContact
-        ? `Known contact${contactName ? `: ${contactName}` : ''}`
-        : 'Unknown sender',
-      knownContact
-        ? 'Green light — catalog junk does not apply; personal DELETE rules still run'
-        : 'Not in Contacts — catalog marketing DELETE still applies; Junk is spam-filter only',
-    ),
+    classificationAuditStep('contact', contactAudit.decision, contactAudit.detail),
     auditForMatchedRule(ruleResult.matched, ruleResult.status, {
       from,
       subject: email.subject ?? '',

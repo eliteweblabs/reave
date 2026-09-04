@@ -18,7 +18,9 @@ import {
   type EmailRule,
   type InboundEmail,
 } from './emailRules';
+import { parseSenderEmail } from './emailAddress';
 import type { EmailInboxRecord } from './emailInboxStore';
+import { senderLabelForNotification } from './notificationFormat';
 
 export type ClassificationAuditStep = {
   /** Stable stage id, e.g. rules | amount | payment_language | auto_file | title */
@@ -36,6 +38,50 @@ export type ClassificationRuleLink = {
   ruleId?: string | null;
   ruleTitle?: string | null;
 };
+
+/** Ensure contact audit rows name the From address — especially for unknown senders. */
+export function enrichContactAuditWithSender(
+  steps: ClassificationAuditStep[],
+  from: string,
+  contactName?: string | null,
+): ClassificationAuditStep[] {
+  const sender = senderLabelForNotification(from, contactName);
+  const email = parseSenderEmail(from);
+  if (!sender && !email) return steps;
+  const marker = sender || email;
+  return steps.map((s) => {
+    if (s.step !== 'contact') return s;
+    const hay = `${s.decision} ${s.detail || ''}`;
+    if (hay.includes(marker) || (email && hay.includes(email))) return s;
+    if (/unknown sender/i.test(s.decision)) {
+      return { ...s, decision: `Unknown sender · ${marker}` };
+    }
+    if (/known contact/i.test(s.decision)) {
+      return { ...s, decision: `${s.decision} · ${marker}` };
+    }
+    return s;
+  });
+}
+
+export function contactAuditDecision(
+  knownContact: boolean,
+  from: string,
+  contactName?: string | null,
+): { decision: string; detail: string } {
+  const sender = senderLabelForNotification(from, contactName);
+  if (knownContact) {
+    return {
+      decision: `Known contact${contactName ? `: ${contactName}` : sender ? ` · ${sender}` : ''}`,
+      detail: 'Green light — catalog junk does not apply; personal DELETE rules still run',
+    };
+  }
+  return {
+    decision: sender ? `Unknown sender · ${sender}` : 'Unknown sender',
+    detail: sender
+      ? `Not in Contacts — ${sender} — catalog marketing DELETE still applies; Junk is spam-filter only`
+      : 'Not in Contacts — catalog marketing DELETE still applies; Junk is spam-filter only',
+  };
+}
 
 export function classificationAuditStep(
   step: string,
@@ -289,7 +335,9 @@ export function explainReceiptClassification(
   >,
 ): ClassificationAuditStep[] {
   const persisted = parseClassificationAudit(record.classificationAudit);
-  if (persisted.length >= 2) return persisted;
+  if (persisted.length >= 2) {
+    return enrichContactAuditWithSender(persisted, record.from || '');
+  }
 
   const steps: ClassificationAuditStep[] = [...persisted];
   const hasStep = (id: string) => steps.some((s) => s.step === id);
@@ -438,7 +486,7 @@ export function explainReceiptClassification(
     steps.push(classificationAuditStep('route_note', 'Route note', record.routeNote.trim()));
   }
 
-  return steps;
+  return enrichContactAuditWithSender(steps, record.from || '');
 }
 
 /** Audit steps when an owner/agent manually marks mail as a receipt. */

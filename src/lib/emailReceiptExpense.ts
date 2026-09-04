@@ -9,6 +9,7 @@ import {
   looksLikeIncomingPayment,
 } from './emailMoney';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
+import { brandDomainFromSenderEmail } from './notificationFormat';
 import {
   explainReceiptClassification,
   type ClassificationAuditStep,
@@ -97,11 +98,40 @@ function looksLikeMisfiledReceipt(
   return /\b(build failed|deploy failed|deployment failed|railway|ci failed)\b/.test(blob);
 }
 
+const GENERIC_SENDER_LOCAL_PARTS = new Set([
+  'notifications',
+  'notification',
+  'noreply',
+  'no-reply',
+  'mail',
+  'email',
+  'alerts',
+  'notify',
+  'messaging',
+  'info',
+  'support',
+  'hello',
+  'e',
+  'm',
+]);
+
 export function receiptVendorLabel(record: Pick<EmailInboxRecord, 'from' | 'subject'>): string {
-  const name = parseSenderName(record.from || '');
+  const from = record.from || '';
+  const name = parseSenderName(from);
   if (name) return name;
-  const email = parseSenderEmail(record.from || '');
-  if (email) return email.split('@')[0]?.replace(/[._-]+/g, ' ').trim() || email;
+  const email = parseSenderEmail(from);
+  if (email) {
+    const [local, domain] = email.split('@');
+    if (local && domain && GENERIC_SENDER_LOCAL_PARTS.has(local.toLowerCase())) {
+      const brand = brandDomainFromSenderEmail(from);
+      if (brand) {
+        const root = brand.split('.')[0];
+        if (root) return root.charAt(0).toUpperCase() + root.slice(1);
+      }
+      return email;
+    }
+    return local?.replace(/[._-]+/g, ' ').trim() || email;
+  }
   const subject = (record.subject || '').trim();
   if (subject) return subject.slice(0, 48);
   return 'Vendor';
