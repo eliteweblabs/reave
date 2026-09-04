@@ -67,6 +67,24 @@ const SKIP_DASHBOARD_NAV = new Set([
   'dashboard',
 ]);
 
+/** Footer tab keys that open a different admin map id (slots vs map keys). */
+const FOOTER_NAV_MAP_ALIASES: Record<string, string> = {
+  __system__: 'system',
+  __chat__: 'chats',
+};
+
+export function footerNavShowsDashboardMap(
+  mapKey: string,
+  footerNav: readonly string[],
+): boolean {
+  const nav = new Set(footerNav);
+  if (nav.has(mapKey)) return true;
+  for (const [footerKey, aliasMapKey] of Object.entries(FOOTER_NAV_MAP_ALIASES)) {
+    if (aliasMapKey === mapKey && nav.has(footerKey)) return true;
+  }
+  return false;
+}
+
 export function featureShowsDashboard(id: FeatureId): boolean {
   return FEATURE_DASHBOARD[id]?.dashboard === true;
 }
@@ -76,15 +94,25 @@ export function dashboardMapKeyForFeature(id: FeatureId): string | null {
   return keys.find((key) => !SKIP_DASHBOARD_NAV.has(key)) ?? null;
 }
 
+export type DashboardCardsOptions = {
+  showDeployWizard?: boolean;
+  /** Trim always-on OS tiles to footerNav — analytics-only / minimal admin shells. */
+  adminLite?: boolean;
+  footerNav?: readonly string[];
+};
+
 export function dashboardCardsForFeatures(
   features: readonly string[],
-  opts: { showDeployWizard?: boolean } = {},
+  opts: DashboardCardsOptions = {},
 ): DashboardCard[] {
   const enabled = new Set(features);
   const used = new Set<string>();
   const cards: DashboardCard[] = [];
 
   for (const core of CORE_DASHBOARD_CARDS) {
+    if (opts.adminLite && opts.footerNav) {
+      if (!footerNavShowsDashboardMap(core.mapKey, opts.footerNav)) continue;
+    }
     cards.push(core);
   }
 

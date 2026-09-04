@@ -177,11 +177,17 @@ export type InstallConfig = {
    * flags even if they appear in features[].
    */
   opsInstall?: boolean;
+  /**
+   * Minimal admin chrome — hide always-on OS dashboard tiles and skip auto-injected
+   * footer/profile items not listed in footerNav / profileMenu. Pair with a trimmed
+   * footerNav (e.g. analytics-only: __system__, dashboard, analytics, profile, company).
+   */
+  adminLite?: boolean;
 };
 
 export type InstallConfigClient = Pick<
   InstallConfig,
-  'features' | 'footerNav' | 'profileMenu' | 'homepageVoice' | 'chatFocusSkin'
+  'features' | 'footerNav' | 'profileMenu' | 'homepageVoice' | 'chatFocusSkin' | 'adminLite'
 > & {
   /** True only on the official reave.app Railway install — may create/edit universal rules. */
   canManageUniversalRules?: boolean;
@@ -416,6 +422,7 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     websiteRepo: typeof o.websiteRepo === 'string' && o.websiteRepo.trim() ? o.websiteRepo.trim() : undefined,
     moduleStatus: normalizeModuleStatus(o.moduleStatus),
     opsInstall: o.opsInstall === true ? true : undefined,
+    adminLite: o.adminLite === true ? true : undefined,
   };
 }
 
@@ -490,7 +497,7 @@ function ensureFooterDscr(nav: FooterNavKey[], enabled: boolean): FooterNavKey[]
 }
 
 function clientFooterNav(config: InstallConfig): FooterNavKey[] {
-  let nav = ensureFooterPunchlist(config.footerNav);
+  let nav = config.adminLite ? [...config.footerNav] : ensureFooterPunchlist(config.footerNav);
   nav = ensureFooterDscr(nav, config.features.includes('dscr_calculator'));
   if (!config.features.includes('fleet_tracking')) {
     nav = nav.filter((key) => key !== 'fleet');
@@ -559,6 +566,7 @@ function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   }
   // Catalog editor lives in dashboard → Modules, not a separate account page.
   menu = menu.filter((key) => key !== 'catalog');
+  if (config.adminLite) return menu;
   // Owner invites staff from account → Team.
   menu = ensureProfileMenuTeam(menu);
   // End users buy/request modules from account → Add-ons. Always show it.
@@ -569,12 +577,14 @@ function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
 
 export function getInstallConfigClient(): InstallConfigClient {
   const config = getInstallConfigSync();
+  const footerNav = clientFooterNav(config);
   return {
     features: config.features,
-    footerNav: clientFooterNav(config),
+    footerNav,
     profileMenu: clientProfileMenu(config),
     homepageVoice: config.homepageVoice,
     chatFocusSkin: config.chatFocusSkin,
+    adminLite: config.adminLite,
     canManageUniversalRules: isCanonicalReaveInstall(),
     showPersonal: isCanonicalReaveInstall(),
     showDeployWizard: config.features.includes('deploy_wizard'),
@@ -583,6 +593,8 @@ export function getInstallConfigClient(): InstallConfigClient {
     isCanonicalReave: isCanonicalReaveInstall(),
     dashboardCards: dashboardCardsForFeatures(config.features, {
       showDeployWizard: config.features.includes('deploy_wizard'),
+      adminLite: config.adminLite,
+      footerNav,
     }),
   };
 }
