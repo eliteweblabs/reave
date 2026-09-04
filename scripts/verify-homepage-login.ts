@@ -385,8 +385,7 @@ assert.equal(
 }
 
 const homeLogin = readFileSync('src/components/home/HomeLoginPage.astro', 'utf8');
-assert.match(homeLogin, /locals\.auth\(\)/);
-assert.match(homeLogin, /Astro\.redirect/);
+assert.match(homeLogin, /locals\.auth\?\.\(\)/);
 assert.match(homeLogin, /data-user-id=\{userId/);
 assert.match(homeLogin, /signInAutoOpen=\{!userId\}/);
 assert.doesNotMatch(
@@ -394,6 +393,23 @@ assert.doesNotMatch(
   /data-user-id=""/,
   'login homepage must not hardcode an empty session — that trips the stuck-sign-in sheet',
 );
+
+const indexPage = readFileSync('src/pages/index.astro', 'utf8');
+assert.match(indexPage, /signedInUserId/);
+assert.match(indexPage, /Astro\.redirect/, 'login homepage must SSR-redirect signed-in users to /admin/');
+
+const signInSheet = readFileSync('src/components/SignInSheet.astro', 'utf8');
+assert.doesNotMatch(
+  signInSheet,
+  /authPath === '\/sign-in'/,
+  'onLoginPage must not treat authPath as the current page — login homepages reload forever',
+);
+assert.match(
+  signInSheet,
+  /!window\.Clerk\?\.user\)/,
+  'do not reset SSR sync mark while a Clerk client session exists',
+);
+assert.match(signInSheet, /__PUBLIC_ASSET_VERSION__/, 'SignInSheet shared.js import must cache-bust per deploy');
 
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 assert.match(astroConfig, /clerkProxyUrlFromEnv/);
