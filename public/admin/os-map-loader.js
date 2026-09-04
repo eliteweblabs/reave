@@ -14696,6 +14696,38 @@ function buildEmailAgentPrompt(ev) {
   return lines.join('\n');
 }
 
+async function reclassifyEmail(ev, btn) {
+  const emailId = String(ev?.id || '').trim();
+  if (!emailId) return;
+  const prevLabel = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Reclassifying…';
+  }
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(emailId)}/reclassify`, {
+      method: 'POST',
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (data.event) {
+      const full = { ...data.event, _fullLoaded: true };
+      const idx = emailState.allEvents.findIndex((e) => e.id === emailId);
+      if (idx !== -1) emailState.allEvents[idx] = full;
+    }
+    if (typeof data.badgeCount === 'number') syncReviewBadge(data.badgeCount);
+    if (emailState.activeId === emailId) renderEmailPanel({ preserveSidebar: true });
+    if (MAP.type === 'dashboard') await loadAdminDashboard();
+  } catch (e) {
+    await osAlert({ title: 'Reclassify failed', bodyHtml: escHtml(e.message || String(e)) });
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (prevLabel) btn.textContent = prevLabel;
+    }
+  }
+}
+
 async function fetchFullEmailRecord(ev) {
   if (!ev?.id) return ev;
   if (ev._fullLoaded && (ev.bodyText || ev.bodyHtml)) return ev;
@@ -19681,7 +19713,13 @@ function renderEmailPane() {
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
     `</div>`;
   const auditHtml = emailDetailClassificationHtml(ev);
-  if (auditHtml) detailHtml += `<div class="em-detail-audit">${auditHtml}</div>`;
+  if (auditHtml) {
+    detailHtml +=
+      `<div class="em-detail-audit">` +
+        auditHtml +
+        `<button type="button" class="em-reclassify-btn de-btn de-btn-secondary" title="Re-run live triage on this message (dev/testing)">Reclassify</button>` +
+      `</div>`;
+  }
   const attachments = Array.isArray(ev.attachments) ? ev.attachments : [];
   if (attachments.length) {
     detailHtml +=
@@ -19783,6 +19821,11 @@ function renderEmailPane() {
     openNewContactFromEmail(ev);
   });
   bindClassificationAuditLinks(detail, ev);
+  detail.querySelector('.em-reclassify-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    void reclassifyEmail(ev, e.currentTarget);
+  });
   void hydrateEmailFromClient(detail, ev).then(() => {
     if (isEmailLabModeFor(ev)) {
       bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');

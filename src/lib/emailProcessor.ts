@@ -182,6 +182,8 @@ export type ProcessInboundOptions = {
   receivedAt?: string;
   /** Update this inbox row in place instead of inserting a new one. */
   existingInboxId?: string;
+  /** Re-run triage on a stored inbox row (dev/testing). */
+  reclassify?: boolean;
 };
 
 function snippet(text: string, max = 500): string {
@@ -616,6 +618,15 @@ export async function processInboundEmail(
       text: bodyText,
     }),
   ];
+  if (options?.reclassify) {
+    classificationAudit.unshift(
+      classificationAuditStep(
+        'reclassify',
+        'Reclassified',
+        'Re-ran the live triage pipeline on this stored message (dev/testing)',
+      ),
+    );
+  }
   if (dryRun) {
     classificationAudit.unshift(
       classificationAuditStep(

@@ -1140,6 +1140,8 @@ export type EmailInboxPatch = Partial<
   automationTriageAction?: string;
   automationTriageRuleId?: string | null;
   markAutomationTriage?: boolean;
+  /** Dev/testing — clear review ack + notify flag before re-running triage. */
+  resetForReclassify?: boolean;
 };
 
 async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {
@@ -1194,6 +1196,17 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
       ? {
           automationTriageAt: new Date().toISOString(),
           automationTriageAction: 'accepted',
+        }
+      : {}),
+    ...(patch.resetForReclassify
+      ? {
+          automationAckAt: null,
+          automationTriageAt: null,
+          automationTriageAction: null,
+          automationTriageRuleId: null,
+          bookingUid: null,
+          bookingStart: null,
+          notified: false,
         }
       : {}),
   };
@@ -1318,6 +1331,15 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.acceptAutomationDecision) {
       sets.push(`automation_triage_at = COALESCE(automation_triage_at, now())`);
       sets.push(`automation_triage_action = COALESCE(automation_triage_action, 'accepted')`);
+    }
+    if (patch.resetForReclassify) {
+      sets.push(`automation_ack_at = NULL`);
+      sets.push(`automation_triage_at = NULL`);
+      sets.push(`automation_triage_action = NULL`);
+      sets.push(`automation_triage_rule_id = NULL`);
+      sets.push(`booking_uid = NULL`);
+      sets.push(`booking_start = NULL`);
+      sets.push(`notified = false`);
     }
     if (!sets.length) return null;
     vals.push(id);

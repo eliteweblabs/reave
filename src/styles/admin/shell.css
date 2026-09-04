@@ -771,6 +771,24 @@ select,
 .admin-classification-audit-rule:hover {
   color: var(--text, inherit);
 }
+.em-detail-audit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.45rem 0.65rem;
+  margin-top: 0.35rem;
+}
+.em-detail-audit .admin-classification-audit {
+  flex: 1 1 12rem;
+  margin: 0;
+}
+.em-reclassify-btn {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  line-height: 1.2;
+}
 .admin-setup-alert-error {
   margin: 0.35rem 0 0;
   font-size: 0.74rem;
