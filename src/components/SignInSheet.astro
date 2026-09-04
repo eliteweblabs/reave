@@ -33,6 +33,8 @@ const clerkReady = isClerkFrontendConfigured();
 const dismissible = dismissibleProp ?? true;
 const startOnSignUp = allowSignUp && Astro.url.searchParams.get('mode') === 'sign-up';
 const sheetAutoOpen = autoOpen && clerkReady;
+/** public/ scripts bypass middleware — match AdminBootScripts cache bust. */
+const assetVersion = __PUBLIC_ASSET_VERSION__;
 
 /** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
@@ -195,8 +197,8 @@ const clerkAppearance = {
   }
 </style>
 
-<script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref }}>
-  import { bindClerkSsrSessionSync } from '/admin/shared.js?v=20260813a';
+<script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref, assetVersion }}>
+  const { bindClerkSsrSessionSync } = await import(`/admin/shared.js?v=${assetVersion}`);
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
   /** One SSR sync reload after client sign-in — never a loop. */
@@ -205,12 +207,7 @@ const clerkAppearance = {
 
   function onLoginPage() {
     const path = window.location.pathname.replace(/\/$/, '') || '/';
-    return (
-      path === '/admin/login' ||
-      path === '/sign-in' ||
-      authPath === '/admin/login' ||
-      authPath === '/sign-in'
-    );
+    return path === '/admin/login' || path === '/sign-in';
   }
 
   function serverHasStaffSession() {
@@ -407,8 +404,10 @@ const clerkAppearance = {
   }
 
   function onClerkReady() {
-    // Fresh login visit after cache clear — allow one SSR cookie sync attempt.
-    if (onLoginPage() && !serverHasStaffSession()) clearSsrSyncMark();
+    // Fresh login visit with no Clerk client session — allow one SSR cookie sync.
+    // Never clear the mark when Clerk already has a user; that caused reload loops
+    // on login homepages (e.g. jk) where authPath is /sign-in but path is /.
+    if (onLoginPage() && !serverHasStaffSession() && !window.Clerk?.user) clearSsrSyncMark();
     mountClerkAuth();
     bindClerkSsrSessionSync({ autoOpenSignIn });
   }
