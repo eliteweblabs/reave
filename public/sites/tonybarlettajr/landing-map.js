@@ -104,19 +104,42 @@ document.getElementById("reset-filters")?.addEventListener("click", () => {
   applyFilters();
 });
 
-const token = window.SITE_CONFIG?.mapboxToken;
-const canvas = document.getElementById("map");
-if (token && window.mapboxgl && canvas) {
-  mapboxgl.accessToken = token;
-  map = new mapboxgl.Map({
-    container: "map",
-    style: "mapbox://styles/mapbox/light-v11",
-    center: [window.SITE_CONFIG.mapLng, window.SITE_CONFIG.mapLat],
-    zoom: window.SITE_CONFIG.mapZoom,
-  });
-  map.addControl(new mapboxgl.NavigationControl(), "top-right");
-} else if (canvas) {
-  canvas.innerHTML =
-    '<div style="display:grid;place-items:center;height:100%;padding:2rem;text-align:center">Mapbox token missing on this install.</div>';
-}
-applyFilters();
+let mapBooted = false;
+const bootMap = () => {
+  if (mapBooted) return;
+  const token = window.SITE_CONFIG?.mapboxToken;
+  const canvas = document.getElementById("map");
+  if (!canvas) return;
+
+  if (token && window.mapboxgl) {
+    mapBooted = true;
+    mapboxgl.accessToken = token;
+    map = new mapboxgl.Map({
+      container: "map",
+      style: "mapbox://styles/mapbox/light-v11",
+      center: [window.SITE_CONFIG.mapLng, window.SITE_CONFIG.mapLat],
+      zoom: window.SITE_CONFIG.mapZoom,
+    });
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+    applyFilters();
+    return;
+  }
+
+  if (!token) {
+    mapBooted = true;
+    canvas.innerHTML =
+      '<div style="display:grid;place-items:center;height:100%;padding:2rem;text-align:center">Mapbox token missing on this install.</div>';
+    applyFilters();
+  }
+};
+
+bootMap();
+window.addEventListener("load", () => {
+  bootMap();
+  if (!mapBooted && document.getElementById("map")) {
+    mapBooted = true;
+    document.getElementById("map").innerHTML =
+      '<div style="display:grid;place-items:center;height:100%;padding:2rem;text-align:center">Mapbox GL failed to load (check Content-Security-Policy script-src).</div>';
+    applyFilters();
+  }
+});

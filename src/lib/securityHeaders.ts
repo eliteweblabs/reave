@@ -38,7 +38,7 @@ export const CSP_FORM_ACTION = "'self' https://github.com https://api.web3forms.
 
 const CSP_VALUE = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC} https://cdn.jsdelivr.net https://static.cloudflareinsights.com`,
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC} https://cdn.jsdelivr.net https://api.mapbox.com https://static.cloudflareinsights.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.mapbox.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
