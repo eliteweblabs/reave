@@ -32,6 +32,12 @@ import {
   resolveProposedMeetingStart,
 } from '../../../../../lib/emailScheduling';
 import {
+  extractAppointmentLocation,
+  inboundMeetingEvidence,
+  isVendorConfirmedAppointment,
+} from '../../../../../lib/emailMeetingParse';
+import { clerkClient } from '@clerk/astro/server';
+import {
   inferMeetingDurationMinutes,
   resolveBookingLength,
 } from '../../../../../lib/bookingDuration';
@@ -52,6 +58,22 @@ export const prerender = false;
 
 function schedulingEnabled(): boolean {
   return hasFeature('scheduling');
+}
+
+async function ownerBookingIdentity(
+  context: APIContext,
+  userId: string,
+  companyName: string,
+): Promise<{ name: string; email: string }> {
+  try {
+    const user = await clerkClient(context).users.getUser(userId);
+    const email = user.emailAddresses?.[0]?.emailAddress?.trim() || '';
+    const name =
+      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || companyName || 'Owner';
+    return { name, email };
+  } catch {
+    return { name: companyName || 'Owner', email: '' };
+  }
 }
 
 async function attachMeetingProject(
@@ -122,7 +144,12 @@ async function loadEmail(id: string): Promise<
       proposedMeetingStart: event.proposedMeetingStart,
       schedulingNote: event.schedulingNote,
       summary: event.summary,
-      bodyText: event.bodySnippet || event.bodyText,
+      bodyText: inboundMeetingEvidence({
+        subject: event.subject,
+        bodyText: event.bodyText,
+        bodySnippet: event.bodySnippet,
+        bodyHtml: event.bodyHtml,
+      }),
       receivedAt: event.receivedAt,
     }) ?? null;
   if (!proposedStart && event.bookingStart) {
@@ -255,7 +282,12 @@ export async function POST(context: APIContext): Promise<Response> {
       proposedMeetingStart: event.proposedMeetingStart,
       schedulingNote: event.schedulingNote,
       summary: event.summary,
-      bodyText: event.bodySnippet || event.bodyText,
+      bodyText: inboundMeetingEvidence({
+        subject: event.subject,
+        bodyText: event.bodyText,
+        bodySnippet: event.bodySnippet,
+        bodyHtml: event.bodyHtml,
+      }),
       receivedAt: event.receivedAt,
     }) ?? null;
   if (!proposedStart && event.bookingStart) {
@@ -484,13 +516,27 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  if (!attendee.email.includes('@')) {
-    return jsonResponse({ ok: false, error: 'Could not determine attendee email from sender' }, 400);
-  }
-
-  const address = resolveBookingAddress(rec.address);
+  const vendorAppointment = isVendorConfirmedAppointment({
+    from: event.from,
+    subject: event.subject,
+    bodyText: event.bodyText,
+    bodySnippet: event.bodySnippet,
+    bodyHtml: event.bodyHtml,
+  });
+  const meetingEvidence = inboundMeetingEvidence({
+    subject: event.subject,
+    bodyText: event.bodyText,
+    bodySnippet: event.bodySnippet,
+    bodyHtml: event.bodyHtml,
+  });
+  let bookName = attendee.name;
+  let bookEmail = attendee.email;
+  const addressFromBody = resolveBookingAddress(rec.address);
+  const vendorLocation = vendorAppointment ? extractAppointmentLocation(meetingEvidence) : null;
+  let bookAddress = vendorLocation || addressFromBody;
 
   const notes = [
+    vendorAppointment ? `Vendor appointment (${attendee.name})` : null,
     `From inbox: ${event.subject || '(no subject)'}`,
     event.schedulingNote ? `Requested: ${event.schedulingNote}` : '',
     event.summary ? event.summary.slice(0, 200) : '',
@@ -498,28 +544,36 @@ export async function POST(context: APIContext): Promise<Response> {
     .filter(Boolean)
     .join('\n');
 
-  // This attendee already emailed us to request the meeting — they're a known
-  // person, not an ambiguous lead. Resolve/ensure their contact by exact email
-  // on our side and hand the booking service a definite contact uid, so it
-  // skips its fuzzy name match (which would otherwise flag unrelated contacts
-  // like "Martin …" for a sender named "joel.martinez" and block approval).
-  const ensuredContact = await ensureContactForMeetingEmail({
-    from: event.from,
-    bodyText: event.bodySnippet || event.bodyText || undefined,
-    summary: event.summary || undefined,
-    existingContactUid: event.contactUid,
-    existingContactName: event.contactName,
-  });
-  const confirmContactUid = ensuredContact?.ok ? ensuredContact.uid : undefined;
+  let confirmContactUid: string | undefined;
+  if (vendorAppointment) {
+    const owner = await ownerBookingIdentity(context, userId, company.name);
+    if (owner.email.includes('@')) {
+      bookName = owner.name;
+      bookEmail = owner.email;
+    }
+  } else {
+    const ensuredContact = await ensureContactForMeetingEmail({
+      from: event.from,
+      bodyText: event.bodySnippet || event.bodyText || undefined,
+      summary: event.summary || undefined,
+      existingContactUid: event.contactUid,
+      existingContactName: event.contactName,
+    });
+    confirmContactUid = ensuredContact?.ok ? ensuredContact.uid : undefined;
+  }
+
+  if (!bookEmail.includes('@')) {
+    return jsonResponse({ ok: false, error: 'Could not determine attendee email from sender' }, 400);
+  }
 
   const created = await bookingCreate({
-    name: attendee.name,
-    email: attendee.email,
+    name: bookName,
+    email: bookEmail,
     start: start.toISOString(),
     notes: notes.slice(0, 500),
     durationMinutes: bookingLength.durationMinutes,
     eventSlug: bookingLength.eventSlug,
-    ...(address ? { address } : {}),
+    ...(bookAddress ? { address: bookAddress } : {}),
     ...(confirmContactUid ? { confirmContactUid } : {}),
   });
   if (!created.ok) {

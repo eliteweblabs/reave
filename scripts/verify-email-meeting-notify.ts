@@ -29,6 +29,8 @@ import {
 } from '../src/lib/emailMeetingParse.ts';
 import { shouldSendInboxPush } from '../src/lib/emailNotifyPolicy.ts';
 
+process.env.BOOKING_TIMEZONE = 'America/New_York';
+
 const RECEIVED_AT = '2026-08-29T15:17:22.000Z';
 
 const APPLE_SUBJECT = 'Your carry-in appointment at Best Buy - Danvers has been scheduled.';

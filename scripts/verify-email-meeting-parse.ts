@@ -13,7 +13,10 @@ import {
   proposedMeetingTimeMatchesSource,
   resolveProposedMeetingStart,
   sanitizeInboundMeetingProposal,
+  wallClockInTimeZoneToIso,
 } from '../src/lib/emailMeetingParse.ts';
+
+process.env.BOOKING_TIMEZONE = 'America/New_York';
 
 const TELNYX_SUBJECT =
   'Correction: Updated Telnyx Voice Media IP Subnet — Action Required by August 29';
@@ -96,6 +99,18 @@ assert.equal(proposedMeetingTimeMatchesSource(real.proposedMeetingStart!, 'Can w
 
 const july = parseExplicitMeetingDateTime('Wednesday, July 22, 2026 at 2:00 PM', new Date('2026-07-01T12:00:00Z'));
 assert.ok(july);
+assert.equal(
+  july,
+  wallClockInTimeZoneToIso(2026, 6, 22, 14, 0, 'America/New_York'),
+  'explicit dates interpret wall clock in BOOKING_TIMEZONE, not UTC',
+);
+
+const jan = parseExplicitMeetingDateTime('Wednesday, Jan 8, 2026 at 2:20 PM', new Date('2026-01-01T12:00:00Z'));
+assert.equal(
+  jan,
+  wallClockInTimeZoneToIso(2026, 0, 8, 14, 20, 'America/New_York'),
+  'Jan 8 2:20 PM Eastern must not land four hours early as 10:20 AM',
+);
 
 const bestBuyConfirmed = sanitizeInboundMeetingProposal({
   category: 'review',

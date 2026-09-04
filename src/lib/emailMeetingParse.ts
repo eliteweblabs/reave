@@ -14,6 +14,120 @@ function meetingDisplayTimeZone(): string {
   return fromEnv || DEFAULT_MEETING_DISPLAY_TZ;
 }
 
+/** Calendar parts for a UTC instant in the install booking timezone. */
+function datePartsInTimeZone(
+  instant: Date,
+  timeZone: string,
+): { year: number; monthIndex: number; day: number; weekday: number } {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    weekday: 'long',
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(instant).map((p) => [p.type, p.value]));
+  const weekdayName = String(parts.weekday || '').toLowerCase();
+  const weekday = WEEKDAYS.indexOf(weekdayName as (typeof WEEKDAYS)[number]);
+  return {
+    year: Number(parts.year),
+    monthIndex: Number(parts.month) - 1,
+    day: Number(parts.day),
+    weekday: weekday >= 0 ? weekday : instant.getUTCDay(),
+  };
+}
+
+function addCalendarDaysInTimeZone(
+  year: number,
+  monthIndex: number,
+  day: number,
+  days: number,
+  timeZone: string,
+): { year: number; monthIndex: number; day: number } {
+  const anchor = wallClockInTimeZoneToIso(year, monthIndex, day, 12, 0, timeZone);
+  const shifted = new Date(anchor);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  const parts = datePartsInTimeZone(shifted, timeZone);
+  return { year: parts.year, monthIndex: parts.monthIndex, day: parts.day };
+}
+
+/** Interpret email wall clock in BOOKING_TIMEZONE — Railway runs in UTC. */
+export function wallClockInTimeZoneToIso(
+  year: number,
+  monthIndex: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone = meetingDisplayTimeZone(),
+): string {
+  let utcMs = Date.UTC(year, monthIndex, day, hour, minute, 0);
+  for (let i = 0; i < 4; i++) {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(new Date(utcMs)).map((p) => [p.type, p.value]));
+    const shown = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+      Number(parts.second),
+    );
+    utcMs += Date.UTC(year, monthIndex, day, hour, minute, 0) - shown;
+  }
+  return new Date(utcMs).toISOString();
+}
+
+export function extractAppointmentLocation(text: string): string | null {
+  const lines = String(text || '')
+    .split(/\n+/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (
+      /\b\d{1,6}\s+[A-Za-z0-9][\w\s.'#-]*\b(?:Street|St|Avenue|Ave|Road|Rd|Way|Blvd|Boulevard|Drive|Dr|Lane|Ln|Parkway|Pkwy|Highway|Hwy|Circle|Cir|Court|Ct)\b\.?/i.test(
+        line,
+      )
+    ) {
+      const next = lines[i + 1];
+      if (next && /,\s*[A-Z]{2}(?:\s+\d{5}(?:-\d{4})?)?\b/.test(next)) {
+        return `${line}, ${next}`.slice(0, 240);
+      }
+      if (/,?\s*[A-Z]{2}\s+\d{5}\b/.test(line)) return line.slice(0, 240);
+    }
+  }
+  return null;
+}
+
+export function isVendorConfirmedAppointment(input: {
+  subject?: string | null;
+  bodyText?: string | null;
+  bodySnippet?: string | null;
+  bodyHtml?: string | null;
+  from?: string | null;
+}): boolean {
+  const evidence = inboundMeetingEvidence(input);
+  if (!looksLikeConfirmedAppointment(evidence)) return false;
+  const from = String(input.from || '').toLowerCase();
+  if (
+    /\b(best\s*buy|geek\s*squad|apple|genius\s*bar|booksy|noreply|no-reply|donotreply)\b/i.test(
+      from,
+    )
+  ) {
+    return true;
+  }
+  return /\b(info|support|notify|notification)@/i.test(from);
+}
+
 export function parseProposedMeetingStart(raw: unknown): string | null {
   if (raw == null || raw === 'null') return null;
   const s = String(raw).trim();
@@ -243,15 +357,17 @@ export function parseRelativeMeetingTime(text: string, ref: Date): string | null
   const clocks = parseAllClockTimes(source);
   if (!clocks.length) return null;
 
+  const timeZone = meetingDisplayTimeZone();
   const weekday = parseWeekdayFromSchedulingText(source);
   const time = weekday ? nearestClockToIndex(clocks, weekday.index) : clocks[0];
   if (!time) return null;
   if (weekday && Math.abs(time.index - weekday.index) > CLOCK_NEAR_DATE_CHARS) return null;
 
-  const target = new Date(ref);
+  const refParts = datePartsInTimeZone(ref, timeZone);
+  let { year, monthIndex, day } = refParts;
 
   if (weekday) {
-    const refDay = ref.getDay();
+    const refDay = refParts.weekday;
     let daysAhead: number;
 
     if (weekday.modifier === 'next_week') {
@@ -262,16 +378,18 @@ export function parseRelativeMeetingTime(text: string, ref: Date): string | null
       if (weekday.modifier === 'next') {
         daysAhead = daysAhead === 0 ? 7 : daysAhead + 7;
       } else if (daysAhead === 0) {
-        target.setHours(time.hour, time.minute, 0, 0);
-        if (target.getTime() <= ref.getTime()) daysAhead = 7;
+        const sameDay = wallClockInTimeZoneToIso(year, monthIndex, day, time.hour, time.minute, timeZone);
+        if (new Date(sameDay).getTime() <= ref.getTime()) daysAhead = 7;
       }
     }
-    target.setDate(ref.getDate() + daysAhead);
+    if (daysAhead) {
+      ({ year, monthIndex, day } = addCalendarDaysInTimeZone(year, monthIndex, day, daysAhead, timeZone));
+    }
   }
 
-  target.setHours(time.hour, time.minute, 0, 0);
-  if (target.getTime() <= ref.getTime()) return null;
-  return target.toISOString();
+  const iso = wallClockInTimeZoneToIso(year, monthIndex, day, time.hour, time.minute, timeZone);
+  if (new Date(iso).getTime() <= ref.getTime()) return null;
+  return iso;
 }
 
 const MONTH_INDEX: Record<string, number> = {
@@ -317,13 +435,16 @@ export function parseExplicitMeetingDateTime(text: string, ref: Date): string | 
     const month = MONTH_INDEX[namedMonth[1].toLowerCase().replace(/\.$/, '')];
     if (month === undefined) return null;
     const day = parseInt(namedMonth[2], 10);
-    let year = namedMonth[3] ? parseInt(namedMonth[3], 10) : ref.getFullYear();
-    const target = new Date(year, month, day, time.hour, time.minute, 0, 0);
-    if (!namedMonth[3] && target.getTime() <= ref.getTime()) {
-      target.setFullYear(year + 1);
+    const timeZone = meetingDisplayTimeZone();
+    let year = namedMonth[3]
+      ? parseInt(namedMonth[3], 10)
+      : datePartsInTimeZone(ref, timeZone).year;
+    let iso = wallClockInTimeZoneToIso(year, month, day, time.hour, time.minute, timeZone);
+    if (!namedMonth[3] && new Date(iso).getTime() <= ref.getTime()) {
+      iso = wallClockInTimeZoneToIso(year + 1, month, day, time.hour, time.minute, timeZone);
     }
-    if (target.getTime() <= ref.getTime()) return null;
-    return target.toISOString();
+    if (new Date(iso).getTime() <= ref.getTime()) return null;
+    return iso;
   }
 
   const numeric = source.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
@@ -334,9 +455,9 @@ export function parseExplicitMeetingDateTime(text: string, ref: Date): string | 
     if (year < 100) year += 2000;
     const month = parseInt(numeric[1], 10) - 1;
     const day = parseInt(numeric[2], 10);
-    const target = new Date(year, month, day, time.hour, time.minute, 0, 0);
-    if (target.getTime() <= ref.getTime()) return null;
-    return target.toISOString();
+    const iso = wallClockInTimeZoneToIso(year, month, day, time.hour, time.minute, meetingDisplayTimeZone());
+    if (new Date(iso).getTime() <= ref.getTime()) return null;
+    return iso;
   }
 
   return null;
