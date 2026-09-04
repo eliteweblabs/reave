@@ -27,6 +27,7 @@ import { resolveContact, getContact, getClientKind, siteBaseUrl, type ClientKind
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import {
+  archiveEmailInboxPatch,
   storeClaimEmailInboxNotified,
   storeFindExistingInboundEmail,
   storeRecordEmailInbox,
@@ -54,6 +55,7 @@ import {
   notifyAdminAgentOfEmailAlert,
   notifyAdminAgentOfEmailAutomation,
   notifyAdminAgentOfProjectReply,
+  inboundEmailOpensAgentChat,
   isRailwayAlertStatus,
   shouldAgentAlertForInboundEmail,
 } from './adminAgentAlert';
@@ -1673,6 +1675,40 @@ export async function processInboundEmail(
   if (hardDelete) {
     category = 'auto_deleted';
     action = 'deleted';
+  }
+
+  const opensAgentChat = inboundEmailOpensAgentChat({
+    allowUnmatchedAgent,
+    automationKind,
+    isProjectReply,
+    agentWillAlert: agentWillAlertPreview,
+    isVerificationCode,
+    isAuthLink,
+    action,
+  });
+  if (opensAgentChat && !hardDelete) {
+    const archivePatch = archiveEmailInboxPatch(category);
+    action = archivePatch.action ?? 'filed';
+    inboxStatus = archivePatch.status ?? 'FILED';
+    if (archivePatch.category) category = archivePatch.category as EmailCategory;
+    pushAudit(
+      'agent',
+      'Auto-archived — agent chat has full message',
+      'Filed to Archive so All/Alerts do not need a second pass after System alerts',
+    );
+  } else if (
+    !hardDelete &&
+    !isVerificationCode &&
+    !isAuthLink &&
+    isUptimeRobotEmail(email) &&
+    hasFeature('uptime_monitoring')
+  ) {
+    action = 'filed';
+    pushAudit(
+      'uptime',
+      'Auto-archived — UptimeRobot webhook owns this alert',
+      'Monitor status lives on the dashboard; inbox email is redundant',
+    );
   }
 
   if (dryRun) {

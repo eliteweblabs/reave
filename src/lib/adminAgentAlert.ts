@@ -55,6 +55,27 @@ export function shouldAgentAlertForInboundEmail(opts: {
   return true;
 }
 
+/** True when inbound processing will post the full message into an agent chat thread. */
+export function inboundEmailOpensAgentChat(opts: {
+  allowUnmatchedAgent: boolean;
+  automationKind?: string | null;
+  isProjectReply?: boolean;
+  agentWillAlert?: boolean;
+  isVerificationCode?: boolean;
+  isAuthLink?: boolean;
+  action?: string;
+}): boolean {
+  if (!opts.allowUnmatchedAgent) return false;
+  if (opts.isVerificationCode || opts.isAuthLink) return false;
+  const action = String(opts.action || '').toLowerCase();
+  if (action === 'verification_code' || action === 'activation_link') return false;
+  return (
+    Boolean(opts.automationKind?.trim()) ||
+    Boolean(opts.isProjectReply) ||
+    Boolean(opts.agentWillAlert)
+  );
+}
+
 /** Parse `Project: <slug>` from an agent audit reply (backticks / markdown tolerated). */
 export function extractWorkSlugFromAgentReply(reply: string): string | null {
   const trimmed = reply.trim();
