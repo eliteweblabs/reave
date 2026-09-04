@@ -15141,16 +15141,21 @@ function applyEmailPatchResult(id, event) {
 async function markEmailReceipt(ev) {
   closeOpenSwipeRow();
   const amount = emailMonetaryAmount(ev);
-  const routeNote = amount != null ? `Tax receipt — ${formatEmailUsd(amount)}` : 'Tax receipt';
+  if (amount == null) {
+    osAlert({
+      title: 'No dollar amount',
+      bodyHtml: 'Tax receipts need a detected dollar amount ($) in the message.',
+    });
+    return;
+  }
+  const routeNote = `Tax receipt — ${formatEmailUsd(amount)}`;
   const classificationAudit = [
     {
       step: 'source',
       decision: 'Manually marked as receipt',
       detail: 'Owner swipe / Receipt action in Email tab',
     },
-    amount != null
-      ? { step: 'amount', decision: `Extracted ${formatEmailUsd(amount)}` }
-      : { step: 'amount', decision: 'No dollar amount detected' },
+    { step: 'amount', decision: `Extracted ${formatEmailUsd(amount)}` },
     {
       step: 'title',
       decision: `Dashboard label: ${routeNote}`,

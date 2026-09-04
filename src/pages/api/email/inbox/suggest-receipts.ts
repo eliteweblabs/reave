@@ -115,9 +115,11 @@ export async function POST(context: APIContext): Promise<Response> {
       routeNote: existing.routeNote,
     });
     const amount = hit?.amount ?? extractMonetaryAmountFromEmail(existing);
-    const routeNote =
-      hit?.routeNote ??
-      (amount != null ? `Tax receipt — ${formatUsdAmount(amount)}` : 'Tax receipt');
+    if (amount == null) {
+      skipped.push({ id, reason: 'no dollar amount detected' });
+      continue;
+    }
+    const routeNote = hit?.routeNote ?? `Tax receipt — ${formatUsdAmount(amount)}`;
 
     const event = await storeUpdateEmailInbox(id, {
       category: 'receipt',

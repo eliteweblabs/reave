@@ -380,7 +380,7 @@ export const DEFAULT_RULES: EmailRule[] = [
     status: 'RECEIPT',
     scope: 'universal',
     description:
-      'Expense tax receipts (you paid / your receipt) — auto-file silently. Not income like "Payment of $… from …".',
+      'Expense tax receipts (you paid / your receipt) — auto-file silently when a dollar amount is present. Not income like "Payment of $… from …".',
     phrases: [
       'payment confirmation',
       'payment receipt',

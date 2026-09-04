@@ -262,8 +262,14 @@ async function handle_mark_email_receipt(args: Record<string, unknown>, _ctx: To
   const existing = await storeGetEmailInbox(emailId);
   if (!existing) return JSON.stringify({ error: 'not found', email_id: emailId });
   const amount = extractMonetaryAmountFromEmail(existing);
-  const routeNote =
-    amount != null ? `Tax receipt — ${formatUsdAmount(amount)}` : 'Tax receipt';
+  if (amount == null) {
+    return JSON.stringify({
+      error: 'no_dollar_amount',
+      message: 'Tax receipts require a detected dollar amount in the email',
+      email_id: emailId,
+    });
+  }
+  const routeNote = `Tax receipt — ${formatUsdAmount(amount)}`;
   const event = await storeUpdateEmailInbox(emailId, {
     category: 'receipt',
     action: 'receipt',

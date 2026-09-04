@@ -75,6 +75,7 @@ import {
   looksLikeShipmentNotice,
   ruleBlocksReceiptOverride,
   shouldAutoFileAsReceipt,
+  extractMonetaryAmountFromEmail,
 } from './emailMoney';
 import {
   auditForMatchedRule,
@@ -1328,6 +1329,19 @@ export async function processInboundEmail(
       'correction',
       'Unfiled as tax receipt',
       'Stripe Capital / debit initiated / outstanding payment language is not an expense receipt',
+    );
+  }
+
+  if (category === 'receipt' && extractMonetaryAmountFromEmail(moneyEv) == null) {
+    category = 'internal';
+    action = 'filed';
+    inboxStatus = 'AUTO_ARCHIVED';
+    routeNote = 'Receipt language without dollar amount — not a tax receipt';
+    pushAudit(
+      'correction',
+      'Unfiled as tax receipt',
+      'Tax receipts require a detected dollar amount ($) in subject or body — keyword match alone is not enough',
+      matchedRuleLink && ruleStatusUpper === 'RECEIPT' ? matchedRuleLink : undefined,
     );
   }
 

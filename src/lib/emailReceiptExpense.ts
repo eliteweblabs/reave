@@ -54,6 +54,7 @@ export function isReceiptPendingExpenseReview(
   >,
 ): boolean {
   if (record.category !== 'receipt') return false;
+  if (extractMonetaryAmountFromEmail(record) == null) return false;
   if (record.automationAckAt) return false;
   if (record.automationKind === 'expense_created') return false;
   if (isReceiptArchived(record)) return false;
@@ -75,6 +76,9 @@ export function receiptExpenseLogError(
   }
   if (record.category !== 'receipt') {
     return 'This message is not filed as a tax receipt';
+  }
+  if (extractMonetaryAmountFromEmail(record) == null) {
+    return 'No dollar amount detected on this receipt email';
   }
   if (looksLikeIncomingPayment(record)) {
     return 'This looks like incoming payment (income), not an expense receipt';

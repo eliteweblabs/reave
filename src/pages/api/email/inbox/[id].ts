@@ -215,6 +215,16 @@ export async function PATCH(context: APIContext): Promise<Response> {
   }
 
   const { rejectProjectMatch: _reject, ...storePatch } = patch;
+  const markingReceipt =
+    storePatch.category === 'receipt' ||
+    String(storePatch.action || '').toLowerCase() === 'receipt' ||
+    String(storePatch.status || '').toUpperCase() === 'RECEIPT';
+  if (markingReceipt && inboxMonetaryAmount(existing) == null) {
+    return jsonResponse(
+      { ok: false, error: 'Tax receipts require a dollar amount in the email' },
+      400,
+    );
+  }
   if (isEmailArchivedOrRemoved(storePatch)) {
     storePatch.markAutomationAck = true;
   }

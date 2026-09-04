@@ -156,8 +156,10 @@ function patchForRuleStatus(
       return { patch: null, skipReason: 'already a receipt' };
     }
     const amount = extractMonetaryAmountFromEmail(existing);
-    const routeNote =
-      amount != null ? `Tax receipt — ${formatUsdAmount(amount)}` : 'Tax receipt';
+    if (amount == null) {
+      return { patch: null, skipReason: 'no dollar amount detected' };
+    }
+    const routeNote = `Tax receipt — ${formatUsdAmount(amount)}`;
     return {
       patch: {
         category: 'receipt',
