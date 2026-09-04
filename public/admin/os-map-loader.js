@@ -127,7 +127,7 @@ import {
   setToggleSwitch,
   bindConfirmDeleteButton,
   iosIcon,
-} from './admin-ui.js?v=20260829a';
+} from './admin-ui.js?v=20260904a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
 import { installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
@@ -11449,6 +11449,22 @@ function buildLegend() {
 
 
 // ---- email tab (inbox summaries) ----
+const EMAIL_THREADING_PREF_KEY = 'reave-email-threading';
+
+function loadEmailThreadingPref() {
+  try {
+    return localStorage.getItem(EMAIL_THREADING_PREF_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function saveEmailThreadingPref(on) {
+  try {
+    localStorage.setItem(EMAIL_THREADING_PREF_KEY, on ? '1' : '0');
+  } catch {}
+}
+
 let emailState = {
   allEvents: [],
   sentEvents: [],
@@ -11456,6 +11472,10 @@ let emailState = {
   scheduledEvents: [],
   inboxFilter: 'all',
   search: '',
+  /** Exact sender address filter (lowercase) — set via right-click or sender chip. */
+  senderFilter: null,
+  /** Collapse Re:/Fwd: siblings in the inbox list (persisted). */
+  threading: loadEmailThreadingPref(),
   activeId: null,
   composing: false,
   replyToId: null,
@@ -12051,20 +12071,23 @@ function inboxEventsForFilter() {
 function filteredInboxEvents() {
   const q = emailState.search.trim();
   let events = inboxEventsForFilter();
-  if (!q) return events;
-  return events.filter((ev) =>
-    matchesListSearch(
-      q,
-      ev.subject,
-      ev.from,
-      ev.summary,
-      ev.bodySnippet,
-      ev.contactName,
-      ev.jobTitle,
-      ev.category,
-      ev.routeNote,
-    ),
-  );
+  events = inboxEventsWithSenderFilter(events);
+  if (q) {
+    events = events.filter((ev) =>
+      matchesListSearch(
+        q,
+        ev.subject,
+        ev.from,
+        ev.summary,
+        ev.bodySnippet,
+        ev.contactName,
+        ev.jobTitle,
+        ev.category,
+        ev.routeNote,
+      ),
+    );
+  }
+  return collapseInboxEmailThreads(events);
 }
 
 function formatSentSourceLabel(source) {
@@ -12837,6 +12860,143 @@ function parseSenderEmail(from) {
   return raw || '';
 }
 
+function normalizeEmailThreadSubject(subject) {
+  return String(subject || '')
+    .replace(/^(?:(?:re|fw|fwd|aw):\s*)+/gi, '')
+    .trim()
+    .toLowerCase();
+}
+
+function emailThreadKey(ev) {
+  const email = parseSenderEmail(ev?.from).toLowerCase();
+  const subj = normalizeEmailThreadSubject(ev?.subject);
+  return `${email}\0${subj}`;
+}
+
+function inboxEventsWithSenderFilter(events) {
+  const sf = String(emailState.senderFilter || '')
+    .trim()
+    .toLowerCase();
+  if (!sf) return events;
+  return events.filter((ev) => parseSenderEmail(ev.from).toLowerCase() === sf);
+}
+
+function collapseInboxEmailThreads(events) {
+  if (!emailState.threading) return events.map((ev) => ({ ...ev }));
+  const groups = new Map();
+  for (const ev of events) {
+    const key = emailThreadKey(ev);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(ev);
+  }
+  const collapsed = [];
+  for (const members of groups.values()) {
+    members.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+    const latest = { ...members[0] };
+    if (members.length > 1) {
+      latest._threadCount = members.length;
+      latest._threadMembers = members;
+    }
+    collapsed.push(latest);
+  }
+  collapsed.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+  return collapsed;
+}
+
+function emailThreadSiblingsAll(ev) {
+  if (!ev?.id) return [];
+  const key = emailThreadKey(ev);
+  return emailState.allEvents
+    .filter((e) => emailThreadKey(e) === key)
+    .sort((a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime());
+}
+
+function isEmailVisibleInInboxList(id) {
+  if (!id) return false;
+  return filteredInboxEvents().some((ev) => {
+    if (ev.id === id) return true;
+    return Array.isArray(ev._threadMembers) && ev._threadMembers.some((m) => m.id === id);
+  });
+}
+
+function syncEmailListSearchInput() {
+  const root = getEmailPanel();
+  const input = root?.querySelector('.panel-list-search');
+  if (!(input instanceof HTMLInputElement)) return;
+  input.value = emailState.search;
+  const clearBtn = input.parentElement?.querySelector('.panel-list-search-clear');
+  syncSearchFieldAdornment(input, clearBtn);
+}
+
+function applyEmailSenderFilter(email) {
+  const needle = String(email || '').trim().toLowerCase();
+  if (!needle || !needle.includes('@')) return;
+  emailState.senderFilter = needle;
+  emailState.search = '';
+  syncEmailListSearchInput();
+  if (emailState.activeId && !isEmailVisibleInInboxList(emailState.activeId)) {
+    emailState.activeId = null;
+    getEmailPanel()?.classList.remove('em-pane-active');
+  }
+  renderEmailPanel({ preserveSidebar: true, preservePane: isActiveEmailInCurrentFilter() });
+  showChatToast(`Showing mail from ${needle}`);
+}
+
+function findEmailFromSender(email) {
+  const needle = String(email || '').trim().toLowerCase();
+  if (!needle) return;
+  emailState.search = needle;
+  emailState.senderFilter = null;
+  syncEmailListSearchInput();
+  renderEmailPanel({ preserveSidebar: true, preservePane: isActiveEmailInCurrentFilter() });
+  showChatToast(`Searching for ${needle}`);
+}
+
+function clearEmailSenderFilter() {
+  if (!emailState.senderFilter) return;
+  emailState.senderFilter = null;
+  renderEmailPanel({ preserveSidebar: true, preservePane: isActiveEmailInCurrentFilter() });
+}
+
+function buildEmailSenderContextMenuItems(ev) {
+  const sender = parseSenderEmail(ev.from);
+  if (!sender || !sender.includes('@')) return [];
+  const items = [
+    {
+      label: `Filter by ${sender}`,
+      iconKey: 'filter',
+      action: () => applyEmailSenderFilter(sender),
+    },
+    {
+      label: `Find from ${sender}`,
+      iconKey: 'search',
+      action: () => findEmailFromSender(sender),
+    },
+  ];
+  if (emailState.senderFilter?.toLowerCase() === sender.toLowerCase()) {
+    items.push({
+      label: 'Clear sender filter',
+      iconKey: 'x',
+      action: () => clearEmailSenderFilter(),
+    });
+  }
+  return items;
+}
+
+function bindEmailFromContextMenu(host, ev) {
+  if (!host || host.dataset.emFromMenuBound) return;
+  host.dataset.emFromMenuBound = '1';
+  host.addEventListener('contextmenu', (e) => {
+    const items = buildEmailSenderContextMenuItems(ev);
+    if (!items.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu(e.clientX, e.clientY, items, {
+      title: formatEmailCardFrom(ev),
+    });
+  });
+}
+
 function formatEmailCardFrom(ev) {
   return parseSenderEmail(ev.from) || '(unknown)';
 }
@@ -13001,6 +13161,7 @@ function applyEmailFromClientMatch(host, ev, match) {
 async function hydrateEmailFromClient(detail, ev) {
   const host = detail.querySelector('.em-from-client');
   if (!host) return;
+  bindEmailFromContextMenu(host, ev);
 
   const email = senderAddressForContact(ev);
   const local = email ? findClientByEmailLocal(email) : null;
@@ -13970,15 +14131,12 @@ function shouldShowEmailProjectActions(ev) {
 /** A confirmed / archived message left the open filter — close its detail view. */
 function dropArchivedEmailFromView(emailId) {
   if (!emailId || emailState.activeId !== emailId) return;
-  if (filteredInboxEvents().some((e) => e.id === emailId)) return;
+  if (isEmailVisibleInInboxList(emailId)) return;
   emailState.activeId = null;
 }
 
 function isActiveEmailInCurrentFilter() {
-  return (
-    Boolean(emailState.activeId) &&
-    eventsForEmailFilter().some((ev) => ev.id === emailState.activeId)
-  );
+  return Boolean(emailState.activeId) && isEmailVisibleInInboxList(emailState.activeId);
 }
 
 /** After Test → Apply from Email Lab, sync inbox rows the list already dropped. */
@@ -14016,7 +14174,7 @@ function applyEmailEventUpdate(event) {
   const idx = emailState.allEvents.findIndex((e) => e.id === event.id);
   if (idx !== -1) emailState.allEvents[idx] = event;
   if (isEmailProject(event)) emailState.inboxFilter = 'project';
-  if (emailState.activeId === event.id && !filteredInboxEvents().some((e) => e.id === event.id)) {
+  if (emailState.activeId === event.id && !isEmailVisibleInInboxList(event.id)) {
     emailState.activeId = null;
   }
   renderEmailPanel();
@@ -15031,11 +15189,16 @@ function maybeMarkActiveEmailSeen(ev) {
 
 function createEmailListItem(ev) {
   const summary = ev.summary || ev.bodySnippet || ev.subject || '(no summary)';
+  const threadCount = Number(ev._threadCount) || 0;
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
     'em-list-item' +
-    (ev.id === emailState.activeId ? ' active' : '') +
+    (ev.id === emailState.activeId ||
+    (Array.isArray(ev._threadMembers) && ev._threadMembers.some((m) => m.id === emailState.activeId))
+      ? ' active'
+      : '') +
+    (threadCount > 1 ? ' em-list-item--thread' : '') +
     (isProjectReplyEmail(ev) ? ' em-list-item-urgent' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
@@ -15043,6 +15206,9 @@ function createEmailListItem(ev) {
     `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
+      (threadCount > 1
+        ? `<span class="em-status em-thread-count" title="${threadCount} messages in this thread">${threadCount}</span>`
+        : '') +
       (isProjectReplyEmail(ev)
         ? '<span class="em-status em-project-reply">Contact reply</span>'
         : `<span class="em-status ${isVerificationCodeEmail(ev) || isAuthLinkEmailRecord(ev) ? 'em-cat-otp' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
@@ -15208,7 +15374,8 @@ function buildEmailSwipeActions(ev) {
 
 function createEmailSwipeRow(ev) {
   return createSwipeRow(createEmailListItem(ev), buildEmailSwipeActions(ev), {
-    contextMenuTitle: 'This message only',
+    contextMenuTitle: formatEmailCardFrom(ev),
+    contextMenuItems: buildEmailSenderContextMenuItems(ev),
   });
 }
 
@@ -15413,6 +15580,62 @@ async function loadEmailTab(quiet) {
   syncEmailTabBadges();
 }
 
+function renderEmailListOptions() {
+  if (isEmailMailFolder(emailState.inboxFilter)) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'em-list-options';
+
+  const threadRow = document.createElement('div');
+  threadRow.className = 'em-list-options-row';
+  const threadLabel = document.createElement('span');
+  threadLabel.className = 'em-list-options-label';
+  threadLabel.innerHTML = `<span class="em-list-options-icon" aria-hidden="true">${iosIcon('layers', 14)}</span> Thread`;
+  const threadToggle = createToggleSwitch({
+    className: 'em-thread-toggle',
+    checked: emailState.threading,
+    label: 'Group messages by thread',
+    onClick: (btn) => {
+      const next = btn.getAttribute('aria-checked') !== 'true';
+      setToggleSwitch(btn, next);
+      emailState.threading = next;
+      saveEmailThreadingPref(next);
+      renderEmailPanel({ preserveSidebar: true, preservePane: isActiveEmailInCurrentFilter() });
+    },
+  });
+  threadRow.append(threadLabel, threadToggle);
+  wrap.appendChild(threadRow);
+
+  if (emailState.senderFilter) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'em-sender-filter-chip';
+    chip.title = 'Clear sender filter';
+    chip.innerHTML =
+      `<span class="em-sender-filter-chip-icon" aria-hidden="true">${iosIcon('filter', 12)}</span>` +
+      `<span class="em-sender-filter-chip-label">${escHtml(emailState.senderFilter)}</span>` +
+      `<span class="em-sender-filter-chip-clear" aria-hidden="true">${iosIcon('x', 12)}</span>`;
+    chip.addEventListener('click', () => clearEmailSenderFilter());
+    wrap.appendChild(chip);
+  }
+
+  return wrap;
+}
+
+function syncEmailListOptionsBar(root) {
+  const subheader = root?.querySelector('.panel-list-subheader');
+  if (!subheader) return;
+  const existing = subheader.querySelector('.em-list-options');
+  const next = renderEmailListOptions();
+  if (existing) {
+    if (next) existing.replaceWith(next);
+    else existing.remove();
+  } else if (next) {
+    const tabs = subheader.querySelector('.em-filter-tabs-wrap');
+    if (tabs) tabs.insertAdjacentElement('afterend', next);
+    else subheader.appendChild(next);
+  }
+}
+
 function renderEmailFilterTabs(savedScrollLeft = 0) {
   const counts = inboxTabCounts();
   return mountListFilterTabsWrap({
@@ -15474,6 +15697,12 @@ function emailCountForActiveTab() {
 
 function emailSidebarEmptyInnerHtml() {
   if (emailState.search.trim()) return 'No matches.';
+  if (emailState.senderFilter) {
+    return (
+      `No mail from <strong>${escHtml(emailState.senderFilter)}</strong> in this tab.` +
+      `<br><button type="button" class="em-inline-link em-clear-sender-filter">Clear sender filter</button>`
+    );
+  }
   if (emailState.inboxFilter === 'sent') {
     return (
       'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with a delivery reference.</span>'
@@ -15525,7 +15754,9 @@ function fillEmailSidebarList(list) {
     );
   }
   if (events.length === 0) {
-    target.appendChild(createCenteredListEmpty({ innerHtml: emailSidebarEmptyInnerHtml() }));
+    const empty = createCenteredListEmpty({ innerHtml: emailSidebarEmptyInnerHtml() });
+    empty.querySelector('.em-clear-sender-filter')?.addEventListener('click', () => clearEmailSenderFilter());
+    target.appendChild(empty);
   }
   resyncListMultiSelect(list);
 }
@@ -15567,6 +15798,7 @@ function refreshEmailSidebarList() {
   if (searchInput instanceof HTMLInputElement) {
     searchInput.placeholder = `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`;
   }
+  syncEmailListOptionsBar(root);
   fillEmailSidebarList(list);
   updateEmailFilterTabCounts(root);
 }
@@ -15583,9 +15815,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
       placeholder: `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`,
       onInput: (value) => {
         emailState.search = value;
-        const visible = eventsForEmailFilter();
-        const clearedActive =
-          emailState.activeId && !visible.some((ev) => ev.id === emailState.activeId);
+        const clearedActive = emailState.activeId && !isEmailVisibleInInboxList(emailState.activeId);
         if (clearedActive) {
           emailState.activeId = null;
           emailState.composing = false;
@@ -15595,7 +15825,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
         renderEmailPanel({ preserveSidebar: true, preservePane: !clearedActive });
       },
     },
-    below: renderEmailFilterTabs(savedFilterScroll),
+    below: [renderEmailFilterTabs(savedFilterScroll), renderEmailListOptions()].filter(Boolean),
   });
 
   const isSent = emailState.inboxFilter === 'sent';
@@ -18278,9 +18508,14 @@ function syncEmailSidebarActiveState(opts = {}) {
   const { scroll = false } = opts;
   const root = getEmailPanel();
   if (!root) return;
+  const visible = eventsForEmailFilter();
   let activeEl = null;
   root.querySelectorAll('.ch-sidebar .em-list-item, .ch-sidebar .ch-list-item').forEach((el) => {
-    const isActive = el.dataset.id === emailState.activeId;
+    const rowId = el.dataset.id;
+    const row = visible.find((ev) => ev.id === rowId);
+    const isActive =
+      rowId === emailState.activeId ||
+      (row?._threadMembers?.some((m) => m.id === emailState.activeId) ?? false);
     el.classList.toggle('active', isActive);
     if (isActive) {
       el.setAttribute('aria-current', 'page');
@@ -18843,6 +19078,45 @@ async function createRuleFromEmailLab() {
   }
 }
 
+function emailThreadNavHtml(ev) {
+  if (!emailState.threading) return '';
+  const siblings = emailThreadSiblingsAll(ev);
+  if (siblings.length < 2) return '';
+  const items = siblings
+    .map((msg) => {
+      const active = msg.id === ev.id;
+      const snippet = escHtml(
+        String(msg.summary || msg.bodySnippet || msg.subject || '')
+          .trim()
+          .slice(0, 120) || '(no preview)',
+      );
+      return (
+        `<button type="button" class="em-thread-nav-item${active ? ' active' : ''}" data-thread-id="${escHtml(msg.id)}">` +
+          `<span class="em-thread-nav-date">${escHtml(formatChatDate(msg.receivedAt))}</span>` +
+          `<span class="em-thread-nav-snippet">${snippet}</span>` +
+        `</button>`
+      );
+    })
+    .join('');
+  return (
+    `<div class="em-thread-nav">` +
+      `<div class="em-thread-nav-title">Thread · ${siblings.length} messages</div>` +
+      `<div class="em-thread-nav-list">${items}</div>` +
+    `</div>`
+  );
+}
+
+function mountEmailThreadNav(detail) {
+  detail.querySelectorAll('.em-thread-nav-item').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-thread-id');
+      if (!id || id === emailState.activeId) return;
+      openEmailEvent(id);
+    });
+  });
+}
+
 function renderEmailPane() {
   const root = getEmailPanel();
   if (!root) return;
@@ -19127,6 +19401,7 @@ function renderEmailPane() {
         `<button type="button" class="em-schedule-action-secondary de-btn de-btn-secondary">Suggest alternate time</button>` +
       `</div>`;
   }
+  detailHtml += emailThreadNavHtml(ev);
   detailHtml +=
     `<div class="em-detail-meta">` +
       emailDetailFromHtml(ev) +
@@ -19193,6 +19468,7 @@ function renderEmailPane() {
     detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
   }
   detail.innerHTML = detailHtml;
+  mountEmailThreadNav(detail);
   if (isEmailLabModeFor(ev)) detail.prepend(renderEmailLabBar());
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
   // Bind before srcdoc so we don't miss the load event on a fast parse.
