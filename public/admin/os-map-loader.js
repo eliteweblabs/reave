@@ -807,6 +807,8 @@ function setActiveMap(key, opts = {}) {
     updateTabs();
     return;
   }
+  const prevKey = activeKey;
+  const endSwitch = traceStart('admin:tab-switch', { from: prevKey, to: key });
   const prevType = MAP?.type;
   expandFooterNav();
   activeKey = key;
@@ -855,6 +857,7 @@ function setActiveMap(key, opts = {}) {
   } else if (prevType === 'dashboard' && MAP.type !== 'dashboard') {
     clearMeetingExpiryHolds();
   }
+  endSwitch({ tab: MAP?.type });
 }
 
 function dashboardPanelHasContent() {
@@ -893,6 +896,8 @@ function isPanelMapKey(key) {
 }
 
 function activateMapPanel(opts = {}) {
+  const endPanel = traceStart('admin:activate-panel', { tab: MAP?.type });
+  try {
   if (MAP.type === 'dashboard') {
     if (dashboardPanelHasContent() && !opts.refreshDashboard) {
       void refreshInboxBadgeQuiet();
@@ -987,6 +992,9 @@ function activateMapPanel(opts = {}) {
   } else {
     buildMap();
     finishMapLayout();
+  }
+  } finally {
+    endPanel();
   }
 }
 
@@ -19670,7 +19678,6 @@ async function boot() {
   initModelSelector();
   syncCanvasVisibility();
   if (userId) {
-    if (MAP?.type === 'chats') traceStart('admin:activate-chats')();
     activateMapPanel();
   } else {
     bindClerkSsrSessionSync();
