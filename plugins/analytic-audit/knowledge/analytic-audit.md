@@ -50,6 +50,10 @@ If any tool returns `error: "ANALYTICS_FAILED"` (quota, auth, unverified propert
 
 Dashboard home **Sites** tiles support **Ignore site issues** on each card popover (`PATCH /api/admin/sites/ignore`). Ignored apex domains are greyed out, excluded from the **Site issues** stat, and skipped by auto-wiring — **does not** change hosting, DNS, or uptime monitors. Do not propose fixes for ignored sites unless the owner explicitly un-ignores them. Official reave.app seeds defaults in `config-reave.json` → `siteFleetIgnoreSeeds`.
 
+## Block search engines (WordPress Connect)
+
+Each Sites tile popover includes **Block search engines** (`GET/PATCH /api/admin/sites/indexing`). When Reave Connect is installed and the API key matches, toggling calls Connect `disable_indexing` / `enable_indexing` (WordPress `blog_public`). Without Connect, the checkbox is read-only and reflects the last homepage probe (noindex / robots.txt). After toggling, run **Scan sites** if readiness grades look stale.
+
 ## Connect Google
 
 Admin → Analytics → **Connect Google** (Search Console + Analytics readonly + Site Verification). Uses `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`.

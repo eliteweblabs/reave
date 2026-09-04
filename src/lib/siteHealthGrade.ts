@@ -34,6 +34,11 @@ import {
   type SiteHealthSummary,
 } from './siteHealthScore';
 import { loadPersistedSiteHealthFleet, savePersistedSiteHealthFleet } from './siteHealthStore';
+import {
+  searchEnginesBlockedFromSeoProbe,
+  siteUrlForIndexing,
+} from './siteSearchIndexing';
+import { callWpConnect, isWpConnectConfigured } from './wpConnectClient';
 
 export type {
   SiteHealthFleet,
@@ -118,6 +123,18 @@ async function probeSeoInventory(
   return result.ok ? result : null;
 }
 
+async function probeWpConnectAvailable(siteId: string): Promise<boolean | null> {
+  if (!isWpConnectConfigured()) return null;
+  const siteUrl = siteUrlForIndexing(siteId);
+  if (!siteUrl) return null;
+  try {
+    const ping = await callWpConnect(siteUrl, 'status');
+    return ping.ok;
+  } catch {
+    return null;
+  }
+}
+
 function gscPropertyUrl(entries: GscSiteEntry[] | null, siteId: string): string | null {
   if (!entries) return null;
   const candidates = new Set(gscPropertyCandidates(siteId).map((c) => c.toLowerCase()));
@@ -197,6 +214,11 @@ export async function buildSiteHealthFleet(
     const seoResults = await mapPool(apexCards, SEO_PROBE_CONCURRENCY, (card) =>
       probeSeoInventory(card.siteId, card.website || card.analytics?.website),
     );
+    const connectResults = await mapPool(apexCards, SEO_PROBE_CONCURRENCY, (card) => {
+      const siteId =
+        hostnameFromWebsite(card.siteId) || normalizeMonitorHost(card.siteId) || card.siteId;
+      return probeWpConnectAvailable(siteId);
+    });
 
     const gscSitemapCounts = new Map<string, number | null>();
     if (googleConnected && gscEntries) {
@@ -224,6 +246,8 @@ export async function buildSiteHealthFleet(
       const siteId =
         hostnameFromWebsite(card.siteId) || normalizeMonitorHost(card.siteId) || card.siteId;
       const seo = seoResults[i] ?? null;
+      const wpConnectAvailable = connectResults[i] ?? null;
+      const searchEnginesBlocked = searchEnginesBlockedFromSeoProbe(seo);
       const robots = seo
         ? {
             present: seo.robots_txt.present,
@@ -256,6 +280,8 @@ export async function buildSiteHealthFleet(
         issues,
         readiness,
         checkedAt,
+        searchEnginesBlocked,
+        wpConnectAvailable,
       };
     }
 

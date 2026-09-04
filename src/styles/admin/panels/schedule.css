@@ -432,18 +432,24 @@
   font-size: 0.78rem;
   line-height: 1.35;
 }
-.dash-fleet-popover-ignore {
+.dash-fleet-popover-ignore,
+.dash-fleet-popover-indexing {
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid var(--site-card-border, rgba(255, 255, 255, 0.08));
 }
-.dash-fleet-popover-ignore-toggle {
+.dash-fleet-popover-ignore-toggle,
+.dash-fleet-popover-indexing-toggle {
   display: flex;
   align-items: center;
   gap: 0.45rem;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+}
+.dash-fleet-popover-indexing-toggle input:disabled + span {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .dash-fleet-popover-ignore-reason {
   display: block;
@@ -459,7 +465,8 @@
 .dash-fleet-popover-ignore-reason:disabled {
   opacity: 0.45;
 }
-.dash-fleet-popover-ignore-note {
+.dash-fleet-popover-ignore-note,
+.dash-fleet-popover-indexing-note {
   margin: 0.45rem 0 0;
   font-size: 0.72rem;
   line-height: 1.35;

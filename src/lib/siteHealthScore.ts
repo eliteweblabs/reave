@@ -34,6 +34,10 @@ export type SiteHealthSummary = {
   /** Dashboard-only: excluded from Site issues count and agent fix runs. */
   ignored?: boolean;
   ignoreReason?: string;
+  /** Homepage / robots probe — true when noindex or robots.txt blocks all. */
+  searchEnginesBlocked?: boolean | null;
+  /** Reave Connect responded on last scan (WordPress indexing toggle). */
+  wpConnectAvailable?: boolean | null;
 };
 
 export type SiteHealthFleet = {

@@ -3919,6 +3919,19 @@ function dashboardSiteIgnoredReason(card, health, data) {
   return typeof entry?.reason === 'string' ? entry.reason.trim() : '';
 }
 
+function dashboardSearchEnginesBlocked(health) {
+  if (health?.searchEnginesBlocked === true) return true;
+  if (health?.searchEnginesBlocked === false) return false;
+  if (health?.issues?.some((i) => i.code === 'robots_blocked')) return true;
+  return null;
+}
+
+function dashboardWpConnectAvailable(health) {
+  if (health?.wpConnectAvailable === true) return true;
+  if (health?.wpConnectAvailable === false) return false;
+  return null;
+}
+
 const SITE_READINESS_SIGNALS = [
   { key: 'schema_markup', icon: 'star', label: 'Schema markup' },
   { key: 'page_speed', icon: 'zap', label: 'Page speed' },
@@ -4115,6 +4128,27 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
     ? `<div class="dash-fleet-popover-ignored-banner">${escHtml(ignoreReason || 'Ignored — do not touch')}</div>`
     : '';
 
+  const blocked = dashboardSearchEnginesBlocked(health);
+  const connectAvailable = dashboardWpConnectAvailable(health);
+  const indexingDisabled = connectAvailable === false;
+  const indexingChecked = blocked === true ? ' checked' : '';
+  const indexingIndeterminate = blocked == null ? ' data-indeterminate="1"' : '';
+  const indexingNote =
+    connectAvailable === false
+      ? 'Read-only — install Reave Connect on WordPress to toggle indexing.'
+      : connectAvailable === true
+        ? 'WordPress Settings → Reading via Connect (blog_public).'
+        : 'Scan sites to detect Connect; toggle uses live status when opened.';
+  const indexingHtml =
+    `<div class="dash-fleet-popover-indexing">` +
+      `<label class="dash-fleet-popover-indexing-toggle">` +
+        `<input type="checkbox" data-fleet-indexing-toggle data-site-id="${escHtml(domain)}"` +
+        `${indexingChecked}${indexingIndeterminate}${indexingDisabled ? ' disabled' : ''}>` +
+        `<span>Block search engines</span>` +
+      `</label>` +
+      `<p class="dash-fleet-popover-indexing-note" data-fleet-indexing-note data-site-id="${escHtml(domain)}">${escHtml(indexingNote)}</p>` +
+    `</div>`;
+
   return (
     `<div class="dash-fleet-popover-head">` +
       `<div class="dash-fleet-popover-title">${escHtml(title)}</div>` +
@@ -4129,6 +4163,7 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
     `</dl>` +
     `<ul class="dash-fleet-popover-section">${readinessRows}</ul>` +
     issuesHtml +
+    indexingHtml +
     ignoreHtml
   );
 }
@@ -4153,6 +4188,7 @@ function ensureDashFleetPopover() {
   });
   dashFleetPopEl.addEventListener('pointerleave', () => scheduleHideDashFleetPopover());
   ensureDashFleetPopoverIgnoreHandlers(dashFleetPopEl);
+  ensureDashFleetPopoverIndexingHandlers(dashFleetPopEl);
   document.body.appendChild(dashFleetPopEl);
   return dashFleetPopEl;
 }
@@ -4218,6 +4254,105 @@ async function saveDashboardSiteFleetIgnore(siteId, ignored, reason) {
     }
   } catch (e) {
     console.warn('[dashboard] site ignore save failed', e);
+  }
+}
+
+const dashFleetIndexingRefresh = new Map();
+
+function setDashFleetIndexingToggleState(siteId, blocked, connectAvailable, detail) {
+  const pop = dashFleetPopEl;
+  if (!pop) return;
+  const toggle = pop.querySelector(`[data-fleet-indexing-toggle][data-site-id="${CSS.escape(siteId)}"]`);
+  if (!(toggle instanceof HTMLInputElement)) return;
+  toggle.indeterminate = blocked == null;
+  toggle.checked = blocked === true;
+  if (connectAvailable === true) toggle.disabled = false;
+  else if (connectAvailable === false) toggle.disabled = true;
+  const note = pop.querySelector(`[data-fleet-indexing-note][data-site-id="${CSS.escape(siteId)}"]`);
+  if (note instanceof HTMLElement && detail) note.textContent = detail;
+}
+
+function ensureDashFleetPopoverIndexingHandlers(pop) {
+  if (!pop || pop.dataset.fleetIndexingBound === '1') return;
+  pop.dataset.fleetIndexingBound = '1';
+  pop.addEventListener('change', (ev) => {
+    const target = ev.target;
+    if (!(target instanceof HTMLInputElement) || !target.matches('[data-fleet-indexing-toggle]')) return;
+    ev.stopPropagation();
+    if (target.disabled) return;
+    const siteId = target.getAttribute('data-site-id') || '';
+    const blocked = target.checked;
+    target.disabled = true;
+    void saveDashboardSiteSearchIndexing(siteId, blocked, target);
+  });
+}
+
+async function refreshDashFleetIndexingStatus(siteId) {
+  if (!siteId) return;
+  if (dashFleetIndexingRefresh.get(siteId)) return dashFleetIndexingRefresh.get(siteId);
+  const pending = (async () => {
+    try {
+      const res = await adminFetch(
+        `/api/admin/sites/indexing?site_id=${encodeURIComponent(siteId)}`,
+      );
+      const payload = await readAdminJson(res, 'site indexing');
+      if (!payload.ok) return;
+      if (lastDashboardPayload?.siteHealth?.sites?.[siteId]) {
+        lastDashboardPayload.siteHealth.sites[siteId] = {
+          ...lastDashboardPayload.siteHealth.sites[siteId],
+          searchEnginesBlocked: payload.blocked ?? null,
+          wpConnectAvailable: payload.connectAvailable ?? null,
+        };
+      }
+      setDashFleetIndexingToggleState(
+        siteId,
+        payload.blocked ?? null,
+        payload.connectAvailable ?? null,
+        payload.detail || '',
+      );
+    } catch (e) {
+      console.warn('[dashboard] site indexing refresh failed', e);
+    } finally {
+      dashFleetIndexingRefresh.delete(siteId);
+    }
+  })();
+  dashFleetIndexingRefresh.set(siteId, pending);
+  return pending;
+}
+
+async function saveDashboardSiteSearchIndexing(siteId, blocked, toggleEl) {
+  if (!siteId) return;
+  try {
+    const res = await adminFetch('/api/admin/sites/indexing', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteId, blocked }),
+    });
+    const payload = await readAdminJson(res, 'site indexing');
+    if (!payload.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+    if (lastDashboardPayload && payload.siteHealth) {
+      lastDashboardPayload = {
+        ...lastDashboardPayload,
+        siteHealth: payload.siteHealth,
+      };
+    }
+    const status = payload.status || {};
+    setDashFleetIndexingToggleState(
+      siteId,
+      status.blocked ?? blocked,
+      status.connectAvailable ?? true,
+      status.detail || (blocked ? 'Search engines blocked' : 'Search engines allowed'),
+    );
+    if (MAP?.type === 'dashboard') {
+      renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+    }
+  } catch (e) {
+    console.warn('[dashboard] site indexing save failed', e);
+    if (toggleEl instanceof HTMLInputElement) {
+      toggleEl.checked = !blocked;
+    }
+  } finally {
+    if (toggleEl instanceof HTMLInputElement) toggleEl.disabled = false;
   }
 }
 
@@ -4287,6 +4422,8 @@ function showDashFleetPopover(anchor, html) {
   dashFleetPopAnchor = anchor;
   positionDashFleetPopover(anchor);
   pop.hidden = false;
+  const siteId = anchor.getAttribute('data-site-id') || '';
+  if (siteId) void refreshDashFleetIndexingStatus(siteId);
 }
 
 function scheduleHideDashFleetPopover() {
@@ -6312,6 +6449,7 @@ function renderAdminDashboard(data, opts = {}) {
       const issueHint = ignored
         ? dashboardSiteIgnoredReason(card, health, data) || 'Ignored — do not touch'
         : health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
+      btn.setAttribute('data-site-id', card.siteId);
       btn.setAttribute(
         'aria-label',
         [card.label || card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — '),
