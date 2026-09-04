@@ -11,7 +11,7 @@ import {
   type DeployWizardPlan,
 } from './deployWizardCatalog';
 import { applyDeployWizardDns } from './deployWizardDns';
-import { applyDeployWizardPublicOrigin, isDeployWizardReaveStagingHost } from './deployWizardStaging';
+import { applyDeployWizardPublicOrigin, applyDeployWizardSchedulingOrigin, isDeployWizardReaveStagingHost } from './deployWizardStaging';
 import { ensureClientCloudflareZone, provisionNamecomNameservers, provisionGoDaddyNameservers } from './clientDomainProvision';
 import { clerkMigratePrimaryDomain } from './clerkClient';
 import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
@@ -298,6 +298,27 @@ export async function executeGoLive(opts: {
   if (!origin.ok) {
     pushStep({ id: 'origin', label: 'Public URL', status: 'error', detail: origin.error });
     return { ok: false, error: origin.error, steps };
+  }
+
+  if (ctx.features.includes('scheduling')) {
+    say(`Setting Cal.com public URL to https://cal.${apex}…`);
+    const cal = await applyDeployWizardSchedulingOrigin({
+      project: ctx.projectId,
+      environment: ctx.environment,
+      plan: { ...plan, plannedSiteDomain: apex, stagingHost: false },
+    });
+    if (!cal.ok) {
+      pushStep({ id: 'cal', label: 'Cal.com URL', status: 'error', detail: cal.error });
+      return { ok: false, error: cal.error, steps };
+    }
+    if (cal.updated.length) {
+      pushStep({
+        id: 'cal',
+        label: 'Cal.com URL',
+        status: 'done',
+        detail: `https://cal.${apex} · ${cal.updated.join(', ')}`,
+      });
+    }
   }
 
   pushStep({ id: 'clerk', label: 'Clerk domain', status: 'running' });

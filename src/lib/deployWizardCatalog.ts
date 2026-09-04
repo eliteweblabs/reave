@@ -119,6 +119,25 @@ export function railwayAllowedHostnames(service: string): string {
   return `["\${{ ${service}.RAILWAY_PUBLIC_DOMAIN }}"]`;
 }
 
+/** Branded Cal.com host — `cal.{apex}`. */
+export function deployWizardCalFqdn(apex: string): string {
+  const host = normalizeSiteDomain(apex);
+  return host ? deployWizardFqdn('cal', host) : '';
+}
+
+/** Public Cal.com origin once `cal.{apex}` DNS is wired. */
+export function deployWizardSchedulingPublicUrl(apex: string): string {
+  const fqdn = deployWizardCalFqdn(apex);
+  return fqdn ? `https://${fqdn}` : '';
+}
+
+/** Cal.com ALLOWED_HOSTNAMES — branded host plus Railway fallback during cutover. */
+export function deployWizardCalAllowedHostnames(apex: string, service = 'calcom-web-app'): string {
+  const cal = deployWizardCalFqdn(apex);
+  if (!cal) return railwayAllowedHostnames(service);
+  return JSON.stringify([cal, `\${{ ${service}.RAILWAY_PUBLIC_DOMAIN }}`]);
+}
+
 export function railwayPrivateUrl(service: string, port?: number): string {
   const host = `\${{ ${service}.RAILWAY_PRIVATE_DOMAIN }}`;
   return port ? `http://${host}:${port}` : `http://${host}`;

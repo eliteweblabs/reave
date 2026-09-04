@@ -4,8 +4,11 @@
  */
 import {
   buildDeployWizardPlan,
+  deployWizardCalAllowedHostnames,
+  deployWizardSchedulingPublicUrl,
   deployWizardStagingHost,
   DEPLOY_APP_SERVICE,
+  isDeployWizardPublicHost,
   normalizeSiteDomain,
   type DeployWizardDnsAccess,
   type DeployWizardPlan,
@@ -296,4 +299,56 @@ export async function applyDeployWizardPublicOrigin(opts: {
   }
 
   return { ok: true, updated: [...reave.updated, ...contact.updated.map((n) => `contact-api:${n}`)] };
+}
+
+/** Flip Cal.com public URLs from Railway → `cal.{apex}` after DNS is wired. */
+export async function applyDeployWizardSchedulingOrigin(opts: {
+  project: string;
+  environment?: string;
+  plan: DeployWizardPlan;
+}): Promise<{ ok: true; updated: string[] } | { ok: false; error: string }> {
+  if (!opts.plan.features.includes('scheduling') || opts.plan.stagingHost) {
+    return { ok: true, updated: [] };
+  }
+  const apex = normalizeSiteDomain(opts.plan.siteDomain);
+  if (!apex || !isDeployWizardPublicHost(apex)) {
+    return { ok: false, error: 'siteDomain is not a public apex' };
+  }
+  const origin = deployWizardSchedulingPublicUrl(apex);
+  if (!origin) return { ok: false, error: 'cal host could not be derived' };
+
+  const calcom = await railwaySetVariables({
+    project: opts.project,
+    environment: opts.environment,
+    service: 'calcom-web-app',
+    variables: {
+      NEXT_PUBLIC_WEBAPP_URL: origin,
+      NEXTAUTH_URL: origin,
+      ALLOWED_HOSTNAMES: deployWizardCalAllowedHostnames(apex),
+    },
+    skip_deploys: false,
+  });
+  if (!calcom.ok) return calcom;
+
+  const reave = await railwaySetVariables({
+    project: opts.project,
+    environment: opts.environment,
+    service: opts.plan.appService,
+    variables: {
+      CALCOM_WEBAPP_URL: origin,
+      PUBLIC_CALCOM_WEBAPP_URL: origin,
+    },
+    skip_deploys: false,
+  });
+  if (!reave.ok) {
+    return { ok: true, updated: calcom.updated.map((n) => `calcom-web-app:${n}`) };
+  }
+
+  return {
+    ok: true,
+    updated: [
+      ...calcom.updated.map((n) => `calcom-web-app:${n}`),
+      ...reave.updated.map((n) => `${opts.plan.appService}:${n}`),
+    ],
+  };
 }

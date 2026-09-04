@@ -7,8 +7,11 @@ import {
   buildDeployWizardPlan,
   DEPLOY_APP_SERVICE,
   DEPLOY_WIZARD_NEW_PROJECT,
+  deployWizardCalAllowedHostnames,
+  deployWizardCalFqdn,
   deployWizardDesiredProjectName,
   deployWizardFqdn,
+  deployWizardSchedulingPublicUrl,
   formatDeployWizardCli,
   isDeployWizardNewProjectRef,
   isDeployWizardSeedIndustryId,
@@ -315,6 +318,12 @@ assert.equal(deployWizardSiteOrigin('app.levineslaw.com'), 'https://app.levinesl
 assert.equal(deployWizardSiteOrigin('localhost'), '');
 assert.equal(deployWizardFqdn('ap', 'acme.com'), 'ap.acme.com');
 assert.equal(deployWizardFqdn('@', ''), '{apex}');
+assert.equal(deployWizardCalFqdn('tonybarlettajr.com'), 'cal.tonybarlettajr.com');
+assert.equal(deployWizardSchedulingPublicUrl('https://www.acme.com/'), 'https://cal.acme.com');
+assert.equal(
+  deployWizardCalAllowedHostnames('acme.com'),
+  '["cal.acme.com","${{ calcom-web-app.RAILWAY_PUBLIC_DOMAIN }}"]',
+);
 
 const coreHosts = core.domains.map((d) => d.host);
 assert.ok(coreHosts.includes('@'));

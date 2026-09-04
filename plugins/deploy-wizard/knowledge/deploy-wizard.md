@@ -118,7 +118,7 @@ When staging applies:
 - `RESEND_FROM` / `EMAIL_FROM` use `noreply@inbound.reave.app` until go-live.
 - DNS Apply only wires the `@` app host on reave.app — skip `ap` / `cal` / `inbound` until the client zone exists.
 
-When the apex is already in Cloudflare, behavior is unchanged (full DNS on Apply).
+When the apex is already in Cloudflare, behavior is unchanged (full DNS on Apply). Apply also flips Cal.com to `https://cal.{apex}` when **scheduling** is enabled and the install is not staging-only.
 
 ## Go live (`/go-live`)
 
@@ -130,7 +130,7 @@ After staging, open **`/go-live`** (owner-only, same host as the deploy wizard).
 | **GoDaddy** | Paste a PAT with `domains.nameserver:update` — nameservers update automatically |
 | **Manual** | Apply creates the Cloudflare zone and shows nameservers to paste at the registrar |
 
-Go live then: creates/finds the Cloudflare zone, attaches Railway custom domains, writes full DNS (inbound MX, `ap`, `cal`, …), and flips `PUBLIC_SITE_URL` to `https://{apex}`. Add the apex in Clerk → Domains when DNS resolves.
+Go live then: creates/finds the Cloudflare zone, attaches Railway custom domains, writes full DNS (inbound MX, `ap`, `cal`, …), flips `PUBLIC_SITE_URL` to `https://{apex}`, and when **scheduling** is enabled sets Cal.com to `https://cal.{apex}` (`NEXT_PUBLIC_WEBAPP_URL`, `NEXTAUTH_URL`, `ALLOWED_HOSTNAMES` on `calcom-web-app`; `CALCOM_WEBAPP_URL` / `PUBLIC_CALCOM_WEBAPP_URL` on `reave`). Add the apex in Clerk → Domains when DNS resolves.
 
 ## Apply fills every value
 

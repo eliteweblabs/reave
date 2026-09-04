@@ -6,6 +6,7 @@ import {
   formatDeployWizardCli,
   isDeployWizardExtraId,
   isDeployWizardPublicHost,
+  deployWizardSchedulingPublicUrl,
   type DeployWizardExtraId,
   type DeployWizardPlan,
 } from './deployWizardCatalog';
@@ -14,6 +15,7 @@ import type { DeployWizardGithubAppApplyBody, DeployWizardGithubAppCredentials }
 import { applyDeployWizardDns } from './deployWizardDns';
 import {
   applyDeployWizardPublicOrigin,
+  applyDeployWizardSchedulingOrigin,
   provisionDeployWizardClientDomain,
 } from './deployWizardStaging';
 import { isDeployWizardNeedGithubApp, resolveDeployWizardApply } from './deployWizardResolve';
@@ -206,6 +208,20 @@ export async function executeDeployWizardApply(opts: {
       say(`Public URL: ${origin.error}`);
     } else if (origin.updated.length) {
       say(`Public URL updated (${origin.updated.join(', ')}).`);
+    }
+
+    if (opts.plan.features.includes('scheduling') && !opts.plan.stagingHost) {
+      say(`Setting Cal.com public URL to ${deployWizardSchedulingPublicUrl(opts.plan.siteDomain)}…`);
+      const cal = await applyDeployWizardSchedulingOrigin({
+        project,
+        environment: opts.environment,
+        plan: opts.plan,
+      });
+      if (!cal.ok) {
+        say(`Cal.com URL: ${cal.error}`);
+      } else if (cal.updated.length) {
+        say(`Cal.com URL updated (${cal.updated.join(', ')}).`);
+      }
     }
   }
 
