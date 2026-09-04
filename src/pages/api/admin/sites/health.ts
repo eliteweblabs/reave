@@ -17,8 +17,10 @@ import { getCompanyConfig } from '../../../../lib/companyConfig';
 import {
   buildSiteHealthFleet,
   hydrateSiteHealthFleetCache,
+  invalidateSiteHealthFleetCache,
   peekCachedSiteHealthFleet,
 } from '../../../../lib/siteHealthGrade';
+import { wireFleetSites } from '../../../../lib/siteWiring';
 
 export const prerender = false;
 
@@ -65,14 +67,23 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const cards = await loadFleetCards(context);
-  const siteHealth = await buildSiteHealthFleet(
-    cards.map((card) => ({
-      siteId: card.siteId,
-      website: card.analytics?.website ?? null,
-      monitor: card.monitor,
-      analytics: card.analytics,
-    })),
-    { fresh: true },
-  );
-  return jsonResponse({ ok: true, siteHealth, refreshed: true });
+  const cardInputs = cards.map((card) => ({
+    siteId: card.siteId,
+    website: card.analytics?.website ?? null,
+    monitor: card.monitor,
+    analytics: card.analytics,
+  }));
+  let siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true });
+  const wireResult = await wireFleetSites(cardInputs, siteHealth);
+  if (wireResult.wired > 0) {
+    invalidateSiteHealthFleetCache();
+    siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true });
+  }
+  return jsonResponse({
+    ok: true,
+    siteHealth,
+    refreshed: true,
+    wired: wireResult.wired,
+    wireErrors: wireResult.errors.length ? wireResult.errors : undefined,
+  });
 }

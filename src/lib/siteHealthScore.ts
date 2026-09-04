@@ -7,7 +7,7 @@ import type {
   UptimeMonitorForFleetMerge,
 } from './analyticsSiteMerge';
 
-import type { SiteReadinessSummary } from './siteReadinessChecklist';
+import type { SiteReadinessStatus, SiteReadinessSummary } from './siteReadinessChecklist';
 
 export type SiteHealthIssueCode =
   | 'down'
@@ -66,6 +66,42 @@ export function scoreSiteHealthIssues(issues: SiteHealthIssue[]): {
     grade: scoreToGrade(score),
     criticalCount: issues.filter((i) => i.severity === 'critical').length,
   };
+}
+
+const READINESS_POINTS: Record<SiteReadinessStatus, number> = {
+  ok: 100,
+  warn: 62,
+  crit: 12,
+  unknown: 42,
+  pending: 42,
+};
+
+/**
+ * Dashboard letter grade from the full readiness checklist.
+ * A is reserved for a perfect run — every item must be green (ok).
+ */
+export function scoreSiteHealthFromReadiness(readiness: SiteReadinessSummary): {
+  grade: LetterGrade | null;
+  score: number;
+  criticalCount: number;
+} {
+  const items = readiness.items;
+  if (!items.length) {
+    return { grade: null, score: 0, criticalCount: 0 };
+  }
+
+  const criticalCount = items.filter((i) => i.status === 'crit').length;
+  if (items.every((i) => i.status === 'ok')) {
+    return { grade: 'A', score: 100, criticalCount: 0 };
+  }
+
+  const score = Math.round(
+    items.reduce((sum, item) => sum + (READINESS_POINTS[item.status] ?? 42), 0) / items.length,
+  );
+  let grade = scoreToGrade(score);
+  if (grade === 'A') grade = 'B';
+
+  return { grade, score, criticalCount };
 }
 
 export function collectInstantSiteHealthIssues(input: {

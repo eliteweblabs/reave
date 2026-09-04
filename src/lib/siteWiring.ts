@@ -6,16 +6,19 @@ import {
   GOOGLE_WEBMASTER_PROVIDER,
   isGoogleWebmasterOAuthConfigured,
 } from './googleWebmasterAuth';
-import { gscAddSite, gscPropertyCandidates } from './googleSearchConsoleClient';
+import { gscAddSite, gscPropertyCandidates, gscSubmitSitemap } from './googleSearchConsoleClient';
 import { plausibleCreateSite, isPlausibleConfigured, hostnameFromWebsite } from './plausibleClient';
 import { normalizeMonitorHost } from './publicUrl';
+import { seoInventory } from './seoInventoryClient';
 import type { SiteHealthCardInput } from './siteHealthGrade';
 import type { SiteHealthFleet, SiteHealthIssueCode } from './siteHealthScore';
+import type { SiteReadinessItem } from './siteReadinessChecklist';
 
 export type SiteWireActionResult = {
   siteId: string;
   plausible?: { ok: boolean; created?: boolean; alreadyExisted?: boolean; error?: string };
   gsc?: { ok: boolean; siteUrl?: string; error?: string };
+  sitemap?: { ok: boolean; feedpath?: string; error?: string };
 };
 
 export type SiteWireFleetResult = {
@@ -42,6 +45,17 @@ function issueCodes(
   const row = siteHealth?.sites?.[siteId];
   if (!row?.issues?.length) return new Set();
   return new Set(row.issues.map((i) => i.code));
+}
+
+function readinessItem(
+  siteHealth: SiteHealthFleet | null,
+  siteId: string,
+  itemId: string,
+): SiteReadinessItem | null {
+  const row = siteHealth?.sites?.[siteId];
+  const items = row?.readiness?.items;
+  if (!Array.isArray(items)) return null;
+  return items.find((item) => item.id === itemId) ?? null;
 }
 
 async function agencyGoogleConnected(): Promise<boolean> {
@@ -72,11 +86,19 @@ export async function wireFleetSites(
     if (!host) continue;
 
     const codes = issueCodes(siteHealth, host);
+    const gscItem = readinessItem(siteHealth, host, 'search_console');
+    const sitemapItem = readinessItem(siteHealth, host, 'xml_sitemap');
+    const analyticsItem = readinessItem(siteHealth, host, 'analytics');
     const needsPlausible =
-      codes.has('plausible_unregistered') || card.analytics?.registered === false;
-    const needsGsc = codes.has('gsc_missing');
+      codes.has('plausible_unregistered') ||
+      card.analytics?.registered === false ||
+      analyticsItem?.status === 'warn';
+    const needsGsc = codes.has('gsc_missing') || gscItem?.status === 'crit';
+    const needsSitemapSubmit =
+      sitemapItem?.status === 'warn' &&
+      /not submitted in search console/i.test(sitemapItem.detail || '');
 
-    if (!needsPlausible && !needsGsc) continue;
+    if (!needsPlausible && !needsGsc && !needsSitemapSubmit) continue;
 
     attempted += 1;
     const row: SiteWireActionResult = { siteId: host };
@@ -108,6 +130,31 @@ export async function wireFleetSites(
           const message = e instanceof Error ? e.message : String(e);
           row.gsc = { ok: false, siteUrl, error: message };
           errors.push(`${host} GSC: ${message}`);
+        }
+      }
+    }
+
+    if ((needsSitemapSubmit || needsGsc) && googleReady) {
+      const propertyUrl =
+        row.gsc?.siteUrl ||
+        gscPropertyCandidates(host).find((c) => c.startsWith('sc-domain:')) ||
+        '';
+      if (propertyUrl) {
+        let feedpath = '';
+        const seo = await seoInventory(`https://${host.replace(/^www\./, '')}/`);
+        if (seo.ok && seo.sitemap.present && seo.sitemap.url) {
+          feedpath = seo.sitemap.url;
+        }
+        if (feedpath) {
+          try {
+            await gscSubmitSitemap(propertyUrl, feedpath, agencySubject());
+            row.sitemap = { ok: true, feedpath };
+            siteWired = true;
+          } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            row.sitemap = { ok: false, feedpath, error: message };
+            errors.push(`${host} sitemap: ${message}`);
+          }
         }
       }
     }

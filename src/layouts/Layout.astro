@@ -20,6 +20,7 @@ import CookieNotice from "../components/CookieNotice.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ThemeInit from "../components/ThemeInit.astro";
 import PlausibleScript from "../components/PlausibleScript.astro";
+import OrganizationJsonLd from "../components/OrganizationJsonLd.astro";
 import "../styles/brand.css";
 
 export interface Props {
@@ -158,6 +159,13 @@ try {
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={ogImageSafe} />
 		<PlausibleScript />
+		{!noIndex && (
+			<OrganizationJsonLd
+				company={company}
+				canonicalUrl={canonical}
+				description={description}
+			/>
+		)}
 	</head>
 	<body data-user-id={userId ?? ""}>
 		<SiteBackground />

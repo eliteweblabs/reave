@@ -1,0 +1,49 @@
+---
+/**
+ * Homepage / public-site Organization JSON-LD — keeps schema_markup readiness green
+ * on Astro-hosted installs. Match fields to admin → Company.
+ */
+import type { CompanyConfig } from '../lib/companyConfig';
+import { BRANDING_OG_PATH } from '../lib/companyLogo';
+import { SOCIAL_PLATFORM_CATALOG } from '../lib/social/platforms';
+
+export interface Props {
+  company: CompanyConfig;
+  canonicalUrl: string;
+  description: string;
+}
+
+const { company, canonicalUrl, description } = Astro.props;
+
+const sameAs: string[] = [];
+for (const platform of SOCIAL_PLATFORM_CATALOG) {
+  const raw = String(company[platform.field] ?? '').trim();
+  if (!raw) continue;
+  const url = /^https?:\/\//i.test(raw) ? raw : platform.profileUrl(raw);
+  if (url) sameAs.push(url);
+}
+
+const logoUrl = canonicalUrl.replace(/\/+$/, '') + BRANDING_OG_PATH;
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: company.name,
+  url: canonicalUrl,
+  description,
+  ...(company.supportEmail ? { email: company.supportEmail } : {}),
+  ...(company.supportPhone ? { telephone: company.supportPhone } : {}),
+  ...(company.address
+    ? {
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: company.address,
+        },
+      }
+    : {}),
+  logo: logoUrl,
+  ...(sameAs.length ? { sameAs } : {}),
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />

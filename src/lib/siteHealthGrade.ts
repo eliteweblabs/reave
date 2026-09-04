@@ -29,7 +29,7 @@ import type {
 } from './analyticsSiteMerge';
 import {
   collectInstantSiteHealthIssues,
-  scoreSiteHealthIssues,
+  scoreSiteHealthFromReadiness,
   type SiteHealthFleet,
   type SiteHealthSummary,
 } from './siteHealthScore';
@@ -41,7 +41,11 @@ export type {
   SiteHealthIssueCode,
   SiteHealthSummary,
 } from './siteHealthScore';
-export { collectInstantSiteHealthIssues, scoreSiteHealthIssues } from './siteHealthScore';
+export {
+  collectInstantSiteHealthIssues,
+  scoreSiteHealthFromReadiness,
+  scoreSiteHealthIssues,
+} from './siteHealthScore';
 
 export type SiteHealthCardInput = {
   siteId: string;
@@ -234,7 +238,6 @@ export async function buildSiteHealthFleet(
         gscHasProperty,
         robots,
       });
-      const scored = scoreSiteHealthIssues(issues);
       const readiness = buildSiteReadinessChecklist({
         seo,
         issues,
@@ -245,6 +248,7 @@ export async function buildSiteHealthFleet(
         monitor: card.monitor,
         checkedAt,
       });
+      const scored = scoreSiteHealthFromReadiness(readiness);
       sites[siteId] = {
         grade: scored.grade,
         score: scored.score,
