@@ -123,6 +123,16 @@ assert.ok(configFeatures('reave').includes('analytic_audit'));
 const sitesDash = dashboardCardsForFeatures(['analytic_audit', 'uptime_monitoring']);
 assert.equal(sitesDash.filter((c) => c.mapKey === 'analytics').length, 1);
 assert.ok(sitesDash.some((c) => c.id === 'analytic_audit' && c.title === 'Sites'));
+const analyticsLiteNav = ['__system__', 'dashboard', 'analytics', 'profile', 'company'];
+const liteDash = dashboardCardsForFeatures(['analytic_audit'], {
+  adminLite: true,
+  footerNav: analyticsLiteNav,
+});
+assert.ok(liteDash.some((c) => c.id === 'analytic_audit' && c.mapKey === 'analytics'));
+assert.ok(liteDash.some((c) => c.id === 'system' && c.mapKey === 'system'));
+assert.ok(!liteDash.some((c) => c.mapKey === 'todo'));
+assert.ok(!liteDash.some((c) => c.mapKey === 'knowledge'));
+assert.ok(!liteDash.some((c) => c.id === 'modules'));
 assert.doesNotMatch(
   FEATURE_BLURBS.documents,
   /\bsign/i,

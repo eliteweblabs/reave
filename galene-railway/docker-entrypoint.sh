@@ -400,10 +400,13 @@ if [ -n "${REAVE_APP_URL:-}" ]; then
   cat > "${GALENE_STATIC}/reave-meet-share.js" <<EOF
 (function () {
   var REAVE = '${REAVE_ORIGIN}';
+  var shareSlot = null;
+
   function groupFromPath() {
     var m = window.location.pathname.match(/\\/group\\/([^/]+)/);
     return m ? decodeURIComponent(m[1]) : 'meet';
   }
+
   function sharePopup() {
     var g = encodeURIComponent(groupFromPath());
     window.open(
@@ -412,29 +415,54 @@ if [ -n "${REAVE_APP_URL:-}" ]; then
       'width=460,height=360,noopener,noreferrer'
     );
   }
-  function addBtn(parent, className, label) {
-    if (!parent || parent.querySelector('.reave-share-btn')) return;
+
+  function sessionConnected() {
+    var login = document.getElementById('login-container');
+    return !!(login && login.classList.contains('invisible'));
+  }
+
+  function removeShareButton() {
+    if (shareSlot && shareSlot.parentNode) shareSlot.parentNode.removeChild(shareSlot);
+    shareSlot = null;
+  }
+
+  function mountShareButton() {
+    if (!sessionConnected() || shareSlot) return;
+    var menu = document.querySelector('header nav.topnav ul.nav-menu, header .topnav ul.nav-menu');
+    if (!menu) return;
+    shareSlot = document.createElement('li');
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = className + ' reave-share-btn';
-    btn.textContent = label;
+    btn.className = 'btn btn-default btn-sm reave-share-btn';
+    btn.textContent = 'Share guest link';
     btn.addEventListener('click', sharePopup);
-    parent.appendChild(btn);
+    shareSlot.appendChild(btn);
+    menu.insertBefore(shareSlot, menu.firstChild);
   }
-  function mount() {
-    var nav = document.querySelector('header nav.topnav, header .topnav');
-    var form = document.getElementById('loginform') || document.getElementById('groupform');
-    if (form) {
-      var wrap = document.createElement('p');
-      wrap.className = 'reave-share-wrap';
-      addBtn(wrap, 'btn btn-default', 'Share guest link');
-      form.insertAdjacentElement('afterend', wrap);
-    } else {
-      addBtn(nav, 'btn btn-default btn-sm', 'Share link');
-    }
+
+  function syncShareButton() {
+    if (sessionConnected()) mountShareButton();
+    else removeShareButton();
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
-  else mount();
+
+  function observeSession() {
+    var login = document.getElementById('login-container');
+    if (!login) return;
+    syncShareButton();
+    new MutationObserver(syncShareButton).observe(login, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
+
+  function boot() {
+    observeSession();
+    window.setTimeout(syncShareButton, 0);
+    window.setTimeout(syncShareButton, 500);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
 EOF
   for html in galene.html index.html; do
