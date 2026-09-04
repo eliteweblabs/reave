@@ -13318,6 +13318,7 @@ initRulesPanel({
   companyBrand,
   setActiveMap,
   navigateToEmail,
+  syncEmailsAfterRuleApply,
   syncAdminTabUrl,
 });
 
@@ -13967,6 +13968,44 @@ function dropArchivedEmailFromView(emailId) {
   if (!emailId || emailState.activeId !== emailId) return;
   if (filteredInboxEvents().some((e) => e.id === emailId)) return;
   emailState.activeId = null;
+}
+
+function isActiveEmailInCurrentFilter() {
+  return (
+    Boolean(emailState.activeId) &&
+    eventsForEmailFilter().some((ev) => ev.id === emailState.activeId)
+  );
+}
+
+/** After Test → Apply from Email Lab, sync inbox rows the list already dropped. */
+function syncEmailsAfterRuleApply({ ids, matches } = {}) {
+  const idSet = new Set((ids || []).map((id) => String(id)));
+  if (!idSet.size) return;
+  const matchById = new Map((matches || []).map((m) => [String(m.id), m]));
+  for (const id of idSet) {
+    const match = matchById.get(id);
+    const idx = emailState.allEvents.findIndex((e) => String(e.id) === id);
+    if (idx === -1) continue;
+    if (!match) continue;
+    const patch = {
+      category: match.category,
+      status: match.status,
+    };
+    if (match.category === 'auto_deleted') patch.action = 'deleted';
+    else if (String(match.status || '').toUpperCase() === 'AUTO_ARCHIVED') patch.action = 'filed';
+    else if (match.category === 'receipt') patch.action = 'receipt';
+    emailState.allEvents[idx] = { ...emailState.allEvents[idx], ...patch };
+  }
+  if (emailState.activeId && idSet.has(String(emailState.activeId))) {
+    dropArchivedEmailFromView(emailState.activeId);
+    if (!emailState.activeId) getEmailPanel()?.classList.remove('em-pane-active');
+  }
+  syncEmailTabBadges();
+  if (MAP?.type !== 'email') return;
+  const root = getEmailPanel();
+  if (!root?.querySelector('.ch-sidebar .ch-list')) return;
+  refreshEmailSidebarList();
+  renderEmailPanel({ preserveSidebar: true, preservePane: isActiveEmailInCurrentFilter() });
 }
 
 function applyEmailEventUpdate(event) {
@@ -15357,13 +15396,10 @@ async function loadEmailTab(quiet) {
       syncEmailTabBadges();
       return;
     }
-    const stillVisible =
-      !emailState.activeId || eventsForEmailFilter().some((ev) => ev.id === emailState.activeId);
-    if (stillVisible) {
-      renderEmailPanel({ preserveSidebar: true, preservePane: true });
-    } else {
-      renderEmailPanel({ preserveSidebar: true });
-    }
+    renderEmailPanel({
+      preserveSidebar: true,
+      preservePane: isActiveEmailInCurrentFilter(),
+    });
   } else if (emailState.composing && quiet) {
     refreshEmailSidebarList();
   } else {
@@ -18834,7 +18870,8 @@ function renderEmailPane() {
   }
 
   const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
-  if (!ev) {
+  if (!ev || !isActiveEmailInCurrentFilter()) {
+    if (emailState.activeId) emailState.activeId = null;
     appendEmptyDetailPane(pane, {
       mapKey: 'email',
       iconName: 'mail',

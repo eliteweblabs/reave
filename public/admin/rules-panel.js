@@ -1642,6 +1642,7 @@ function renderRuleEditPane(pane, opts = {}) {
           ? `Applied to ${applied}. Skipped ${skipped}.`
           : `Applied to ${applied} email${applied === 1 ? '' : 's'}.`;
       renderTestMatches([], { applied: true });
+      shell.syncEmailsAfterRuleApply?.({ ids, matches: data.matches });
       const local = ruleState.rules.find((r) => r.id === rule.id);
       if (local && applied > 0) {
         local.hitCount = (Number(local.hitCount) || 0) + applied;
