@@ -201,6 +201,34 @@ const INLINE_IMAGE_CHROME = new RegExp(
   'gi',
 );
 
+/** Strip markdown links, autolinks, and bare URLs — inbox list lines are plain text only. */
+function stripLinksForListExcerpt(text: string): string {
+  let rest = text;
+  // Image markdown ![alt](url) — drop URL; keep short alt when present.
+  rest = rest.replace(/!\[([^\]\n]{0,120})\]\([^)\n]+\)/g, (_, alt: string) => {
+    const label = String(alt || '').replace(/\s+/g, ' ').trim();
+    return label || ' ';
+  });
+  // Inline markdown [label](url) — keep label.
+  rest = rest.replace(/\[([^\]\n]{1,240})\]\([^)\n]+\)/g, '$1');
+  // Reference-style [label][ref]
+  rest = rest.replace(/\[([^\]\n]{1,240})\]\[[^\]\n]+\]/g, '$1');
+  // Angle-bracket autolinks <https://…> or <mailto:…>
+  rest = rest.replace(/<\s*(?:https?:\/\/|mailto:|tel:)[^>]+>/gi, ' ');
+  // Parenthetical URLs
+  rest = rest.replace(/\(\s*https?:\/\/[^\s)]+\s*\)/gi, ' ');
+  // Bare http(s) and www. URLs
+  rest = rest.replace(/\bhttps?:\/\/[^\s<>\[\]()]+/gi, ' ');
+  rest = rest.replace(/\bwww\.[^\s<>\[\]()]+/gi, ' ');
+  // Empty brackets/parens left behind
+  rest = rest.replace(/\[\s*\]/g, ' ');
+  rest = rest.replace(/\(\s*\)/g, ' ');
+  return rest
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
+}
+
 function stripImageChrome(text: string): string {
   const lines = text.split(/\r?\n/);
   let i = 0;
@@ -226,7 +254,7 @@ function stripImageChrome(text: string): string {
 
 export function inboxPreviewSnippet(text: string, max = 500): string {
   const source = plainTextForDisplay(text);
-  const clean = stripImageChrome(source).replace(/\s+/g, ' ').trim();
+  const clean = stripLinksForListExcerpt(stripImageChrome(source)).replace(/\s+/g, ' ').trim();
   return clean.length > max ? `${clean.slice(0, max)}…` : clean;
 }
 

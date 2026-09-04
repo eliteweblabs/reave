@@ -75,4 +75,28 @@ const elevateHtml = htmlToPlainText(
 );
 assert.equal(elevateHtml.replace(/\s+/g, ' ').trim(), 'Your trial has started. Welcome aboard.');
 
+const markdownLink = inboxPreviewSnippet(
+  'Invoice ready — [View invoice](https://billing.example.com/invoices/abc123?token=very-long) due Friday.',
+);
+assert.match(markdownLink, /Invoice ready/);
+assert.match(markdownLink, /View invoice/);
+assert.doesNotMatch(markdownLink, /https?:\/\//i);
+assert.doesNotMatch(markdownLink, /\[|\]/);
+
+const bareUrl = inboxPreviewSnippet(
+  'Please review the proposal at https://docs.google.com/document/d/abc123/edit?usp=sharing before our call.',
+);
+assert.match(bareUrl, /Please review the proposal/);
+assert.match(bareUrl, /before our call/);
+assert.doesNotMatch(bareUrl, /https?:\/\//i);
+assert.doesNotMatch(bareUrl, /docs\.google\.com/i);
+
+const autolink = inboxPreviewSnippet(
+  'Reset your password: <https://auth.example.com/reset?token=abc> — link expires in 24 hours.',
+);
+assert.match(autolink, /Reset your password/);
+assert.match(autolink, /expires in 24 hours/);
+assert.doesNotMatch(autolink, /https?:\/\//i);
+assert.doesNotMatch(autolink, /[<>]/);
+
 console.log('verify-email-preview-snippet: ok');
