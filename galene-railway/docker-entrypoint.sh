@@ -322,6 +322,32 @@ html.reave-meet-login #header {
 html.reave-meet-login #title.reave-header-brand {
   justify-content: center !important;
 }
+.app:has(#login-container:not(.invisible)) #peers,
+.app:has(#login-container:not(.invisible)) #video-container,
+.app:has(#login-container:not(.invisible)) #expand-video,
+html.reave-meet-login #peers,
+html.reave-meet-login #video-container,
+html.reave-meet-login #expand-video {
+  display: none !important;
+  visibility: hidden !important;
+}
+html.reave-meet-login nav.topnav {
+  position: relative !important;
+  justify-content: center !important;
+}
+html.reave-meet-login #header {
+  position: absolute !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  flex: 0 1 auto !important;
+}
+html.reave-meet-login .nav-menu {
+  position: absolute !important;
+  right: 0.75rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+}
 EOF
       LOGO_OK=0
       if [ -n "${LOGO_URL}" ]; then
@@ -395,8 +421,13 @@ if [ -n "${REAVE_APP_URL:-}" ]; then
 EOF
   for html in galene.html index.html; do
     target="${GALENE_STATIC}/${html}"
-    if [ -f "${target}" ] && ! grep -q 'reave-meet-share.js' "${target}" 2>/dev/null; then
-      sed -i 's#</body>#    <script src="/reave-meet-ui.js"></script>\n    <script src="/reave-meet-share.js"></script>\n  </body>#' "${target}" 2>/dev/null || true
+    if [ -f "${target}" ]; then
+      if ! grep -q 'reave-meet-ui.js' "${target}" 2>/dev/null; then
+        sed -i 's#</body>#    <script src="/reave-meet-ui.js"></script>\n  </body>#' "${target}" 2>/dev/null || true
+      fi
+      if ! grep -q 'reave-meet-share.js' "${target}" 2>/dev/null; then
+        sed -i 's#</body>#    <script src="/reave-meet-share.js"></script>\n  </body>#' "${target}" 2>/dev/null || true
+      fi
     fi
   done
   cat > "${GALENE_STATIC}/reave-meet-ui.js" <<'UIJS'
@@ -410,6 +441,25 @@ EOF
     var onLogin = loginVisible();
     document.documentElement.classList.toggle('reave-meet-login', onLogin);
     document.documentElement.classList.toggle('reave-meet-connected', !onLogin);
+
+    var left = document.getElementById('left');
+    var resizer = document.getElementById('resizer');
+    var sidebar = document.getElementById('left-sidebar');
+    if (onLogin) {
+      if (left) left.style.display = 'none';
+      if (resizer) resizer.style.display = 'none';
+      if (sidebar) {
+        sidebar.style.minWidth = '0';
+        sidebar.style.maxWidth = '0';
+      }
+    } else {
+      if (left) left.style.display = '';
+      if (resizer) resizer.style.display = '';
+      if (sidebar) {
+        sidebar.style.minWidth = '';
+        sidebar.style.maxWidth = '';
+      }
+    }
 
     var title = document.getElementById('title');
     if (!title) return;
