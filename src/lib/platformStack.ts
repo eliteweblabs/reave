@@ -13,6 +13,20 @@ export type StackTech = {
 export const SIMPLE_ICONS_CDN = (slug: string) =>
   `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
 
+/** Last Simple Icons release that still shipped the mark (trademark takedowns). */
+const SIMPLE_ICONS_PINNED: Record<string, string> = {
+  linkedin: '13.19.0',
+};
+
+/** Official brand-colored social marks for public site chrome. */
+export function socialBrandIconUrl(slug: string): string {
+  if (slug === 'instagram' || slug === 'facebook') {
+    return `https://cdn.simpleicons.org/${slug}`;
+  }
+  const version = SIMPLE_ICONS_PINNED[slug] ?? 'v16';
+  return `https://cdn.jsdelivr.net/npm/simple-icons@${version}/icons/${slug}.svg`;
+}
+
 export const PLATFORM_DEPLOY_MODES = [
   {
     title: 'Full website package',
