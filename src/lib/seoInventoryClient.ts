@@ -409,6 +409,7 @@ export async function seoInventory(urlInput: string): Promise<SeoInventoryRespon
   pushSitemap(`${origin}/sitemap.xml`);
   pushSitemap(`${origin}/sitemap_index.xml`);
   pushSitemap(`${origin}/sitemap-index.xml`);
+  pushSitemap(`${origin}/wp-sitemap.xml`);
 
   // Probe sitemaps until one works (cap 4)
   let sitemapPresent = false;
