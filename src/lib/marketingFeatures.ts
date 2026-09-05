@@ -25,14 +25,13 @@ export type MarketingFeature = {
   spotlight?: boolean;
 };
 
-/** Expand FEATURE_MARKETING entries into loader/site chips for one module. */
+/** Expand FEATURE_MARKETING entries into hero chips for one module (labels only — no nav). */
 function chipsForModule(moduleId: FeatureId): MarketingFeature[] {
   return (FEATURE_MARKETING[moduleId] ?? []).map((item) => ({
     id: item.id,
     label: item.label,
     modules: [moduleId],
     kind: 'capability',
-    href: item.href,
   }));
 }
 
