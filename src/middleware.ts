@@ -265,9 +265,11 @@ const appHandler = async (
       normalizedPath === "/favicon-32x32.png" ||
       normalizedPath === "/apple-touch-icon.png" ||
       normalizedPath === "/apple-touch-icon-precomposed.png";
+    const isSeoPath = normalizedPath === "/sitemap.xml" || normalizedPath === "/robots.txt";
     const isMarketingLike =
       normalizedPath !== "/admin" &&
       !isBrowserIconPath &&
+      !isSeoPath &&
       !normalizedPath.startsWith("/admin/") &&
       !normalizedPath.startsWith("/api/") &&
       !normalizedPath.startsWith("/c/") &&
