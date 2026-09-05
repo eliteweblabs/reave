@@ -6583,18 +6583,6 @@ function renderAdminDashboard(data, opts = {}) {
       li.appendChild(btn);
       list.appendChild(li);
     }
-    if (analyticsLive) {
-      const more = document.createElement('button');
-      more.type = 'button';
-      more.className = 'dash-uptime-tile dash-uptime-tile--add dash-fleet-tile';
-      more.innerHTML =
-        `<span class="dash-uptime-add-icon" aria-hidden="true">${navIcon('bar-chart-2', 16)}</span>` +
-        `<div class="dash-uptime-name">All accounts</div>`;
-      more.addEventListener('click', () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }));
-      const moreLi = document.createElement('li');
-      moreLi.appendChild(more);
-      list.appendChild(moreLi);
-    }
     mount.appendChild(list);
   }
 
