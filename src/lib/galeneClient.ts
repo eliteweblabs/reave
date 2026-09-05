@@ -119,7 +119,7 @@ export async function galeneCreateGroup(
 
   const body: GaleneGroupDefinition = {
     displayName: def.displayName ?? name,
-    description: def.description ?? 'REΛVe video room',
+    description: def.description ?? 'reave.app video room',
     public: def.public ?? true,
     'max-clients': def['max-clients'] ?? 40,
     'allow-recording': def['allow-recording'] ?? true,

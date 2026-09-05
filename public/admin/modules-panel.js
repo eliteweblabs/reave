@@ -659,7 +659,7 @@ function renderDetailPane() {
       `<option value="staff"${item.audience === 'staff' ? ' selected' : ''}>Staff only</option>` +
       `<option value="owner"${item.audience === 'owner' ? ' selected' : ''}>Owner only</option>` +
       `</select>` +
-      `<span class="mod-sheet-hint">Who can open this module in the admin OS. Satellites pull this from reΛVe.</span>` +
+      `<span class="mod-sheet-hint">Who can open this module in the admin OS. Satellites pull this from reave.app.</span>` +
       `</label>`;
     scroll.appendChild(fields);
   } else {

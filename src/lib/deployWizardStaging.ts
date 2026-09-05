@@ -79,7 +79,7 @@ export async function resolveDeployWizardSiteDomain(opts: {
       stagingHost: true,
       provisionOnApply: false,
       dnsAccess: 'skip',
-      note: `Using REΛVE staging host ${planned}.`,
+      note: `Using reave.app staging host ${planned}.`,
     };
   }
 

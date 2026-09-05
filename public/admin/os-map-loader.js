@@ -9808,7 +9808,7 @@ function renderTeamPanel(members) {
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Team</h1>` +
-        `<p class="prof-subtitle">Invite staff to the admin OS. Module access follows reΛVe catalog settings (Owner + staff / Staff only / Owner only).</p>` +
+        `<p class="prof-subtitle">Invite staff to the admin OS. Module access follows reave.app catalog settings (Owner + staff / Staff only / Owner only).</p>` +
         `<div id="team-alert" class="prof-alert" hidden></div>` +
         `<form id="team-invite-form" class="prof-form">` +
           `<div class="prof-field">` +

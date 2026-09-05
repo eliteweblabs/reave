@@ -129,7 +129,7 @@ fi
 
 rm -f "${GALENE_DATA}/ice-servers.json"
 
-# REΛVe branding — pull logo + palette from the main app (same pattern as Crater).
+# reave.app branding — pull logo + palette from the main app (same pattern as Crater).
 REAVE_APP_URL="${REAVE_APP_URL:-}"
 if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   BRAND_JSON="$(mktemp)"
@@ -165,7 +165,7 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
           sed -i "s#</head>#    <meta property=\"og:type\" content=\"website\"/>\n    <meta property=\"og:title\" content=\"${OG_TITLE_ESC}\"/>\n    <meta property=\"og:description\" content=\"Join a secure video meeting.\"/>\n    <meta property=\"og:image\" content=\"${OG_PUBLIC}\"/>\n    <meta property=\"og:image:width\" content=\"1200\"/>\n    <meta property=\"og:image:height\" content=\"630\"/>\n    <meta name=\"twitter:card\" content=\"summary_large_image\"/>\n    <meta name=\"twitter:image\" content=\"${OG_PUBLIC}\"/>\n  </head>#" "${target}" 2>/dev/null || true
         fi
       done
-      echo "REΛVe OG card applied (${OG_PUBLIC})"
+      echo "reave.app OG card applied (${OG_PUBLIC})"
     fi
     if [ -n "${PRIMARY}" ]; then
       cat > "${BRAND_CSS}" <<EOF
@@ -388,7 +388,7 @@ EOF
           sed -i 's#<link rel="stylesheet" href="/mainpage.css">#&\n    <link rel="stylesheet" type="text/css" href="/reave-brand.css"/>#' "${target}" 2>/dev/null || true
         fi
       done
-      echo "REΛVe branding applied from ${REAVE_ORIGIN}/api/branding"
+      echo "reave.app branding applied from ${REAVE_ORIGIN}/api/branding"
     fi
   fi
   rm -f "${BRAND_JSON}"

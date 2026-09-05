@@ -14,7 +14,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 |----------|---------|
 | `CRATER_API_BASE_URL` | Crater host, no trailing slash. Prefer `https://${{ crater.RAILWAY_PUBLIC_DOMAIN }}`. |
 | `CRATER_API_TOKEN` | Mirror of Crater's `CRATER_API_TOKEN`; sent as `X-Crater-Api-Token`. |
-| `REAVE_APP_URL` | reΛVe origin for `GET /api/branding` (logo + colors from admin company_config). |
+| `REAVE_APP_URL` | reave.app origin for `GET /api/branding` (logo + colors from admin company_config). |
 | `COMPANY_LOGO_URL` | _(legacy fallback only)_ Used when admin has no wordmark or API is unreachable. |
 
 ## Admin & API Usage

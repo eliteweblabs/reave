@@ -102,7 +102,7 @@ Owner name, email, phone, and timezone are the same fields as Admin → Profile.
 
 ## Staging on `{slug}.reave.app`
 
-There is **no REΛVE.app dropdown**. On the first wizard step, enter the client apex and choose **Registrar access**:
+There is **no reave.app dropdown**. On the first wizard step, enter the client apex and choose **Registrar access**:
 
 | Choice | Apply behavior |
 |--------|----------------|
