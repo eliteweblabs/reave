@@ -158,6 +158,82 @@ ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_actions JSONB NOT NULL D
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'personal';
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS phrase_fields JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
+
+-- Repair installs where scripts/migrations/001 created a competing email_rules shape
+-- (name/pattern/action) before emailRuleStore columns existed.
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS title TEXT;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS phrases JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS match_mode TEXT NOT NULL DEFAULT 'any';
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS fields JSONB NOT NULL DEFAULT '["subject","body"]';
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'name'
+  ) THEN
+    EXECUTE 'ALTER TABLE email_rules ALTER COLUMN name DROP NOT NULL';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'pattern'
+  ) THEN
+    EXECUTE 'ALTER TABLE email_rules ALTER COLUMN pattern DROP NOT NULL';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'action'
+  ) THEN
+    EXECUTE 'ALTER TABLE email_rules ALTER COLUMN action DROP NOT NULL';
+  END IF;
+END $$;
+
+UPDATE email_rules
+   SET title = COALESCE(NULLIF(trim(title), ''), name)
+ WHERE (title IS NULL OR trim(title) = '') AND name IS NOT NULL AND trim(name) <> '';
+
+UPDATE email_rules
+   SET status = COALESCE(NULLIF(trim(status), ''), action)
+ WHERE (status IS NULL OR trim(status) = '') AND action IS NOT NULL AND trim(action) <> '';
+
+UPDATE email_rules
+   SET phrases = jsonb_build_array(pattern)
+ WHERE (phrases IS NULL OR phrases = '[]'::jsonb)
+   AND pattern IS NOT NULL
+   AND trim(pattern) <> '';
+
+UPDATE email_rules
+   SET sort_order = COALESCE(NULLIF(sort_order, 0), priority, 0)
+ WHERE sort_order IS NULL OR sort_order = 0;
+
+UPDATE email_rules er
+   SET fields = to_jsonb(er.match_fields)
+ WHERE (er.fields IS NULL OR er.fields = '[]'::jsonb)
+   AND er.match_fields IS NOT NULL
+   AND EXISTS (
+     SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'match_fields'
+   );
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'email_rules'
+      AND column_name = 'except_phrases'
+      AND udt_name = '_text'
+  ) THEN
+    EXECUTE 'ALTER TABLE email_rules RENAME COLUMN except_phrases TO except_phrases_legacy';
+    EXECUTE 'ALTER TABLE email_rules ADD COLUMN except_phrases JSONB NOT NULL DEFAULT ''[]''';
+    EXECUTE 'UPDATE email_rules SET except_phrases = to_jsonb(except_phrases_legacy) WHERE except_phrases_legacy IS NOT NULL';
+    EXECUTE 'ALTER TABLE email_rules DROP COLUMN except_phrases_legacy';
+  END IF;
+END $$;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -551,9 +627,9 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.title,
           r.status,
           r.description ?? null,
-          JSON.stringify(r.phrases),
+          r.phrases,
           r.matchMode,
-          JSON.stringify(r.fields),
+          r.fields,
           notifyPush || notifyDashboard,
           r.enabled,
           r.expiresAt ? new Date(r.expiresAt) : null,
@@ -564,16 +640,14 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.createProject === true,
           Math.max(0, Number(r.hitCount) || 0),
           r.lastMatchedAt ? new Date(r.lastMatchedAt) : null,
-          JSON.stringify(
-            Array.isArray(r.exceptPhrases)
-              ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
-              : [],
-          ),
+          Array.isArray(r.exceptPhrases)
+            ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
+            : [],
           notifyPush,
           notifyDashboard,
-          JSON.stringify(notifyActions),
+          notifyActions,
           normalizeEmailRuleScope(r.scope, 'personal'),
-          JSON.stringify(Array.isArray(r.phraseFields) ? r.phraseFields : []),
+          Array.isArray(r.phraseFields) ? r.phraseFields : [],
         ]
       );
     }

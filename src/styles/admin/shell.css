@@ -128,14 +128,15 @@ body {
 }
 
 /* iOS keypad pans position:fixed chrome with visualViewport.offsetTop.
- * Header.astro sets --vv-* and .admin-keyboard-open while the keys are up. */
-html.admin-keyboard-open .app-header--admin {
+ * Header.astro sets --vv-* and .admin-keyboard-open while the keys are up.
+ * Dashboard only — scrollable panel tabs keep an absolute logo bar. */
+html.admin-dashboard.admin-keyboard-open .app-header--admin {
   top: var(--vv-offset-top, 0px);
   left: var(--vv-offset-left, 0px);
   right: auto;
   width: var(--vv-width, 100%);
 }
-html.admin-keyboard-open :is(
+html.admin-dashboard.admin-keyboard-open :is(
   #dashboard-panel,
   #settings-panel,
   #doc-editor,
@@ -166,7 +167,7 @@ html.admin-keyboard-open :is(
   right: auto;
   bottom: auto;
 }
-html.admin-keyboard-open .admin-footer-nav {
+html.admin-dashboard.admin-keyboard-open .admin-footer-nav {
   visibility: hidden;
   pointer-events: none;
 }
