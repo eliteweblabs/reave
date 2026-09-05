@@ -9,13 +9,6 @@
  */
 
 import {
-  knowledgeSlugsForPlugin,
-  parseKnowledgeMarkdown,
-  pluginIdForKnowledgeSlug,
-  readKnowledgeMarkdown,
-  summarizeKnowledgeIndex,
-} from './localKnowledge';
-import {
   isDefaultKnowledgeSlug,
   isKnowledgeSlugAvailable,
   isOpsOnlyKnowledgeSlug,
@@ -37,6 +30,12 @@ import {
   dbDeleteKnowledge,
   dbSeedBundled,
   dbPurgeKnowledgeSlugs,
+  dbSeedClientKnowledgeFromLegacy,
+  knowledgeSlugsForPlugin,
+  parseKnowledgeMarkdown,
+  pluginIdForKnowledgeSlug,
+  readKnowledgeMarkdown,
+  summarizeKnowledgeIndex,
   type KnowledgeEntry,
 } from './pgKnowledge';
 
@@ -107,8 +106,9 @@ export interface KnowledgeDoc {
 /** List all knowledge entries: DB entries first, then bundled slugs not already in DB. */
 export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
   await purgeInactivePluginKnowledge();
+  await dbSeedClientKnowledgeFromLegacy();
   const dbRows = await dbListKnowledge();
-  const bundled = summarizeKnowledgeIndex();
+  const bundled = await summarizeKnowledgeIndex();
 
   if (!dbRows) {
     return bundled
@@ -154,6 +154,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
 /** Read one knowledge entry. Module playbooks always come from plugin markdown. */
 export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | null> {
   await purgeInactivePluginKnowledge();
+  await dbSeedClientKnowledgeFromLegacy();
   if (!knowledgeSlugVisible(slug)) return null;
   const fileBacked = isModulePlaybookSlug(slug);
   const dbEntry = fileBacked ? null : await dbReadKnowledge(slug);
@@ -169,7 +170,7 @@ export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | n
     };
   }
 
-  const bundled = readKnowledgeMarkdown(slug);
+  const bundled = await readKnowledgeMarkdown(slug);
   if (bundled) {
     const parsed = parseKnowledgeMarkdown(bundled.content);
     const title =
@@ -201,8 +202,9 @@ export async function storeSearchKnowledge(
   const q = query.toLowerCase().trim();
 
   await purgeInactivePluginKnowledge();
+  await dbSeedClientKnowledgeFromLegacy();
   const dbResults = await dbSearchKnowledge(query);
-  const bundled = summarizeKnowledgeIndex();
+  const bundled = await summarizeKnowledgeIndex();
   const bundledMatches = bundled
     .filter((b) => knowledgeSlugVisible(b.slug))
     .filter((b) => b.slug.includes(q) || b.preview.toLowerCase().includes(q))

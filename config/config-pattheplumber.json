@@ -34,5 +34,8 @@
     "digital_signature": "deployed",
     "scheduling": "request",
     "portal_assistant": "deployed"
+  },
+  "services": {
+    "billing": { "enabled": true, "service": "crater" }
   }
 }
