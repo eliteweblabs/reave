@@ -3,7 +3,7 @@
  *
  * Scope overrides:
  *   ?trace=0 | ?trace=off  — disable for this session
- *   ?trace=chat            — chat + admin boot only (not auto observers)
+ *   ?trace=chat            — chat + admin boot + dashboard load (admin API fetches only)
  *   localStorage.setItem('reave:trace', '0' | 'chat')
  *
  * Console: filter "[reave trace]". Performance panel: measures prefixed "reave:".
@@ -87,12 +87,19 @@ function fetchPath(input) {
   }
 }
 
+function shouldTraceFetch(path) {
+  if (autoTraceEnabled()) return true;
+  if (scope !== 'chat') return false;
+  return path.startsWith('/api/admin/') || path.startsWith('/api/os-map/');
+}
+
 function installFetchTrace() {
-  if (!autoTraceEnabled() || window.__reaveTraceFetchPatched) return;
+  if (!scope || window.__reaveTraceFetchPatched) return;
   window.__reaveTraceFetchPatched = true;
   const orig = window.fetch.bind(window);
   window.fetch = function traceFetch(input, init) {
     const path = fetchPath(input);
+    if (!shouldTraceFetch(path)) return orig(input, init);
     const method = (init?.method || 'GET').toUpperCase();
     const t0 = performance.now();
     log(`→ fetch ${method} ${path}`);
@@ -300,6 +307,7 @@ function hudLine(text, meta) {
     if (meta.threads != null) bits.push(`${meta.threads} threads`);
     if (meta.messages != null) bits.push(`${meta.messages} msgs`);
     if (meta.tab != null) bits.push(String(meta.tab));
+    if (meta.shellOnly) bits.push('shell only');
     if (meta.path != null && !text.includes(String(meta.path))) bits.push(String(meta.path).slice(0, 48));
     if (meta.restoreId) bits.push(String(meta.restoreId).slice(0, 8));
     if (meta.ok === false) bits.push('FAILED');
@@ -364,26 +372,53 @@ export function traceSummary() {
   return entries;
 }
 
-function markMs(name) {
-  const entry = performance.getEntriesByName(name, 'mark')[0];
-  return entry ? Math.round(entry.startTime) : null;
-}
 
 export function reportPreBootTiming() {
   if (!scope) return;
-  const page = markMs('reave:admin:page');
-  const evalStart = markMs('reave:admin:os-map-loader:eval-start');
-  const evalEnd = markMs('reave:admin:os-map-loader:eval-end');
-  const traceStartMs = markMs('reave:trace:start');
-  const meta = {
-    pageToTraceMs: page != null && traceStartMs != null ? traceStartMs - page : null,
-    pageToLoaderEvalMs: page != null && evalEnd != null ? evalEnd - page : null,
-    loaderParseMs: evalStart != null && evalEnd != null ? evalEnd - evalStart : null,
-    domContentLoadedMs: null,
-  };
+  const pageMark = performance.getEntriesByName('reave:admin:page', 'mark')[0];
+  const evalStartMark = performance.getEntriesByName('reave:admin:os-map-loader:eval-start', 'mark')[0];
+  const evalEndMark = performance.getEntriesByName('reave:admin:os-map-loader:eval-end', 'mark')[0];
+  const traceStartMark = performance.getEntriesByName('reave:trace:start', 'mark')[0];
+  const page = pageMark ? Math.round(pageMark.startTime) : null;
+  const evalStart = evalStartMark ? Math.round(evalStartMark.startTime) : null;
+  const evalEnd = evalEndMark ? Math.round(evalEndMark.startTime) : null;
+  const traceStartMs = traceStartMark ? Math.round(traceStartMark.startTime) : null;
+  const pageToTraceMs = page != null && traceStartMs != null ? traceStartMs - page : null;
+  const pageToLoaderEvalMs = page != null && evalEnd != null ? evalEnd - page : null;
+  const loaderParseMs = evalStart != null && evalEnd != null ? evalEnd - evalStart : null;
+  let domContentLoadedMs = null;
   const nav = performance.getEntriesByType('navigation')[0];
-  if (nav?.domContentLoadedEventEnd) meta.domContentLoadedMs = Math.round(nav.domContentLoadedEventEnd);
-  traceRecord('pre-boot (JS parse / download)', meta);
+  if (nav?.domContentLoadedEventEnd) domContentLoadedMs = Math.round(nav.domContentLoadedEventEnd);
+  if (pageToLoaderEvalMs != null) {
+    hudLine('pre-boot: page → loader ready', { ms: pageToLoaderEvalMs });
+  }
+  if (loaderParseMs != null) {
+    hudLine('pre-boot: loader parse/eval', { ms: loaderParseMs });
+  }
+  if (domContentLoadedMs != null) {
+    hudLine('pre-boot: DOMContentLoaded', { ms: domContentLoadedMs });
+  }
+  traceRecord('pre-boot (JS parse / download)', {
+    pageToTraceMs,
+    pageToLoaderEvalMs,
+    loaderParseMs,
+    domContentLoadedMs,
+  });
+}
+
+/** Elapsed ms since the inline page mark (reave:admin:page). */
+export function traceSincePage(name, meta) {
+  if (!isTracing(name)) return;
+  const pageMark = performance.getEntriesByName('reave:admin:page', 'mark')[0];
+  const ms = pageMark ? Math.round(performance.now() - pageMark.startTime) : null;
+  const merged = { ...(meta || {}), ms };
+  log(`${name} @ ${ms != null ? `${ms}ms` : '?'} since page`, merged);
+  hudLine(name, merged);
+  try {
+    performance.measure(`reave:${name}`, 'reave:admin:page');
+  } catch {
+    /* measure may already exist */
+  }
 }
 
 export function initPerfTrace() {
@@ -409,6 +444,7 @@ window.__reaveTrace = {
   start: traceStart,
   async: traceAsync,
   record: traceRecord,
+  sincePage: traceSincePage,
   summary: traceSummary,
   preBoot: reportPreBootTiming,
 };

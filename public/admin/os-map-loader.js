@@ -136,7 +136,7 @@ import {
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
-import { traceStart, traceAsync, reportPreBootTiming } from './perf-trace.js';
+import { traceStart, traceAsync, traceSincePage, reportPreBootTiming } from './perf-trace.js';
 import {
   captureFilterTabsScroll,
   mountFilterTabsScroll,
@@ -7056,7 +7056,7 @@ async function loadAdminDashboard(opts = {}) {
     if (elapsed < DASHBOARD_MIN_RELOAD_MS) return;
   }
 
-  homeDashboardLoadPromise = (async () => {
+  homeDashboardLoadPromise = traceAsync('admin:dashboard:load', async () => {
     if (!hasContent) {
       mountPanelSkeleton(root, 'dashboard-home', 'Loading dashboard…', {
         quiet: false,
@@ -7070,11 +7070,14 @@ async function loadAdminDashboard(opts = {}) {
     }
 
     try {
-      const res = await adminFetch('/api/admin/dashboard');
+      const res = await traceAsync('admin:dashboard:fetch', () => adminFetch('/api/admin/dashboard'));
       const data = await readAdminJson(res, 'dashboard');
       if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDashboardFooterBadges(data.stats);
+      const endRender = traceStart('admin:dashboard:render');
       renderAdminDashboard(data);
+      endRender();
+      traceSincePage('admin:dashboard:ready', { tab: 'dashboard' });
       homeDashboardLastLoadAt = Date.now();
       void initFleetLocationReporter();
     } catch (e) {
@@ -7088,7 +7091,7 @@ async function loadAdminDashboard(opts = {}) {
           `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
         `</div>`;
     }
-  })();
+  });
 
   try {
     await homeDashboardLoadPromise;
@@ -20301,7 +20304,7 @@ async function boot() {
       /* ignore */
     }
   }
-  endBoot({ tab: MAP?.type || activeKey });
+  endBoot({ tab: MAP?.type || activeKey, shellOnly: true });
 }
 
 boot().catch(showBootError);
