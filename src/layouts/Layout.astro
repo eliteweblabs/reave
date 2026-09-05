@@ -19,6 +19,7 @@ import ViewportMeta from "../components/ViewportMeta.astro";
 import CookieNotice from "../components/CookieNotice.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ThemeInit from "../components/ThemeInit.astro";
+import BrowserUiBottomInsetInit from "../components/BrowserUiBottomInsetInit.astro";
 import PlausibleScript from "../components/PlausibleScript.astro";
 import OrganizationJsonLd from "../components/OrganizationJsonLd.astro";
 import "../styles/brand.css";
@@ -168,6 +169,7 @@ try {
 		)}
 	</head>
 	<body data-user-id={userId ?? ""}>
+		<BrowserUiBottomInsetInit />
 		<SiteBackground />
 		<Header marketingNav={marketingNav} siteContent={siteContent} />
 		<main id="main-content">

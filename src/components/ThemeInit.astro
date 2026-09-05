@@ -6,14 +6,17 @@
 ---
 <script is:inline>
   (function () {
+    var theme = "light";
     try {
       var stored = localStorage.getItem("reave-theme");
-      var theme = stored === "dark" || stored === "light" ? stored : "light";
+      theme = stored === "dark" || stored === "light" ? stored : "light";
       document.documentElement.setAttribute("data-theme", theme);
       document.documentElement.style.colorScheme = theme;
     } catch (e) {
       document.documentElement.setAttribute("data-theme", "light");
       document.documentElement.style.colorScheme = "light";
     }
+    var meta = document.querySelector('meta[name="theme-color"]:not([media])');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#111111" : "#ffffff");
   })();
 </script>
