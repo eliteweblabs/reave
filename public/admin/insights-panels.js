@@ -7,7 +7,6 @@ import {
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
-  listSearchAddNew,
   syncSearchFieldAdornment,
   createSlidingPillSelect,
   createPanelBackBtn,
