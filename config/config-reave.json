@@ -76,6 +76,10 @@
   "chatFocusSkin": true,
   "siteContentKey": "reave",
   "opsInstall": true,
+  "moduleStatus": {
+    "social_inbox": "deployed",
+    "social_lead_scanner": "deployed"
+  },
   "siteFleetIgnoreSeeds": [
     { "siteId": "mavsafe.com", "reason": "Legal hold — do not touch" },
     { "siteId": "allautofinancial.com", "reason": "Legal hold — do not touch" },
