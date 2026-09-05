@@ -58,3 +58,7 @@ src/knowledge/site-health-fleet.json
 src/knowledge/.media/
 
 .playwright-mcp/
+
+# Generated artifacts (Claude / migration tooling)
+Claude outputs/
+knowledge_records.json

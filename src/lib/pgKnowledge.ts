@@ -1,21 +1,31 @@
 /**
  * Postgres-backed knowledge store (Railway DATABASE_URL).
- * Schema is ensured on first use; bundled markdown is seeded when the table is empty.
+ *
+ * - `client_knowledge` — architecture rewire loader (list/read/search bundled docs)
+ * - `knowledge` — live editable owner docs (admin CRUD)
+ *
+ * Module playbooks under plugins/{id}/knowledge/ stay file-backed; everything else
+ * prefers client_knowledge rows, then legacy knowledge, then bundled markdown.
  */
 
 import pg from 'pg';
 import { databaseUrl, getPgPool } from './pgPool';
 import {
-  listKnowledgeSlugs,
-  parseKnowledgeMarkdown,
-  pluginIdForKnowledgeSlug,
-  readKnowledgeMarkdown,
+  listKnowledgeSlugs as localListKnowledgeSlugs,
+  parseKnowledgeMarkdown as localParseKnowledgeMarkdown,
+  pluginIdForKnowledgeSlug as localPluginIdForKnowledgeSlug,
+  readKnowledgeMarkdown as localReadKnowledgeMarkdown,
+  summarizeKnowledgeIndex as localSummarizeKnowledgeIndex,
+  knowledgeSlugsForPlugin as localKnowledgeSlugsForPlugin,
+  industryKnowledgeEntries as localIndustryKnowledgeEntries,
 } from './localKnowledge';
 import { isPluginOwnedKnowledgeSlug } from './pluginRegistry';
-import { serverEnv } from './serverEnv';
 import { createLogger } from './logger';
 
 const log = createLogger('knowledge:pg');
+
+/** Sentinel UUID for install-universal knowledge rows (migrated bundled docs). */
+export const UNIVERSAL_KNOWLEDGE_CLIENT_ID = '00000000-0000-0000-0000-000000000001';
 
 export interface KnowledgeEntry {
   id?: number;
@@ -36,7 +46,7 @@ export interface KnowledgeSummary {
   updated_at: string;
 }
 
-const SCHEMA_SQL = `
+const LEGACY_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS knowledge (
   id SERIAL PRIMARY KEY,
   slug VARCHAR(255) UNIQUE NOT NULL,
@@ -57,16 +67,97 @@ let _schemaReady: Promise<void> | null = null;
 let _seedReady: Promise<void> | null = null;
 
 function isAddonPlaybookSlug(slug: string): boolean {
-  return Boolean(pluginIdForKnowledgeSlug(slug)) || isPluginOwnedKnowledgeSlug(slug);
+  return Boolean(localPluginIdForKnowledgeSlug(slug)) || isPluginOwnedKnowledgeSlug(slug);
+}
+
+/** Re-export pure/path helpers — module playbooks stay file-backed. */
+export const parseKnowledgeMarkdown = localParseKnowledgeMarkdown;
+export const pluginIdForKnowledgeSlug = localPluginIdForKnowledgeSlug;
+export const knowledgeSlugsForPlugin = localKnowledgeSlugsForPlugin;
+
+export function industryKnowledgeEntries(industry?: string | null): { slug: string; content: string }[] {
+  return localIndustryKnowledgeEntries(industry);
+}
+
+async function readClientKnowledgeRow(
+  slug: string,
+): Promise<{ slug: string; content: string; title: string } | null> {
+  const pool = getPgPool();
+  if (!pool) return null;
+  try {
+    const { rows } = await pool.query<{ slug: string; content: string; title: string }>(
+      `SELECT slug, content, title
+       FROM client_knowledge
+       WHERE client_id = $1::uuid AND slug = $2
+       LIMIT 1`,
+      [UNIVERSAL_KNOWLEDGE_CLIENT_ID, slug],
+    );
+    return rows[0] ?? null;
+  } catch (e) {
+    log.error('readClientKnowledgeRow error', e);
+    return null;
+  }
+}
+
+async function listClientKnowledgeSlugs(): Promise<string[]> {
+  const pool = getPgPool();
+  if (!pool) return [];
+  try {
+    const { rows } = await pool.query<{ slug: string }>(
+      `SELECT slug FROM client_knowledge WHERE client_id = $1::uuid ORDER BY slug`,
+      [UNIVERSAL_KNOWLEDGE_CLIENT_ID],
+    );
+    return rows.map((r) => r.slug);
+  } catch (e) {
+    log.error('listClientKnowledgeSlugs error', e);
+    return [];
+  }
+}
+
+/** All knowledge slugs: DB client_knowledge + file-backed plugin/industry docs. */
+export async function listKnowledgeSlugs(): Promise<string[]> {
+  const dbSlugs = await listClientKnowledgeSlugs();
+  const localSlugs = localListKnowledgeSlugs();
+  if (dbSlugs.length === 0) return localSlugs;
+  return [...new Set([...dbSlugs, ...localSlugs])].sort((a, b) => a.localeCompare(b));
+}
+
+/** Read markdown: plugin playbooks from disk; other slugs from client_knowledge, then disk. */
+export async function readKnowledgeMarkdown(
+  slug: string,
+): Promise<{ slug: string; content: string } | null> {
+  if (isAddonPlaybookSlug(slug)) {
+    return localReadKnowledgeMarkdown(slug);
+  }
+
+  const row = await readClientKnowledgeRow(slug);
+  if (row) return { slug: row.slug, content: row.content };
+
+  return localReadKnowledgeMarkdown(slug);
+}
+
+export async function summarizeKnowledgeIndex(): Promise<{ slug: string; preview: string }[]> {
+  const slugs = await listKnowledgeSlugs();
+  const out: { slug: string; preview: string }[] = [];
+  for (const slug of slugs) {
+    const row = await readKnowledgeMarkdown(slug);
+    const parsed = parseKnowledgeMarkdown(row?.content ?? '');
+    const first =
+      parsed.title ||
+      parsed.body.split('\n').find((l) => l.trim().length > 0)?.replace(/^#\s*/, '') ||
+      '';
+    out.push({ slug, preview: first.slice(0, 120) });
+  }
+  return out;
 }
 
 async function seedBundledIfEmpty(pool: pg.Pool): Promise<void> {
   const { rows } = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM knowledge');
   if ((rows[0]?.n ?? 0) > 0) return;
 
-  for (const slug of listKnowledgeSlugs()) {
+  for (const slug of localListKnowledgeSlugs()) {
     if (isAddonPlaybookSlug(slug)) continue;
-    const raw = readKnowledgeMarkdown(slug);
+    const raw = localReadKnowledgeMarkdown(slug);
     if (!raw) continue;
     const parsed = parseKnowledgeMarkdown(raw.content);
     const title = parsed.title || slug;
@@ -84,7 +175,7 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = pool
-      .query(SCHEMA_SQL)
+      .query(LEGACY_SCHEMA_SQL)
       .then(() => undefined)
       .catch((e) => {
         _schemaReady = null;
@@ -238,7 +329,7 @@ export async function dbSeedBundled(): Promise<{
     };
   }
 
-  for (const slug of listKnowledgeSlugs()) {
+  for (const slug of localListKnowledgeSlugs()) {
     if (isAddonPlaybookSlug(slug)) {
       skipped.push(slug);
       continue;
@@ -248,7 +339,7 @@ export async function dbSeedBundled(): Promise<{
       skipped.push(slug);
       continue;
     }
-    const raw = readKnowledgeMarkdown(slug);
+    const raw = localReadKnowledgeMarkdown(slug);
     if (!raw) {
       errors.push({ slug, error: 'bundled file missing' });
       continue;
@@ -266,4 +357,27 @@ export async function dbSeedBundled(): Promise<{
   }
 
   return { seeded, skipped, errors };
+}
+
+/** Copy legacy knowledge rows into client_knowledge (idempotent). */
+export async function dbSeedClientKnowledgeFromLegacy(): Promise<{ copied: number }> {
+  const pool = getPgPool();
+  if (!pool) return { copied: 0 };
+  try {
+    const { rowCount } = await pool.query(
+      `INSERT INTO client_knowledge (client_id, slug, title, content, tags)
+       SELECT $1::uuid, slug, title, content, COALESCE(tags, ARRAY[]::text[])
+       FROM knowledge
+       ON CONFLICT (client_id, slug) DO UPDATE SET
+         title = EXCLUDED.title,
+         content = EXCLUDED.content,
+         tags = EXCLUDED.tags,
+         updated_at = NOW()`,
+      [UNIVERSAL_KNOWLEDGE_CLIENT_ID],
+    );
+    return { copied: rowCount ?? 0 };
+  } catch (e) {
+    log.error('dbSeedClientKnowledgeFromLegacy error', e);
+    return { copied: 0 };
+  }
 }
