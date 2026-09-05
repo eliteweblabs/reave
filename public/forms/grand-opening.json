@@ -1,0 +1,56 @@
+{
+  "title": "Grand Opening Offer",
+  "description": "Apply for free website design with one year of managed hosting.",
+  "fields": [
+    {
+      "name": "name",
+      "type": "text",
+      "required": true,
+      "cf-questions": "Grand opening — free website design when you sign up for one year of hosting ($500, or $50/month). Subject to approval.&&What's your name?"
+    },
+    {
+      "name": "email",
+      "type": "email",
+      "required": true,
+      "cf-questions": "What's the best email to reach you?"
+    },
+    {
+      "name": "phone",
+      "type": "tel",
+      "required": false,
+      "cf-questions": "Phone number? (optional, but helps us move faster)"
+    },
+    {
+      "name": "company",
+      "type": "text",
+      "required": false,
+      "cf-questions": "Business or project name?"
+    },
+    {
+      "name": "website",
+      "type": "text",
+      "required": false,
+      "cf-questions": "Do you have an existing website? Paste the URL, or type \"none\"."
+    },
+    {
+      "name": "message",
+      "type": "textarea",
+      "required": true,
+      "cf-questions": "Tell us about your business and what you need on the site — the more detail, the faster we can approve and build."
+    },
+    {
+      "name": "sms_opt_in",
+      "type": "sms_consent",
+      "required": false,
+      "cf-show-if": "phone",
+      "cf-questions": "Optional SMS updates about your application"
+    }
+  ],
+  "submitEndpoint": "/api/forms/submit",
+  "submitSubject": "Grand opening offer application",
+  "submittingMessage": "Sending your application...",
+  "onComplete": {
+    "message": "Application received! We'll review it and get back to you within 48 hours.",
+    "redirect": null
+  }
+}
