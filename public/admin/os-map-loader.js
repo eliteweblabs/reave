@@ -1457,12 +1457,12 @@ function isLlmRouteActive() {
   return Boolean(agentModelState.llmRoute?.label);
 }
 
-function createChatReaveKeyFlag(variant = 'chip') {
-  const el = document.createElement(variant === 'banner' ? 'div' : 'span');
-  el.className = variant === 'banner' ? 'ch-reave-key-flag ch-reave-key-flag--banner' : 'ch-reave-key-flag';
+function createChatReaveKeyFlag() {
+  const el = document.createElement('span');
+  el.className = 'ch-reave-key-flag';
   el.hidden = !isReaveSharedAnthropicKey();
   el.title = 'This install uses the shared reave.app Claude API key. Add the client’s ANTHROPIC_API_KEY to use their own.';
-  el.innerHTML = `${iosIcon('key', variant === 'banner' ? 14 : 12)}<span>reave.app key</span>`;
+  el.innerHTML = `${iosIcon('key', 12)}<span>reave.app key</span>`;
   return el;
 }
 
@@ -1473,14 +1473,13 @@ function syncReaveKeyFlags() {
   });
 }
 
-function createChatLlmRouteFlag(variant = 'chip') {
-  const el = document.createElement(variant === 'banner' ? 'div' : 'span');
-  el.className =
-    variant === 'banner' ? 'ch-llm-route-flag ch-llm-route-flag--banner' : 'ch-llm-route-flag';
+function createChatLlmRouteFlag() {
+  const el = document.createElement('span');
+  el.className = 'ch-llm-route-flag';
   el.dataset.routeKind = agentModelState.llmRoute?.kind || '';
   el.hidden = !isLlmRouteActive();
   el.title = llmRouteChipTitle(agentModelState.llmRoute);
-  el.innerHTML = `${iosIcon('layers', variant === 'banner' ? 14 : 12)}<span>${escHtml(llmRouteChipLabel(agentModelState.llmRoute) || '')}</span>`;
+  el.innerHTML = `${iosIcon('layers', 12)}<span>${escHtml(llmRouteChipLabel(agentModelState.llmRoute) || '')}</span>`;
   return el;
 }
 
@@ -1506,8 +1505,8 @@ function syncChatModelFlags() {
 function createChatModelSwitcher() {
   const cluster = document.createElement('div');
   cluster.className = 'ch-model-cluster';
-  cluster.appendChild(createChatReaveKeyFlag('chip'));
-  cluster.appendChild(createChatLlmRouteFlag('chip'));
+  cluster.appendChild(createChatReaveKeyFlag());
+  cluster.appendChild(createChatLlmRouteFlag());
 
   const wrap = document.createElement('div');
   wrap.className = 'ch-model-switcher';
