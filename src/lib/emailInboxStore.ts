@@ -21,6 +21,7 @@ import {
   type ClassificationAuditStep,
 } from './emailClassificationAudit';
 import { isSeededInboxRecord } from './seededInboxMarkers';
+import { invalidateDashboardCache } from './dashboardPayloadCache';
 
 export { isSeededInboxRecord };
 
@@ -1104,8 +1105,9 @@ export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<Ema
     messageId: input.messageId,
   });
   if (existing) return existing;
-  if (databaseUrl()) return appendToPg(input);
-  return appendToFile(input);
+  const record = databaseUrl() ? await appendToPg(input) : await appendToFile(input);
+  if (record) invalidateDashboardCache();
+  return record;
 }
 
 export type EmailInboxPatch = Partial<
@@ -1382,15 +1384,17 @@ export async function storeUpdateEmailInbox(
   if (leavingOtp && patch.verificationCode === undefined && patch.actionUrl === undefined) {
     nextPatch = { ...patch, verificationCode: null, actionUrl: null, deleteAfterAt: null };
   }
-  if (databaseUrl()) return updateInPg(id, nextPatch);
-  return updateInFile(id, nextPatch);
+  const updated = databaseUrl() ? await updateInPg(id, nextPatch) : await updateInFile(id, nextPatch);
+  if (updated) invalidateDashboardCache();
+  return updated;
 }
 
 export async function storeDeleteEmailInbox(id: string): Promise<boolean> {
   const { dismissEmailRelatedNotifications } = await import('./emailNotificationSync');
   await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
-  if (databaseUrl()) return deleteFromPg(id);
-  return deleteFromFile(id);
+  const deleted = databaseUrl() ? await deleteFromPg(id) : await deleteFromFile(id);
+  if (deleted) invalidateDashboardCache();
+  return deleted;
 }
 
 async function deleteManyFromFile(ids: string[]): Promise<number> {

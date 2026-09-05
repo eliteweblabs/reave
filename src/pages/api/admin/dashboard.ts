@@ -20,7 +20,11 @@ import { syncRecentUptimeIncidentsToPushAlerts } from '../../../lib/uptimePushAl
 import { bookingDashboardSlice } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
-import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView, syncUptimeMonitorsFromApiIfStale } from '../../../lib/uptimeMonitoring';
+import {
+  getUptimeSummaryView,
+  getUptimeMonitorsView,
+  getUptimeAccountView,
+} from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
@@ -46,6 +50,12 @@ import { dbUptimeSummary } from '../../../lib/pgUptime';
 import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
 import { getDeploymentOwnerTimezone } from '../../../lib/deploymentOwner';
+import {
+  getDashboardPayloadCached,
+  peekCachedClientsTotal,
+  setCachedClientsTotal,
+  type DashboardPayload,
+} from '../../../lib/dashboardPayloadCache';
 
 export const prerender = false;
 
@@ -59,11 +69,24 @@ function dashboardGreetingFirstName(context: APIContext): string {
   return '';
 }
 
+function kickDashboardSideEffects(): void {
+  ensureEmailCleanupScheduler();
+  ensureCalendarReminderScheduler();
+  ensureCalcomIdentityScheduler();
+  ensureOnlineReviewsScheduler();
+  ensureSocialLeadScannerScheduler();
+  void ensureSeededInboxClearedOnLiveEmail().catch(() => undefined);
+  void syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
+}
 
 async function loadClientsTotal(): Promise<number | null> {
   if (!isContactApiConfigured()) return null;
+  const cached = peekCachedClientsTotal();
+  if (cached?.fresh) return cached.total;
   const listed = await listContacts({ limit: 1 });
-  return listed.ok ? listed.data.total : null;
+  const total = listed.ok ? listed.data.total : null;
+  setCachedClientsTotal(total);
+  return total;
 }
 
 async function loadTodoSlice(): Promise<{ todosOpen: number; upcomingTodos: DashboardUpcomingTodo[] }> {
@@ -84,7 +107,6 @@ async function loadUptimeSlice(): Promise<{
     return { uptime: null, uptimeMonitors: [], uptimeAccount: null };
   }
   ensureUptimePollScheduler();
-  await syncUptimeMonitorsFromApiIfStale();
   const [uptime, monitorsView, uptimeAccount] = await Promise.all([
     getUptimeSummaryView(),
     getUptimeMonitorsView(),
@@ -159,18 +181,11 @@ async function loadUpcomingTodosFromOpen(
     }));
 }
 
-export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDashboardUser(context);
-  if (auth instanceof Response) return auth;
-  const { userId } = auth;
-
-  ensureEmailCleanupScheduler();
-  await ensureSeededInboxClearedOnLiveEmail().catch(() => undefined);
-  ensureCalendarReminderScheduler();
-  ensureCalcomIdentityScheduler();
-  ensureOnlineReviewsScheduler();
-  ensureSocialLeadScannerScheduler();
-  await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
+export async function buildAdminDashboardPayload(
+  context: APIContext,
+  userId: string,
+): Promise<DashboardPayload> {
+  kickDashboardSideEffects();
 
   const [{ threads }, events, inboxDigest, jobs, deploy] = await Promise.all([
     storeListChatThreadsForOwner(userId, { archivedOnly: false }),
@@ -217,7 +232,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const { billing, billingError, billingConfigured } = billingSlice;
   const { analytics, analyticsConfigured } = analyticsSlice;
 
-  await hydrateSiteHealthFleetCache();
+  void hydrateSiteHealthFleetCache();
   const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
   const siteFleetIgnore = await loadSiteFleetIgnoreState();
   const siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);
@@ -253,7 +268,7 @@ export async function GET(context: APIContext): Promise<Response> {
     schedulingConfigured,
   });
 
-  return jsonResponse({
+  return {
     ok: true,
     generatedAt: new Date().toISOString(),
     briefing,
@@ -310,5 +325,19 @@ export async function GET(context: APIContext): Promise<Response> {
           deployedShort: deploy.deployed_short,
         }
       : null,
-  });
+  };
+}
+
+export async function GET(context: APIContext): Promise<Response> {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
+
+  const fresh = context.url.searchParams.get('fresh') === '1';
+  const payload = await getDashboardPayloadCached(
+    userId,
+    () => buildAdminDashboardPayload(context, userId),
+    { fresh },
+  );
+  return jsonResponse(payload);
 }

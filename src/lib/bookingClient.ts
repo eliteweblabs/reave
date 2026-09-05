@@ -678,7 +678,18 @@ export { deriveBookingDashboardSlice } from './bookingDashboardSlice';
  * Dashboard used to call bookingsToday + bookingsNext24Hours + bookingList×2
  * (five Cal.com round-trips) sequentially.
  */
+const BOOKING_SLICE_TTL_MS = 5 * 60_000;
+let bookingSliceCache: { at: number; data: BookingDashboardSlice } | null = null;
+
+export function invalidateBookingDashboardCache(): void {
+  bookingSliceCache = null;
+}
+
 export async function bookingDashboardSlice(): Promise<BookingDashboardSlice> {
+  if (bookingSliceCache && Date.now() - bookingSliceCache.at < BOOKING_SLICE_TTL_MS) {
+    return bookingSliceCache.data;
+  }
+
   if (!isBookingConfigured()) {
     return { eventsToday: [], eventsNext24h: [], meetingsTotal: null, configured: false };
   }
@@ -696,7 +707,7 @@ export async function bookingDashboardSlice(): Promise<BookingDashboardSlice> {
     return { eventsToday: [], eventsNext24h: [], meetingsTotal: null, configured: true };
   }
 
-  return {
+  const data: BookingDashboardSlice = {
     ...deriveBookingDashboardSlice(
       upcomingRes.data.bookings,
       pastRes.data.bookings,
@@ -706,6 +717,8 @@ export async function bookingDashboardSlice(): Promise<BookingDashboardSlice> {
     ),
     configured: true,
   };
+  bookingSliceCache = { at: Date.now(), data };
+  return data;
 }
 
 /** Accepted bookings starting within the next 24 hours (from now). */

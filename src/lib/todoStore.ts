@@ -33,6 +33,12 @@ import {
   type TodoStatus,
 } from './pgTodos';
 import type { TodoCreatedBy } from './punchlist';
+import { invalidateDashboardCache } from './dashboardPayloadCache';
+
+function bustDashboardOnOk<T extends { ok: boolean }>(result: T): T {
+  if (result.ok) invalidateDashboardCache();
+  return result;
+}
 
 export async function storeListTodos(opts?: ListTodosOpts): Promise<TodoItem[]> {
   if (isCanonicalReaveInstall()) {
@@ -66,7 +72,7 @@ export async function storeCreateTodo(input: {
   created_by?: TodoCreatedBy;
   sort_order?: number;
 }): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
-  return dbCreateTodo(input);
+  return bustDashboardOnOk(await dbCreateTodo(input));
 }
 
 export async function storeUpdateTodo(
@@ -85,25 +91,29 @@ export async function storeUpdateTodo(
     sort_order?: number;
   },
 ): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
-  return dbUpdateTodo(id, patch);
+  return bustDashboardOnOk(await dbUpdateTodo(id, patch));
 }
 
 export async function storeUnlinkTodosForContact(contactUid: string): Promise<number> {
-  return dbUnlinkTodosByContactUid(contactUid);
+  const n = await dbUnlinkTodosByContactUid(contactUid);
+  if (n > 0) invalidateDashboardCache();
+  return n;
 }
 
 export async function storeMarkTodoDone(
   id: number,
 ): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
-  return dbMarkTodoDone(id);
+  return bustDashboardOnOk(await dbMarkTodoDone(id));
 }
 
 export async function storeDeleteTodo(id: number): Promise<{ ok: boolean; error?: string }> {
-  return dbDeleteTodo(id);
+  const result = await dbDeleteTodo(id);
+  if (result.ok) invalidateDashboardCache();
+  return result;
 }
 
 export async function storeReorderTodos(
   ids: number[],
 ): Promise<{ ok: true; todos: TodoItem[] } | { ok: false; error: string }> {
-  return dbReorderTodos(ids);
+  return bustDashboardOnOk(await dbReorderTodos(ids));
 }

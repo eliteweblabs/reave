@@ -7070,7 +7070,9 @@ async function loadAdminDashboard(opts = {}) {
     }
 
     try {
-      const res = await traceAsync('admin:dashboard:fetch', () => adminFetch('/api/admin/dashboard'));
+      const res = await traceAsync('admin:dashboard:fetch', () =>
+        adminFetch('/api/admin/dashboard' + (opts.force ? '?fresh=1' : '')),
+      );
       const data = await readAdminJson(res, 'dashboard');
       if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDashboardFooterBadges(data.stats);

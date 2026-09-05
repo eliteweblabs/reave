@@ -24,6 +24,7 @@ import { parseSenderEmail, parseSenderName } from './emailAddress';
 import { extractContactFromInboundEmail, preferredContactName } from './emailContactExtract';
 import { serverEnv } from './serverEnv';
 import { extractWorkPreviewBullets } from './workChecklist';
+import { invalidateDashboardCache } from './dashboardPayloadCache';
 
 export const WORK_STATUSES = ['inquiry', 'audit', 'active', 'archived'] as const;
 export type WorkStatus = (typeof WORK_STATUSES)[number];
@@ -698,6 +699,7 @@ export async function storeWriteWork(
       .catch((e) => console.warn('[newsletter] onJobCompleted failed', e));
   }
 
+  if (result.ok) invalidateDashboardCache();
   return result;
 }
 
@@ -733,7 +735,10 @@ export async function storeDeleteWork(slug: string): Promise<boolean> {
   } else {
     deleted = fileDeleteWork(slug);
   }
-  if (deleted) await cleanupDeletedWorkSlug(slug);
+  if (deleted) {
+    await cleanupDeletedWorkSlug(slug);
+    invalidateDashboardCache();
+  }
   return deleted;
 }
 

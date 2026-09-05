@@ -1189,7 +1189,18 @@ export type BillingDashboardStats = {
 };
 
 /** Org-wide billing snapshot for the admin dashboard. */
+const BILLING_STATS_TTL_MS = 5 * 60_000;
+let billingStatsCache: { at: number; data: BillingDashboardStats } | null = null;
+
+export function invalidateCraterBillingDashboardCache(): void {
+  billingStatsCache = null;
+}
+
 export async function craterBillingDashboardStats(): Promise<CraterResult<BillingDashboardStats>> {
+  if (billingStatsCache && Date.now() - billingStatsCache.at < BILLING_STATS_TTL_MS) {
+    return { ok: true, data: billingStatsCache.data };
+  }
+
   const [invoicesRes, recurringRes] = await Promise.all([
     craterListInvoices(),
     craterListRecurringInvoices('ACTIVE'),
@@ -1213,16 +1224,15 @@ export async function craterBillingDashboardStats(): Promise<CraterResult<Billin
     }
   }
 
-  return {
-    ok: true,
-    data: {
-      outstandingCount,
-      overdueCount,
-      overdueDue,
-      totalDue,
-      recurringActive: recurringRes.ok ? (recurringRes.data.recurring_invoices ?? []).length : 0,
-    },
+  const data: BillingDashboardStats = {
+    outstandingCount,
+    overdueCount,
+    overdueDue,
+    totalDue,
+    recurringActive: recurringRes.ok ? (recurringRes.data.recurring_invoices ?? []).length : 0,
   };
+  billingStatsCache = { at: Date.now(), data };
+  return { ok: true, data };
 }
 
 export type CreateExpenseInput = {
