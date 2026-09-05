@@ -133,24 +133,6 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.cs-wizard-btn {
-  border: 1px solid var(--panel-border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--fg);
-  font-size: 0.8rem;
-  padding: 0.42rem 0.75rem;
-  cursor: pointer;
-}
-.cs-wizard-btn--primary {
-  border-color: transparent;
-  background: var(--fg);
-  color: var(--bg);
-}
-.cs-wizard-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
 .cs-wizard-import-form {
   display: flex;
   flex-direction: column;

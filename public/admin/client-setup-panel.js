@@ -125,7 +125,7 @@ function renderPushStep() {
     <h3 class="cs-wizard-step-title">Notifications</h3>
     <p class="cs-wizard-lead">Allow alerts for inbox, bookings, and monitoring. Browsers block us from enabling this without a tap on your device.</p>
     <p class="cs-wizard-note">Use the button below, or skip and enable later from Settings.</p>
-    <button type="button" class="cs-wizard-btn cs-wizard-btn--primary" data-cs-enable-push>Enable notifications</button>
+    <button type="button" class="brand-btn" data-cs-enable-push>Enable notifications</button>
     <p class="cs-wizard-push-status" data-cs-push-status hidden></p>
   `;
 }
@@ -152,7 +152,7 @@ function renderContactsImportStep(state) {
           <span>CSV or vCard (.vcf)</span>
           <input type="file" name="file" accept=".csv,.vcf,.vcard" required class="cs-wizard-import-file" />
         </label>
-        <button type="submit" class="cs-wizard-btn cs-wizard-btn--primary">Import now</button>
+        <button type="submit" class="brand-btn">Import now</button>
       </form>
       <p class="cs-wizard-import-status" data-cs-import-status hidden></p>
     </div>
@@ -325,17 +325,17 @@ function renderWizard() {
           <p class="cs-wizard-kicker">First-run setup · ${escHtml(setupState.brand?.name || 'your office')}</p>
           <h2 class="cs-wizard-title" id="cs-wizard-title">${escHtml(step.title)}</h2>
         </div>
-        <button type="button" class="cs-wizard-btn" data-cs-later>Later</button>
+        <button type="button" class="brand-btn brand-btn-glass" data-cs-later>Later</button>
       </div>
       <div class="cs-wizard-progress" aria-hidden="true">${stepDots(steps, step.id)}</div>
       <div class="cs-wizard-body" data-cs-body></div>
       <div class="cs-wizard-foot">
         <div class="cs-wizard-foot-left">
-          ${activeStepIdx > 0 ? '<button type="button" class="cs-wizard-btn" data-cs-back>Back</button>' : ''}
-          ${!step.required ? '<button type="button" class="cs-wizard-btn" data-cs-skip>Skip</button>' : ''}
+          ${activeStepIdx > 0 ? '<button type="button" class="brand-btn brand-btn-glass" data-cs-back>Back</button>' : ''}
+          ${!step.required ? '<button type="button" class="brand-btn brand-btn-glass" data-cs-skip>Skip</button>' : ''}
         </div>
         <div class="cs-wizard-foot-right">
-          <button type="button" class="cs-wizard-btn cs-wizard-btn--primary" data-cs-next>${activeStepIdx >= pending.length - 1 ? 'Finish' : 'Done'}</button>
+          <button type="button" class="brand-btn" data-cs-next>${activeStepIdx >= pending.length - 1 ? 'Finish' : 'Done'}</button>
         </div>
       </div>
     </div>

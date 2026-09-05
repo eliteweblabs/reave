@@ -1,0 +1,41 @@
+---
+description: Use BrandBtn / createBrandBtn / brand-btn classes — never duplicate pill button CSS
+alwaysApply: true
+---
+
+# Brand text buttons
+
+Reave pill CTAs share **one visual system**. Change `src/styles/brand.css` once → every filled / solid / glass / danger button updates.
+
+## Three layers — use the right one
+
+| Surface | Use | Do not |
+|---------|-----|--------|
+| **Astro / SSR markup** | `<BrandBtn variant="glass" href="…">Label</BrandBtn>` | Hand-roll `<button class="brand-btn …">` unless BrandBtn cannot fit (rare) |
+| **Admin client JS** | `createBrandBtn({ variant: 'filled', label: '…', onClick })` | Hand-roll gradient pills, `font: inherit` CTAs, or duplicate `.dash-panel-btn` visuals |
+| **Legacy HTML strings** | `class="brand-btn"` / `brand-btn brand-btn-glass` via `brandBtnClasses()` | `cs-wizard-btn`, one-off pill CSS |
+
+Variant class map (keep in sync):
+- `src/lib/brandButton.ts`
+- `public/admin/brand-button.js`
+
+## Variants
+
+- `filled` — gradient pill (default primary)
+- `solid` — flat ink/bone fill
+- `glass` — frosted secondary
+- `danger` — destructive confirm
+
+Layout-only hooks (margin, flex) may add extra classes (`dash-panel-btn`, `admin-setup-alert-btn`) — **never** re-declare font, gradient, or radius there.
+
+## Legacy aliases still work
+
+`.de-btn-primary`, `.prof-btn-secondary`, `.os-dialog-btn--primary`, etc. alias the same rules in `brand.css`. Prefer `createBrandBtn` / `BrandBtn` for new code; when touching legacy markup, switch to the component path if easy.
+
+## Out of scope
+
+Site-themed landings (`vet-btn*`, `pack-btn*`, marketing `*-btn` wrappers) intentionally use local accent colors. Do not force BrandBtn there unless unifying that site to core brand tokens.
+
+## Icon-only chrome
+
+Toolbar circles use `IOS_ICONS` + `createIosIconBtn` / `createFabNewBtn` — not BrandBtn.

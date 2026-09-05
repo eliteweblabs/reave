@@ -3,6 +3,10 @@
  * Import from os-map-loader.js and any future admin client modules.
  */
 
+import { BRAND_BTN_VARIANT_CLASS, brandBtnClasses } from './brand-button.js?v=20260905a';
+
+export { BRAND_BTN_VARIANT_CLASS, brandBtnClasses };
+
 export const IOS_ICONS = {
   'chevron-left':
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
@@ -1410,16 +1414,10 @@ export function createListEmptyState(opts = {}) {
   return btn;
 }
 
-const BRAND_BTN_VARIANT_CLASS = {
-  filled: 'brand-btn',
-  solid: 'brand-btn brand-btn-solid',
-  glass: 'brand-btn brand-btn-glass',
-  danger: 'brand-btn brand-btn-danger',
-};
-
 /**
  * Official text button — filled / solid / glass / danger pills.
- * Use this instead of hand-rolled <button> + de-btn / os-dialog-btn / prof-btn.
+ * Variant classes: public/admin/brand-button.js (keep in sync with src/lib/brandButton.ts).
+ * Visual tokens: src/styles/brand.css. Astro markup: src/components/ui/BrandBtn.astro.
  */
 export function createBrandBtn(opts = {}) {
   const {

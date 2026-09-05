@@ -85,14 +85,22 @@
 
 /*
  * Official text buttons — one look, many class aliases.
+ *
+ * Component system (change brand.css → every matching button updates):
+ *   CSS      src/styles/brand.css — gradient, font, radius, hover (this file)
+ *   classes  src/lib/brandButton.ts + public/admin/brand-button.js — variant map
+ *   Astro    src/components/ui/BrandBtn.astro
+ *   Admin JS createBrandBtn() in public/admin/admin-ui.js
+ *
+ * Variants:
  *   filled  .brand-btn
  *   solid   .brand-btn.brand-btn-solid
  *   glass   .brand-btn.brand-btn-glass
  *   danger  .brand-btn.brand-btn-danger  (or filled .os-dialog-btn--danger)
  * Icon-only chrome is the circle (.ios-icon-btn / .agent-btn / .de-new-btn.ch-new-btn).
- * Admin leftovers (de-btn*, os-dialog-btn*, prof-btn*, empty-state create)
- * share these rules so a radius/color change here updates every CTA.
+ * Legacy aliases (de-btn*, os-dialog-btn*, prof-btn*) share these rules — do not restyle alone.
  * Dashboard tiles (.home-dashboard-tile, .dash-stat) are cards — do not add these classes.
+ * Site-specific landings (vet-btn*, pack-btn*) are themed — not part of this system.
  */
 .brand-btn,
 .de-btn,

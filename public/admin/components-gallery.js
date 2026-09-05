@@ -230,7 +230,7 @@ function mount() {
   section(
     root,
     'Official buttons',
-    'Text CTAs go through <code>createBrandBtn</code> — filled, solid, glass, danger. Two actions in one pill use <code>brand-btn-pair</code> (primary + secondary). Circle chrome is <code>createFabNewBtn</code> / <code>createIosIconBtn</code>. Legacy <code>de-btn*</code> classes alias the same pills.',
+    'Text CTAs go through <code>createBrandBtn</code> (admin) or <code>BrandBtn.astro</code> (SSR) — filled, solid, glass, danger. Variant classes: <code>src/lib/brandButton.ts</code>. Visual tokens: <code>src/styles/brand.css</code>. Two actions in one pill use <code>brand-btn-pair</code>. Circle chrome is <code>createFabNewBtn</code> / <code>createIosIconBtn</code>. Legacy <code>de-btn*</code> classes alias the same pills.',
     (el) => {
       const r = row(el);
       const setStatus = statusLine(el);

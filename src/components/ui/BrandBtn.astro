@@ -1,0 +1,40 @@
+---
+/**
+ * Official Reave text button — filled / solid / glass / danger pills.
+ * One component: edit src/styles/brand.css to restyle every matching button.
+ *
+ * Admin panels: createBrandBtn() in public/admin/admin-ui.js (same variant classes).
+ */
+import { brandBtnClasses, type BrandBtnVariant } from "../../lib/brandButton";
+
+interface Props {
+  variant?: BrandBtnVariant;
+  href?: string;
+  type?: "button" | "submit" | "reset";
+  class?: string;
+  disabled?: boolean;
+  [key: string]: unknown;
+}
+
+const {
+  variant = "filled",
+  href,
+  type = "button",
+  class: className = "",
+  disabled = false,
+  ...rest
+} = Astro.props as Props;
+
+const classes = brandBtnClasses(variant, className);
+const Tag = href ? "a" : "button";
+---
+
+<Tag
+  class={classes}
+  href={href}
+  type={Tag === "button" ? type : undefined}
+  disabled={Tag === "button" ? disabled : undefined}
+  {...rest}
+>
+  <slot />
+</Tag>
