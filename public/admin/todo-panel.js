@@ -1026,6 +1026,14 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
 
   function renderDropdown(matches, query) {
     dropdown.innerHTML = '';
+    const q = query.trim();
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.className = 'wk-client-option wk-client-add';
+    createBtn.textContent = q ? `+ Create "${q}" as new ${postLower(1)}` : `+ Create new ${postLower(1)}…`;
+    createBtn.addEventListener('mousedown', (e) => e.preventDefault());
+    createBtn.addEventListener('click', () => beginCreateProject(q));
+    dropdown.appendChild(createBtn);
     for (const job of matches) {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -1037,14 +1045,6 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
       btn.addEventListener('click', () => pickJob(job));
       dropdown.appendChild(btn);
     }
-    const q = query.trim();
-    const createBtn = document.createElement('button');
-    createBtn.type = 'button';
-    createBtn.className = 'wk-client-option wk-client-add';
-    createBtn.textContent = q ? `+ Create "${q}" as new ${postLower(1)}` : `+ Create new ${postLower(1)}…`;
-    createBtn.addEventListener('mousedown', (e) => e.preventDefault());
-    createBtn.addEventListener('click', () => beginCreateProject(q));
-    dropdown.appendChild(createBtn);
     if (q.length >= 1 && draft.job_slug?.trim()) {
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
@@ -1065,10 +1065,19 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
     await navigateToNewWorkFromTodo({ suggestedTitle });
   }
 
+  function sortedTodoJobs(jobs) {
+    return [...jobs].sort((a, b) =>
+      (a.title || a.slug || '').localeCompare(b.title || b.slug || '', undefined, {
+        sensitivity: 'base',
+      }),
+    );
+  }
+
   function filterJobs(query) {
     const q = query.trim().toLowerCase();
-    if (q.length < 1) return null;
-    return todoState.jobs
+    const sorted = sortedTodoJobs(todoState.jobs);
+    if (q.length < 1) return sorted.slice(0, 80);
+    return sorted
       .filter((job) =>
         matchesListSearch(q, job.title, job.slug, job.contact_name, job.client, job.status),
       )
@@ -1078,8 +1087,7 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   async function scheduleSearch() {
     const q = searchInput.value.trim();
     await ensureTodoJobsLoaded();
-    const matches = q.length >= 1 ? filterJobs(q) || [] : [];
-    renderDropdown(matches, q);
+    renderDropdown(filterJobs(q), q);
   }
 
   function pickJob(job) {

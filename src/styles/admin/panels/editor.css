@@ -3829,6 +3829,10 @@ button.de-placeholder-action:active {
   border-top: 1px solid var(--panel-border);
   font-weight: 600;
 }
+.td-project-picker .wk-client-option.wk-client-add:first-child {
+  border-top: none;
+  border-bottom: 1px solid var(--panel-border);
+}
 .wk-client-new {
   margin-top: 0.5rem;
   padding: 0.6rem;
