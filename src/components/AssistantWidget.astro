@@ -627,6 +627,7 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
 <script>
   import { initFixedVisualViewportPin } from '../lib/fixedVisualViewportPin';
   import { initFloatingWidgetSectionHide } from '../lib/floatingWidgetSectionHide';
+  import { escapeHtml } from '../lib/htmlEscape';
 
   type Turn = { role: 'user' | 'assistant'; content: string };
 
@@ -637,15 +638,6 @@ const showFooter = Boolean(footerPrefix || phoneHref || emailHref);
         close: (target?: string | HTMLElement) => void;
       };
     }
-  }
-
-  function escapeHtml(s: string): string {
-    return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   function isSafeHttpUrl(url: string): boolean {

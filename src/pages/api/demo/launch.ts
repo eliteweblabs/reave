@@ -5,17 +5,14 @@
  */
 import type { APIContext } from 'astro';
 import { processDemoLaunch } from '../../../lib/demoLaunch';
-import { jsonResponse } from '../../../lib/apiResponse';
+import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
 export async function POST(context: APIContext): Promise<Response> {
-  let body: Record<string, unknown> = {};
-  try {
-    body = (await context.request.json()) as Record<string, unknown>;
-  } catch {
-    return jsonResponse({ ok: false, error: 'Invalid JSON' }, 400);
-  }
+  const parsed = await readJsonBody(context.request);
+  if (parsed instanceof Response) return parsed;
+  const body = parsed.body;
 
   const result = await processDemoLaunch(context.request, {
     name: String(body.name ?? body.fullName ?? ''),
