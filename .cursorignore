@@ -1,0 +1,22 @@
+# Exclude knowledge files from Cursor indexing to prevent continuous token burn
+knowledge/
+knowledge_records.json
+*.knowledge.json
+
+# Exclude large build artifacts and dependencies
+node_modules/
+dist/
+.astro/
+.next/
+build/
+
+# Exclude other heavy directories
+.cache/
+.git/
+.playwright-mcp/
+
+# Exclude environment files with sensitive data
+.env
+.env.local
+.env.railway
+.env.railway.postgres
