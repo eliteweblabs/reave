@@ -24,6 +24,8 @@ export type MorningBriefingTodo = {
 export type MorningBriefingInput = {
   firstName?: string | null;
   now?: Date;
+  /** IANA zone for greeting + date (defaults to server local when omitted). */
+  timeZone?: string | null;
   stats: {
     reviewsPending: number;
     emailsUnread?: number | null;
@@ -97,18 +99,33 @@ export function countTodosDueTodayAndOverdue(
   return { dueToday, overdue };
 }
 
-function timeOfDayGreeting(now: Date): string {
-  const hour = now.getHours();
+function hourInTimeZone(now: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: 'numeric',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  let hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0');
+  if (hour === 24) hour = 0;
+  return hour;
+}
+
+function timeOfDayGreeting(now: Date, timeZone?: string | null): string {
+  const hour = timeZone?.trim()
+    ? hourInTimeZone(now, timeZone.trim())
+    : now.getHours();
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
 }
 
-function formatBriefingDate(now: Date): string {
-  return now.toLocaleDateString(undefined, {
+function formatBriefingDate(now: Date, timeZone?: string | null): string {
+  const tz = timeZone?.trim();
+  return now.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
+    ...(tz ? { timeZone: tz } : {}),
   });
 }
 
@@ -119,10 +136,11 @@ function plural(count: number, singular: string, pluralWord?: string): string {
 
 export function buildMorningBriefing(input: MorningBriefingInput): MorningBriefing {
   const now = input.now ?? new Date();
+  const timeZone = input.timeZone?.trim() || null;
   const first = String(input.firstName || '').trim();
   const greeting = first
-    ? `${timeOfDayGreeting(now)}, ${first}`
-    : timeOfDayGreeting(now);
+    ? `${timeOfDayGreeting(now, timeZone)}, ${first}`
+    : timeOfDayGreeting(now, timeZone);
 
   const lines: MorningBriefingLine[] = [];
   const { reviewsPending, emailsUnread, projectsActive, uptimeDown, siteHealthCritical, billingOverdue } =
@@ -227,7 +245,7 @@ export function buildMorningBriefing(input: MorningBriefingInput): MorningBriefi
 
   return {
     greeting,
-    dateLabel: formatBriefingDate(now),
+    dateLabel: formatBriefingDate(now, timeZone),
     lines,
     allClear,
   };

@@ -44,6 +44,7 @@ import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet, type SiteHealth
 import { annotateSiteHealthFleet, loadSiteFleetIgnoreState } from '../../../lib/siteFleetIgnore';
 import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
+import { getDeploymentOwnerTimezone } from '../../../lib/deploymentOwner';
 
 export const prerender = false;
 
@@ -222,8 +223,10 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const firstName = dashboardGreetingFirstName(context);
   const sleepDeferred = await storeListSleepDeferredEmails(50);
+  const timeZone = await getDeploymentOwnerTimezone(context);
   const briefing: MorningBriefing = buildMorningBriefing({
     firstName,
+    timeZone,
     stats: {
       reviewsPending,
       emailsUnread: inboxDigest.unread ?? digest.unread,

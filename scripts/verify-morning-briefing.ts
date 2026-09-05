@@ -41,6 +41,24 @@ assert.equal(
   'Good afternoon',
 );
 
+// 10:00 AM Eastern is 14:00 UTC — greeting must use the install time zone, not UTC.
+const utcTenAmEastern = new Date('2026-09-05T14:00:00.000Z');
+assert.equal(
+  buildMorningBriefing({
+    now: utcTenAmEastern,
+    timeZone: 'America/New_York',
+    stats: {
+      reviewsPending: 0,
+      projectsActive: 0,
+      todosOpen: 0,
+    },
+    eventsTodayCount: 0,
+    upcomingTodos: [],
+    schedulingConfigured: false,
+  }).greeting,
+  'Good morning',
+);
+
 const busy = buildMorningBriefing({
   now: morning,
   stats: {

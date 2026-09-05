@@ -6123,6 +6123,22 @@ function queueTriageEmailFromUrl() {
 let lastDashboardPayload = null;
 let dashboardAnalyticsHydrateGen = 0;
 
+function dashTimeOfDayGreeting(date = new Date()) {
+  const hour = date.getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/** Prefer the viewer's local clock — API greeting may be built in UTC on Railway. */
+function dashBriefingGreeting(briefing) {
+  const raw = String(briefing?.greeting || '').trim();
+  const base = dashTimeOfDayGreeting();
+  const comma = raw.indexOf(', ');
+  if (comma >= 0) return base + raw.slice(comma);
+  return base;
+}
+
 function buildMorningBriefingPanel(briefing) {
   const section = document.createElement('section');
   section.className = 'dash-briefing';
@@ -6130,7 +6146,7 @@ function buildMorningBriefingPanel(briefing) {
   const header = document.createElement('div');
   header.className = 'dash-header';
   header.innerHTML =
-    `<h1 class="home-dashboard-title">${escHtml(briefing?.greeting || 'Good morning')}</h1>` +
+    `<h1 class="home-dashboard-title">${escHtml(dashBriefingGreeting(briefing))}</h1>` +
     `<p class="dash-date">${escHtml(briefing?.dateLabel || '')}</p>`;
   section.appendChild(header);
 
