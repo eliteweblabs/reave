@@ -1,0 +1,9 @@
+---
+/** Track Safari's bottom toolbar gap as --browser-ui-bottom on every public page. */
+---
+<script>
+  import { initBrowserUiBottomInset } from "../lib/browserUiBottomInset";
+
+  initBrowserUiBottomInset();
+  document.addEventListener("astro:page-load", initBrowserUiBottomInset);
+</script>

@@ -425,13 +425,20 @@
 .dash-fleet-popover-indexing-toggle {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
 }
-.dash-fleet-popover-indexing-toggle input:disabled + span {
-  opacity: 0.55;
+.dash-fleet-popover-indexing-toggle .prof-plugin-toggle {
+  margin-left: auto;
+}
+.dash-fleet-popover-indexing-toggle .prof-plugin-toggle[aria-checked='mixed'] {
+  opacity: 0.7;
+  background: color-mix(in srgb, var(--panel-border) 70%, #22c55e);
+}
+.dash-fleet-popover-indexing-toggle .prof-plugin-toggle:disabled {
   cursor: not-allowed;
 }
 .dash-fleet-popover-ignore-reason {

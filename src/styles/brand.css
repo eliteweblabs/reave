@@ -335,10 +335,10 @@
 }
 
 /*
- * Mobile: do not bleed the wallpaper past the visual viewport. Safari clips
- * that overflow at the toolbar and paints a full-width hairline under the
- * hero CTAs. Keep the layer flush to the screen so the canvas meets chrome
- * without a seam.
+ * Mobile: keep the fixed wallpaper box flush (negative bottom on the container
+ * clips into a hairline under sticky CTAs). Extend only the ::before canvas
+ * fill into the home indicator + Safari toolbar band so the safe area matches
+ * --site-canvas instead of Safari's default grey.
  */
 @media (max-width: 768px) {
   .site-bg-atmosphere {
@@ -348,6 +348,10 @@
     --site-bg-bleed-bottom: env(safe-area-inset-bottom, 0px);
     top: 0;
     bottom: 0;
+  }
+
+  .site-bg-atmosphere::before {
+    bottom: calc(-1 * (env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)));
   }
 }
 
