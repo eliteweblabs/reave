@@ -182,7 +182,7 @@ const logoSrc = (landing.heroLogo || "").trim()
           {payments.intro && <p class="svc-copy">{payments.intro}</p>}
           <ul class="svc-pay">
             {paymentMethods.map((method) => (
-              <li>
+              <li aria-label={method.label}>
                 {method.brand ? (
                   <span
                     class="svc-pay__mark"
@@ -203,7 +203,6 @@ const logoSrc = (landing.heroLogo || "").trim()
                     <CreditCard size={28} strokeWidth={1.75} />
                   </span>
                 ) : null}
-                <span>{method.label}</span>
               </li>
             ))}
           </ul>
@@ -830,16 +829,10 @@ const logoSrc = (landing.heroLogo || "").trim()
   }
 
   .svc-pay li {
-    display: grid;
-    justify-items: center;
-    gap: 0.45rem;
-    padding: 0.85rem 0.65rem 0.75rem;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.78);
-    text-align: center;
-    font-size: 0.88rem;
-    font-weight: 700;
+    display: block;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
   .svc-pay__mark {
