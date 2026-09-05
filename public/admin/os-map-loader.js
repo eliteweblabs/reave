@@ -957,9 +957,7 @@ function activateMapPanel(opts = {}) {
     loadMediaTab();
   } else if (MAP.type === 'analytics') {
     loadAnalyticsTab(
-      opts.analyticsSiteId === ''
-        ? { view: 'accounts' }
-        : { siteId: opts.analyticsSiteId },
+      opts.analyticsSiteId !== undefined ? { siteId: opts.analyticsSiteId } : {},
     );
   } else if (MAP.type === 'fleet') {
     loadFleetTab();

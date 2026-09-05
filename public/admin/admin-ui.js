@@ -2222,6 +2222,7 @@ const SPLIT_VIEW_TYPES = new Set([
   'punchlist',
   'social',
   'sales-sheet',
+  'analytics',
 ]);
 const SIDEBAR_PANEL_IDS = [
   'email-panel',
@@ -2236,6 +2237,7 @@ const SIDEBAR_PANEL_IDS = [
   'punchlist-editor',
   'social-panel',
   'sales-sheet-editor',
+  'analytics-panel',
 ];
 /** Split view (list + detail side-by-side) and sidebar resize at ≥640px. */
 export const ADMIN_SPLIT_VIEW_MQ = window.matchMedia('(min-width: 640px)');

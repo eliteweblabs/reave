@@ -7,6 +7,7 @@ import {
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
+  listSearchAddNew,
   syncSearchFieldAdornment,
   createSlidingPillSelect,
   createPanelBackBtn,
@@ -21,6 +22,7 @@ import {
   initSidebarLayout,
   syncAdminSplitView,
   scanPanelSidebars,
+  isAdminPaneMobile,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
   createSwipeRow,
@@ -73,6 +75,9 @@ let analyticsStatus = null;
 let analyticsAccounts = [];
 let analyticsSyncing = false;
 let analyticsReadinessGen = 0;
+let analyticsSearch = '';
+let analyticsMeta = null;
+let analyticsDetail = null;
 
 function parseAnalyticsSiteFromUrl() {
   try {
@@ -104,8 +109,16 @@ export function openAnalyticsSite(siteId) {
     } catch {
       /* ignore */
     }
+    if (isAdminPaneMobile()) analyticsRoot()?.classList.add('ana-pane-active');
+  } else {
+    try {
+      sessionStorage.removeItem(ANALYTICS_SITE_KEY);
+    } catch {
+      /* ignore */
+    }
   }
-  void loadAnalyticsTab({ siteId: analyticsSiteId, view: analyticsSiteId ? 'detail' : 'accounts' });
+  syncAnalyticsSiteUrl(analyticsSiteId);
+  void loadAnalyticsTab({ preserveSidebar: true, siteId: analyticsSiteId });
 }
 
 function analyticsWiredBadge(wired) {
@@ -449,7 +462,7 @@ async function syncAnalyticsRailwaySites() {
         warn +
         (manualLines ? `<ul class="meeting-confirm-steps">${manualLines}</ul>` : ''),
     });
-    void loadAnalyticsTab({ view: analyticsSiteId ? 'detail' : 'accounts' });
+    void loadAnalyticsTab({ preserveSidebar: true });
   } catch (e) {
     await osAlert({
       title: 'Plausible sync failed',
@@ -460,13 +473,392 @@ async function syncAnalyticsRailwaySites() {
   }
 }
 
-function bindAnalyticsControls(root, view = 'detail') {
+function analyticsRoot() {
+  return document.getElementById('analytics-panel');
+}
+
+function filteredAnalyticsAccounts() {
+  const q = analyticsSearch.trim().toLowerCase();
+  const rows = Array.isArray(analyticsAccounts) ? analyticsAccounts : [];
+  if (!q) return rows;
+  return rows.filter((row) => {
+    const hay = [
+      row.siteId,
+      row.label,
+      row.sourceLabel,
+      analyticsKindLabel(row.kind),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+function summarizeAnalyticsClient(accounts) {
+  const rows = Array.isArray(accounts) ? accounts : [];
+  const registered = rows.filter((row) => row.registered);
+  return {
+    siteCount: rows.length,
+    registeredCount: registered.length,
+    unregisteredCount: rows.length - registered.length,
+    visitors: registered.reduce((sum, row) => sum + (Number(row.visitors) || 0), 0),
+    pageviews: registered.reduce((sum, row) => sum + (Number(row.pageviews) || 0), 0),
+    realtimeVisitors: registered.reduce((sum, row) => sum + (Number(row.realtimeVisitors) || 0), 0),
+  };
+}
+
+function createAnalyticsListItem(row, { overview = false } = {}) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'ch-list-item';
+  if (overview) {
+    item.className += ' ana-list-overview';
+    item.dataset.analyticsOverview = '1';
+    const active = !analyticsSiteId;
+    if (active) {
+      item.classList.add('active');
+      item.setAttribute('aria-current', 'page');
+    }
+    const summary = summarizeAnalyticsClient(analyticsAccounts);
+    item.innerHTML =
+      `<span class="ch-list-content">` +
+        `<span class="ch-item-row">` +
+          `<span class="ch-item-title">All sites</span>` +
+          `<span class="ch-item-date">${escHtml(analyticsNumFmt(summary.realtimeVisitors))} live</span>` +
+        `</span>` +
+        `<span class="ana-item-meta">${escHtml(String(summary.registeredCount))} wired · ${escHtml(analyticsNumFmt(summary.visitors))} visitors</span>` +
+      `</span>`;
+    item.addEventListener('click', () => {
+      openAnalyticsSite('');
+      if (isAdminPaneMobile()) analyticsRoot()?.classList.add('ana-pane-active');
+    });
+    return item;
+  }
+
+  const active = row.siteId === analyticsSiteId;
+  if (active) {
+    item.classList.add('active');
+    item.setAttribute('aria-current', 'page');
+  }
+  item.dataset.analyticsSite = row.siteId;
+  const liveVal =
+    row.realtimeVisitors != null ? analyticsNumFmt(row.realtimeVisitors) : '—';
+  const visitorsVal = row.registered ? analyticsNumFmt(row.visitors) : '—';
+  item.innerHTML =
+    `<span class="ch-list-content">` +
+      `<span class="ch-item-row">` +
+        `<span class="ch-item-title">${escHtml(row.label || row.siteId)}</span>` +
+        `<span class="ch-item-date">${escHtml(visitorsVal)}</span>` +
+      `</span>` +
+      `<span class="ana-item-meta">${escHtml(row.siteId)} · ${escHtml(analyticsKindLabel(row.kind))}` +
+        (row.registered ? '' : ' · not wired') +
+        (row.realtimeVisitors != null ? ` · <span class="ana-live">${escHtml(liveVal)} live</span>` : '') +
+      `</span>` +
+    `</span>`;
+  item.addEventListener('click', () => openAnalyticsSite(row.siteId));
+  return item;
+}
+
+function fillAnalyticsSidebarList(listEl) {
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  const rows = filteredAnalyticsAccounts();
+  listEl.appendChild(createAnalyticsListItem(null, { overview: true }));
+  if (!rows.length) {
+    listEl.appendChild(
+      createCenteredListEmpty({
+        title: analyticsSearch.trim() ? 'No matching sites' : 'No sites yet',
+        body: analyticsSearch.trim()
+          ? 'Try another domain or project name.'
+          : 'Railway and Kinsta apex domains appear here once they have a public custom domain.',
+      }),
+    );
+    return;
+  }
+  for (const row of rows) listEl.appendChild(createAnalyticsListItem(row));
+}
+
+function syncAnalyticsSidebarActive() {
+  const root = analyticsRoot();
+  if (!root) return;
+  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+    const on =
+      (el.dataset.analyticsOverview && !analyticsSiteId) ||
+      el.dataset.analyticsSite === analyticsSiteId;
+    el.classList.toggle('active', on);
+    if (on) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
+  });
+}
+
+function renderAnalyticsSidebar() {
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+  const subheader = listSearchAddNew({
+    itemCount: filteredAnalyticsAccounts().length,
+    search: {
+      value: analyticsSearch,
+      placeholder: 'Search sites…',
+      onInput: (value) => {
+        analyticsSearch = value;
+        const list = analyticsRoot()?.querySelector('.ch-sidebar .ch-list');
+        if (list) fillAnalyticsSidebarList(list);
+        const countEl = analyticsRoot()?.querySelector('.panel-list-search-hint');
+        if (countEl) countEl.textContent = `${filteredAnalyticsAccounts().length} sites`;
+      },
+    },
+    addNew: false,
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  fillAnalyticsSidebarList(list);
+  sidebar.appendChild(list);
+  return sidebar;
+}
+
+function analyticsPaneActionsHtml(status, opts = {}) {
+  const meta = analyticsMeta || {};
+  const hostedConfigured = meta.railwayConfigured || meta.kinstaConfigured;
+  const backBtn =
+    opts.showBack && isAdminPaneMobile()
+      ? `<button type="button" class="prof-btn-secondary" data-analytics-back>Sites</button>`
+      : '';
+  return (
+    backBtn +
+    (opts.wired != null ? analyticsWiredBadge(opts.wired) : '') +
+    (opts.showSource ? analyticsSourceTabs(opts.availableSources || ['plausible', 'ga4']) : '') +
+    analyticsRangeTabs() +
+    (opts.openLink || '') +
+    (opts.showSync && hostedConfigured
+      ? `<button type="button" class="prof-btn-secondary" data-analytics-sync${analyticsSyncing ? ' disabled' : ''}>${analyticsSyncing ? 'Syncing…' : 'Sync hosted sites'}</button>`
+      : '') +
+    analyticsGoogleConnectHtml(status)
+  );
+}
+
+function buildAnalyticsOverviewHtml(accounts, meta, status) {
+  const rows = Array.isArray(accounts) ? accounts : [];
+  const summary = summarizeAnalyticsClient(rows);
+  const rangeLabel = ANALYTICS_RANGE_LABEL[meta?.rangeDays] || `last ${meta?.rangeDays || 30} days`;
+  const header =
+    `<div class="soc-header ana-pane-header">` +
+      `<div class="soc-header-titles">` +
+        `<h1 class="soc-title">All sites</h1>` +
+        `<p class="soc-sub">${escHtml(String(summary.siteCount))} accounts · ${escHtml(String(summary.registeredCount))} wired · ${escHtml(rangeLabel)} · ` +
+          `<span class="ana-live">${escHtml(analyticsNumFmt(summary.realtimeVisitors))} live</span>` +
+        `</p>` +
+      `</div>` +
+      `<div class="ana-header-actions">` +
+        analyticsPaneActionsHtml(status, { showSync: true }) +
+      `</div>` +
+    `</div>`;
+
+  if (!meta?.configured) {
+    return (
+      header +
+      `<div class="prof-card soc-empty-card">` +
+        `<p class="dash-empty">Plausible is not configured.</p>` +
+        `<p class="soc-empty-hint">Set <code>PLAUSIBLE_API_BASE_URL</code> and <code>PLAUSIBLE_API_KEY</code> so Railway and Kinsta apex domains can report here.</p>` +
+      `</div>`
+    );
+  }
+
+  if (!rows.length) {
+    return (
+      header +
+      `<div class="prof-card soc-empty-card">` +
+        `<p class="dash-empty">No analytics accounts yet.</p>` +
+        `<p class="soc-empty-hint">Railway and Kinsta apex domains will show here once they have a public custom domain.</p>` +
+      `</div>`
+    );
+  }
+
+  const topSites = rows
+    .filter((row) => row.registered)
+    .slice()
+    .sort((a, b) => (Number(b.visitors) || 0) - (Number(a.visitors) || 0))
+    .slice(0, 12)
+    .map((row) => ({
+      label: row.label || row.siteId,
+      visitors: Number(row.visitors) || 0,
+      pageviews: Number(row.pageviews) || 0,
+    }));
+
+  const statsEl =
+    `<div class="dash-stats soc-totals">` +
+      analyticsMetricCard(analyticsNumFmt(summary.visitors), 'Visitors', 'fleet total', null) +
+      analyticsMetricCard(analyticsNumFmt(summary.pageviews), 'Pageviews', rangeLabel, null) +
+      analyticsMetricCard(analyticsNumFmt(summary.realtimeVisitors), 'Live now', 'all wired sites', null) +
+      analyticsMetricCard(
+        `${summary.registeredCount}/${summary.siteCount}`,
+        'Wired',
+        'registered in Plausible',
+        null,
+      ) +
+    `</div>`;
+
+  const sitesPanel = analyticsBreakdownPanel('Top sites', topSites);
+  const unwired = rows.filter((row) => !row.registered);
+  const unwiredEl =
+    unwired.length > 0
+      ? `<section class="ana-section ana-section--chart">` +
+          `<h2 class="soc-section-title">Not wired (${unwired.length})</h2>` +
+          `<ul class="ana-unwired-list">` +
+            unwired
+              .slice(0, 8)
+              .map(
+                (row) =>
+                  `<li><button type="button" class="ana-unwired-link" data-analytics-site="${escHtml(row.siteId)}">${escHtml(row.label || row.siteId)}</button></li>`,
+              )
+              .join('') +
+          `</ul>` +
+        `</section>`
+      : '';
+
+  return header + statsEl + sitesPanel + unwiredEl;
+}
+
+function buildAnalyticsDetailHtml(d, status, readiness, readinessLoading) {
+  const rangeLabel = ANALYTICS_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
+  const siteId = d?.siteId || analyticsSiteId || '';
+  const dashboardUrl = d?.dashboardUrl || '';
+  const realtime =
+    d?.realtimeVisitors != null ? analyticsNumFmt(d.realtimeVisitors) : null;
+  const source = d?.source || analyticsSource;
+  analyticsSource = source;
+
+  const openLink = dashboardUrl
+    ? `<a class="prof-btn-secondary ana-open-link" href="${escHtml(dashboardUrl)}" target="_blank" rel="noopener noreferrer">Open ${source === 'ga4' ? 'GA4' : 'Plausible'}</a>`
+    : '';
+
+  if (siteId) analyticsSiteId = siteId;
+  const header =
+    `<div class="soc-header ana-pane-header">` +
+      `<div class="soc-header-titles">` +
+        `<h1 class="soc-title">${escHtml(siteId || 'Site')}</h1>` +
+        `<p class="soc-sub">${escHtml(source)} · ${escHtml(rangeLabel)}` +
+          (realtime != null ? ` · <span class="ana-live">${escHtml(realtime)} live</span>` : '') +
+        `</p>` +
+      `</div>` +
+      `<div class="ana-header-actions">` +
+        analyticsPaneActionsHtml(status, {
+          showBack: true,
+          wired: d?.wired,
+          showSource: true,
+          availableSources: d?.availableSources,
+          openLink,
+        }) +
+      `</div>` +
+    `</div>`;
+
+  if (!d?.configured && source === 'plausible' && !(status?.google?.connected)) {
+    return (
+      header +
+      `<div class="prof-card soc-empty-card">` +
+        `<p class="dash-empty">Plausible is not configured, and Google is not connected.</p>` +
+        `<p class="soc-empty-hint">Set <code>PLAUSIBLE_*</code> env vars, or Connect Google for GA4 / Search Console.</p>` +
+      `</div>`
+    );
+  }
+
+  if (d?.error || d?.failed) {
+    return (
+      header +
+      `<div class="prof-card soc-empty-card">` +
+        `<p class="dash-empty">Analytics failed: ${escHtml(d.error || 'unknown error')}</p>` +
+        `<p class="soc-empty-hint">No invented metrics — fix auth/quota and reload.</p>` +
+      `</div>`
+    );
+  }
+
+  if (!d?.configured) {
+    return (
+      header +
+      `<div class="prof-card soc-empty-card">` +
+        `<p class="dash-empty">${source === 'ga4' ? 'GA4' : 'Plausible'} is not configured for this view.</p>` +
+      `</div>`
+    );
+  }
+
+  const m = d?.metrics || {};
+  const statsEl =
+    `<div class="dash-stats soc-totals">` +
+      analyticsMetricCard(analyticsNumFmt(m.visitors?.value ?? 0), 'Visitors', 'unique', m.visitors?.change) +
+      analyticsMetricCard(analyticsNumFmt(m.pageviews?.value ?? 0), 'Pageviews', rangeLabel, m.pageviews?.change) +
+      analyticsMetricCard(analyticsPctFmt(m.bounceRate?.value ?? 0), 'Bounce rate', 'sessions', m.bounceRate?.change) +
+      analyticsMetricCard(analyticsDurationFmt(m.visitDuration?.value ?? 0), 'Visit duration', 'avg session', m.visitDuration?.change) +
+    `</div>`;
+
+  const chart =
+    `<section class="ana-section ana-section--wide">` +
+      `<h2 class="soc-section-title">Traffic over time</h2>` +
+      analyticsTimeseriesChart(d?.series) +
+    `</section>`;
+
+  const breakdownGrid =
+    `<div class="ana-grid">` +
+      analyticsBreakdownPanel('Top sources', d?.topSources) +
+      analyticsBreakdownPanel('Top pages', d?.topPages) +
+      analyticsBreakdownPanel('Countries', d?.topCountries, { formatLabel: analyticsCountryLabel }) +
+      analyticsBreakdownPanel('Devices', d?.topDevices) +
+      analyticsBreakdownPanel('Browsers', d?.topBrowsers) +
+    `</div>`;
+  const readinessEl = renderSiteReadinessReport(readiness, { loading: readinessLoading });
+
+  return header + statsEl + chart + breakdownGrid + readinessEl;
+}
+
+function renderAnalyticsPane(readiness = null, readinessLoading = false) {
+  const root = analyticsRoot();
+  if (!root) return;
+  let pane = root.querySelector('.ch-pane');
+  if (!pane) {
+    pane = document.createElement('div');
+    pane.className = 'ch-pane';
+    root.appendChild(pane);
+  }
+
+  const body = analyticsSiteId
+    ? buildAnalyticsDetailHtml(analyticsDetail, analyticsStatus, readiness, readinessLoading)
+    : buildAnalyticsOverviewHtml(analyticsAccounts, analyticsMeta, analyticsStatus);
+
+  pane.innerHTML = `<div class="social-scroll ana-pane-scroll">${body}</div>`;
+  if (isAdminPaneMobile()) {
+    root.classList.toggle('ana-pane-active', Boolean(analyticsSiteId));
+  } else {
+    root.classList.remove('ana-pane-active');
+  }
+  bindAnalyticsControls(root);
+  syncAdminSplitView('analytics');
+}
+
+function renderAnalyticsPanel(opts = {}) {
+  const root = analyticsRoot();
+  if (!root) return;
+
+  if (!opts.preserveSidebar || !root.querySelector('.ch-sidebar')) {
+    root.innerHTML = '';
+    root.appendChild(renderAnalyticsSidebar());
+    initSidebarLayout();
+    scanPanelSidebars();
+  } else {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list && !opts.skipList) fillAnalyticsSidebarList(list);
+    syncAnalyticsSidebarActive();
+  }
+
+  renderAnalyticsPane(opts.readiness, opts.readinessLoading);
+}
+
+function bindAnalyticsControls(root) {
   root.querySelectorAll('[data-analytics-range]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const next = Number(btn.getAttribute('data-analytics-range'));
       if (!next || next === analyticsRangeDays) return;
       analyticsRangeDays = next;
-      void loadAnalyticsTab({ view, siteId: analyticsSiteId });
+      void loadAnalyticsTab({ preserveSidebar: true });
     });
   });
   root.querySelectorAll('[data-analytics-source]').forEach((btn) => {
@@ -474,14 +866,14 @@ function bindAnalyticsControls(root, view = 'detail') {
       const next = btn.getAttribute('data-analytics-source');
       if (!next || next === analyticsSource) return;
       analyticsSource = next;
-      void loadAnalyticsTab({ view: 'detail', siteId: analyticsSiteId });
+      if (!analyticsSiteId) return;
+      void loadAnalyticsTab({ preserveSidebar: true, preserveDetail: false });
     });
   });
-  root.querySelectorAll('[data-analytics-site]').forEach((sel) => {
-    sel.addEventListener('change', () => {
-      const next = String(sel.value || '').trim();
-      if (!next || next === analyticsSiteId) return;
-      openAnalyticsSite(next);
+  root.querySelectorAll('[data-analytics-site]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = String(btn.getAttribute('data-analytics-site') || '').trim();
+      if (next) openAnalyticsSite(next);
     });
   });
   root.querySelectorAll('[data-analytics-disconnect]').forEach((btn) => {
@@ -491,7 +883,7 @@ function bindAnalyticsControls(root, view = 'detail') {
         const res = await fetch('/api/admin/analytic-audit/status', { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        void loadAnalyticsTab({ view: 'detail', siteId: analyticsSiteId });
+        void loadAnalyticsTab({ preserveSidebar: true });
       } catch (e) {
         alert(e.message || 'Disconnect failed');
       }
@@ -501,18 +893,13 @@ function bindAnalyticsControls(root, view = 'detail') {
     btn.addEventListener('click', () => {
       analyticsSiteId = '';
       syncAnalyticsSiteUrl('');
-      void loadAnalyticsTab({ view: 'accounts' });
+      analyticsRoot()?.classList.remove('ana-pane-active');
+      renderAnalyticsPanel({ preserveSidebar: true });
     });
   });
   root.querySelectorAll('[data-analytics-sync]').forEach((btn) => {
     btn.addEventListener('click', () => {
       void syncAnalyticsRailwaySites();
-    });
-  });
-  root.querySelectorAll('[data-analytics-account]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const next = String(btn.getAttribute('data-analytics-account') || '').trim();
-      if (next) openAnalyticsSite(next);
     });
   });
 }
@@ -573,7 +960,7 @@ function renderSiteReadinessReport(readiness, opts = {}) {
 }
 
 function patchAnalyticsReadiness(root, readiness, loading = false) {
-  const scroll = root.querySelector('.social-scroll');
+  const scroll = root.querySelector('.ch-pane .ana-pane-scroll, .ch-pane .social-scroll');
   if (!scroll) return;
   const html = renderSiteReadinessReport(readiness, { loading });
   const existing = scroll.querySelector('.site-ready-section');
@@ -614,249 +1001,81 @@ async function refreshAnalyticsReadiness(root, siteId) {
   }
 }
 
-function renderAnalyticsDashboard(root, d, status, readiness = null, readinessLoading = false) {
-  const rangeLabel = ANALYTICS_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
-  const siteId = d?.siteId || '';
-  const dashboardUrl = d?.dashboardUrl || '';
-  const realtime =
-    d?.realtimeVisitors != null ? analyticsNumFmt(d.realtimeVisitors) : null;
-  const source = d?.source || analyticsSource;
-  analyticsSource = source;
-
-  const openLink = dashboardUrl
-    ? `<a class="prof-btn-secondary ana-open-link" href="${escHtml(dashboardUrl)}" target="_blank" rel="noopener noreferrer">Open ${source === 'ga4' ? 'GA4' : 'Plausible'}</a>`
-    : '';
-
-  const sites = status?.plausible?.sites || [];
-  if (siteId) analyticsSiteId = siteId;
-  const header =
-    `<div class="soc-header">` +
-      `<div class="soc-header-titles">` +
-        `<h1 class="soc-title">Sites</h1>` +
-        `<p class="soc-sub">${escHtml(siteId || 'Website analytics')} · ${escHtml(source)} · ${escHtml(rangeLabel)}` +
-          (realtime != null ? ` · <span class="ana-live">${escHtml(realtime)} live</span>` : '') +
-        `</p>` +
-      `</div>` +
-      `<div class="ana-header-actions">` +
-        `<button type="button" class="prof-btn-secondary" data-analytics-back>All accounts</button>` +
-        analyticsWiredBadge(d?.wired) +
-        analyticsSitePicker(sites, siteId || analyticsSiteId) +
-        analyticsSourceTabs(d?.availableSources) +
-        analyticsRangeTabs() +
-        openLink +
-        analyticsGoogleConnectHtml(status) +
-      `</div>` +
-    `</div>`;
-
-  if (!d?.configured && source === 'plausible' && !(status?.google?.connected)) {
-    root.innerHTML =
-      `<div class="social-scroll">` +
-        header +
-        `<div class="prof-card soc-empty-card">` +
-          `<p class="dash-empty">Plausible is not configured, and Google is not connected.</p>` +
-          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_*</code> env vars, or Connect Google for GA4 / Search Console.</p>` +
-        `</div>` +
-      `</div>`;
-    bindAnalyticsControls(root, 'detail');
-    return;
-  }
-
-  if (d?.error || d?.failed) {
-    root.innerHTML =
-      `<div class="social-scroll">` +
-        header +
-        `<div class="prof-card soc-empty-card">` +
-          `<p class="dash-empty">Analytics failed: ${escHtml(d.error || 'unknown error')}</p>` +
-          `<p class="soc-empty-hint">No invented metrics — fix auth/quota and reload.</p>` +
-        `</div>` +
-      `</div>`;
-    bindAnalyticsControls(root, 'detail');
-    return;
-  }
-
-  if (!d?.configured) {
-    root.innerHTML =
-      `<div class="social-scroll">` +
-        header +
-        `<div class="prof-card soc-empty-card">` +
-          `<p class="dash-empty">${source === 'ga4' ? 'GA4' : 'Plausible'} is not configured for this view.</p>` +
-        `</div>` +
-      `</div>`;
-    bindAnalyticsControls(root, 'detail');
-    return;
-  }
-
-  const m = d?.metrics || {};
-  const statsEl =
-    `<div class="dash-stats soc-totals">` +
-      analyticsMetricCard(analyticsNumFmt(m.visitors?.value ?? 0), 'Visitors', 'unique', m.visitors?.change) +
-      analyticsMetricCard(analyticsNumFmt(m.pageviews?.value ?? 0), 'Pageviews', rangeLabel, m.pageviews?.change) +
-      analyticsMetricCard(analyticsPctFmt(m.bounceRate?.value ?? 0), 'Bounce rate', 'sessions', m.bounceRate?.change) +
-      analyticsMetricCard(analyticsDurationFmt(m.visitDuration?.value ?? 0), 'Visit duration', 'avg session', m.visitDuration?.change) +
-    `</div>`;
-
-  const chart =
-    `<section class="ana-section ana-section--wide">` +
-      `<h2 class="soc-section-title">Traffic over time</h2>` +
-      analyticsTimeseriesChart(d?.series) +
-    `</section>`;
-
-  const breakdownGrid =
-    `<div class="ana-grid">` +
-      analyticsBreakdownPanel('Top sources', d?.topSources) +
-      analyticsBreakdownPanel('Top pages', d?.topPages) +
-      analyticsBreakdownPanel('Countries', d?.topCountries, { formatLabel: analyticsCountryLabel }) +
-      analyticsBreakdownPanel('Devices', d?.topDevices) +
-      analyticsBreakdownPanel('Browsers', d?.topBrowsers) +
-    `</div>`;
-  const readinessEl = renderSiteReadinessReport(readiness, { loading: readinessLoading });
-
-  root.innerHTML =
-    `<div class="social-scroll">` + header + statsEl + chart + breakdownGrid + readinessEl + `</div>`;
-  bindAnalyticsControls(root, 'detail');
-}
-
-function renderAnalyticsAccounts(root, accounts, meta) {
-  const rows = Array.isArray(accounts) ? accounts : [];
-  analyticsAccounts = rows;
-  const registered = rows.filter((row) => row.registered).length;
-  const live = rows.reduce((sum, row) => sum + (Number(row.realtimeVisitors) || 0), 0);
-  const visitors = rows.reduce((sum, row) => sum + (Number(row.visitors) || 0), 0);
-  const rangeLabel = ANALYTICS_RANGE_LABEL[meta?.rangeDays] || `last ${meta?.rangeDays || 30} days`;
-  const railwayConfigured = meta?.railwayConfigured === true;
-  const kinstaConfigured = meta?.kinstaConfigured === true;
-  const hostedConfigured = railwayConfigured || kinstaConfigured;
-  const header =
-    `<div class="soc-header">` +
-      `<div class="soc-header-titles">` +
-        `<h1 class="soc-title">Sites</h1>` +
-        `<p class="soc-sub">${escHtml(String(rows.length))} accounts · ${escHtml(String(registered))} wired · ${escHtml(analyticsNumFmt(visitors))} visitors · ` +
-          `<span class="ana-live">${escHtml(analyticsNumFmt(live))} live</span>` +
-          ` · ${escHtml(rangeLabel)}</p>` +
-      `</div>` +
-      `<div class="ana-header-actions">` +
-        analyticsRangeTabs() +
-        (hostedConfigured
-          ? `<button type="button" class="prof-btn-secondary" data-analytics-sync${analyticsSyncing ? ' disabled' : ''}>${analyticsSyncing ? 'Syncing…' : 'Sync hosted sites'}</button>`
-          : '') +
-        analyticsGoogleConnectHtml(analyticsStatus) +
-      `</div>` +
-    `</div>`;
-
-  if (!meta?.configured) {
-    root.innerHTML =
-      `<div class="social-scroll">` +
-        header +
-        `<div class="prof-card soc-empty-card">` +
-          `<p class="dash-empty">Plausible is not configured.</p>` +
-          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_API_BASE_URL</code> and <code>PLAUSIBLE_API_KEY</code> so Railway and Kinsta apex domains can report here.</p>` +
-        `</div>` +
-      `</div>`;
-    bindAnalyticsControls(root, 'accounts');
-    return;
-  }
-
-  if (!rows.length) {
-    root.innerHTML =
-      `<div class="social-scroll">` +
-        header +
-        `<div class="prof-card soc-empty-card">` +
-          `<p class="dash-empty">No analytics accounts yet.</p>` +
-          `<p class="soc-empty-hint">Railway and Kinsta apex domains will show here once they have a public custom domain.</p>` +
-        `</div>` +
-      `</div>`;
-    bindAnalyticsControls(root, 'accounts');
-    return;
-  }
-
-  const cards = rows
-    .map((row) => {
-      const liveVal = row.realtimeVisitors != null ? analyticsNumFmt(row.realtimeVisitors) : '—';
-      return (
-        `<button type="button" class="ana-account-card${row.registered ? '' : ' ana-account-card--off'}" data-analytics-account="${escHtml(row.siteId)}">` +
-          `<div class="ana-account-top">` +
-            `<span class="ana-account-name">${escHtml(row.label || row.siteId)}</span>` +
-            analyticsAccountWired(row) +
-          `</div>` +
-          `<p class="ana-account-id">${escHtml(row.siteId)}` +
-            (row.sourceLabel && row.sourceLabel !== row.siteId
-              ? ` · ${escHtml(row.sourceLabel)}`
-              : '') +
-            ` · ${escHtml(analyticsKindLabel(row.kind))}</p>` +
-          `<div class="ana-account-metrics">` +
-            `<span><strong>${escHtml(row.registered ? analyticsNumFmt(row.visitors) : '—')}</strong> visitors</span>` +
-            `<span><strong>${escHtml(row.registered ? analyticsNumFmt(row.pageviews) : '—')}</strong> views</span>` +
-            `<span class="ana-live"><strong>${escHtml(liveVal)}</strong> live</span>` +
-          `</div>` +
-        `</button>`
-      );
-    })
-    .join('');
-
-  root.innerHTML =
-    `<div class="social-scroll">` +
-      header +
-      `<div class="ana-account-grid">${cards}</div>` +
-    `</div>`;
-  bindAnalyticsControls(root, 'accounts');
-}
-
 async function loadAnalyticsTab(opts = {}) {
-  const root = document.getElementById('analytics-panel');
+  const root = analyticsRoot();
   if (!root) return;
-  mountPanelSkeleton(root, 'dashboard', 'Loading analytics…', {
-    contentSelector: '.prof-card',
-    wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
-  });
 
-  const siteFromOpts = String(opts.siteId || '').trim();
+  const preserveSidebar = opts.preserveSidebar === true && root.querySelector('.ch-sidebar');
+  if (!preserveSidebar) {
+    mountPanelSkeleton(root, 'list', 'Loading sites…', {
+      contentSelector: '.ch-list',
+      wrapper: (sk) => `<div class="ch-sidebar">${sk}</div><div class="ch-pane"></div>`,
+    });
+  }
+
+  const siteFromOpts = opts.siteId !== undefined ? String(opts.siteId || '').trim() : null;
   const siteFromUrl = parseAnalyticsSiteFromUrl();
-  if (opts.view === 'accounts') {
-    analyticsSiteId = '';
-  } else if (siteFromOpts) {
+  if (siteFromOpts !== null) {
     analyticsSiteId = siteFromOpts;
-  } else if (siteFromUrl) {
+  } else if (siteFromUrl && !preserveSidebar) {
     analyticsSiteId = siteFromUrl;
   }
-
-  const view = analyticsSiteId && opts.view !== 'accounts' ? 'detail' : 'accounts';
-  syncAnalyticsSiteUrl(view === 'detail' ? analyticsSiteId : '');
+  syncAnalyticsSiteUrl(analyticsSiteId);
 
   try {
-    if (view === 'accounts') {
-      const params = new URLSearchParams({
-        view: 'accounts',
-        range: String(analyticsRangeDays),
-      });
-      const [listRes, statusRes] = await Promise.all([
-        fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
-        fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),
-      ]);
-      const data = await listRes.json();
-      const statusData = await statusRes.json().catch(() => ({}));
-      analyticsStatus = statusData?.ok ? statusData : null;
-      if (!listRes.ok || !data.ok) throw new Error(data.error || `HTTP ${listRes.status}`);
-      renderAnalyticsAccounts(root, data.accounts, data);
-      return;
-    }
+    const accountsParams = new URLSearchParams({
+      view: 'accounts',
+      range: String(analyticsRangeDays),
+    });
+    const dashParams = new URLSearchParams({
+      range: String(analyticsRangeDays),
+      source: analyticsSource,
+    });
+    if (analyticsSiteId) dashParams.set('site_id', analyticsSiteId);
 
-    const params = new URLSearchParams({ range: String(analyticsRangeDays), source: analyticsSource });
-    if (analyticsSiteId) params.set('site_id', analyticsSiteId);
-    const [dashRes, statusRes] = await Promise.all([
-      fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
+    const fetches = [
+      fetch(`/api/admin/analytics?${accountsParams}`, { cache: 'no-store' }),
       fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),
-    ]);
-    const data = await dashRes.json();
+      analyticsSiteId
+        ? fetch(`/api/admin/analytics?${dashParams}`, { cache: 'no-store' })
+        : Promise.resolve(null),
+    ];
+    const [listRes, statusRes, dashRes] = await Promise.all(fetches);
+    const listData = await listRes.json();
     const statusData = await statusRes.json().catch(() => ({}));
     analyticsStatus = statusData?.ok ? statusData : null;
-    if (!dashRes.ok || !data.ok) throw new Error(data.error || `HTTP ${dashRes.status}`);
-    renderAnalyticsDashboard(root, data.dashboard, analyticsStatus, null, Boolean(analyticsSiteId));
+    if (!listRes.ok || !listData.ok) throw new Error(listData.error || `HTTP ${listRes.status}`);
+
+    analyticsAccounts = Array.isArray(listData.accounts) ? listData.accounts : [];
+    analyticsMeta = {
+      configured: listData.configured,
+      rangeDays: listData.rangeDays,
+      railwayConfigured: listData.railwayConfigured,
+      kinstaConfigured: listData.kinstaConfigured,
+    };
+
+    if (analyticsSiteId && dashRes) {
+      const dashData = await dashRes.json();
+      if (!dashRes.ok || !dashData.ok) throw new Error(dashData.error || `HTTP ${dashRes.status}`);
+      analyticsDetail = dashData.dashboard;
+    } else {
+      analyticsDetail = null;
+    }
+
+    renderAnalyticsPanel({
+      preserveSidebar,
+      readiness: null,
+      readinessLoading: Boolean(analyticsSiteId),
+    });
+
     if (analyticsSiteId) void refreshAnalyticsReadiness(root, analyticsSiteId);
   } catch (e) {
     root.innerHTML =
-      `<div class="social-scroll">` +
-        `<div class="prof-card"><h1 class="prof-title">Analytics</h1>` +
-        `<p class="dash-empty">Could not load analytics: ${escHtml(e.message)}</p></div>` +
+      `<div class="ch-pane" style="display:flex">` +
+        `<div class="social-scroll"><div class="prof-card">` +
+          `<h1 class="prof-title">Sites</h1>` +
+          `<p class="dash-empty">Could not load analytics: ${escHtml(e.message)}</p>` +
+        `</div></div>` +
       `</div>`;
   }
 }

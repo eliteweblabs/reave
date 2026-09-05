@@ -413,10 +413,78 @@
   position: fixed;
   inset: 0;
   display: none;
-  flex-direction: column;
+  flex-direction: row;
   background: var(--bg);
   z-index: 10;
   overflow: hidden;
+}
+#analytics-panel .ch-sidebar .panel-list-subheader {
+  margin-bottom: 0.35rem;
+  flex: 0 0 auto;
+}
+#analytics-panel .ch-list-item {
+  flex-direction: row;
+  align-items: flex-start;
+}
+#analytics-panel .ch-list-content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+.ana-item-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ana-list-overview .ch-item-title {
+  font-weight: 700;
+}
+.ana-pane-scroll {
+  gap: 0.75rem;
+}
+.ana-pane-header {
+  flex-wrap: wrap;
+}
+.ana-unwired-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.ana-unwired-link {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--fg);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.ana-unwired-link:hover {
+  text-decoration: underline;
+}
+@media (max-width: 639px) {
+  #analytics-panel {
+    flex-direction: column;
+  }
+  #analytics-panel .ch-pane {
+    display: none;
+  }
+  #analytics-panel.ana-pane-active .ch-sidebar {
+    display: none;
+  }
+  #analytics-panel.ana-pane-active .ch-pane {
+    display: flex;
+    flex: 1 1 auto;
+  }
 }
 
 /* ── Fleet tracking dashboard ── */
