@@ -1,9 +1,12 @@
 /**
  * Postgres-backed email rules loader (Railway DATABASE_URL).
- * Architecture rewire table: universal rows (client_id NULL) + per-client overrides.
+ * Staging table for a future client-scoped rules rewrite — NOT wired to the
+ * dashboard yet. Live rules use src/lib/emailRuleStore.ts (email_rules).
  */
 
 import { getPgPool } from './pgPool';
+
+const RULES_TABLE = 'email_rule_templates';
 
 export interface EmailRule {
   id: string;
@@ -110,7 +113,7 @@ export async function listEmailRules(clientId?: string): Promise<EmailRule[]> {
     if (clientId) {
       const { rows } = await pool.query(
         `SELECT ${COLUMNS}
-         FROM email_rules
+         FROM ${RULES_TABLE}
          WHERE client_id IS NULL OR client_id = $1::uuid
          ORDER BY priority ASC, created_at ASC`,
         [clientId],
@@ -119,7 +122,7 @@ export async function listEmailRules(clientId?: string): Promise<EmailRule[]> {
     }
     const { rows } = await pool.query(
       `SELECT ${COLUMNS}
-       FROM email_rules
+       FROM ${RULES_TABLE}
        WHERE client_id IS NULL
        ORDER BY priority ASC, created_at ASC`,
     );
@@ -135,7 +138,7 @@ export async function readEmailRule(id: string): Promise<EmailRule | null> {
   if (!pool) return null;
   try {
     const { rows } = await pool.query(
-      `SELECT ${COLUMNS} FROM email_rules WHERE id = $1::uuid LIMIT 1`,
+      `SELECT ${COLUMNS} FROM ${RULES_TABLE} WHERE id = $1::uuid LIMIT 1`,
       [id],
     );
     const row = rows[0];
@@ -153,7 +156,7 @@ export async function createEmailRule(
   if (!pool) return null;
   try {
     const { rows } = await pool.query(
-      `INSERT INTO email_rules (
+      `INSERT INTO ${RULES_TABLE} (
          client_id, name, description, pattern, match_fields, action,
          notify, notify_type, forward_to, create_project, except_phrases,
          priority, enabled
@@ -229,7 +232,7 @@ export async function updateEmailRule(
 
   try {
     const { rows } = await pool.query(
-      `UPDATE email_rules SET ${sets.join(', ')}
+      `UPDATE ${RULES_TABLE} SET ${sets.join(', ')}
        WHERE id = $1::uuid
        RETURNING ${COLUMNS}`,
       values,
@@ -246,7 +249,7 @@ export async function deleteEmailRule(id: string): Promise<boolean> {
   const pool = getPgPool();
   if (!pool) return false;
   try {
-    const { rowCount } = await pool.query(`DELETE FROM email_rules WHERE id = $1::uuid`, [id]);
+    const { rowCount } = await pool.query(`DELETE FROM ${RULES_TABLE} WHERE id = $1::uuid`, [id]);
     return (rowCount ?? 0) > 0;
   } catch (e) {
     console.error('[pgEmailRules] deleteEmailRule error', e);
