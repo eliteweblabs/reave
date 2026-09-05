@@ -304,13 +304,9 @@ export function proposedMeetingTimeMatchesSource(iso: string, text: string): boo
   if (!clocks.length) return false;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return false;
-  const zones = [meetingDisplayTimeZone(), 'UTC'];
-  for (const tz of zones) {
-    const parts = clockPartsInTimeZone(iso, tz);
-    if (!parts) continue;
-    if (clocks.some((c) => c.hour === parts.hour && c.minute === parts.minute)) return true;
-  }
-  return false;
+  const parts = clockPartsInTimeZone(iso, meetingDisplayTimeZone());
+  if (!parts) return false;
+  return clocks.some((c) => c.hour === parts.hour && c.minute === parts.minute);
 }
 
 function nearestClockToIndex(clocks: ClockHit[], index: number): ClockHit | null {
@@ -326,6 +322,21 @@ function nearestClockToIndex(clocks: ClockHit[], index: number): ClockHit | null
   }
   if (!best || bestDist > CLOCK_NEAR_DATE_CHARS) return null;
   return best;
+}
+
+/** Vendor HTML often puts "Monday, September 7" and "2:20 p.m. ET" far apart. */
+function pickClockForDateAnchor(source: string, clocks: ClockHit[], dateIndex: number): ClockHit | null {
+  const near = nearestClockToIndex(clocks, dateIndex);
+  if (near) return near;
+  if (!looksLikeConfirmedAppointment(source)) return null;
+  if (clocks.length === 1) return clocks[0]!;
+  const tzClock = clocks.find((c) =>
+    /\b(?:ET|EST|EDT|CT|CST|CDT|MT|MST|MDT|PT|PST|PDT)\b/i.test(
+      source.slice(c.index + c.length, c.index + c.length + 16),
+    ),
+  );
+  if (tzClock) return tzClock;
+  return clocks[0] ?? null;
 }
 
 function daysToStartOfNextCalendarWeek(refDay: number): number {
@@ -430,7 +441,7 @@ export function parseExplicitMeetingDateTime(text: string, ref: Date): string | 
     /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i,
   );
   if (namedMonth && namedMonth.index != null) {
-    const time = nearestClockToIndex(clocks, namedMonth.index);
+    const time = pickClockForDateAnchor(source, clocks, namedMonth.index);
     if (!time) return null;
     const month = MONTH_INDEX[namedMonth[1].toLowerCase().replace(/\.$/, '')];
     if (month === undefined) return null;
@@ -461,6 +472,35 @@ export function parseExplicitMeetingDateTime(text: string, ref: Date): string | 
   }
 
   return null;
+}
+
+export function resolveMeetingStartFromInbox(input: {
+  proposedMeetingStart?: string | null;
+  schedulingNote?: string | null;
+  summary?: string | null;
+  subject?: string | null;
+  bodyText?: string | null;
+  bodySnippet?: string | null;
+  bodyHtml?: string | null;
+  receivedAt?: string | null;
+}): string | null {
+  const evidence = inboundMeetingEvidence({
+    subject: input.subject,
+    bodyText: input.bodyText,
+    bodySnippet: input.bodySnippet,
+    bodyHtml: input.bodyHtml,
+  });
+  const direct = parseProposedMeetingStart(input.proposedMeetingStart);
+  if (direct && evidence && proposedMeetingTimeMatchesSource(direct, evidence)) {
+    return direct;
+  }
+  return resolveProposedMeetingStart({
+    proposedMeetingStart: null,
+    schedulingNote: input.schedulingNote,
+    summary: input.summary,
+    bodyText: evidence || input.bodyText,
+    receivedAt: input.receivedAt,
+  });
 }
 
 export function resolveProposedMeetingStart(input: {

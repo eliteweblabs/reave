@@ -32,6 +32,7 @@ import { fetchResendInboundEmail } from '../../../../../lib/resendInboundEmail';
 import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../../lib/apiResponse';
 import { getReviewsPendingCount } from '../../../../../lib/reviewsPendingCount';
+import { resolveMeetingStartFromInbox } from '../../../../../lib/emailMeetingParse';
 
 export const prerender = false;
 
@@ -86,6 +87,17 @@ async function enrichInboxEvent(event: NonNullable<Awaited<ReturnType<typeof sto
     hasMonetaryValue: monetaryAmount != null,
     unsubscribe,
     classificationAudit,
+    resolvedMeetingStart:
+      resolveMeetingStartFromInbox({
+        proposedMeetingStart: event.proposedMeetingStart,
+        schedulingNote: event.schedulingNote,
+        summary: event.summary,
+        subject: event.subject,
+        bodyText: event.bodyText,
+        bodySnippet: event.bodySnippet,
+        bodyHtml: bodyHtml || event.bodyHtml,
+        receivedAt: event.receivedAt,
+      }) ?? null,
     _fullLoaded: true,
   };
 }

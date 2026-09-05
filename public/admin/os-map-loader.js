@@ -14001,10 +14001,11 @@ async function confirmEmailBooking(ev, startIso, address) {
       ...(address ? { address } : {}),
     }),
   });
-  const data = await readApiJson(res);
-  if (!res.ok) {
-    const err = new Error(data.error || `HTTP ${res.status}`);
-    err.check = data.check;
+  let data;
+  try {
+    data = await readScheduleApiJson(res);
+  } catch (err) {
+    err.check = err.scheduleCheck;
     throw err;
   }
   const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
@@ -14105,7 +14106,10 @@ function showEmailScheduleDialog(ev, check) {
             finish(false);
             await showEmailScheduleDialog(ev, err.check);
           } else {
-            await osAlert({ title: 'Booking failed', bodyHtml: escHtml(err.message) });
+            await osAlert({
+              title: 'Booking failed',
+              bodyHtml: formatEmailScheduleErrorHtml(err, ev),
+            });
           }
         }
       });
@@ -14131,7 +14135,10 @@ function showEmailScheduleDialog(ev, check) {
           if (err.check) {
             await showEmailScheduleDialog(ev, err.check);
           } else {
-            await osAlert({ title: 'Booking failed', bodyHtml: escHtml(err.message) });
+            await osAlert({
+              title: 'Booking failed',
+              bodyHtml: formatEmailScheduleErrorHtml(err, ev),
+            });
           }
         }
       });
@@ -14180,6 +14187,71 @@ function attendeeFromEmailEvent(ev) {
   return { name, email: email.includes('@') ? email : '' };
 }
 
+function resolvedEmailMeetingIso(ev) {
+  if (!ev) return null;
+  return ev.resolvedMeetingStart || ev.bookingStart || ev.proposedMeetingStart || null;
+}
+
+function formatEmailScheduleErrorHtml(err, ev) {
+  const parts = [];
+  const msg = String(err?.message || 'Booking failed').trim();
+  parts.push(`<p>${escHtml(msg)}</p>`);
+  const when =
+    err?.proposedLabel ||
+    (err?.proposedStart ? formatScheduleWhen(err.proposedStart) : '') ||
+    (ev && resolvedEmailMeetingIso(ev) ? formatScheduleWhen(resolvedEmailMeetingIso(ev)) : '');
+  if (when) {
+    parts.push(`<p class="em-hint"><strong>Requested:</strong> ${escHtml(when)}</p>`);
+  }
+  if (err?.scheduleCheck?.conflictReason) {
+    parts.push(`<p class="em-hint">${escHtml(err.scheduleCheck.conflictReason)}</p>`);
+  }
+  if (err?.addressUsed) {
+    parts.push(`<p class="em-hint"><strong>Address tried:</strong> ${escHtml(err.addressUsed)}</p>`);
+  }
+  if (isScheduleAddressError(msg)) {
+    parts.push(
+      '<p class="em-hint">Add a street address for the meeting location, or set your business address under Admin → Company.</p>',
+    );
+  } else if (/geocod|could not locate|address|map/i.test(msg)) {
+    parts.push(
+      '<p class="em-hint">The booking service needs a geocodable address — use the store location from the email or your office address.</p>',
+    );
+  }
+  if (err?.httpStatus) {
+    parts.push(`<p class="em-hint">Server response: HTTP ${escHtml(String(err.httpStatus))}</p>`);
+  }
+  parts.push(
+    '<p class="em-hint">If the time looks wrong, tap <strong>Reclassify</strong> beside “Why this classification”. Use <strong>Reschedule</strong> to pick another slot.</p>',
+  );
+  return parts.join('');
+}
+
+function scheduleApiError(res, data) {
+  const err = new Error(data?.error || `HTTP ${res.status}`);
+  err.httpStatus = res.status;
+  err.scheduleCheck = data?.check ?? null;
+  err.proposedLabel = data?.proposedLabel ?? null;
+  err.proposedStart = data?.proposedStart ?? data?.resolvedStart ?? null;
+  err.addressUsed = data?.addressUsed ?? null;
+  return err;
+}
+
+async function readScheduleApiJson(res) {
+  const text = await res.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      throw new Error('Invalid server response');
+    }
+  }
+  if (!res.ok) throw scheduleApiError(res, data);
+  return data;
+}
+
 async function runEmailScheduleAction(ev, action, btn) {
   const prevLabel = btn.textContent;
   const needsBooking = (action === 'accept-notify' && !ev.bookingUid) || action === 'book';
@@ -14196,8 +14268,7 @@ async function runEmailScheduleAction(ev, action, btn) {
         ...(addr ? { address: addr } : {}),
       }),
     });
-    const data = await readApiJson(res);
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const data = await readScheduleApiJson(res);
     return data;
   }
 
@@ -14255,7 +14326,10 @@ async function runEmailScheduleAction(ev, action, btn) {
   } catch (err) {
     btn.disabled = false;
     btn.textContent = prevLabel;
-    await osAlert({ title: 'Could not complete action', bodyHtml: escHtml(err.message) });
+    await osAlert({
+      title: 'Could not complete action',
+      bodyHtml: formatEmailScheduleErrorHtml(err, ev),
+    });
   }
 }
 
@@ -14366,11 +14440,16 @@ async function mountEmailScheduleActions(container, ev) {
       return;
     }
 
-    // Rows ingested before the time was stored show "Meeting time pending" —
-    // fill in the time the availability check just resolved from the message.
-    if (!ev.bookingStart && !ev.proposedMeetingStart && data.check.proposedLabel) {
-      const whenEl = container.closest('.em-detail')?.querySelector('.em-book-card-when');
-      if (whenEl) whenEl.textContent = data.check.proposedLabel;
+    // Fill in the meeting time from the availability check (re-parsed from body/HTML).
+    const resolvedIso = data.resolvedStart || data.check?.proposedStart || null;
+    if (resolvedIso) {
+      ev.resolvedMeetingStart = resolvedIso;
+      const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+      if (idx !== -1) emailState.allEvents[idx] = { ...emailState.allEvents[idx], resolvedMeetingStart: resolvedIso };
+    }
+    const whenEl = container.closest('.em-detail')?.querySelector('.em-book-card-when');
+    if (whenEl && data.check?.proposedLabel) {
+      whenEl.textContent = data.check.proposedLabel;
     }
 
     if (primaryBtn) {
@@ -19650,10 +19729,10 @@ function renderEmailPane() {
     syncOtpCountdownTimers();
   }
   if (isEmailBookable(ev)) {
-    const whenLabel =
-      ev.bookingStart || ev.proposedMeetingStart
-        ? formatScheduleWhen(ev.bookingStart || ev.proposedMeetingStart)
-        : ev.schedulingNote || 'Meeting time pending';
+    const meetingIso = resolvedEmailMeetingIso(ev);
+    const whenLabel = meetingIso
+      ? formatScheduleWhen(meetingIso)
+      : ev.schedulingNote || 'Meeting time pending';
     detailHtml +=
       `<div class="em-book-card">` +
         `<div class="em-book-card-title">${isEmailBooked(ev) ? 'Meeting scheduled' : 'Meeting requested'}</div>` +

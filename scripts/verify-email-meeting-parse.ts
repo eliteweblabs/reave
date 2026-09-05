@@ -11,6 +11,7 @@ import {
   parseAllClockTimes,
   parseExplicitMeetingDateTime,
   proposedMeetingTimeMatchesSource,
+  resolveMeetingStartFromInbox,
   resolveProposedMeetingStart,
   sanitizeInboundMeetingProposal,
   wallClockInTimeZoneToIso,
@@ -123,5 +124,34 @@ const bestBuyConfirmed = sanitizeInboundMeetingProposal({
 assert.equal(looksLikeConfirmedAppointment('Your appointment is scheduled.'), true);
 assert.equal(bestBuyConfirmed.proposedMeetingStart, null);
 assert.ok(bestBuyConfirmed.schedulingNote.includes('Best Buy'));
+
+const BESTBUY_SPLIT = `Your appointment is scheduled.
+Your store appointment in Danvers
+Consultation
+Monday, September 7
+2:20 p.m. ET
+Add to Calendar`;
+
+const bestBuyParsed = parseExplicitMeetingDateTime(
+  BESTBUY_SPLIT,
+  new Date('2026-09-04T20:55:40.000Z'),
+);
+assert.equal(
+  bestBuyParsed,
+  wallClockInTimeZoneToIso(2026, 8, 7, 14, 20, 'America/New_York'),
+  'split HTML date/time rows must still resolve 2:20 p.m. ET',
+);
+
+const staleWrongUtc = '2026-09-07T14:20:00.000Z';
+assert.equal(
+  resolveMeetingStartFromInbox({
+    proposedMeetingStart: staleWrongUtc,
+    subject: 'Your appointment is scheduled.',
+    bodyText: BESTBUY_SPLIT,
+    receivedAt: '2026-09-04T20:55:40.000Z',
+  }),
+  bestBuyParsed,
+  'stale stored UTC must be replaced when it does not match the email clock',
+);
 
 console.log('ok: email meeting parse does not invent times from alerts');

@@ -148,6 +148,7 @@ export {
   parseProposedMeetingStart,
   parseRelativeMeetingTime,
   proposedMeetingTimeMatchesSource,
+  resolveMeetingStartFromInbox,
   resolveProposedMeetingStart,
   sanitizeInboundMeetingProposal,
 } from './emailMeetingParse';

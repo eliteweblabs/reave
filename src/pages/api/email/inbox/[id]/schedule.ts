@@ -29,7 +29,7 @@ import {
   buildMeetingSlotBookedEmail,
   checkEmailMeetingSlot,
   DEFAULT_MEETING_MINUTES,
-  resolveProposedMeetingStart,
+  resolveMeetingStartFromInbox,
 } from '../../../../../lib/emailScheduling';
 import {
   extractAppointmentLocation,
@@ -140,16 +140,14 @@ async function loadEmail(id: string): Promise<
   const event = await storeGetEmailInbox(id);
   if (!event) return { error: 'Not found', status: 404 };
   let proposedStart =
-    resolveProposedMeetingStart({
+    resolveMeetingStartFromInbox({
       proposedMeetingStart: event.proposedMeetingStart,
       schedulingNote: event.schedulingNote,
       summary: event.summary,
-      bodyText: inboundMeetingEvidence({
-        subject: event.subject,
-        bodyText: event.bodyText,
-        bodySnippet: event.bodySnippet,
-        bodyHtml: event.bodyHtml,
-      }),
+      subject: event.subject,
+      bodyText: event.bodyText,
+      bodySnippet: event.bodySnippet,
+      bodyHtml: event.bodyHtml,
       receivedAt: event.receivedAt,
     }) ?? null;
   if (!proposedStart && event.bookingStart) {
@@ -278,16 +276,14 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   let proposedStart =
-    resolveProposedMeetingStart({
+    resolveMeetingStartFromInbox({
       proposedMeetingStart: event.proposedMeetingStart,
       schedulingNote: event.schedulingNote,
       summary: event.summary,
-      bodyText: inboundMeetingEvidence({
-        subject: event.subject,
-        bodyText: event.bodyText,
-        bodySnippet: event.bodySnippet,
-        bodyHtml: event.bodyHtml,
-      }),
+      subject: event.subject,
+      bodyText: event.bodyText,
+      bodySnippet: event.bodySnippet,
+      bodyHtml: event.bodyHtml,
       receivedAt: event.receivedAt,
     }) ?? null;
   if (!proposedStart && event.bookingStart) {
@@ -477,6 +473,8 @@ export async function POST(context: APIContext): Promise<Response> {
         ok: false,
         error: checkRes.check.conflictReason || 'Time slot is not available',
         check: checkRes.check,
+        proposedStart: start.toISOString(),
+        proposedLabel: formatWhenLabel(start.toISOString()),
       },
       409,
     );
@@ -577,7 +575,17 @@ export async function POST(context: APIContext): Promise<Response> {
     ...(confirmContactUid ? { confirmContactUid } : {}),
   });
   if (!created.ok) {
-    return jsonResponse({ ok: false, error: created.error }, created.status ?? 502);
+    return jsonResponse(
+      {
+        ok: false,
+        error: created.error,
+        proposedStart: start.toISOString(),
+        proposedLabel: formatWhenLabel(start.toISOString()),
+        vendorAppointment,
+        addressUsed: bookAddress || null,
+      },
+      created.status ?? 502,
+    );
   }
 
   const bookingUid = created.data.booking?.uid ?? null;

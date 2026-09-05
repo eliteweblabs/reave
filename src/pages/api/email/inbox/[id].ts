@@ -42,6 +42,7 @@ import {
   isGenericInboundMailbox,
 } from '../../../../lib/emailOriginalRecipient';
 import { jsonResponse } from '../../../../lib/apiResponse';
+import { resolveMeetingStartFromInbox } from '../../../../lib/emailMeetingParse';
 
 export const prerender = false;
 
@@ -146,6 +147,17 @@ export async function GET(context: APIContext): Promise<Response> {
     matchedRuleId: matchedRule?.ruleId,
   });
   const toDisplay = displayInboxRecipients(envelopeTo, headers);
+  const resolvedMeetingStart =
+    resolveMeetingStartFromInbox({
+      proposedMeetingStart: event.proposedMeetingStart,
+      schedulingNote: event.schedulingNote,
+      summary: event.summary,
+      subject: event.subject,
+      bodyText: event.bodyText,
+      bodySnippet: event.bodySnippet,
+      bodyHtml: bodyHtml || event.bodyHtml,
+      receivedAt: event.receivedAt,
+    }) ?? null;
   return jsonResponse({
     ok: true,
     event: {
@@ -164,6 +176,7 @@ export async function GET(context: APIContext): Promise<Response> {
       hasMonetaryValue: monetaryAmount != null,
       unsubscribe,
       classificationAudit,
+      resolvedMeetingStart,
     },
   });
 }
