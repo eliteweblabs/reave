@@ -5,6 +5,7 @@
  */
 import {
   iosIcon,
+  createBrandBtn,
   createSlidingPillSelect,
   contactAvatarHtml,
   mountContactAvatars,
@@ -1109,14 +1110,14 @@ export function createEmailTriageLab(deps) {
     const pipeCopy = document.createElement('div');
     pipeCopy.innerHTML = `<h2>Rules</h2>
       <p data-lab-rules-sub>Tap a rule to edit · drag within universal or personal</p>`;
-    const saveOrder = document.createElement('button');
-    saveOrder.type = 'button';
-    saveOrder.className = 'dash-panel-btn';
+    const saveOrder = createBrandBtn({
+      label: 'Save order',
+      className: 'dash-panel-btn',
+      disabled: !state.dirtyOrder,
+      onClick: () => void persistRuleOrder(),
+    });
     saveOrder.dataset.labSaveOrder = '1';
-    saveOrder.textContent = 'Save order';
     saveOrder.hidden = !state.dirtyOrder;
-    saveOrder.disabled = !state.dirtyOrder;
-    saveOrder.addEventListener('click', () => void persistRuleOrder());
     pipeHead.append(pipeCopy, saveOrder);
     pipe.appendChild(pipeHead);
 

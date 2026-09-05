@@ -18,27 +18,10 @@
   font-weight: 600;
   cursor: pointer;
 }
+/* Layout hook for dashboard panel CTAs — pair with createBrandBtn / .brand-btn. */
 .dash-panel-btn {
   flex-shrink: 0;
   margin-left: auto;
-  padding: 0.48rem 0.9rem;
-  border: none;
-  border-radius: 999px;
-  background: var(--brand-gradient);
-  box-shadow: var(--brand-gradient-shadow);
-  color: #fff;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.dash-panel-btn:hover {
-  filter: brightness(1.06);
-}
-.dash-panel-btn:active {
-  transform: scale(0.98);
 }
 .dash-uptime-grid {
   list-style: none;

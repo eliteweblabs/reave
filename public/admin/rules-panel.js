@@ -5,6 +5,7 @@ import {
   IOS_ICONS,
   iosIcon,
   createIosIconBtn,
+  createBrandBtn,
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
@@ -910,11 +911,11 @@ function renderRulesFlowShell(root) {
 
   const right = document.createElement('div');
   right.className = 're-flow-toolbar-right';
-  const addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.className = 'dash-panel-btn';
-  addBtn.textContent = '+ Rule';
-  addBtn.addEventListener('click', () => void startNewRule());
+  const addBtn = createBrandBtn({
+    label: '+ Rule',
+    className: 'dash-panel-btn',
+    onClick: () => void startNewRule(),
+  });
   right.append(addBtn);
   toolbar.appendChild(right);
   shellEl.appendChild(toolbar);

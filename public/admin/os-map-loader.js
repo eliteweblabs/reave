@@ -6218,14 +6218,14 @@ function renderAdminDashboard(data, opts = {}) {
   todayHead.appendChild(todayHeadLeft);
 
   if (scheduleLive) {
-    const scheduleBtn = document.createElement('button');
-    scheduleBtn.type = 'button';
-    scheduleBtn.className = 'dash-panel-btn';
-    scheduleBtn.dataset.scheduleAll = '';
-    scheduleBtn.textContent = 'View Schedule';
-    scheduleBtn.addEventListener('click', () => {
-      openScheduleTab({ view: 'day', date: scheduleTodayKey() });
+    const scheduleBtn = createBrandBtn({
+      label: 'View Schedule',
+      className: 'dash-panel-btn',
+      onClick: () => {
+        openScheduleTab({ view: 'day', date: scheduleTodayKey() });
+      },
     });
+    scheduleBtn.dataset.scheduleAll = '';
     todayHead.appendChild(scheduleBtn);
   }
 
