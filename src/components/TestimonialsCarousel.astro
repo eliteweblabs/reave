@@ -109,9 +109,14 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     margin-right: 16px;
     padding: 20px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(0, 0, 0, 0.62);
+    border: 1px solid var(--site-border, rgba(23, 23, 23, 0.12));
+    background: rgba(255, 255, 255, 0.82);
     text-align: left;
+  }
+
+  html[data-theme="dark"] .testimonial-card {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.62);
   }
 
   .testimonial-card-header {
@@ -127,6 +132,10 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     height: 40px;
     border-radius: 50%;
     overflow: hidden;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  html[data-theme="dark"] .testimonial-avatar {
     color: rgba(255, 255, 255, 0.45);
   }
 
@@ -145,6 +154,10 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     font-size: 15px;
     font-weight: 600;
     line-height: 1.3;
+    color: var(--site-fg, #171717);
+  }
+
+  html[data-theme="dark"] .testimonial-name {
     color: rgba(255, 255, 255, 0.95);
   }
 
@@ -152,6 +165,10 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     margin: 2px 0 0;
     font-size: 13px;
     line-height: 1.35;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  html[data-theme="dark"] .testimonial-title {
     color: rgba(255, 255, 255, 0.5);
   }
 
@@ -159,6 +176,10 @@ const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonia
     margin: 0;
     font-size: 14px;
     line-height: 1.65;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  html[data-theme="dark"] .testimonial-quote {
     color: rgba(255, 255, 255, 0.78);
   }
 

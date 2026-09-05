@@ -348,24 +348,44 @@ try {
 	body:has(.about-page) .site-foot-wrap {
 		max-width: none;
 		width: 100%;
-		background: #000;
+		background: var(--site-canvas, #fff);
 		padding: 32px 24px calc(28px + var(--viable-bottom, env(safe-area-inset-bottom, 0px)));
+	}
+
+	html[data-theme="dark"] body:has(.about-page) .site-foot-wrap {
+		background: #000;
 	}
 
 	body:has(.about-page) .site-foot {
 		margin-top: 0;
+		color: var(--site-fg-muted, #525252);
+	}
+
+	html[data-theme="dark"] body:has(.about-page) .site-foot {
 		color: rgba(255, 255, 255, 0.68);
 	}
 
 	body:has(.about-page) .site-legal-links-sep {
+		color: var(--site-border, rgba(23, 23, 23, 0.2));
+	}
+
+	html[data-theme="dark"] body:has(.about-page) .site-legal-links-sep {
 		color: rgba(255, 255, 255, 0.4);
 	}
 
 	body:has(.about-page) .site-legal-links-link {
+		color: var(--site-fg-muted, #525252);
+	}
+
+	html[data-theme="dark"] body:has(.about-page) .site-legal-links-link {
 		color: rgba(255, 255, 255, 0.62);
 	}
 
 	body:has(.about-page) .site-legal-links-link:hover {
+		color: var(--site-fg, #171717);
+	}
+
+	html[data-theme="dark"] body:has(.about-page) .site-legal-links-link:hover {
 		color: rgba(255, 255, 255, 0.92);
 	}
 

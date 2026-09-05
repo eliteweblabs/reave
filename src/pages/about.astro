@@ -184,12 +184,20 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     object-fit: cover;
     object-position: center top;
     opacity: 1;
+    filter: grayscale(100%) contrast(1.02) brightness(1.58);
+  }
+
+  html[data-theme="dark"] .about-finale-photo {
     filter: grayscale(100%) contrast(1.06) brightness(0.62);
   }
 
   .about-finale-scrim {
     position: absolute;
     inset: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.92) 100%);
+  }
+
+  html[data-theme="dark"] .about-finale-scrim {
     background: linear-gradient(180deg, transparent 0%, #000 100%);
   }
 
@@ -228,6 +236,10 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     font-family: var(--font-content);
     font-size: 1rem;
     line-height: 1.65;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  html[data-theme="dark"] .about-finale .about-block p {
     color: rgba(255, 255, 255, 0.68);
   }
 
