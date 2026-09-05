@@ -179,7 +179,7 @@ import {
   loadPunchlistTab,
   navigateToPunchlist,
   punchlistState,
-} from './punchlist-panel.js?v=20260826a';
+} from './punchlist-panel.js?v=20260905a';
 import {
   initDocumentsPanel,
   docState,

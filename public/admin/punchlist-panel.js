@@ -2,7 +2,6 @@
  * Shared Punch list — same admin section on official reave and client installs.
  */
 import {
-  createCenteredListEmpty,
   createSwipeRow,
   bindSwipeListScroll,
   bindListMultiSelect,
@@ -98,6 +97,17 @@ function searchPlaceholder() {
 
 function sharedBannerText() {
   return isCanonicalReave() ? 'Shared with install owners' : 'Shared with reave';
+}
+
+function punchlistEmptyBodyHtml() {
+  const hint = `<p class="em-hint">${escHtml(sharedBannerText())}</p>`;
+  if (!punchlistState.configured) {
+    return `<p>${escHtml(punchlistState.error || 'Punch list isn’t connected yet.')}</p>${hint}`;
+  }
+  if (isCanonicalReave()) {
+    return `<p>Select a request, or wait for an install owner to add one.</p>${hint}`;
+  }
+  return `<p>Select a request, or add one to share it with reave.</p>${hint}`;
 }
 
 export async function loadPunchlistTab(opts = {}) {
@@ -350,11 +360,6 @@ function renderPunchlistEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const banner = document.createElement('p');
-  banner.className = 'de-item-slug';
-  banner.style.padding = '10px 16px 0';
-  banner.textContent = sharedBannerText();
-
   const subheader = listSearchAddNew({
     itemCount: punchlistState.items.filter((item) => item.status === 'open').length,
     search: {
@@ -368,7 +373,7 @@ function renderPunchlistEditor() {
     addNew: canAddPunchlistItem()
       ? { label: 'New request', onClick: () => startNewPunchlistItem() }
       : false,
-    below: [banner, renderPunchlistFilterTabs()],
+    below: renderPunchlistFilterTabs(),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -406,27 +411,14 @@ function renderPunchlistPane() {
     renderPunchlistEditPane(pane, false);
   } else {
     pane.innerHTML = '';
-    if (canAddPunchlistItem()) {
-      shell.appendEmptyDetailPane(pane, {
-        mapKey: 'punchlist',
-        iconName: 'list-checks',
-        bodyHtml: '<p>Select a request, or add one to share it with reave.</p>',
-        btnLabel: 'New request',
-        onCreate: () => startNewPunchlistItem(),
-      });
-    } else {
-      pane.appendChild(createPaneHeader({ title: 'Punch list' }).root);
-      const body = document.createElement('div');
-      body.className = 'de-pane-empty-body';
-      body.appendChild(
-        createCenteredListEmpty({
-          innerHtml: isCanonicalReave()
-            ? '<p>Select a request, or wait for an install owner to add one.</p>'
-            : `<p>${escHtml(punchlistState.error || 'Punch list isn’t connected yet.')}</p>`,
-        }),
-      );
-      pane.appendChild(body);
-    }
+    shell.appendEmptyDetailPane(pane, {
+      mapKey: 'punchlist',
+      iconName: 'list-checks',
+      bodyHtml: punchlistEmptyBodyHtml(),
+      ...(canAddPunchlistItem()
+        ? { btnLabel: 'New request', onCreate: () => startNewPunchlistItem() }
+        : {}),
+    });
   }
 }
 
@@ -465,7 +457,7 @@ function renderPunchlistEditPane(pane, isNew) {
   fields.className = 'de-fields';
 
   const note = document.createElement('p');
-  note.className = 'de-item-slug';
+  note.className = 'em-hint';
   note.textContent = isNew
     ? 'This is added to Punch list on official reave and their to-do.'
     : itemSubline({
