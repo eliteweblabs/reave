@@ -546,6 +546,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
    */
   function syncAdminKeyboardPin() {
     if (!isAdminShell()) return;
+    // Scrollable panel tabs (email, rules, clients, …) use an absolute logo
+    // bar — pinning the shell to visualViewport while a form field is focused
+    // fights internal scroll and makes textareas unreachable on iOS.
+    if (!document.documentElement.classList.contains("admin-dashboard")) return;
     const vv = window.visualViewport;
     const keyboardOpen = adminKeyboardInset() >= ADMIN_KEYBOARD_MIN_PX;
     const root = document.documentElement;
@@ -570,7 +574,13 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     if (!topbar) return;
     // Rects are visual-viewport-relative. A keyboard pan would collapse
     // --topbar-measured-h and let the search header sit under the status bar.
-    if (isAdminShell() && adminKeyboardInset() >= ADMIN_KEYBOARD_MIN_PX) return;
+    if (
+      isAdminShell() &&
+      document.documentElement.classList.contains("admin-dashboard") &&
+      adminKeyboardInset() >= ADMIN_KEYBOARD_MIN_PX
+    ) {
+      return;
+    }
     const alerts = document.getElementById("admin-setup-alerts");
     let clearance = 0;
     if (alerts && !alerts.hidden) {
@@ -785,19 +795,17 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   @media (max-width: 639px) {
     .app-header--admin {
       --app-header-inline-pad: max(0.75rem, env(safe-area-inset-left, 0px));
-      /*
-       * Mobile admin: do not pin the logo bar. Panels fill inset:0 and
-       * scroll their own content into the safe areas; the sticky footer
-       * nav is the chrome that stays. Dashboard keeps position:fixed
-       * (html.admin-dashboard) so the map/home shell can stay a single
-       * viewport with internal scroll.
-       */
-      position: absolute;
     }
+  }
 
-    html.admin-dashboard .app-header--admin {
-      position: fixed;
-    }
+  /*
+   * Scrollable admin panels (everything except dashboard): do not pin the logo
+   * bar over form fields. Panels fill inset:0 and scroll internally; only the
+   * footer nav stays sticky. Dashboard keeps position:fixed (html.admin-dashboard)
+   * so home/map content can scroll under the blur scrim.
+   */
+  html:not(.admin-dashboard) .app-header--admin {
+    position: absolute;
   }
 
   .app-header--admin {
