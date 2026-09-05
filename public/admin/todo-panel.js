@@ -335,6 +335,7 @@ function beginNewTodoDrawer() {
       syncTodoSidebarActiveState();
       renderTodoPane();
       shell.syncFooterNav();
+      syncTodoDeepLinkUrl(null);
     },
   });
 }
@@ -366,6 +367,7 @@ function startNewTodo(opts = {}) {
   syncTodoSidebarActiveState();
   renderTodoPane();
   shell.syncFooterNav();
+  syncTodoDeepLinkUrl(null);
 }
 
 function fillTodoSidebarList(list) {
@@ -500,6 +502,7 @@ function renderTodoFilterTabs() {
         todoState.dirty = false;
         getTodoEditor()?.classList.remove('de-pane-active');
         cleared = true;
+        syncTodoDeepLinkUrl(null);
       }
       refreshTodoSidebarList();
       if (cleared) renderTodoPane();
@@ -604,6 +607,7 @@ async function openTodo(id, opts = {}) {
   if (String(id) === String(todoState.activeId) && !opts.fromWorkSlug) {
     syncTodoSidebarActiveState({ scroll: true });
     getTodoEditor()?.classList.add('de-pane-active');
+    syncTodoDeepLinkUrl(todoState.activeId);
     return;
   }
   await flushTodoAutosave();
@@ -659,6 +663,22 @@ async function openTodo(id, opts = {}) {
   syncTodoSidebarActiveState({ scroll: true });
   renderTodoPane();
   shell.syncFooterNav();
+  syncTodoDeepLinkUrl(todo.id);
+}
+
+function syncTodoDeepLinkUrl(todoId) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'todo');
+    if (todoId != null && todoId !== '' && todoId !== '__new__') {
+      url.searchParams.set('todo', String(todoId));
+    } else {
+      url.searchParams.delete('todo');
+    }
+    history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch {
+    /* ignore */
+  }
 }
 
 async function closeTodoEditor(checkDirty = true) {
@@ -675,6 +695,7 @@ async function closeTodoEditor(checkDirty = true) {
     navigateToWork(returnSlug, { keepReturn: true });
     return;
   }
+  syncTodoDeepLinkUrl(null);
   syncTodoSidebarActiveState();
   renderTodoPane();
   shell.syncFooterNav();
@@ -721,6 +742,7 @@ async function saveActiveTodoDraft(silent = false) {
       todoState.todos.unshift(normalizeTodoItemDates(data));
       todoState.activeId = data.id;
       todoState.dirty = false;
+      syncTodoDeepLinkUrl(data.id);
       todoState.draft = {
         title: data.title,
         priority: data.priority,
@@ -1334,6 +1356,7 @@ function removeTodosLocally(ids) {
     todoState.draft = null;
     todoState.linkedJob = null;
     getTodoEditor()?.classList.remove('de-pane-active');
+    syncTodoDeepLinkUrl(null);
   }
   renderTodoEditor();
   shell.syncFooterNav();

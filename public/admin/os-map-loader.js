@@ -12166,6 +12166,20 @@ function resumeRuleDeepLinkFromUrl() {
   void loadRulesTab({ ruleId });
 }
 
+function resumeTodoDeepLinkFromUrl() {
+  const todoId = parseTodoDeepLinkFromUrl();
+  if (!todoId || todoId === '__new__') return;
+  if (MAP?.type !== 'todo') {
+    navigateToTodo(todoId);
+    return;
+  }
+  if (String(todoState.activeId || '') === String(todoId)) {
+    syncAdminTabUrl('todo', { todoId });
+    return;
+  }
+  void loadTodoTab({ todoId });
+}
+
 function resumeEmailDeepLinkFromUrl() {
   const emailId = parseEmailDeepLinkFromUrl();
   if (!emailId) return;
@@ -20231,6 +20245,7 @@ window.addEventListener('pageshow', (ev) => {
   resumeClientDeepLinkFromUrl();
   resumeScheduleDeepLinkFromUrl();
   resumeRuleDeepLinkFromUrl();
+  resumeTodoDeepLinkFromUrl();
   queueTriageEmailFromUrl();
   void purgeExpiredOtpsQuietly();
   void consumePendingOtpCopy();
