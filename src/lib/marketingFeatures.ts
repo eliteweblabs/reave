@@ -207,7 +207,7 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
   },
   {
     id: 'stock-photos',
-    label: 'Stock Photos',
+    label: 'stock photo API',
     modules: ['stock_photos'],
     kind: 'capability',
   },
