@@ -223,6 +223,22 @@ export function isSiteFleetIgnored(
   return Boolean(id && state?.sites?.[id]);
 }
 
+/** UptimeRobot monitor ids whose apex URL is fleet-ignored. */
+export function uptimeMonitorIdsForIgnoredSites(
+  monitors: Array<{ id?: number | string; url?: string | null }>,
+  ignore: SiteFleetIgnoreState | null | undefined,
+): number[] {
+  if (!ignore?.sites || !Object.keys(ignore.sites).length) return [];
+  const out: number[] = [];
+  for (const monitor of monitors) {
+    const host = normalizeMonitorHost(monitor.url);
+    if (!host || !isSiteFleetIgnored(ignore, host)) continue;
+    const id = Number(monitor.id);
+    if (Number.isFinite(id) && id > 0) out.push(id);
+  }
+  return out;
+}
+
 export function effectiveSiteHealthCriticalCount(
   fleet: SiteHealthFleet | null | undefined,
   ignore: SiteFleetIgnoreState | null | undefined,

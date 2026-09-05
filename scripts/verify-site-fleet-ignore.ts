@@ -8,6 +8,7 @@ import {
   effectiveSiteHealthCriticalCount,
   isSiteFleetIgnored,
   normalizeSiteFleetIgnoreSiteId,
+  uptimeMonitorIdsForIgnoredSites,
 } from '../src/lib/siteFleetIgnore.ts';
 import type { SiteHealthFleet } from '../src/lib/siteHealthScore.ts';
 
@@ -54,5 +55,12 @@ assert.equal(annotated!.criticalSites, 1);
 assert.equal(annotated!.ignoredSites, 1);
 assert.equal(annotated!.sites['mavsafe.com']?.ignored, true);
 assert.equal(annotated!.sites['reave.app']?.ignored, false);
+
+const monitors = [
+  { id: 1, url: 'https://mavsafe.com', status: 9 },
+  { id: 2, url: 'https://reave.app', status: 2 },
+  { id: 3, url: 'https://example.com', status: 0 },
+];
+assert.deepEqual(uptimeMonitorIdsForIgnoredSites(monitors, ignore), [1]);
 
 console.log('verify-site-fleet-ignore: ok');

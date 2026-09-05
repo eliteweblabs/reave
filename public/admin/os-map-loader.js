@@ -6342,7 +6342,7 @@ function renderAdminDashboard(data, opts = {}) {
       value: downCount,
       label: 'Sites down',
       hint: uptimeSummary
-        ? `${uptimeSummary.up}/${uptimeSummary.total} up locally · ${uptimeSummary.open_incidents ?? 0} open incidents`
+        ? `${uptimeSummary.up}/${uptimeSummary.total} up cached${data?.siteFleetIgnore?.sites && Object.keys(data.siteFleetIgnore.sites).length ? ` · ${Object.keys(data.siteFleetIgnore.sites).length} ignored` : ''} · ${uptimeSummary.open_incidents ?? 0} open incidents`
         : uptimeConfigured
           ? 'sync pending'
           : 'not configured',

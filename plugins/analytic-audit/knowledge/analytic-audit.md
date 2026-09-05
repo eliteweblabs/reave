@@ -48,7 +48,7 @@ If any tool returns `error: "ANALYTICS_FAILED"` (quota, auth, unverified propert
 
 ## Fleet ignore (legal hold)
 
-Dashboard home **Sites** tiles support **Ignore site issues** on each card popover (`PATCH /api/admin/sites/ignore`). Ignored apex domains are greyed out, excluded from the **Site issues** stat, and skipped by auto-wiring — **does not** change hosting, DNS, or uptime monitors. Do not propose fixes for ignored sites unless the owner explicitly un-ignores them. Official reave.app seeds defaults in `config-reave.json` → `siteFleetIgnoreSeeds`.
+Dashboard home **Sites** tiles support **Ignore site issues** on each card popover (`PATCH /api/admin/sites/ignore`). Ignored apex domains are greyed out, excluded from the **Site issues** and **Sites down** stats, and skipped by auto-wiring — **does not** change hosting, DNS, or uptime monitors. Do not propose fixes for ignored sites unless the owner explicitly un-ignores them. Official reave.app seeds defaults in `config-reave.json` → `siteFleetIgnoreSeeds`.
 
 ## Block search engines (WordPress Connect)
 

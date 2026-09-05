@@ -364,31 +364,73 @@ export type UptimeSummaryStats = {
   recent_incidents: (UptimeIncidentRow & { monitor_name: string })[];
 };
 
-export async function dbUptimeSummary(): Promise<UptimeSummaryStats | null> {
+export type UptimeSummaryOptions = {
+  /** Monitors to omit (e.g. fleet-ignored apex domains). */
+  excludeMonitorIds?: number[];
+};
+
+export async function dbUptimeSummary(
+  opts: UptimeSummaryOptions = {},
+): Promise<UptimeSummaryStats | null> {
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
 
+    const excludeMonitorIds = (opts.excludeMonitorIds ?? []).filter(
+      (id) => Number.isFinite(id) && id > 0,
+    );
+    const exclude = excludeMonitorIds.length > 0;
+
     const [monitorsRes, openRes, recentRes] = await Promise.all([
-      pool.query<{ total: string; up: string; down: string; paused: string; avg7: string | null }>(
-        `SELECT
-          COUNT(*)::text AS total,
-          COUNT(*) FILTER (WHERE status = 2)::text AS up,
-          COUNT(*) FILTER (WHERE status IN (8, 9))::text AS down,
-          COUNT(*) FILTER (WHERE status = 0)::text AS paused,
-          AVG(uptime_ratio_7d)::text AS avg7
-         FROM uptime_monitors`,
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM uptime_incidents WHERE resolved_at IS NULL`,
-      ),
-      pool.query<UptimeIncidentRow & { monitor_name: string }>(
-        `SELECT i.${INCIDENT_COLUMNS.replace(/,\s*/g, ', i.')}, m.friendly_name AS monitor_name
-         FROM uptime_incidents i
-         JOIN uptime_monitors m ON m.id = i.monitor_id
-         ORDER BY i.created_at DESC
-         LIMIT 10`,
-      ),
+      exclude
+        ? pool.query<{ total: string; up: string; down: string; paused: string; avg7: string | null }>(
+            `SELECT
+              COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE status = 2)::text AS up,
+              COUNT(*) FILTER (WHERE status IN (8, 9))::text AS down,
+              COUNT(*) FILTER (WHERE status = 0)::text AS paused,
+              AVG(uptime_ratio_7d)::text AS avg7
+             FROM uptime_monitors
+             WHERE id != ALL($1::bigint[])`,
+            [excludeMonitorIds],
+          )
+        : pool.query<{ total: string; up: string; down: string; paused: string; avg7: string | null }>(
+            `SELECT
+              COUNT(*)::text AS total,
+              COUNT(*) FILTER (WHERE status = 2)::text AS up,
+              COUNT(*) FILTER (WHERE status IN (8, 9))::text AS down,
+              COUNT(*) FILTER (WHERE status = 0)::text AS paused,
+              AVG(uptime_ratio_7d)::text AS avg7
+             FROM uptime_monitors`,
+          ),
+      exclude
+        ? pool.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count
+             FROM uptime_incidents
+             WHERE resolved_at IS NULL
+               AND monitor_id != ALL($1::bigint[])`,
+            [excludeMonitorIds],
+          )
+        : pool.query<{ count: string }>(
+            `SELECT COUNT(*)::text AS count FROM uptime_incidents WHERE resolved_at IS NULL`,
+          ),
+      exclude
+        ? pool.query<UptimeIncidentRow & { monitor_name: string }>(
+            `SELECT i.${INCIDENT_COLUMNS.replace(/,\s*/g, ', i.')}, m.friendly_name AS monitor_name
+             FROM uptime_incidents i
+             JOIN uptime_monitors m ON m.id = i.monitor_id
+             WHERE m.id != ALL($1::bigint[])
+             ORDER BY i.created_at DESC
+             LIMIT 10`,
+            [excludeMonitorIds],
+          )
+        : pool.query<UptimeIncidentRow & { monitor_name: string }>(
+            `SELECT i.${INCIDENT_COLUMNS.replace(/,\s*/g, ', i.')}, m.friendly_name AS monitor_name
+             FROM uptime_incidents i
+             JOIN uptime_monitors m ON m.id = i.monitor_id
+             ORDER BY i.created_at DESC
+             LIMIT 10`,
+          ),
     ]);
 
     const m = monitorsRes.rows[0];

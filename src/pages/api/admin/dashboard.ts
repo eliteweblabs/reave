@@ -41,7 +41,8 @@ import { isPlausibleConfigured } from '../../../lib/plausibleClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { jsonResponse } from '../../../lib/apiResponse';
 import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
-import { annotateSiteHealthFleet, loadSiteFleetIgnoreState } from '../../../lib/siteFleetIgnore';
+import { annotateSiteHealthFleet, loadSiteFleetIgnoreState, uptimeMonitorIdsForIgnoredSites } from '../../../lib/siteFleetIgnore';
+import { dbUptimeSummary } from '../../../lib/pgUptime';
 import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
 import { getDeploymentOwnerTimezone } from '../../../lib/deploymentOwner';
@@ -221,6 +222,15 @@ export async function GET(context: APIContext): Promise<Response> {
   const siteFleetIgnore = await loadSiteFleetIgnoreState();
   const siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);
 
+  const uptimeExcludeMonitorIds = uptimeMonitorIdsForIgnoredSites(uptimeMonitors, siteFleetIgnore);
+  const uptimeSummaryEffective =
+    uptime?.summary && uptimeExcludeMonitorIds.length
+      ? (await dbUptimeSummary({ excludeMonitorIds: uptimeExcludeMonitorIds })) ?? uptime.summary
+      : uptime?.summary ?? null;
+  const uptimeEffective = uptime
+    ? { ...uptime, summary: uptimeSummaryEffective }
+    : null;
+
   const firstName = dashboardGreetingFirstName(context);
   const sleepDeferred = await storeListSleepDeferredEmails(50);
   const timeZone = await getDeploymentOwnerTimezone(context);
@@ -232,7 +242,7 @@ export async function GET(context: APIContext): Promise<Response> {
       emailsUnread: inboxDigest.unread ?? digest.unread,
       projectsActive,
       todosOpen,
-      uptimeDown: uptime?.summary?.down ?? null,
+      uptimeDown: uptimeSummaryEffective?.down ?? null,
       siteHealthCritical: siteHealth?.criticalSites ?? null,
       billingOverdue: billing?.overdueCount ?? null,
       billingOverdueDue: billing?.overdueDue ?? null,
@@ -264,8 +274,8 @@ export async function GET(context: APIContext): Promise<Response> {
       chats: threads.filter((t) => !t.archived).length,
       deployState: deploy?.state ?? 'unknown',
       deployUpToDate: deploy?.up_to_date ?? null,
-      uptimeDown: uptime?.summary?.down ?? null,
-      uptimeOpenIncidents: uptime?.summary?.open_incidents ?? null,
+      uptimeDown: uptimeSummaryEffective?.down ?? null,
+      uptimeOpenIncidents: uptimeSummaryEffective?.open_incidents ?? null,
       billingTotalDue: billing?.totalDue ?? null,
       billingOutstanding: billing?.outstandingCount ?? null,
       billingOverdue: billing?.overdueCount ?? null,
@@ -290,7 +300,7 @@ export async function GET(context: APIContext): Promise<Response> {
     analytics,
     siteHealth,
     siteFleetIgnore,
-    uptime,
+    uptime: uptimeEffective,
     uptimeMonitors,
     uptimeAccount,
     deploy: deploy
