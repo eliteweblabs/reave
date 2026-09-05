@@ -11,7 +11,7 @@ import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from "../lib/ogImageSize";
 import CookieNotice from "../components/CookieNotice.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
-import { formatPwaAppTitle } from "../lib/pageTitle";
+import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import PlausibleScript from "../components/PlausibleScript.astro";
 import "../styles/scroll-fade.css";
 
@@ -40,7 +40,24 @@ const isPack = landing.variant === "pack";
 const isService = landing.variant === "service";
 const isTech = landing.variant === "tech";
 const isVet = landing.variant === "vet";
-const title = (titleProp ?? landing.title ?? company.name).trim();
+const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isIndexPage = pathNorm === "/";
+const siteName = (landing.name ?? company.name).trim() || formatPwaAppTitle(company.name);
+const pageName = titleProp?.trim() || "";
+let docTitle: string;
+if (pageName) {
+  docTitle = formatHtmlPageTitle({ page: pageName, siteName });
+} else if (isIndexPage && landing.title?.trim()) {
+  docTitle = landing.title.trim();
+} else if (isIndexPage) {
+  docTitle = formatHtmlPageTitle({
+    siteName,
+    tagline: landing.tagline?.trim() || company.description?.trim(),
+  });
+} else {
+  docTitle = formatHtmlPageTitle({ siteName });
+}
+if (!docTitle.trim()) docTitle = siteName || "Home";
 const pwaTitle = formatPwaAppTitle(company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
 const shareTitle = shareSafeText(landing.name ?? company.name);
@@ -75,7 +92,7 @@ const htmlStyle =
     <meta name="application-name" content={pwaTitle} />
     <meta name="generator" content={Astro.generator} />
     <Favicon />
-    <title>{title}</title>
+    <title>{docTitle}</title>
     <PwaDocumentTitle pwaTitle={pwaTitle} />
     <meta name="description" content={description} />
     {noIndex && <meta name="robots" content="noindex, nofollow" />}
