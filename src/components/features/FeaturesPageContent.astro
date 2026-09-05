@@ -883,8 +883,6 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-page {
-    /* Same fluid gap as --home-section-follow-gap (title ↔ chips ↔ next title). */
-    --fx-hero-copy-gap: var(--home-section-follow-gap, clamp(2.5rem, 5vw, 3.75rem));
     /* Header clearance lives on main (html.site-page). */
     padding: 0 var(--site-page-gutter, 20px) 6rem;
     display: flex;
@@ -953,13 +951,13 @@ const customPrompts: PromptExample[] = [
 
   .fx-hero {
     text-align: center;
-    margin-bottom: var(--fx-hero-copy-gap);
+    margin-bottom: var(--home-section-follow-gap, clamp(2.5rem, 5vw, 3.75rem));
   }
 
   .fx-hero-copy {
     display: flex;
     flex-direction: column;
-    gap: var(--fx-hero-copy-gap);
+    gap: var(--home-copy-gap, 0.75rem);
   }
 
   .fx-stack-kicker,
@@ -1040,7 +1038,7 @@ const customPrompts: PromptExample[] = [
     width: auto;
     max-width: none;
     margin-inline: -20px;
-    margin-bottom: var(--home-section-follow-gap, var(--fx-hero-copy-gap, 48px));
+    margin-bottom: var(--home-section-follow-gap, clamp(2.5rem, 5vw, 3.75rem));
     overflow: clip;
     isolation: isolate;
     contain: layout paint;
