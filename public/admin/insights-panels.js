@@ -72,6 +72,7 @@ let analyticsSiteId = '';
 let analyticsStatus = null;
 let analyticsAccounts = [];
 let analyticsSyncing = false;
+let analyticsReadinessGen = 0;
 
 function parseAnalyticsSiteFromUrl() {
   try {
@@ -571,6 +572,48 @@ function renderSiteReadinessReport(readiness, opts = {}) {
   );
 }
 
+function patchAnalyticsReadiness(root, readiness, loading = false) {
+  const scroll = root.querySelector('.social-scroll');
+  if (!scroll) return;
+  const html = renderSiteReadinessReport(readiness, { loading });
+  const existing = scroll.querySelector('.site-ready-section');
+  if (existing) existing.outerHTML = html;
+  else scroll.insertAdjacentHTML('beforeend', html);
+}
+
+/** Cached checklist first, then full PageSpeed/link crawl — never blocks charts. */
+async function refreshAnalyticsReadiness(root, siteId) {
+  const gen = ++analyticsReadinessGen;
+  const site = String(siteId || '').trim();
+  if (!site) return;
+
+  patchAnalyticsReadiness(root, null, true);
+
+  const fetchReadiness = async (full) => {
+    const params = new URLSearchParams({ site_id: site });
+    if (full) params.set('full', '1');
+    const res = await fetch(`/api/admin/sites/readiness?${params}`, { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (gen !== analyticsReadinessGen) return null;
+    if (!res.ok || !data.ok) return null;
+    return data.readiness;
+  };
+
+  try {
+    const cached = await fetchReadiness(false);
+    if (cached) patchAnalyticsReadiness(root, cached, false);
+  } catch {
+    /* readiness is optional — charts already rendered */
+  }
+
+  try {
+    const full = await fetchReadiness(true);
+    if (full) patchAnalyticsReadiness(root, full, false);
+  } catch {
+    /* PageSpeed / link crawl can fail without blocking analytics */
+  }
+}
+
 function renderAnalyticsDashboard(root, d, status, readiness = null, readinessLoading = false) {
   const rangeLabel = ANALYTICS_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
   const siteId = d?.siteId || '';
@@ -799,26 +842,16 @@ async function loadAnalyticsTab(opts = {}) {
 
     const params = new URLSearchParams({ range: String(analyticsRangeDays), source: analyticsSource });
     if (analyticsSiteId) params.set('site_id', analyticsSiteId);
-    const readinessParams = new URLSearchParams({ site_id: analyticsSiteId, full: '1' });
-    const [dashRes, statusRes, readinessRes] = await Promise.all([
+    const [dashRes, statusRes] = await Promise.all([
       fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' }),
       fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),
-      analyticsSiteId
-        ? fetch(`/api/admin/sites/readiness?${readinessParams}`, { cache: 'no-store' })
-        : Promise.resolve(null),
     ]);
     const data = await dashRes.json();
     const statusData = await statusRes.json().catch(() => ({}));
-    const readinessData = readinessRes ? await readinessRes.json().catch(() => ({})) : null;
     analyticsStatus = statusData?.ok ? statusData : null;
     if (!dashRes.ok || !data.ok) throw new Error(data.error || `HTTP ${dashRes.status}`);
-    renderAnalyticsDashboard(
-      root,
-      data.dashboard,
-      analyticsStatus,
-      readinessData?.ok ? readinessData.readiness : null,
-      Boolean(analyticsSiteId && !readinessData?.ok),
-    );
+    renderAnalyticsDashboard(root, data.dashboard, analyticsStatus, null, Boolean(analyticsSiteId));
+    if (analyticsSiteId) void refreshAnalyticsReadiness(root, analyticsSiteId);
   } catch (e) {
     root.innerHTML =
       `<div class="social-scroll">` +
