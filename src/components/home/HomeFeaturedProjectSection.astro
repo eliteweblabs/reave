@@ -3,14 +3,14 @@ import { ArrowRight } from "lucide-astro";
 import { getSiteContent, type SitePortfolioItem } from "../../lib/siteContent";
 
 function featuredSlides(item: SitePortfolioItem) {
+  if (!item.image) return [];
   return [
     {
       image: item.image,
       imageAlt: item.imageAlt,
       imagePosition: item.imagePosition,
     },
-    ...(item.alternateImages ?? []),
-  ].filter((slide) => slide.image);
+  ];
 }
 
 function featuredSlug(title: string) {
@@ -41,7 +41,7 @@ const featuredItems = (getSiteContent().portfolio ?? [])
       titleId: `${sectionId}-title`,
       href,
       external,
-      ctaLabel: host ? `Visit ${host}` : "See the portfolio",
+      ctaLabel: host ? `Visit ${host}` : "what we do.",
       flip: index % 2 === 1,
     };
   });
@@ -63,7 +63,6 @@ const featuredItems = (getSiteContent().portfolio ?? [])
             href={block.href}
             target={block.external ? "_blank" : undefined}
             rel={block.external ? "noopener noreferrer" : undefined}
-            data-featured-fade={block.slides.length > 1 ? "" : undefined}
           >
             {block.slides.map((slide, index) => (
               <img
@@ -261,25 +260,3 @@ const featuredItems = (getSiteContent().portfolio ?? [])
     }
   }
 </style>
-
-{
-  featuredItems.some((block) => block.slides.length > 1) && (
-    <script>
-      document.querySelectorAll("[data-featured-fade]").forEach((root) => {
-        if (!(root instanceof HTMLElement)) return;
-        const frames = [...root.querySelectorAll("img")];
-        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        if (frames.length > 1 && !reduceMotion) {
-          let index = 0;
-          window.setInterval(() => {
-            frames[index]?.classList.remove("is-active");
-            frames[index]?.setAttribute("aria-hidden", "true");
-            index = (index + 1) % frames.length;
-            frames[index]?.classList.add("is-active");
-            frames[index]?.removeAttribute("aria-hidden");
-          }, 5000);
-        }
-      });
-    </script>
-  )
-}
