@@ -17,6 +17,7 @@
   --sk-base:  rgba(0, 0, 0, 0.07);
   /* Bright overlay flash — must read lighter than --sk-base in light mode */
   --sk-shine: rgba(255, 255, 255, 0.55);
+  --sk-stagger-step: 0.08s;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -56,7 +57,51 @@
   );
   transform: translateX(-100%);
   animation: sk-shimmer 1.4s ease-in-out infinite;
+  animation-delay: var(--sk-delay, 0s);
 }
+
+/* Cascade shimmer top-to-bottom — each block inherits --sk-delay to its bones. */
+.sk-home-briefing { --sk-delay: calc(0 * var(--sk-stagger-step)); }
+.sk-home-alerts { --sk-delay: calc(1 * var(--sk-stagger-step)); }
+.sk-home-today { --sk-delay: calc(2 * var(--sk-stagger-step)); }
+.sk-home-stats { --sk-delay: calc(3 * var(--sk-stagger-step)); }
+.sk-home-uptime { --sk-delay: calc(4 * var(--sk-stagger-step)); }
+.sk-home-inbox { --sk-delay: calc(5 * var(--sk-stagger-step)); }
+
+.sk-dashboard .sk-stat-grid { --sk-delay: calc(0 * var(--sk-stagger-step)); }
+.sk-dashboard > .sk-card:not(.sk-card--short) { --sk-delay: calc(1 * var(--sk-stagger-step)); }
+.sk-dashboard > .sk-card--short { --sk-delay: calc(2 * var(--sk-stagger-step)); }
+
+.sk-list-panel > .panel-list-subheader { --sk-delay: calc(0 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(1) { --sk-delay: calc(1 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(2) { --sk-delay: calc(2 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(3) { --sk-delay: calc(3 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(4) { --sk-delay: calc(4 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(5) { --sk-delay: calc(5 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(6) { --sk-delay: calc(6 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(7) { --sk-delay: calc(7 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(8) { --sk-delay: calc(8 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(9) { --sk-delay: calc(9 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(10) { --sk-delay: calc(10 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(11) { --sk-delay: calc(11 * var(--sk-stagger-step)); }
+.sk-list-panel .ch-list > .sk-list-item:nth-child(12) { --sk-delay: calc(12 * var(--sk-stagger-step)); }
+
+.sk-list > .sk-list-item:nth-child(1) { --sk-delay: calc(0 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(2) { --sk-delay: calc(1 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(3) { --sk-delay: calc(2 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(4) { --sk-delay: calc(3 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(5) { --sk-delay: calc(4 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(6) { --sk-delay: calc(5 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(7) { --sk-delay: calc(6 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(8) { --sk-delay: calc(7 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(9) { --sk-delay: calc(8 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(10) { --sk-delay: calc(9 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(11) { --sk-delay: calc(10 * var(--sk-stagger-step)); }
+.sk-list > .sk-list-item:nth-child(12) { --sk-delay: calc(11 * var(--sk-stagger-step)); }
+
+.sk-analytics-stats { --sk-delay: calc(0 * var(--sk-stagger-step)); }
+.sk-analytics-detail .ana-section { --sk-delay: calc(1 * var(--sk-stagger-step)); }
+.sk-analytics-grid { --sk-delay: calc(2 * var(--sk-stagger-step)); }
 
 /* ── List rows — mirrors .ch-list-item (icon + title/date + optional sub) ── */
 .sk-list {
