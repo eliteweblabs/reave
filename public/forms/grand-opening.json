@@ -50,7 +50,7 @@
   "submitSubject": "Grand opening offer application",
   "submittingMessage": "Sending your application...",
   "onComplete": {
-    "message": "Application received! We'll review it and get back to you within 48 hours.",
+    "message": "Application received! We'll review it and get back to you soon.",
     "redirect": null
   }
 }

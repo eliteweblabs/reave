@@ -4,7 +4,7 @@ import BrandBtn from "../components/ui/BrandBtn.astro";
 import ConversationalForm from "../components/ConversationalForm.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { ArrowRight, Check, Clock, ShieldCheck } from "lucide-astro";
+import { ArrowRight, Check, PenLine, ShieldCheck } from "lucide-astro";
 import "../styles/marketing-sections.css";
 
 export const prerender = false;
@@ -15,7 +15,7 @@ const brandName = company.name || "reave.app";
 
 <Layout
   title="Grand Opening — Free Website Design"
-  description={`${brandName} grand opening offer: free custom website design with one year of managed hosting ($500). 48-hour turnaround, subject to approval.`}
+  description={`${brandName} grand opening offer: free custom website design with one year of managed hosting ($500). Unlimited edits, subject to approval.`}
 >
   <div class="go-page">
     <section class="go-hero" aria-labelledby="go-title">
@@ -33,8 +33,8 @@ const brandName = company.name || "reave.app";
 
           <ul class="go-hero__highlights" aria-label="Offer highlights">
             <li>
-              <Clock size={18} strokeWidth={1.75} aria-hidden="true" />
-              <span><strong>48-hour turnaround</strong> once approved</span>
+              <PenLine size={18} strokeWidth={1.75} aria-hidden="true" />
+              <span><strong>Unlimited edits</strong> for your first year</span>
             </li>
             <li>
               <ShieldCheck size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -80,10 +80,10 @@ const brandName = company.name || "reave.app";
             </p>
           </article>
           <article class="go-detail-card">
-            <h3>48-hour delivery</h3>
+            <h3>Unlimited edits</h3>
             <p>
-              Once your application is approved, we turn the site around in about two business
-              days. Simple sites move faster; we'll confirm timing when we review your request.
+              Copy tweaks, new photos, layout changes — included for your first year. We keep
+              your site current without nickel-and-diming you for every update.
             </p>
           </article>
         </div>
@@ -202,6 +202,22 @@ const brandName = company.name || "reave.app";
     gap: 8px;
   }
 
+  .go-hero__ctas :global(.brand-btn-glass) {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    border: 1.5px solid var(--site-fg, #171717);
+    color: var(--site-fg, #171717);
+    -webkit-text-fill-color: var(--site-fg, #171717);
+  }
+
+  .go-hero__ctas :global(.brand-btn-glass:hover) {
+    background: transparent;
+    border-color: var(--site-fg-muted, #525252);
+    filter: none;
+  }
+
   .go-hero__visual {
     display: flex;
     justify-content: center;
@@ -240,8 +256,8 @@ const brandName = company.name || "reave.app";
   .go-detail-card {
     padding: 22px 20px;
     border-radius: 14px;
-    border: 1px solid var(--site-card-border, rgba(23, 23, 23, 0.1));
-    background: var(--site-card-bg, rgba(255, 255, 255, 0.6));
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: transparent;
   }
 
   .go-detail-card h3 {
@@ -257,6 +273,11 @@ const brandName = company.name || "reave.app";
     font-size: 0.92rem;
     line-height: 1.6;
     color: var(--site-fg-muted, #525252);
+  }
+
+  .go-detail-card p strong {
+    color: var(--site-fg, #171717);
+    font-weight: 600;
   }
 
   .go-apply {
