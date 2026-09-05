@@ -162,6 +162,9 @@ export async function ga4DashboardStats(args: {
   series: Array<{ date: string; visitors: number; pageviews: number }>;
   topPages: Array<{ label: string; visitors: number; pageviews: number }>;
   topSources: Array<{ label: string; visitors: number; pageviews: number }>;
+  topCountries: Array<{ label: string; visitors: number; pageviews: number }>;
+  topDevices: Array<{ label: string; visitors: number; pageviews: number }>;
+  topBrowsers: Array<{ label: string; visitors: number; pageviews: number }>;
 }> {
   const end = new Date();
   const start = new Date();
@@ -171,7 +174,7 @@ export async function ga4DashboardStats(args: {
   const subject = args.subject ?? agencySubject();
   const propertyId = normalizePropertyId(args.propertyId);
 
-  const [totals, series, pages, sources] = await Promise.all([
+  const [totals, series, pages, sources, countries, devices, browsers] = await Promise.all([
     ga4RunReport({
       propertyId,
       startDate,
@@ -206,6 +209,33 @@ export async function ga4DashboardStats(args: {
       limit: 8,
       subject,
     }),
+    ga4RunReport({
+      propertyId,
+      startDate,
+      endDate,
+      metrics: ['activeUsers', 'screenPageViews'],
+      dimensions: ['country'],
+      limit: 8,
+      subject,
+    }),
+    ga4RunReport({
+      propertyId,
+      startDate,
+      endDate,
+      metrics: ['activeUsers', 'screenPageViews'],
+      dimensions: ['deviceCategory'],
+      limit: 6,
+      subject,
+    }),
+    ga4RunReport({
+      propertyId,
+      startDate,
+      endDate,
+      metrics: ['activeUsers', 'screenPageViews'],
+      dimensions: ['browser'],
+      limit: 6,
+      subject,
+    }),
   ]);
 
   const t = totals.rows[0]?.metricValues ?? [0, 0, 0, 0];
@@ -238,6 +268,21 @@ export async function ga4DashboardStats(args: {
       pageviews: row.metricValues[1] ?? 0,
     })),
     topSources: sources.rows.map((row) => ({
+      label: row.dimensionValues[0] || '(not set)',
+      visitors: row.metricValues[0] ?? 0,
+      pageviews: row.metricValues[1] ?? 0,
+    })),
+    topCountries: countries.rows.map((row) => ({
+      label: row.dimensionValues[0] || '(not set)',
+      visitors: row.metricValues[0] ?? 0,
+      pageviews: row.metricValues[1] ?? 0,
+    })),
+    topDevices: devices.rows.map((row) => ({
+      label: row.dimensionValues[0] || '(not set)',
+      visitors: row.metricValues[0] ?? 0,
+      pageviews: row.metricValues[1] ?? 0,
+    })),
+    topBrowsers: browsers.rows.map((row) => ({
       label: row.dimensionValues[0] || '(not set)',
       visitors: row.metricValues[0] ?? 0,
       pageviews: row.metricValues[1] ?? 0,

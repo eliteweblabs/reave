@@ -188,13 +188,16 @@ export async function plausibleBreakdown(
   period: string,
   property: string,
   limit = 10,
+  metrics = 'visitors,pageviews',
 ): Promise<PlausibleFetchResult<PlausibleBreakdownResult>> {
-  return plausibleGet<PlausibleBreakdownResult>('/api/v1/stats/breakdown', {
+  const params: Record<string, string> = {
     site_id: siteId,
     period,
     property,
     limit: String(limit),
-  });
+  };
+  if (metrics) params.metrics = metrics;
+  return plausibleGet<PlausibleBreakdownResult>('/api/v1/stats/breakdown', params);
 }
 
 export type PlausibleRealtimeResult = {

@@ -681,6 +681,120 @@
   flex-direction: column;
   gap: 0.45rem;
 }
+.ana-section--wide {
+  margin-bottom: 0.15rem;
+}
+.ana-section--chart {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+.ana-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (max-width: 860px) {
+  .ana-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ana-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.ana-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  color: var(--fg);
+}
+.ana-chart-grid {
+  stroke: var(--panel-border);
+  stroke-width: 1;
+}
+.ana-chart-tick {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: inherit;
+}
+.ana-chart-area {
+  fill: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+.ana-chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.ana-chart-line--visitors {
+  stroke: var(--fg);
+}
+.ana-chart-line--pageviews {
+  stroke: #f97316;
+  stroke-dasharray: 5 4;
+}
+.ana-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.ana-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.ana-legend-swatch {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--fg);
+}
+.ana-legend-swatch--pageviews {
+  background: #f97316;
+}
+.ana-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.ana-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+}
+.ana-bar-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ana-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  overflow: hidden;
+}
+.ana-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--fg) 70%, transparent), var(--fg));
+  min-width: 2px;
+}
+.ana-bar-val {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 2.5rem;
+  text-align: right;
+}
 .ana-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--panel-border);

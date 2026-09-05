@@ -58,6 +58,9 @@ export type AnalyticsDashboard = {
   series: Array<{ date: string; visitors: number; pageviews: number }>;
   topPages: AnalyticsBreakdownRow[];
   topSources: AnalyticsBreakdownRow[];
+  topCountries: AnalyticsBreakdownRow[];
+  topDevices: AnalyticsBreakdownRow[];
+  topBrowsers: AnalyticsBreakdownRow[];
   googleConnected?: boolean;
   availableSources: AnalyticsSource[];
   /** Whether this site is registered in Plausible and has the tracker on the page. */
@@ -98,6 +101,9 @@ function parseBreakdown(
       row[property] ??
       row.page ??
       row.source ??
+      row.country ??
+      row.device ??
+      row.browser ??
       row.referrer ??
       row.name ??
       '(not set)';
@@ -187,6 +193,9 @@ async function buildPlausibleDashboard(
       series: [],
       topPages: [],
       topSources: [],
+      topCountries: [],
+      topDevices: [],
+      topBrowsers: [],
       googleConnected,
       availableSources: available,
     }, websiteUrl);
@@ -207,23 +216,30 @@ async function buildPlausibleDashboard(
       series: [],
       topPages: [],
       topSources: [],
+      topCountries: [],
+      topDevices: [],
+      topBrowsers: [],
       googleConnected,
       availableSources: available,
     }, websiteUrl);
   }
 
-  const [aggregate, timeseries, pages, sources, realtime] = await Promise.all([
-    plausibleAggregate(siteId, period, [
-      'visitors',
-      'pageviews',
-      'bounce_rate',
-      'visit_duration',
-    ]),
-    plausibleTimeseries(siteId, period, ['visitors', 'pageviews']),
-    plausibleBreakdown(siteId, period, 'event:page', 8),
-    plausibleBreakdown(siteId, period, 'visit:source', 8),
-    plausibleRealtimeVisitors(siteId),
-  ]);
+  const [aggregate, timeseries, pages, sources, countries, devices, browsers, realtime] =
+    await Promise.all([
+      plausibleAggregate(siteId, period, [
+        'visitors',
+        'pageviews',
+        'bounce_rate',
+        'visit_duration',
+      ]),
+      plausibleTimeseries(siteId, period, ['visitors', 'pageviews']),
+      plausibleBreakdown(siteId, period, 'event:page', 8),
+      plausibleBreakdown(siteId, period, 'visit:source', 8),
+      plausibleBreakdown(siteId, period, 'visit:country', 8),
+      plausibleBreakdown(siteId, period, 'visit:device', 6),
+      plausibleBreakdown(siteId, period, 'visit:browser', 6),
+      plausibleRealtimeVisitors(siteId),
+    ]);
 
   const failed = [aggregate, timeseries, pages, sources].find((r) => !r.ok);
   if (failed && !failed.ok) {
@@ -241,6 +257,9 @@ async function buildPlausibleDashboard(
       series: [],
       topPages: [],
       topSources: [],
+      topCountries: [],
+      topDevices: [],
+      topBrowsers: [],
       googleConnected,
       availableSources: available,
     }, websiteUrl);
@@ -272,6 +291,9 @@ async function buildPlausibleDashboard(
     series,
     topPages: parseBreakdown(pages.ok ? pages.data.results : undefined, 'page'),
     topSources: parseBreakdown(sources.ok ? sources.data.results : undefined, 'source'),
+    topCountries: parseBreakdown(countries.ok ? countries.data.results : undefined, 'country'),
+    topDevices: parseBreakdown(devices.ok ? devices.data.results : undefined, 'device'),
+    topBrowsers: parseBreakdown(browsers.ok ? browsers.data.results : undefined, 'browser'),
     googleConnected,
     availableSources: available,
   }, websiteUrl);
@@ -300,6 +322,9 @@ async function buildGa4Dashboard(args: {
       series: [],
       topPages: [],
       topSources: [],
+      topCountries: [],
+      topDevices: [],
+      topBrowsers: [],
       googleConnected: args.googleConnected,
       availableSources: args.available,
     };
@@ -334,6 +359,9 @@ async function buildGa4Dashboard(args: {
       series: stats.series,
       topPages: stats.topPages,
       topSources: stats.topSources,
+      topCountries: stats.topCountries,
+      topDevices: stats.topDevices,
+      topBrowsers: stats.topBrowsers,
       googleConnected: args.googleConnected,
       availableSources: args.available,
     };
@@ -358,6 +386,9 @@ async function buildGa4Dashboard(args: {
       series: [],
       topPages: [],
       topSources: [],
+      topCountries: [],
+      topDevices: [],
+      topBrowsers: [],
       googleConnected: args.googleConnected,
       availableSources: args.available,
     };

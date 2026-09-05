@@ -198,6 +198,118 @@ function analyticsSparkline(series, color) {
   );
 }
 
+const analyticsCountryNames =
+  typeof Intl !== 'undefined' && Intl.DisplayNames
+    ? new Intl.DisplayNames(['en'], { type: 'region' })
+    : null;
+
+function analyticsCountryLabel(code) {
+  const raw = String(code || '').trim();
+  if (!raw || raw === '(not set)') return raw || '(not set)';
+  try {
+    return analyticsCountryNames?.of(raw) || raw;
+  } catch {
+    return raw;
+  }
+}
+
+function analyticsShortDate(iso) {
+  const raw = String(iso || '').trim();
+  if (!raw) return '';
+  const parts = raw.split('-');
+  if (parts.length >= 3) return `${Number(parts[1])}/${Number(parts[2])}`;
+  return raw;
+}
+
+function analyticsTimeseriesChart(series) {
+  const points = Array.isArray(series) ? series : [];
+  if (points.length < 2) {
+    return `<p class="dash-empty">Not enough data for this period.</p>`;
+  }
+  const visitors = points.map((p) => Number(p.visitors) || 0);
+  const pageviews = points.map((p) => Number(p.pageviews) || 0);
+  const max = Math.max(...visitors, ...pageviews, 1);
+  const w = 640;
+  const h = 132;
+  const pad = { top: 10, right: 12, bottom: 26, left: 34 };
+  const chartW = w - pad.left - pad.right;
+  const chartH = h - pad.top - pad.bottom;
+  const toY = (v) => pad.top + chartH - (v / max) * chartH;
+  const toX = (i) => pad.left + (i / (points.length - 1)) * chartW;
+  const visitorCoords = visitors.map((v, i) => `${toX(i).toFixed(1)},${toY(v).toFixed(1)}`);
+  const pageviewCoords = pageviews.map((v, i) => `${toX(i).toFixed(1)},${toY(v).toFixed(1)}`);
+  const areaPath =
+    `M ${toX(0).toFixed(1)},${(pad.top + chartH).toFixed(1)} ` +
+    visitorCoords.map((c) => `L ${c}`).join(' ') +
+    ` L ${toX(points.length - 1).toFixed(1)},${(pad.top + chartH).toFixed(1)} Z`;
+  const yMid = Math.round(max / 2);
+  const yTicks = [0, yMid, max]
+    .map(
+      (v) =>
+        `<text class="ana-chart-tick ana-chart-tick--y" x="${pad.left - 6}" y="${toY(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle">${escHtml(analyticsNumFmt(v))}</text>`,
+    )
+    .join('');
+  const xStart = analyticsShortDate(points[0]?.date);
+  const xEnd = analyticsShortDate(points[points.length - 1]?.date);
+  return (
+    `<div class="ana-chart-wrap">` +
+      `<svg class="ana-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Visitors and pageviews over time">` +
+        `<line class="ana-chart-grid" x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}"></line>` +
+        yTicks +
+        `<path class="ana-chart-area" d="${areaPath}"></path>` +
+        `<polyline class="ana-chart-line ana-chart-line--pageviews" fill="none" points="${pageviewCoords.join(' ')}"></polyline>` +
+        `<polyline class="ana-chart-line ana-chart-line--visitors" fill="none" points="${visitorCoords.join(' ')}"></polyline>` +
+        `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left}" y="${h - 6}">${escHtml(xStart)}</text>` +
+        `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left + chartW}" y="${h - 6}" text-anchor="end">${escHtml(xEnd)}</text>` +
+      `</svg>` +
+      `<div class="ana-chart-legend">` +
+        `<span class="ana-legend-item"><span class="ana-legend-swatch ana-legend-swatch--visitors"></span>Visitors</span>` +
+        `<span class="ana-legend-item"><span class="ana-legend-swatch ana-legend-swatch--pageviews"></span>Pageviews</span>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function analyticsBarChart(rows, opts = {}) {
+  const data = (Array.isArray(rows) ? rows : []).slice(0, opts.limit || 8);
+  if (!data.length) return '';
+  const max = Math.max(...data.map((row) => Number(row.visitors) || 0), 1);
+  const formatLabel = typeof opts.formatLabel === 'function' ? opts.formatLabel : (v) => v;
+  return (
+    `<div class="ana-bar-chart">` +
+      data
+        .map((row) => {
+          const visitors = Number(row.visitors) || 0;
+          const pct = Math.max((visitors / max) * 100, visitors > 0 ? 4 : 0);
+          const label = formatLabel(row.label);
+          const pageviews = Number(row.pageviews) || 0;
+          const hint =
+            pageviews > 0
+              ? `${analyticsNumFmt(visitors)} visitors · ${analyticsNumFmt(pageviews)} views`
+              : `${analyticsNumFmt(visitors)} visitors`;
+          return (
+            `<div class="ana-bar-row" title="${escHtml(hint)}">` +
+              `<span class="ana-bar-label">${escHtml(label)}</span>` +
+              `<div class="ana-bar-track"><div class="ana-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>` +
+              `<span class="ana-bar-val">${escHtml(analyticsNumFmt(visitors))}</span>` +
+            `</div>`
+          );
+        })
+        .join('') +
+    `</div>`
+  );
+}
+
+function analyticsBreakdownPanel(title, rows, opts = {}) {
+  if (!Array.isArray(rows) || !rows.length) return '';
+  return (
+    `<section class="ana-section ana-section--chart">` +
+      `<h2 class="soc-section-title">${escHtml(title)}</h2>` +
+      analyticsBarChart(rows, opts) +
+    `</section>`
+  );
+}
+
 function analyticsRangeTabs() {
   return (
     `<div class="soc-range" role="tablist" aria-label="Reporting window">` +
@@ -541,17 +653,23 @@ function renderAnalyticsDashboard(root, d, status, readiness = null, readinessLo
     `</div>`;
 
   const chart =
-    `<section class="ana-section">` +
-      `<h2 class="soc-section-title">Visitors over time</h2>` +
-      analyticsSparkline(d?.series, 'currentColor') +
+    `<section class="ana-section ana-section--wide">` +
+      `<h2 class="soc-section-title">Traffic over time</h2>` +
+      analyticsTimeseriesChart(d?.series) +
     `</section>`;
 
-  const pages = analyticsBreakdownTable('Top pages', Array.isArray(d?.topPages) ? d.topPages : [], 'Page');
-  const sources = analyticsBreakdownTable('Top sources', Array.isArray(d?.topSources) ? d.topSources : [], 'Source');
+  const breakdownGrid =
+    `<div class="ana-grid">` +
+      analyticsBreakdownPanel('Top sources', d?.topSources) +
+      analyticsBreakdownPanel('Top pages', d?.topPages) +
+      analyticsBreakdownPanel('Countries', d?.topCountries, { formatLabel: analyticsCountryLabel }) +
+      analyticsBreakdownPanel('Devices', d?.topDevices) +
+      analyticsBreakdownPanel('Browsers', d?.topBrowsers) +
+    `</div>`;
   const readinessEl = renderSiteReadinessReport(readiness, { loading: readinessLoading });
 
   root.innerHTML =
-    `<div class="social-scroll">` + header + statsEl + chart + readinessEl + pages + sources + `</div>`;
+    `<div class="social-scroll">` + header + statsEl + chart + breakdownGrid + readinessEl + `</div>`;
   bindAnalyticsControls(root, 'detail');
 }
 
