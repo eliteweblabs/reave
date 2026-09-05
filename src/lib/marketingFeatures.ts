@@ -286,7 +286,7 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
   },
   {
     id: 'fleet-tracking',
-    label: 'Fleet GPS Tracking',
+    label: 'GPS fleet tracking',
     modules: ['fleet_tracking'],
     kind: 'capability',
   },
