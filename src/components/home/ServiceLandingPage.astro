@@ -289,14 +289,25 @@ const logoSrc = (landing.heroLogo || "").trim()
   <footer class={`svc-foot${footerImage ? " svc-foot--art" : ""}`}>
     {
       footerImage ? (
-        <img
-          class="svc-foot__art"
-          src={footerImage}
-          alt=""
-          width="8192"
-          height="5269"
-          decoding="async"
-        />
+        footerImage.endsWith(".svg") ? (
+          <object
+            class="svc-foot__art"
+            type="image/svg+xml"
+            data={footerImage}
+            aria-label=""
+            width="8192"
+            height="5269"
+          />
+        ) : (
+          <img
+            class="svc-foot__art"
+            src={footerImage}
+            alt=""
+            width="8192"
+            height="5269"
+            decoding="async"
+          />
+        )
       ) : null
     }
     <div class="svc-foot__meta">
@@ -876,7 +887,7 @@ const logoSrc = (landing.heroLogo || "").trim()
     justify-items: stretch;
     gap: 0.55rem;
     padding: 0.55rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
-    background: linear-gradient(180deg, rgba(244, 247, 251, 0), rgba(244, 247, 251, 0.97) 40%);
+    background: transparent;
     pointer-events: none;
   }
 
@@ -1152,6 +1163,7 @@ const logoSrc = (landing.heroLogo || "").trim()
     padding: 0;
     border: 0;
     vertical-align: top;
+    pointer-events: none;
   }
 
   .svc-foot__meta {
