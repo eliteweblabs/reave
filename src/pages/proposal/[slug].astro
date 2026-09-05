@@ -13,7 +13,7 @@ const slug = String(Astro.params.slug || '').trim();
 const proposal = slug ? await getPublicSalesProposal(slug) : null;
 
 if (!proposal) {
-  return Astro.redirect('/pricing');
+  return Astro.redirect('/features');
 }
 
 const bodyMarkdown = await proposalBodyMarkdown(proposal);

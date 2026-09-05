@@ -9,6 +9,7 @@ export const SITEMAP_EXCLUDED_PATHS = new Set([
   '/deploy',
   '/deck',
   '/form/',
+  '/pricing',
 ]);
 
 function escapeXml(value: string): string {

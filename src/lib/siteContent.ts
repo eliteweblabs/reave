@@ -579,7 +579,6 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/features',
       '/features-tight',
       '/compare',
-      '/pricing',
       '/hosting',
       '/modules',
       '/demo',

@@ -8,7 +8,6 @@
     "/features-tight",
     "/test",
     "/compare",
-    "/pricing",
     "/hosting",
     "/modules",
     "/demo",
@@ -39,10 +38,6 @@
         "label": "Compare"
       },
       {
-        "href": "/pricing",
-        "label": "Pricing"
-      },
-      {
         "href": "/modules",
         "label": "Modules"
       },
@@ -71,10 +66,6 @@
           {
             "href": "/compare",
             "label": "Compare"
-          },
-          {
-            "href": "/pricing",
-            "label": "Pricing"
           },
           {
             "href": "/modules",
