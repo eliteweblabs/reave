@@ -17,14 +17,6 @@ function featuredSlug(title: string) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "project";
 }
 
-function featuredCtaHost(href: string) {
-  try {
-    return new URL(href).hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
-}
-
 const featuredItems = (getSiteContent().portfolio ?? [])
   .filter((item) => item.featured)
   .map((item, index) => {
@@ -33,7 +25,6 @@ const featuredItems = (getSiteContent().portfolio ?? [])
     const sectionId = index === 0 ? "featured" : `featured-${slug}`;
     const href = item.href || "/about#portfolio";
     const external = Boolean(item.href && /^https?:\/\//.test(item.href));
-    const host = external ? featuredCtaHost(href) : "";
     return {
       item,
       slides,
@@ -41,7 +32,7 @@ const featuredItems = (getSiteContent().portfolio ?? [])
       titleId: `${sectionId}-title`,
       href,
       external,
-      ctaLabel: host ? `Visit ${host}` : "what we do.",
+      ctaLabel: external ? "See more work" : "what we do.",
       flip: index % 2 === 1,
     };
   });
