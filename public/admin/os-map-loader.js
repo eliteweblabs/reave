@@ -4136,8 +4136,8 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
   const blocked = dashboardSearchEnginesBlocked(health);
   const connectAvailable = dashboardWpConnectAvailable(health);
   const indexingDisabled = connectAvailable === false;
-  const indexingChecked = blocked === true ? ' checked' : '';
-  const indexingIndeterminate = blocked == null ? ' data-indeterminate="1"' : '';
+  const indexingAria =
+    blocked === true ? 'true' : blocked === false ? 'false' : 'mixed';
   const indexingNote =
     connectAvailable === false
       ? 'Read-only — install Reave Connect on WordPress to toggle indexing.'
@@ -4146,11 +4146,15 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
         : 'Scan sites to detect Connect; toggle uses live status when opened.';
   const indexingHtml =
     `<div class="dash-fleet-popover-indexing">` +
-      `<label class="dash-fleet-popover-indexing-toggle">` +
-        `<input type="checkbox" data-fleet-indexing-toggle data-site-id="${escHtml(domain)}"` +
-        `${indexingChecked}${indexingIndeterminate}${indexingDisabled ? ' disabled' : ''}>` +
-        `<span>Block search engines</span>` +
-      `</label>` +
+      `<div class="dash-fleet-popover-indexing-toggle">` +
+        `<span id="fleet-indexing-label-${escHtml(domain)}">Block search engines</span>` +
+        `<button type="button" class="prof-plugin-toggle" role="switch"` +
+          ` data-fleet-indexing-toggle data-site-id="${escHtml(domain)}"` +
+          ` aria-checked="${indexingAria}"` +
+          ` aria-labelledby="fleet-indexing-label-${escHtml(domain)}"` +
+          `${indexingDisabled ? ' disabled' : ''}>` +
+        `</button>` +
+      `</div>` +
       `<p class="dash-fleet-popover-indexing-note" data-fleet-indexing-note data-site-id="${escHtml(domain)}">${escHtml(indexingNote)}</p>` +
     `</div>`;
 
@@ -4268,9 +4272,11 @@ function setDashFleetIndexingToggleState(siteId, blocked, connectAvailable, deta
   const pop = dashFleetPopEl;
   if (!pop) return;
   const toggle = pop.querySelector(`[data-fleet-indexing-toggle][data-site-id="${CSS.escape(siteId)}"]`);
-  if (!(toggle instanceof HTMLInputElement)) return;
-  toggle.indeterminate = blocked == null;
-  toggle.checked = blocked === true;
+  if (!(toggle instanceof HTMLElement)) return;
+  toggle.setAttribute(
+    'aria-checked',
+    blocked === true ? 'true' : blocked === false ? 'false' : 'mixed',
+  );
   if (connectAvailable === true) toggle.disabled = false;
   else if (connectAvailable === false) toggle.disabled = true;
   const note = pop.querySelector(`[data-fleet-indexing-note][data-site-id="${CSS.escape(siteId)}"]`);
@@ -4280,15 +4286,20 @@ function setDashFleetIndexingToggleState(siteId, blocked, connectAvailable, deta
 function ensureDashFleetPopoverIndexingHandlers(pop) {
   if (!pop || pop.dataset.fleetIndexingBound === '1') return;
   pop.dataset.fleetIndexingBound = '1';
-  pop.addEventListener('change', (ev) => {
+  pop.addEventListener('click', (ev) => {
     const target = ev.target;
-    if (!(target instanceof HTMLInputElement) || !target.matches('[data-fleet-indexing-toggle]')) return;
+    if (!(target instanceof HTMLElement)) return;
+    const toggle = target.closest('[data-fleet-indexing-toggle]');
+    if (!(toggle instanceof HTMLElement) || !pop.contains(toggle)) return;
+    ev.preventDefault();
     ev.stopPropagation();
-    if (target.disabled) return;
-    const siteId = target.getAttribute('data-site-id') || '';
-    const blocked = target.checked;
-    target.disabled = true;
-    void saveDashboardSiteSearchIndexing(siteId, blocked, target);
+    if (toggle.disabled || toggle.classList.contains('is-busy')) return;
+    const siteId = toggle.getAttribute('data-site-id') || '';
+    const blocked = toggle.getAttribute('aria-checked') !== 'true';
+    toggle.setAttribute('aria-checked', blocked ? 'true' : 'false');
+    toggle.disabled = true;
+    toggle.classList.add('is-busy');
+    void saveDashboardSiteSearchIndexing(siteId, blocked, toggle);
   });
 }
 
@@ -4353,11 +4364,14 @@ async function saveDashboardSiteSearchIndexing(siteId, blocked, toggleEl) {
     }
   } catch (e) {
     console.warn('[dashboard] site indexing save failed', e);
-    if (toggleEl instanceof HTMLInputElement) {
-      toggleEl.checked = !blocked;
+    if (toggleEl instanceof HTMLElement) {
+      toggleEl.setAttribute('aria-checked', blocked ? 'false' : 'true');
     }
   } finally {
-    if (toggleEl instanceof HTMLInputElement) toggleEl.disabled = false;
+    if (toggleEl instanceof HTMLElement) {
+      toggleEl.disabled = false;
+      toggleEl.classList.remove('is-busy');
+    }
   }
 }
 
@@ -4380,7 +4394,19 @@ function hideDashFleetPopover() {
   dashFleetPopAnchor = null;
 }
 
+const DASH_FLEET_HOVER_SHOW_MS = 320;
+const DASH_FLEET_LONG_PRESS_MS = 480;
+const DASH_FLEET_MOVE_CANCEL_PX = 10;
+
+/** True while a long-press opened the tip — suppress the follow-up click navigation. */
+let dashFleetSuppressTileClick = false;
+
 function onDashFleetPopoverScrollOrResize() {
+  // Finger/trackpad scrolling over tiles must not open the tip mid-gesture.
+  if (dashFleetPopShowTimer) {
+    clearTimeout(dashFleetPopShowTimer);
+    dashFleetPopShowTimer = null;
+  }
   if (dashFleetPopAnchor && dashFleetPopEl && !dashFleetPopEl.hidden) {
     positionDashFleetPopover(dashFleetPopAnchor);
   }
@@ -4441,7 +4467,29 @@ function scheduleHideDashFleetPopover() {
 
 function attachDashboardFleetTilePopover(btn, html) {
   if (!btn || !html) return;
-  btn.addEventListener('pointerenter', () => {
+
+  let pressTimer = null;
+  let pressOrigin = null;
+
+  const clearPress = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+    pressOrigin = null;
+  };
+
+  const movedPastCancel = (ev, origin) => {
+    if (!origin) return false;
+    const dx = ev.clientX - origin.x;
+    const dy = ev.clientY - origin.y;
+    return dx * dx + dy * dy > DASH_FLEET_MOVE_CANCEL_PX * DASH_FLEET_MOVE_CANCEL_PX;
+  };
+
+  // Mouse / trackpad: delayed hover tip. Touch must not use pointerenter — scrolling
+  // with a finger parked on a tile would open the tip after the delay.
+  btn.addEventListener('pointerenter', (ev) => {
+    if (ev.pointerType && ev.pointerType !== 'mouse') return;
     if (dashFleetPopHideTimer) {
       clearTimeout(dashFleetPopHideTimer);
       dashFleetPopHideTimer = null;
@@ -4450,9 +4498,10 @@ function attachDashboardFleetTilePopover(btn, html) {
     dashFleetPopShowTimer = setTimeout(() => {
       dashFleetPopShowTimer = null;
       showDashFleetPopover(btn, html);
-    }, 220);
+    }, DASH_FLEET_HOVER_SHOW_MS);
   });
   btn.addEventListener('pointerleave', (ev) => {
+    if (ev.pointerType && ev.pointerType !== 'mouse') return;
     if (dashFleetPopShowTimer) {
       clearTimeout(dashFleetPopShowTimer);
       dashFleetPopShowTimer = null;
@@ -4461,8 +4510,47 @@ function attachDashboardFleetTilePopover(btn, html) {
     if (related instanceof Node && dashFleetPopEl?.contains(related)) return;
     scheduleHideDashFleetPopover();
   });
-  btn.addEventListener('focus', () => showDashFleetPopover(btn, html));
+
+  btn.addEventListener('pointerdown', (ev) => {
+    // Touch / pen only — mouse uses hover. Empty pointerType treated as touch-safe.
+    if (ev.pointerType === 'mouse') return;
+    clearPress();
+    pressOrigin = { x: ev.clientX, y: ev.clientY, id: ev.pointerId };
+    pressTimer = window.setTimeout(() => {
+      pressTimer = null;
+      pressOrigin = null;
+      dashFleetSuppressTileClick = true;
+      showDashFleetPopover(btn, html);
+    }, DASH_FLEET_LONG_PRESS_MS);
+  });
+  btn.addEventListener('pointermove', (ev) => {
+    if (!pressOrigin || ev.pointerId !== pressOrigin.id) return;
+    if (movedPastCancel(ev, pressOrigin)) clearPress();
+  });
+  const endPress = (ev) => {
+    if (pressOrigin && ev.pointerId === pressOrigin.id) clearPress();
+  };
+  btn.addEventListener('pointerup', endPress);
+  btn.addEventListener('pointercancel', endPress);
+
+  // Keyboard only — touch focus must not pop the tip on every tap.
+  btn.addEventListener('focus', () => {
+    if (typeof btn.matches === 'function' && btn.matches(':focus-visible')) {
+      showDashFleetPopover(btn, html);
+    }
+  });
   btn.addEventListener('blur', () => scheduleHideDashFleetPopover());
+
+  btn.addEventListener(
+    'click',
+    (ev) => {
+      if (!dashFleetSuppressTileClick) return;
+      dashFleetSuppressTileClick = false;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    },
+    true,
+  );
 }
 
 function getUptimeSyncSitesButton() {
