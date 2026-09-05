@@ -74,6 +74,7 @@ let analyticsStatus = null;
 let analyticsAccounts = [];
 let analyticsSyncing = false;
 let analyticsReadinessGen = 0;
+let analyticsLoadGen = 0;
 let analyticsSearch = '';
 let analyticsMeta = null;
 let analyticsDetail = null;
@@ -118,6 +119,70 @@ export function openAnalyticsSite(siteId) {
   }
   syncAnalyticsSiteUrl(analyticsSiteId);
   void loadAnalyticsTab({ preserveSidebar: true, siteId: analyticsSiteId });
+}
+
+function analyticsWiredFromAccount(siteId) {
+  const row = analyticsAccounts.find((r) => r.siteId === siteId);
+  if (!row) return null;
+  return {
+    registered: Boolean(row.registered),
+    scriptInstalled: row.scriptInstalled ?? null,
+  };
+}
+
+function analyticsDetailLoadingHtml(siteId) {
+  const rangeLabel = ANALYTICS_RANGE_LABEL[analyticsRangeDays] || `last ${analyticsRangeDays} days`;
+  const wired = analyticsWiredFromAccount(siteId);
+  const header =
+    `<div class="soc-header ana-pane-header">` +
+      `<div class="soc-header-titles">` +
+        `<h1 class="soc-title">${escHtml(siteId || 'Site')}</h1>` +
+        `<p class="soc-sub">${escHtml(analyticsSource)} · ${escHtml(rangeLabel)} · <span class="ana-loading-label">Loading…</span></p>` +
+      `</div>` +
+      `<div class="ana-header-actions">` +
+        analyticsPaneActionsHtml(analyticsStatus, {
+          showBack: true,
+          wired,
+          showSource: true,
+          availableSources: ['plausible', 'ga4'],
+        }) +
+      `</div>` +
+    `</div>`;
+  const skeleton =
+    `<div class="sk-analytics-detail" role="status" aria-live="polite" aria-busy="true">` +
+      `<span class="sk-sr">Loading site analytics…</span>` +
+      `<div class="dash-stats soc-totals sk-analytics-stats">` +
+        `<div class="sk-bone sk-analytics-stat"></div>`.repeat(4) +
+      `</div>` +
+      `<section class="ana-section ana-section--wide">` +
+        `<div class="sk-bone sk-analytics-section-title"></div>` +
+        `<div class="sk-bone sk-analytics-chart"></div>` +
+      `</section>` +
+      `<div class="ana-grid sk-analytics-grid">` +
+        `<div class="sk-bone sk-analytics-panel"></div>`.repeat(4) +
+      `</div>` +
+    `</div>`;
+  return header + skeleton;
+}
+
+function showAnalyticsDetailLoading(siteId) {
+  const root = analyticsRoot();
+  if (!root) return;
+  analyticsDetail = null;
+  syncAnalyticsSidebarActive();
+
+  let pane = root.querySelector('.ch-pane');
+  if (!pane) {
+    pane = document.createElement('div');
+    pane.className = 'ch-pane';
+    root.appendChild(pane);
+  }
+
+  pane.innerHTML =
+    `<div class="social-scroll ana-pane-scroll">${analyticsDetailLoadingHtml(siteId)}</div>`;
+  if (isAdminPaneMobile()) root.classList.add('ana-pane-active');
+  bindAnalyticsControls(root);
+  syncAdminSplitView('analytics');
 }
 
 function analyticsWiredBadge(wired) {
@@ -234,6 +299,21 @@ function analyticsShortDate(iso) {
   return raw;
 }
 
+function analyticsLongDate(iso) {
+  const raw = String(iso || '').trim();
+  if (!raw) return '';
+  const d = new Date(`${raw}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function analyticsEscAttr(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
 function analyticsTimeseriesChart(series) {
   const points = Array.isArray(series) ? series : [];
   if (points.length < 2) {
@@ -264,23 +344,157 @@ function analyticsTimeseriesChart(series) {
     .join('');
   const xStart = analyticsShortDate(points[0]?.date);
   const xEnd = analyticsShortDate(points[points.length - 1]?.date);
+  const seriesJson = analyticsEscAttr(JSON.stringify(points));
   return (
-    `<div class="ana-chart-wrap">` +
-      `<svg class="ana-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Visitors and pageviews over time">` +
-        `<line class="ana-chart-grid" x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}"></line>` +
-        yTicks +
-        `<path class="ana-chart-area" d="${areaPath}"></path>` +
-        `<polyline class="ana-chart-line ana-chart-line--pageviews" fill="none" points="${pageviewCoords.join(' ')}"></polyline>` +
-        `<polyline class="ana-chart-line ana-chart-line--visitors" fill="none" points="${visitorCoords.join(' ')}"></polyline>` +
-        `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left}" y="${h - 6}">${escHtml(xStart)}</text>` +
-        `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left + chartW}" y="${h - 6}" text-anchor="end">${escHtml(xEnd)}</text>` +
-      `</svg>` +
+    `<div class="ana-chart-wrap" data-ana-chart data-ana-series="${seriesJson}">` +
+      `<div class="ana-chart-stage">` +
+        `<svg class="ana-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Visitors and pageviews over time">` +
+          `<line class="ana-chart-grid" x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}"></line>` +
+          yTicks +
+          `<path class="ana-chart-area" d="${areaPath}"></path>` +
+          `<polyline class="ana-chart-line ana-chart-line--pageviews" fill="none" points="${pageviewCoords.join(' ')}"></polyline>` +
+          `<polyline class="ana-chart-line ana-chart-line--visitors" fill="none" points="${visitorCoords.join(' ')}"></polyline>` +
+          `<line class="ana-chart-crosshair" x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + chartH}" visibility="hidden"></line>` +
+          `<circle class="ana-chart-dot ana-chart-dot--visitors" r="3.5" visibility="hidden"></circle>` +
+          `<circle class="ana-chart-dot ana-chart-dot--pageviews" r="3.5" visibility="hidden"></circle>` +
+          `<rect class="ana-chart-hit" x="${pad.left}" y="${pad.top}" width="${chartW}" height="${chartH}"></rect>` +
+          `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left}" y="${h - 6}">${escHtml(xStart)}</text>` +
+          `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left + chartW}" y="${h - 6}" text-anchor="end">${escHtml(xEnd)}</text>` +
+        `</svg>` +
+        `<div class="ana-chart-tooltip" hidden role="tooltip">` +
+          `<div class="ana-chart-tooltip-date" data-ana-tip-date></div>` +
+          `<div class="ana-chart-tooltip-row">` +
+            `<span class="ana-chart-tooltip-label"><span class="ana-legend-swatch ana-legend-swatch--visitors"></span>Visitors</span>` +
+            `<span class="ana-chart-tooltip-val" data-ana-tip-visitors></span>` +
+          `</div>` +
+          `<div class="ana-chart-tooltip-row">` +
+            `<span class="ana-chart-tooltip-label"><span class="ana-legend-swatch ana-legend-swatch--pageviews"></span>Pageviews</span>` +
+            `<span class="ana-chart-tooltip-val" data-ana-tip-pageviews></span>` +
+          `</div>` +
+        `</div>` +
+      `</div>` +
       `<div class="ana-chart-legend">` +
         `<span class="ana-legend-item"><span class="ana-legend-swatch ana-legend-swatch--visitors"></span>Visitors</span>` +
         `<span class="ana-legend-item"><span class="ana-legend-swatch ana-legend-swatch--pageviews"></span>Pageviews</span>` +
       `</div>` +
     `</div>`
   );
+}
+
+function bindAnalyticsChartHover(root) {
+  root.querySelectorAll('[data-ana-chart]').forEach((wrap) => {
+    if (wrap.dataset.anaChartBound) return;
+    wrap.dataset.anaChartBound = '1';
+
+    let series;
+    try {
+      series = JSON.parse(wrap.getAttribute('data-ana-series') || '[]');
+    } catch {
+      return;
+    }
+    if (series.length < 2) return;
+
+    const stage = wrap.querySelector('.ana-chart-stage');
+    const svg = wrap.querySelector('.ana-chart');
+    const tooltip = wrap.querySelector('.ana-chart-tooltip');
+    const crosshair = wrap.querySelector('.ana-chart-crosshair');
+    const dotVisitors = wrap.querySelector('.ana-chart-dot--visitors');
+    const dotPageviews = wrap.querySelector('.ana-chart-dot--pageviews');
+    const tipDate = wrap.querySelector('[data-ana-tip-date]');
+    const tipVisitors = wrap.querySelector('[data-ana-tip-visitors]');
+    const tipPageviews = wrap.querySelector('[data-ana-tip-pageviews]');
+    if (!stage || !svg || !tooltip || !crosshair || !dotVisitors || !dotPageviews || !tipDate || !tipVisitors || !tipPageviews) {
+      return;
+    }
+
+    const pad = { top: 10, right: 12, bottom: 26, left: 34 };
+    const w = 640;
+    const h = 132;
+    const chartW = w - pad.left - pad.right;
+    const chartH = h - pad.top - pad.bottom;
+    const visitors = series.map((p) => Number(p.visitors) || 0);
+    const pageviews = series.map((p) => Number(p.pageviews) || 0);
+    const max = Math.max(...visitors, ...pageviews, 1);
+    const toY = (v) => pad.top + chartH - (v / max) * chartH;
+    const toX = (i) => pad.left + (i / (series.length - 1)) * chartW;
+
+    const hide = () => {
+      wrap.classList.remove('ana-chart-wrap--active');
+      tooltip.hidden = true;
+      crosshair.setAttribute('visibility', 'hidden');
+      dotVisitors.setAttribute('visibility', 'hidden');
+      dotPageviews.setAttribute('visibility', 'hidden');
+    };
+
+    const positionTooltip = (x) => {
+      const stageRect = stage.getBoundingClientRect();
+      const svgRect = svg.getBoundingClientRect();
+      const xPx = ((x / w) * svgRect.width) + svgRect.left - stageRect.left;
+      const tipW = tooltip.offsetWidth || 0;
+      const left = Math.max(8, Math.min(stageRect.width - tipW - 8, xPx - tipW / 2));
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = '6px';
+    };
+
+    const show = (index) => {
+      const i = Math.max(0, Math.min(series.length - 1, index));
+      const point = series[i] || {};
+      const x = toX(i);
+      wrap.classList.add('ana-chart-wrap--active');
+      crosshair.setAttribute('x1', x.toFixed(1));
+      crosshair.setAttribute('x2', x.toFixed(1));
+      crosshair.setAttribute('y1', pad.top);
+      crosshair.setAttribute('y2', pad.top + chartH);
+      crosshair.setAttribute('visibility', 'visible');
+      dotVisitors.setAttribute('cx', x.toFixed(1));
+      dotVisitors.setAttribute('cy', toY(visitors[i]).toFixed(1));
+      dotVisitors.setAttribute('visibility', 'visible');
+      dotPageviews.setAttribute('cx', x.toFixed(1));
+      dotPageviews.setAttribute('cy', toY(pageviews[i]).toFixed(1));
+      dotPageviews.setAttribute('visibility', 'visible');
+      tipDate.textContent = analyticsLongDate(point.date);
+      tipVisitors.textContent = analyticsNumFmt(visitors[i]);
+      tipPageviews.textContent = analyticsNumFmt(pageviews[i]);
+      tooltip.hidden = false;
+      positionTooltip(x);
+    };
+
+    const indexFromClientX = (clientX) => {
+      const rect = svg.getBoundingClientRect();
+      const relX = ((clientX - rect.left) / rect.width) * w;
+      const chartX = relX - pad.left;
+      if (chartX < 0 || chartX > chartW) return -1;
+      const ratio = chartX / chartW;
+      return Math.round(ratio * (series.length - 1));
+    };
+
+    const onMove = (ev) => {
+      const index = indexFromClientX(ev.clientX);
+      if (index < 0) {
+        hide();
+        return;
+      }
+      show(index);
+    };
+
+    wrap.addEventListener('mousemove', onMove);
+    wrap.addEventListener('mouseleave', hide);
+    wrap.addEventListener('touchstart', (ev) => {
+      const touch = ev.touches[0];
+      if (!touch) return;
+      const index = indexFromClientX(touch.clientX);
+      if (index >= 0) show(index);
+    }, { passive: true });
+    wrap.addEventListener('touchmove', (ev) => {
+      const touch = ev.touches[0];
+      if (!touch) return;
+      const index = indexFromClientX(touch.clientX);
+      if (index < 0) hide();
+      else show(index);
+    }, { passive: true });
+    wrap.addEventListener('touchend', hide);
+    wrap.addEventListener('touchcancel', hide);
+  });
 }
 
 function analyticsBarChart(rows, opts = {}) {
@@ -722,6 +936,7 @@ function buildAnalyticsOverviewHtml(accounts, meta, status) {
 function buildAnalyticsDetailHtml(d, status, readiness, readinessLoading) {
   const rangeLabel = ANALYTICS_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
   const siteId = d?.siteId || analyticsSiteId || '';
+  if (!d && siteId) return analyticsDetailLoadingHtml(siteId);
   const dashboardUrl = d?.dashboardUrl || '';
   const realtime =
     d?.realtimeVisitors != null ? analyticsNumFmt(d.realtimeVisitors) : null;
@@ -901,6 +1116,7 @@ function bindAnalyticsControls(root) {
       void syncAnalyticsRailwaySites();
     });
   });
+  bindAnalyticsChartHover(root);
 }
 
 function readinessStatusLabel(status) {
@@ -1021,6 +1237,11 @@ async function loadAnalyticsTab(opts = {}) {
   }
   syncAnalyticsSiteUrl(analyticsSiteId);
 
+  const loadGen = ++analyticsLoadGen;
+  if (analyticsSiteId && preserveSidebar) {
+    showAnalyticsDetailLoading(analyticsSiteId);
+  }
+
   try {
     const accountsParams = new URLSearchParams({
       view: 'accounts',
@@ -1061,6 +1282,8 @@ async function loadAnalyticsTab(opts = {}) {
       analyticsDetail = null;
     }
 
+    if (loadGen !== analyticsLoadGen) return;
+
     renderAnalyticsPanel({
       preserveSidebar,
       readiness: null,
@@ -1069,6 +1292,7 @@ async function loadAnalyticsTab(opts = {}) {
 
     if (analyticsSiteId) void refreshAnalyticsReadiness(root, analyticsSiteId);
   } catch (e) {
+    if (loadGen !== analyticsLoadGen) return;
     root.innerHTML =
       `<div class="ch-pane" style="display:flex">` +
         `<div class="social-scroll"><div class="prof-card">` +
