@@ -149,7 +149,7 @@ const mapboxToken = getPublicMapboxAccessToken() || "";
     min-height: 100dvh;
     /* Center the lockup between the fixed header and the CTA dock. */
     padding-top: var(--app-header-offset, 3.25rem);
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--home-section-padding-y, 5rem) + env(safe-area-inset-bottom, 0px));
     overflow: hidden;
     scroll-margin-top: 0;
   }

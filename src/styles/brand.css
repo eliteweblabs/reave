@@ -72,13 +72,13 @@
   --brand-glass-blur: blur(16px) saturate(1.35);
   --brand-glass-shadow: none;
   --brand-glass-shadow-hover: none;
-  --home-section-padding-y: 80px;
+  --home-section-padding-y: clamp(5rem, 10vw, 7.5rem);
   /*
    * Homepage stack after the hero — every section uses this on top and
    * bottom so the white space between blocks stays even. Title → lead
    * inside a section is a tighter step (`--home-copy-gap` / `.fx-lead`).
    */
-  --home-section-follow-gap: clamp(2.5rem, 5vw, 3.75rem);
+  --home-section-follow-gap: clamp(5rem, 10vw, 7.5rem);
   --home-copy-gap: 0.75rem;
   --home-copy-lead-size: 1.02rem;
 }
