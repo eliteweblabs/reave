@@ -1,40 +1,85 @@
 /**
  * Grand opening confetti — page load + pill click.
- * Respects prefers-reduced-motion.
+ * Respects prefers-reduced-motion. Sized for Mobile Safari (visualViewport).
  */
 (function initGrandOpeningConfetti() {
-  if (window.__goConfettiReady) return;
-  window.__goConfettiReady = true;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (window.__goConfettiBoot) return;
+  window.__goConfettiBoot = true;
 
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
   if (reduceMotion) return;
 
-  const COLORS = ['#171717', '#404040', '#737373', '#fbbf24', '#ffffff', '#d4d4d4'];
-
-  const canvas = document.createElement('canvas');
-  canvas.setAttribute('aria-hidden', 'true');
-  canvas.className = 'go-confetti-canvas';
-  canvas.style.cssText =
-    'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999';
-  document.body.appendChild(canvas);
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
+  let canvas = null;
+  let ctx = null;
   let particles = [];
   let raf = 0;
+  let viewportBound = false;
+  let lastTriggerBurst = 0;
 
-  function resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.floor(window.innerWidth * dpr);
-    canvas.height = Math.floor(window.innerHeight * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  function themeColors() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    return dark
+      ? ['#fbbf24', '#ffffff', '#d4d4d4', '#60a5fa', '#f472b6', '#34d399']
+      : ['#171717', '#404040', '#737373', '#fbbf24', '#ffffff', '#d4d4d4'];
   }
 
-  resize();
-  window.addEventListener('resize', resize, { passive: true });
+  function viewport() {
+    const vv = window.visualViewport;
+    return {
+      width: Math.max(1, Math.round(vv?.width ?? window.innerWidth)),
+      height: Math.max(1, Math.round(vv?.height ?? window.innerHeight)),
+      top: vv?.offsetTop ?? 0,
+      left: vv?.offsetLeft ?? 0,
+    };
+  }
+
+  function ensureCanvas() {
+    if (canvas?.isConnected) return ctx;
+    canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    canvas.className = 'go-confetti-canvas';
+    canvas.style.position = 'fixed';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '10100';
+    canvas.style.transform = 'translateZ(0)';
+    canvas.style.webkitTransform = 'translateZ(0)';
+    document.body.appendChild(canvas);
+    ctx = canvas.getContext('2d', { alpha: true });
+    return ctx;
+  }
+
+  function resize() {
+    if (!ensureCanvas()) return;
+    const { width, height, top, left } = viewport();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.style.top = `${top}px`;
+    canvas.style.left = `${left}px`;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+  }
+
+  function bindViewport() {
+    if (viewportBound) return;
+    viewportBound = true;
+    window.addEventListener('resize', resize, { passive: true });
+    window.visualViewport?.addEventListener('resize', resize, { passive: true });
+    window.visualViewport?.addEventListener('scroll', resize, { passive: true });
+    window.addEventListener('orientationchange', () => window.setTimeout(resize, 100), {
+      passive: true,
+    });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) resize();
+    });
+  }
 
   function spawnBurst(x, y, count) {
+    if (!ensureCanvas()) return;
+    const colors = themeColors();
     for (let i = 0; i < count; i += 1) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 5 + Math.random() * 11;
@@ -47,7 +92,7 @@
         h: 3 + Math.random() * 5,
         rot: Math.random() * Math.PI,
         vr: (Math.random() - 0.5) * 0.35,
-        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        color: colors[Math.floor(Math.random() * colors.length)],
         life: 1,
         decay: 0.007 + Math.random() * 0.013,
       });
@@ -56,7 +101,8 @@
   }
 
   function tick() {
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    const { width, height } = viewport();
+    ctx.clearRect(0, 0, width, height);
     particles = particles.filter((p) => {
       p.vy += 0.28;
       p.x += p.vx;
@@ -84,7 +130,8 @@
   }
 
   function burstNormalized(nx, ny, count) {
-    spawnBurst(nx * window.innerWidth, ny * window.innerHeight, count);
+    const { width, height } = viewport();
+    spawnBurst(nx * width, ny * height, count);
   }
 
   function burstFromElement(el, count) {
@@ -98,20 +145,30 @@
     window.setTimeout(() => burstNormalized(0.5, 0.18, 110), 180);
   }
 
+  function burstFromTrigger(trigger) {
+    const now = Date.now();
+    if (now - lastTriggerBurst < 280) return;
+    lastTriggerBurst = now;
+    burstFromElement(trigger, 90);
+  }
+
   function bindTrigger() {
     const trigger = document.getElementById('go-confetti-trigger');
     if (!trigger || trigger.dataset.confettiBound === '1') return;
     trigger.dataset.confettiBound = '1';
-    trigger.addEventListener('click', () => {
-      burstFromElement(trigger, 90);
-    });
+    trigger.addEventListener('click', () => burstFromTrigger(trigger));
   }
 
   function onPageReady() {
-    bindTrigger();
-    if (document.body.dataset.goConfettiLoaded === '1') return;
-    document.body.dataset.goConfettiLoaded = '1';
-    window.setTimeout(welcomeBurst, 350);
+    if (!document.body) return;
+    requestAnimationFrame(() => {
+      resize();
+      bindViewport();
+      bindTrigger();
+      if (document.body.dataset.goConfettiLoaded === '1') return;
+      document.body.dataset.goConfettiLoaded = '1';
+      window.setTimeout(welcomeBurst, 350);
+    });
   }
 
   if (document.readyState === 'loading') {
@@ -121,6 +178,9 @@
   }
 
   document.addEventListener('astro:page-load', () => {
-    bindTrigger();
+    requestAnimationFrame(() => {
+      resize();
+      bindTrigger();
+    });
   });
 })();
