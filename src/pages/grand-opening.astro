@@ -4,7 +4,6 @@ import BrandBtn from "../components/ui/BrandBtn.astro";
 import ConversationalForm from "../components/ConversationalForm.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { FEATURE_LABELS } from "../lib/featureCatalog";
 import { SIMPLE_ICONS_CDN } from "../lib/platformStack";
 import { ArrowRight, Layers } from "lucide-astro";
 import "../styles/marketing-sections.css";
@@ -45,14 +44,6 @@ const platformItems: PlatformItem[] = [
     color: "#6C47FF",
     title: "Clerk authentication",
     blurb: "Passkeys, phone sign-in, and secure admin sessions on every install.",
-  },
-  {
-    kind: "brand",
-    slug: "apple",
-    color: "var(--site-fg, #171717)",
-    title: FEATURE_LABELS.siri,
-    blurb:
-      "Apple Shortcuts tied to the agent — voice lookup, timers, SMS, and more from your iPhone.",
   },
   {
     kind: "lucide",
@@ -139,8 +130,7 @@ const brandName = company.name || "reave.app";
         </h2>
         <p class="go-platform__lead">
           Your site is a real product — custom-built on <strong>Railway™</strong>, backed by{" "}
-          <strong>PostgreSQL</strong>, with <strong>Clerk</strong> sign-in and optional{" "}
-          <strong>{FEATURE_LABELS.siri}</strong>. Start with design and hosting; add CMS, client login, scheduling, and the rest when you're ready.
+          <strong>PostgreSQL</strong>, with <strong>Clerk</strong> sign-in. Start with design and hosting; add CMS, client login, scheduling, and the rest when you're ready.
         </p>
         <ul class="go-platform__stack">
           {
@@ -446,7 +436,7 @@ const brandName = company.name || "reave.app";
 
   @media (min-width: 1080px) {
     .go-platform__stack {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
   }
 
