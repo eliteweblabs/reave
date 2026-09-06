@@ -18,7 +18,7 @@ const FEATURE_LABELS: Record<string, string> = {
   client_portal: 'Client Portal (/c/:uid)',
   web_handoff: 'Portal Data Tab (Handoff Creds)',
   portal_assistant: 'Client Portal Help Chat',
-  billing: 'Crater Billing & Invoices',
+  billing: 'Crater Financial',
   site_audits: 'Website Audit',
   site_monitoring: 'Website Change Monitoring',
   uptime_monitoring: 'Sites (Uptime)',

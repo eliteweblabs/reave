@@ -248,7 +248,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client Portal',
   web_handoff: 'Portal Data Tab',
   portal_assistant: 'Help Chat',
-  billing: 'Crater Billing & Invoices',
+  billing: 'Crater Financial',
   video_meet: 'Galene Video Meet',
   site_audits: 'Website Audit',
   analytic_audit: 'Sites',
@@ -450,7 +450,6 @@ export function isSaleSheetFeature(id: FeatureId): boolean {
  * Unlisted default to false. CMS (`website`) and client login (`client_portal`) are add-ons, not base $500.
  */
 export const FEATURE_GRAND_OPENING: ReadonlySet<FeatureId> = new Set<FeatureId>([
-  'hosting_growth',
   'website',
   'scheduling',
   'online_reviews',
@@ -458,9 +457,7 @@ export const FEATURE_GRAND_OPENING: ReadonlySet<FeatureId> = new Set<FeatureId>(
   'email_marketing',
   'documents',
   'digital_signature',
-  'site_audits',
   'social_inbox',
-  'video_meet',
 ]);
 
 /** Core OS cards surfaced as grand-opening add-ons (not in FEATURE_GRAND_OPENING). */

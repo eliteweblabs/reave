@@ -17,16 +17,13 @@ const DISPLAY_ORDER: FeatureId[] = [
   'website',
   'client_portal',
   'portal_assistant',
-  'hosting_growth',
   'scheduling',
   'online_reviews',
   'billing',
   'email_marketing',
   'documents',
   'digital_signature',
-  'site_audits',
   'social_inbox',
-  'video_meet',
 ];
 
 export type GrandOpeningModule = {

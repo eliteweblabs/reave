@@ -96,7 +96,7 @@ assert.equal(FEATURE_LABELS.materials_pricing, 'Materials Pricing');
 assert.equal(FEATURE_LABELS.website, 'Agentic Website Editor');
 assert.equal(FEATURE_LABELS.online_reviews, 'Reviews Triage');
 assert.equal(FEATURE_LABELS.scheduling, 'Cal.com Scheduling & Meetings');
-assert.equal(FEATURE_LABELS.billing, 'Crater Billing & Invoices');
+assert.equal(FEATURE_LABELS.billing, 'Crater Financial');
 assert.equal(FEATURE_LABELS.email_marketing, 'Newsletter & Email Automation');
 assert.equal(FEATURE_LABELS.documents, 'Dynamic Documents');
 assert.equal(FEATURE_LABELS.digital_signature, 'Digital Signature');
