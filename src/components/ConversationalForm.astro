@@ -1309,6 +1309,16 @@ const rootClass = [
           showError("Something went wrong. Please try again.");
           return;
         }
+        let payload = null;
+        try {
+          payload = await res.json();
+        } catch {
+          payload = null;
+        }
+        if (payload?.checkoutUrl) {
+          window.location.href = payload.checkoutUrl;
+          return;
+        }
       } catch (err) {
         loadingEl.remove();
         showError("Network error. Please try again.");

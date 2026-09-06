@@ -71,7 +71,7 @@
   "submitSubject": "Grand opening offer application",
   "submittingMessage": "Sending your application...",
   "onComplete": {
-    "message": "You're in! We'll review your application and follow up soon.",
+    "message": "You're in! Pick your add-ons on the next screen.",
     "redirect": null
   }
 }

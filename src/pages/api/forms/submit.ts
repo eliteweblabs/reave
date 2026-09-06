@@ -1,5 +1,9 @@
 import type { APIRoute } from 'astro';
 import { processContactFormIntake } from '../../../lib/contactFormIntake';
+import {
+  grandOpeningCheckoutUrl,
+  sealGrandOpeningCheckoutToken,
+} from '../../../lib/grandOpeningCheckout';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../lib/clientIp';
 import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
@@ -94,10 +98,24 @@ export const POST: APIRoute = async ({ request }) => {
     if (result.warnings.length) {
       console.warn('[Form Submission] warnings:', result.warnings.join(', '));
     }
+
+    let checkoutUrl: string | null = null;
+    const grandOpeningFlow = /grand opening/i.test(subject);
+    if (grandOpeningFlow && result.contactUid && result.jobSlug && email) {
+      checkoutUrl = grandOpeningCheckoutUrl(
+        sealGrandOpeningCheckoutToken({
+          contactUid: result.contactUid,
+          jobSlug: result.jobSlug,
+          email,
+        }),
+      );
+    }
+
     console.log('[Form Submission]', {
       contactUid: result.contactUid,
       contactCreated: result.contactCreated,
       jobSlug: result.jobSlug,
+      checkoutUrl: checkoutUrl ? '(set)' : null,
       companyEmailSent: result.companyEmailSent,
       submitterEmailSent: result.submitterEmailSent,
       smsOptInConfirmationSent: result.smsOptInConfirmationSent,
@@ -107,6 +125,9 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({
       success: true,
       message: 'Form submitted successfully',
+      checkoutUrl,
+      contactUid: result.contactUid,
+      jobSlug: result.jobSlug,
     });
   } catch (error) {
     console.error('[Form Submission Error]', error);

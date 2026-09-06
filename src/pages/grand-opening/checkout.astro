@@ -1,0 +1,322 @@
+---
+import Layout from "../../layouts/MarketingLayout.astro";
+import BrandBtn from "../../components/ui/BrandBtn.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import {
+  GRAND_OPENING_HOSTING_LINE,
+  loadGrandOpeningCheckoutSession,
+} from "../../lib/grandOpeningCheckout";
+
+export const prerender = false;
+
+const company = await getCompanyConfig(Astro.request);
+const brandName = company.name || "reave.app";
+const token = Astro.url.searchParams.get("token")?.trim() ?? "";
+const session = token ? await loadGrandOpeningCheckoutSession(token) : null;
+const addonsJson = JSON.stringify(session?.addons ?? []);
+---
+
+<Layout
+  title="Grand Opening Checkout"
+  description={`Choose optional add-ons and complete your ${brandName} grand opening offer.`}
+  showSiteAssistant={false}
+>
+  <div class="go-checkout-page">
+    {
+      !session ? (
+        <div class="go-checkout-card go-checkout-card--center">
+          <h1>Checkout link expired</h1>
+          <p>This checkout session is invalid or has expired. Start again from the grand opening page.</p>
+          <BrandBtn href="/grand-opening" variant="filled">Back to grand opening</BrandBtn>
+        </div>
+      ) : (
+        <div
+          id="go-checkout-root"
+          class="go-checkout-card"
+          data-token={token}
+          data-base-amount={GRAND_OPENING_HOSTING_LINE.amount}
+          data-billing={session.billingConfigured ? "1" : "0"}
+          data-addons={addonsJson}
+        >
+          <header class="go-checkout-header">
+            <p class="marketing-label">Step 2 of 2</p>
+            <h1>Choose your add-ons</h1>
+            <p class="go-checkout-lead">
+              Thanks{session.contactName ? `, ${session.contactName}` : ""}! Your application is in.
+              The base offer is always included — toggle anything else you want on the invoice.
+            </p>
+          </header>
+
+          <section class="go-checkout-base" aria-label="Included in your offer">
+            <div>
+              <h2>{GRAND_OPENING_HOSTING_LINE.name}</h2>
+              <p>{GRAND_OPENING_HOSTING_LINE.description}</p>
+            </div>
+            <strong class="go-checkout-base__price">${GRAND_OPENING_HOSTING_LINE.amount}/yr</strong>
+          </section>
+
+          <div id="go-checkout-panel">
+            <h2 class="go-checkout-section-title">Optional add-ons</h2>
+            <div id="go-checkout-addons" class="go-checkout-addons" />
+            <p class="go-checkout-total-row">
+              <span>Estimated total</span>
+              <strong id="go-checkout-total">${GRAND_OPENING_HOSTING_LINE.amount}</strong>
+            </p>
+            {
+              !session.billingConfigured && (
+                <p class="go-checkout-note">
+                  Online payment is not configured yet — we'll finalize your invoice manually and follow up at{" "}
+                  {session.email}.
+                </p>
+              )
+            }
+            <p id="go-checkout-error" class="go-checkout-error hidden" role="alert" />
+            <div class="go-checkout-actions">
+              <button type="button" class="brand-btn" id="go-checkout-submit">
+                Continue to payment
+              </button>
+            </div>
+          </div>
+
+          <div id="go-checkout-success" class="go-checkout-success hidden">
+            <h2>Invoice created</h2>
+            <p>We created your invoice and will follow up at {session.email} with payment details.</p>
+            <BrandBtn href="/grand-opening" variant="glass">Back to grand opening</BrandBtn>
+          </div>
+        </div>
+      )
+    }
+  </div>
+  {session && <script is:inline src={`/grand-opening-checkout.js?v=${__PUBLIC_ASSET_VERSION__}`} />}
+</Layout>
+
+<style>
+  .go-checkout-page {
+    padding: clamp(2rem, 6vw, 4rem) var(--site-page-gutter, 20px)
+      calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .go-checkout-card {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .go-checkout-card--center {
+    text-align: center;
+  }
+
+  .go-checkout-card--center h1 {
+    margin: 0 0 12px;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .go-checkout-card--center p {
+    margin: 0 0 24px;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-checkout-header {
+    margin-bottom: 24px;
+  }
+
+  .go-checkout-header h1 {
+    margin: 0 0 10px;
+    font-size: clamp(1.6rem, 4vw, 2.1rem);
+    letter-spacing: -0.02em;
+  }
+
+  .go-checkout-lead {
+    margin: 0;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-checkout-base {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 18px 20px;
+    margin-bottom: 28px;
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: color-mix(in srgb, var(--site-fg, #171717) 3%, transparent);
+  }
+
+  .go-checkout-base h2 {
+    margin: 0 0 6px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .go-checkout-base p {
+    margin: 0;
+    font-family: var(--font-content);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-checkout-base__price {
+    flex-shrink: 0;
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  .go-checkout-section-title {
+    margin: 0 0 14px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .go-checkout-addons-empty {
+    margin: 0 0 20px;
+    font-size: 0.92rem;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  :global(.go-checkout-addons-grid) {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  @media (min-width: 640px) {
+    :global(.go-checkout-addons-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  :global(.go-checkout-addon) {
+    padding: 16px;
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: transparent;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  :global(.go-checkout-addon--on) {
+    border-color: color-mix(in srgb, var(--site-fg, #171717) 35%, transparent);
+    background: color-mix(in srgb, var(--site-fg, #171717) 4%, transparent);
+  }
+
+  :global(.go-checkout-addon__head) {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  :global(.go-checkout-addon__label) {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  :global(.go-checkout-addon__switch) {
+    flex-shrink: 0;
+    width: 42px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--site-fg-faint, #d4d4d4);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s ease;
+  }
+
+  :global(.go-checkout-addon__switch)::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #fff;
+    transition: transform 0.15s ease;
+  }
+
+  :global(.go-checkout-addon__switch[aria-checked="true"]) {
+    background: var(--site-fg, #171717);
+  }
+
+  :global(.go-checkout-addon__switch[aria-checked="true"])::after {
+    transform: translateX(18px);
+  }
+
+  :global(.go-checkout-addon__blurb) {
+    margin: 0 0 8px;
+    font-family: var(--font-content);
+    font-size: 0.86rem;
+    line-height: 1.55;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  :global(.go-checkout-addon__price) {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-checkout-total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding-top: 4px;
+    font-size: 1rem;
+  }
+
+  .go-checkout-total-row strong {
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+  }
+
+  .go-checkout-note {
+    margin: 0 0 16px;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-checkout-error {
+    margin: 0 0 12px;
+    font-size: 0.88rem;
+    color: #b91c1c;
+  }
+
+  .go-checkout-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .go-checkout-actions :global(.brand-btn) {
+    padding: 0.75rem 1.35rem;
+    font-size: 0.92rem;
+  }
+
+  .go-checkout-success {
+    text-align: center;
+    padding: 24px 0 8px;
+  }
+
+  .go-checkout-success h2 {
+    margin: 0 0 10px;
+  }
+
+  .go-checkout-success p {
+    margin: 0 0 20px;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .hidden {
+    display: none !important;
+  }
+</style>
