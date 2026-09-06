@@ -4,8 +4,63 @@ import BrandBtn from "../components/ui/BrandBtn.astro";
 import ConversationalForm from "../components/ConversationalForm.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { ArrowRight } from "lucide-astro";
+import { FEATURE_LABELS } from "../lib/featureCatalog";
+import { SIMPLE_ICONS_CDN } from "../lib/platformStack";
+import { ArrowRight, Layers } from "lucide-astro";
 import "../styles/marketing-sections.css";
+
+type PlatformItem =
+  | {
+      kind: "brand";
+      slug: string;
+      color: string;
+      title: string;
+      blurb: string;
+      iconSlug?: string;
+    }
+  | {
+      kind: "lucide";
+      title: string;
+      blurb: string;
+    };
+
+const platformItems: PlatformItem[] = [
+  {
+    kind: "brand",
+    slug: "railway",
+    color: "var(--site-fg, #171717)",
+    title: "Railway™ hosting",
+    blurb: "Production-grade deploys — not shared drag-and-drop hosting.",
+  },
+  {
+    kind: "brand",
+    slug: "postgresql",
+    color: "#4169E1",
+    title: "PostgreSQL database",
+    blurb: "Structured data from day one — contacts, content, and workflows in one place.",
+  },
+  {
+    kind: "brand",
+    slug: "clerk",
+    color: "#6C47FF",
+    title: "Clerk authentication",
+    blurb: "Passkeys, phone sign-in, and secure admin sessions on every install.",
+  },
+  {
+    kind: "brand",
+    slug: "apple",
+    color: "var(--site-fg, #171717)",
+    title: FEATURE_LABELS.siri,
+    blurb:
+      "Apple Shortcuts tied to the agent — voice lookup, timers, SMS, and more from your iPhone.",
+  },
+  {
+    kind: "lucide",
+    title: "Modular & extendable",
+    blurb:
+      "Turn on CMS, client portals, Crater Financial, and more when you're ready — same stack we use in production.",
+  },
+];
 
 export const prerender = false;
 
@@ -76,6 +131,42 @@ const brandName = company.name || "reave.app";
       </div>
     </section>
 
+    <section class="go-platform" aria-labelledby="go-platform-title">
+      <div class="go-platform__inner">
+        <p class="marketing-label">Real infrastructure</p>
+        <h2 id="go-platform-title" class="go-platform__title">
+          Not a Squarespace template. A platform you can grow into.
+        </h2>
+        <p class="go-platform__lead">
+          Your site is a real product — custom-built on <strong>Railway™</strong>, backed by
+          <strong>PostgreSQL</strong>, with <strong>Clerk</strong> sign-in and optional
+          <strong>{FEATURE_LABELS.siri}</strong>. Start with design and hosting; add CMS, client
+          login, scheduling, and the rest when you're ready.
+        </p>
+        <ul class="go-platform__stack">
+          {
+            platformItems.map((item) => (
+              <li>
+                {item.kind === "brand" ? (
+                  <span
+                    class="go-platform__logo"
+                    style={`--brand-color: ${item.color}; --brand-icon: url(${JSON.stringify(SIMPLE_ICONS_CDN(item.iconSlug ?? item.slug))})`}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <Layers size={20} strokeWidth={1.75} aria-hidden="true" />
+                )}
+                <div>
+                  <strong>{item.title}</strong>
+                  <span>{item.blurb}</span>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+
     <section id="apply" class="go-apply" aria-labelledby="go-apply-title">
       <div class="go-apply__inner">
         <header class="go-apply__header">
@@ -98,11 +189,11 @@ const brandName = company.name || "reave.app";
 <style>
   .go-page {
     padding: 0 var(--site-page-gutter, 20px) calc(80px + env(safe-area-inset-bottom, 0px));
+    overflow-x: clip;
   }
 
   .go-hero {
     padding: clamp(2rem, 6vw, 4rem) 0 clamp(2.5rem, 5vw, 3.5rem);
-    overflow: visible;
   }
 
   .go-hero__inner {
@@ -197,7 +288,8 @@ const brandName = company.name || "reave.app";
   .go-hero__visual {
     display: flex;
     justify-content: center;
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   @media (max-width: 859px) {
@@ -270,6 +362,101 @@ const brandName = company.name || "reave.app";
     font-weight: 600;
   }
 
+  .go-platform {
+    padding: clamp(2rem, 4vw, 3rem) 0;
+  }
+
+  .go-platform__inner {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .go-platform__title {
+    margin: 0 0 14px;
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-align: center;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-platform__lead {
+    margin: 0 auto 28px;
+    max-width: 680px;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.65;
+    text-align: center;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-platform__lead strong {
+    color: var(--site-fg, #171717);
+    font-weight: 600;
+  }
+
+  .go-platform__stack {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 14px;
+  }
+
+  @media (min-width: 720px) {
+    .go-platform__stack {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+  }
+
+  @media (min-width: 1080px) {
+    .go-platform__stack {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  .go-platform__stack li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 18px 16px;
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: transparent;
+  }
+
+  .go-platform__logo {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    background-color: var(--brand-color);
+    mask: var(--brand-icon) center / contain no-repeat;
+    -webkit-mask: var(--brand-icon) center / contain no-repeat;
+  }
+
+  .go-platform__stack li :global(svg) {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-platform__stack strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-platform__stack span {
+    display: block;
+    font-family: var(--font-content);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--site-fg-muted, #525252);
+  }
+
   .go-apply {
     padding: clamp(2.5rem, 5vw, 4rem) 0 0;
     scroll-margin-top: calc(var(--app-header-offset, 4rem) + 12px);
@@ -314,6 +501,12 @@ const brandName = company.name || "reave.app";
   }
 
   .go-apply :global(.conversational-form-root--embedded .input-pill) {
+    flex: 0 1 auto;
     width: min(100%, 420px);
+    max-width: 420px;
+  }
+
+  :global(html.page-grand-opening .app-header:not(.app-header--admin)) {
+    padding-right: 0;
   }
 </style>

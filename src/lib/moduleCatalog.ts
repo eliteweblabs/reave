@@ -16,6 +16,9 @@ import {
   FEATURE_IDS,
   FEATURE_LABELS,
   FEATURE_SALE_SHEET,
+  FEATURE_GRAND_OPENING,
+  GRAND_OPENING_CORE_FEATURES,
+  isGrandOpeningCatalogFeature,
   featureRequirements,
   featureVisibility,
   isHostingFeature,
@@ -222,6 +225,8 @@ export type CatalogRow = {
   priceAmount: number | null;
   priceLabel: string;
   saleSheet: boolean;
+  /** Show on the public /grand-opening add-on picker. */
+  grandOpening: boolean;
   visibility: 'public' | 'private' | 'service';
   /**
    * Who may use this module in the admin OS once it is enabled on the install.
@@ -490,6 +495,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
       priceAmount: null,
       priceLabel: 'Included',
       saleSheet: true,
+      grandOpening: GRAND_OPENING_CORE_FEATURES.has(card.id),
       visibility,
       audience: defaultModuleAudience({
         feature: card.id,
@@ -521,6 +527,7 @@ export function defaultModuleCatalog(): CatalogRow[] {
       priceAmount,
       priceLabel,
       saleSheet: FEATURE_SALE_SHEET.has(feature),
+      grandOpening: isGrandOpeningCatalogFeature(feature, 'module'),
       visibility,
       audience: defaultModuleAudience({
         feature,

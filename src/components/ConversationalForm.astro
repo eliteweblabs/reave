@@ -654,6 +654,16 @@ const rootClass = [
     border-color: var(--demo-line, var(--site-border, rgba(255, 255, 255, 0.14)));
     background: var(--demo-bubble-fill, var(--site-card, rgba(255, 255, 255, 0.06)));
   }
+
+  .conversational-form-root--hero-chat.conversational-form-root--embedded .input-area {
+    justify-content: center;
+  }
+
+  .conversational-form-root--hero-chat.conversational-form-root--embedded .input-pill {
+    flex: 0 1 auto;
+    width: min(100%, 420px);
+    max-width: 420px;
+  }
 </style>
 
 <script define:vars={{ bookingApiUrl, slug, brandName, embedded, dock, inputPlaceholder, heroChat }}>
@@ -1198,6 +1208,9 @@ const rootClass = [
 
   function buildSubmitPayload() {
     const payload = { ...formData };
+    root()?.querySelectorAll("[data-cf-extra-field]").forEach((el) => {
+      if (el.name) payload[el.name] = el.value ?? "";
+    });
     payload.subject =
       formDef.submitSubject ||
       (formDef.title ? `New ${formDef.title} submission` : "New form submission");
@@ -1206,6 +1219,9 @@ const rootClass = [
         .filter((field) => fieldShouldShow(field))
         .map((field) => `${field.name}: ${formData[field.name] || ""}`)
         .join("\n");
+    }
+    if (payload.selected_addons) {
+      payload.message = `${payload.message || ""}\n\nInterested add-ons: ${payload.selected_addons}`.trim();
     }
     return payload;
   }

@@ -248,7 +248,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client Portal',
   web_handoff: 'Portal Data Tab',
   portal_assistant: 'Help Chat',
-  billing: 'Crater Billing & Invoices',
+  billing: 'Crater Financial',
   video_meet: 'Galene Video Meet',
   site_audits: 'Website Audit',
   analytic_audit: 'Sites',
@@ -443,6 +443,34 @@ export function featureVisibility(id: FeatureId): FeatureVisibility {
 
 export function isSaleSheetFeature(id: FeatureId): boolean {
   return FEATURE_SALE_SHEET.has(id);
+}
+
+/**
+ * Modules that appear on the grand opening landing page add-on picker.
+ * Unlisted default to false. CMS (`website`) and client login (`client_portal`) are add-ons, not base $500.
+ */
+export const FEATURE_GRAND_OPENING: ReadonlySet<FeatureId> = new Set<FeatureId>([
+  'website',
+  'scheduling',
+  'online_reviews',
+  'billing',
+  'email_marketing',
+  'documents',
+  'digital_signature',
+  'social_inbox',
+]);
+
+/** Core OS cards surfaced as grand-opening add-ons (not in FEATURE_GRAND_OPENING). */
+export const GRAND_OPENING_CORE_FEATURES = new Set<string>(['client_portal', 'portal_assistant']);
+
+export function isGrandOpeningFeature(id: FeatureId): boolean {
+  return FEATURE_GRAND_OPENING.has(id);
+}
+
+export function isGrandOpeningCatalogFeature(feature: string, kind: 'core' | 'module' | 'custom'): boolean {
+  if (feature === 'hosting_core_os') return false;
+  if (kind === 'core') return GRAND_OPENING_CORE_FEATURES.has(feature);
+  return FEATURE_GRAND_OPENING.has(feature as FeatureId);
 }
 
 export function isPublicFeature(id: string): boolean {
