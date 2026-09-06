@@ -626,6 +626,12 @@ const addonsJson = JSON.stringify(grandOpeningAddons);
   }
 
   .go-apply :global(.conversational-form-root--embedded .input-pill) {
+    flex: 0 1 auto;
     width: min(100%, 420px);
+    max-width: 420px;
+  }
+
+  :global(html.page-grand-opening .app-header:not(.app-header--admin)) {
+    padding-right: 0;
   }
 </style>
