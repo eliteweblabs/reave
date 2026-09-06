@@ -1,6 +1,6 @@
 ---
 /**
- * Fanned playing-card stack of mobile website screenshots.
+ * Grand opening hero visuals — fanned stack on desktop, flat scroll-snap carousel on mobile.
  */
 
 type FanCard = {
@@ -55,37 +55,76 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 ---
 
 <div class="go-card-fan" data-card-count={fanCount}>
-  <div class="go-card-fan__stage">
-    <div class="go-card-fan__stack">
-    {
-      cards[0] && (
-        <img
-          class="go-card-fan__sizer"
-          src={cards[0].image}
-          alt=""
-          aria-hidden="true"
-          decoding="async"
-        />
-      )
-    }
-    {
-      cards.map((card) => (
-        <figure
-          class="go-card-fan__card"
-          data-card-index={card.index}
-          style={`--card-i: ${stackCardIndex(card.index, initialActive, fanCount)}; --card-n: ${fanCount};`}
-        >
-          <img
-            src={card.image}
-            alt={card.alt}
-            loading={card.index >= fanCount - 2 ? "eager" : "lazy"}
-            decoding="async"
+  <div class="go-card-fan__fan" aria-hidden="true">
+    <div class="go-card-fan__stage">
+      <div class="go-card-fan__stack">
+        {
+          cards[0] && (
+            <img
+              class="go-card-fan__sizer"
+              src={cards[0].image}
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+            />
+          )
+        }
+        {
+          cards.map((card) => (
+            <figure
+              class="go-card-fan__card"
+              data-card-index={card.index}
+              style={`--card-i: ${stackCardIndex(card.index, initialActive, fanCount)}; --card-n: ${fanCount};`}
+            >
+              <img
+                src={card.image}
+                alt=""
+                loading={card.index >= fanCount - 2 ? "eager" : "lazy"}
+                decoding="async"
+              />
+            </figure>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+
+  <div
+    class="go-card-fan__carousel"
+    role="region"
+    aria-roledescription="carousel"
+    aria-label="Example websites"
+  >
+    <div class="go-card-fan__track">
+      {
+        cards.map((card) => (
+          <figure class="go-card-fan__slide" data-slide-index={card.index}>
+            <img
+              src={card.image}
+              alt={card.alt}
+              loading={card.index <= 1 ? "eager" : "lazy"}
+              decoding="async"
+            />
+          </figure>
+        ))
+      }
+    </div>
+    <div class="go-card-fan__dots" role="tablist" aria-label="Choose a website preview">
+      {
+        cards.map((card) => (
+          <button
+            type="button"
+            class="go-card-fan__dot"
+            role="tab"
+            aria-label={`Show ${card.alt}`}
+            aria-selected={card.index === 0 ? "true" : "false"}
+            data-slide-to={card.index}
           />
-        </figure>
-      ))
-    }
+        ))
+      }
+    </div>
   </div>
-  </div>
+
   <p class="go-card-fan__hint">Swipe to browse</p>
 </div>
 
@@ -96,98 +135,69 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
   }
 
   function initGrandOpeningCardFans() {
-    const touchMedia = window.matchMedia("(hover: none), (max-width: 859px)");
-
     document.querySelectorAll<HTMLElement>(".go-card-fan").forEach((fan) => {
       if (fan.dataset.ready === "1") return;
       fan.dataset.ready = "1";
 
-      const cards = [...fan.querySelectorAll<HTMLElement>(".go-card-fan__card")];
-      const n = cards.length;
-      if (n <= 1) return;
+      const track = fan.querySelector<HTMLElement>(".go-card-fan__track");
+      const slides = [...fan.querySelectorAll<HTMLElement>(".go-card-fan__slide")];
+      const dots = [...fan.querySelectorAll<HTMLButtonElement>(".go-card-fan__dot")];
+      if (!track || !slides.length) return;
 
-      let active = 0;
-      let startX = 0;
-      let startY = 0;
-      let tracking = false;
+      let scrollTimer = 0;
 
-      function applyStack() {
-        cards.forEach((el) => {
-          const orig = Number(el.dataset.cardIndex ?? 0);
-          el.style.setProperty("--card-i", String(stackCardIndex(orig, active, n)));
+      function activeIndexFromScroll(): number {
+        const slideWidth = slides[0]?.offsetWidth ?? 1;
+        const gap = Number.parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap || "0") || 0;
+        const stride = slideWidth + gap;
+        if (stride <= 0) return 0;
+        const center = track.scrollLeft + track.clientWidth / 2;
+        let best = 0;
+        let bestDist = Number.POSITIVE_INFINITY;
+        slides.forEach((slide, index) => {
+          const slideCenter = slide.offsetLeft + slide.offsetWidth / 2;
+          const dist = Math.abs(slideCenter - center);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = index;
+          }
+        });
+        return best;
+      }
+
+      function scrollToIndex(index: number, behavior: ScrollBehavior = "smooth") {
+        const slide = slides[index];
+        if (!slide) return;
+        const target = slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2;
+        track.scrollTo({ left: target, behavior });
+      }
+
+      function syncDots(index = activeIndexFromScroll()) {
+        dots.forEach((dot, i) => {
+          const active = i === index;
+          dot.setAttribute("aria-selected", active ? "true" : "false");
+          dot.classList.toggle("is-active", active);
         });
       }
 
-      function onStart(x: number, y: number) {
-        startX = x;
-        startY = y;
-        tracking = true;
-      }
-
-      function onEnd(x: number, y: number) {
-        if (!tracking) return;
-        tracking = false;
-
-        const dx = x - startX;
-        const dy = y - startY;
-        if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-
-        if (dx < 0) active = (active + 1) % n;
-        else active = (active - 1 + n) % n;
-        applyStack();
-      }
-
-      function enableTouchMode() {
-        fan.classList.add("go-card-fan--touch");
-        fan.removeAttribute("aria-hidden");
-        fan.setAttribute("role", "group");
-        fan.setAttribute("aria-label", "Example websites — swipe to browse");
-      }
-
-      function disableTouchMode() {
-        fan.classList.remove("go-card-fan--touch");
-        fan.setAttribute("aria-hidden", "true");
-        fan.removeAttribute("role");
-        fan.removeAttribute("aria-label");
-      }
-
-      fan.addEventListener(
-        "touchstart",
-        (e) => {
-          if (!touchMedia.matches) return;
-          const touch = e.changedTouches[0];
-          if (touch) onStart(touch.clientX, touch.clientY);
+      track.addEventListener(
+        "scroll",
+        () => {
+          window.clearTimeout(scrollTimer);
+          scrollTimer = window.setTimeout(() => syncDots(), 80);
         },
         { passive: true },
       );
 
-      fan.addEventListener(
-        "touchend",
-        (e) => {
-          if (!touchMedia.matches) return;
-          const touch = e.changedTouches[0];
-          if (touch) onEnd(touch.clientX, touch.clientY);
-        },
-        { passive: true },
-      );
-
-      fan.addEventListener("pointerdown", (e) => {
-        if (!touchMedia.matches || e.pointerType === "mouse") return;
-        onStart(e.clientX, e.clientY);
+      dots.forEach((dot) => {
+        dot.addEventListener("click", () => {
+          const index = Number(dot.dataset.slideTo ?? 0);
+          scrollToIndex(index);
+          syncDots(index);
+        });
       });
 
-      fan.addEventListener("pointerup", (e) => {
-        if (!touchMedia.matches || e.pointerType === "mouse") return;
-        onEnd(e.clientX, e.clientY);
-      });
-
-      const syncTouchMode = () => {
-        if (touchMedia.matches) enableTouchMode();
-        else disableTouchMode();
-      };
-
-      syncTouchMode();
-      touchMedia.addEventListener("change", syncTouchMode);
+      syncDots(0);
     });
   }
 
@@ -206,17 +216,21 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     align-items: center;
   }
 
+  .go-card-fan__fan {
+    display: none;
+    width: 100%;
+  }
+
   .go-card-fan__stage {
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .go-card-fan__stack {
     position: relative;
     width: min(100%, 227px);
     margin-inline: auto;
-    touch-action: pan-y;
   }
 
   .go-card-fan__sizer {
@@ -256,25 +270,110 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     height: auto;
   }
 
+  .go-card-fan__carousel {
+    width: 100%;
+  }
+
+  .go-card-fan__track {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: max(12px, calc(50% - min(38vw, 126px)));
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 4px max(12px, calc(50% - min(38vw, 126px))) 8px;
+    touch-action: pan-x;
+  }
+
+  .go-card-fan__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .go-card-fan__slide {
+    flex: 0 0 min(76vw, 252px);
+    scroll-snap-align: center;
+    margin: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.04),
+      0 12px 32px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(0, 0, 0, 0.06);
+  }
+
+  .go-card-fan__slide img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .go-card-fan__dots {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 0 12px;
+  }
+
+  .go-card-fan__dot {
+    width: 7px;
+    height: 7px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--site-fg-faint, #d4d4d4);
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+
+  .go-card-fan__dot.is-active,
+  .go-card-fan__dot[aria-selected="true"] {
+    background: var(--site-fg, #171717);
+    transform: scale(1.15);
+  }
+
+  .go-card-fan__hint {
+    display: block;
+    margin: 10px 0 0;
+    font-family: var(--font-content);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    text-align: center;
+    color: var(--site-fg-faint, #a3a3a3);
+  }
+
   @media (min-width: 860px) {
     .go-card-fan {
+      max-width: 280px;
       transform: translateY(clamp(-5rem, -14vh, -2rem));
     }
 
+    .go-card-fan__fan {
+      display: block;
+    }
+
+    .go-card-fan__carousel,
+    .go-card-fan__hint {
+      display: none;
+    }
+
     .go-card-fan__stage {
-      overflow: visible;
       padding: 0 18px 28px;
     }
   }
 
   @media (hover: hover) and (pointer: fine) {
-    .go-card-fan:hover .go-card-fan__card {
+    .go-card-fan__fan:hover .go-card-fan__card {
       transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 8deg))
         translateY(calc(var(--card-i) * -10px - 6px))
         scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.012));
     }
 
-    .go-card-fan:hover .go-card-fan__card:hover {
+    .go-card-fan__fan:hover .go-card-fan__card:hover {
       z-index: 30;
       box-shadow:
         0 4px 8px rgba(0, 0, 0, 0.08),
@@ -287,6 +386,10 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     .go-card-fan__card {
       transition: none;
     }
+
+    .go-card-fan__track {
+      scroll-behavior: auto;
+    }
   }
 
   @media (max-width: 859px) {
@@ -296,47 +399,5 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
       margin-top: 8px;
       transform: none;
     }
-
-    .go-card-fan__stack {
-      width: min(92vw, 280px);
-    }
-
-    .go-card-fan__card {
-      transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 11deg))
-        translateY(calc(var(--card-i) * -5px))
-        scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.014));
-    }
-  }
-
-  .go-card-fan--touch .go-card-fan__stack {
-    width: min(92vw, 280px);
-  }
-
-  .go-card-fan--touch .go-card-fan__card {
-    transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 13deg))
-      translateY(calc(var(--card-i) * -6px))
-      scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.012));
-  }
-
-  .go-card-fan__hint {
-    display: none;
-    margin: 14px 0 0;
-    font-family: var(--font-content);
-    font-size: 0.78rem;
-    letter-spacing: 0.02em;
-    text-align: center;
-    color: var(--site-fg-faint, #a3a3a3);
-  }
-
-  .go-card-fan--touch .go-card-fan__hint {
-    display: block;
-  }
-
-  .go-card-fan--touch .go-card-fan__card {
-    cursor: grab;
-  }
-
-  .go-card-fan--touch .go-card-fan__card:active {
-    cursor: grabbing;
   }
 </style>
