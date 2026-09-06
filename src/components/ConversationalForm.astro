@@ -483,11 +483,15 @@ const rootClass = [
         return "you@example.com";
       case "tel":
         return "Phone number";
+      case "password":
+        return "Password";
       case "textarea":
         return "Type your message…";
       default:
         if (field.name === "name") return "Your name";
         if (field.name === "company") return "Company name";
+        if (field.name === "website") return "example.com";
+        if (field.name === "registrar_username") return "Registrar login email";
         return "Type your answer…";
     }
   }
@@ -495,6 +499,12 @@ const rootClass = [
   function inputModeForField(field) {
     const input = userInput();
     if (!input) return;
+    if (field.type === "password") {
+      input.type = "password";
+      input.inputMode = "text";
+      input.autocomplete = "current-password";
+      return;
+    }
     input.type = field.type === "email" ? "email" : "text";
     input.inputMode =
       field.type === "email"
@@ -521,13 +531,26 @@ const rootClass = [
     return trimmed.split(/\s+/)[0] || "";
   }
 
+  function interpolateQuestion(text) {
+    const registrarLabel = String(formData.registrar || "").trim() || "domain registrar";
+    const domainLabel =
+      String(formData.domain || formData.website || "").trim() || "your domain";
+    return String(text || "")
+      .replace(/\{\{registrar\}\}/g, registrarLabel)
+      .replace(/\{\{domain\}\}/g, domainLabel);
+  }
+
   function fieldShouldShow(field) {
     const cond = field["cf-show-if"];
     if (!cond) return true;
     if (cond === "phone") {
       return Boolean(String(formData.phone || "").trim());
     }
+    const expected = field["cf-show-if-value"];
     const value = formData[cond];
+    if (expected !== undefined && expected !== null && expected !== "") {
+      return String(value || "") === String(expected);
+    }
     return Boolean(String(value || "").trim());
   }
 
@@ -574,6 +597,7 @@ const rootClass = [
     }
     if (
       field.type === "availability" ||
+      field.type === "domain_lookup" ||
       (field.type === "select" && field.options) ||
       field.type === "sms_consent"
     ) {
@@ -785,7 +809,7 @@ const rootClass = [
       return;
     }
 
-    let questionText = field["cf-questions"] || `What's your ${field.name}?`;
+    let questionText = interpolateQuestion(field["cf-questions"] || `What's your ${field.name}?`);
     if (field.name === "email" && formData.name) {
       const firstName = firstNameFrom(formData.name);
       questionText = firstName
@@ -909,10 +933,72 @@ const rootClass = [
       (formDef.title ? `New ${formDef.title} submission` : "New form submission");
     if (!payload.message && formDef.fields?.length) {
       payload.message = formDef.fields
+        .filter((field) => fieldShouldShow(field))
         .map((field) => `${field.name}: ${formData[field.name] || ""}`)
         .join("\n");
     }
     return payload;
+  }
+
+  function normalizeDomainInput(raw) {
+    const trimmed = String(raw || "")
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/.*$/, "")
+      .replace(/:\d+$/, "");
+    if (!trimmed || /^none$/i.test(trimmed) || /^no$/i.test(trimmed)) return null;
+    if (!/^[a-z0-9][a-z0-9.-]*[a-z0-9]\.[a-z]{2,}$/i.test(trimmed)) return null;
+    return trimmed.toLowerCase();
+  }
+
+  async function handleDomainLookup(field, value) {
+    appendMessage(value, "user");
+    formData[field.name] = value;
+    userInput().value = "";
+    setInputVisible(false);
+
+    const domain = normalizeDomainInput(value);
+    formData.domain = domain || value.trim();
+
+    if (!domain) {
+      await showMessages(
+        "No problem — we'll help you pick a domain if you need one.&&Let's keep going.",
+      );
+      currentFieldIndex++;
+      setTimeout(showQuestion, 400);
+      return;
+    }
+
+    const loadingEl = appendLoading("Checking your domain…");
+    try {
+      const res = await fetch(
+        `${BOOKING_API}/api/domain/registrar?domain=${encodeURIComponent(domain)}`,
+      );
+      const data = await res.json();
+      loadingEl.remove();
+
+      formData.domain = data.domain || domain;
+      formData.registrar = data.registrar || "";
+
+      if (data.registrar) {
+        await showMessages(
+          `${formData.domain} is registered with ${data.registrar}.&&We'll need registrar access to launch on your domain.`,
+        );
+      } else {
+        await showMessages(
+          `Got ${formData.domain}. We couldn't confirm the registrar automatically — we'll look it up on our end.`,
+        );
+      }
+    } catch (err) {
+      loadingEl.remove();
+      console.error(err);
+      await appendTypewriter(
+        "Got it — we'll look up your registrar and follow up if we need anything else.",
+      );
+    }
+
+    currentFieldIndex++;
+    setTimeout(showQuestion, 400);
   }
 
   async function submitForm() {
@@ -975,6 +1061,12 @@ const rootClass = [
     if (!field) return;
 
     activateDock();
+
+    if (field.type === "domain_lookup") {
+      void handleDomainLookup(field, value);
+      return;
+    }
+
     appendMessage(value, "user");
     formData[field.name] = value;
     userInput().value = "";

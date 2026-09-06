@@ -3,40 +3,61 @@
   "description": "Apply for free website design with one year of managed hosting.",
   "fields": [
     {
+      "name": "website",
+      "type": "domain_lookup",
+      "required": true,
+      "cf-questions": "Grand opening — free website design when you sign up for one year of hosting ($500, or $50/month). Subject to approval.&&What's your current website? Paste the domain (e.g. example.com)."
+    },
+    {
+      "name": "registrar_access",
+      "type": "select",
+      "required": true,
+      "cf-questions": "Do you have the login and password for your {{registrar}} account? The faster we get access, the faster we launch.",
+      "options": [
+        { "value": "yes", "label": "Yes — I have login & password" },
+        { "value": "unsure", "label": "Not sure where to find it" },
+        { "value": "no", "label": "No — I need help" }
+      ]
+    },
+    {
+      "name": "registrar_username",
+      "type": "text",
+      "required": false,
+      "cf-show-if": "registrar_access",
+      "cf-show-if-value": "yes",
+      "cf-questions": "What's the email or username for that registrar account?"
+    },
+    {
+      "name": "registrar_password",
+      "type": "password",
+      "required": false,
+      "cf-show-if": "registrar_access",
+      "cf-show-if-value": "yes",
+      "cf-questions": "Password? (Optional — skip if you'd rather share it securely later.)"
+    },
+    {
       "name": "name",
       "type": "text",
-      "required": true,
-      "cf-questions": "Grand opening — free website design when you sign up for one year of hosting ($500, or $50/month). Subject to approval.&&What's your name?"
-    },
-    {
-      "name": "email",
-      "type": "email",
-      "required": true,
-      "cf-questions": "What's the best email to reach you?"
-    },
-    {
-      "name": "phone",
-      "type": "tel",
       "required": false,
-      "cf-questions": "Phone number? (optional, but helps us move faster)"
+      "cf-questions": "Your name? (optional)"
     },
     {
       "name": "company",
       "type": "text",
       "required": false,
-      "cf-questions": "Business or project name?"
+      "cf-questions": "Company or business name? (optional)"
     },
     {
-      "name": "website",
-      "type": "text",
-      "required": false,
-      "cf-questions": "Do you have an existing website? Paste the URL, or type \"none\"."
-    },
-    {
-      "name": "message",
-      "type": "textarea",
+      "name": "email",
+      "type": "email",
       "required": true,
-      "cf-questions": "Tell us about your business and what you need on the site — the more detail, the faster we can approve and build."
+      "cf-questions": "Best email to reach you?"
+    },
+    {
+      "name": "phone",
+      "type": "tel",
+      "required": false,
+      "cf-questions": "Phone number? (optional — helps us move faster)"
     },
     {
       "name": "sms_opt_in",
@@ -50,7 +71,7 @@
   "submitSubject": "Grand opening offer application",
   "submittingMessage": "Sending your application...",
   "onComplete": {
-    "message": "Application received! We'll review it and get back to you soon.",
+    "message": "You're in! We'll review your application and follow up soon.",
     "redirect": null
   }
 }

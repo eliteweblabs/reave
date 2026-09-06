@@ -141,7 +141,7 @@ async function checkDkim(domain: string): Promise<EmailAuthResult['dkim']> {
   return { selectors_checked: DKIM_SELECTORS, found };
 }
 
-async function lookupWhois(domain: string): Promise<WhoisBasics> {
+export async function lookupWhois(domain: string): Promise<WhoisBasics> {
   try {
     // whois speaks raw TCP with no built-in timeout: some registries accept the
     // connection and never reply, which would otherwise hang the whole audit.
