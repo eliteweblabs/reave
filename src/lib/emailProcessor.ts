@@ -106,6 +106,8 @@ import {
   type AiClassifyResult,
 } from './emailAiClassify';
 import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
+import { evaluateVendorAppointmentDuplicate } from './emailVendorAppointmentDedup';
+import { isVendorConfirmedAppointment } from './emailMeetingParse';
 import {
   attachmentSummaryFallback,
   formatAttachmentListForPrompt,
@@ -1594,6 +1596,7 @@ export async function processInboundEmail(
   }
 
   let suppressDuplicateMeetingAlert = false;
+  let suppressDuplicateVendorAppointment = false;
   if (
     automationKind === 'meeting_request' ||
     automationKind === 'meeting_conflict'
@@ -1614,6 +1617,29 @@ export async function processInboundEmail(
       routeNote = routeNote
         ? `${routeNote} · Thread reply — meeting request already pending`
         : 'Thread reply — meeting request already pending on earlier message in this thread';
+    } else if (
+      isVendorConfirmedAppointment({
+        from,
+        subject: email.subject ?? '',
+        bodyText,
+        bodySnippet: snippet(bodyText),
+        bodyHtml: email.html,
+      })
+    ) {
+      const vendorDup = await evaluateVendorAppointmentDuplicate({
+        from,
+        subject: email.subject ?? '',
+        bodyText,
+        bodySnippet: snippet(bodyText),
+        bodyHtml: email.html,
+        proposedMeetingStart,
+        schedulingNote,
+        headers: email.headers,
+      });
+      if (vendorDup.suppress) {
+        suppressDuplicateVendorAppointment = true;
+        routeNote = vendorDup.reason;
+      }
     }
   }
 
@@ -1723,9 +1749,15 @@ export async function processInboundEmail(
   }
 
   if (dryRun) {
-    if (suppressDuplicateMeetingAlert) {
+    if (suppressDuplicateMeetingAlert || suppressDuplicateVendorAppointment) {
       automationKind = null;
-      pushAudit('dedupe', 'Would suppress duplicate meeting alert', routeNote);
+      pushAudit(
+        'dedupe',
+        suppressDuplicateVendorAppointment
+          ? 'Would archive duplicate vendor appointment confirmation'
+          : 'Would suppress duplicate meeting alert',
+        routeNote,
+      );
     }
     if (hardDelete) {
       pushAudit(
@@ -1800,15 +1832,24 @@ export async function processInboundEmail(
       );
     }
 
-    if (inboxRecord?.id && suppressDuplicateMeetingAlert) {
+    if (inboxRecord?.id && (suppressDuplicateMeetingAlert || suppressDuplicateVendorAppointment)) {
+      const vendorArchive = suppressDuplicateVendorAppointment
+        ? archiveEmailInboxPatch(category)
+        : {};
       const updated = await storeUpdateEmailInbox(inboxRecord.id, {
         acceptAutomationDecision: true,
         markAutomationAck: true,
         automationKind: null,
         routeNote,
+        ...vendorArchive,
       });
       if (updated) inboxRecord = updated;
       automationKind = null;
+      if (suppressDuplicateVendorAppointment) {
+        if (vendorArchive.action) action = vendorArchive.action;
+        if (vendorArchive.status) inboxStatus = vendorArchive.status;
+        if (vendorArchive.category) category = vendorArchive.category as EmailCategory;
+      }
     }
 
     if (

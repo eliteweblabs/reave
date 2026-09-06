@@ -37,6 +37,7 @@
     "check:email-triage": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-triage-scenarios.ts",
     "check:email-meeting": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-meeting-parse.ts",
     "check:email-meeting-notify": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-meeting-notify.ts",
+    "check:email-vendor-dedupe": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-vendor-dedupe.ts",
     "check:inbound-install": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-inbound-install.ts",
     "check:reave-public-email": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-reave-public-email.ts",
     "check:email-safe-fonts": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-safe-fonts.ts",
