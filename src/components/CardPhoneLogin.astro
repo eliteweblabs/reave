@@ -100,6 +100,7 @@ const passkeyGated = showLogin && hasPasskeys;
 {(showLogin || passkeyGated) && (
   <script type="module" define:vars={{ phoneE164, redirectUrl, allowSignUp, passkeyGated }}>
     import { initCardPasskeyGate, registerCardPasskeyAfterLogin } from '../client/cardPasskey.ts';
+    import { clerkHandshakeUrl } from '/admin/shared.js';
 
     if (passkeyGated) {
       initCardPasskeyGate({ gated: true, redirectUrl });
@@ -267,7 +268,7 @@ const passkeyGated = showLogin && hasPasskeys;
         const clerk = await waitForClerk();
         await verifyCode(clerk, mode, code);
         await registerCardPasskeyAfterLogin();
-        window.location.assign(redirectUrl);
+        window.location.assign(clerkHandshakeUrl(redirectUrl));
       } catch (err) {
         showError(clerkMessage(err));
         submitBtn.disabled = false;

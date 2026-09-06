@@ -198,10 +198,10 @@ const clerkAppearance = {
 </style>
 
 <script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref, assetVersion }}>
-  const { bindClerkSsrSessionSync } = await import(`/admin/shared.js?v=${assetVersion}`);
+  const { bindClerkSsrSessionSync, clerkHandshakeUrl } = await import(`/admin/shared.js?v=${assetVersion}`);
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
-  /** One SSR sync reload after client sign-in — never a loop. */
+  /** One handshake navigation after client sign-in — never a loop. */
   const SSR_SYNC_KEY = 'reave-clerk-ssr-sync-once';
   let halfSessionAutoClearAttempted = false;
 
@@ -214,8 +214,13 @@ const clerkAppearance = {
     return Boolean(document.body?.dataset?.userId?.trim());
   }
 
-  function onAdminPath() {
-    return window.location.pathname.startsWith('/admin');
+  function postSignInTarget() {
+    const requested = new URLSearchParams(window.location.search).get('redirect_url') || '';
+    if (requested.startsWith('/') && !requested.startsWith('//')) return requested;
+    if (fallbackRedirectUrl.startsWith('/') && !fallbackRedirectUrl.startsWith('//')) {
+      return fallbackRedirectUrl;
+    }
+    return '/admin/';
   }
 
   function ssrSyncAlreadyTried() {
@@ -243,35 +248,37 @@ const clerkAppearance = {
   }
 
   /**
-   * After phone OTP, Clerk JS has a user and an HttpOnly `__session` the
-   * page cannot read. Reload once so SSR can see the cookie. Never loop.
+   * After OTP, Clerk JS has a user but SSR needs the HttpOnly __session cookie.
+   * Navigate through the same-origin handshake once (never a blind reload).
    */
-  function reloadOnceForSsrCookie() {
+  function syncSessionViaHandshake() {
     if (serverHasStaffSession()) {
       clearSsrSyncMark();
       return false;
     }
     if (ssrSyncAlreadyTried()) return false;
     markSsrSyncTried();
-    console.info('[reave] syncing Clerk session cookie to SSR (one reload)');
-    window.setTimeout(() => window.location.reload(), 50);
+    const target = postSignInTarget();
+    console.info('[reave] syncing Clerk session via handshake →', target);
+    window.location.assign(clerkHandshakeUrl(target));
     return true;
   }
 
   /**
-   * Block /admin → /admin hard navigations while Clerk JS has a user but SSR
-   * does not — except the single cookie-sync reload above.
+   * Block direct /admin navigations while Clerk JS has a user but SSR does not —
+   * route through the handshake so __session lands before the admin gate runs.
    */
   function installHalfSessionRedirectGuard() {
     if (window.__reaveHalfSessionGuard) return;
     window.__reaveHalfSessionGuard = true;
 
-    const shouldBlock = (url) => {
+    const shouldHandshakeInstead = (url) => {
       if (!window.Clerk?.user || serverHasStaffSession()) return false;
-      if (!onAdminPath()) return false;
       try {
         const next = new URL(String(url), window.location.origin);
-        return next.origin === window.location.origin && next.pathname.startsWith('/admin');
+        if (next.origin !== window.location.origin) return false;
+        if (!next.pathname.startsWith('/admin')) return false;
+        return !next.pathname.startsWith('/admin/__clerk');
       } catch {
         return false;
       }
@@ -283,8 +290,8 @@ const clerkAppearance = {
       const original = proto[method];
       if (typeof original !== 'function') continue;
       proto[method] = function patchedLocationNav(url) {
-        if (shouldBlock(url)) {
-          if (reloadOnceForSsrCookie()) return;
+        if (shouldHandshakeInstead(url)) {
+          if (syncSessionViaHandshake()) return;
           console.warn('[reave] blocked half-session admin redirect loop', url);
           showStuckSession();
           return;
@@ -357,10 +364,10 @@ const clerkAppearance = {
       return;
     }
 
-    // Client session without SSR userId: sync once, else clear stale session on login pages.
+    // Client session without SSR userId: handshake once, else clear stale session on login pages.
     if (clerk.user && !serverHasStaffSession()) {
       window[AUTH_MOUNT_KEY] = true;
-      if (reloadOnceForSsrCookie()) return;
+      if (syncSessionViaHandshake()) return;
       if (onLoginPage()) {
         void clearHalfSessionAndShowSignIn();
         return;
@@ -383,11 +390,14 @@ const clerkAppearance = {
     const titleEl = document.getElementById('sign-in-sheet-title');
     if (titleEl) titleEl.textContent = showSignUp ? 'Sign up' : 'Sign in';
 
+    const signInTarget = postSignInTarget();
+    const handshakeUrl = clerkHandshakeUrl(signInTarget);
     const mountOpts = {
       routing: 'hash',
       signInUrl: authPath,
       signUpUrl: allowSignUp ? signUpPath : authPath,
-      fallbackRedirectUrl,
+      fallbackRedirectUrl: signInTarget,
+      forceRedirectUrl: handshakeUrl,
       appearance: clerkAppearance,
     };
 
@@ -397,9 +407,9 @@ const clerkAppearance = {
       clerk.mountSignIn(root, mountOpts);
     }
 
-    // After OTP inside the sheet, cookie appears before any navigation — sync once.
+    // Backup if Clerk navigates before forceRedirectUrl applies.
     clerk.addListener?.(({ user }) => {
-      if (user && !serverHasStaffSession()) reloadOnceForSsrCookie();
+      if (user && !serverHasStaffSession()) syncSessionViaHandshake();
     });
   }
 

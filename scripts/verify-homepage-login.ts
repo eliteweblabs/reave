@@ -409,7 +409,18 @@ assert.match(
   /!window\.Clerk\?\.user\)/,
   'do not reset SSR sync mark while a Clerk client session exists',
 );
+assert.match(signInSheet, /clerkHandshakeUrl/);
+assert.match(signInSheet, /forceRedirectUrl/);
+assert.match(signInSheet, /syncSessionViaHandshake/);
+assert.doesNotMatch(
+  signInSheet,
+  /reloadOnceForSsrCookie/,
+  'post-OTP sync must handshake, not blind reload',
+);
 assert.match(signInSheet, /__PUBLIC_ASSET_VERSION__/, 'SignInSheet shared.js import must cache-bust per deploy');
+
+const sharedJs = readFileSync('public/admin/shared.js', 'utf8');
+assert.match(sharedJs, /export function clerkHandshakeUrl/);
 
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 assert.match(astroConfig, /clerkProxyUrlFromEnv/);

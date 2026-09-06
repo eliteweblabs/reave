@@ -8,6 +8,16 @@ export { escHtml };
 
 const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
 
+/**
+ * Clerk handshake sets the HttpOnly __session cookie SSR needs. A plain reload on
+ * `/` or `/sign-in` never runs it — only visiting this URL (or forceRedirectUrl).
+ */
+export function clerkHandshakeUrl(redirectPath, origin = window.location.origin) {
+  const redirect = new URL(redirectPath, origin).toString();
+  const proxyBase = redirectPath.startsWith('/admin') ? '/admin/__clerk' : '/__clerk';
+  return `${proxyBase}/v1/client/handshake?redirect_url=${encodeURIComponent(redirect)}`;
+}
+
 /** Strip sign-in redirect params so return URLs cannot loop on auth=sign-in. */
 export function cleanAdminReturnUrl(pathname, search = '') {
   try {
