@@ -189,11 +189,11 @@ const brandName = company.name || "reave.app";
 <style>
   .go-page {
     padding: 0 var(--site-page-gutter, 20px) calc(80px + env(safe-area-inset-bottom, 0px));
-    overflow-x: clip;
   }
 
   .go-hero {
     padding: clamp(2rem, 6vw, 4rem) 0 clamp(2.5rem, 5vw, 3.5rem);
+    overflow: visible;
   }
 
   .go-hero__inner {
@@ -209,6 +209,11 @@ const brandName = company.name || "reave.app";
       grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
       gap: 48px;
       align-items: start;
+    }
+
+    .go-hero__visual {
+      align-self: start;
+      overflow: visible;
     }
   }
 
@@ -288,8 +293,22 @@ const brandName = company.name || "reave.app";
   .go-hero__visual {
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     max-width: 100%;
-    overflow-x: clip;
+    overflow: visible;
+  }
+
+  @media (max-width: 859px) {
+    .go-page {
+      overflow-x: clip;
+    }
+
+    .go-hero__visual {
+      width: 100vw;
+      max-width: 100vw;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+    }
   }
 
   .go-details {

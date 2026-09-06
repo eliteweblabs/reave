@@ -252,6 +252,17 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     height: auto;
   }
 
+  @media (min-width: 860px) {
+    .go-card-fan {
+      transform: translateY(clamp(-5rem, -14vh, -2rem));
+    }
+
+    .go-card-fan__stage {
+      overflow: visible;
+      padding: 0 18px 28px;
+    }
+  }
+
   @media (hover: hover) and (pointer: fine) {
     .go-card-fan:hover .go-card-fan__card {
       transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 8deg))
@@ -276,13 +287,31 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 
   @media (max-width: 859px) {
     .go-card-fan {
-      max-width: 213px;
+      max-width: none;
+      width: 100%;
       margin-top: 8px;
+      transform: none;
     }
 
     .go-card-fan__stack {
-      width: min(100%, 187px);
+      width: min(92vw, 280px);
     }
+
+    .go-card-fan__card {
+      transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 11deg))
+        translateY(calc(var(--card-i) * -5px))
+        scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.014));
+    }
+  }
+
+  .go-card-fan--touch .go-card-fan__stack {
+    width: min(92vw, 280px);
+  }
+
+  .go-card-fan--touch .go-card-fan__card {
+    transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 13deg))
+      translateY(calc(var(--card-i) * -6px))
+      scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.012));
   }
 
   .go-card-fan__hint {
