@@ -89,10 +89,10 @@ const brandName = company.name || "reave.app";
 
           <div class="go-hero__ctas">
             <BrandBtn href="#apply" variant="filled">
-              Apply now
+              Get started
               <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
             </BrandBtn>
-            <BrandBtn href="/schedule" variant="glass">Book a call</BrandBtn>
+            <BrandBtn href="/digital-audit" variant="glass">Free web audit</BrandBtn>
           </div>
         </div>
 
@@ -279,15 +279,23 @@ const brandName = company.name || "reave.app";
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: none;
-    border: 1.5px solid var(--site-fg, #171717);
+    border: 1.5px solid var(--brand-glass-border-color);
     color: var(--site-fg, #171717);
     -webkit-text-fill-color: var(--site-fg, #171717);
   }
 
   .go-hero__ctas :global(.brand-btn-glass:hover) {
     background: transparent;
-    border-color: var(--site-fg-muted, #525252);
+    border-color: var(--brand-glass-border-color-hover);
+    color: var(--site-fg, #171717);
+    -webkit-text-fill-color: var(--site-fg, #171717);
     filter: none;
+  }
+
+  :global(html.site-marketing[data-theme="dark"]) .go-hero__ctas :global(.brand-btn-glass),
+  :global(html.site-marketing[data-theme="dark"]) .go-hero__ctas :global(.brand-btn-glass:hover) {
+    color: var(--site-fg, #e5e5e5);
+    -webkit-text-fill-color: var(--site-fg, #e5e5e5);
   }
 
   .go-hero__visual {
