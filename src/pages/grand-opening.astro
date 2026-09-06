@@ -77,7 +77,9 @@ const brandName = company.name || "reave.app";
     <section class="go-hero" aria-labelledby="go-title">
       <div class="go-hero__inner">
         <div class="go-hero__copy">
-          <p class="go-hero__pill">Grand opening · limited time only</p>
+          <button type="button" class="go-hero__pill" id="go-confetti-trigger" aria-label="Celebrate grand opening">
+            Grand opening · limited time only
+          </button>
           <h1 id="go-title" class="go-hero__title">
             Free website design<br />with a one-year hosting plan.
           </h1>
@@ -184,6 +186,7 @@ const brandName = company.name || "reave.app";
       </div>
     </section>
   </div>
+  <script is:inline src={`/grand-opening-confetti.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
 </Layout>
 
 <style>
@@ -225,7 +228,9 @@ const brandName = company.name || "reave.app";
     display: inline-block;
     margin: 0 0 14px;
     padding: 0.4rem 0.85rem;
+    border: none;
     border-radius: 999px;
+    font: inherit;
     font-family: var(--font-secondary);
     font-size: 0.68rem;
     font-weight: 700;
@@ -234,10 +239,28 @@ const brandName = company.name || "reave.app";
     line-height: 1;
     white-space: nowrap;
     color: #fff;
+    cursor: pointer;
     background: linear-gradient(135deg, #171717 0%, #404040 100%);
     box-shadow:
       0 4px 14px rgba(0, 0, 0, 0.18),
       0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .go-hero__pill:hover {
+    transform: scale(1.03);
+    box-shadow:
+      0 6px 18px rgba(0, 0, 0, 0.22),
+      0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  }
+
+  .go-hero__pill:active {
+    transform: scale(0.98);
+  }
+
+  .go-hero__pill:focus-visible {
+    outline: 2px solid var(--site-fg, #171717);
+    outline-offset: 3px;
   }
 
   .go-hero__title {
