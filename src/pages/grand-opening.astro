@@ -183,7 +183,11 @@ const brandName = company.name || "reave.app";
       </div>
     </section>
   </div>
-  <script is:inline src={`/grand-opening-confetti.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
+  <script
+    slot="end"
+    is:inline
+    src={`/grand-opening-confetti.js?v=${__PUBLIC_ASSET_VERSION__}`}
+  ></script>
 </Layout>
 
 <style>
