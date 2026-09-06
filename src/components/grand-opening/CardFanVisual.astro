@@ -2,8 +2,6 @@
 /**
  * Fanned playing-card stack of mobile website screenshots.
  */
-import { getSiteContent } from "../../lib/siteContent";
-import { siteMediaSrc } from "../../lib/siteMedia";
 
 type FanCard = {
   image: string;
@@ -32,27 +30,13 @@ const HERO_CARDS: FanCard[] = [
     image: "/grand-opening/tony-barletta-mobile.jpg",
     alt: "Tony Barletta Jr. mobile website",
   },
+  {
+    image: "/grand-opening/pdx-paws-mobile.jpg",
+    alt: "PDX Paws mobile website",
+  },
 ];
 
-const WEB_TAGS = /web development|wordpress|managed hosting|e-commerce/i;
-const heroImages = new Set(HERO_CARDS.map((c) => c.image));
-
-const portfolioCards: FanCard[] = (getSiteContent().portfolio ?? [])
-  .filter(
-    (item) =>
-      item.image &&
-      (item.featured || item.tags.some((t) => WEB_TAGS.test(t))) &&
-      !/barber|levine|luxe|mdot|barletta|tony/i.test(item.title),
-  )
-  .slice(0, 4)
-  .map((item) => ({
-    image: siteMediaSrc(item.image) || item.image!,
-    alt: item.imageAlt || item.title,
-    position: item.imagePosition,
-  }))
-  .filter((item) => item.image && !heroImages.has(item.image));
-
-const cards = [...HERO_CARDS, ...portfolioCards].slice(0, 6).map((card, index) => ({
+const cards = HERO_CARDS.map((card, index) => ({
   ...card,
   index,
 }));
