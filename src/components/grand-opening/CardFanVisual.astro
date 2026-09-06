@@ -42,15 +42,23 @@ const cards = HERO_CARDS.map((card, index) => ({
 }));
 
 const fanCount = cards.length || 1;
+const initialActive = 0;
+
+/** Stack order: active card on top (highest --card-i). */
+function stackCardIndex(originalIndex: number, activeIndex: number, n: number): number {
+  const relative = (originalIndex - activeIndex + n) % n;
+  return n - 1 - relative;
+}
 ---
 
-<div class="go-card-fan" aria-hidden="true">
+<div class="go-card-fan" data-card-count={fanCount}>
   <div class="go-card-fan__stack">
     {
       cards.map((card) => (
         <figure
           class="go-card-fan__card"
-          style={`--card-i: ${card.index}; --card-n: ${fanCount};`}
+          data-card-index={card.index}
+          style={`--card-i: ${stackCardIndex(card.index, initialActive, fanCount)}; --card-n: ${fanCount};`}
         >
           <img
             src={card.image}
@@ -65,7 +73,114 @@ const fanCount = cards.length || 1;
       ))
     }
   </div>
+  <p class="go-card-fan__hint">Swipe to browse</p>
 </div>
+
+<script>
+  function stackCardIndex(originalIndex: number, activeIndex: number, n: number): number {
+    const relative = (originalIndex - activeIndex + n) % n;
+    return n - 1 - relative;
+  }
+
+  function initGrandOpeningCardFans() {
+    const touchMedia = window.matchMedia("(hover: none), (max-width: 859px)");
+
+    document.querySelectorAll<HTMLElement>(".go-card-fan").forEach((fan) => {
+      if (fan.dataset.ready === "1") return;
+      fan.dataset.ready = "1";
+
+      const cards = [...fan.querySelectorAll<HTMLElement>(".go-card-fan__card")];
+      const n = cards.length;
+      if (n <= 1) return;
+
+      let active = 0;
+      let startX = 0;
+      let startY = 0;
+      let tracking = false;
+
+      function applyStack() {
+        cards.forEach((el) => {
+          const orig = Number(el.dataset.cardIndex ?? 0);
+          el.style.setProperty("--card-i", String(stackCardIndex(orig, active, n)));
+        });
+      }
+
+      function onStart(x: number, y: number) {
+        startX = x;
+        startY = y;
+        tracking = true;
+      }
+
+      function onEnd(x: number, y: number) {
+        if (!tracking) return;
+        tracking = false;
+
+        const dx = x - startX;
+        const dy = y - startY;
+        if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+
+        if (dx < 0) active = (active + 1) % n;
+        else active = (active - 1 + n) % n;
+        applyStack();
+      }
+
+      function enableTouchMode() {
+        fan.classList.add("go-card-fan--touch");
+        fan.removeAttribute("aria-hidden");
+        fan.setAttribute("role", "group");
+        fan.setAttribute("aria-label", "Example websites — swipe to browse");
+      }
+
+      function disableTouchMode() {
+        fan.classList.remove("go-card-fan--touch");
+        fan.setAttribute("aria-hidden", "true");
+        fan.removeAttribute("role");
+        fan.removeAttribute("aria-label");
+      }
+
+      fan.addEventListener(
+        "touchstart",
+        (e) => {
+          if (!touchMedia.matches) return;
+          const touch = e.changedTouches[0];
+          if (touch) onStart(touch.clientX, touch.clientY);
+        },
+        { passive: true },
+      );
+
+      fan.addEventListener(
+        "touchend",
+        (e) => {
+          if (!touchMedia.matches) return;
+          const touch = e.changedTouches[0];
+          if (touch) onEnd(touch.clientX, touch.clientY);
+        },
+        { passive: true },
+      );
+
+      fan.addEventListener("pointerdown", (e) => {
+        if (!touchMedia.matches || e.pointerType === "mouse") return;
+        onStart(e.clientX, e.clientY);
+      });
+
+      fan.addEventListener("pointerup", (e) => {
+        if (!touchMedia.matches || e.pointerType === "mouse") return;
+        onEnd(e.clientX, e.clientY);
+      });
+
+      const syncTouchMode = () => {
+        if (touchMedia.matches) enableTouchMode();
+        else disableTouchMode();
+      };
+
+      syncTouchMode();
+      touchMedia.addEventListener("change", syncTouchMode);
+    });
+  }
+
+  initGrandOpeningCardFans();
+  document.addEventListener("astro:page-load", initGrandOpeningCardFans);
+</script>
 
 <style>
   .go-card-fan {
@@ -83,6 +198,7 @@ const fanCount = cards.length || 1;
     position: relative;
     width: min(100%, 340px);
     aspect-ratio: 475 / 1024;
+    touch-action: pan-y;
   }
 
   .go-card-fan__card {
@@ -145,5 +261,27 @@ const fanCount = cards.length || 1;
     .go-card-fan__stack {
       width: min(100%, 280px);
     }
+  }
+
+  .go-card-fan__hint {
+    display: none;
+    margin: 14px 0 0;
+    font-family: var(--font-content);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    text-align: center;
+    color: var(--site-fg-faint, #a3a3a3);
+  }
+
+  .go-card-fan--touch .go-card-fan__hint {
+    display: block;
+  }
+
+  .go-card-fan--touch .go-card-fan__card {
+    cursor: grab;
+  }
+
+  .go-card-fan--touch .go-card-fan__card:active {
+    cursor: grabbing;
   }
 </style>
