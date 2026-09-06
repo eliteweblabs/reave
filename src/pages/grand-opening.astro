@@ -21,7 +21,7 @@ const brandName = company.name || "reave.app";
     <section class="go-hero" aria-labelledby="go-title">
       <div class="go-hero__inner">
         <div class="go-hero__copy">
-          <p class="marketing-label">Grand opening</p>
+          <p class="go-hero__pill">Grand opening · limited time only</p>
           <h1 id="go-title" class="go-hero__title">
             Free website design.<br />One year of hosting included.
           </h1>
@@ -137,6 +137,25 @@ const brandName = company.name || "reave.app";
 
   .go-hero__copy {
     max-width: 560px;
+  }
+
+  .go-hero__pill {
+    display: inline-block;
+    margin: 0 0 14px;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-family: var(--font-secondary);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
+    white-space: nowrap;
+    color: #fff;
+    background: linear-gradient(135deg, #171717 0%, #404040 100%);
+    box-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.18),
+      0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   }
 
   .go-hero__title {

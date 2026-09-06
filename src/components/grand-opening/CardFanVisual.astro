@@ -45,7 +45,6 @@ const fanCount = cards.length || 1;
 ---
 
 <div class="go-card-fan" aria-hidden="true">
-  <div class="go-card-fan__badge">Grand opening · limited time only</div>
   <div class="go-card-fan__stack">
     {
       cards.map((card) => (
@@ -78,29 +77,6 @@ const fanCount = cards.length || 1;
     display: flex;
     align-items: flex-start;
     justify-content: center;
-  }
-
-  .go-card-fan__badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 20;
-    max-width: 11rem;
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    font-family: var(--font-secondary);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    line-height: 1.35;
-    text-align: center;
-    color: #fff;
-    background: linear-gradient(135deg, #171717 0%, #404040 100%);
-    box-shadow:
-      0 4px 14px rgba(0, 0, 0, 0.18),
-      0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-    transform: rotate(6deg);
   }
 
   .go-card-fan__stack {
@@ -168,12 +144,6 @@ const fanCount = cards.length || 1;
 
     .go-card-fan__stack {
       width: min(100%, 260px);
-    }
-
-    .go-card-fan__badge {
-      top: -4px;
-      right: -4px;
-      font-size: 0.62rem;
     }
   }
 </style>
