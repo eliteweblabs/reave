@@ -687,6 +687,7 @@ const rootClass = [
   let currentFieldIndex = 0;
   let formData = {};
   let formDef = null;
+  let formBlocked = false;
   let availabilityDays = [];
   let typewriterInProgress = false;
   let urlPrefill = {};
@@ -998,8 +999,31 @@ const rootClass = [
     if (inputArea()) inputArea().style.display = visible ? "flex" : "none";
   }
 
-  async function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  async function showBlocked(field) {
+    formBlocked = true;
+    setInputVisible(false);
+    root()?.querySelector("#current-options")?.remove();
+    root()?.querySelector("#current-options-row")?.remove();
+    const message =
+      field["cf-block-message"] ||
+      "Thanks for your interest — this offer may not be the right fit.";
+    await showMessages(message);
+  }
+
+  function optionTriggersBlock(field, value) {
+    const blockValue = field["cf-block-value"];
+    return blockValue !== undefined && blockValue !== null && String(value) === String(blockValue);
+  }
+
+  function handleOptionPick(field, value, label) {
+    appendMessage(label, "user");
+    formData[field.name] = value;
+    currentFieldIndex++;
+    if (optionTriggersBlock(field, value)) {
+      setTimeout(() => void showBlocked(field), 500);
+      return;
+    }
+    setTimeout(showQuestion, 500);
   }
 
   async function showMessages(text) {
@@ -1106,10 +1130,7 @@ const rootClass = [
       } else {
         setInputVisible(false);
         showOptionButtons(field.options, (value, label) => {
-          appendMessage(label, "user");
-          formData[field.name] = value;
-          currentFieldIndex++;
-          setTimeout(showQuestion, 500);
+          handleOptionPick(field, value, label);
         });
       }
     } else if (field.type === "sms_consent") {
@@ -1247,6 +1268,14 @@ const rootClass = [
     formData.domain = domain || value.trim();
 
     if (!domain) {
+      if (formData.has_website === "yes") {
+        await showMessages(
+          "Please paste your domain (e.g. example.com) — this offer is for an existing website.",
+        );
+        setInputVisible(true);
+        if (userInput()) userInput().focus({ preventScroll: true });
+        return;
+      }
       await showMessages(
         "No problem — we'll help you pick a domain if you need one.&&Let's keep going.",
       );
@@ -1350,6 +1379,7 @@ const rootClass = [
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (formBlocked) return;
     const value = userInput()?.value.trim();
     if (!value) return;
 

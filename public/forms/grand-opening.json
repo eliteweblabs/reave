@@ -3,15 +3,31 @@
   "description": "Apply for free website design when you purchase one year of managed hosting.",
   "fields": [
     {
+      "name": "has_website",
+      "type": "select",
+      "required": true,
+      "cf-questions": "Grand opening — free website design when you purchase one year of hosting ($500/year or $50/month). Subject to approval.&&Do you already have a website?",
+      "options": [
+        { "value": "yes", "label": "Yes — I have a website" },
+        { "value": "no", "label": "No — not yet" }
+      ],
+      "cf-block-value": "no",
+      "cf-block-message": "This offer is for redesigning an existing website onto our hosting. If you don't have a site yet, that's a blocker for this promo — reach out through our contact page and we'll help when you're ready."
+    },
+    {
       "name": "website",
       "type": "domain_lookup",
       "required": true,
-      "cf-questions": "Grand opening — free website design when you purchase one year of hosting ($500/year or $50/month). Subject to approval.&&What's your current website? Paste the domain (e.g. example.com)."
+      "cf-show-if": "has_website",
+      "cf-show-if-value": "yes",
+      "cf-questions": "What's your current website? Paste the domain (e.g. example.com)."
     },
     {
       "name": "registrar_access",
       "type": "select",
       "required": true,
+      "cf-show-if": "has_website",
+      "cf-show-if-value": "yes",
       "cf-questions": "Do you have the login and password for your {{registrar}} account? The faster we get access, the faster we launch.",
       "options": [
         { "value": "yes", "label": "Yes — I have login & password" },
