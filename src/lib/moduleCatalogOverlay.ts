@@ -37,6 +37,11 @@ export function catalogSaleSheet(feature: string, fallback: boolean): boolean {
   return row ? row.saleSheet : fallback;
 }
 
+export function catalogGrandOpening(feature: string, fallback: boolean): boolean {
+  const row = peekCatalogRow(feature);
+  return row ? row.grandOpening : fallback;
+}
+
 export function catalogAudience(
   feature: string,
   fallback: import('./moduleAudience').ModuleAudience = 'both',

@@ -200,6 +200,7 @@ export function normalizeCatalogRows(raw: unknown): CatalogRow[] {
       priceAmount,
       priceLabel,
       saleSheet: o.saleSheet === true,
+      grandOpening: o.grandOpening === true,
       visibility,
       audience: normalizeModuleAudience(
         o.audience,

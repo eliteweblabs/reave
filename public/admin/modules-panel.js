@@ -136,6 +136,7 @@ function newCustomRow(group) {
     priceAmount: null,
     priceLabel: group === 'core' ? 'Included' : group === 'internal' ? 'Internal' : '$200',
     saleSheet: group !== 'internal',
+    grandOpening: false,
     visibility:
       group === 'internal'
         ? 'private'
@@ -167,6 +168,7 @@ function mergeItems(catalog, deploy) {
         blurb: row.blurb || '',
         priceLabel: row.priceLabel || '',
         saleSheet: row.saleSheet === true,
+        grandOpening: row.grandOpening === true,
         visibility: row.visibility || 'public',
         audience: row.audience === 'owner' || row.audience === 'staff' ? row.audience : 'both',
         requires: Array.isArray(row.requires) ? row.requires : [],
@@ -189,6 +191,7 @@ function mergeItems(catalog, deploy) {
       blurb: '',
       priceLabel: m.price?.label || '',
       saleSheet: m.saleSheet === true,
+      grandOpening: m.grandOpening === true,
       visibility: m.visibility || 'public',
       audience: m.audience === 'owner' || m.audience === 'staff' ? m.audience : 'both',
       requires: Array.isArray(m.requires) ? m.requires : [],
@@ -474,6 +477,8 @@ function readDetailIntoCatalog() {
   if (groupEl?.value && GROUP_META[groupEl.value]) row.group = groupEl.value;
   const sheet = pane.querySelector('[data-field="sheet"]');
   if (sheet) row.saleSheet = sheet.getAttribute('aria-checked') === 'true';
+  const opening = pane.querySelector('[data-field="grand-opening"]');
+  if (opening) row.grandOpening = opening.getAttribute('aria-checked') === 'true';
   const audienceEl = pane.querySelector('[data-field="audience"]');
   if (audienceEl?.value === 'owner' || audienceEl?.value === 'staff' || audienceEl?.value === 'both') {
     row.audience = audienceEl.value;
@@ -653,6 +658,12 @@ function renderDetailPane() {
       `aria-checked="${item.saleSheet ? 'true' : 'false'}" aria-label="Show on sale sheet"></button>` +
       `<span class="mod-sheet-hint">Show this module on the public sale sheet.</span>` +
       `</div>` +
+      `<div class="re-toggle-row mod-sheet-row">` +
+      `<span class="de-label">Grand opening</span>` +
+      `<button type="button" class="prof-plugin-toggle" role="switch" data-field="grand-opening" ` +
+      `aria-checked="${item.grandOpening ? 'true' : 'false'}" aria-label="Show on grand opening page"></button>` +
+      `<span class="mod-sheet-hint">Show as an add-on toggle on /grand-opening.</span>` +
+      `</div>` +
       `<label class="de-label">Staff access` +
       `<select data-field="audience" class="de-input">` +
       `<option value="both"${item.audience !== 'owner' && item.audience !== 'staff' ? ' selected' : ''}>Owner + staff</option>` +
@@ -717,7 +728,7 @@ function bindDetailEvents(pane) {
     dirty = true;
     scheduleSave();
   });
-  pane.querySelector('.mod-sheet-row')?.addEventListener('click', () => {
+  pane.querySelector('.mod-sheet-row [data-field="sheet"]')?.closest('.mod-sheet-row')?.addEventListener('click', () => {
     const btn = pane.querySelector('[data-field="sheet"]');
     if (!btn) return;
     setToggleSwitch(btn, btn.getAttribute('aria-checked') !== 'true');
@@ -727,6 +738,19 @@ function bindDetailEvents(pane) {
       const row = catalogRows.find((r) => r.key === item.catalogKey);
       if (row) row.saleSheet = item.saleSheet;
       syncSaleSheetBadge(item);
+    }
+    dirty = true;
+    scheduleSave();
+  });
+  pane.querySelector('[data-field="grand-opening"]')?.closest('.mod-sheet-row')?.addEventListener('click', () => {
+    const btn = pane.querySelector('[data-field="grand-opening"]');
+    if (!btn) return;
+    setToggleSwitch(btn, btn.getAttribute('aria-checked') !== 'true');
+    const item = findItem(activeKey);
+    if (item) {
+      item.grandOpening = btn.getAttribute('aria-checked') === 'true';
+      const row = catalogRows.find((r) => r.key === item.catalogKey);
+      if (row) row.grandOpening = item.grandOpening;
     }
     dirty = true;
     scheduleSave();

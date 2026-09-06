@@ -4,13 +4,16 @@ import BrandBtn from "../components/ui/BrandBtn.astro";
 import ConversationalForm from "../components/ConversationalForm.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { ArrowRight, Check, PenLine, ShieldCheck } from "lucide-astro";
+import { loadGrandOpeningModules } from "../lib/grandOpeningCatalog";
+import { ArrowRight, Check, Database, Layers, PenLine, Server, ShieldCheck } from "lucide-astro";
 import "../styles/marketing-sections.css";
 
 export const prerender = false;
 
 const company = await getCompanyConfig(Astro.request);
 const brandName = company.name || "reave.app";
+const grandOpeningAddons = await loadGrandOpeningModules();
+const addonsJson = JSON.stringify(grandOpeningAddons);
 ---
 
 <Layout
@@ -91,6 +94,76 @@ const brandName = company.name || "reave.app";
       </div>
     </section>
 
+    <section class="go-platform" aria-labelledby="go-platform-title">
+      <div class="go-platform__inner">
+        <p class="marketing-label">Real infrastructure</p>
+        <h2 id="go-platform-title" class="go-platform__title">
+          Not a Squarespace template. A platform you can grow into.
+        </h2>
+        <p class="go-platform__lead">
+          Your site is a real product — custom-built, hosted on <strong>Railway™</strong> with
+          <strong>PostgreSQL</strong>, and wired into a modular operating system. Start with design
+          and hosting; add content tools, client login, scheduling, and the rest when you're ready.
+        </p>
+        <ul class="go-platform__stack">
+          <li>
+            <Server size={20} strokeWidth={1.75} aria-hidden="true" />
+            <div>
+              <strong>Railway™ hosting</strong>
+              <span>Production-grade deploys — not shared drag-and-drop hosting.</span>
+            </div>
+          </li>
+          <li>
+            <Database size={20} strokeWidth={1.75} aria-hidden="true" />
+            <div>
+              <strong>PostgreSQL database</strong>
+              <span>Structured data from day one — contacts, content, and workflows in one place.</span>
+            </div>
+          </li>
+          <li>
+            <Layers size={20} strokeWidth={1.75} aria-hidden="true" />
+            <div>
+              <strong>Modular &amp; extendable</strong>
+              <span>Turn on CMS, client portals, billing, and more as add-ons — same stack we use in production.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="go-addons" id="addons" aria-labelledby="go-addons-title">
+      <div class="go-addons__inner">
+        <h2 id="go-addons-title" class="go-addons__title">Start lean. Add what you need.</h2>
+        <p class="go-addons__lead">
+          The grand opening covers custom design and Core OS hosting (<strong>$500/year</strong>).
+          Content management and client login are optional add-ons — toggle what you're interested in
+          and we'll quote the rest.
+        </p>
+
+        <div class="go-included">
+          <h3 class="go-included__heading">Included in the offer</h3>
+          <ul class="go-included__list">
+            <li>
+              <Check size={16} strokeWidth={2} aria-hidden="true" />
+              <span><strong>Custom website design</strong> — free for grand opening applicants</span>
+            </li>
+            <li>
+              <Check size={16} strokeWidth={2} aria-hidden="true" />
+              <span><strong>Core OS hosting</strong> — one year managed hosting ($500 or $50/mo)</span>
+            </li>
+            <li>
+              <Check size={16} strokeWidth={2} aria-hidden="true" />
+              <span><strong>Unlimited edits</strong> — copy, photos, and layout updates your first year</span>
+            </li>
+          </ul>
+        </div>
+
+        <h3 class="go-addons__subhead">Optional add-ons</h3>
+        <div id="go-addons-root" class="go-addons-app" data-addons={addonsJson}></div>
+        <input type="hidden" name="selected_addons" id="go-selected-addons" data-cf-extra-field value="" />
+      </div>
+    </section>
+
     <section id="apply" class="go-apply" aria-labelledby="go-apply-title">
       <div class="go-apply__inner">
         <header class="go-apply__header">
@@ -109,6 +182,8 @@ const brandName = company.name || "reave.app";
     </section>
   </div>
 </Layout>
+
+<script src="/grand-opening-addons.js" defer></script>
 
 <style>
   .go-page {
@@ -300,6 +375,256 @@ const brandName = company.name || "reave.app";
   .go-detail-card p strong {
     color: var(--site-fg, #171717);
     font-weight: 600;
+  }
+
+  .go-platform {
+    padding: clamp(2rem, 4vw, 3rem) 0;
+  }
+
+  .go-platform__inner,
+  .go-addons__inner {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  .go-platform__title,
+  .go-addons__title {
+    margin: 0 0 14px;
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-align: center;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-platform__lead,
+  .go-addons__lead {
+    margin: 0 auto 28px;
+    max-width: 680px;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.65;
+    text-align: center;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-platform__lead strong,
+  .go-addons__lead strong {
+    color: var(--site-fg, #171717);
+    font-weight: 600;
+  }
+
+  .go-platform__stack {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 14px;
+  }
+
+  @media (min-width: 720px) {
+    .go-platform__stack {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+  }
+
+  .go-platform__stack li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 18px 16px;
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: transparent;
+  }
+
+  .go-platform__stack li :global(svg) {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-platform__stack strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-platform__stack span {
+    display: block;
+    font-family: var(--font-content);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-addons {
+    padding: clamp(2rem, 4vw, 3rem) 0;
+    scroll-margin-top: calc(var(--app-header-offset, 4rem) + 12px);
+  }
+
+  .go-included {
+    margin-bottom: 28px;
+    padding: 20px 18px;
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: rgba(23, 23, 23, 0.02);
+  }
+
+  .go-included__heading,
+  .go-addons__subhead {
+    margin: 0 0 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-included__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .go-included__list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-family: var(--font-content);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-included__list li :global(svg) {
+    flex-shrink: 0;
+    margin-top: 3px;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-included__list strong {
+    color: var(--site-fg, #171717);
+    font-weight: 600;
+  }
+
+  .go-addons-app :global(.go-addons-grid) {
+    display: grid;
+    gap: 12px;
+  }
+
+  @media (min-width: 640px) {
+    .go-addons-app :global(.go-addons-grid) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 960px) {
+    .go-addons-app :global(.go-addons-grid) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .go-addons-app :global(.go-addon-tile) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 14px;
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: transparent;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .go-addons-app :global(.go-addon-tile--on) {
+    border-color: var(--site-fg, #171717);
+    box-shadow: 0 0 0 1px var(--site-fg, #171717);
+  }
+
+  .go-addons-app :global(.go-addon-tile__head) {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .go-addons-app :global(.go-addon-tile__label) {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--site-fg, #171717);
+  }
+
+  .go-addons-app :global(.go-addon-tile__blurb) {
+    margin: 0;
+    flex: 1;
+    font-family: var(--font-content);
+    font-size: 0.84rem;
+    line-height: 1.55;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .go-addons-app :global(.go-addon-tile__price) {
+    font-family: var(--font-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--site-fg-muted, #737373);
+  }
+
+  .go-addons-app :global(.go-addon-switch) {
+    flex-shrink: 0;
+    width: 44px;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: rgba(23, 23, 23, 0.14);
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s ease;
+  }
+
+  .go-addons-app :global(.go-addon-switch::after) {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    transition: transform 0.15s ease;
+  }
+
+  .go-addons-app :global(.go-addon-switch[aria-checked="true"]) {
+    background: var(--site-fg, #171717);
+  }
+
+  .go-addons-app :global(.go-addon-switch[aria-checked="true"]::after) {
+    transform: translateX(18px);
+  }
+
+  .go-addons-app :global(.go-addon-switch:focus-visible) {
+    outline: 2px solid var(--site-fg, #171717);
+    outline-offset: 2px;
+  }
+
+  .go-addons-app :global(.go-addons-empty) {
+    margin: 0;
+    text-align: center;
+    font-family: var(--font-content);
+    font-size: 0.92rem;
+    color: var(--site-fg-muted, #525252);
   }
 
   .go-apply {

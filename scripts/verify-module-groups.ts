@@ -12,6 +12,8 @@ import {
   FEATURE_REQUIRES,
   expandFeatureRequirements,
   FEATURE_SALE_SHEET,
+  FEATURE_GRAND_OPENING,
+  isGrandOpeningCatalogFeature,
   isDeployableFeature,
   isHostingFeature,
   isPublicFeature,
@@ -188,7 +190,17 @@ for (const id of FEATURE_SALE_SHEET) {
   assert.ok(FEATURE_IDS.includes(id), `unknown sale-sheet feature ${id}`);
 }
 
+for (const id of FEATURE_GRAND_OPENING) {
+  assert.ok(FEATURE_IDS.includes(id), `unknown grand-opening feature ${id}`);
+}
+
 const catalog = defaultModuleCatalog();
+assert.equal(catalog.find((row) => row.feature === 'website')?.grandOpening, true);
+assert.equal(catalog.find((row) => row.feature === 'client_portal')?.grandOpening, true);
+assert.equal(catalog.find((row) => row.feature === 'hosting_core_os')?.grandOpening, false);
+assert.ok(!FEATURE_GRAND_OPENING.has('client_portal'));
+assert.ok(isGrandOpeningCatalogFeature('client_portal', 'core'));
+assert.ok(!isGrandOpeningCatalogFeature('hosting_core_os', 'module'));
 assert.deepEqual(catalog.find((row) => row.feature === 'digital_signature')?.requires, ['documents']);
 assert.ok(catalog.find((row) => row.feature === 'dscr_calculator')?.industries?.includes('real-estate-agents'));
 assert.ok(catalog.find((row) => row.feature === 'billing')?.industries?.includes('hair-stylists'));

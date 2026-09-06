@@ -1198,6 +1198,9 @@ const rootClass = [
 
   function buildSubmitPayload() {
     const payload = { ...formData };
+    root()?.querySelectorAll("[data-cf-extra-field]").forEach((el) => {
+      if (el.name) payload[el.name] = el.value ?? "";
+    });
     payload.subject =
       formDef.submitSubject ||
       (formDef.title ? `New ${formDef.title} submission` : "New form submission");
@@ -1206,6 +1209,9 @@ const rootClass = [
         .filter((field) => fieldShouldShow(field))
         .map((field) => `${field.name}: ${formData[field.name] || ""}`)
         .join("\n");
+    }
+    if (payload.selected_addons) {
+      payload.message = `${payload.message || ""}\n\nInterested add-ons: ${payload.selected_addons}`.trim();
     }
     return payload;
   }
