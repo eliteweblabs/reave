@@ -100,7 +100,6 @@ const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 const isLandingOg = Boolean(siteLandingOgImage(siteContent));
 const ogImageAlt = shareSafeText(siteContent.landing?.name ?? company.name);
 const fullBleed = fullBleedProp ?? isIndexPage;
-const pageGrandOpening = pathNorm === "/grand-opening";
 const marketingNav = isMarketingPagePath(Astro.url.pathname, siteContent);
 const showLegalLinks = isIndexPage ? siteContent.homepage.showLegalLinks !== false : true;
 /** Middleware serves without auth hydration when Clerk keys are absent. */
@@ -118,7 +117,6 @@ try {
 		class:list={[
 			marketingNav && "site-marketing",
 			!fullBleed && "site-page",
-			pageGrandOpening && "page-grand-opening",
 		]}
 		style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
 	>
