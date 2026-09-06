@@ -20,6 +20,10 @@ const HERO_CARDS: FanCard[] = [
     image: "/grand-opening/levines-law-mobile.png",
     alt: "LevinesLaw.com mobile website",
   },
+  {
+    image: "/grand-opening/luxe-meds-mobile.png",
+    alt: "LUXEMEDS mobile website",
+  },
 ];
 
 const WEB_TAGS = /web development|wordpress|managed hosting|e-commerce/i;
@@ -30,7 +34,7 @@ const portfolioCards: FanCard[] = (getSiteContent().portfolio ?? [])
     (item) =>
       item.image &&
       (item.featured || item.tags.some((t) => WEB_TAGS.test(t))) &&
-      !/barber|levine/i.test(item.title),
+      !/barber|levine|luxe/i.test(item.title),
   )
   .slice(0, 4)
   .map((item) => ({
