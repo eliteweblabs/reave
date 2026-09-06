@@ -173,11 +173,11 @@ const addonsJson = JSON.stringify(grandOpeningAddons);
 <style>
   .go-page {
     padding: 0 var(--site-page-gutter, 20px) calc(80px + env(safe-area-inset-bottom, 0px));
+    overflow-x: clip;
   }
 
   .go-hero {
     padding: clamp(2rem, 6vw, 4rem) 0 clamp(2.5rem, 5vw, 3.5rem);
-    overflow: visible;
   }
 
   .go-hero__inner {
@@ -272,7 +272,8 @@ const addonsJson = JSON.stringify(grandOpeningAddons);
   .go-hero__visual {
     display: flex;
     justify-content: center;
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   .go-details {

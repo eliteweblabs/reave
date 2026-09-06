@@ -51,7 +51,8 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 ---
 
 <div class="go-card-fan" data-card-count={fanCount}>
-  <div class="go-card-fan__stack">
+  <div class="go-card-fan__stage">
+    <div class="go-card-fan__stack">
     {
       cards[0] && (
         <img
@@ -79,6 +80,7 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
         </figure>
       ))
     }
+  </div>
   </div>
   <p class="go-card-fan__hint">Swipe to browse</p>
 </div>
@@ -195,15 +197,21 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     width: 100%;
     max-width: 420px;
     margin: 0 auto;
-    overflow: visible;
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .go-card-fan__stage {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .go-card-fan__stack {
     position: relative;
     width: min(100%, 340px);
+    margin-inline: auto;
     touch-action: pan-y;
   }
 
@@ -229,7 +237,7 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
       0 12px 32px rgba(0, 0, 0, 0.12),
       0 0 0 1px rgba(0, 0, 0, 0.06);
     transform-origin: 50% 115%;
-    transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 7deg))
+    transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 5deg))
       translateY(calc(var(--card-i) * -4px))
       scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.018));
     transition:
@@ -246,7 +254,7 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 
   @media (hover: hover) and (pointer: fine) {
     .go-card-fan:hover .go-card-fan__card {
-      transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 11deg))
+      transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 8deg))
         translateY(calc(var(--card-i) * -10px - 6px))
         scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.012));
     }
