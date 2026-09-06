@@ -28,6 +28,10 @@ const HERO_CARDS: FanCard[] = [
     image: "/grand-opening/mdot-world-mobile.png",
     alt: "MDOT.world mobile website",
   },
+  {
+    image: "/grand-opening/tony-barletta-mobile.jpg",
+    alt: "Tony Barletta Jr. mobile website",
+  },
 ];
 
 const WEB_TAGS = /web development|wordpress|managed hosting|e-commerce/i;
@@ -38,7 +42,7 @@ const portfolioCards: FanCard[] = (getSiteContent().portfolio ?? [])
     (item) =>
       item.image &&
       (item.featured || item.tags.some((t) => WEB_TAGS.test(t))) &&
-      !/barber|levine|luxe|mdot/i.test(item.title),
+      !/barber|levine|luxe|mdot|barletta|tony/i.test(item.title),
   )
   .slice(0, 4)
   .map((item) => ({
