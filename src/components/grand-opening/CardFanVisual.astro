@@ -254,13 +254,31 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 
   @media (max-width: 859px) {
     .go-card-fan {
-      max-width: 320px;
+      max-width: none;
+      width: 100%;
       margin-top: 8px;
     }
 
     .go-card-fan__stack {
-      width: min(100%, 280px);
+      width: min(108vw, 400px);
+      max-width: none;
     }
+
+    .go-card-fan__card {
+      transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 11deg))
+        translateY(calc(var(--card-i) * -5px))
+        scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.014));
+    }
+  }
+
+  .go-card-fan--touch .go-card-fan__stack {
+    width: min(112vw, 420px);
+  }
+
+  .go-card-fan--touch .go-card-fan__card {
+    transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 13deg))
+      translateY(calc(var(--card-i) * -6px))
+      scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.012));
   }
 
   .go-card-fan__hint {
