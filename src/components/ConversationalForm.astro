@@ -132,9 +132,15 @@ const rootClass = [
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
     padding-bottom: 0.5rem;
     scrollbar-width: none;
+  }
+
+  .conversational-form-root #questions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
   }
 
   .conversational-form-root .conversation-scroll::-webkit-scrollbar {
@@ -482,7 +488,11 @@ const rootClass = [
   }
 
   .conversational-form-root--hero-chat .conversation-scroll {
-    gap: 18px;
+    gap: 0;
+  }
+
+  .conversational-form-root--hero-chat #questions-container {
+    gap: 16px;
   }
 
   .conversational-form-root--hero-chat .cf-msg {
@@ -1343,5 +1353,34 @@ const rootClass = [
   root()?.querySelector("#retry-btn")?.addEventListener("click", () => {
     window.location.reload();
   });
-  loadForm();
+
+  function startFormWhenVisible() {
+    const el = root();
+    if (!el) return;
+
+    if (!IS_EMBEDDED && !IS_DOCK) {
+      loadForm();
+      return;
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
+      loadForm();
+      return;
+    }
+
+    let started = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (started) return;
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        started = true;
+        observer.disconnect();
+        loadForm();
+      },
+      { root: null, rootMargin: "0px 0px -5% 0px", threshold: 0.15 },
+    );
+    observer.observe(el);
+  }
+
+  startFormWhenVisible();
 </script>
