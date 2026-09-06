@@ -16,6 +16,7 @@ const brandName = company.name || "reave.app";
 <Layout
   title="Grand Opening — Free Website Design"
   description={`${brandName} grand opening offer: free custom website design with one year of managed hosting ($500). Unlimited edits, subject to approval.`}
+  showSiteAssistant={false}
 >
   <div class="go-page">
     <section class="go-hero" aria-labelledby="go-title">
@@ -338,5 +339,13 @@ const brandName = company.name || "reave.app";
     line-height: 1.55;
     text-align: center;
     color: var(--site-fg-faint, #a3a3a3);
+  }
+
+  .go-apply :global(.conversational-form-root--embedded .input-area) {
+    justify-content: center;
+  }
+
+  .go-apply :global(.conversational-form-root--embedded .input-pill) {
+    width: min(100%, 420px);
   }
 </style>

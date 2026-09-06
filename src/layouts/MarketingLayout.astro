@@ -11,15 +11,21 @@ import { getCompanyConfig } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
 import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 
-export type Props = LayoutProps;
+export type Props = LayoutProps & {
+  /** Set false to hide the floating site assistant on this page. */
+  showSiteAssistant?: boolean;
+};
 
 const props = Astro.props;
+const { showSiteAssistant: showSiteAssistantProp, ...layoutProps } = props;
 const company = await getCompanyConfig(Astro.request);
 const showSiteAssistant =
-  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+  showSiteAssistantProp !== false &&
+  hasFeature("portal_assistant") &&
+  isSiteAssistantConfigured();
 ---
 
-<Layout {...props}>
+<Layout {...layoutProps}>
   <slot />
   {
     showSiteAssistant && (
