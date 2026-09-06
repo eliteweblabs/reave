@@ -5,7 +5,7 @@
 
 import { getCompanyConfig } from './companyConfig';
 import { companyPublicEmail } from './reavePublicEmail';
-import { recordContactFormEngagement } from './engagementNotifications';
+import { recordContactFormEngagement, recordVaultSubmitEngagement } from './engagementNotifications';
 import { buildNewProjectAckEmail } from './emailScheduling';
 import { hasFeature } from './features';
 import { scheduleFormUrl } from './inboundEmailReply';
@@ -13,8 +13,15 @@ import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from '
 import { smsOptInConfirmationMessage } from './smsConsent';
 import { siteBaseUrl } from './requestOrigin';
 import { parseWorkJobInput } from './workJobInput';
-import { updateContact } from './contactApi';
+import {
+  extractPortal,
+  getContact,
+  setContactPortal,
+  updateContact,
+  type ClientDataEntry,
+} from './contactApi';
 import { escapeHtml } from './htmlEscape';
+import { applyIncomingVaultEntries } from './portalVault';
 import {
   ensureWorkContact,
   isSafeWorkSlug,
@@ -31,6 +38,13 @@ export type ContactFormIntakeInput = {
   smsOptIn?: boolean | null;
   message?: string | null;
   subject?: string | null;
+  /** Bare domain or URL from domain_lookup / website field. */
+  website?: string | null;
+  domain?: string | null;
+  registrar?: string | null;
+  registrarAccess?: string | null;
+  registrarUsername?: string | null;
+  registrarPassword?: string | null;
 };
 
 export type ContactFormIntakeResult = {
@@ -46,6 +60,103 @@ export type ContactFormIntakeResult = {
   noticeCreated: boolean;
   warnings: string[];
 };
+
+const REGISTRAR_ACCESS_LABELS: Record<string, string> = {
+  yes: 'Yes — has login & password',
+  unsure: 'Not sure where to find it',
+  no: 'No — needs help',
+};
+
+function normalizeFormWebsite(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const bare = trimmed.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0] ?? '';
+  if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(bare)) return `https://${bare.toLowerCase()}`;
+  return trimmed;
+}
+
+function buildFormIntakeVaultEntries(input: {
+  registrar?: string;
+  registrarAccess?: string;
+  registrarUsername?: string;
+  registrarPassword?: string;
+}): ClientDataEntry[] {
+  const entries: ClientDataEntry[] = [];
+  const registrar = String(input.registrar || '').trim();
+  if (registrar) {
+    entries.push({ id: 'form-intake-registrar', label: 'Registrar', value: registrar });
+  }
+
+  const access = String(input.registrarAccess || '').trim();
+  if (access) {
+    entries.push({
+      id: 'form-intake-registrar-access',
+      label: 'Registrar access',
+      value: REGISTRAR_ACCESS_LABELS[access] ?? access,
+    });
+  }
+
+  const username = String(input.registrarUsername || '').trim();
+  const password = String(input.registrarPassword || '').trim();
+  if (username || password) {
+    entries.push({
+      id: 'form-intake-registrar-login',
+      label: registrar ? `${registrar} login` : 'Registrar login',
+      ...(username ? { username } : {}),
+      ...(password ? { password } : {}),
+    });
+  }
+
+  return entries;
+}
+
+async function applyContactFormPortalAssets(
+  uid: string,
+  contactName: string,
+  input: {
+    website?: string;
+    domain?: string;
+    registrar?: string;
+    registrarAccess?: string;
+    registrarUsername?: string;
+    registrarPassword?: string;
+  },
+): Promise<{ websiteSaved: boolean; vaultSaved: boolean }> {
+  const websiteRaw = String(input.website || input.domain || '').trim();
+  const websiteUrl = websiteRaw ? normalizeFormWebsite(websiteRaw) : null;
+  const vaultEntries = buildFormIntakeVaultEntries(input);
+  if (!websiteUrl && !vaultEntries.length) return { websiteSaved: false, vaultSaved: false };
+
+  const current = await getContact(uid);
+  if (!current.ok) {
+    console.warn('[contactFormIntake] portal load failed:', current.error);
+    return { websiteSaved: false, vaultSaved: false };
+  }
+
+  const portal = extractPortal(current.data) ?? {};
+  const nextPortal = { ...portal, updatedAt: new Date().toISOString() };
+  if (websiteUrl) nextPortal.website = websiteUrl;
+  if (vaultEntries.length) {
+    nextPortal.data = applyIncomingVaultEntries(portal.data, vaultEntries);
+  }
+
+  const saved = await setContactPortal(uid, nextPortal);
+  if (!saved.ok) {
+    console.warn('[contactFormIntake] portal save failed:', saved.error);
+    return { websiteSaved: false, vaultSaved: false };
+  }
+
+  if (vaultEntries.length) {
+    void recordVaultSubmitEngagement({
+      contactUid: uid,
+      contactName,
+      labels: vaultEntries.map((entry) => entry.label),
+    });
+  }
+
+  return { websiteSaved: Boolean(websiteUrl), vaultSaved: vaultEntries.length > 0 };
+}
 
 function phoneToE164(raw: string): string {
   const digits = raw.replace(/\D/g, '');
@@ -275,6 +386,27 @@ export async function processContactFormIntake(
       contactCreated = contact.created;
 
       await applyContactFormDetails(contact.uid, { company, phone });
+
+      const portalAssets = await applyContactFormPortalAssets(contact.uid, contact.name, {
+        website: String(input.website || '').trim(),
+        domain: String(input.domain || '').trim(),
+        registrar: String(input.registrar || '').trim(),
+        registrarAccess: String(input.registrarAccess || '').trim(),
+        registrarUsername: String(input.registrarUsername || '').trim(),
+        registrarPassword: String(input.registrarPassword || '').trim(),
+      });
+      if ((input.website || input.domain) && !portalAssets.websiteSaved) {
+        warnings.push('portal_website_failed');
+      }
+      if (
+        (input.registrar ||
+          input.registrarAccess ||
+          input.registrarUsername ||
+          input.registrarPassword) &&
+        !portalAssets.vaultSaved
+      ) {
+        warnings.push('portal_vault_failed');
+      }
 
       const title = projectTitle(contact.name);
       let slug = slugFromTitle(title);

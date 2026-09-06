@@ -12,6 +12,9 @@ const MAX_COMPANY_CHARS = 200;
 const MAX_PHONE_CHARS = 40;
 const MAX_SUBJECT_CHARS = 200;
 const MAX_MESSAGE_CHARS = 10_000;
+const MAX_WEBSITE_CHARS = 400;
+const MAX_REGISTRAR_CHARS = 120;
+const MAX_REGISTRAR_FIELD_CHARS = 200;
 
 function trimField(value: unknown, max: number): string {
   return String(value ?? '').trim().slice(0, max);
@@ -57,6 +60,12 @@ export const POST: APIRoute = async ({ request }) => {
           : null;
     const message = trimField(formData.message, MAX_MESSAGE_CHARS);
     const subject = trimField(formData.subject || 'New form submission', MAX_SUBJECT_CHARS);
+    const website = trimField(formData.website || formData.domain || formData.url, MAX_WEBSITE_CHARS);
+    const domain = trimField(formData.domain, MAX_WEBSITE_CHARS);
+    const registrar = trimField(formData.registrar, MAX_REGISTRAR_CHARS);
+    const registrarAccess = trimField(formData.registrar_access, 40);
+    const registrarUsername = trimField(formData.registrar_username, MAX_REGISTRAR_FIELD_CHARS);
+    const registrarPassword = trimField(formData.registrar_password, MAX_REGISTRAR_FIELD_CHARS);
 
     if (!name && !email && !message) {
       return jsonResponse({ success: false, error: 'Empty submission' }, 400);
@@ -74,6 +83,12 @@ export const POST: APIRoute = async ({ request }) => {
       smsOptIn,
       message,
       subject,
+      website,
+      domain,
+      registrar,
+      registrarAccess,
+      registrarUsername,
+      registrarPassword,
     });
 
     if (result.warnings.length) {
