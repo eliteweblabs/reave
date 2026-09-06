@@ -1,20 +1,49 @@
 ---
 /**
- * Fanned playing-card stack of portfolio website screenshots.
+ * Fanned playing-card stack of mobile website screenshots.
  */
 import { getSiteContent } from "../../lib/siteContent";
+import { siteMediaSrc } from "../../lib/siteMedia";
+
+type FanCard = {
+  image: string;
+  alt: string;
+  position?: string;
+};
+
+const HERO_CARDS: FanCard[] = [
+  {
+    image: "/grand-opening/barbers-edge-mobile.png",
+    alt: "The Barber's Edge mobile website",
+  },
+  {
+    image: "/grand-opening/levines-law-mobile.png",
+    alt: "LevinesLaw.com mobile website",
+  },
+];
 
 const WEB_TAGS = /web development|wordpress|managed hosting|e-commerce/i;
+const heroImages = new Set(HERO_CARDS.map((c) => c.image));
 
-const cards = (getSiteContent().portfolio ?? [])
-  .filter((item) => item.image && (item.featured || item.tags.some((t) => WEB_TAGS.test(t))))
-  .slice(0, 6)
-  .map((item, i) => ({
-    image: item.image!,
+const portfolioCards: FanCard[] = (getSiteContent().portfolio ?? [])
+  .filter(
+    (item) =>
+      item.image &&
+      (item.featured || item.tags.some((t) => WEB_TAGS.test(t))) &&
+      !/barber|levine/i.test(item.title),
+  )
+  .slice(0, 4)
+  .map((item) => ({
+    image: siteMediaSrc(item.image) || item.image!,
     alt: item.imageAlt || item.title,
     position: item.imagePosition,
-    index: i,
-  }));
+  }))
+  .filter((item) => item.image && !heroImages.has(item.image));
+
+const cards = [...HERO_CARDS, ...portfolioCards].slice(0, 6).map((card, index) => ({
+  ...card,
+  index,
+}));
 
 const fanCount = cards.length || 1;
 ---
@@ -31,9 +60,9 @@ const fanCount = cards.length || 1;
           <img
             src={card.image}
             alt=""
-            width="640"
-            height="400"
-            loading="eager"
+            width="475"
+            height="1024"
+            loading={card.index >= fanCount - 2 ? "eager" : "lazy"}
             decoding="async"
             style={card.position ? `object-position: ${card.position}` : undefined}
           />
