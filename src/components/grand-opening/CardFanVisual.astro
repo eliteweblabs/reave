@@ -209,7 +209,7 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
   .go-card-fan {
     position: relative;
     width: 100%;
-    max-width: 280px;
+    max-width: min(100%, 475px);
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -229,7 +229,7 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 
   .go-card-fan__stack {
     position: relative;
-    width: min(100%, 227px);
+    width: min(100%, 475px);
     margin-inline: auto;
   }
 
@@ -247,20 +247,13 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     left: 0;
     width: 100%;
     margin: 0;
-    border-radius: 14px;
-    overflow: hidden;
-    background: #fff;
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.04),
-      0 12px 32px rgba(0, 0, 0, 0.12),
-      0 0 0 1px rgba(0, 0, 0, 0.06);
+    overflow: visible;
+    background: transparent;
     transform-origin: 50% 115%;
     transform: rotate(calc((var(--card-i) - (var(--card-n) - 1) / 2) * 5deg))
       translateY(calc(var(--card-i) * -4px))
       scale(calc(1 - (var(--card-n) - 1 - var(--card-i)) * 0.018));
-    transition:
-      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.35s ease;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
     z-index: calc(var(--card-i) + 1);
   }
 
@@ -268,6 +261,13 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     display: block;
     width: 100%;
     height: auto;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.04),
+      0 12px 32px rgba(0, 0, 0, 0.12),
+      0 0 0 1px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.35s ease;
   }
 
   .go-card-fan__carousel {
@@ -280,10 +280,10 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
     overflow-x: auto;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline: max(12px, calc(50% - min(38vw, 126px)));
+    scroll-padding-inline: max(16px, calc(50% - min(45vw, 237px)));
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding: 4px max(12px, calc(50% - min(38vw, 126px))) 8px;
+    padding: 4px max(16px, calc(50% - min(45vw, 237px))) 8px;
     touch-action: pan-x;
   }
 
@@ -292,22 +292,24 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
   }
 
   .go-card-fan__slide {
-    flex: 0 0 min(76vw, 252px);
+    flex: 0 0 auto;
     scroll-snap-align: center;
     margin: 0;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .go-card-fan__slide img {
+    display: block;
+    width: auto;
+    max-width: min(90vw, 475px);
+    height: auto;
     border-radius: 14px;
-    overflow: hidden;
     background: #fff;
     box-shadow:
       0 2px 4px rgba(0, 0, 0, 0.04),
       0 12px 32px rgba(0, 0, 0, 0.12),
       0 0 0 1px rgba(0, 0, 0, 0.06);
-  }
-
-  .go-card-fan__slide img {
-    display: block;
-    width: 100%;
-    height: auto;
   }
 
   .go-card-fan__dots {
@@ -348,7 +350,7 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 
   @media (min-width: 860px) {
     .go-card-fan {
-      max-width: 280px;
+      max-width: min(100%, 475px);
       transform: translateY(clamp(-5rem, -14vh, -2rem));
     }
 
@@ -375,6 +377,9 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 
     .go-card-fan__fan:hover .go-card-fan__card:hover {
       z-index: 30;
+    }
+
+    .go-card-fan__fan:hover .go-card-fan__card:hover img {
       box-shadow:
         0 4px 8px rgba(0, 0, 0, 0.08),
         0 20px 48px rgba(0, 0, 0, 0.18),
