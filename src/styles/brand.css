@@ -414,7 +414,7 @@ html.site-marketing[data-theme="dark"] {
  * pricing, compare, demo-loader, header CTAs).
  */
 html.site-marketing[data-theme="dark"] :is(
-  .brand-btn,
+  .brand-btn:not(.brand-btn-glass),
   .marketing-nav-cta,
   [class*="btn--primary"],
   .aw-fab,
@@ -423,6 +423,11 @@ html.site-marketing[data-theme="dark"] :is(
 ) {
   color: var(--brand-on-gradient);
   -webkit-text-fill-color: var(--brand-on-gradient);
+}
+
+html.site-marketing[data-theme="dark"] .brand-btn-glass {
+  color: var(--site-fg, #e5e5e5);
+  -webkit-text-fill-color: var(--site-fg, #e5e5e5);
 }
 
 html.site-marketing[data-theme="dark"] .aw-fab svg,

@@ -308,17 +308,11 @@ const brandName = company.name || "reave.app";
   }
 
   .go-hero__ctas :global(.brand-btn-glass:hover) {
-    background: transparent;
+    background: color-mix(in srgb, var(--site-fg, #171717) 6%, transparent);
     border-color: var(--brand-glass-border-color-hover);
     color: var(--site-fg, #171717);
     -webkit-text-fill-color: var(--site-fg, #171717);
     filter: none;
-  }
-
-  :global(html.site-marketing[data-theme="dark"]) .go-hero__ctas :global(.brand-btn-glass),
-  :global(html.site-marketing[data-theme="dark"]) .go-hero__ctas :global(.brand-btn-glass:hover) {
-    color: var(--site-fg, #e5e5e5);
-    -webkit-text-fill-color: var(--site-fg, #e5e5e5);
   }
 
   .go-hero__visual {
