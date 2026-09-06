@@ -1,12 +1,12 @@
 {
   "title": "Grand Opening Offer",
-  "description": "Apply for free website design with one year of managed hosting.",
+  "description": "Apply for free website design when you purchase one year of managed hosting.",
   "fields": [
     {
       "name": "website",
       "type": "domain_lookup",
       "required": true,
-      "cf-questions": "Grand opening — free website design when you sign up for one year of hosting ($500, or $50/month). Subject to approval.&&What's your current website? Paste the domain (e.g. example.com)."
+      "cf-questions": "Grand opening — free website design when you purchase one year of hosting ($500/year or $50/month). Subject to approval.&&What's your current website? Paste the domain (e.g. example.com)."
     },
     {
       "name": "registrar_access",

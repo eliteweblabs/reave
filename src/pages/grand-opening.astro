@@ -5,7 +5,7 @@ import ConversationalForm from "../components/ConversationalForm.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { loadGrandOpeningModules } from "../lib/grandOpeningCatalog";
-import { ArrowRight, Check, Database, Layers, PenLine, Server, ShieldCheck } from "lucide-astro";
+import { ArrowRight, Check, Database, Layers, Server } from "lucide-astro";
 import "../styles/marketing-sections.css";
 
 export const prerender = false;
@@ -18,7 +18,7 @@ const addonsJson = JSON.stringify(grandOpeningAddons);
 
 <Layout
   title="Grand Opening — Free Website Design"
-  description={`${brandName} grand opening offer: free custom website design with one year of managed hosting ($500). Unlimited edits, subject to approval.`}
+  description={`${brandName} grand opening: free custom website design when you purchase one year of managed hosting ($500/year or $50/month).`}
   showSiteAssistant={false}
 >
   <div class="go-page">
@@ -27,28 +27,13 @@ const addonsJson = JSON.stringify(grandOpeningAddons);
         <div class="go-hero__copy">
           <p class="go-hero__pill">Grand opening · limited time only</p>
           <h1 id="go-title" class="go-hero__title">
-            Free website design.<br />One year of hosting included.
+            Free website design<br />with a one-year hosting plan.
           </h1>
           <p class="go-hero__lead">
-            We're celebrating our launch with a limited offer: we design and build your site at
-            no charge when you sign up for one year of managed hosting — a <strong>$500</strong> value
-            (or <strong>$50/month</strong>).
+            Limited grand opening offer: purchase one year of managed hosting —
+            <strong>$500/year</strong> or <strong>$50/month</strong> — and we design and build
+            your site at no extra charge.
           </p>
-
-          <ul class="go-hero__highlights" aria-label="Offer highlights">
-            <li>
-              <PenLine size={18} strokeWidth={1.75} aria-hidden="true" />
-              <span><strong>Unlimited edits</strong> for your first year</span>
-            </li>
-            <li>
-              <ShieldCheck size={18} strokeWidth={1.75} aria-hidden="true" />
-              <span><strong>Subject to approval</strong> — we review every application</span>
-            </li>
-            <li>
-              <Check size={18} strokeWidth={1.75} aria-hidden="true" />
-              <span>Custom design, mobile-ready, managed hosting included</span>
-            </li>
-          </ul>
 
           <div class="go-hero__ctas">
             <BrandBtn href="#apply" variant="filled">
@@ -244,7 +229,7 @@ const addonsJson = JSON.stringify(grandOpeningAddons);
   }
 
   .go-hero__lead {
-    margin: 0 0 24px;
+    margin: 0 0 28px;
     font-family: var(--font-content);
     font-size: 1.05rem;
     line-height: 1.65;
@@ -252,36 +237,6 @@ const addonsJson = JSON.stringify(grandOpeningAddons);
   }
 
   .go-hero__lead strong {
-    color: var(--site-fg, #171717);
-    font-weight: 600;
-  }
-
-  .go-hero__highlights {
-    list-style: none;
-    margin: 0 0 28px;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .go-hero__highlights li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-family: var(--font-content);
-    font-size: 0.95rem;
-    line-height: 1.5;
-    color: var(--site-fg-muted, #525252);
-  }
-
-  .go-hero__highlights li :global(svg) {
-    flex-shrink: 0;
-    margin-top: 2px;
-    color: var(--site-fg, #171717);
-  }
-
-  .go-hero__highlights strong {
     color: var(--site-fg, #171717);
     font-weight: 600;
   }
