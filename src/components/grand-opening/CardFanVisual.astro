@@ -6,7 +6,6 @@
 type FanCard = {
   image: string;
   alt: string;
-  position?: string;
 };
 
 const HERO_CARDS: FanCard[] = [
@@ -54,6 +53,17 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
 <div class="go-card-fan" data-card-count={fanCount}>
   <div class="go-card-fan__stack">
     {
+      cards[0] && (
+        <img
+          class="go-card-fan__sizer"
+          src={cards[0].image}
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+        />
+      )
+    }
+    {
       cards.map((card) => (
         <figure
           class="go-card-fan__card"
@@ -62,12 +72,9 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
         >
           <img
             src={card.image}
-            alt=""
-            width="475"
-            height="1024"
+            alt={card.alt}
             loading={card.index >= fanCount - 2 ? "eager" : "lazy"}
             decoding="async"
-            style={card.position ? `object-position: ${card.position}` : undefined}
           />
         </figure>
       ))
@@ -197,13 +204,22 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
   .go-card-fan__stack {
     position: relative;
     width: min(100%, 340px);
-    aspect-ratio: 475 / 1024;
     touch-action: pan-y;
+  }
+
+  .go-card-fan__sizer {
+    display: block;
+    width: 100%;
+    height: auto;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .go-card-fan__card {
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
     margin: 0;
     border-radius: 14px;
     overflow: hidden;
@@ -225,9 +241,7 @@ function stackCardIndex(originalIndex: number, activeIndex: number, n: number): 
   .go-card-fan__card img {
     display: block;
     width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: top center;
+    height: auto;
   }
 
   @media (hover: hover) and (pointer: fine) {
