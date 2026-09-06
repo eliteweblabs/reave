@@ -6491,7 +6491,7 @@ function renderAdminDashboard(data, opts = {}) {
       label: 'Site issues',
       hint: siteHealth
         ? `${graded} graded · ${formatDashHealthCheckedHint(siteHealth.checkedAt ?? stats.siteHealthCheckedAt)}`
-        : 'tap Scan sites below',
+        : 'tap Scan sites',
       tone: critical > 0 ? 'failed' : siteHealth ? 'live' : 'muted',
       muted: !siteHealth,
       onClick: () => setActiveMap('analytics', { force: true, analyticsSiteId: '' }),
@@ -6503,29 +6503,30 @@ function renderAdminDashboard(data, opts = {}) {
   const showFleetGrid =
     siteCards.length > 0 && (uptimeConfigured || analyticsLive || analyticsPreview);
   if (showFleetGrid) {
-    const fleetHead = document.createElement('div');
-    fleetHead.className = 'dash-fleet-head';
-    const scanBtn = document.createElement('button');
-    scanBtn.type = 'button';
-    scanBtn.id = 'dash-site-scan-btn';
-    scanBtn.className = 'dash-fleet-scan-btn';
-    scanBtn.innerHTML =
-      `<span class="dash-fleet-scan-icon" aria-hidden="true">${iosIcon('refresh', 14)}</span>` +
-      `<span class="dash-fleet-scan-label">Scan sites</span>`;
-    scanBtn.title = 'Check schema, speed, Search Console, sitemap, and links';
-    scanBtn.addEventListener('click', () => void refreshDashboardSiteHealth({ force: true }));
-    fleetHead.appendChild(scanBtn);
-    const fleetHint = document.createElement('span');
-    fleetHint.className = 'dash-fleet-head-hint';
-    fleetHint.textContent = siteHealth
-      ? formatDashHealthCheckedHint(siteHealth.checkedAt ?? stats.siteHealthCheckedAt)
-      : 'Readiness checks run on demand — not on page load';
-    fleetHead.appendChild(fleetHint);
-    mount.appendChild(fleetHead);
-
     const list = document.createElement('ul');
     list.className = 'dash-uptime-grid dash-fleet-grid';
     const analyticsLoading = analyticsLive && !analyticsPreview && !analyticsError;
+
+    const scanHint = siteHealth
+      ? formatDashHealthCheckedHint(siteHealth.checkedAt ?? stats.siteHealthCheckedAt)
+      : 'Readiness checks run on demand';
+    const scanBtn = document.createElement('button');
+    scanBtn.type = 'button';
+    scanBtn.id = 'dash-site-scan-btn';
+    scanBtn.className = 'dash-uptime-tile dash-fleet-tile dash-fleet-scan-tile';
+    scanBtn.title = 'Check schema, speed, Search Console, sitemap, and links';
+    scanBtn.setAttribute('aria-label', `Scan sites — ${scanHint}`);
+    scanBtn.innerHTML =
+      `<div class="dash-uptime-name-row">` +
+        `<span class="dash-fleet-scan-icon" aria-hidden="true">${iosIcon('refresh', 14)}</span>` +
+        `<div class="dash-uptime-name dash-fleet-scan-label">Scan sites</div>` +
+      `</div>` +
+      `<div class="dash-uptime-meta dash-fleet-scan-meta">${escHtml(scanHint)}</div>`;
+    scanBtn.addEventListener('click', () => void refreshDashboardSiteHealth({ force: true }));
+    const scanLi = document.createElement('li');
+    scanLi.appendChild(scanBtn);
+    list.appendChild(scanLi);
+
     for (const card of siteCards) {
       const { offline, paused } = dashboardSiteCardTone(card);
       const health = siteHealthForCard(card, siteHealth);
@@ -6661,11 +6662,13 @@ const SITE_HEALTH_AUTO_INTERVAL_MS = 60 * 60 * 1000;
 function setDashboardSiteScanBusy(busy) {
   const btn = document.getElementById('dash-site-scan-btn');
   if (!btn) return;
-  btn.classList.toggle('dash-fleet-scan-btn--busy', busy);
+  btn.classList.toggle('dash-fleet-scan-tile--busy', busy);
   btn.disabled = busy;
   btn.setAttribute('aria-busy', busy ? 'true' : 'false');
   const label = btn.querySelector('.dash-fleet-scan-label');
   if (label) label.textContent = busy ? 'Scanning…' : 'Scan sites';
+  const meta = btn.querySelector('.dash-fleet-scan-meta');
+  if (meta && busy) meta.textContent = 'Checking schema, speed, links…';
 }
 
 function scheduleDashboardSiteHealthIdleRefresh(checkedAt) {

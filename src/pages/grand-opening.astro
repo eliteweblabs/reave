@@ -16,12 +16,13 @@ const brandName = company.name || "reave.app";
 <Layout
   title="Grand Opening — Free Website Design"
   description={`${brandName} grand opening: free custom website design when you purchase one year of managed hosting ($500/year or $50/month).`}
+  showSiteAssistant={false}
 >
   <div class="go-page">
     <section class="go-hero" aria-labelledby="go-title">
       <div class="go-hero__inner">
         <div class="go-hero__copy">
-          <p class="marketing-label">Grand opening</p>
+          <p class="go-hero__pill">Grand opening · limited time only</p>
           <h1 id="go-title" class="go-hero__title">
             Free website design<br />with a one-year hosting plan.
           </h1>
@@ -79,13 +80,12 @@ const brandName = company.name || "reave.app";
       <div class="go-apply__inner">
         <header class="go-apply__header">
           <p class="marketing-label">Limited time</p>
-          <h2 id="go-apply-title">Apply for the grand opening offer</h2>
+          <h2 id="go-apply-title">Let's get started!</h2>
           <p class="go-apply__lead">
-            Tell us about your business. Every application is reviewed — we'll let you know
-            quickly if you're a fit.
+            Share your domain and registrar access — the faster we get that, the faster we launch.
           </p>
         </header>
-        <ConversationalForm slug="grand-opening" embedded brandName={brandName} />
+        <ConversationalForm slug="grand-opening" embedded heroChat brandName={brandName} />
         <p class="go-apply__fine-print">
           Offer subject to approval. One year of managed hosting required ($500 total or $50/month).
           Design scope covers a standard business site; complex builds may be quoted separately.
@@ -102,6 +102,7 @@ const brandName = company.name || "reave.app";
 
   .go-hero {
     padding: clamp(2rem, 6vw, 4rem) 0 clamp(2.5rem, 5vw, 3.5rem);
+    overflow: visible;
   }
 
   .go-hero__inner {
@@ -116,11 +117,31 @@ const brandName = company.name || "reave.app";
     .go-hero__inner {
       grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
       gap: 48px;
+      align-items: start;
     }
   }
 
   .go-hero__copy {
     max-width: 560px;
+  }
+
+  .go-hero__pill {
+    display: inline-block;
+    margin: 0 0 14px;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    font-family: var(--font-secondary);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
+    white-space: nowrap;
+    color: #fff;
+    background: linear-gradient(135deg, #171717 0%, #404040 100%);
+    box-shadow:
+      0 4px 14px rgba(0, 0, 0, 0.18),
+      0 0 0 1px rgba(255, 255, 255, 0.08) inset;
   }
 
   .go-hero__title {
@@ -176,6 +197,7 @@ const brandName = company.name || "reave.app";
   .go-hero__visual {
     display: flex;
     justify-content: center;
+    overflow: visible;
   }
 
   .go-details {
@@ -272,5 +294,13 @@ const brandName = company.name || "reave.app";
     line-height: 1.55;
     text-align: center;
     color: var(--site-fg-faint, #a3a3a3);
+  }
+
+  .go-apply :global(.conversational-form-root--embedded .input-area) {
+    justify-content: center;
+  }
+
+  .go-apply :global(.conversational-form-root--embedded .input-pill) {
+    width: min(100%, 420px);
   }
 </style>

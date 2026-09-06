@@ -2,8 +2,6 @@
 /**
  * Fanned playing-card stack of mobile website screenshots.
  */
-import { getSiteContent } from "../../lib/siteContent";
-import { siteMediaSrc } from "../../lib/siteMedia";
 
 type FanCard = {
   image: string;
@@ -32,27 +30,13 @@ const HERO_CARDS: FanCard[] = [
     image: "/grand-opening/tony-barletta-mobile.jpg",
     alt: "Tony Barletta Jr. mobile website",
   },
+  {
+    image: "/grand-opening/pdx-paws-mobile.jpg",
+    alt: "PDX Paws mobile website",
+  },
 ];
 
-const WEB_TAGS = /web development|wordpress|managed hosting|e-commerce/i;
-const heroImages = new Set(HERO_CARDS.map((c) => c.image));
-
-const portfolioCards: FanCard[] = (getSiteContent().portfolio ?? [])
-  .filter(
-    (item) =>
-      item.image &&
-      (item.featured || item.tags.some((t) => WEB_TAGS.test(t))) &&
-      !/barber|levine|luxe|mdot|barletta|tony/i.test(item.title),
-  )
-  .slice(0, 4)
-  .map((item) => ({
-    image: siteMediaSrc(item.image) || item.image!,
-    alt: item.imageAlt || item.title,
-    position: item.imagePosition,
-  }))
-  .filter((item) => item.image && !heroImages.has(item.image));
-
-const cards = [...HERO_CARDS, ...portfolioCards].slice(0, 6).map((card, index) => ({
+const cards = HERO_CARDS.map((card, index) => ({
   ...card,
   index,
 }));
@@ -61,7 +45,6 @@ const fanCount = cards.length || 1;
 ---
 
 <div class="go-card-fan" aria-hidden="true">
-  <div class="go-card-fan__badge">Grand opening · limited time only</div>
   <div class="go-card-fan__stack">
     {
       cards.map((card) => (
@@ -90,39 +73,16 @@ const fanCount = cards.length || 1;
     width: 100%;
     max-width: 420px;
     margin: 0 auto;
-    aspect-ratio: 4 / 5;
+    overflow: visible;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-  }
-
-  .go-card-fan__badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 20;
-    max-width: 11rem;
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    font-family: var(--font-secondary);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    line-height: 1.35;
-    text-align: center;
-    color: #fff;
-    background: linear-gradient(135deg, #171717 0%, #404040 100%);
-    box-shadow:
-      0 4px 14px rgba(0, 0, 0, 0.18),
-      0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-    transform: rotate(6deg);
   }
 
   .go-card-fan__stack {
     position: relative;
     width: min(100%, 340px);
-    height: min(72vw, 380px);
+    aspect-ratio: 475 / 1024;
   }
 
   .go-card-fan__card {
@@ -150,7 +110,7 @@ const fanCount = cards.length || 1;
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     object-position: top center;
   }
 
@@ -179,18 +139,11 @@ const fanCount = cards.length || 1;
   @media (max-width: 859px) {
     .go-card-fan {
       max-width: 320px;
-      aspect-ratio: auto;
       margin-top: 8px;
     }
 
     .go-card-fan__stack {
-      height: 280px;
-    }
-
-    .go-card-fan__badge {
-      top: -4px;
-      right: -4px;
-      font-size: 0.62rem;
+      width: min(100%, 280px);
     }
   }
 </style>

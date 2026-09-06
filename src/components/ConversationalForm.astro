@@ -1,4 +1,7 @@
 ---
+import BrandIconInline from "./BrandIconInline.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
 interface Props {
   slug: string;
   /** Inline on marketing pages instead of full-screen /form route. */
@@ -8,6 +11,8 @@ interface Props {
    * Skips the opening robot greeting so a host intro bubble can sit above.
    */
   dock?: boolean;
+  /** Match homepage hero demo chat — avatars + bubble layout. */
+  heroChat?: boolean;
   /** Brand name for SMS consent disclaimer copy. */
   brandName?: string;
   /** Override the first field’s input placeholder (embedded footers, etc.). */
@@ -18,20 +23,53 @@ const {
   slug,
   embedded = false,
   dock = false,
+  heroChat = false,
   brandName = "reave.app",
   inputPlaceholder = "",
 } = Astro.props;
+const company = heroChat ? await getCompanyConfig(Astro.request) : null;
 const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
 const rootClass = [
   "conversational-form-root",
   embedded || dock ? "conversational-form-root--embedded" : "",
   dock ? "conversational-form-root--dock" : "",
+  heroChat ? "conversational-form-root--hero-chat" : "",
 ]
   .filter(Boolean)
   .join(" ");
 ---
 
-<div class={rootClass} data-cf-dock={dock ? "1" : undefined}>
+<div class={rootClass} data-cf-dock={dock ? "1" : undefined} data-cf-hero-chat={heroChat ? "1" : undefined}>
+  {
+    heroChat && company && (
+      <>
+        <template id="cf-agent-avatar">
+          <span class="cf-avatar cf-avatar--agent" aria-hidden="true">
+            <BrandIconInline
+              company={company}
+              class="cf-avatar-icon"
+              idPrefix="cf-agent"
+            />
+          </span>
+        </template>
+        <template id="cf-user-avatar">
+          <span class="cf-avatar cf-avatar--user" aria-hidden="true">
+            <svg class="cf-avatar-photo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="cf-user-bg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#64748b"></stop>
+                  <stop offset="100%" stop-color="#334155"></stop>
+                </linearGradient>
+              </defs>
+              <rect width="64" height="64" rx="32" fill="url(#cf-user-bg)"></rect>
+              <circle cx="32" cy="24" r="11" fill="#e2e8f0"></circle>
+              <ellipse cx="32" cy="54" rx="18" ry="14" fill="#e2e8f0"></ellipse>
+            </svg>
+          </span>
+        </template>
+      </>
+    )
+  }
   <form id="conversational-form" class="conversation">
     <div class="conversation-scroll" id="conversation-scroll">
       <div id="questions-container"></div>
@@ -94,9 +132,15 @@ const rootClass = [
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
     padding-bottom: 0.5rem;
     scrollbar-width: none;
+  }
+
+  .conversational-form-root #questions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
   }
 
   .conversational-form-root .conversation-scroll::-webkit-scrollbar {
@@ -435,14 +479,190 @@ const rootClass = [
       transform: translateY(0);
     }
   }
+
+  /* Homepage hero demo chat — avatars + bubble turns */
+  .conversational-form-root--hero-chat.conversational-form-root--embedded {
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
+  .conversational-form-root--hero-chat .conversation-scroll {
+    gap: 0;
+  }
+
+  .conversational-form-root--hero-chat #questions-container {
+    gap: 16px;
+  }
+
+  .conversational-form-root--hero-chat .cf-msg {
+    --cf-gutter: clamp(1.5rem, 18%, 4.5rem);
+    display: flex;
+    align-items: flex-end;
+    gap: 0.55rem;
+    width: 100%;
+    animation: cfFadeIn 0.3s ease;
+  }
+
+  .conversational-form-root--hero-chat .cf-msg--assistant {
+    justify-content: flex-start;
+    padding-inline-end: var(--cf-gutter);
+  }
+
+  .conversational-form-root--hero-chat .cf-msg--user {
+    justify-content: flex-end;
+    padding-inline-start: var(--cf-gutter);
+  }
+
+  .conversational-form-root--hero-chat .cf-avatar {
+    flex: none;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--demo-line, var(--site-border, rgba(255, 255, 255, 0.14)));
+    background: var(--demo-avatar-bg, var(--site-card, rgba(255, 255, 255, 0.06)));
+  }
+
+  .conversational-form-root--hero-chat .cf-avatar--agent {
+    padding: 0.28rem;
+  }
+
+  .conversational-form-root--hero-chat .cf-avatar-icon {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    color: var(--site-fg, #171717);
+  }
+
+  html[data-theme="dark"] .conversational-form-root--hero-chat .cf-avatar-icon {
+    filter: invert(1);
+  }
+
+  .conversational-form-root--hero-chat .cf-avatar-photo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .conversational-form-root--hero-chat .message {
+    max-width: min(100%, 22rem);
+    margin: 0;
+    animation: none;
+  }
+
+  .conversational-form-root--hero-chat .message.robot,
+  .conversational-form-root--hero-chat .message.user {
+    align-self: auto;
+    text-align: left;
+    padding: 0.55rem 0.78rem;
+    border-radius: 1rem;
+    font-family: var(--font-content, inherit);
+    font-size: clamp(0.8rem, 2vw, 0.92rem);
+    line-height: 1.45;
+    color: var(--demo-fg, var(--site-fg, #171717));
+    background: var(--demo-bubble-fill, var(--site-card, rgba(255, 255, 255, 0.06)));
+    border: 1px solid var(--demo-line, var(--site-border, rgba(255, 255, 255, 0.14)));
+  }
+
+  .conversational-form-root--hero-chat .message.robot {
+    border-bottom-left-radius: 0.28rem;
+  }
+
+  .conversational-form-root--hero-chat .message.user {
+    border-bottom-right-radius: 0.28rem;
+  }
+
+  .conversational-form-root--hero-chat .loading-msg {
+    display: none;
+  }
+
+  .conversational-form-root--hero-chat .cf-typing-bubble {
+    display: flex;
+    align-items: center;
+    min-height: 1.45rem;
+    padding: 0.62rem 0.78rem;
+    border-radius: 1rem;
+    border-bottom-left-radius: 0.28rem;
+    border: 1px solid var(--demo-line, var(--site-border, rgba(255, 255, 255, 0.14)));
+    background: var(--demo-bubble-fill, var(--site-card, rgba(255, 255, 255, 0.06)));
+  }
+
+  .conversational-form-root--hero-chat .cf-typing-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    height: 0.55rem;
+  }
+
+  .conversational-form-root--hero-chat .cf-typing-dots span {
+    width: 0.34rem;
+    height: 0.34rem;
+    border-radius: 50%;
+    background: var(--demo-fg-muted, var(--site-fg-muted, #a3a3a3));
+    animation: cfTypingDot 1.46s ease-in-out infinite;
+  }
+
+  .conversational-form-root--hero-chat .cf-typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .conversational-form-root--hero-chat .cf-typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes cfTypingDot {
+    0%, 60%, 100% {
+      opacity: 0.35;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
+
+  .conversational-form-root--hero-chat .options-wrapper {
+    align-self: auto;
+    padding: 0;
+    background: transparent;
+    gap: 8px;
+  }
+
+  .conversational-form-root--hero-chat .option-btn {
+    border-radius: 999px;
+    border: 1px solid var(--demo-line, var(--site-border, rgba(255, 255, 255, 0.14)));
+    background: var(--demo-bubble-fill, var(--site-card, rgba(255, 255, 255, 0.06)));
+    color: var(--demo-fg, var(--site-fg, #171717));
+    font-size: 0.82rem;
+  }
+
+  .conversational-form-root--hero-chat .option-btn:hover {
+    border-color: var(--site-fg, #171717);
+    background: color-mix(in srgb, var(--site-fg) 8%, transparent);
+  }
+
+  .conversational-form-root--hero-chat .sms-consent-panel {
+    max-width: min(100%, 22rem);
+    border-radius: 1rem;
+    border-bottom-left-radius: 0.28rem;
+    border-color: var(--demo-line, var(--site-border, rgba(255, 255, 255, 0.14)));
+    background: var(--demo-bubble-fill, var(--site-card, rgba(255, 255, 255, 0.06)));
+  }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, brandName, embedded, dock, inputPlaceholder }}>
+<script define:vars={{ bookingApiUrl, slug, brandName, embedded, dock, inputPlaceholder, heroChat }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
   const BRAND_NAME = brandName;
   const IS_EMBEDDED = Boolean(embedded) || Boolean(dock);
   const IS_DOCK = Boolean(dock);
+  const HERO_CHAT = Boolean(heroChat);
   const INPUT_PLACEHOLDER_OVERRIDE = String(inputPlaceholder || "").trim();
   const SMS_USE_CASES = "inquiry updates and appointment reminders";
 
@@ -483,11 +703,15 @@ const rootClass = [
         return "you@example.com";
       case "tel":
         return "Phone number";
+      case "password":
+        return "Password";
       case "textarea":
         return "Type your message…";
       default:
         if (field.name === "name") return "Your name";
         if (field.name === "company") return "Company name";
+        if (field.name === "website") return "example.com";
+        if (field.name === "registrar_username") return "Registrar login email";
         return "Type your answer…";
     }
   }
@@ -495,6 +719,12 @@ const rootClass = [
   function inputModeForField(field) {
     const input = userInput();
     if (!input) return;
+    if (field.type === "password") {
+      input.type = "password";
+      input.inputMode = "text";
+      input.autocomplete = "current-password";
+      return;
+    }
     input.type = field.type === "email" ? "email" : "text";
     input.inputMode =
       field.type === "email"
@@ -521,13 +751,26 @@ const rootClass = [
     return trimmed.split(/\s+/)[0] || "";
   }
 
+  function interpolateQuestion(text) {
+    const registrarLabel = String(formData.registrar || "").trim() || "domain registrar";
+    const domainLabel =
+      String(formData.domain || formData.website || "").trim() || "your domain";
+    return String(text || "")
+      .replace(/\{\{registrar\}\}/g, registrarLabel)
+      .replace(/\{\{domain\}\}/g, domainLabel);
+  }
+
   function fieldShouldShow(field) {
     const cond = field["cf-show-if"];
     if (!cond) return true;
     if (cond === "phone") {
       return Boolean(String(formData.phone || "").trim());
     }
+    const expected = field["cf-show-if-value"];
     const value = formData[cond];
+    if (expected !== undefined && expected !== null && expected !== "") {
+      return String(value || "") === String(expected);
+    }
     return Boolean(String(value || "").trim());
   }
 
@@ -574,6 +817,7 @@ const rootClass = [
     }
     if (
       field.type === "availability" ||
+      field.type === "domain_lookup" ||
       (field.type === "select" && field.options) ||
       field.type === "sms_consent"
     ) {
@@ -623,18 +867,41 @@ const rootClass = [
     }
   }
 
+  function cloneAvatar(role) {
+    const id = role === "agent" ? "cf-agent-avatar" : "cf-user-avatar";
+    const tpl = root()?.querySelector(`#${id}`);
+    return tpl?.content?.firstElementChild?.cloneNode(true) ?? null;
+  }
+
+  function wrapChatTurn(el, role) {
+    if (!HERO_CHAT) return el;
+    const row = document.createElement("div");
+    row.className = `cf-msg cf-msg--${role === "user" ? "user" : "assistant"}`;
+    if (role !== "user") {
+      const avatar = cloneAvatar("agent");
+      if (avatar) row.appendChild(avatar);
+    }
+    row.appendChild(el);
+    if (role === "user") {
+      const avatar = cloneAvatar("user");
+      if (avatar) row.appendChild(avatar);
+    }
+    return row;
+  }
+
   function appendMessage(text, type) {
     const msg = document.createElement("div");
     msg.className = `message ${type}`;
     msg.textContent = text;
-    container()?.appendChild(msg);
+    container()?.appendChild(wrapChatTurn(msg, type));
     scrollToLatest();
   }
 
   async function appendTypewriter(text) {
     const msg = document.createElement("div");
     msg.className = "message robot";
-    container()?.appendChild(msg);
+    const row = wrapChatTurn(msg, "assistant");
+    container()?.appendChild(row);
     scrollToLatest();
 
     const words = text.split(" ");
@@ -659,6 +926,22 @@ const rootClass = [
   }
 
   function appendLoading(text) {
+    if (HERO_CHAT) {
+      const row = document.createElement("div");
+      row.className = "cf-msg cf-msg--assistant cf-msg--loading";
+      row.dataset.cfLoading = "1";
+      const avatar = cloneAvatar("agent");
+      if (avatar) row.appendChild(avatar);
+      const bubble = document.createElement("div");
+      bubble.className = "cf-typing-bubble";
+      bubble.setAttribute("aria-label", text || "Loading");
+      bubble.innerHTML =
+        '<span class="cf-typing-dots" aria-hidden="true"><span></span><span></span><span></span></span>';
+      row.appendChild(bubble);
+      container()?.appendChild(row);
+      scrollToLatest();
+      return row;
+    }
     const el = document.createElement("div");
     el.className = "loading-msg";
     el.textContent = text;
@@ -680,13 +963,24 @@ const rootClass = [
       btn.textContent = opt.label;
       btn.type = "button";
       btn.addEventListener("click", () => {
+        wrapper.closest(".cf-msg")?.remove();
         wrapper.remove();
         onPick(opt.value, opt.label);
       });
       wrapper.appendChild(btn);
     });
 
-    container()?.appendChild(wrapper);
+    if (HERO_CHAT) {
+      const row = document.createElement("div");
+      row.className = "cf-msg cf-msg--assistant";
+      row.id = "current-options-row";
+      const avatar = cloneAvatar("agent");
+      if (avatar) row.appendChild(avatar);
+      row.appendChild(wrapper);
+      container()?.appendChild(row);
+    } else {
+      container()?.appendChild(wrapper);
+    }
     scrollToLatest();
   }
 
@@ -785,7 +1079,7 @@ const rootClass = [
       return;
     }
 
-    let questionText = field["cf-questions"] || `What's your ${field.name}?`;
+    let questionText = interpolateQuestion(field["cf-questions"] || `What's your ${field.name}?`);
     if (field.name === "email" && formData.name) {
       const firstName = firstNameFrom(formData.name);
       questionText = firstName
@@ -909,10 +1203,72 @@ const rootClass = [
       (formDef.title ? `New ${formDef.title} submission` : "New form submission");
     if (!payload.message && formDef.fields?.length) {
       payload.message = formDef.fields
+        .filter((field) => fieldShouldShow(field))
         .map((field) => `${field.name}: ${formData[field.name] || ""}`)
         .join("\n");
     }
     return payload;
+  }
+
+  function normalizeDomainInput(raw) {
+    const trimmed = String(raw || "")
+      .trim()
+      .replace(/^https?:\/\//i, "")
+      .replace(/\/.*$/, "")
+      .replace(/:\d+$/, "");
+    if (!trimmed || /^none$/i.test(trimmed) || /^no$/i.test(trimmed)) return null;
+    if (!/^[a-z0-9][a-z0-9.-]*[a-z0-9]\.[a-z]{2,}$/i.test(trimmed)) return null;
+    return trimmed.toLowerCase();
+  }
+
+  async function handleDomainLookup(field, value) {
+    appendMessage(value, "user");
+    formData[field.name] = value;
+    userInput().value = "";
+    setInputVisible(false);
+
+    const domain = normalizeDomainInput(value);
+    formData.domain = domain || value.trim();
+
+    if (!domain) {
+      await showMessages(
+        "No problem — we'll help you pick a domain if you need one.&&Let's keep going.",
+      );
+      currentFieldIndex++;
+      setTimeout(showQuestion, 400);
+      return;
+    }
+
+    const loadingEl = appendLoading("Checking your domain…");
+    try {
+      const res = await fetch(
+        `${BOOKING_API}/api/domain/registrar?domain=${encodeURIComponent(domain)}`,
+      );
+      const data = await res.json();
+      loadingEl.remove();
+
+      formData.domain = data.domain || domain;
+      formData.registrar = data.registrar || "";
+
+      if (data.registrar) {
+        await showMessages(
+          `${formData.domain} is registered with ${data.registrar}.&&We'll need registrar access to launch on your domain.`,
+        );
+      } else {
+        await showMessages(
+          `Got ${formData.domain}. We couldn't confirm the registrar automatically — we'll look it up on our end.`,
+        );
+      }
+    } catch (err) {
+      loadingEl.remove();
+      console.error(err);
+      await appendTypewriter(
+        "Got it — we'll look up your registrar and follow up if we need anything else.",
+      );
+    }
+
+    currentFieldIndex++;
+    setTimeout(showQuestion, 400);
   }
 
   async function submitForm() {
@@ -975,6 +1331,12 @@ const rootClass = [
     if (!field) return;
 
     activateDock();
+
+    if (field.type === "domain_lookup") {
+      void handleDomainLookup(field, value);
+      return;
+    }
+
     appendMessage(value, "user");
     formData[field.name] = value;
     userInput().value = "";
@@ -991,5 +1353,34 @@ const rootClass = [
   root()?.querySelector("#retry-btn")?.addEventListener("click", () => {
     window.location.reload();
   });
-  loadForm();
+
+  function startFormWhenVisible() {
+    const el = root();
+    if (!el) return;
+
+    if (!IS_EMBEDDED && !IS_DOCK) {
+      loadForm();
+      return;
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
+      loadForm();
+      return;
+    }
+
+    let started = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (started) return;
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        started = true;
+        observer.disconnect();
+        loadForm();
+      },
+      { root: null, rootMargin: "0px 0px -5% 0px", threshold: 0.15 },
+    );
+    observer.observe(el);
+  }
+
+  startFormWhenVisible();
 </script>
