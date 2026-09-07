@@ -243,13 +243,56 @@ export type SiteLandingConfig = {
       | {
           label: string;
           icon?: string;
+          image?: string;
+          imageAlt?: string;
           description?: string;
           kicker?: string;
           prices?: string[];
+          includes?: string[];
           featured?: boolean;
           bookHref?: string;
         }
     >;
+  };
+  /** Tiered starting prices for `luxury` / service landings. */
+  pricing?: {
+    heading: string;
+    intro?: string;
+    note?: string;
+    tiers: Array<{
+      name: string;
+      price: string;
+      description?: string;
+      includes?: string[];
+      featured?: boolean;
+    }>;
+    addOns?: Array<{ name: string; price: string }>;
+  };
+  /** Room-by-room checklist — common on cleaning sites. */
+  includes?: {
+    heading: string;
+    intro?: string;
+    rooms: Array<{ name: string; items: string[] }>;
+  };
+  /** Cities / towns served. */
+  areas?: {
+    heading: string;
+    intro?: string;
+    cities: string[];
+    note?: string;
+  };
+  /** FAQ accordion content. */
+  faq?: {
+    heading: string;
+    intro?: string;
+    items: Array<{ q: string; a: string }>;
+  };
+  /** Photo gallery with optional Pexels attribution note. */
+  gallery?: {
+    heading?: string;
+    intro?: string;
+    photos: SiteLandingPackPhoto[];
+    attribution?: string;
   };
   /** Pack-variant chrome (marquee, wall, speed dial). */
   pack?: SiteLandingPackConfig;
@@ -522,6 +565,40 @@ function resolveLandingMedia(landing: SiteLandingConfig): SiteLandingConfig {
         ...item,
         image: siteMediaSrc(item.image) || item.image,
       })),
+    };
+  }
+  if (next.services?.items) {
+    next.services = {
+      ...next.services,
+      items: next.services.items.map((item) => {
+        if (typeof item === "string") return item;
+        return {
+          ...item,
+          icon: item.icon ? siteMediaSrc(item.icon) : undefined,
+          image: item.image ? siteMediaSrc(item.image) : undefined,
+        };
+      }),
+    };
+  }
+  if (next.gallery?.photos) {
+    next.gallery = {
+      ...next.gallery,
+      photos: next.gallery.photos.map((photo) => ({
+        ...photo,
+        src: siteMediaSrc(photo.src) || photo.src,
+      })),
+    };
+  }
+  if (next.pack?.wall?.photos) {
+    next.pack = {
+      ...next.pack,
+      wall: {
+        ...next.pack.wall,
+        photos: next.pack.wall.photos.map((photo) => ({
+          ...photo,
+          src: siteMediaSrc(photo.src) || photo.src,
+        })),
+      },
     };
   }
   return next;
