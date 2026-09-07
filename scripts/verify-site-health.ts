@@ -12,6 +12,7 @@ import {
   scoreSiteHealthIssues,
 } from '../src/lib/siteHealthScore.ts';
 import { buildSiteReadinessChecklist } from '../src/lib/siteReadinessChecklist.ts';
+import { buildSiteTechStackSummary } from '../src/lib/siteTechStack.ts';
 
 assert.equal(robotsTxtBlocksAll('User-agent: *\nDisallow: /\n'), true);
 assert.equal(robotsTxtBlocksAll('User-agent: *\nDisallow: /admin\n'), false);
@@ -117,6 +118,7 @@ const perfectReadiness = buildSiteReadinessChecklist({
     sitemap: { present: true, url: 'https://perfect.com/sitemap.xml', url_count_estimate: 12, status_code: 200 },
     structured_data: { present: true, types: ['Organization'], count: 1 },
     internal_links: { total: 12, serviceLike: 4, samplePaths: ['/services'] },
+    technologies: [{ name: 'WordPress', category: 'CMS' }],
   },
   issues: [],
   googleConnected: true,
@@ -158,6 +160,7 @@ const archivedReadiness = buildSiteReadinessChecklist({
     sitemap: { present: true, url: 'https://archived.com/sitemap.xml', url_count_estimate: 8, status_code: 200 },
     structured_data: { present: true, types: ['Organization', 'Review'], count: 2 },
     internal_links: { total: 10, serviceLike: 3, samplePaths: ['/services'] },
+    technologies: [{ name: 'WordPress', category: 'CMS' }, { name: 'Cloudflare', category: 'CDN' }],
   },
   issues: [],
   googleConnected: true,
@@ -227,5 +230,24 @@ const mergedRow = mergeSiteHealthSummary(
 );
 assert.equal(mergedRow.readiness?.items.find((item) => item.id === 'xml_sitemap')?.status, 'ok');
 assert.ok(mergedRow.issues.some((issue) => issue.code === 'robots_missing'));
+
+const wpStack = buildSiteTechStackSummary({
+  technologies: [{ name: 'WordPress', category: 'CMS' }],
+  wpConnectAvailable: false,
+  analytics: {
+    siteId: 'wp.com',
+    label: 'wp.com',
+    kind: 'kinsta',
+    registered: true,
+    visitors: 3,
+    pageviews: 6,
+    realtimeVisitors: 0,
+    change: null,
+    dashboardUrl: null,
+  },
+});
+assert.ok(wpStack?.items.some((item) => item.name === 'WordPress' && item.iconSlug === 'wordpress'));
+assert.ok(wpStack?.items.some((item) => item.name === 'Reave Connect' && item.status === 'missing'));
+assert.ok(wpStack?.items.some((item) => item.name === 'Kinsta'));
 
 console.log('verify-site-health: ok');

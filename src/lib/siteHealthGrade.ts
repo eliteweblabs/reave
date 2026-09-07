@@ -23,6 +23,7 @@ import { seoInventory, type SeoInventoryResponse } from './seoInventoryClient';
 import { hostnameFromWebsite } from './plausibleClient';
 import { isApexPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
 import { buildSiteReadinessChecklist } from './siteReadinessChecklist';
+import { buildSiteTechStackSummary } from './siteTechStack';
 import type {
   AnalyticsAccountRow,
   UptimeMonitorForFleetMerge,
@@ -280,6 +281,14 @@ export async function buildSiteHealthFleet(
         checkedAt,
       });
       const scored = scoreSiteHealthFromReadiness(readiness);
+      const techStack = buildSiteTechStackSummary({
+        technologies: seo?.technologies ?? null,
+        analytics: card.analytics,
+        monitor: card.monitor,
+        wpConnectAvailable,
+        health: { readiness } as SiteHealthSummary,
+        checkedAt,
+      });
       const freshRow: SiteHealthSummary = {
         grade: scored.grade,
         score: scored.score,
@@ -289,6 +298,7 @@ export async function buildSiteHealthFleet(
         checkedAt,
         searchEnginesBlocked,
         wpConnectAvailable,
+        techStack,
       };
       scannedSites[siteId] = mergeSiteHealthSummary(previousFleet?.sites?.[siteId], freshRow, {
         seoProbed: Boolean(seo),

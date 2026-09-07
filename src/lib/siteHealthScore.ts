@@ -12,6 +12,8 @@ import type {
   SiteReadinessStatus,
   SiteReadinessSummary,
 } from './siteReadinessChecklist';
+import type { SiteTechStackSummary } from './siteTechStack';
+import { mergeSiteTechStackSummary } from './siteTechStack';
 
 export type SiteHealthIssueCode =
   | 'down'
@@ -42,6 +44,8 @@ export type SiteHealthSummary = {
   searchEnginesBlocked?: boolean | null;
   /** Reave Connect responded on last scan (WordPress indexing toggle). */
   wpConnectAvailable?: boolean | null;
+  /** BuiltWith-style technology rundown (persisted with fleet scan). */
+  techStack?: SiteTechStackSummary | null;
 };
 
 export type SiteHealthFleet = {
@@ -168,6 +172,9 @@ export function mergeSiteHealthSummary(
       ? next.searchEnginesBlocked
       : (next.searchEnginesBlocked ?? previous.searchEnginesBlocked),
     wpConnectAvailable: next.wpConnectAvailable ?? previous.wpConnectAvailable,
+    techStack: mergeSiteTechStackSummary(previous.techStack, next.techStack, {
+      probed: opts.seoProbed,
+    }),
     stale: next.stale,
     ignored: next.ignored ?? previous.ignored,
     ignoreReason: next.ignoreReason ?? previous.ignoreReason,

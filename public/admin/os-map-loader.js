@@ -4122,6 +4122,77 @@ function dashboardReadinessPopoverStatus(state) {
   return 'Not scanned';
 }
 
+function dashFleetStackIconHtml(item) {
+  if (item?.name === 'Reave Connect') {
+    return `<span class="dash-fleet-stack-icon dash-fleet-stack-icon--svg" aria-hidden="true">${iosIcon('puzzle', 12)}</span>`;
+  }
+  if (item?.iconSlug) {
+    return `<span class="dash-fleet-stack-icon bi" style="--icon:url('${ICON_CDN(item.iconSlug)}')" aria-hidden="true"></span>`;
+  }
+  return `<span class="dash-fleet-stack-icon dash-fleet-stack-icon--svg" aria-hidden="true">${iosIcon('zap', 12)}</span>`;
+}
+
+function dashboardSiteStackGroups(items) {
+  const groups = new Map();
+  for (const item of items) {
+    const cat = item.category || 'Other';
+    if (!groups.has(cat)) groups.set(cat, []);
+    groups.get(cat).push(item);
+  }
+  return groups;
+}
+
+function buildDashboardSiteStackHtml(health) {
+  const items = Array.isArray(health?.techStack?.items) ? health.techStack.items : [];
+  if (!items.length) return '';
+  const groups = dashboardSiteStackGroups(items);
+  const groupHtml = [...groups.entries()]
+    .map(([category, rows]) => {
+      const chips = rows
+        .map((item) => {
+          const statusClass =
+            item.status === 'ok'
+              ? 'dash-fleet-stack-chip--ok'
+              : item.status === 'missing'
+                ? 'dash-fleet-stack-chip--missing'
+                : item.status === 'warn'
+                  ? 'dash-fleet-stack-chip--warn'
+                  : '';
+          const title = [item.name, item.detail].filter(Boolean).join(' — ');
+          return (
+            `<li class="dash-fleet-stack-chip ${statusClass}" title="${escHtml(title)}">` +
+              dashFleetStackIconHtml(item) +
+              `<span class="dash-fleet-stack-chip-label">${escHtml(item.name)}</span>` +
+              (item.detail
+                ? `<span class="dash-fleet-stack-chip-detail">${escHtml(item.detail)}</span>`
+                : '') +
+            `</li>`
+          );
+        })
+        .join('');
+      return (
+        `<div class="dash-fleet-stack-group">` +
+          `<div class="dash-fleet-stack-cat">${escHtml(category)}</div>` +
+          `<ul class="dash-fleet-stack-chips">${chips}</ul>` +
+        `</div>`
+      );
+    })
+    .join('');
+  return (
+    `<section class="dash-fleet-popover-stack">` +
+      `<div class="dash-fleet-popover-stack-head">Built with</div>` +
+      `<div class="dash-fleet-popover-stack-groups">${groupHtml}</div>` +
+    `</section>`
+  );
+}
+
+function siteNeedsReaveConnect(health) {
+  const items = health?.techStack?.items;
+  if (!Array.isArray(items)) return false;
+  const connect = items.find((item) => item.name === 'Reave Connect');
+  return connect?.status === 'missing';
+}
+
 function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) {
   const title = card.label || card.siteId;
   const domain = card.siteId;
@@ -4222,6 +4293,7 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
       `<dt>Uptime</dt><dd>${escHtml(uptimeLabel)}</dd>` +
       `<dt>Visitors</dt><dd>${escHtml(analyticsLabel)}</dd>` +
     `</dl>` +
+    buildDashboardSiteStackHtml(health) +
     `<ul class="dash-fleet-popover-section">${readinessRows}</ul>` +
     issuesHtml +
     indexingHtml +
@@ -6609,7 +6681,8 @@ function renderAdminDashboard(data, opts = {}) {
       btn.className =
         `dash-uptime-tile dash-fleet-tile${offline && !ignored ? ' dash-uptime-tile--down' : ''}${paused && !ignored ? ' dash-uptime-tile--paused' : ''}` +
         (ignored ? ' dash-uptime-tile--ignored' : '') +
-        (health?.criticalCount > 0 && !ignored ? ' dash-uptime-tile--health-warn' : '');
+        (health?.criticalCount > 0 && !ignored ? ' dash-uptime-tile--health-warn' : '') +
+        (siteNeedsReaveConnect(health) && !ignored ? ' dash-uptime-tile--connect-missing' : '');
       const issueHint = ignored
         ? dashboardSiteIgnoredReason(card, health, data) || 'Ignored — do not touch'
         : health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';

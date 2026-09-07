@@ -7,6 +7,7 @@
  */
 import * as cheerio from 'cheerio';
 import { normalizePublicUrl } from './publicUrl';
+import { runWappalyzer } from './wappalyzerLite';
 
 const USER_AGENT =
   'Mozilla/5.0 (compatible; SiteAuditBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -82,6 +83,8 @@ export type SeoInventoryResponse =
         serviceLike: number;
         samplePaths: string[];
       };
+      /** Wappalyzer-lite matches from the homepage HTML + headers. */
+      technologies: Array<{ name: string; category: string }>;
     }
   | { ok: false; error: string };
 
@@ -97,7 +100,14 @@ function extractMeta($: cheerio.CheerioAPI, key: string): string {
 async function fetchText(
   url: URL,
   accept: string,
-): Promise<{ ok: boolean; status: number; text: string; finalUrl: string }> {
+  opts: { captureHeaders?: boolean } = {},
+): Promise<{
+  ok: boolean;
+  status: number;
+  text: string;
+  finalUrl: string;
+  headers?: Record<string, string>;
+}> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -120,11 +130,18 @@ async function fetchText(
       };
     }
     const text = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+    const headers: Record<string, string> = {};
+    if (opts.captureHeaders) {
+      res.headers.forEach((value, key) => {
+        headers[key.toLowerCase()] = value;
+      });
+    }
     return {
       ok: res.ok,
       status: res.status,
       text,
       finalUrl: res.url || url.toString(),
+      headers: opts.captureHeaders ? headers : undefined,
     };
   } catch {
     return { ok: false, status: 0, text: '', finalUrl: url.toString() };
@@ -312,7 +329,9 @@ export async function seoInventory(urlInput: string): Promise<SeoInventoryRespon
     return { ok: false, error: 'Invalid or blocked URL (http/https only; no localhost/private IPs)' };
   }
 
-  const pageFetch = await fetchText(startUrl, 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8');
+  const pageFetch = await fetchText(startUrl, 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8', {
+    captureHeaders: true,
+  });
   if (!pageFetch.text.trim() && !pageFetch.ok) {
     return {
       ok: false,
@@ -684,6 +703,11 @@ export async function seoInventory(urlInput: string): Promise<SeoInventoryRespon
   });
 
   const { grade, score } = computeGrade(items);
+  const technologies = runWappalyzer({
+    html: pageFetch.text,
+    headers: pageFetch.headers ?? {},
+    url: pageFetch.finalUrl || finalUrl.toString(),
+  }).map((tech) => ({ name: tech.name, category: tech.category }));
 
   return {
     ok: true,
@@ -732,6 +756,7 @@ export async function seoInventory(urlInput: string): Promise<SeoInventoryRespon
       count: schemaTypes.length,
     },
     internal_links: internalLinks,
+    technologies,
   };
 }
 
