@@ -18,114 +18,101 @@
     "showLegalLinks": true
   },
   "landing": {
-    "variant": "service",
+    "variant": "luxury",
     "title": "Maid & Marble | Premium House Cleaning · Central Massachusetts",
-    "description": "Woman-owned house cleaning in Central Massachusetts. Recurring maintenance, deep cleans, move-in/move-out, and post-renovation detail. Licensed, insured, and meticulous — Worcester County, MetroWest, and the I-495 corridor.",
+    "description": "Woman-owned premium house cleaning in Central Massachusetts. Recurring maintenance, deep cleans, move-in/move-out, and post-renovation detail for homes that deserve a polished finish.",
     "themeColor": "#f7f4ef",
-    "eyebrow": "Woman-owned · Kelsey O'Brien · Central Massachusetts",
+    "eyebrow": "Woman-owned · Central Massachusetts",
     "name": "Maid & Marble",
-    "role": "Kelsey O'Brien, owner",
-    "tagline": "Meticulous cleaning for homes that deserve a polished finish — recurring service, deep cleans, and special projects across Central Massachusetts.",
+    "tagline": "Hotel-level attention for the homes you love — Worcester County, MetroWest, and the I-495 corridor.",
     "heroHeadline": "A home that feels like marble.",
-    "heroBody": "When you call, you talk to Kelsey — the owner. Clear answers, a plan that fits your home, and meticulous cleaning from a woman-owned team you can trust across Central Massachusetts.",
+    "heroBody": "Maid & Marble is premium residential cleaning, owned and led by Kelsey O'Brien. You get clear communication, consistent standards, and finishes that feel intentional — not a rotating crew or a call center.",
     "heroLogo": "/sites/maid-marble/logo.png",
     "scheduleUrl": "/form/schedule",
     "callCta": {
       "label": "Call Kelsey",
       "stickyLabel": "Call now"
     },
-    "payments": {
-      "heading": "Easy ways to pay",
-      "intro": "Pay by card, Venmo, or check — simple invoicing for recurring clients.",
-      "onlineNote": "Secure online payment available after your visit.",
-      "methods": [
-        { "label": "Credit card", "lucide": "credit-card" },
-        { "label": "Venmo", "simpleIcon": "venmo" },
-        { "label": "Check", "lucide": "banknote" }
-      ]
-    },
     "chat": {
       "enabled": true,
-      "dockPlaceholder": "Ask about cleaning services…",
-      "inputPlaceholder": "Ask about cleaning services…",
+      "dockPlaceholder": "Ask about cleaning…",
+      "inputPlaceholder": "Ask about cleaning…",
       "introPhrases": [
-        "Hi! Kelsey here — how can Maid & Marble help?",
-        "Looking for recurring cleaning or a one-time deep clean?",
-        "Woman-owned · Central MA — ask Kelsey anything."
+        "Hi — Kelsey here. How can we help?",
+        "Recurring cleaning or a one-time deep clean?",
+        "Happy to talk through your home and schedule."
       ],
-      "greeting": "Hi! Kelsey here — how can Maid & Marble help?",
-      "avatarSrc": "/sites/maid-marble/logo.png",
-      "avatarAlt": "Kelsey O'Brien, Maid & Marble",
-      "headerTitle": "Kelsey · Maid & Marble",
+      "greeting": "Hi — Kelsey here. How can Maid & Marble help?",
+      "avatarSrc": "/sites/maid-marble/mark.png",
+      "avatarAlt": "Maid & Marble",
+      "headerTitle": "Maid & Marble",
       "footerPrefix": "Questions?",
       "hideFab": true,
       "revealFabOnEngagement": false,
       "openOnFocus": true,
       "dismissPersist": "session",
-      "dismissStorageKey": "svc-footer-chat-intro-dismissed",
+      "dismissStorageKey": "lux-footer-chat-intro-dismissed",
       "historyStorageKey": "sa-chat-site",
       "engagement": {
         "mode": "scroll",
-        "minScrollPx": 64,
-        "delayMs": 3000,
+        "minScrollPx": 80,
+        "delayMs": 4000,
         "settleMs": 900
       },
-      "businessNotes": "Kelsey O'Brien owns Maid & Marble, a woman-owned premium house cleaning company serving Central Massachusetts (Worcester County, MetroWest, I-495 corridor). Call or text 774-452-4319 for quotes — do not invent prices or availability."
+      "businessNotes": "Kelsey O'Brien owns Maid & Marble, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 774-452-4319. Do not invent prices or availability."
     },
     "schedule": {
       "formSlug": "schedule"
     },
     "services": {
-      "heading": "What we offer",
+      "heading": "How we care for your home",
+      "intro": "Every visit is scoped to your space — kitchens, baths, living areas, and the details guests notice.",
       "items": [
         {
-          "label": "Recurring home maintenance — weekly, bi-weekly, or monthly"
+          "label": "Recurring maintenance",
+          "description": "Weekly, bi-weekly, or monthly service with the same standards every time."
         },
         {
-          "label": "Deep cleans and seasonal refresh for kitchens, baths, and living spaces"
+          "label": "Deep clean & seasonal refresh",
+          "description": "Baseboards, fixtures, appliances, and the rooms that need a reset."
         },
         {
-          "label": "Move-in and move-out cleaning with attention to every surface"
+          "label": "Move-in & move-out",
+          "description": "Turnover-ready detail for buyers, sellers, and landlords."
         },
         {
-          "label": "Post-renovation and post-construction detail — dust, smudges, and final polish"
+          "label": "Post-renovation polish",
+          "description": "Fine dust, smudges, and final wipe-down after construction or remodel work."
         }
       ]
     },
     "reviews": {
-      "heading": "What clients say",
-      "intro": "Real reviews coming soon — ask about references in your area.",
+      "heading": "Client words",
+      "intro": "References available on request.",
       "items": [
         {
           "stars": "★★★★★",
-          "quote": "Our home has never looked this polished. They notice the details other cleaners miss — baseboards, fixtures, the works.",
-          "cite": "— Worcester homeowner"
+          "quote": "They notice what other cleaners miss — fixtures, edges, the little things that make a home feel finished.",
+          "cite": "Worcester homeowner"
         },
         {
           "stars": "★★★★★",
-          "quote": "Woman-owned, professional, and consistent. Same team every visit — exactly what we wanted for recurring service.",
-          "cite": "— Shrewsbury"
-        },
-        {
-          "stars": "★★★★★",
-          "quote": "Move-out clean was spotless. Landlord said it was the best turnover they’d seen.",
-          "cite": "— MetroWest"
+          "quote": "Professional, consistent, and easy to work with. Exactly what we wanted for recurring service.",
+          "cite": "Shrewsbury"
         }
       ]
     },
     "about": {
-      "heading": "Meticulous. Trustworthy. Yours.",
+      "heading": "Led by Kelsey O'Brien",
       "body": [
-        "Kelsey O'Brien founded Maid & Marble to bring hotel-level attention to homes across Central Massachusetts — Worcester County, MetroWest, and towns along the I-495 corridor. Consistent crews, clear communication, and finishes that feel as polished as marble.",
-        "You work directly with Kelsey. She walks through your home, agrees on scope and frequency, and shows up ready to deliver. Licensed and insured. No surprise upsells — just reliable, detail-oriented cleaning."
+        "Maid & Marble was built for homeowners who want more than a quick wipe-down — meticulous care, reliable scheduling, and a team that treats your home with respect.",
+        "Kelsey works directly with every client: walk-through, clear scope, and follow-through. Licensed and insured across Central Massachusetts."
       ],
       "highlights": [
-        "Talk to Kelsey — the owner",
-        "Woman-owned & operated",
+        "Woman-owned",
         "Licensed & insured",
-        "Central Massachusetts",
-        "Recurring & one-time service",
-        "Move-in / move-out specialists"
+        "Owner-led",
+        "Central Massachusetts"
       ]
     },
     "contact": {
@@ -133,6 +120,6 @@
       "phone": "774-452-4319",
       "phoneHref": "tel:+17744524319"
     },
-    "footer": "Maid & Marble · Kelsey O'Brien · Central Massachusetts"
+    "footer": "Maid & Marble · Kelsey O'Brien"
   }
 }

@@ -2,6 +2,7 @@
 import type { SiteLandingConfig } from "../../lib/siteContent";
 import EditorialLandingPage from "./EditorialLandingPage.astro";
 import PackLandingPage from "./PackLandingPage.astro";
+import LuxuryLandingPage from "./LuxuryLandingPage.astro";
 import ServiceLandingPage from "./ServiceLandingPage.astro";
 import TechLandingPage from "./TechLandingPage.astro";
 import VetLandingPage from "./VetLandingPage.astro";
@@ -20,6 +21,7 @@ const year = new Date().getFullYear();
 const isEditorial = landing.variant === "editorial";
 const isPack = landing.variant === "pack";
 const isService = landing.variant === "service";
+const isLuxury = landing.variant === "luxury";
 const isTech = landing.variant === "tech";
 const isVet = landing.variant === "vet";
 ---
@@ -31,6 +33,8 @@ const isVet = landing.variant === "vet";
     <PackLandingPage landing={landing} />
   ) : isEditorial ? (
     <EditorialLandingPage landing={landing} />
+  ) : isLuxury ? (
+    <LuxuryLandingPage landing={landing} />
   ) : isService ? (
     <ServiceLandingPage landing={landing} />
   ) : isTech ? (

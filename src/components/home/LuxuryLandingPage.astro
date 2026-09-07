@@ -1,0 +1,779 @@
+---
+/**
+ * Premium residential service landing — cream, ink, and gold.
+ * For high-end cleaning, detailing, and white-glove home care (not trade/emergency).
+ */
+import type { SiteLandingConfig } from "../../lib/siteContent";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { contactTelHref } from "../../lib/contactApi";
+import { hasFeature } from "../../lib/features";
+import { isSiteAssistantConfigured } from "../../lib/siteAssistant";
+import { resolveSiteChat } from "../../lib/siteChat";
+import SiteAssistantWidget from "../SiteAssistantWidget.astro";
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+const company = await getCompanyConfig(Astro.request);
+const year = new Date().getFullYear();
+
+const phoneDisplay =
+  (landing.contact?.phone || company.supportPhone || "").trim();
+const digits = contactTelHref(
+  landing.contact?.phoneHref?.replace(/^tel:/i, "") || phoneDisplay,
+);
+const phoneHref = digits ? `tel:${digits}` : "";
+
+const callLabel = landing.callCta?.label || "Call";
+const stickyLabel = landing.callCta?.stickyLabel || callLabel;
+const services = landing.services;
+const serviceItems =
+  services?.items?.map((item) =>
+    typeof item === "string" ? { label: item, description: undefined as string | undefined } : item,
+  ) ?? [];
+const schedule = landing.schedule;
+const brandName = landing.name || company.name || "Chat";
+const siteChat = resolveSiteChat({
+  chat: landing.chat,
+  legacy: schedule,
+  brandName,
+  photoSrc: landing.chat?.avatarSrc,
+  photoAlt: landing.chat?.avatarAlt,
+  supportEmail: company.supportEmail,
+  domain: company.domain,
+  serviceLanding: true,
+});
+const showFooterChat =
+  Boolean(siteChat) &&
+  hasFeature("portal_assistant") &&
+  isSiteAssistantConfigured();
+const chatPlaceholder = siteChat?.dockPlaceholder || "Ask a question…";
+const introPhrases = siteChat?.introPhrases || [];
+const chatGreeting = siteChat?.greeting || `Hi — how can we help?`;
+const chatFaceSrc = siteChat?.avatarSrc || "";
+const chatFaceAlt = siteChat?.avatarAlt || brandName;
+const chatEngagement = siteChat?.engagement || {
+  mode: "scroll" as const,
+  minScrollPx: 64,
+  delayMs: 3000,
+  settleMs: 900,
+};
+const chatOpenOnFocus = siteChat?.openOnFocus !== false;
+const chatDismissPersist = siteChat?.dismissPersist || "session";
+const chatDismissKey =
+  siteChat?.dismissStorageKey || "lux-footer-chat-intro-dismissed";
+const chatHistoryKey = siteChat?.historyStorageKey || "sa-chat-site";
+const chatRevealFab = siteChat?.revealFabOnEngagement === true;
+const about = landing.about;
+const contact = landing.contact;
+const reviews = landing.reviews;
+
+const logoSrc = (landing.heroLogo || "").trim();
+const markSrc = logoSrc.replace(/logo\.png$/i, "mark.png");
+---
+
+<div class="lux" data-has-phone={phoneHref ? "1" : "0"} data-has-chat={showFooterChat ? "1" : "0"}>
+  <header class="lux-header">
+    {
+      logoSrc ? (
+        <a class="lux-header__brand" href="/" aria-label={landing.name || company.name}>
+          <img src={logoSrc} alt="" width="280" height="120" decoding="async" />
+        </a>
+      ) : (
+        <a class="lux-header__word" href="/">{landing.name || company.name}</a>
+      )
+    }
+    <div class="lux-header__actions">
+      <a class="lux-header__login" href="/sign-in">Login</a>
+      {
+        phoneHref ? (
+          <a class="lux-header__phone" href={phoneHref} aria-label={callLabel}>
+            {phoneDisplay}
+          </a>
+        ) : null
+      }
+    </div>
+  </header>
+
+  <main class="lux-main">
+    <section class="lux-hero">
+      {landing.eyebrow && <p class="lux-eyebrow">{landing.eyebrow}</p>}
+      <h1>{landing.heroHeadline || landing.tagline}</h1>
+      {landing.heroBody && <p class="lux-lede">{landing.heroBody}</p>}
+      <div class="lux-hero__actions">
+        {
+          phoneHref ? (
+            <a class="lux-btn lux-btn--primary" href={phoneHref}>
+              {callLabel}
+              {phoneDisplay && <span class="lux-btn__sub">{phoneDisplay}</span>}
+            </a>
+          ) : null
+        }
+        {
+          landing.scheduleUrl ? (
+            <a class="lux-btn lux-btn--ghost" href={landing.scheduleUrl}>
+              Request a visit
+            </a>
+          ) : null
+        }
+      </div>
+      {landing.tagline && landing.heroHeadline && (
+        <p class="lux-tagline">{landing.tagline}</p>
+      )}
+    </section>
+
+    {
+      serviceItems.length ? (
+        <section class="lux-section" id="services">
+          <div class="lux-section__head">
+            <p class="lux-kicker">Services</p>
+            <h2>{services?.heading}</h2>
+            {services?.intro && <p>{services.intro}</p>}
+          </div>
+          <ul class="lux-services">
+            {serviceItems.map((item, index) => (
+              <li>
+                <span class="lux-services__num" aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <strong>{item.label}</strong>
+                  {item.description && <p>{item.description}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null
+    }
+
+    {
+      about && (
+        <section class="lux-section lux-about" id="about">
+          <div class="lux-section__head">
+            <p class="lux-kicker">About</p>
+            <h2>{about.heading}</h2>
+          </div>
+          {about.body?.map((p) => (
+            <p class="lux-copy">{p}</p>
+          ))}
+          {about.highlights?.length ? (
+            <ul class="lux-highlights">
+              {about.highlights.map((item) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      )
+    }
+
+    {
+      reviews?.items?.length ? (
+        <section class="lux-section" id="reviews">
+          <div class="lux-section__head">
+            <p class="lux-kicker">Reviews</p>
+            <h2>{reviews.heading}</h2>
+            {reviews.intro && <p>{reviews.intro}</p>}
+          </div>
+          <ul class="lux-reviews">
+            {reviews.items.map((item) => (
+              <li>
+                {item.stars && <p class="lux-reviews__stars" aria-hidden="true">{item.stars}</p>}
+                <blockquote>“{item.quote}”</blockquote>
+                {item.cite && <cite>{item.cite}</cite>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null
+    }
+
+    {
+      contact && (phoneHref || contact.email) && (
+        <section class="lux-section lux-contact" id="contact">
+          <div class="lux-section__head">
+            <p class="lux-kicker">Contact</p>
+            <h2>{contact.heading || "Get in touch"}</h2>
+          </div>
+          <div class="lux-contact__grid">
+            {
+              phoneHref && phoneDisplay && (
+                <a class="lux-contact__card" href={phoneHref}>
+                  <span class="lux-contact__label">Phone</span>
+                  <strong>{phoneDisplay}</strong>
+                </a>
+              )
+            }
+            {
+              contact.email && (
+                <a class="lux-contact__card" href={`mailto:${contact.email}`}>
+                  <span class="lux-contact__label">Email</span>
+                  <strong>{contact.email}</strong>
+                </a>
+              )
+            }
+          </div>
+        </section>
+      )
+    }
+  </main>
+
+  <footer class="lux-foot">
+    <p>&copy; {year} {landing.footer || landing.name || company.name}</p>
+  </footer>
+
+  {
+    showFooterChat ? (
+      <>
+        <SiteAssistantWidget
+          brandTitle={brandName}
+          headerTitle={siteChat?.headerTitle || brandName}
+          headerSubtitle={siteChat?.headerSubtitle}
+          greeting={chatGreeting}
+          fabLabel={`Chat with ${brandName}`}
+          footerPrefix={siteChat?.footerPrefix || "Questions?"}
+          supportPhone={phoneDisplay || company.supportPhone}
+          supportEmail={company.supportEmail}
+          pagePath={Astro.url.pathname}
+          inputPlaceholder={siteChat?.inputPlaceholder || chatPlaceholder}
+          avatarSrc={chatFaceSrc || undefined}
+          storageKey={chatHistoryKey}
+          hideFab={siteChat?.hideFab !== false}
+          revealFabOnEngagement={chatRevealFab}
+        />
+        <div class="lux-footer-chat" data-lux-footer-chat role="region" aria-label="Chat">
+          {
+            introPhrases.length ? (
+              <div class="lux-footer-chat__intro" data-lux-intro hidden aria-hidden="true">
+                {
+                  chatFaceSrc ? (
+                    <img
+                      class="lux-footer-chat__face"
+                      src={chatFaceSrc}
+                      alt=""
+                      width="40"
+                      height="40"
+                      decoding="async"
+                    />
+                  ) : markSrc ? (
+                    <img
+                      class="lux-footer-chat__face"
+                      src={markSrc}
+                      alt=""
+                      width="40"
+                      height="40"
+                      decoding="async"
+                    />
+                  ) : null
+                }
+                <button type="button" class="lux-footer-chat__bubble-wrap" data-lux-intro-open aria-label="Open chat">
+                  <span class="lux-footer-chat__bubble" data-lux-intro-text></span>
+                </button>
+              </div>
+            ) : null
+          }
+          <form class="lux-footer-chat__dock" data-lux-aw-dock>
+            <div class="lux-footer-chat__pill">
+              <input
+                type="text"
+                class="lux-footer-chat__input"
+                name="message"
+                placeholder={chatPlaceholder}
+                autocomplete="off"
+                maxlength="2000"
+                aria-label={chatPlaceholder}
+              />
+              <button type="submit" class="lux-footer-chat__send">Send</button>
+            </div>
+          </form>
+        </div>
+      </>
+    ) : phoneHref ? (
+      <div class="lux-sticky" role="region" aria-label="Call">
+        <a class="lux-sticky__btn" href={phoneHref}>{stickyLabel}</a>
+      </div>
+    ) : null
+  }
+</div>
+
+{
+  showFooterChat ? (
+    <script
+      is:inline
+      define:vars={{
+        introPhrases,
+        chatFaceAlt,
+        engagement: chatEngagement,
+        openOnFocus: chatOpenOnFocus,
+        dismissPersist: chatDismissPersist,
+        dismissStorageKey: chatDismissKey,
+      }}
+    >
+      (function () {
+        const DISMISS_KEY = dismissStorageKey || "lux-footer-chat-intro-dismissed";
+        const persistMode = dismissPersist || "session";
+        const dockRoot = document.querySelector("[data-lux-footer-chat]");
+        const widget = document.querySelector("[data-assistant-widget]");
+        const dockForm = dockRoot?.querySelector("[data-lux-aw-dock]");
+        const dockInput = dockForm?.querySelector(".lux-footer-chat__input");
+        if (!dockRoot || !widget) return;
+
+        const intro = dockRoot.querySelector("[data-lux-intro]");
+        const introText = intro?.querySelector("[data-lux-intro-text]");
+        const openBtn = intro?.querySelector("[data-lux-intro-open]");
+
+        function dismissed() {
+          try {
+            if (persistMode === "local") return localStorage.getItem(DISMISS_KEY) === "1";
+            return sessionStorage.getItem(DISMISS_KEY) === "1";
+          } catch {
+            return false;
+          }
+        }
+
+        function hideIntro(persist) {
+          if (!intro) return;
+          intro.hidden = true;
+          intro.setAttribute("aria-hidden", "true");
+          if (persist) {
+            try {
+              (persistMode === "local" ? localStorage : sessionStorage).setItem(DISMISS_KEY, "1");
+            } catch {}
+          }
+        }
+
+        function openChat() {
+          widget.dispatchEvent(new CustomEvent("aw-open", { bubbles: true }));
+          hideIntro(false);
+        }
+
+        dockForm?.addEventListener("submit", (ev) => {
+          ev.preventDefault();
+          openChat();
+          const val = dockInput instanceof HTMLInputElement ? dockInput.value.trim() : "";
+          if (val) widget.dispatchEvent(new CustomEvent("aw-prefill", { detail: { text: val }, bubbles: true }));
+        });
+
+        if (openOnFocus) dockInput?.addEventListener("focus", () => openChat(), { once: false });
+
+        if (intro && introPhrases?.length && introText instanceof HTMLElement && !dismissed()) {
+          let idx = 0;
+          introText.textContent = introPhrases[0];
+          intro.hidden = false;
+          intro.removeAttribute("aria-hidden");
+          const rotate = setInterval(() => {
+            idx = (idx + 1) % introPhrases.length;
+            introText.textContent = introPhrases[idx];
+          }, 4200);
+          openBtn?.addEventListener("click", () => {
+            clearInterval(rotate);
+            openChat();
+          });
+        }
+      })();
+    </script>
+  ) : null
+}
+
+<style>
+  .lux {
+    --lux-cream: #f7f4ef;
+    --lux-ink: #141414;
+    --lux-muted: #5c574f;
+    --lux-gold: #b8954a;
+    --lux-gold-soft: rgba(184, 149, 74, 0.18);
+    --lux-line: rgba(20, 20, 20, 0.1);
+    min-height: 100dvh;
+    color: var(--lux-ink);
+    background: var(--lux-cream);
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lux-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: calc(0.85rem + env(safe-area-inset-top, 0px)) 1.25rem 0.5rem;
+    border-bottom: 1px solid var(--lux-line);
+  }
+
+  .lux-header__brand img {
+    display: block;
+    width: min(11.5rem, 42vw);
+    height: auto;
+  }
+
+  .lux-header__word {
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--lux-ink);
+  }
+
+  .lux-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .lux-header__login,
+  .lux-header__phone {
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+  }
+
+  .lux-header__login {
+    border: 1px solid var(--lux-line);
+    color: var(--lux-ink);
+    background: rgba(255, 255, 255, 0.35);
+  }
+
+  .lux-header__phone {
+    border: 1px solid var(--lux-gold);
+    color: var(--lux-ink);
+    background: var(--lux-gold-soft);
+  }
+
+  .lux-main {
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+
+  .lux-hero {
+    text-align: center;
+    padding: 1rem 0 2.5rem;
+  }
+
+  .lux-eyebrow {
+    margin: 0 0 1rem;
+    color: var(--lux-gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .lux-hero h1 {
+    margin: 0;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(2.1rem, 8vw, 3rem);
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+  }
+
+  .lux-lede {
+    margin: 1.1rem auto 0;
+    max-width: 32rem;
+    color: var(--lux-muted);
+    font-size: 1.05rem;
+    line-height: 1.65;
+  }
+
+  .lux-hero__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1.6rem;
+  }
+
+  .lux-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.95rem 1.2rem;
+    border-radius: 999px;
+    text-decoration: none !important;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .lux-btn:active {
+    transform: scale(0.985);
+  }
+
+  .lux-btn--primary {
+    background: var(--lux-ink);
+    color: #faf8f4 !important;
+    box-shadow: 0 12px 28px rgba(20, 20, 20, 0.14);
+  }
+
+  .lux-btn__sub {
+    font-size: 0.88rem;
+    font-weight: 500;
+    opacity: 0.82;
+  }
+
+  .lux-btn--ghost {
+    border: 1px solid var(--lux-gold);
+    color: var(--lux-ink) !important;
+    background: transparent;
+  }
+
+  .lux-tagline {
+    margin: 1.35rem auto 0;
+    max-width: 28rem;
+    color: var(--lux-muted);
+    font-size: 0.95rem;
+    line-height: 1.55;
+  }
+
+  .lux-section {
+    padding: 2.25rem 0;
+    border-top: 1px solid var(--lux-line);
+  }
+
+  .lux-section__head h2 {
+    margin: 0.35rem 0 0;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(1.65rem, 5vw, 2.1rem);
+    font-weight: 600;
+    line-height: 1.12;
+  }
+
+  .lux-section__head p {
+    margin: 0.75rem 0 0;
+    color: var(--lux-muted);
+    line-height: 1.6;
+  }
+
+  .lux-kicker {
+    margin: 0;
+    color: var(--lux-gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .lux-services {
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .lux-services li {
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    gap: 0.85rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--lux-line);
+  }
+
+  .lux-services li:last-child {
+    border-bottom: 0;
+  }
+
+  .lux-services__num {
+    color: var(--lux-gold);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    padding-top: 0.15rem;
+  }
+
+  .lux-services strong {
+    display: block;
+    font-size: 1rem;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+
+  .lux-services p {
+    margin: 0.35rem 0 0;
+    color: var(--lux-muted);
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  .lux-copy {
+    margin: 0 0 1rem;
+    color: var(--lux-muted);
+    line-height: 1.65;
+  }
+
+  .lux-highlights {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .lux-highlights li {
+    padding: 0.45rem 0.75rem;
+    border: 1px solid var(--lux-line);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    background: rgba(255, 255, 255, 0.35);
+  }
+
+  .lux-reviews {
+    margin: 1.5rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .lux-reviews__stars {
+    margin: 0 0 0.35rem;
+    color: var(--lux-gold);
+    letter-spacing: 0.08em;
+    font-size: 0.85rem;
+  }
+
+  .lux-reviews blockquote {
+    margin: 0;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.25rem;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+
+  .lux-reviews cite {
+    display: block;
+    margin-top: 0.5rem;
+    color: var(--lux-muted);
+    font-size: 0.85rem;
+    font-style: normal;
+  }
+
+  .lux-contact__grid {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+
+  .lux-contact__card {
+    display: grid;
+    gap: 0.25rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--lux-line);
+    border-radius: 1rem;
+    text-decoration: none !important;
+    color: inherit;
+    background: rgba(255, 255, 255, 0.42);
+  }
+
+  .lux-contact__label {
+    color: var(--lux-gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .lux-foot {
+    padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom, 0px));
+    text-align: center;
+    border-top: 1px solid var(--lux-line);
+    color: var(--lux-muted);
+    font-size: 0.82rem;
+  }
+
+  .lux-sticky {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, transparent, rgba(247, 244, 239, 0.92) 35%);
+  }
+
+  .lux-sticky__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.95rem 1rem;
+    border-radius: 999px;
+    background: var(--lux-ink);
+    color: #faf8f4 !important;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none !important;
+    box-shadow: 0 10px 24px rgba(20, 20, 20, 0.18);
+  }
+
+  .lux-footer-chat {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lux-footer-chat__pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.35rem 0.35rem 1rem;
+    border: 1px solid var(--lux-line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 10px 30px rgba(20, 20, 20, 0.08);
+  }
+
+  .lux-footer-chat__input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: var(--lux-ink);
+    min-width: 0;
+  }
+
+  .lux-footer-chat__input:focus {
+    outline: none;
+  }
+
+  .lux-footer-chat__send {
+    border: 0;
+    border-radius: 999px;
+    padding: 0.55rem 0.95rem;
+    background: var(--lux-ink);
+    color: #faf8f4;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  @media (min-width: 640px) {
+    .lux-hero__actions {
+      flex-direction: row;
+      justify-content: center;
+    }
+
+    .lux-btn {
+      min-width: 12rem;
+    }
+
+    .lux-contact__grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>

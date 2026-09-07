@@ -206,12 +206,13 @@ export type SiteLandingConfig = {
   /**
    * `editorial` = Campion-style scrolling site.
    * `service` = mobile call-first single page (trades / emergency).
+   * `luxury` = premium residential care (cleaning, detailing) — cream / ink / gold.
    * `tech` = mobile-first Salesforce / consulting landing.
    * `pack` = PDX Paws–style neighborhood service site (marquee, cards, wall).
    * `vet` = clean mobile-vet landing (tandem.vet–inspired).
    * Default keeps the original navy landing.
    */
-  variant?: "default" | "editorial" | "service" | "tech" | "pack" | "vet";
+  variant?: "default" | "editorial" | "service" | "luxury" | "tech" | "pack" | "vet";
   photo?: {
     src: string;
     alt: string;

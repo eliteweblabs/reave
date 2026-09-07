@@ -24,7 +24,7 @@ export const prerender = false;
 
 function businessNotesFromLanding(): string {
   const landing = getSiteContent().landing;
-  if (!landing || landing.variant !== 'service') return '';
+  if (!landing || (landing.variant !== 'service' && landing.variant !== 'luxury')) return '';
   const chatNotes = String(landing.chat?.businessNotes || '').trim();
   const bits: string[] = [];
   if (chatNotes) bits.push(chatNotes);

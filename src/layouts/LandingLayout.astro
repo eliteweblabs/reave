@@ -38,6 +38,7 @@ const landing = siteContent.landing ?? {};
 const isEditorial = landing.variant === "editorial";
 const isPack = landing.variant === "pack";
 const isService = landing.variant === "service";
+const isLuxury = landing.variant === "luxury";
 const isTech = landing.variant === "tech";
 const isVet = landing.variant === "vet";
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
@@ -68,7 +69,7 @@ const ogImageAlt = shareSafeText(landing.name ?? company.name);
 const themeColor =
   themeColorProp ??
   landing.themeColor ??
-  (isVet ? "#fafafa" : isPack ? "#1c1410" : isEditorial ? "#f4efe6" : isService ? "#f4f7fb" : isTech ? "#2f4a2c" : "#01061d");
+  (isVet ? "#fafafa" : isPack ? "#1c1410" : isEditorial ? "#f4efe6" : isLuxury ? "#f7f4ef" : isService ? "#f4f7fb" : isTech ? "#2f4a2c" : "#01061d");
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
@@ -77,7 +78,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? `${origin}${BRANDING_OG_PATH}`
   : ogImageAbsolute;
 const htmlStyle =
-  isEditorial || isService || isTech || isPack || isVet
+  isEditorial || isLuxury || isService || isTech || isPack || isVet
     ? undefined
     : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary);
 
@@ -153,6 +154,11 @@ const manifest = landing.manifest;
         href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap"
         rel="stylesheet"
       />
+    ) : isLuxury ? (
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Outfit:wght@400;500;600&display=swap"
+        rel="stylesheet"
+      />
     ) : isTech ? (
       <link
         href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;600;700&display=swap"
@@ -170,7 +176,7 @@ const manifest = landing.manifest;
       />
     )}
   </head>
-  <body class={isVet ? "vet-body" : isPack ? "pack-body" : isEditorial ? "editorial-body" : isService ? "service-body" : isTech ? "tech-body" : "landing-body"}>
+  <body class={isVet ? "vet-body" : isPack ? "pack-body" : isEditorial ? "editorial-body" : isLuxury ? "luxury-body" : isService ? "service-body" : isTech ? "tech-body" : "landing-body"}>
     <slot />
     <ScrollFadeIn />
     <CookieNotice />
@@ -248,6 +254,30 @@ const manifest = landing.manifest;
     user-select: text;
   }
   body.editorial-body a { color: inherit; }
+</style>
+) : isLuxury ? (
+<style is:global>
+  * { box-sizing: border-box; }
+  html, body.luxury-body {
+    margin: 0;
+    min-height: 100%;
+    font-family: Outfit, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #141414;
+    background: #f7f4ef;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  body.luxury-body :is(
+    input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+    textarea,
+    a[href^="mailto:"],
+    a[href^="tel:"]
+  ) {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  body.luxury-body a { color: inherit; }
 </style>
 ) : isService ? (
 <style is:global>
