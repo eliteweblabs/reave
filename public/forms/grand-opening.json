@@ -8,8 +8,8 @@
       "required": true,
       "cf-questions": "Do you already have a website?",
       "options": [
-        { "value": "yes", "label": "Yes — I have a website" },
-        { "value": "no", "label": "No — not yet" }
+        { "value": "yes", "label": "Yes" },
+        { "value": "no", "label": "No" }
       ],
       "cf-block-value": "no",
       "cf-block-message": "This offer is for redesigning an existing website onto our hosting. If you don't have a site yet, that's a blocker for this promo — reach out through our contact page and we'll help when you're ready."

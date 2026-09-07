@@ -634,6 +634,12 @@ const rootClass = [
     gap: 8px;
   }
 
+  .conversational-form-root--hero-chat .options-wrapper--binary {
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: min(100%, 22rem);
+  }
+
   .conversational-form-root--hero-chat .option-btn {
     border-radius: 999px;
     border: 1px solid var(--demo-line, var(--site-border, rgba(255, 255, 255, 0.14)));
@@ -642,9 +648,28 @@ const rootClass = [
     font-size: 0.82rem;
   }
 
+  .conversational-form-root--hero-chat .options-wrapper--binary .option-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.72rem 1.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-align: center;
+    border-color: transparent;
+    background: var(--brand-btn-bg, #111);
+    color: var(--brand-btn-fg, #fff);
+  }
+
   .conversational-form-root--hero-chat .option-btn:hover {
     border-color: var(--site-fg, #171717);
     background: color-mix(in srgb, var(--site-fg) 8%, transparent);
+  }
+
+  .conversational-form-root--hero-chat .options-wrapper--binary .option-btn:hover {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--brand-btn-bg, #111) 88%, #fff);
+    color: var(--brand-btn-fg, #fff);
+    transform: translateY(-1px);
   }
 
   .conversational-form-root--hero-chat .sms-consent-panel {
@@ -966,6 +991,7 @@ const rootClass = [
 
     const wrapper = document.createElement("div");
     wrapper.className = "options-wrapper";
+    if (options.length === 2) wrapper.classList.add("options-wrapper--binary");
     wrapper.id = "current-options";
 
     options.forEach((opt) => {
