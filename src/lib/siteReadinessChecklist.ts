@@ -215,11 +215,22 @@ function internalLinkingStatus(
   };
 }
 
-function analyticsStatus(analytics: AnalyticsAccountRow | null | undefined): Pick<SiteReadinessItem, 'status' | 'detail'> {
-  if (!analytics) return { status: 'unknown', detail: 'Analytics account not listed' };
+function analyticsStatus(
+  analytics: AnalyticsAccountRow | null | undefined,
+  opts: { plausibleDetected?: boolean } = {},
+): Pick<SiteReadinessItem, 'status' | 'detail'> {
+  if (!analytics) {
+    if (opts.plausibleDetected) {
+      return { status: 'warn', detail: 'Plausible script detected — finish fleet registration' };
+    }
+    return { status: 'unknown', detail: 'Analytics account not listed' };
+  }
   if (analytics.registered) {
     const visitors = analytics.visitors != null ? `${analytics.visitors} visitors / 30d` : 'wired';
     return { status: 'ok', detail: `Plausible/GA4 ${visitors}` };
+  }
+  if (opts.plausibleDetected) {
+    return { status: 'warn', detail: 'Plausible script on site — register in analytics fleet' };
   }
   return { status: 'warn', detail: 'Analytics not wired — visitors won’t show on dashboard' };
 }
@@ -253,6 +264,7 @@ export function buildSiteReadinessChecklist(input: {
   monitor?: UptimeMonitorForFleetMerge | null;
   pageSpeed?: PageSpeedProbe | null;
   linkCrawl?: LinkCrawlProbe | null;
+  plausibleDetected?: boolean;
   checkedAt?: number;
 }): SiteReadinessSummary {
   const statusById: Record<string, Pick<SiteReadinessItem, 'status' | 'detail'>> = {
@@ -265,7 +277,7 @@ export function buildSiteReadinessChecklist(input: {
     }),
     xml_sitemap: sitemapStatus(input.seo, input.gscSitemapCount, input.googleConnected),
     internal_linking: internalLinkingStatus(input.seo, input.linkCrawl),
-    analytics: analyticsStatus(input.analytics),
+    analytics: analyticsStatus(input.analytics, { plausibleDetected: input.plausibleDetected }),
     uptime: uptimeStatus(input.monitor),
   };
 

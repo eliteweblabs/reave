@@ -181,6 +181,12 @@ export function peekCachedAnalyticsDashboardPreview(
   return previewCache.preview;
 }
 
+export function invalidateAnalyticsDashboardPreview(): void {
+  previewCache = null;
+  previewInflight = null;
+  previewInflightDomain = '';
+}
+
 export async function buildAnalyticsDashboardPreview(
   companyDomain: string,
   opts: { fresh?: boolean } = {},

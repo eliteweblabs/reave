@@ -24,6 +24,7 @@ import { hostnameFromWebsite } from './plausibleClient';
 import { isApexPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
 import { buildSiteReadinessChecklist } from './siteReadinessChecklist';
 import { buildSiteTechStackSummary } from './siteTechStack';
+import { peekCachedPageSpeedProbe } from './fleetPageSpeedCache';
 import type {
   AnalyticsAccountRow,
   UptimeMonitorForFleetMerge,
@@ -255,6 +256,11 @@ export async function buildSiteHealthFleet(
         hostnameFromWebsite(card.siteId) || normalizeMonitorHost(card.siteId) || card.siteId;
       const seo = seoResults[i] ?? null;
       const wpConnectAvailable = connectResults[i] ?? null;
+      const siteUrl = `https://${siteId.replace(/^www\./, '')}/`;
+      const pageSpeed = peekCachedPageSpeedProbe(siteUrl);
+      const plausibleDetected = Boolean(
+        seo?.technologies?.some((tech) => tech.name.toLowerCase() === 'plausible'),
+      );
       const searchEnginesBlocked = searchEnginesBlockedFromSeoProbe(seo);
       const robots = seo
         ? {
@@ -278,6 +284,8 @@ export async function buildSiteHealthFleet(
         gscSitemapCount: gscSitemapCounts.get(siteId) ?? null,
         analytics: card.analytics,
         monitor: card.monitor,
+        pageSpeed,
+        plausibleDetected,
         checkedAt,
       });
       const scored = scoreSiteHealthFromReadiness(readiness);
