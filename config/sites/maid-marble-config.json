@@ -70,7 +70,7 @@
         "delayMs": 3000,
         "settleMs": 900
       },
-      "businessNotes": "Maid & Marble is a woman-owned premium house cleaning company serving Central Massachusetts (Worcester County, MetroWest, I-495 corridor). Prefer phone or chat for quotes — do not invent prices or availability."
+      "businessNotes": "Maid & Marble is a woman-owned premium house cleaning company serving Central Massachusetts (Worcester County, MetroWest, I-495 corridor). Call or text 774-452-4319 for quotes — do not invent prices or availability."
     },
     "schedule": {
       "formSlug": "schedule"
@@ -129,7 +129,9 @@
       ]
     },
     "contact": {
-      "heading": "Call or text"
+      "heading": "Call or text",
+      "phone": "774-452-4319",
+      "phoneHref": "tel:+17744524319"
     },
     "footer": "Maid & Marble · Woman-owned · Central Massachusetts"
   }
