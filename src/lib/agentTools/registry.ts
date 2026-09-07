@@ -15,6 +15,7 @@ import { sshModule } from './core/ssh';
 import { wpModule } from './core/wp';
 import { deployResumeModule } from './core/deployResume';
 import { railwayModule } from './core/railway';
+import { ideogramModule } from './core/ideogram';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -56,6 +57,10 @@ import type { AgentToolModule } from './types';
  *
  * Railway tools (`list_railway_registered_domains`) live in `core/railway.ts` —
  * always-on when RAILWAY_API_TOKEN is set. Allows querying Railway-purchased domains.
+ *
+ * Ideogram image generation (`generate_image`) lives in `core/ideogram.ts` —
+ * enabled when IDEOGRAM_API_KEY is set. Generates AI images from text prompts
+ * via the Ideogram REST API.
  */
 const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
@@ -72,6 +77,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   wpModule,
   deployResumeModule,
   railwayModule,
+  ideogramModule,
 ];
 
 /** Lazy — plugin manifests import localKnowledge, which imports pluginRegistry (TDZ if eager). */
