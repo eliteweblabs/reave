@@ -218,6 +218,19 @@
   color: #f85149;
   font-size: 0.66rem;
 }
+.dash-fleet-popover-remaining {
+  margin: 0.45rem 0 0;
+  padding: 0.45rem 0 0;
+  border-top: 1px solid var(--panel-border);
+  font-size: 0.64rem;
+  color: var(--muted);
+}
+.dash-fleet-popover-remaining strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #d29922;
+  font-size: 0.66rem;
+}
 .dash-fleet-popover-stack {
   margin: 0.45rem 0 0;
   padding: 0.45rem 0 0;

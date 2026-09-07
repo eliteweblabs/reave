@@ -4193,6 +4193,33 @@ function siteNeedsReaveConnect(health) {
   return connect?.status === 'missing';
 }
 
+function buildDashboardSiteRemainingHtml(health) {
+  const items = Array.isArray(health?.readiness?.items)
+    ? health.readiness.items.filter((item) => item.status !== 'ok')
+    : [];
+  const manual = items.filter(
+    (item) => !['search_console', 'xml_sitemap', 'analytics'].includes(item.id),
+  );
+  if (!manual.length) return '';
+  const rows = manual
+    .map(
+      (item) =>
+        `<li class="dash-fleet-popover-row">` +
+          `<span class="dash-fleet-popover-row-icon">${iosIcon('zap', 12)}</span>` +
+          `<span class="dash-fleet-popover-row-label">${escHtml(item.label)}</span>` +
+          `<span class="dash-fleet-popover-row-status dash-fleet-popover-row-status--${item.status === 'crit' ? 'crit' : item.status === 'warn' ? 'warn' : 'unknown'}">Manual</span>` +
+          `<span class="dash-fleet-popover-row-detail">${escHtml(item.detail || '')}</span>` +
+        `</li>`,
+    )
+    .join('');
+  return (
+    `<div class="dash-fleet-popover-remaining">` +
+      `<strong>Still needs work</strong>` +
+      `<ul class="dash-fleet-popover-section">${rows}</ul>` +
+    `</div>`
+  );
+}
+
 function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) {
   const title = card.label || card.siteId;
   const domain = card.siteId;
@@ -4295,6 +4322,7 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
     `</dl>` +
     buildDashboardSiteStackHtml(health) +
     `<ul class="dash-fleet-popover-section">${readinessRows}</ul>` +
+    buildDashboardSiteRemainingHtml(health) +
     issuesHtml +
     indexingHtml +
     ignoreHtml
@@ -6643,7 +6671,7 @@ function renderAdminDashboard(data, opts = {}) {
     scanBtn.type = 'button';
     scanBtn.id = 'dash-site-scan-btn';
     scanBtn.className = 'dash-uptime-tile dash-fleet-tile dash-fleet-scan-tile';
-    scanBtn.title = 'Check schema, speed, Search Console, sitemap, and links';
+    scanBtn.title = 'Check schema, speed, Search Console, sitemap, links — auto-wire Plausible & GSC where possible';
     scanBtn.setAttribute('aria-label', `Scan sites — ${scanHint}`);
     scanBtn.innerHTML =
       `<div class="dash-uptime-name-row">` +
@@ -6651,7 +6679,7 @@ function renderAdminDashboard(data, opts = {}) {
         `<div class="dash-uptime-name dash-fleet-scan-label">Scan sites</div>` +
       `</div>` +
       `<div class="dash-uptime-meta dash-fleet-scan-meta">${escHtml(scanHint)}</div>`;
-    scanBtn.addEventListener('click', () => void refreshDashboardSiteHealth({ force: true }));
+    scanBtn.addEventListener('click', () => void refreshDashboardSiteHealth({ force: true, fix: true }));
     const scanLi = document.createElement('li');
     scanLi.appendChild(scanBtn);
     list.appendChild(scanLi);
@@ -6802,7 +6830,7 @@ function setDashboardSiteScanBusy(busy) {
   if (!meta) return;
   const archival = dashFleetScanHintFromPayload(lastDashboardPayload);
   if (busy) {
-    meta.textContent = archival ? `Scanning… · ${archival}` : 'Checking schema, speed, links…';
+    meta.textContent = archival ? `Fixing… · ${archival}` : 'Wiring Plausible, GSC, PageSpeed…';
     return;
   }
   if (archival) meta.textContent = archival;
@@ -6863,7 +6891,7 @@ function runDashboardSiteHealthIdleRefresh() {
     scheduleDashboardSiteHealthIdleRefresh(checkedAt);
     return;
   }
-  const run = () => void refreshDashboardSiteHealth({ force: true });
+  const run = () => void refreshDashboardSiteHealth({ force: true, fix: false });
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(run, { timeout: 120_000 });
   } else {
@@ -6873,12 +6901,15 @@ function runDashboardSiteHealthIdleRefresh() {
 
 async function refreshDashboardSiteHealth(opts = {}) {
   const force = opts.force === true;
+  const fix = opts.fix === true;
   if (dashboardSiteHealthScanBusy) return;
   dashboardSiteHealthScanBusy = true;
   setDashboardSiteScanBusy(true);
   const gen = ++dashboardSiteHealthHydrateGen;
   try {
-    const res = await adminFetch('/api/admin/sites/health', {
+    const endpoint =
+      force && fix ? '/api/admin/sites/improve' : force ? '/api/admin/sites/health?fix=0' : '/api/admin/sites/health';
+    const res = await adminFetch(endpoint, {
       method: force ? 'POST' : 'GET',
     });
     const payload = await readAdminJson(res, 'site health');
@@ -6897,6 +6928,7 @@ async function refreshDashboardSiteHealth(opts = {}) {
       ...lastDashboardPayload,
       siteHealth: health,
       siteFleetIgnore: payload.siteFleetIgnore || lastDashboardPayload.siteFleetIgnore,
+      siteScoreReport: payload.scoreReport || null,
       stats: {
         ...(lastDashboardPayload.stats || {}),
         siteHealthCritical: health.criticalSites ?? null,
