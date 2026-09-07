@@ -115,6 +115,29 @@ const brandName = company.name || "reave.app";
             </p>
           </article>
           <article class="go-detail-card">
+            <h3>Google Search Console setup</h3>
+            <p>
+              We add and verify your property, submit your sitemap, and inspect key URLs so
+              Google can find, crawl, and index your site from day one.
+            </p>
+          </article>
+          <article class="go-detail-card">
+            <h3>SEO & listing audit</h3>
+            <p>
+              On-page SEO inventory (titles, meta, Open Graph, schema, robots.txt, sitemap),
+              a Lighthouse performance baseline, and a listings check across Google Business
+              Profile and directories — NAP consistency and gaps included.
+            </p>
+          </article>
+          <article class="go-detail-card">
+            <h3>DNS & deliverability inspection</h3>
+            <p>
+              DNS health, SSL, nameserver alignment, and email authentication (SPF, DKIM,
+              DMARC) before launch — plus broken-link and crawl checks so nothing obvious
+              blocks search engines or mail.
+            </p>
+          </article>
+          <article class="go-detail-card">
             <h3>Unlimited edits</h3>
             <p>
               Copy tweaks, new photos, layout changes — included for your first year. We keep
@@ -356,11 +379,11 @@ const brandName = company.name || "reave.app";
   .go-details__grid {
     display: grid;
     gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   }
 
   @media (min-width: 720px) {
     .go-details__grid {
-      grid-template-columns: repeat(3, 1fr);
       gap: 20px;
     }
   }
