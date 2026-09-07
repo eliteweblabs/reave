@@ -1,1 +1,169 @@
-{\n  \"key\": \"drpawscalls\",\n  \"pages\": [\"/\", \"/privacy\", \"/terms\", \"/cookies\"],\n  \"nav\": {\n    \"links\": [],\n    \"groups\": [],\n    \"showDemoCta\": false,\n    \"showSignIn\": true\n  },\n  \"homepage\": {\n    \"template\": \"landing\",\n    \"heroHeadlineHtml\": \"Paws Calls\",\n    \"showHeroDemo\": false,\n    \"showDialogue\": false,\n    \"showIntegrations\": false,\n    \"showFeatures\": false,\n    \"showContact\": false,\n    \"showLegalLinks\": true\n  },\n  \"landing\": {\n    \"variant\": \"vet\",\n    \"title\": \"Paws Calls · At-home veterinary services\",\n    \"description\": \"At-home veterinary services for your pets. Serving Western Mass and Connecticut. Now offering urgent care appointments.\",\n    \"themeColor\": \"#fafafa\",\n    \"eyebrow\": \"Now offering\",\n    \"name\": \"Paws Calls\",\n    \"tagline\": \"Urgent care appointments\",\n    \"heroHeadline\": \"At Home Veterinary Services for your Pets\",\n    \"heroBody\": \"Compassionate veterinary care where your pet is most comfortable — at home. House calls across Western Massachusetts and Connecticut.\",\n    \"heroLogo\": \"/sites/drpawscalls/logo.png\",\n    \"heroImage\": \"/sites/drpawscalls/hero/dr-ryczek.webp\",\n    \"ogImage\": \"/sites/drpawscalls/og.png\",\n    \"scheduleUrl\": \"/form/schedule\",\n    \"callCta\": {\n      \"label\": \"Schedule an Appointment\"\n    },\n    \"services\": {\n      \"heading\": \"Services\",\n      \"intro\": \"Scheduling an appointment ensures your pet receives the highest standard of care. Contact Paws Calls today to provide your loyal companion with expert attention tailored to their unique health needs.\",\n      \"items\": [\n        {\n          \"label\": \"Wellness Exams & Sick Visits\",\n          \"description\": \"Paws Calls provides comprehensive in-home wellness and sick visits, allowing your pet to receive high-quality veterinary care in the comfort and familiarity of home. Each visit includes a thorough physical examination, administration of necessary vaccinations, and careful evaluation of any health concerns — helping your pet remain healthy, relaxed, and stress-free. Our in-home services include all core and recommended vaccines, heartworm testing, flea and tick prevention, and customized wellness plans covering routine blood work and nutrition guidance.\",\n          \"bookHref\": \"#inquiry\"\n        },\n        {\n          \"label\": \"Pain Management\",\n          \"description\": \"We offer compassionate and effective pain management solutions for pets experiencing chronic or debilitating conditions, with a special focus on geriatric patients. Our veterinarian uses comprehensive pain-scoring assessments to accurately evaluate your pet's comfort level and develop individual treatment plans. We provide pain-relief consultations and prioritize educating owners on recognizing signs of discomfort — helping you manage your pet's pain while improving their comfort, mobility, and overall quality of life.\",\n          \"bookHref\": \"#inquiry\"\n        },\n        {\n          \"label\": \"End of Life Care\",\n          \"description\": \"We offer compassionate end-of-life care for pets, providing pain management and adapting environments to keep them comfortable during their final months. This service helps pet owners navigate the difficult process of saying goodbye to their beloved pets.\",\n          \"bookHref\": \"#inquiry\"\n        }\n      ]\n    },\n    \"about\": {\n      \"heading\": \"Dr. Kara M. Ryczek\",\n      \"body\": [\n        \"Dr. Ryczek has been practicing veterinary medicine for over 25 years. She earned a Bachelor of Science in Biology from Trinity College and a Doctor of Veterinary Medicine from the Cummings School of Veterinary Medicine at Tufts University. She then completed a post-doctoral 13-month rotating internship at VCA South Shore Animal Hospital in South Weymouth, MA — covering medical, surgical, cardiac, ophthalmic, dental, and emergency cases.\",\n        \"Dr. Ryczek has since worked in both private practices and emergency/critical care hospitals. After relocating back to Longmeadow, MA, she founded Paws Calls in 2020 — providing exceptional in-home veterinary services that prioritize both our care for pets and convenience for their owners.\",\n        \"Dr. Ryczek remains based in Longmeadow, where she lives with her two children, one yellow lab, and two feline friends. Outside of work, she enjoys running, coaching, reading, cooking, and traveling with her children.\"\n      ]\n    },\n    \"inquiry\": {\n      \"heading\": \"Send a message\",\n      \"intro\": \"Questions about house calls, urgent care, or scheduling? Fill out the form and we will get back to you.\",\n      \"web3formsAccessKey\": \"4c381e1e-760d-480b-9780-7a90cb7336d9\",\n      \"subject\": \"New inquiry from drpawscalls.com\",\n      \"submitLabel\": \"Send message\"\n    },\n    \"reviews\": {\n      \"heading\": \"What pet families are saying\",\n      \"intro\": \"Reviews from our Google listing.\",\n      \"googleMapsUrl\": \"https://maps.app.goo.gl/6TG3Sz4SWwU9RLMR7\",\n      \"googlePlaceId\": \"ChIJjXVvSQDn5okRW9Kljecj8hU\",\n      \"googlePlaceQuery\": \"Paws Calls mobile pet veterinarian Longmeadow Massachusetts\",\n      \"items\": [\n        {\n          \"quote\": \"We love Dr. Ryczek. We adopted 2 bonded dogs in 2020 so vet visits were challenging during the pandemic. Even for routine visits, it's so much easier to have your vet come to you. Yes, you will pay a bit more but it's worth it for us. Dr. Ryczek is also very responsive to texts and emails which is helpful. We can send photos or videos to help diagnose issues that don't require a visit. She is patient and takes her time. I don't know what we'd do without her.\",\n          \"cite\": \"Peggy K\",\n          \"stars\": \"★★★★★\"\n        },\n        {\n          \"quote\": \"I reached out to Dr. Ryczek a few years back when it was too difficult to get my dog in the car. She immediately got back to me and was over to meet my dog within a few days. She ALWAYS answered my text & calls and having an in-home vet was a life changer. Just a few weeks ago my family & I had to make the tough decision of putting our beloved boxer down. Kara & her assistant were AMAZING. They explained every step with such grace and compassion. They also gave myself and my family all the time we needed to say goodbye to our Bindy. Kara is incredibly knowledgeable and kind, and the convenience of having her come to our home for well/sick visits and euthanasia reduced the stress on our dog and ourselves.\",\n          \"cite\": \"Jenn K\",\n          \"stars\": \"★★★★★\"\n        },\n        {\n          \"quote\": \"Kara originally came to our house for a wellness check a couple weeks ago and then again this week to help us say goodbye to our 14 year old boxer girl who was struggling. She was very easy to work with and responsive with all of our questions prior to the visit. We really appreciated her compassion during one of our hardest days. 10/10 would recommend.\",\n          \"cite\": \"Erika Szulak\",\n          \"stars\": \"★★★★★\"\n        },\n        {\n          \"quote\": \"Kara came the same day for our yellow lab's euthanasia. She messaged us back right away and was very compassionate and professional. It made the overall process a lot easier for me and my family. Highly recommend.\",\n          \"cite\": \"Emily R\",\n          \"stars\": \"★★★★★\"\n        },\n        {\n          \"quote\": \"Kara was wonderful to work with and helped make our cats final moments as peaceful as realistically possible. I'm so grateful that we were able to say goodbye in his favorite place.\",\n          \"cite\": \"Stephen Vaccaro\",\n          \"stars\": \"★★★★★\"\n        }\n      ]\n    },\n    \"contact\": {\n      \"heading\": \"Contact\",\n      \"phone\": \"(617) 797-3070\",\n      \"phoneHref\": \"tel:+16177973070\",\n      \"email\": \"Dr.PawsCalls@gmail.com\",\n      \"officeLines\": [\"Serving Western Mass & Connecticut\"]\n    },\n    \"pack\": {\n      \"nav\": [\n        { \"href\": \"#services\", \"label\": \"Services\" },\n        { \"href\": \"#about\", \"label\": \"About\" },\n        { \"href\": \"#reviews\", \"label\": \"Reviews\" },\n        { \"href\": \"#contact\", \"label\": \"Contact\", \"primary\": true }\n      ],\n      \"social\": {\n        \"city\": \"Serving Western Mass & Connecticut\",\n        \"instagramUrl\": \"https://www.instagram.com/kararyczek/\",\n        \"facebookUrl\": \"https://www.facebook.com/paws.calls/\",\n        \"linkedinUrl\": \"https://www.linkedin.com/in/kara-ryczek-01247924\"\n      },\n      \"hero\": {\n        \"mainAlt\": \"Dr. Kara M. Ryczek, veterinarian and founder of Paws Calls\",\n        \"aboutImage\": \"/sites/drpawscalls/hero/about.webp\",\n        \"aboutAlt\": \"Dr. Kara M. Ryczek providing in-home veterinary care\"\n      }\n    },\n    \"structuredData\": {\n      \"type\": \"LocalBusiness\",\n      \"name\": \"Paws Calls\",\n      \"description\": \"At-home veterinary services for your pets\",\n      \"image\": \"https://drpawscalls.com/sites/drpawscalls/og.png\",\n      \"url\": \"https://drpawscalls.com\",\n      \"telephone\": \"+1-617-797-3070\",\n      \"email\": \"Dr.PawsCalls@gmail.com\",\n      \"areaServed\": [\"Western Massachusetts\", \"Connecticut\"],\n      \"priceRange\": \"$$$\",\n      \"ratingValue\": \"4.7\",\n      \"ratingCount\": \"35\"\n    },\n    \"manifest\": {\n      \"name\": \"Paws Calls\",\n      \"shortName\": \"Paws Calls\",\n      \"description\": \"At-home veterinary services for your pets. Serving Western Mass and Connecticut.\",\n      \"startUrl\": \"/\",\n      \"display\": \"standalone\",\n      \"backgroundColor\": \"#ffffff\",\n      \"themeColor\": \"#fafafa\",\n      \"icons\": [\n        {\n          \"src\": \"/sites/drpawscalls/favicon-32.png\",\n          \"sizes\": \"32x32\",\n          \"type\": \"image/png\"\n        },\n        {\n          \"src\": \"/sites/drpawscalls/apple-touch-icon.png\",\n          \"sizes\": \"180x180\",\n          \"type\": \"image/png\",\n          \"purpose\": \"any maskable\"\n        }\n      ]\n    }\n  }\n}\n
+{
+  "key": "drpawscalls",
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "Paws Calls",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true
+  },
+  "landing": {
+    "variant": "vet",
+    "title": "Paws Calls · At-home veterinary services",
+    "description": "At-home veterinary services for your pets. Serving Western Mass and Connecticut. Now offering urgent care appointments.",
+    "themeColor": "#fafafa",
+    "eyebrow": "Now offering",
+    "name": "Paws Calls",
+    "tagline": "Urgent care appointments",
+    "heroHeadline": "At Home Veterinary Services for your Pets",
+    "heroBody": "Compassionate veterinary care where your pet is most comfortable — at home. House calls across Western Massachusetts and Connecticut.",
+    "heroLogo": "/sites/drpawscalls/logo.png",
+    "heroImage": "/sites/drpawscalls/hero/dr-ryczek.webp",
+    "ogImage": "/sites/drpawscalls/og.png",
+    "scheduleUrl": "/form/schedule",
+    "callCta": {
+      "label": "Schedule an Appointment"
+    },
+    "services": {
+      "heading": "Services",
+      "intro": "Scheduling an appointment ensures your pet receives the highest standard of care. Contact Paws Calls today to provide your loyal companion with expert attention tailored to their unique health needs.",
+      "items": [
+        {
+          "label": "Wellness Exams & Sick Visits",
+          "description": "Paws Calls provides comprehensive in-home wellness and sick visits, allowing your pet to receive high-quality veterinary care in the comfort and familiarity of home. Each visit includes a thorough physical examination, administration of necessary vaccinations, and careful evaluation of any health concerns — helping your pet remain healthy, relaxed, and stress-free. Our in-home services include all core and recommended vaccines, heartworm testing, flea and tick prevention, and customized wellness plans covering routine blood work and nutrition guidance.",
+          "bookHref": "#inquiry"
+        },
+        {
+          "label": "Pain Management",
+          "description": "We offer compassionate and effective pain management solutions for pets experiencing chronic or debilitating conditions, with a special focus on geriatric patients. Our veterinarian uses comprehensive pain-scoring assessments to accurately evaluate your pet's comfort level and develop individual treatment plans. We provide pain-relief consultations and prioritize educating owners on recognizing signs of discomfort — helping you manage your pet's pain while improving their comfort, mobility, and overall quality of life.",
+          "bookHref": "#inquiry"
+        },
+        {
+          "label": "End of Life Care",
+          "description": "We offer compassionate end-of-life care for pets, providing pain management and adapting environments to keep them comfortable during their final months. This service helps pet owners navigate the difficult process of saying goodbye to their beloved pets.",
+          "bookHref": "#inquiry"
+        }
+      ]
+    },
+    "about": {
+      "heading": "Dr. Kara M. Ryczek",
+      "body": [
+        "Dr. Ryczek has been practicing veterinary medicine for over 25 years. She earned a Bachelor of Science in Biology from Trinity College and a Doctor of Veterinary Medicine from the Cummings School of Veterinary Medicine at Tufts University. She then completed a post-doctoral 13-month rotating internship at VCA South Shore Animal Hospital in South Weymouth, MA — covering medical, surgical, cardiac, ophthalmic, dental, and emergency cases.",
+        "Dr. Ryczek has since worked in both private practices and emergency/critical care hospitals. After relocating back to Longmeadow, MA, she founded Paws Calls in 2020 — providing exceptional in-home veterinary services that prioritize both our care for pets and convenience for their owners.",
+        "Dr. Ryczek remains based in Longmeadow, where she lives with her two children, one yellow lab, and two feline friends. Outside of work, she enjoys running, coaching, reading, cooking, and traveling with her children."
+      ]
+    },
+    "inquiry": {
+      "heading": "Send a message",
+      "intro": "Questions about house calls, urgent care, or scheduling? Fill out the form and we will get back to you.",
+      "web3formsAccessKey": "4c381e1e-760d-480b-9780-7a90cb7336d9",
+      "subject": "New inquiry from drpawscalls.com",
+      "submitLabel": "Send message"
+    },
+    "reviews": {
+      "heading": "What pet families are saying",
+      "intro": "Reviews from our Google listing.",
+      "googleMapsUrl": "https://maps.app.goo.gl/6TG3Sz4SWwU9RLMR7",
+      "googlePlaceId": "ChIJjXVvSQDn5okRW9Kljecj8hU",
+      "googlePlaceQuery": "Paws Calls mobile pet veterinarian Longmeadow Massachusetts",
+      "items": [
+        {
+          "quote": "We love Dr. Ryczek. We adopted 2 bonded dogs in 2020 so vet visits were challenging during the pandemic. Even for routine visits, it's so much easier to have your vet come to you. Yes, you will pay a bit more but it's worth it for us. Dr. Ryczek is also very responsive to texts and emails which is helpful. We can send photos or videos to help diagnose issues that don't require a visit. She is patient and takes her time. I don't know what we'd do without her.",
+          "cite": "Peggy K",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "I reached out to Dr. Ryczek a few years back when it was too difficult to get my dog in the car. She immediately got back to me and was over to meet my dog within a few days. She ALWAYS answered my text & calls and having an in-home vet was a life changer. Just a few weeks ago my family & I had to make the tough decision of putting our beloved boxer down. Kara & her assistant were AMAZING. They explained every step with such grace and compassion. They also gave myself and my family all the time we needed to say goodbye to our Bindy. Kara is incredibly knowledgeable and kind, and the convenience of having her come to our home for well/sick visits and euthanasia reduced the stress on our dog and ourselves.",
+          "cite": "Jenn K",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "Kara originally came to our house for a wellness check a couple weeks ago and then again this week to help us say goodbye to our 14 year old boxer girl who was struggling. She was very easy to work with and responsive with all of our questions prior to the visit. We really appreciated her compassion during one of our hardest days. 10/10 would recommend.",
+          "cite": "Erika Szulak",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "Kara came the same day for our yellow lab's euthanasia. She messaged us back right away and was very compassionate and professional. It made the overall process a lot easier for me and my family. Highly recommend.",
+          "cite": "Emily R",
+          "stars": "★★★★★"
+        },
+        {
+          "quote": "Kara was wonderful to work with and helped make our cats final moments as peaceful as realistically possible. I'm so grateful that we were able to say goodbye in his favorite place.",
+          "cite": "Stephen Vaccaro",
+          "stars": "★★★★★"
+        }
+      ]
+    },
+    "contact": {
+      "heading": "Contact",
+      "phone": "(617) 797-3070",
+      "phoneHref": "tel:+16177973070",
+      "email": "Dr.PawsCalls@gmail.com",
+      "officeLines": ["Serving Western Mass & Connecticut"]
+    },
+    "pack": {
+      "nav": [
+        { "href": "#services", "label": "Services" },
+        { "href": "#about", "label": "About" },
+        { "href": "#reviews", "label": "Reviews" },
+        { "href": "#contact", "label": "Contact", "primary": true }
+      ],
+      "social": {
+        "city": "Serving Western Mass & Connecticut",
+        "instagramUrl": "https://www.instagram.com/kararyczek/",
+        "facebookUrl": "https://www.facebook.com/paws.calls/",
+        "linkedinUrl": "https://www.linkedin.com/in/kara-ryczek-01247924"
+      },
+      "hero": {
+        "mainAlt": "Dr. Kara M. Ryczek, veterinarian and founder of Paws Calls",
+        "aboutImage": "/sites/drpawscalls/hero/about.webp",
+        "aboutAlt": "Dr. Kara M. Ryczek providing in-home veterinary care"
+      }
+    },
+    "structuredData": {
+      "type": "LocalBusiness",
+      "name": "Paws Calls",
+      "description": "At-home veterinary services for your pets",
+      "image": "https://drpawscalls.com/sites/drpawscalls/og.png",
+      "url": "https://drpawscalls.com",
+      "telephone": "+1-617-797-3070",
+      "email": "Dr.PawsCalls@gmail.com",
+      "areaServed": ["Western Massachusetts", "Connecticut"],
+      "priceRange": "$$$",
+      "ratingValue": "4.7",
+      "ratingCount": "35"
+    },
+    "manifest": {
+      "name": "Paws Calls",
+      "shortName": "Paws Calls",
+      "description": "At-home veterinary services for your pets. Serving Western Mass and Connecticut.",
+      "startUrl": "/",
+      "display": "standalone",
+      "backgroundColor": "#ffffff",
+      "themeColor": "#fafafa",
+      "icons": [
+        {
+          "src": "/sites/drpawscalls/favicon-32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        },
+        {
+          "src": "/sites/drpawscalls/apple-touch-icon.png",
+          "sizes": "180x180",
+          "type": "image/png",
+          "purpose": "any maskable"
+        }
+      ]
+    }
+  }
+}
