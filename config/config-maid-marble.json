@@ -1,0 +1,44 @@
+{
+  "features": [
+    "client_portal",
+    "documents",
+    "digital_signature",
+    "scheduling",
+    "portal_assistant",
+    "online_reviews"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "punchlist",
+    "documents",
+    "knowledge",
+    "chats",
+    "work",
+    "schedule",
+    "clients"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "addons"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "homepageTemplate": "landing",
+  "siteContentKey": "maid-marble",
+  "moduleStatus": {
+    "client_portal": "deployed",
+    "documents": "deployed",
+    "digital_signature": "deployed",
+    "scheduling": "request",
+    "portal_assistant": "deployed",
+    "online_reviews": "request"
+  },
+  "services": {
+    "billing": { "enabled": true, "service": "crater" }
+  }
+}

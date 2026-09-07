@@ -1,0 +1,136 @@
+{
+  "key": "maid-marble",
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "A home that feels like marble.",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true
+  },
+  "landing": {
+    "variant": "service",
+    "title": "Maid & Marble | Premium House Cleaning · Central Massachusetts",
+    "description": "Woman-owned house cleaning in Central Massachusetts. Recurring maintenance, deep cleans, move-in/move-out, and post-renovation detail. Licensed, insured, and meticulous — Worcester County, MetroWest, and the I-495 corridor.",
+    "themeColor": "#f7f4ef",
+    "eyebrow": "Woman-owned · Licensed & insured · Central Massachusetts",
+    "name": "Maid & Marble",
+    "role": "Premium house cleaning",
+    "tagline": "Meticulous cleaning for homes that deserve a polished finish — recurring service, deep cleans, and special projects across Central Massachusetts.",
+    "heroHeadline": "A home that feels like marble.",
+    "heroBody": "You talk to the owner, get a clear plan, and we show up with the care your home deserves. No call center, no rotating strangers — just consistent, detail-oriented cleaning from a woman-owned team you can trust.",
+    "heroLogo": "/sites/maid-marble/logo.png",
+    "scheduleUrl": "/form/schedule",
+    "callCta": {
+      "label": "Call Maid & Marble",
+      "stickyLabel": "Call now"
+    },
+    "payments": {
+      "heading": "Easy ways to pay",
+      "intro": "Pay by card, Venmo, or check — simple invoicing for recurring clients.",
+      "onlineNote": "Secure online payment available after your visit.",
+      "methods": [
+        { "label": "Credit card", "lucide": "credit-card" },
+        { "label": "Venmo", "simpleIcon": "venmo" },
+        { "label": "Check", "lucide": "banknote" }
+      ]
+    },
+    "chat": {
+      "enabled": true,
+      "dockPlaceholder": "Ask about cleaning services…",
+      "inputPlaceholder": "Ask about cleaning services…",
+      "introPhrases": [
+        "Hi! Maid & Marble here — how can we help?",
+        "Looking for recurring cleaning or a one-time deep clean?",
+        "Woman-owned · Central MA — ask us anything."
+      ],
+      "greeting": "Hi! Maid & Marble here — how can we help?",
+      "avatarSrc": "/sites/maid-marble/logo.png",
+      "avatarAlt": "Maid & Marble",
+      "headerTitle": "Maid & Marble",
+      "footerPrefix": "Questions?",
+      "hideFab": true,
+      "revealFabOnEngagement": false,
+      "openOnFocus": true,
+      "dismissPersist": "session",
+      "dismissStorageKey": "svc-footer-chat-intro-dismissed",
+      "historyStorageKey": "sa-chat-site",
+      "engagement": {
+        "mode": "scroll",
+        "minScrollPx": 64,
+        "delayMs": 3000,
+        "settleMs": 900
+      },
+      "businessNotes": "Maid & Marble is a woman-owned premium house cleaning company serving Central Massachusetts (Worcester County, MetroWest, I-495 corridor). Prefer phone or chat for quotes — do not invent prices or availability."
+    },
+    "schedule": {
+      "formSlug": "schedule"
+    },
+    "services": {
+      "heading": "What we offer",
+      "items": [
+        {
+          "label": "Recurring home maintenance — weekly, bi-weekly, or monthly"
+        },
+        {
+          "label": "Deep cleans and seasonal refresh for kitchens, baths, and living spaces"
+        },
+        {
+          "label": "Move-in and move-out cleaning with attention to every surface"
+        },
+        {
+          "label": "Post-renovation and post-construction detail — dust, smudges, and final polish"
+        }
+      ]
+    },
+    "reviews": {
+      "heading": "What clients say",
+      "intro": "Real reviews coming soon — ask about references in your area.",
+      "items": [
+        {
+          "stars": "★★★★★",
+          "quote": "Our home has never looked this polished. They notice the details other cleaners miss — baseboards, fixtures, the works.",
+          "cite": "— Worcester homeowner"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Woman-owned, professional, and consistent. Same team every visit — exactly what we wanted for recurring service.",
+          "cite": "— Shrewsbury"
+        },
+        {
+          "stars": "★★★★★",
+          "quote": "Move-out clean was spotless. Landlord said it was the best turnover they’d seen.",
+          "cite": "— MetroWest"
+        }
+      ]
+    },
+    "about": {
+      "heading": "Meticulous. Trustworthy. Yours.",
+      "body": [
+        "Maid & Marble is a woman-owned house cleaning company serving Central Massachusetts — Worcester County, MetroWest, and towns along the I-495 corridor. We bring hotel-level attention to residential spaces: consistent crews, clear communication, and finishes that feel as polished as marble.",
+        "You work directly with the owner. We walk through your home, agree on scope and frequency, and show up ready to deliver. Licensed and insured. No surprise upsells — just reliable, detail-oriented cleaning."
+      ],
+      "highlights": [
+        "Woman-owned & operated",
+        "Licensed & insured",
+        "Central Massachusetts",
+        "Recurring & one-time service",
+        "Move-in / move-out specialists",
+        "Post-renovation detail"
+      ]
+    },
+    "contact": {
+      "heading": "Call or text"
+    },
+    "footer": "Maid & Marble · Woman-owned · Central Massachusetts"
+  }
+}
