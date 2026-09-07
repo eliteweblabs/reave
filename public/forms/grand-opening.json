@@ -6,7 +6,7 @@
       "name": "has_website",
       "type": "select",
       "required": true,
-      "cf-questions": "Grand opening — free website design when you purchase one year of hosting ($500/year or $50/month). Subject to approval.&&Do you already have a website?",
+      "cf-questions": "Do you already have a website?",
       "options": [
         { "value": "yes", "label": "Yes — I have a website" },
         { "value": "no", "label": "No — not yet" }
