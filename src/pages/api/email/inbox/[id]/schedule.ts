@@ -17,6 +17,7 @@ import {
 import { getCompanyConfig } from '../../../../../lib/companyConfig';
 import {
   archiveEmailInboxPatch,
+  isHiddenInboxCategory,
   storeGetEmailInbox,
   storeUpdateEmailInbox,
   type EmailInboxRecord,
@@ -139,6 +140,13 @@ async function loadEmail(id: string): Promise<
 > {
   const event = await storeGetEmailInbox(id);
   if (!event) return { error: 'Not found', status: 404 };
+  if (
+    isHiddenInboxCategory(event.category) ||
+    String(event.action || '').toLowerCase() === 'deleted' ||
+    String(event.status || '').toUpperCase() === 'DELETE'
+  ) {
+    return { error: 'Deleted or junk mail cannot be scheduled as a meeting', status: 400 };
+  }
   let proposedStart =
     resolveMeetingStartFromInbox({
       proposedMeetingStart: event.proposedMeetingStart,

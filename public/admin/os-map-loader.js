@@ -12377,7 +12377,12 @@ function isEmailBookable(ev) {
 }
 
 function isEmailSchedulingRequest(ev) {
-  if (String(ev.category || '').toLowerCase() === 'junk') return false;
+  // Deleted / junk mail must never show meeting banners — even when the body
+  // mentions "board meeting" or a weekday (marketing newsletters, Nextdoor, etc.).
+  if (isHiddenInboxEmail(ev)) return false;
+  if (String(ev.category || '').toLowerCase() === 'receipt') return false;
+  if (String(ev.action || '').toLowerCase() === 'deleted') return false;
+  if (String(ev.status || '').toUpperCase() === 'DELETE') return false;
   if (ev.proposedMeetingStart || ev.schedulingNote) return true;
   const blob = [ev.summary, ev.subject, ev.bodySnippet, ev.routeNote].join(' ').toLowerCase();
   const mentionsMeeting = /\b(meeting|meet\b|schedule|get together|calendar|appointment)\b/.test(blob);

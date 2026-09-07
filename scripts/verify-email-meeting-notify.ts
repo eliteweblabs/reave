@@ -179,6 +179,28 @@ assert.equal(
   'junk must never notify, meeting automation or not',
 );
 
+// 4b. Marketing trash (auto_deleted) must not count as a pending meeting.
+const marketingTrash = inboxRecord({
+  category: 'auto_deleted',
+  action: 'deleted',
+  status: 'DELETE',
+  subject: 'Health board to address concerns after town meeting Tuesday',
+  summary: 'Neighborhood newsletter — unsubscribe',
+  proposedMeetingStart: '2026-09-09T18:00:00.000Z',
+  schedulingNote: 'Tuesday',
+  automationKind: 'meeting_request',
+});
+assert.equal(
+  isMeetingRequestPendingReview(marketingTrash),
+  false,
+  'DELETE / marketing trash cannot create a meeting review card',
+);
+assert.equal(
+  isPendingReviewNotification(marketingTrash),
+  false,
+  'deleted marketing mail must not badge the inbox',
+);
+
 // 5. Confirming archives: filed + FILED, out of Review, off the dashboard.
 const patch = archiveEmailInboxPatch(notified.category);
 assert.equal(patch.action, 'filed');

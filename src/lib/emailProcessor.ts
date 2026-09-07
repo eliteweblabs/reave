@@ -1688,6 +1688,26 @@ export async function processInboundEmail(
     action = 'deleted';
   }
 
+  if (hardDelete || suppressedAsJunk) {
+    const hadMeeting =
+      Boolean(proposedMeetingStart || schedulingNote) || isMeetingAutomationKind(automationKind);
+    proposedMeetingStart = null;
+    schedulingNote = '';
+    proposedMeetingDurationMinutes = null;
+    if (isMeetingAutomationKind(automationKind)) {
+      automationKind = null;
+    }
+    if (hadMeeting) {
+      pushAudit(
+        'meeting',
+        'Cleared meeting fields',
+        hardDelete
+          ? 'DELETE rule — deleted/marketing mail cannot request a meeting'
+          : 'Silent filing — no meeting workflow',
+      );
+    }
+  }
+
   const opensAgentChat = inboundEmailOpensAgentChat({
     allowUnmatchedAgent,
     automationKind,
