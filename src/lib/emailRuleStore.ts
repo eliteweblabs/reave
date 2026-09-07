@@ -284,6 +284,11 @@ END $$;
 
 let _schemaReady: Promise<void> | null = null;
 
+/** node-pg serializes JS arrays as Postgres array literals; JSON/JSONB columns need JSON text. */
+function pgJsonbParam(value: unknown): string {
+  return JSON.stringify(value ?? []);
+}
+
 async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPgPool();
   if (!pool) return null;
@@ -637,13 +642,17 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
       const notifyPush = r.notifyPush != null ? !!r.notifyPush : !!r.notify;
       const notifyDashboard = r.notifyDashboard != null ? !!r.notifyDashboard : !!r.notify;
       const notifyActions = normalizeNotifyActions(r.notifyActions);
+      const exceptPhrases = Array.isArray(r.exceptPhrases)
+        ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
+        : [];
+      const phraseFields = Array.isArray(r.phraseFields) ? r.phraseFields : [];
       keepIds.push(r.id);
       await pool.query(
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
            expires_at, created_at, updated_at, summary_override, forward_to, create_project, hit_count, last_matched_at,
            except_phrases, notify_push, notify_dashboard, notify_actions, scope, phrase_fields)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22::jsonb, $23, $24::jsonb)
          ON CONFLICT (id) DO UPDATE SET
            sort_order = EXCLUDED.sort_order,
            title = EXCLUDED.title,
@@ -673,9 +682,9 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.title,
           r.status,
           r.description ?? null,
-          r.phrases,
+          pgJsonbParam(r.phrases),
           r.matchMode,
-          r.fields,
+          pgJsonbParam(r.fields),
           notifyPush || notifyDashboard,
           r.enabled,
           r.expiresAt ? new Date(r.expiresAt) : null,
@@ -686,14 +695,12 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.createProject === true,
           Math.max(0, Number(r.hitCount) || 0),
           r.lastMatchedAt ? new Date(r.lastMatchedAt) : null,
-          Array.isArray(r.exceptPhrases)
-            ? r.exceptPhrases.map(String).map((p) => p.trim()).filter(Boolean)
-            : [],
+          pgJsonbParam(exceptPhrases),
           notifyPush,
           notifyDashboard,
-          notifyActions,
+          pgJsonbParam(notifyActions),
           normalizeEmailRuleScope(r.scope, 'personal'),
-          Array.isArray(r.phraseFields) ? r.phraseFields : [],
+          pgJsonbParam(phraseFields),
         ]
       );
     }
