@@ -1,0 +1,81 @@
+---
+/**
+ * Perspective floor grid — subtle depth behind hero sections.
+ * Drop inside any `position: relative` container; paints behind siblings.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className = "" } = Astro.props;
+---
+
+<div class={`infinity-grid ${className}`.trim()} aria-hidden="true">
+  <div class="infinity-grid__plane"></div>
+</div>
+
+<style>
+  .infinity-grid {
+    --infinity-grid-minor: 40px;
+    --infinity-grid-major: 160px;
+    --infinity-grid-line: color-mix(in srgb, var(--site-fg, #171717) 7%, transparent);
+    --infinity-grid-line-major: color-mix(in srgb, var(--site-fg, #171717) 11%, transparent);
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  :global(html[data-theme="dark"]) .infinity-grid {
+    --infinity-grid-line: color-mix(in srgb, var(--site-fg, #e5e5e5) 9%, transparent);
+    --infinity-grid-line-major: color-mix(in srgb, var(--site-fg, #e5e5e5) 14%, transparent);
+  }
+
+  .infinity-grid__plane {
+    position: absolute;
+    left: -60%;
+    right: -60%;
+    top: 38%;
+    bottom: -35%;
+    transform-origin: 50% 0%;
+    transform: perspective(720px) rotateX(68deg);
+    background-image:
+      repeating-linear-gradient(
+        to right,
+        var(--infinity-grid-line) 0 1px,
+        transparent 1px var(--infinity-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        var(--infinity-grid-line) 0 1px,
+        transparent 1px var(--infinity-grid-minor)
+      ),
+      repeating-linear-gradient(
+        to right,
+        var(--infinity-grid-line-major) 0 1px,
+        transparent 1px var(--infinity-grid-major)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        var(--infinity-grid-line-major) 0 1px,
+        transparent 1px var(--infinity-grid-major)
+      );
+    -webkit-mask-image:
+      linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.35) 18%, black 42%, black 100%),
+      radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 72%);
+    mask-image:
+      linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.35) 18%, black 42%, black 100%),
+      radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 72%);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+  }
+
+  @media (min-width: 860px) {
+    .infinity-grid__plane {
+      top: 32%;
+      bottom: -28%;
+      transform: perspective(900px) rotateX(64deg);
+    }
+  }
+</style>

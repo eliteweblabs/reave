@@ -3,6 +3,7 @@ import Layout from "../layouts/MarketingLayout.astro";
 import BrandBtn from "../components/ui/BrandBtn.astro";
 import ConversationalForm from "../components/ConversationalForm.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
+import InfinityGrid from "../components/ui/InfinityGrid.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { SIMPLE_ICONS_CDN } from "../lib/platformStack";
 import { ArrowRight, Layers } from "lucide-astro";
@@ -66,6 +67,7 @@ const brandName = company.name || "reave.app";
 >
   <div class="go-page">
     <section class="go-hero" aria-labelledby="go-title">
+      <InfinityGrid />
       <div class="go-hero__inner">
         <div class="go-hero__copy">
           <button type="button" class="go-hero__pill" id="go-confetti-trigger" aria-label="Celebrate grand opening">
@@ -186,11 +188,15 @@ const brandName = company.name || "reave.app";
   }
 
   .go-hero {
+    position: relative;
+    isolation: isolate;
     padding: clamp(2rem, 6vw, 4rem) 0 clamp(2.5rem, 5vw, 3.5rem);
     overflow: visible;
   }
 
   .go-hero__inner {
+    position: relative;
+    z-index: 1;
     display: grid;
     gap: 40px;
     max-width: 1080px;
