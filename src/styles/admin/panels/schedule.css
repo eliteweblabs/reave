@@ -46,6 +46,16 @@
   border-style: dashed;
   background: transparent;
   color: var(--fg-secondary);
+  height: auto;
+  min-height: var(--dash-fleet-tile-min-h);
+  max-height: none;
+  overflow: visible;
+}
+.dash-fleet-scan-meta {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
 }
 .dash-fleet-scan-tile:hover:not(:disabled) {
   border-color: var(--border-hover);

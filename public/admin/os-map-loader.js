@@ -3097,6 +3097,54 @@ function formatDashHealthCheckedHint(checkedAt) {
   return when ? `checked ${when}` : 'tap Scan sites to refresh';
 }
 
+function fleetReadinessTotals(siteHealth) {
+  const sites = siteHealth?.sites;
+  if (!sites || typeof sites !== 'object') return null;
+  let okCount = 0;
+  let totalCount = 0;
+  for (const row of Object.values(sites)) {
+    if (!row || row.ignored) continue;
+    const readiness = row.readiness;
+    if (!readiness?.totalCount) continue;
+    okCount += Number(readiness.okCount) || 0;
+    totalCount += Number(readiness.totalCount) || 0;
+  }
+  return totalCount > 0 ? { okCount, totalCount } : null;
+}
+
+function formatDashFleetScanMeta(siteHealth, siteCards, checkedAt) {
+  const siteCount = siteCards?.length || siteHealth?.siteCount || 0;
+  const parts = [];
+  const totals = fleetReadinessTotals(siteHealth);
+  if (totals) {
+    parts.push(`${totals.okCount}/${totals.totalCount} ready`);
+  } else if (siteHealth && siteCount) {
+    const graded = Object.values(siteHealth.sites || {}).filter(
+      (row) => row && !row.ignored && row.grade,
+    ).length;
+    if (graded) parts.push(`${graded}/${siteCount} graded`);
+    else parts.push(`${siteCount} site${siteCount === 1 ? '' : 's'}`);
+  } else if (siteCount) {
+    parts.push(`${siteCount} site${siteCount === 1 ? '' : 's'}`);
+  }
+
+  const critical = siteHealth?.criticalSites;
+  if (typeof critical === 'number' && critical > 0) {
+    parts.push(`${critical} issue${critical === 1 ? '' : 's'}`);
+  }
+
+  const whenChecked = checkedAt ?? siteHealth?.checkedAt ?? null;
+  if (whenChecked) {
+    parts.push(formatDashHealthCheckedHint(whenChecked));
+  } else if (!parts.length) {
+    return 'tap Scan sites to check';
+  } else {
+    parts.push('tap to scan');
+  }
+
+  return parts.join(' · ');
+}
+
 function parseSenderDisplayName(from) {
   const raw = String(from || '').trim();
   const named = raw.match(/^(.+?)\s*<[^>]+>$/);
@@ -6507,9 +6555,11 @@ function renderAdminDashboard(data, opts = {}) {
     list.className = 'dash-uptime-grid dash-fleet-grid';
     const analyticsLoading = analyticsLive && !analyticsPreview && !analyticsError;
 
-    const scanHint = siteHealth
-      ? formatDashHealthCheckedHint(siteHealth.checkedAt ?? stats.siteHealthCheckedAt)
-      : 'Readiness checks run on demand';
+    const scanHint = formatDashFleetScanMeta(
+      siteHealth,
+      siteCards,
+      siteHealth?.checkedAt ?? stats.siteHealthCheckedAt ?? null,
+    );
     const scanBtn = document.createElement('button');
     scanBtn.type = 'button';
     scanBtn.id = 'dash-site-scan-btn';
