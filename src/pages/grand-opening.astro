@@ -26,6 +26,13 @@ type PlatformItem =
 const platformItems: PlatformItem[] = [
   {
     kind: "brand",
+    slug: "astro",
+    color: "#BC52EE",
+    title: "Astro framework",
+    blurb: "Custom-built pages and APIs — fast by default, not a template builder.",
+  },
+  {
+    kind: "brand",
     slug: "railway",
     color: "var(--site-fg, #171717)",
     title: "Railway™ hosting",
@@ -129,8 +136,10 @@ const brandName = company.name || "reave.app";
           Not a Squarespace template. A platform you can grow into.
         </h2>
         <p class="go-platform__lead">
-          Your site is a real product — custom-built on <strong>Railway™</strong>, backed by{" "}
-          <strong>PostgreSQL</strong>, with <strong>Clerk</strong> sign-in. Start with design and hosting; add CMS, client login, scheduling, and the rest when you're ready.
+          Your site is a real product — custom-built with <strong>Astro</strong>, hosted on{" "}
+          <strong>Railway™</strong>, backed by <strong>PostgreSQL</strong>, with{" "}
+          <strong>Clerk</strong> sign-in. Start with design and hosting; add CMS, client login,
+          scheduling, and the rest when you're ready.
         </p>
         <ul class="go-platform__stack">
           {
