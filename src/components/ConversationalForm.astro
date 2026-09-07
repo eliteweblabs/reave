@@ -1026,6 +1026,10 @@ const rootClass = [
     setTimeout(showQuestion, 500);
   }
 
+  async function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   async function showMessages(text) {
     const parts = text.split("&&").map((s) => s.trim());
     for (let i = 0; i < parts.length; i++) {
