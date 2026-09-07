@@ -80,7 +80,6 @@ const faq = landing.faq;
 const gallery = landing.gallery;
 
 const logoSrc = (landing.heroLogo || "").trim();
-const markSrc = logoSrc.replace(/logo\.png$/i, "mark.png");
 const heroImage = (landing.heroImage || "").trim();
 const scheduleUrl = landing.scheduleUrl || "/form/schedule";
 
@@ -501,37 +500,7 @@ const navLinks = [
           hideFab={siteChat?.hideFab !== false}
           revealFabOnEngagement={chatRevealFab}
         />
-        <div class="lux-footer-chat" data-lux-footer-chat role="region" aria-label="Chat">
-          {
-            introPhrases.length ? (
-              <div class="lux-footer-chat__intro" data-lux-intro hidden aria-hidden="true">
-                {
-                  chatFaceSrc ? (
-                    <img
-                      class="lux-footer-chat__face"
-                      src={chatFaceSrc}
-                      alt=""
-                      width="40"
-                      height="40"
-                      decoding="async"
-                    />
-                  ) : markSrc ? (
-                    <img
-                      class="lux-footer-chat__face"
-                      src={markSrc}
-                      alt=""
-                      width="40"
-                      height="40"
-                      decoding="async"
-                    />
-                  ) : null
-                }
-                <button type="button" class="lux-footer-chat__bubble-wrap" data-lux-intro-open aria-label="Open chat">
-                  <span class="lux-footer-chat__bubble" data-lux-intro-text></span>
-                </button>
-              </div>
-            ) : null
-          }
+        <div class="lux-footer-chat" data-lux-footer-chat role="region" aria-label={`Chat with ${siteChat?.headerSubtitle || brandName}`}>
           <form class="lux-footer-chat__dock" data-lux-aw-dock>
             <div class="lux-footer-chat__pill">
               <input
@@ -561,73 +530,39 @@ const navLinks = [
     <script
       is:inline
       define:vars={{
-        introPhrases,
-        chatFaceAlt,
-        engagement: chatEngagement,
         openOnFocus: chatOpenOnFocus,
-        dismissPersist: chatDismissPersist,
-        dismissStorageKey: chatDismissKey,
       }}
     >
       (function () {
-        const DISMISS_KEY = dismissStorageKey || "lux-footer-chat-intro-dismissed";
-        const persistMode = dismissPersist || "session";
         const dockRoot = document.querySelector("[data-lux-footer-chat]");
         const widget = document.querySelector("[data-assistant-widget]");
         const dockForm = dockRoot?.querySelector("[data-lux-aw-dock]");
         const dockInput = dockForm?.querySelector(".lux-footer-chat__input");
         if (!dockRoot || !widget) return;
 
-        const intro = dockRoot.querySelector("[data-lux-intro]");
-        const introText = intro?.querySelector("[data-lux-intro-text]");
-        const openBtn = intro?.querySelector("[data-lux-intro-open]");
-
-        function dismissed() {
-          try {
-            if (persistMode === "local") return localStorage.getItem(DISMISS_KEY) === "1";
-            return sessionStorage.getItem(DISMISS_KEY) === "1";
-          } catch {
-            return false;
-          }
-        }
-
-        function hideIntro(persist) {
-          if (!intro) return;
-          intro.hidden = true;
-          intro.setAttribute("aria-hidden", "true");
-          if (persist) {
-            try {
-              (persistMode === "local" ? localStorage : sessionStorage).setItem(DISMISS_KEY, "1");
-            } catch {}
-          }
-        }
-
-        function openChat() {
-          widget.dispatchEvent(new CustomEvent("aw-open", { bubbles: true }));
-          hideIntro(false);
-        }
+        const openChat = (message) => {
+          widget.dispatchEvent(
+            new CustomEvent("aw-open", {
+              detail: message ? { message } : {},
+            }),
+          );
+        };
 
         dockForm?.addEventListener("submit", (ev) => {
           ev.preventDefault();
-          openChat();
-          const val = dockInput instanceof HTMLInputElement ? dockInput.value.trim() : "";
-          if (val) widget.dispatchEvent(new CustomEvent("aw-prefill", { detail: { text: val }, bubbles: true }));
+          const value =
+            dockInput instanceof HTMLInputElement ? dockInput.value.trim() : "";
+          if (dockInput instanceof HTMLInputElement) dockInput.value = "";
+          openChat(value || undefined);
         });
 
-        if (openOnFocus) dockInput?.addEventListener("focus", () => openChat(), { once: false });
-
-        if (intro && introPhrases?.length && introText instanceof HTMLElement && !dismissed()) {
-          let idx = 0;
-          introText.textContent = introPhrases[0];
-          intro.hidden = false;
-          intro.removeAttribute("aria-hidden");
-          const rotate = setInterval(() => {
-            idx = (idx + 1) % introPhrases.length;
-            introText.textContent = introPhrases[idx];
-          }, 4200);
-          openBtn?.addEventListener("click", () => {
-            clearInterval(rotate);
+        if (openOnFocus !== false) {
+          dockInput?.addEventListener("focus", () => {
             openChat();
+            window.setTimeout(() => {
+              const sheetInput = widget.querySelector(".aw-input");
+              if (sheetInput instanceof HTMLTextAreaElement) sheetInput.focus();
+            }, 320);
           });
         }
       })();
@@ -1335,47 +1270,75 @@ const navLinks = [
   }
 
   .lux-footer-chat {
+    --lux-footer-chat-max: 34rem;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 45;
-    padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    display: grid;
+    grid-template-columns: minmax(0, var(--lux-footer-chat-max));
+    justify-content: center;
+    justify-items: stretch;
+    padding: 0.55rem 1rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, transparent, rgba(247, 244, 239, 0.94) 28%);
+    pointer-events: none;
+  }
+
+  .lux-footer-chat > :global(*) {
+    pointer-events: auto;
+  }
+
+  .lux-footer-chat__dock {
+    width: 100%;
+    margin: 0;
   }
 
   .lux-footer-chat__pill {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.35rem 0.35rem 1rem;
+    align-items: stretch;
+    width: 100%;
     border: 1px solid var(--lux-line);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.92);
-    box-shadow: 0 10px 30px rgba(20, 20, 20, 0.08);
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(20, 20, 20, 0.1);
   }
 
   .lux-footer-chat__input {
     flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0.9rem 1rem;
     border: 0;
     background: transparent;
-    font: inherit;
     color: var(--lux-ink);
-    min-width: 0;
-  }
-
-  .lux-footer-chat__input:focus {
+    font: inherit;
+    font-size: 1rem;
     outline: none;
   }
 
+  .lux-footer-chat__input::placeholder {
+    color: #9a948a;
+  }
+
   .lux-footer-chat__send {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0.9rem 1.15rem;
     border: 0;
-    border-radius: 999px;
-    padding: 0.55rem 0.95rem;
     background: var(--lux-ink);
     color: #faf8f4;
     font: inherit;
-    font-weight: 600;
+    font-size: 0.9rem;
+    font-weight: 700;
     cursor: pointer;
+  }
+
+  @media (min-width: 640px) {
+    .lux-footer-chat {
+      --lux-footer-chat-max: 40rem;
+    }
   }
 
   @media (min-width: 640px) {

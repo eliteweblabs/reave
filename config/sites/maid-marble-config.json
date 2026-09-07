@@ -24,30 +24,27 @@
     "themeColor": "#f7f4ef",
     "eyebrow": "Woman-owned · Central Massachusetts",
     "name": "Maid & Marble",
+    "role": "Felicia Tracy, owner",
     "tagline": "Hotel-level attention for the homes you love — Worcester County, MetroWest, and the I-495 corridor.",
     "heroHeadline": "A home that feels like marble.",
-    "heroBody": "Maid & Marble is premium residential cleaning, owned and led by Kelsey O'Brien. You get clear communication, consistent standards, and finishes that feel intentional — not a rotating crew or a call center.",
+    "heroBody": "Maid & Marble is premium residential cleaning, owned and led by Felicia Tracy. You get clear communication, consistent standards, and finishes that feel intentional — not a rotating crew or a call center.",
     "heroImage": "/sites/maid-marble/photos/hero.jpg",
     "heroLogo": "/sites/maid-marble/logo.png",
     "scheduleUrl": "/form/schedule",
     "callCta": {
-      "label": "Call Kelsey",
+      "label": "Call Felicia",
       "stickyLabel": "Call now"
     },
     "chat": {
       "enabled": true,
-      "dockPlaceholder": "Ask about cleaning…",
-      "inputPlaceholder": "Ask about cleaning…",
-      "introPhrases": [
-        "Hi — Kelsey here. How can we help?",
-        "Recurring cleaning or a one-time deep clean?",
-        "Happy to talk through your home and schedule."
-      ],
-      "greeting": "Hi — Kelsey here. How can Maid & Marble help?",
-      "avatarSrc": "/sites/maid-marble/mark.png",
-      "avatarAlt": "Maid & Marble",
+      "dockPlaceholder": "Message Felicia…",
+      "inputPlaceholder": "Message Felicia…",
+      "introPhrases": [],
+      "greeting": "Hi — Felicia here. How can Maid & Marble help?",
+      "avatarAlt": "Felicia Tracy",
       "headerTitle": "Maid & Marble",
-      "footerPrefix": "Questions?",
+      "headerSubtitle": "Felicia Tracy",
+      "footerPrefix": "Questions? Ask Felicia",
       "hideFab": true,
       "revealFabOnEngagement": false,
       "openOnFocus": true,
@@ -55,12 +52,9 @@
       "dismissStorageKey": "lux-footer-chat-intro-dismissed",
       "historyStorageKey": "sa-chat-site",
       "engagement": {
-        "mode": "scroll",
-        "minScrollPx": 80,
-        "delayMs": 4000,
-        "settleMs": 900
+        "mode": "none"
       },
-      "businessNotes": "Kelsey O'Brien owns Maid & Marble, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 774-452-4319. Starting prices are listed on the website — confirm exact quotes after a walk-through. Do not invent availability."
+      "businessNotes": "Felicia Tracy owns Maid & Marble, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 774-452-4319. Starting prices are listed on the website — confirm exact quotes after a walk-through. Do not invent availability."
     },
     "schedule": {
       "formSlug": "schedule"
@@ -68,7 +62,7 @@
     "numbers": {
       "heading": "Why homeowners choose us",
       "stats": [
-        { "value": "Owner-led", "label": "Kelsey on every account" },
+        { "value": "Owner-led", "label": "Felicia on every account" },
         { "value": "Licensed", "label": "Fully insured in MA" },
         { "value": "Same team", "label": "Consistent standards" },
         { "value": "100%", "label": "Satisfaction focus" }
@@ -368,14 +362,14 @@
         },
         {
           "stars": "★★★★★",
-          "quote": "Kelsey is responsive and honest about what we need vs. what we don't. Refreshing.",
+          "quote": "Felicia is responsive and honest about what we need vs. what we don't. Refreshing.",
           "cite": "Holden"
         }
       ]
     },
     "faq": {
       "heading": "Common questions",
-      "intro": "Quick answers — call or text Kelsey for anything specific to your home.",
+      "intro": "Quick answers — call or text Felicia for anything specific to your home.",
       "items": [
         {
           "q": "Do I need to be home during the clean?",
@@ -412,10 +406,10 @@
       ]
     },
     "about": {
-      "heading": "Led by Kelsey O'Brien",
+      "heading": "Led by Felicia Tracy",
       "body": [
         "Maid & Marble was built for homeowners who want more than a quick wipe-down — meticulous care, reliable scheduling, and a team that treats your home with respect.",
-        "Kelsey works directly with every client: walk-through, clear scope, and follow-through. Licensed and insured across Central Massachusetts.",
+        "Felicia works directly with every client: walk-through, clear scope, and follow-through. Licensed and insured across Central Massachusetts.",
         "We serve busy families, professionals working from home, new homeowners, and property managers who need a partner — not a franchise call center."
       ],
       "highlights": [
@@ -433,6 +427,6 @@
       "phoneHref": "tel:+17744524319",
       "email": "hello@maidandmarble.com"
     },
-    "footer": "Maid & Marble · Kelsey O'Brien · Central Massachusetts"
+    "footer": "Maid & Marble · Felicia Tracy · Central Massachusetts"
   }
 }
