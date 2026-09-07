@@ -1,16 +1,28 @@
 ---
 import Layout from "../layouts/MarketingLayout.astro";
+import LandingLayout from "../layouts/LandingLayout.astro";
+import LuxuryLandingPage from "../components/home/LuxuryLandingPage.astro";
 import FeaturesPricingSection from "../components/features/FeaturesPricingSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { getLuxurySitePage, luxuryPageTitle } from "../lib/luxurySitePage";
 import { ArrowRight } from "lucide-astro";
 
-const company = await getCompanyConfig(Astro.request);
+export const prerender = false;
+
+const luxury = getLuxurySitePage(Astro.request, "pricing");
+const company = luxury ? null : await getCompanyConfig(Astro.request);
 ---
 
-<Layout
-  title="Pricing"
-  description={`${company.name} installation tiers — Core OS, Operations, Growth, and Full platform. Month-one ramp, flat monthly fee from month five.`}
->
+{
+  luxury ? (
+    <LandingLayout title={luxuryPageTitle("pricing", luxury.landing)}>
+      <LuxuryLandingPage landing={luxury.landing} page="pricing" />
+    </LandingLayout>
+  ) : (
+    <Layout
+      title="Pricing"
+      description={`${company!.name} installation tiers — Core OS, Operations, Growth, and Full platform. Month-one ramp, flat monthly fee from month five.`}
+    >
   <div class="pricing-page">
     <section
       class="pricing-hero scroll-fade-in"
@@ -38,6 +50,8 @@ const company = await getCompanyConfig(Astro.request);
     <FeaturesPricingSection variant="standalone" />
   </div>
 </Layout>
+  )
+}
 
 <style>
   .pricing-page {

@@ -1,0 +1,15 @@
+---
+import LandingLayout from "../layouts/LandingLayout.astro";
+import LuxuryLandingPage from "../components/home/LuxuryLandingPage.astro";
+import { luxuryPageTitle, resolveLuxurySitePage } from "../lib/luxurySitePage";
+
+export const prerender = false;
+
+const resolved = resolveLuxurySitePage(Astro, "services");
+if (resolved instanceof Response) return resolved;
+const { landing } = resolved;
+---
+
+<LandingLayout title={luxuryPageTitle("services", landing)}>
+  <LuxuryLandingPage landing={landing} page="services" />
+</LandingLayout>

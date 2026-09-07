@@ -192,18 +192,6 @@ const appHandler = async (
     );
   }
 
-  const section = HOME_SECTION_REDIRECTS[normalizedPath];
-  if (section) {
-    const target = new URL("/", url.origin);
-    target.searchParams.set("section", section);
-    return applySecurityHeaders(
-      new Response(null, {
-        status: 301,
-        headers: { Location: target.toString() },
-      }),
-    );
-  }
-
   const brandingLegacy = BRANDING_LEGACY_REDIRECTS[normalizedPath];
   if (brandingLegacy) {
     const target = new URL(brandingLegacy, url.origin);
@@ -244,6 +232,19 @@ const appHandler = async (
     isDemoMode() ? parseDemoSuiteCookie(context.cookies.get(DEMO_SUITE_COOKIE)?.value)?.industry : undefined,
   );
   const siteContent = loadSiteContentByKey(siteKey);
+
+  const section = HOME_SECTION_REDIRECTS[normalizedPath];
+  if (section && !isSitePageAllowed(normalizedPath, siteContent)) {
+    const target = new URL("/", url.origin);
+    target.searchParams.set("section", section);
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: target.toString() },
+      }),
+    );
+  }
+
   // Astro internals (/_image image transforms, /_astro hashed assets) are not
   // marketing pages — blocking them 404s every <Image> srcset on /about etc.
   const isAstroInternal = normalizedPath === "/_image" || normalizedPath.startsWith("/_");

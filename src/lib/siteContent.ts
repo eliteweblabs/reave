@@ -234,6 +234,8 @@ export type SiteLandingConfig = {
     label?: string;
     stickyLabel?: string;
   };
+  /** Multi-page luxury site nav — when set, sections split across routes instead of one scroller. */
+  nav?: SiteNavLink[];
   /** Plain service list for `service` / `tech` landings (no map / directions). */
   services?: {
     heading: string;

@@ -1,6 +1,6 @@
 {
   "key": "maid-marble",
-  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "pages": ["/", "/services", "/pricing", "/about", "/contact", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [],
     "groups": [],
@@ -31,6 +31,13 @@
     "heroImage": "/sites/maid-marble/photos/hero.jpg",
     "heroLogo": "/sites/maid-marble/logo.png",
     "scheduleUrl": "/form/schedule",
+    "nav": [
+      { "href": "/", "label": "Home" },
+      { "href": "/services", "label": "Services" },
+      { "href": "/pricing", "label": "Pricing" },
+      { "href": "/about", "label": "About" },
+      { "href": "/contact", "label": "Contact" }
+    ],
     "callCta": {
       "label": "Call Felicia",
       "stickyLabel": "Call now"

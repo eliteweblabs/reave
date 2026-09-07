@@ -1,24 +1,36 @@
 ---
 import Layout from "../layouts/MarketingLayout.astro";
+import LandingLayout from "../layouts/LandingLayout.astro";
+import LuxuryLandingPage from "../components/home/LuxuryLandingPage.astro";
 import ClientLogos from "../components/ClientLogos.astro";
 import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
 import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { companyPublicEmail } from "../lib/reavePublicEmail";
+import { getLuxurySitePage, luxuryPageTitle } from "../lib/luxurySitePage";
 import { getSiteContent } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
 
-const company = await getCompanyConfig(Astro.request);
-const siteContent = getSiteContent();
-const aboutImage = siteContent.aboutImage || "";
-const supportMail = companyPublicEmail(company);
-const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
+export const prerender = false;
+
+const luxury = getLuxurySitePage(Astro.request, "about");
+const company = luxury ? null : await getCompanyConfig(Astro.request);
+const siteContent = luxury ? null : getSiteContent();
+const aboutImage = luxury ? "" : siteContent!.aboutImage || "";
+const supportMail = luxury ? "" : companyPublicEmail(company!);
+const contactHref = luxury ? "/" : supportMail ? `mailto:${supportMail}` : "/#contact";
 ---
 
-<Layout
-  title="About"
-  description={`About ${company.name} — the team behind the Business OS and two decades of client work across branding, development, and automation.`}
->
+{
+  luxury ? (
+    <LandingLayout title={luxuryPageTitle("about", luxury.landing)}>
+      <LuxuryLandingPage landing={luxury.landing} page="about" />
+    </LandingLayout>
+  ) : (
+    <Layout
+      title="About"
+      description={`About ${company!.name} — the team behind the Business OS and two decades of client work across branding, development, and automation.`}
+    >
   <div class="about-page">
     <header class="about-intro">
       <p class="about-kicker">About</p>
@@ -95,6 +107,8 @@ const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
     </section>
   </div>
 </Layout>
+  )
+}
 
 <style>
   .about-page {

@@ -9,13 +9,21 @@ import { contactTelHref } from "../../lib/contactApi";
 import { hasFeature } from "../../lib/features";
 import { isSiteAssistantConfigured } from "../../lib/siteAssistant";
 import { resolveSiteChat } from "../../lib/siteChat";
+import {
+  isLuxuryMultiPage,
+  luxuryNavIsActive,
+  luxuryNavLinks,
+  luxuryShowsSection,
+  type LuxuryPageId,
+} from "../../lib/luxurySitePage";
 import SiteAssistantWidget from "../SiteAssistantWidget.astro";
 
 interface Props {
   landing: SiteLandingConfig;
+  page?: LuxuryPageId | "all";
 }
 
-const { landing } = Astro.props;
+const { landing, page: pageProp } = Astro.props;
 const company = await getCompanyConfig(Astro.request);
 const year = new Date().getFullYear();
 
@@ -82,16 +90,14 @@ const gallery = landing.gallery;
 const logoSrc = (landing.heroLogo || "").trim();
 const heroImage = (landing.heroImage || "").trim();
 const scheduleUrl = landing.scheduleUrl || "/form/schedule";
+const multiPage = isLuxuryMultiPage(landing);
+const page: LuxuryPageId | "all" =
+  pageProp ?? (multiPage ? "home" : "all");
+const show = (section: Parameters<typeof luxuryShowsSection>[1]) =>
+  luxuryShowsSection(page, section, landing);
 
-const navLinks = [
-  { href: "#services", label: "Services" },
-  pricing ? { href: "#pricing", label: "Pricing" } : null,
-  includes ? { href: "#includes", label: "Checklist" } : null,
-  gallery?.photos?.length ? { href: "#gallery", label: "Gallery" } : null,
-  about ? { href: "#about", label: "About" } : null,
-  faq ? { href: "#faq", label: "FAQ" } : null,
-  contact ? { href: "#contact", label: "Contact" } : null,
-].filter(Boolean) as Array<{ href: string; label: string }>;
+const navLinks = luxuryNavLinks(landing);
+const currentPath = Astro.url.pathname;
 ---
 
 <div class="lux" data-has-phone={phoneHref ? "1" : "0"} data-has-chat={showFooterChat ? "1" : "0"}>
@@ -107,9 +113,15 @@ const navLinks = [
     }
     {
       navLinks.length ? (
-        <nav class="lux-header__nav" aria-label="Page sections">
+        <nav class="lux-header__nav" aria-label="Site">
           {navLinks.map((link) => (
-            <a href={link.href}>{link.label}</a>
+            <a
+              href={link.href}
+              class:list={[luxuryNavIsActive(currentPath, link.href) && "is-active"]}
+              aria-current={luxuryNavIsActive(currentPath, link.href) ? "page" : undefined}
+            >
+              {link.label}
+            </a>
           ))}
         </nav>
       ) : null
@@ -119,7 +131,8 @@ const navLinks = [
       {
         phoneHref ? (
           <a class="lux-header__phone" href={phoneHref} aria-label={callLabel}>
-            {phoneDisplay}
+            <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
           </a>
         ) : null
       }
@@ -127,6 +140,8 @@ const navLinks = [
   </header>
 
   <main class="lux-main">
+    {
+      show("hero") ? (
     <section class="lux-hero">
       <div class="lux-hero__copy">
         {landing.eyebrow && <p class="lux-eyebrow">{landing.eyebrow}</p>}
@@ -135,9 +150,10 @@ const navLinks = [
         <div class="lux-hero__actions">
           {
             phoneHref ? (
-              <a class="lux-btn lux-btn--primary" href={phoneHref}>
-                {callLabel}
-                {phoneDisplay && <span class="lux-btn__sub">{phoneDisplay}</span>}
+              <a class="lux-btn lux-btn--primary lux-btn--call" href={phoneHref}>
+                <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+                <span>{callLabel}</span>
               </a>
             ) : null
           }
@@ -161,9 +177,11 @@ const navLinks = [
         ) : null
       }
     </section>
+      ) : null
+    }
 
     {
-      numbers?.stats?.length ? (
+      show("trust") && numbers?.stats?.length ? (
         <section class="lux-trust" aria-label={numbers.heading || "Highlights"}>
           <ul>
             {numbers.stats.map((stat) => (
@@ -178,7 +196,7 @@ const navLinks = [
     }
 
     {
-      serviceItems.length ? (
+      show("services") && serviceItems.length ? (
         <section class="lux-section" id="services">
           <div class="lux-section__head">
             <p class="lux-kicker">Services</p>
@@ -243,7 +261,7 @@ const navLinks = [
     }
 
     {
-      pricing ? (
+      show("pricing") && pricing ? (
         <section class="lux-section lux-pricing" id="pricing">
           <div class="lux-section__head">
             <p class="lux-kicker">Pricing</p>
@@ -293,7 +311,7 @@ const navLinks = [
     }
 
     {
-      includes?.rooms?.length ? (
+      show("includes") && includes?.rooms?.length ? (
         <section class="lux-section lux-includes" id="includes">
           <div class="lux-section__head">
             <p class="lux-kicker">Checklist</p>
@@ -317,7 +335,7 @@ const navLinks = [
     }
 
     {
-      steps?.items?.length ? (
+      show("steps") && steps?.items?.length ? (
         <section class="lux-section lux-steps" id="process">
           <div class="lux-section__head">
             <p class="lux-kicker">Process</p>
@@ -340,7 +358,7 @@ const navLinks = [
     }
 
     {
-      gallery?.photos?.length ? (
+      show("gallery") && gallery?.photos?.length ? (
         <section class="lux-section lux-gallery" id="gallery">
           <div class="lux-section__head">
             <p class="lux-kicker">Gallery</p>
@@ -360,7 +378,7 @@ const navLinks = [
     }
 
     {
-      areas?.cities?.length ? (
+      show("areas") && areas?.cities?.length ? (
         <section class="lux-section lux-areas" id="areas">
           <div class="lux-section__head">
             <p class="lux-kicker">Area</p>
@@ -378,7 +396,7 @@ const navLinks = [
     }
 
     {
-      about && (
+      show("about") && about && (
         <section class="lux-section lux-about" id="about">
           <div class="lux-section__head">
             <p class="lux-kicker">About</p>
@@ -399,7 +417,7 @@ const navLinks = [
     }
 
     {
-      reviews?.items?.length ? (
+      show("reviews") && reviews?.items?.length ? (
         <section class="lux-section" id="reviews">
           <div class="lux-section__head">
             <p class="lux-kicker">Reviews</p>
@@ -420,7 +438,7 @@ const navLinks = [
     }
 
     {
-      faq?.items?.length ? (
+      show("faq") && faq?.items?.length ? (
         <section class="lux-section lux-faq" id="faq">
           <div class="lux-section__head">
             <p class="lux-kicker">FAQ</p>
@@ -440,7 +458,7 @@ const navLinks = [
     }
 
     {
-      contact && (phoneHref || contact.email) && (
+      show("contact") && contact && (phoneHref || contact.email) && (
         <section class="lux-section lux-contact" id="contact">
           <div class="lux-section__head">
             <p class="lux-kicker">Contact</p>
@@ -519,7 +537,10 @@ const navLinks = [
       </>
     ) : phoneHref ? (
       <div class="lux-sticky" role="region" aria-label="Call">
-        <a class="lux-sticky__btn" href={phoneHref}>{stickyLabel}</a>
+        <a class="lux-sticky__btn" href={phoneHref} aria-label={stickyLabel}>
+          <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+        </a>
       </div>
     ) : null
   }
@@ -611,12 +632,20 @@ const navLinks = [
   }
 
   .lux-header__nav {
-    display: none;
+    display: flex;
     flex: 1 1 100%;
     order: 3;
     gap: 0.35rem 0.85rem;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.15rem;
+  }
+
+  .lux-header__nav::-webkit-scrollbar {
+    display: none;
   }
 
   .lux-header__nav a {
@@ -626,6 +655,11 @@ const navLinks = [
     text-transform: uppercase;
     text-decoration: none;
     color: var(--lux-muted);
+    white-space: nowrap;
+  }
+
+  .lux-header__nav a.is-active {
+    color: var(--lux-ink);
   }
 
   .lux-header__actions {
@@ -652,6 +686,13 @@ const navLinks = [
   }
 
   .lux-header__phone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border-radius: 999px;
     border: 1px solid var(--lux-gold);
     color: var(--lux-ink);
     background: var(--lux-gold-soft);
@@ -734,6 +775,11 @@ const navLinks = [
     font-weight: 600;
     letter-spacing: 0.03em;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .lux-btn--call {
+    flex-direction: row;
+    gap: 0.55rem;
   }
 
   .lux-btn:active {
@@ -1257,14 +1303,13 @@ const navLinks = [
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    padding: 0.95rem 1rem;
+    width: 3.25rem;
+    height: 3.25rem;
+    margin: 0 auto;
+    padding: 0;
     border-radius: 999px;
     background: var(--lux-ink);
     color: #faf8f4 !important;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
     text-decoration: none !important;
     box-shadow: 0 10px 24px rgba(20, 20, 20, 0.18);
   }
@@ -1343,10 +1388,11 @@ const navLinks = [
 
   @media (min-width: 640px) {
     .lux-header__nav {
-      display: flex;
       flex: 1;
       order: 0;
+      flex-wrap: wrap;
       justify-content: center;
+      overflow: visible;
     }
 
     .lux-hero {
