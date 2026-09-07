@@ -29,6 +29,7 @@ import type {
 } from './analyticsSiteMerge';
 import {
   collectInstantSiteHealthIssues,
+  mergeSiteHealthSummary,
   scoreSiteHealthFromReadiness,
   type SiteHealthFleet,
   type SiteHealthSummary,
@@ -48,6 +49,8 @@ export type {
 } from './siteHealthScore';
 export {
   collectInstantSiteHealthIssues,
+  mergeSiteHealthSummary,
+  mergeSiteReadinessSummary,
   scoreSiteHealthFromReadiness,
   scoreSiteHealthIssues,
 } from './siteHealthScore';
@@ -185,7 +188,7 @@ async function mapPool<T, R>(
 
 export async function buildSiteHealthFleet(
   cards: SiteHealthCardInput[],
-  opts: { fresh?: boolean } = {},
+  opts: { fresh?: boolean; pruneToCards?: boolean } = {},
 ): Promise<SiteHealthFleet> {
   if (!opts.fresh) {
     const cached = peekCachedSiteHealthFleet();
@@ -199,8 +202,12 @@ export async function buildSiteHealthFleet(
     const id = hostnameFromWebsite(c.siteId) || normalizeMonitorHost(c.siteId);
     return id && isApexPublicWebsiteHost(id);
   });
+  const pruneToCards = opts.pruneToCards !== false;
 
   const pending = (async (): Promise<SiteHealthFleet> => {
+    await hydrateSiteHealthFleetCache();
+    const previousFleet = peekCachedSiteHealthFleet({ allowStale: true });
+
     const googleConnected = await agencyGoogleConnected();
     let gscEntries: GscSiteEntry[] | null = null;
     if (googleConnected) {
@@ -240,7 +247,7 @@ export async function buildSiteHealthFleet(
     }
 
     const checkedAt = Date.now();
-    const sites: Record<string, SiteHealthSummary> = {};
+    const scannedSites: Record<string, SiteHealthSummary> = {};
     for (let i = 0; i < apexCards.length; i++) {
       const card = apexCards[i]!;
       const siteId =
@@ -273,7 +280,7 @@ export async function buildSiteHealthFleet(
         checkedAt,
       });
       const scored = scoreSiteHealthFromReadiness(readiness);
-      sites[siteId] = {
+      const freshRow: SiteHealthSummary = {
         grade: scored.grade,
         score: scored.score,
         criticalCount: scored.criticalCount,
@@ -283,7 +290,17 @@ export async function buildSiteHealthFleet(
         searchEnginesBlocked,
         wpConnectAvailable,
       };
+      scannedSites[siteId] = mergeSiteHealthSummary(previousFleet?.sites?.[siteId], freshRow, {
+        seoProbed: Boolean(seo),
+      });
     }
+
+    const sites: Record<string, SiteHealthSummary> = pruneToCards
+      ? scannedSites
+      : {
+          ...(previousFleet?.sites ?? {}),
+          ...scannedSites,
+        };
 
     const fleet: SiteHealthFleet = {
       checkedAt,

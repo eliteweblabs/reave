@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { robotsTxtBlocksAll } from '../src/lib/seoInventoryClient.ts';
 import {
   collectInstantSiteHealthIssues,
+  mergeSiteHealthSummary,
+  mergeSiteReadinessSummary,
   scoreSiteHealthFromReadiness,
   scoreSiteHealthIssues,
 } from '../src/lib/siteHealthScore.ts';
@@ -136,5 +138,94 @@ const perfectReadiness = buildSiteReadinessChecklist({
 });
 assert.equal(perfectReadiness.okCount, perfectReadiness.totalCount);
 assert.equal(scoreSiteHealthFromReadiness(perfectReadiness).grade, 'A');
+
+const archivedReadiness = buildSiteReadinessChecklist({
+  seo: {
+    ok: true,
+    url: 'https://archived.com/',
+    final_url: 'https://archived.com/',
+    grade: 'A',
+    score: 95,
+    items: [],
+    issues: [],
+    pitches: [],
+    open_graph: { title: '', description: '', image: '', url: '', type: '' },
+    twitter: { card: '', title: '', description: '', image: '' },
+    page: { title: '', meta_description: '', canonical: '', meta_robots: '' },
+    favicon: { present: true, href: '/favicon.ico', apple_touch: true },
+    manifest: { present: true, href: '/manifest.webmanifest', name: 'Archived', valid: true },
+    robots_txt: { present: true, url: 'https://archived.com/robots.txt', blocks_all: false, sitemap_refs: [], sample: '' },
+    sitemap: { present: true, url: 'https://archived.com/sitemap.xml', url_count_estimate: 8, status_code: 200 },
+    structured_data: { present: true, types: ['Organization', 'Review'], count: 2 },
+    internal_links: { total: 10, serviceLike: 3, samplePaths: ['/services'] },
+  },
+  issues: [],
+  googleConnected: true,
+  gscHasProperty: true,
+  gscSitemapCount: 1,
+  analytics: {
+    siteId: 'archived.com',
+    label: 'archived.com',
+    kind: 'railway',
+    registered: true,
+    visitors: 12,
+    pageviews: 24,
+    realtimeVisitors: 0,
+    change: null,
+    dashboardUrl: null,
+  },
+  monitor: { status: 2, uptime_ratio_7d: 100 },
+});
+const failedRescan = buildSiteReadinessChecklist({
+  seo: null,
+  issues: [],
+  googleConnected: true,
+  gscHasProperty: true,
+  gscSitemapCount: 1,
+  analytics: {
+    siteId: 'archived.com',
+    label: 'archived.com',
+    kind: 'railway',
+    registered: true,
+    visitors: 12,
+    pageviews: 24,
+    realtimeVisitors: 0,
+    change: null,
+    dashboardUrl: null,
+  },
+  monitor: { status: 2, uptime_ratio_7d: 100 },
+});
+const mergedReadiness = mergeSiteReadinessSummary(archivedReadiness, failedRescan, { seoProbed: false });
+assert.equal(
+  mergedReadiness.items.find((item) => item.id === 'schema_markup')?.status,
+  'ok',
+);
+assert.notEqual(mergedReadiness.items.find((item) => item.id === 'schema_markup')?.detail, 'Not scanned yet');
+
+const mergedRow = mergeSiteHealthSummary(
+  {
+    grade: 'A',
+    score: 95,
+    criticalCount: 0,
+    issues: [{ code: 'robots_missing', severity: 'warn', label: 'No robots.txt' }],
+    readiness: archivedReadiness,
+    checkedAt: 1,
+    searchEnginesBlocked: false,
+    wpConnectAvailable: true,
+  },
+  {
+    grade: 'C',
+    score: 60,
+    criticalCount: 0,
+    issues: [],
+    readiness: failedRescan,
+    checkedAt: 2,
+    searchEnginesBlocked: null,
+    wpConnectAvailable: null,
+  },
+  { seoProbed: false },
+);
+assert.equal(mergedRow.readiness?.items.find((item) => item.id === 'xml_sitemap')?.status, 'ok');
+assert.ok(mergedRow.issues.some((issue) => issue.code === 'robots_missing'));
 
 console.log('verify-site-health: ok');

@@ -118,7 +118,7 @@ export async function GET(context: APIContext): Promise<Response> {
             analytics: card.analytics,
           },
         ],
-        { fresh: true },
+        { fresh: true, pruneToCards: false },
       );
       cachedRow = fleet.sites[host];
     }

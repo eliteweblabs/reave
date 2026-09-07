@@ -232,7 +232,7 @@ export async function buildAdminDashboardPayload(
   const { billing, billingError, billingConfigured } = billingSlice;
   const { analytics, analyticsConfigured } = analyticsSlice;
 
-  void hydrateSiteHealthFleetCache();
+  await hydrateSiteHealthFleetCache();
   const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
   const siteFleetIgnore = await loadSiteFleetIgnoreState();
   const siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);

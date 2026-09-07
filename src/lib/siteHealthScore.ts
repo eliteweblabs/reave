@@ -7,7 +7,11 @@ import type {
   UptimeMonitorForFleetMerge,
 } from './analyticsSiteMerge';
 
-import type { SiteReadinessStatus, SiteReadinessSummary } from './siteReadinessChecklist';
+import type {
+  SiteReadinessItem,
+  SiteReadinessStatus,
+  SiteReadinessSummary,
+} from './siteReadinessChecklist';
 
 export type SiteHealthIssueCode =
   | 'down'
@@ -89,6 +93,87 @@ const READINESS_POINTS: Record<SiteReadinessStatus, number> = {
  * Dashboard letter grade from the full readiness checklist.
  * A is reserved for a perfect run — every item must be green (ok).
  */
+const SEO_READINESS_IDS = new Set(['schema_markup', 'xml_sitemap', 'internal_linking']);
+const SEO_ISSUE_CODES = new Set<SiteHealthIssueCode>(['robots_blocked', 'robots_missing']);
+
+function isArchivalReadinessItem(item: SiteReadinessItem | null | undefined): boolean {
+  if (!item) return false;
+  if (item.status !== 'unknown') return true;
+  const detail = String(item.detail || '').trim().toLowerCase();
+  return detail.length > 0 && !detail.startsWith('not scanned') && !detail.startsWith('pending');
+}
+
+/** Keep last good checklist rows when a fresh probe comes back empty. */
+export function mergeSiteReadinessSummary(
+  previous: SiteReadinessSummary | null | undefined,
+  next: SiteReadinessSummary,
+  opts: { seoProbed?: boolean } = {},
+): SiteReadinessSummary {
+  if (!previous?.items?.length) return next;
+  const seoProbed = opts.seoProbed === true;
+  const prevById = new Map(previous.items.map((item) => [item.id, item]));
+  const items = next.items.map((item) => {
+    const prev = prevById.get(item.id);
+    if (!prev || !isArchivalReadinessItem(prev)) return item;
+    if (item.status !== 'unknown') return item;
+    if (!seoProbed && SEO_READINESS_IDS.has(item.id)) return prev;
+    if (isArchivalReadinessItem(prev)) return prev;
+    return item;
+  });
+  const okCount = items.filter((i) => i.status === 'ok').length;
+  return {
+    items,
+    okCount,
+    totalCount: items.length,
+    checkedAt: next.checkedAt,
+  };
+}
+
+/** Merge a fresh site row onto the last persisted scan without downgrading to “not scanned”. */
+export function mergeSiteHealthSummary(
+  previous: SiteHealthSummary | null | undefined,
+  next: SiteHealthSummary,
+  opts: { seoProbed?: boolean } = {},
+): SiteHealthSummary {
+  if (!previous) return next;
+  const seoProbed = opts.seoProbed === true;
+  const readiness = mergeSiteReadinessSummary(previous.readiness, next.readiness ?? {
+    items: [],
+    okCount: 0,
+    totalCount: 0,
+    checkedAt: next.checkedAt,
+  }, { seoProbed });
+  const scored = scoreSiteHealthFromReadiness(readiness);
+
+  let issues = next.issues;
+  if (!seoProbed && previous.issues?.length) {
+    const liveCodes = new Set(
+      next.issues.filter((issue) => !SEO_ISSUE_CODES.has(issue.code)).map((issue) => issue.code),
+    );
+    const merged = [
+      ...next.issues.filter((issue) => !SEO_ISSUE_CODES.has(issue.code)),
+      ...previous.issues.filter((issue) => SEO_ISSUE_CODES.has(issue.code) && !liveCodes.has(issue.code)),
+    ];
+    issues = merged.length ? merged : previous.issues;
+  }
+
+  return {
+    grade: scored.grade,
+    score: scored.score,
+    criticalCount: scored.criticalCount,
+    issues,
+    readiness,
+    checkedAt: next.checkedAt,
+    searchEnginesBlocked: seoProbed
+      ? next.searchEnginesBlocked
+      : (next.searchEnginesBlocked ?? previous.searchEnginesBlocked),
+    wpConnectAvailable: next.wpConnectAvailable ?? previous.wpConnectAvailable,
+    stale: next.stale,
+    ignored: next.ignored ?? previous.ignored,
+    ignoreReason: next.ignoreReason ?? previous.ignoreReason,
+  };
+}
+
 export function scoreSiteHealthFromReadiness(readiness: SiteReadinessSummary): {
   grade: LetterGrade | null;
   score: number;
