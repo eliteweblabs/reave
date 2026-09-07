@@ -157,7 +157,6 @@ ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_dashboard BOOLEAN;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify_actions JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'personal';
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS phrase_fields JSONB NOT NULL DEFAULT '[]';
-CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 
 -- Repair installs where scripts/migrations/001 created a competing email_rules shape
 -- (name/pattern/action) before emailRuleStore columns existed.
@@ -169,6 +168,7 @@ ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS match_mode TEXT NOT NULL DEFAUL
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS fields JSONB NOT NULL DEFAULT '["subject","body"]';
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS notify BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;
+CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 
 DO $$
 BEGIN
@@ -190,34 +190,80 @@ BEGIN
   ) THEN
     EXECUTE 'ALTER TABLE email_rules ALTER COLUMN action DROP NOT NULL';
   END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'name'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'title'
+  ) THEN
+    EXECUTE $sql$
+      UPDATE email_rules
+         SET title = COALESCE(NULLIF(trim(title), ''), name)
+       WHERE (title IS NULL OR trim(title) = '') AND name IS NOT NULL AND trim(name) <> ''
+    $sql$;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'action'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'status'
+  ) THEN
+    EXECUTE $sql$
+      UPDATE email_rules
+         SET status = COALESCE(NULLIF(trim(status), ''), action)
+       WHERE (status IS NULL OR trim(status) = '') AND action IS NOT NULL AND trim(action) <> ''
+    $sql$;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'pattern'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'phrases'
+  ) THEN
+    EXECUTE $sql$
+      UPDATE email_rules
+         SET phrases = jsonb_build_array(pattern)
+       WHERE (phrases IS NULL OR phrases = '[]'::jsonb)
+         AND pattern IS NOT NULL
+         AND trim(pattern) <> ''
+    $sql$;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'sort_order'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'priority'
+  ) THEN
+    EXECUTE $sql$
+      UPDATE email_rules
+         SET sort_order = COALESCE(NULLIF(sort_order, 0), priority, 0)
+       WHERE sort_order IS NULL OR sort_order = 0
+    $sql$;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'match_fields'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'fields'
+  ) THEN
+    EXECUTE $sql$
+      UPDATE email_rules er
+         SET fields = to_jsonb(er.match_fields)
+       WHERE (er.fields IS NULL OR er.fields = '[]'::jsonb)
+         AND er.match_fields IS NOT NULL
+    $sql$;
+  END IF;
 END $$;
-
-UPDATE email_rules
-   SET title = COALESCE(NULLIF(trim(title), ''), name)
- WHERE (title IS NULL OR trim(title) = '') AND name IS NOT NULL AND trim(name) <> '';
-
-UPDATE email_rules
-   SET status = COALESCE(NULLIF(trim(status), ''), action)
- WHERE (status IS NULL OR trim(status) = '') AND action IS NOT NULL AND trim(action) <> '';
-
-UPDATE email_rules
-   SET phrases = jsonb_build_array(pattern)
- WHERE (phrases IS NULL OR phrases = '[]'::jsonb)
-   AND pattern IS NOT NULL
-   AND trim(pattern) <> '';
-
-UPDATE email_rules
-   SET sort_order = COALESCE(NULLIF(sort_order, 0), priority, 0)
- WHERE sort_order IS NULL OR sort_order = 0;
-
-UPDATE email_rules er
-   SET fields = to_jsonb(er.match_fields)
- WHERE (er.fields IS NULL OR er.fields = '[]'::jsonb)
-   AND er.match_fields IS NOT NULL
-   AND EXISTS (
-     SELECT 1 FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = 'email_rules' AND column_name = 'match_fields'
-   );
 
 DO $$
 BEGIN

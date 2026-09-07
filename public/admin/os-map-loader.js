@@ -19255,11 +19255,8 @@ function exitEmailLabMode(opts = {}) {
   emailState.labDetail = null;
   labSelecting = false;
   labSelectionSource = null;
-  labPendingSelection = null;
   window.clearTimeout(labCommitTimer);
   labCommitTimer = 0;
-  window.clearTimeout(labPendingSyncTimer);
-  labPendingSyncTimer = 0;
   if (opts.silent) return;
   if (emailState.activeId && getEmailPanel()?.querySelector('.ch-pane')) {
     renderEmailPane();
@@ -19359,58 +19356,9 @@ function captureLabWindowSelection(winOrDoc, field, detail) {
 
 let labSelecting = false;
 let labCommitTimer = 0;
-let labPendingSyncTimer = 0;
 let labDocSelectionBound = false;
 /** @type {Document | null} */
 let labSelectionSource = null;
-/** @type {{ text: string, field: 'from' | 'subject' | 'body' } | null} */
-let labPendingSelection = null;
-
-function emailLabNeedsManualConfirm() {
-  return window.matchMedia?.('(pointer: coarse)').matches ?? false;
-}
-
-function readCurrentLabSelection() {
-  const detail = emailState.labDetail;
-  if (!detail || !emailState.labMode) return null;
-
-  const tryDoc = (doc) => {
-    const sel = selectionFromContext(doc);
-    if (!sel || sel.isCollapsed) return null;
-    const field = labFieldForTarget(sel.anchorNode, detail);
-    if (!field) return null;
-    const text = normalizeEmailLabPhrase(stripEmailLabFieldPrefix(sel.toString(), field));
-    if (text.length < 2) return null;
-    return { text, field };
-  };
-
-  const frameDoc = getEmailLabBodyFrameDoc();
-  return tryDoc(document) || (frameDoc ? tryDoc(frameDoc) : null);
-}
-
-function syncLabPendingSelection() {
-  if (!emailState.labMode || !emailLabNeedsManualConfirm()) return;
-  labPendingSelection = readCurrentLabSelection();
-  refreshEmailLabBar();
-}
-
-function scheduleLabPendingSync(delay = 120) {
-  window.clearTimeout(labPendingSyncTimer);
-  labPendingSyncTimer = window.setTimeout(() => {
-    labPendingSyncTimer = 0;
-    syncLabPendingSelection();
-  }, delay);
-}
-
-function commitPendingLabSelection() {
-  if (!labPendingSelection) return false;
-  const { text, field } = labPendingSelection;
-  labPendingSelection = null;
-  const added = addEmailLabPhrase(text, field);
-  clearEmailLabSelections();
-  refreshEmailLabBar();
-  return added;
-}
 
 function getEmailLabBodyFrameDoc() {
   const frame = emailState.labDetail?.querySelector('.em-detail-body-frame');
@@ -19458,10 +19406,6 @@ function captureLabSelectionFromSource() {
 
 function captureAllLabSelections() {
   if (!emailState.labMode || labSelecting) return;
-  if (emailLabNeedsManualConfirm()) {
-    commitPendingLabSelection();
-    return;
-  }
   captureLabSelectionFromSource();
 }
 
@@ -19469,9 +19413,9 @@ function labChipFieldLabel(field) {
   return field === 'from' ? 'From' : field === 'subject' ? 'Subject' : 'Body';
 }
 
-function appendEmailLabChip(list, { text, field, pending = false, onRemove }) {
+function appendEmailLabChip(list, { text, field, onRemove }) {
   const li = document.createElement('li');
-  li.className = 'em-lab-chip' + (pending ? ' em-lab-chip--pending' : '');
+  li.className = 'em-lab-chip';
   const label = document.createElement('span');
   label.className = 'em-lab-chip-copy';
   const prefix = document.createElement('span');
@@ -19496,26 +19440,16 @@ function appendEmailLabChip(list, { text, field, pending = false, onRemove }) {
 
 function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-lab-bar]')) {
   if (!bar) return;
-  const manual = emailLabNeedsManualConfirm();
   const hint = bar.querySelector('.em-lab-bar-hint');
   if (hint) {
-    if (labPendingSelection) {
-      hint.textContent = 'Adjust the highlight, then tap Add phrase.';
-    } else if (emailState.labPhrases.length) {
-      hint.textContent = 'Add more phrases, or create the rule.';
-    } else {
-      hint.textContent = manual
-        ? 'Select text, adjust the highlight, then tap Add phrase.'
-        : 'Select the text to target.';
-    }
+    hint.textContent = emailState.labPhrases.length
+      ? 'Add more phrases, or create the rule.'
+      : 'Select the text to target.';
   }
   const list = bar.querySelector('[data-email-lab-chips]');
   if (list) {
     list.replaceChildren();
-    list.hidden = emailState.labPhrases.length === 0 && !labPendingSelection;
-    if (labPendingSelection) {
-      appendEmailLabChip(list, { ...labPendingSelection, pending: true });
-    }
+    list.hidden = emailState.labPhrases.length === 0;
     emailState.labPhrases.forEach((p, i) => {
       appendEmailLabChip(list, {
         ...p,
@@ -19526,8 +19460,6 @@ function refreshEmailLabBar(bar = getEmailPanel()?.querySelector('[data-email-la
       });
     });
   }
-  const addBtn = bar.querySelector('[data-email-lab-add]');
-  if (addBtn) addBtn.hidden = !labPendingSelection;
   const createBtn = bar.querySelector('[data-email-lab-create]');
   if (createBtn) createBtn.disabled = emailState.labCreating;
 }
@@ -19583,16 +19515,7 @@ function finishLabSelecting(opts = {}) {
   labSelecting = false;
   if (!wasSelecting && labEventOnChrome(opts.event)) return;
   if (opts.event) labSelectionSource = labDocFromEventTarget(opts.event);
-  if (emailLabNeedsManualConfirm()) {
-    scheduleLabPendingSync(Number(opts.delay) || 120);
-    return;
-  }
   scheduleLabCommit(Number(opts.delay) || 0);
-}
-
-function onLabSelectionChange() {
-  if (!emailState.labMode || !emailLabNeedsManualConfirm() || labSelecting) return;
-  scheduleLabPendingSync(80);
 }
 
 function onLabKeyUp(ev) {
@@ -19627,7 +19550,6 @@ function bindEmailLabDocument(doc) {
   if (doc.documentElement.dataset.emailLabBound === '1') return;
   doc.documentElement.dataset.emailLabBound = '1';
   bindEmailLabReleaseListeners(doc);
-  doc.addEventListener('selectionchange', onLabSelectionChange);
   doc.addEventListener(
     'click',
     (ev) => {
@@ -19653,7 +19575,6 @@ function bindEmailLabDetail(detail) {
     labDocSelectionBound = true;
     bindEmailLabReleaseListeners(document);
     document.addEventListener('keyup', onLabKeyUp);
-    document.addEventListener('selectionchange', onLabSelectionChange);
   }
   if (detail.dataset.emailLabDetailBound === '1') return;
   detail.dataset.emailLabDetailBound = '1';
@@ -19719,13 +19640,6 @@ function renderEmailLabBar() {
   list.dataset.emailLabChips = '1';
   const actions = document.createElement('div');
   actions.className = 'em-lab-bar-actions';
-  const addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.className = 'de-btn de-btn-secondary';
-  addBtn.dataset.emailLabAdd = '1';
-  addBtn.textContent = 'Add phrase';
-  addBtn.hidden = true;
-  addBtn.addEventListener('click', () => commitPendingLabSelection());
   const createBtn = document.createElement('button');
   createBtn.type = 'button';
   createBtn.className = 'de-btn de-btn-primary';
@@ -19737,7 +19651,7 @@ function renderEmailLabBar() {
   doneBtn.className = 'de-btn de-btn-secondary';
   doneBtn.textContent = 'Done';
   doneBtn.addEventListener('click', () => exitEmailLabMode());
-  actions.append(addBtn, createBtn, doneBtn);
+  actions.append(createBtn, doneBtn);
   bar.append(hint, list, actions);
   refreshEmailLabBar(bar);
   return bar;
