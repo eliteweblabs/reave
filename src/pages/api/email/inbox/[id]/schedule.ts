@@ -26,6 +26,7 @@ import { ensureContactForMeetingEmail } from '../../../../../lib/emailContactExt
 import { sendInboundThreadReply } from '../../../../../lib/inboundEmailReply';
 import {
   attendeeFromEmail,
+  buildBookingNotesFromEmail,
   buildMeetingScheduleInviteEmail,
   buildMeetingSlotBookedEmail,
   checkEmailMeetingSlot,
@@ -541,14 +542,17 @@ export async function POST(context: APIContext): Promise<Response> {
   const vendorLocation = vendorAppointment ? extractAppointmentLocation(meetingEvidence) : null;
   let bookAddress = vendorLocation || addressFromBody;
 
-  const notes = [
-    vendorAppointment ? `Vendor appointment (${attendee.name})` : null,
-    `From inbox: ${event.subject || '(no subject)'}`,
-    event.schedulingNote ? `Requested: ${event.schedulingNote}` : '',
-    event.summary ? event.summary.slice(0, 200) : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const notes = buildBookingNotesFromEmail({
+    from: event.from,
+    subject: event.subject,
+    receivedAt: event.receivedAt,
+    schedulingNote: event.schedulingNote,
+    bodyText: event.bodyText,
+    bodySnippet: event.bodySnippet,
+    bodyHtml: event.bodyHtml,
+    vendorLabel: vendorAppointment ? attendee.name : null,
+    durationMinutes: bookingLength.durationMinutes,
+  });
 
   let confirmContactUid: string | undefined;
   if (vendorAppointment) {
@@ -576,7 +580,7 @@ export async function POST(context: APIContext): Promise<Response> {
     name: bookName,
     email: bookEmail,
     start: start.toISOString(),
-    notes: notes.slice(0, 500),
+    notes,
     durationMinutes: bookingLength.durationMinutes,
     eventSlug: bookingLength.eventSlug,
     ...(bookAddress ? { address: bookAddress } : {}),

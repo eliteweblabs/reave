@@ -3,6 +3,7 @@
  */
 
 import { parseSenderEmail, parseSenderName } from './emailAddress';
+import { buildBookingNotesFromEmail } from './emailBookingNotes';
 import { isPlaceholderProjectTitle } from './emailProjectReply';
 import {
   bookingAvailability,
@@ -137,6 +138,8 @@ export function attendeeFromEmail(input: {
   const name = (input.contactName || parsedName || email.split('@')[0] || 'Guest').trim();
   return { name, email: email.includes('@') ? email : '' };
 }
+
+export { buildBookingNotesFromEmail, MAX_BOOKING_EMAIL_NOTES } from './emailBookingNotes';
 
 export {
   MEETING_SKIP_CATEGORIES,
@@ -491,6 +494,8 @@ export async function tryAutoBookInboundMeeting(input: {
   schedulingNote?: string;
   summary?: string;
   bodyText?: string;
+  bodySnippet?: string;
+  bodyHtml?: string;
   /** Explicit length when AI/caller already extracted it (minutes). */
   durationMinutes?: number | null;
   /**
@@ -538,22 +543,21 @@ export async function tryAutoBookInboundMeeting(input: {
     return { ok: false, reason: 'no_attendee' };
   }
 
-  const notes = [
-    `From inbox: ${input.subject || '(no subject)'}`,
-    input.schedulingNote ? `Requested: ${input.schedulingNote}` : '',
-    length.durationMinutes !== DEFAULT_MEETING_MINUTES
-      ? `Duration: ${length.durationMinutes} minutes`
-      : '',
-    input.summary ? input.summary.slice(0, 200) : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const notes = buildBookingNotesFromEmail({
+    from: input.from,
+    subject: input.subject,
+    schedulingNote: input.schedulingNote,
+    bodyText: input.bodyText,
+    bodySnippet: input.bodySnippet,
+    bodyHtml: input.bodyHtml,
+    durationMinutes: length.durationMinutes,
+  });
 
   const created = await bookingCreate({
     name: attendee.name,
     email: attendee.email,
     start: proposed.toISOString(),
-    notes: notes.slice(0, 500),
+    notes,
     durationMinutes: length.durationMinutes,
     eventSlug: length.eventSlug,
     ...(input.confirmContactUid ? { confirmContactUid: input.confirmContactUid } : {}),
