@@ -1,1 +1,19 @@
-import type { APIRoute } from "astro";\nimport { getSiteContent } from "../../../lib/siteContent\";\n\nexport const GET: APIRoute = async (context) => {\n  const siteContent = getSiteContent();\n  const manifest = siteContent.landing?.manifest;\n\n  if (!manifest) {\n    return new Response(\n      JSON.stringify({ error: \"Manifest not configured\" }),\n      {\n        status: 404,\n        headers: { \"Content-Type\": \"application/json\" },\n      }\n    );\n  }\n\n  return new Response(\n    JSON.stringify(manifest),\n    {\n      status: 200,\n      headers: { \"Content-Type\": \"application/manifest+json\" },\n    }\n  );\n};\n
+import type { APIRoute } from "astro";
+import { getSiteContent } from "../../../lib/siteContent";
+
+export const GET: APIRoute = async () => {
+  const siteContent = getSiteContent();
+  const manifest = siteContent.landing?.manifest;
+
+  if (!manifest) {
+    return new Response(JSON.stringify({ error: "Manifest not configured" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify(manifest), {
+    status: 200,
+    headers: { "Content-Type": "application/manifest+json" },
+  });
+};
