@@ -250,6 +250,7 @@ const brandName = company.name || "reave.app";
   .go-page {
     position: relative;
     z-index: 1;
+    --go-surface: var(--site-canvas, #fff);
     padding: 0 var(--site-page-gutter, 20px) calc(80px + env(safe-area-inset-bottom, 0px));
   }
 
@@ -285,6 +286,10 @@ const brandName = company.name || "reave.app";
 
   .go-hero__copy {
     max-width: 560px;
+    padding: clamp(1.25rem, 3vw, 1.75rem);
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: var(--go-surface);
   }
 
   .go-hero__pill {
@@ -386,6 +391,10 @@ const brandName = company.name || "reave.app";
     align-items: flex-start;
     max-width: 100%;
     overflow: visible;
+    padding: clamp(1rem, 2.5vw, 1.5rem);
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: var(--go-surface);
   }
 
   @media (max-width: 859px) {
@@ -435,7 +444,7 @@ const brandName = company.name || "reave.app";
     padding: 22px 20px;
     border-radius: 14px;
     border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
-    background: transparent;
+    background: var(--go-surface);
   }
 
   .go-detail-card h3 {
@@ -519,7 +528,7 @@ const brandName = company.name || "reave.app";
     padding: 18px 16px;
     border-radius: 14px;
     border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
-    background: transparent;
+    background: var(--go-surface);
   }
 
   .go-platform__logo {
@@ -561,6 +570,10 @@ const brandName = company.name || "reave.app";
   .go-apply__inner {
     max-width: 640px;
     margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 2rem);
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    background: var(--go-surface);
   }
 
   .go-apply__header {
@@ -602,12 +615,34 @@ const brandName = company.name || "reave.app";
     max-width: 420px;
   }
 
+  .go-apply :global(.conversational-form-root--hero-chat .message.robot),
+  .go-apply :global(.conversational-form-root--hero-chat .message.user),
+  .go-apply :global(.conversational-form-root--hero-chat .cf-typing-bubble),
+  .go-apply :global(.conversational-form-root--hero-chat .sms-consent-panel),
+  .go-apply :global(.conversational-form-root--hero-chat .option-btn) {
+    background: var(--go-surface);
+  }
+
+  .go-apply :global(.conversational-form-root--hero-chat .options-wrapper--binary .option-btn) {
+    background: var(--brand-btn-bg, #111);
+    color: var(--brand-btn-fg, #fff);
+  }
+
+  .go-apply :global(.conversational-form-root--hero-chat .options-wrapper--binary .option-btn:hover) {
+    background: color-mix(in srgb, var(--brand-btn-bg, #111) 88%, #fff);
+    color: var(--brand-btn-fg, #fff);
+  }
+
+  .go-apply :global(.conversational-form-root--hero-chat .input-pill) {
+    background: var(--go-surface);
+  }
+
   .go-circle-bg {
     position: fixed;
     inset: auto 0 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.1;
+    opacity: 0.04;
     line-height: 0;
   }
 
