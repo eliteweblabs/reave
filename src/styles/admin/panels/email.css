@@ -7,6 +7,10 @@
   flex-direction: row;
   background: var(--bg);
   z-index: 10;
+  /* Stronger than shared list tokens — zebra rows wash out generic --list-item-active-* */
+  --em-list-active-bg: color-mix(in srgb, var(--brand-indigo) 14%, var(--card));
+  --em-list-active-border: color-mix(in srgb, var(--brand-indigo) 34%, var(--card-border));
+  --em-list-active-accent: var(--brand-indigo);
 }
 .em-filter-tabs {
   display: flex;
@@ -407,11 +411,24 @@
   gap: 0.45rem;
 }
 .em-list-item:hover { color: var(--fg); background: var(--surface-hover); }
+.em-list .swipe-row:has(.em-list-item.active) {
+  --swipe-row-bg: var(--em-list-active-bg);
+}
 .em-list-item.active {
   color: var(--fg);
-  background: var(--list-item-active-bg);
-  /* Keep border transparent — accent is inset only, so selection does not reflow/jump. */
-  box-shadow: inset 3px 0 0 var(--em-item-accent, var(--list-item-active-border));
+  background: var(--em-list-active-bg);
+  border-color: var(--em-list-active-border);
+  /* Keep border transparent on sides — accent is inset only, so selection does not reflow/jump. */
+  box-shadow: inset 4px 0 0 var(--em-item-accent, var(--em-list-active-accent));
+}
+.em-list-item.active .em-item-summary,
+.em-list-item.active .em-item-subject {
+  color: var(--fg);
+}
+.em-list-item-urgent.active {
+  --em-list-active-bg: color-mix(in srgb, #ef4444 12%, var(--card));
+  --em-list-active-border: color-mix(in srgb, #ef4444 38%, var(--card-border));
+  border-left-color: transparent;
 }
 
 /* iOS-style swipe actions on email list rows */
@@ -600,11 +617,16 @@
 }
 .swipe-content .em-list-item.active,
 .swipe-content .ch-list-item.active {
-  background: var(--list-item-active-bg);
+  background: var(--em-list-active-bg, var(--list-item-active-bg));
 }
 .swipe-content .em-list-item.active {
-  /* Keep border transparent — accent is inset only, so selection does not reflow/jump. */
-  box-shadow: inset 3px 0 0 var(--em-item-accent, var(--list-item-active-border));
+  border-color: var(--em-list-active-border, var(--list-item-active-border));
+  /* Keep border transparent on sides — accent is inset only, so selection does not reflow/jump. */
+  box-shadow: inset 4px 0 0 var(--em-item-accent, var(--em-list-active-accent, var(--list-item-active-border)));
+}
+.swipe-content .em-list-item.active:hover {
+  color: var(--fg);
+  background: var(--em-list-active-bg, var(--list-item-active-bg));
 }
 .swipe-content .ch-list-item.active {
   box-shadow: inset 3px 0 0 var(--list-item-active-border);
