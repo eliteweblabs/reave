@@ -537,6 +537,17 @@ select,
   padding: 2px;
   box-sizing: border-box;
 }
+.admin-setup-alert-brand--initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--card) 70%, var(--muted) 30%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+  padding: 0;
+}
 .admin-setup-alert--receipt {
   --notice-accent: 52, 211, 153;
 }

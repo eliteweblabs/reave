@@ -60,6 +60,14 @@ export function appendAdminNoticeAction(toolbar, opts) {
   return btn;
 }
 
+function createAdminNoticeInitials(initials) {
+  const el = document.createElement('span');
+  el.className = 'admin-setup-alert-brand admin-setup-alert-brand--initials';
+  el.setAttribute('aria-hidden', 'true');
+  el.textContent = initials.slice(0, 2).toUpperCase();
+  return el;
+}
+
 /**
  * Build one admin notification card.
  *
@@ -68,7 +76,9 @@ export function appendAdminNoticeAction(toolbar, opts) {
  *   role?: string,
  *   copyHtml: string,
  *   iconUrl?: string | null,
+ *   iconInitials?: string | null,
  *   iconFallbackUrl?: string | null,
+ *   iconFallbackInitials?: string | null,
  *   modifiers?: string[],
  *   attrs?: Record<string, string | null | undefined>,
  *   actions?: Array<{ label: string, iconKey?: string, primary?: boolean, danger?: boolean, disabled?: boolean, title?: string, onClick: (btn: HTMLButtonElement) => void }>,
@@ -129,28 +139,43 @@ export function buildAdminNotice(opts) {
   });
 
   const iconUrl = opts.iconUrl || null;
-  if (iconUrl) {
+  const iconInitials = (opts.iconInitials || '').trim();
+  if (iconUrl || iconInitials) {
     const head = document.createElement('div');
     head.className = 'admin-setup-alert-head';
 
-    const brandIcon = document.createElement('img');
-    brandIcon.className = 'admin-setup-alert-brand';
-    brandIcon.src = iconUrl;
-    brandIcon.alt = '';
-    brandIcon.setAttribute('aria-hidden', 'true');
-    const fallback = opts.iconFallbackUrl || iconUrl;
-    if (fallback && fallback !== iconUrl) {
-      brandIcon.addEventListener(
-        'error',
-        () => {
-          brandIcon.onerror = null;
-          brandIcon.src = fallback;
-        },
-        { once: true },
-      );
+    if (iconUrl) {
+      const brandIcon = document.createElement('img');
+      brandIcon.className = 'admin-setup-alert-brand';
+      brandIcon.src = iconUrl;
+      brandIcon.alt = '';
+      brandIcon.setAttribute('aria-hidden', 'true');
+      const fallbackInitials = (opts.iconFallbackInitials || iconInitials || '').trim();
+      const fallbackUrl = opts.iconFallbackUrl || null;
+      if (fallbackInitials) {
+        brandIcon.addEventListener(
+          'error',
+          () => {
+            brandIcon.onerror = null;
+            brandIcon.replaceWith(createAdminNoticeInitials(fallbackInitials));
+          },
+          { once: true },
+        );
+      } else if (fallbackUrl && fallbackUrl !== iconUrl) {
+        brandIcon.addEventListener(
+          'error',
+          () => {
+            brandIcon.onerror = null;
+            brandIcon.src = fallbackUrl;
+          },
+          { once: true },
+        );
+      }
+      head.append(brandIcon, copy);
+    } else {
+      head.append(createAdminNoticeInitials(iconInitials), copy);
     }
 
-    head.append(brandIcon, copy);
     alert.appendChild(head);
   } else {
     alert.appendChild(copy);

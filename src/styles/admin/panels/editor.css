@@ -4739,6 +4739,20 @@ button.de-placeholder-action:active {
   padding: 1px;
   display: block;
 }
+.sidebar-list-author-icon--initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--card) 70%, var(--muted) 30%);
+}
+.sidebar-list-author-initials {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--fg);
+  user-select: none;
+}
 .ch-list-item:has(.sidebar-list-author-icon) {
   flex-direction: row;
   align-items: flex-start;
