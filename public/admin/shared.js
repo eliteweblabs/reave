@@ -374,6 +374,20 @@ export function brandDomainFromSenderEmail(from) {
 const SIMPLE_ICONS_CDN = (slug) =>
   `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
 
+/** High-signal senders — Simple Icons before Google favicon (clearer at inbox row size). */
+const KNOWN_SENDER_BRAND_DOMAINS = {
+  'apple.com': 'apple',
+  'amazon.com': 'amazon',
+  'google.com': 'google',
+  'microsoft.com': 'microsoft',
+  'paypal.com': 'paypal',
+  'stripe.com': 'stripe',
+  'linkedin.com': 'linkedin',
+  'instagram.com': 'instagram',
+  'facebook.com': 'facebook',
+  'meta.com': 'meta',
+};
+
 /** Brands inferred from notification copy when sender favicon / CRM icon are unavailable. */
 const NOTIFICATION_CONTENT_BRANDS = [
   {
@@ -417,14 +431,27 @@ function contentBrandIconUrl(item) {
   return SIMPLE_ICONS_CDN(brand.slug);
 }
 
-/** Google favicon URL for a sender address — null when no brand domain can be inferred. */
+/** One or two initials from a sender address (personal inboxes). */
+export function senderInitialsFromEmail(from) {
+  const email = parseSenderEmailForIcon(from);
+  if (!email) return '?';
+  const local = (email.split('@')[0] || '').trim();
+  const parts = local.replace(/[._-]+/g, ' ').split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts[0]?.length >= 2) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0]?.[0] || '?').toUpperCase();
+}
+
+/** Brand or favicon URL for a sender address — null when no brand domain can be inferred. */
 export function senderFaviconUrl(from, size = 64) {
   const domain = brandDomainFromSenderEmail(from);
   if (!domain) return null;
+  const slug = KNOWN_SENDER_BRAND_DOMAINS[domain];
+  if (slug) return SIMPLE_ICONS_CDN(slug);
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
 }
 
-/** Best icon for a dashboard notification — CRM contact, sender favicon, content brand, or company avatar. */
+/** Best icon for a dashboard notification — CRM contact, sender favicon, content brand, or null (initials). */
 export function resolveReviewAlertIconUrl(item = {}) {
   const contactIcon = brandingPreviewUrl(item.iconUrl);
   if (contactIcon) return contactIcon;
@@ -432,7 +459,7 @@ export function resolveReviewAlertIconUrl(item = {}) {
   if (senderIcon) return senderIcon;
   const contentIcon = contentBrandIconUrl(item);
   if (contentIcon) return contentIcon;
-  return companyStaffAvatarUrl();
+  return null;
 }
 
 const contactAuthorIconByUid = new Map();
@@ -498,9 +525,46 @@ export function resolveContactAuthorIconUrl(contactUid, explicitIconUrl) {
   return resolveContactBrandIconUrl(contactUid, explicitIconUrl) || companyStaffAvatarUrl();
 }
 
+function senderInitialsAvatarHtml(from) {
+  const initials = senderInitialsFromEmail(from);
+  return (
+    `<span class="sidebar-list-author-icon sidebar-list-author-icon--initials list-select-icon" role="checkbox" aria-label="Select item">` +
+    `<span class="sidebar-list-author-initials" aria-hidden="true">${escHtml(initials)}</span>` +
+    `</span>`
+  );
+}
+
+/** Swap a broken sender favicon to initials (never the company mark). */
+export function bindSidebarAuthorIconFallback(img, from = '') {
+  if (!img || img.dataset.authorIconFallbackBound) return;
+  img.dataset.authorIconFallbackBound = '1';
+  img.addEventListener('error', () => {
+    const host = img.closest('.sidebar-list-author-icon');
+    if (!host) return;
+    host.outerHTML = senderInitialsAvatarHtml(from);
+  });
+}
+
 /** Sidebar list row avatar — client when linked, otherwise company icon. */
 export function sidebarAuthorIconHtml(opts = {}) {
-  const url = resolveContactAuthorIconUrl(opts.contactUid, opts.iconUrl);
+  const contactIcon = resolveContactBrandIconUrl(opts.contactUid, opts.iconUrl);
+  if (contactIcon) {
+    return (
+      `<span class="sidebar-list-author-icon list-select-icon" role="checkbox" aria-label="Select item">` +
+      `<img class="sidebar-list-author-icon-img" src="${escHtml(contactIcon)}" alt="" loading="lazy" decoding="async" />` +
+      `</span>`
+    );
+  }
+  if (opts.iconUrl) {
+    const from = opts.from || '';
+    return (
+      `<span class="sidebar-list-author-icon list-select-icon" role="checkbox" aria-label="Select item">` +
+      `<img class="sidebar-list-author-icon-img" src="${escHtml(opts.iconUrl)}" alt="" loading="lazy" decoding="async" data-sender-from="${escHtml(from)}" />` +
+      `</span>`
+    );
+  }
+  if (opts.from) return senderInitialsAvatarHtml(opts.from);
+  const url = companyStaffAvatarUrl();
   return (
     `<span class="sidebar-list-author-icon list-select-icon" role="checkbox" aria-label="Select item">` +
     `<img class="sidebar-list-author-icon-img" src="${escHtml(url)}" alt="" loading="lazy" decoding="async" />` +
@@ -508,21 +572,32 @@ export function sidebarAuthorIconHtml(opts = {}) {
   );
 }
 
-/** Email sidebar list row avatar — CRM contact, sender/recipient favicon, or company icon. */
-export function emailListAuthorIconHtml(ev = {}) {
-  const contactUid = String(ev.contactUid || '').trim();
-  if (contactUid) return sidebarAuthorIconHtml({ contactUid });
+/** Mount sender-icon fallbacks under a list root (inbox, work, todo). */
+export function mountSidebarAuthorIcons(root) {
+  root?.querySelectorAll?.('.sidebar-list-author-icon-img[data-sender-from]').forEach((img) => {
+    bindSidebarAuthorIconFallback(img, img.dataset.senderFrom || '');
+  });
+}
 
+/** Email sidebar list row avatar — brand favicon, CRM icon, sender initials; not the company mark. */
+export function emailListAuthorIconHtml(ev = {}) {
   const firstRecipient = Array.isArray(ev.to) ? ev.to[0] : null;
+  const address = ev.from || ev.toEmail || firstRecipient?.email || '';
+  const favicon = address ? senderFaviconUrl(address) : null;
+  if (favicon) return sidebarAuthorIconHtml({ iconUrl: favicon, from: address });
+
+  const contactUid = String(ev.contactUid || '').trim();
+  const contactIcon = contactUid ? resolveContactBrandIconUrl(contactUid) : '';
+  if (contactIcon) return sidebarAuthorIconHtml({ contactUid, iconUrl: contactIcon });
+
   const recipientUid =
     firstRecipient && typeof firstRecipient === 'object'
       ? String(firstRecipient.uid || '').trim()
       : '';
-  if (recipientUid) return sidebarAuthorIconHtml({ contactUid: recipientUid });
+  const recipientIcon = recipientUid ? resolveContactBrandIconUrl(recipientUid) : '';
+  if (recipientIcon) return sidebarAuthorIconHtml({ contactUid: recipientUid, iconUrl: recipientIcon });
 
-  const address = ev.from || ev.toEmail || firstRecipient?.email || '';
-  const favicon = address ? senderFaviconUrl(address) : null;
-  if (favicon) return sidebarAuthorIconHtml({ iconUrl: favicon });
+  if (address) return senderInitialsAvatarHtml(address);
 
   return sidebarAuthorIconHtml();
 }

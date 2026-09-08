@@ -309,6 +309,22 @@ const TRANSACTIONAL_EMAIL_SUBDOMAINS = new Set([
   'no-reply',
 ]);
 
+const SIMPLE_ICONS_CDN = (slug: string) =>
+  `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+
+const KNOWN_SENDER_BRAND_DOMAINS: Record<string, string> = {
+  'apple.com': 'apple',
+  'amazon.com': 'amazon',
+  'google.com': 'google',
+  'microsoft.com': 'microsoft',
+  'paypal.com': 'paypal',
+  'stripe.com': 'stripe',
+  'linkedin.com': 'linkedin',
+  'instagram.com': 'instagram',
+  'facebook.com': 'facebook',
+  'meta.com': 'meta',
+};
+
 /** Registrable brand domain for favicon lookup — null for personal inboxes or unparseable senders. */
 export function brandDomainFromSenderEmail(from: string): string | null {
   const email = parseSenderEmail(from);
@@ -323,10 +339,12 @@ export function brandDomainFromSenderEmail(from: string): string | null {
   return domain;
 }
 
-/** Google favicon URL for a sender address — null when no brand domain can be inferred. */
+/** Brand or favicon URL for a sender address — null when no brand domain can be inferred. */
 export function senderFaviconUrl(from: string, size = 64): string | null {
   const domain = brandDomainFromSenderEmail(from);
   if (!domain) return null;
+  const slug = KNOWN_SENDER_BRAND_DOMAINS[domain];
+  if (slug) return SIMPLE_ICONS_CDN(slug);
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
 }
 

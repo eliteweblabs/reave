@@ -135,7 +135,7 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
 import { traceStart, traceAsync, traceSincePage, reportPreBootTiming } from './perf-trace.js';
 import {
   captureFilterTabsScroll,
@@ -5898,7 +5898,8 @@ function buildReviewAlertBanner(item) {
     tone: reviewAlertTone(item),
     copyHtml: reviewAlertCopyHtml(item),
     iconUrl: resolveReviewAlertIconUrl(item),
-    iconFallbackUrl: companyStaffAvatarUrl(),
+    iconInitials: item.from ? senderInitialsFromEmail(item.from) : null,
+    iconFallbackInitials: item.from ? senderInitialsFromEmail(item.from) : null,
     modifiers: emailAwaitingTriage ? ['triage'] : [],
     attrs: {
       'data-review-email-id': item.emailId || null,
@@ -16454,6 +16455,7 @@ function fillEmailSidebarList(list) {
     empty.querySelector('.em-clear-sender-filter')?.addEventListener('click', () => clearEmailSenderFilter());
     target.appendChild(empty);
   }
+  mountSidebarAuthorIcons(list);
   resyncListMultiSelect(list);
 }
 
