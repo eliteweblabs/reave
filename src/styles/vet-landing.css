@@ -452,6 +452,55 @@ a.vet-btn-secondary,
   justify-self: start;
 }
 
+.vet-places {
+  position: relative;
+  z-index: 2;
+}
+
+.vet-places-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 5;
+  max-height: 14rem;
+  overflow-y: auto;
+  border-radius: 0.625rem;
+  border: 1px solid var(--vet-border);
+  background: var(--vet-surface);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.12);
+}
+
+.vet-places-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.875rem;
+  border: none;
+  border-bottom: 1px solid var(--vet-border);
+  background: transparent;
+  color: var(--vet-ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.vet-places-option:last-child {
+  border-bottom: none;
+}
+
+.vet-places-option:hover,
+.vet-places-option.is-active {
+  background: rgb(217 122 57 / 0.08);
+}
+
+.vet-places-empty {
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--vet-muted);
+}
+
 .vet-about {
   display: grid;
   gap: 2rem;

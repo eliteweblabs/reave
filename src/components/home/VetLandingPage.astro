@@ -9,6 +9,7 @@ import { contactTelHref } from "../../lib/contactApi";
 import PawIcon from "../icons/PawIcon.astro";
 import { loadSiteLandingReviews } from "../../lib/siteLandingGoogleReviews";
 import { SIMPLE_ICONS_CDN, socialBrandIconUrl } from "../../lib/platformStack";
+import { serverEnv } from "../../lib/serverEnv";
 import "../../styles/vet-landing.css";
 
 interface Props {
@@ -84,6 +85,7 @@ const location =
   "";
 const contactHref = inquiry?.web3formsAccessKey ? "#inquiry" : email ? `mailto:${email}` : scheduleUrl;
 const contactLabel = landing.callCta?.label || "Contact us";
+const placesLocationBias = serverEnv("BOOKING_DEFAULT_ADDRESS")?.trim() || "";
 ---
 
 <div class="vet" data-vet-root>
@@ -346,9 +348,27 @@ const contactLabel = landing.callCta?.label || "Contact us";
                   <input type="email" id="vet-email" name="email" required autocomplete="email" />
                 </div>
 
-                <div class="vet-form__row">
+                <div
+                  class="vet-form__row vet-places"
+                  id="vet-city-wrap"
+                  data-places-bias={placesLocationBias || undefined}
+                >
                   <label for="vet-city">City / Town</label>
-                  <input type="text" id="vet-city" name="city_town" required autocomplete="address-level2" />
+                  <input
+                    type="text"
+                    id="vet-city"
+                    name="city_town"
+                    required
+                    autocomplete="off"
+                    autocorrect="off"
+                    spellcheck="false"
+                    placeholder="Start typing your city or town…"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded="false"
+                    aria-controls="vet-city-list"
+                  />
+                  <div id="vet-city-list" class="vet-places-list" hidden role="listbox" />
                 </div>
 
                 <div class="vet-form__row">
@@ -449,6 +469,158 @@ const contactLabel = landing.callCta?.label || "Contact us";
           document.addEventListener("DOMContentLoaded", initVetReviewsMarquee, { once: true });
         } else {
           initVetReviewsMarquee();
+        }
+      })();
+    </script>
+  ) : null
+}
+
+{
+  inquiry?.web3formsAccessKey ? (
+    <script is:inline>
+      (function () {
+        function initVetCityPlaces() {
+          const wrap = document.getElementById("vet-city-wrap");
+          const input = document.getElementById("vet-city");
+          const list = document.getElementById("vet-city-list");
+          if (!(wrap instanceof HTMLElement) || !(input instanceof HTMLInputElement) || !(list instanceof HTMLElement)) {
+            return;
+          }
+
+          let timer = 0;
+          let seq = 0;
+          let highlight = -1;
+          const locationBias = wrap.dataset.placesBias || "";
+
+          function formatCityLabel(text) {
+            return String(text || "").replace(/, USA$/i, "").trim();
+          }
+
+          function hideList() {
+            list.hidden = true;
+            list.innerHTML = "";
+            input.setAttribute("aria-expanded", "false");
+            highlight = -1;
+          }
+
+          function pickCity(description) {
+            input.value = formatCityLabel(description);
+            hideList();
+          }
+
+          function renderList(predictions, message) {
+            list.innerHTML = "";
+            if (message) {
+              const empty = document.createElement("div");
+              empty.className = "vet-places-empty";
+              empty.textContent = message;
+              list.appendChild(empty);
+            } else {
+              predictions.forEach(function (p, i) {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "vet-places-option";
+                btn.setAttribute("role", "option");
+                btn.textContent = formatCityLabel(p.description);
+                if (i === highlight) btn.classList.add("is-active");
+                btn.addEventListener("mousedown", function (ev) {
+                  ev.preventDefault();
+                });
+                btn.addEventListener("click", function (ev) {
+                  ev.preventDefault();
+                  pickCity(p.description);
+                });
+                list.appendChild(btn);
+              });
+            }
+            list.hidden = !list.childElementCount;
+            input.setAttribute("aria-expanded", list.hidden ? "false" : "true");
+          }
+
+          async function runSearch() {
+            const q = input.value.trim();
+            if (q.length < 2) {
+              hideList();
+              return;
+            }
+            const requestSeq = ++seq;
+            try {
+              const params = new URLSearchParams({ input: q, types: "(cities)" });
+              if (locationBias) params.set("locationBias", locationBias);
+              const res = await fetch("/api/public/places-autocomplete?" + params.toString());
+              const data = await res.json().catch(function () {
+                return {};
+              });
+              if (requestSeq !== seq || input.value.trim() !== q) return;
+              if (!res.ok) {
+                renderList([], data.errorMessage || data.error || "Could not look up cities.");
+                return;
+              }
+              const predictions = Array.isArray(data.predictions) ? data.predictions : [];
+              highlight = predictions.length ? 0 : -1;
+              renderList(predictions, predictions.length ? "" : "No matching cities or towns.");
+            } catch (err) {
+              if (requestSeq !== seq) return;
+              renderList([], err && err.message ? err.message : "Could not look up cities.");
+            }
+          }
+
+          function scheduleSearch() {
+            clearTimeout(timer);
+            timer = window.setTimeout(function () {
+              void runSearch();
+            }, 280);
+          }
+
+          input.addEventListener("input", function () {
+            highlight = -1;
+            scheduleSearch();
+          });
+
+          input.addEventListener("keydown", function (ev) {
+            const options = Array.from(list.querySelectorAll(".vet-places-option"));
+            if (ev.key === "Escape") {
+              hideList();
+              return;
+            }
+            if (!options.length || list.hidden) return;
+            if (ev.key === "ArrowDown") {
+              ev.preventDefault();
+              highlight = (highlight + 1) % options.length;
+              options.forEach(function (btn, i) {
+                btn.classList.toggle("is-active", i === highlight);
+              });
+              options[highlight]?.scrollIntoView({ block: "nearest" });
+              return;
+            }
+            if (ev.key === "ArrowUp") {
+              ev.preventDefault();
+              highlight = highlight <= 0 ? options.length - 1 : highlight - 1;
+              options.forEach(function (btn, i) {
+                btn.classList.toggle("is-active", i === highlight);
+              });
+              options[highlight]?.scrollIntoView({ block: "nearest" });
+              return;
+            }
+            if (ev.key === "Enter" && highlight >= 0) {
+              ev.preventDefault();
+              pickCity(options[highlight].textContent || "");
+            }
+          });
+
+          input.addEventListener("blur", function () {
+            window.setTimeout(hideList, 150);
+          });
+
+          document.addEventListener("click", function (ev) {
+            if (!wrap.contains(ev.target)) hideList();
+          });
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", initVetCityPlaces, { once: true });
+        } else {
+          initVetCityPlaces();
         }
       })();
     </script>
