@@ -85,7 +85,10 @@ const location =
   "";
 const contactHref = inquiry?.web3formsAccessKey ? "#inquiry" : email ? `mailto:${email}` : scheduleUrl;
 const contactLabel = landing.callCta?.label || "Contact us";
-const placesLocationBias = serverEnv("BOOKING_DEFAULT_ADDRESS")?.trim() || "";
+const placesLocationBias =
+  inquiry?.placesLocationBias?.trim() ||
+  serverEnv("BOOKING_DEFAULT_ADDRESS")?.trim() ||
+  "";
 ---
 
 <div class="vet" data-vet-root>

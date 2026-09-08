@@ -401,6 +401,8 @@ export type SiteLandingConfig = {
     web3formsAccessKey?: string;
     subject?: string;
     submitLabel?: string;
+    /** Google Places autocomplete bias (city/region) for the inquiry form. */
+    placesLocationBias?: string;
   };
   contact?: {
     heading: string;
