@@ -322,10 +322,40 @@
     const track = stickyTrack();
     const clear = track?.querySelector('#dl-clear');
     const launch = track?.querySelector('#dl-launch');
-    if (clear) clear.disabled = selectedToggleableCount() === 0;
+    if (clear) clear.disabled = selectedToggleableCount() === 0 || launching;
     if (launch) {
-      launch.disabled = !canLaunch();
-      launch.textContent = launching ? 'Submitting…' : 'Build my demo';
+      if (launching) {
+        launch.disabled = true;
+        launch.classList.add('dl-btn--loading');
+        launch.setAttribute('aria-busy', 'true');
+        launch.innerHTML =
+          '<span class="dl-btn__spinner" aria-hidden="true"></span>Submitting…';
+      } else {
+        launch.disabled = !canLaunch();
+        launch.classList.remove('dl-btn--loading');
+        launch.removeAttribute('aria-busy');
+        launch.textContent = 'Build my demo';
+      }
+    }
+  }
+
+  function syncLaunchStatus() {
+    const toolbar = root.querySelector('.dl-toolbar');
+    if (!toolbar) return;
+    toolbar.classList.toggle('dl-toolbar--submitting', launching);
+    let status = toolbar.querySelector('.dl-launch-status');
+    if (!launching) {
+      status?.remove();
+      return;
+    }
+    if (!status) {
+      status = document.createElement('p');
+      status.className = 'dl-launch-status';
+      status.setAttribute('role', 'status');
+      status.innerHTML =
+        'Setting up your demo request — this usually takes about 10 seconds' +
+        '<span class="dl-launch-dots" aria-hidden="true"></span>';
+      toolbar.appendChild(status);
     }
   }
 
@@ -406,6 +436,7 @@
     fillSections();
     mountStickyActions();
     syncLaunchError();
+    syncLaunchStatus();
     syncStickyActions();
     requestAnimationFrame(measureStickyCtas);
   }
@@ -424,6 +455,7 @@
         bindOnce();
       } else {
         syncLaunchError();
+        syncLaunchStatus();
         syncTiles();
         syncStickyActions();
       }
@@ -508,6 +540,7 @@
 
     launching = true;
     syncStickyActions();
+    syncLaunchStatus();
 
     try {
       const website = root.querySelector('#dl-website')?.value || '';
@@ -534,6 +567,7 @@
       launching = false;
       launchError = e.message || 'Could not submit request.';
       syncLaunchError();
+      syncLaunchStatus();
       syncStickyActions();
     }
   }

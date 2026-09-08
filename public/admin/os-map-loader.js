@@ -17964,14 +17964,6 @@ async function deleteEmailDraft(ev) {
   const id = typeof ev === 'string' ? ev : ev?.id;
   if (!id) return;
   closeOpenSwipeRow();
-  const draft = (emailState.draftEvents || []).find((d) => d.id === id);
-  const label = draft?.subject?.trim() || '(no subject)';
-  const ok = await osConfirm({
-    title: 'Delete draft?',
-    bodyHtml: `<p>Delete <strong>${escHtml(label)}</strong>? This cannot be undone.</p>`,
-    confirmLabel: 'Delete',
-  });
-  if (!ok) return;
   const wasComposing = emailState.composing && emailState.activeDraftId === id;
   const deleted = await deleteEmailDraftById(id, { silent: false });
   if (!deleted) return;
@@ -17983,12 +17975,6 @@ async function bulkDeleteEmailDrafts(ids) {
   if (!ids.length) return;
   closeOpenSwipeRow();
   const unique = [...new Set(ids.filter(Boolean))];
-  const ok = await osConfirm({
-    title: 'Delete drafts?',
-    bodyHtml: `<p>Delete ${unique.length} draft${unique.length === 1 ? '' : 's'}? This cannot be undone.</p>`,
-    confirmLabel: 'Delete',
-  });
-  if (!ok) return;
   for (const id of unique) {
     await deleteEmailDraftById(id, { silent: true });
   }
