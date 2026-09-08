@@ -11,7 +11,11 @@
  */
 import type { APIContext } from 'astro';
 import { buildAnalyticsDashboard } from '../../../lib/analyticsDashboard';
-import { buildAnalyticsDashboardPreview, listAnalyticsAccounts } from '../../../lib/analyticsFleet';
+import {
+  buildAnalyticsDashboardPreview,
+  buildHostedFleetPreviewCached,
+  listAnalyticsAccounts,
+} from '../../../lib/analyticsFleet';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
@@ -41,6 +45,10 @@ export async function GET(context: APIContext): Promise<Response> {
     const rangeDays = parseRange(url.searchParams.get('range'));
     const company = await getCompanyConfig(context.request);
     const view = (url.searchParams.get('view') || '').trim();
+    if (view === 'hosted') {
+      const analytics = await buildHostedFleetPreviewCached(company.domain);
+      return jsonResponse({ ok: true, view: 'hosted', analytics });
+    }
     if (view === 'preview') {
       const analytics = await buildAnalyticsDashboardPreview(company.domain);
       return jsonResponse({ ok: true, view: 'preview', analytics });

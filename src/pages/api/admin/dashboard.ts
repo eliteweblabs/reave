@@ -38,9 +38,10 @@ import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardS
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   buildAnalyticsDashboardPreview,
-  buildHostedFleetPreview,
+  buildHostedFleetPreviewCached,
   isFleetDiscoveryConfigured,
   peekCachedAnalyticsDashboardPreview,
+  peekCachedHostedFleetPreview,
   type AnalyticsFleetPreview,
 } from '../../../lib/analyticsFleet';
 import { isPlausibleConfigured } from '../../../lib/plausibleClient';
@@ -136,22 +137,19 @@ async function loadAnalyticsSlice(
     return { analytics: null, analyticsConfigured: false, fleetDiscoveryConfigured: false };
   }
 
-  const cached = peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true });
-  const fresh = peekCachedAnalyticsDashboardPreview(companyDomain);
-  let analytics: AnalyticsFleetPreview | null = cached;
-  if (!analytics) {
-    try {
-      analytics = await buildHostedFleetPreview(companyDomain);
-    } catch (e) {
-      console.error(
-        '[dashboard] hosted fleet preview failed:',
-        e instanceof Error ? e.message : e,
-      );
-    }
-  }
+  const analytics =
+    peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true }) ||
+    peekCachedHostedFleetPreview(companyDomain, { allowStale: true });
+  const freshFull = peekCachedAnalyticsDashboardPreview(companyDomain);
+  const freshHosted = peekCachedHostedFleetPreview(companyDomain);
 
-  if (analyticsConfigured) {
-    void buildAnalyticsDashboardPreview(companyDomain, { fresh: !fresh }).catch((e) => {
+  if (!freshHosted) {
+    void buildHostedFleetPreviewCached(companyDomain, { fresh: !freshHosted }).catch((e) => {
+      console.error('[dashboard] hosted fleet preview failed:', e instanceof Error ? e.message : e);
+    });
+  }
+  if (analyticsConfigured && !freshFull) {
+    void buildAnalyticsDashboardPreview(companyDomain, { fresh: !freshFull }).catch((e) => {
       console.error('[dashboard] analytics preview failed:', e instanceof Error ? e.message : e);
     });
   }

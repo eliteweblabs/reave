@@ -174,11 +174,15 @@ export async function listAnalyticsAccounts(
 }
 
 const PREVIEW_TTL_MS = 5 * 60_000;
+const HOSTED_PREVIEW_TTL_MS = 5 * 60_000;
 const ANALYTICS_ACCOUNT_CONCURRENCY = 6;
 
 let previewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;
 let previewInflight: Promise<AnalyticsFleetPreview> | null = null;
 let previewInflightDomain = '';
+let hostedPreviewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;
+let hostedPreviewInflight: Promise<AnalyticsFleetPreview> | null = null;
+let hostedPreviewInflightDomain = '';
 
 function previewCacheDomain(companyDomain: string): string {
   return hostnameFromWebsite(companyDomain) || companyDomain.trim().toLowerCase();
@@ -212,10 +216,57 @@ export function peekCachedAnalyticsDashboardPreview(
   return previewCache.preview;
 }
 
+export function peekCachedHostedFleetPreview(
+  companyDomain: string,
+  opts: { allowStale?: boolean } = {},
+): AnalyticsFleetPreview | null {
+  if (!hostedPreviewCache) return null;
+  const domain = previewCacheDomain(companyDomain);
+  if (hostedPreviewCache.domain !== domain) return null;
+  if (!opts.allowStale && Date.now() - hostedPreviewCache.at > HOSTED_PREVIEW_TTL_MS) return null;
+  return hostedPreviewCache.preview;
+}
+
+/** Cached Railway + Kinsta apex list — no Plausible calls. */
+export async function buildHostedFleetPreviewCached(
+  companyDomain: string,
+  opts: { fresh?: boolean; freshHosted?: boolean } = {},
+): Promise<AnalyticsFleetPreview> {
+  const domain = previewCacheDomain(companyDomain);
+  if (!opts.fresh) {
+    const cached = peekCachedHostedFleetPreview(companyDomain);
+    if (cached) return cached;
+    if (hostedPreviewInflight && hostedPreviewInflightDomain === domain) return hostedPreviewInflight;
+  } else if (hostedPreviewInflight && hostedPreviewInflightDomain === domain) {
+    return hostedPreviewInflight;
+  }
+
+  const pending = buildHostedFleetPreview(companyDomain, { freshHosted: opts.freshHosted }).then(
+    (preview) => {
+      hostedPreviewCache = { at: Date.now(), domain, preview };
+      return preview;
+    },
+  );
+
+  hostedPreviewInflight = pending;
+  hostedPreviewInflightDomain = domain;
+  try {
+    return await pending;
+  } finally {
+    if (hostedPreviewInflight === pending) {
+      hostedPreviewInflight = null;
+      hostedPreviewInflightDomain = '';
+    }
+  }
+}
+
 export function invalidateAnalyticsDashboardPreview(): void {
   previewCache = null;
   previewInflight = null;
   previewInflightDomain = '';
+  hostedPreviewCache = null;
+  hostedPreviewInflight = null;
+  hostedPreviewInflightDomain = '';
 }
 
 export async function buildAnalyticsDashboardPreview(
@@ -236,7 +287,7 @@ export async function buildAnalyticsDashboardPreview(
   }
 
   if (!isPlausibleConfigured()) {
-    return buildHostedFleetPreview(companyDomain, { freshHosted: opts.fresh });
+    return buildHostedFleetPreviewCached(companyDomain, { fresh: opts.fresh, freshHosted: opts.fresh });
   }
 
   const pending = (async () => {

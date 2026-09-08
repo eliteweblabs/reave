@@ -6805,8 +6805,13 @@ function renderAdminDashboard(data, opts = {}) {
     return loadAdminDashboard({ quiet: true, force: true });
   });
 
-  if (!opts.skipHydrate && analyticsLive && !analyticsPreview && !analyticsError) {
-    void hydrateDashboardAnalytics();
+  if (
+    !opts.skipHydrate &&
+    !analyticsPreview &&
+    !analyticsError &&
+    (analyticsLive || fleetDiscoveryLive)
+  ) {
+    void hydrateDashboardFleet();
   }
   if (!opts.skipHydrate && siteCards.length) {
     if (!siteHealth) void hydrateDashboardSiteHealth();
@@ -6955,31 +6960,43 @@ async function refreshDashboardSiteHealth(opts = {}) {
   }
 }
 
-async function hydrateDashboardAnalytics() {
+function applyDashboardAnalyticsPreview(preview) {
+  if (!lastDashboardPayload || !preview) return;
+  lastDashboardPayload = {
+    ...lastDashboardPayload,
+    analytics: preview,
+    analyticsError: '',
+    stats: {
+      ...(lastDashboardPayload.stats || {}),
+      analyticsVisitors: preview.visitors ?? null,
+      analyticsRealtime: preview.realtimeVisitors ?? null,
+      analyticsSites: preview.siteCount ?? null,
+      analyticsUnregistered: preview.unregisteredCount ?? null,
+    },
+  };
+  renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+}
+
+async function hydrateDashboardFleet() {
   const gen = ++dashboardAnalyticsHydrateGen;
   try {
-    const res = await adminFetch('/api/admin/analytics?view=preview');
-    const payload = await readAdminJson(res, 'analytics');
+    const hostedRes = await adminFetch('/api/admin/analytics?view=hosted');
+    const hostedPayload = await readAdminJson(hostedRes, 'analytics hosted');
     if (gen !== dashboardAnalyticsHydrateGen) return;
     if (MAP?.type !== 'dashboard') return;
-    if (!payload.ok || !payload.analytics) {
-      throw new Error(payload.error || `HTTP ${res.status}`);
+    if (!hostedPayload.ok || !hostedPayload.analytics) {
+      throw new Error(hostedPayload.error || `HTTP ${hostedRes.status}`);
     }
-    if (!lastDashboardPayload) return;
-    const preview = payload.analytics;
-    lastDashboardPayload = {
-      ...lastDashboardPayload,
-      analytics: preview,
-      analyticsError: '',
-      stats: {
-        ...(lastDashboardPayload.stats || {}),
-        analyticsVisitors: preview.visitors ?? null,
-        analyticsRealtime: preview.realtimeVisitors ?? null,
-        analyticsSites: preview.siteCount ?? null,
-        analyticsUnregistered: preview.unregisteredCount ?? null,
-      },
-    };
-    renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
+    applyDashboardAnalyticsPreview(hostedPayload.analytics);
+
+    if (!lastDashboardPayload?.analyticsConfigured) return;
+
+    const metricsRes = await adminFetch('/api/admin/analytics?view=preview');
+    const metricsPayload = await readAdminJson(metricsRes, 'analytics preview');
+    if (gen !== dashboardAnalyticsHydrateGen) return;
+    if (MAP?.type !== 'dashboard') return;
+    if (!metricsPayload.ok || !metricsPayload.analytics) return;
+    applyDashboardAnalyticsPreview(metricsPayload.analytics);
   } catch (e) {
     if (gen !== dashboardAnalyticsHydrateGen) return;
     if (MAP?.type !== 'dashboard' || !lastDashboardPayload) return;
