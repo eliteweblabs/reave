@@ -38,10 +38,14 @@ import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardS
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   buildAnalyticsDashboardPreview,
+  buildHostedFleetPreview,
+  isFleetDiscoveryConfigured,
   peekCachedAnalyticsDashboardPreview,
   type AnalyticsFleetPreview,
 } from '../../../lib/analyticsFleet';
 import { isPlausibleConfigured } from '../../../lib/plausibleClient';
+import { isKinstaConfigured } from '../../../lib/kinstaClient';
+import { isRailwayConfigured } from '../../../lib/railwayClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { jsonResponse } from '../../../lib/apiResponse';
 import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
@@ -124,17 +128,34 @@ async function loadAnalyticsSlice(
 ): Promise<{
   analytics: AnalyticsFleetPreview | null;
   analyticsConfigured: boolean;
+  fleetDiscoveryConfigured: boolean;
 }> {
   const analyticsConfigured = isPlausibleConfigured();
-  if (!analyticsConfigured) {
-    return { analytics: null, analyticsConfigured: false };
+  const fleetDiscoveryConfigured = isFleetDiscoveryConfigured();
+  if (!fleetDiscoveryConfigured) {
+    return { analytics: null, analyticsConfigured: false, fleetDiscoveryConfigured: false };
   }
+
   const cached = peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true });
   const fresh = peekCachedAnalyticsDashboardPreview(companyDomain);
-  void buildAnalyticsDashboardPreview(companyDomain, { fresh: !fresh }).catch((e) => {
-    console.error('[dashboard] analytics preview failed:', e instanceof Error ? e.message : e);
-  });
-  return { analytics: cached, analyticsConfigured };
+  let analytics: AnalyticsFleetPreview | null = cached;
+  if (!analytics) {
+    try {
+      analytics = await buildHostedFleetPreview(companyDomain);
+    } catch (e) {
+      console.error(
+        '[dashboard] hosted fleet preview failed:',
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
+  if (analyticsConfigured) {
+    void buildAnalyticsDashboardPreview(companyDomain, { fresh: !fresh }).catch((e) => {
+      console.error('[dashboard] analytics preview failed:', e instanceof Error ? e.message : e);
+    });
+  }
+  return { analytics, analyticsConfigured, fleetDiscoveryConfigured };
 }
 
 async function loadBillingSlice(): Promise<{
@@ -230,7 +251,7 @@ export async function buildAdminDashboardPayload(
   const { todosOpen, upcomingTodos } = todoSlice;
   const { uptime, uptimeMonitors, uptimeAccount } = uptimeSlice;
   const { billing, billingError, billingConfigured } = billingSlice;
-  const { analytics, analyticsConfigured } = analyticsSlice;
+  const { analytics, analyticsConfigured, fleetDiscoveryConfigured } = analyticsSlice;
 
   await hydrateSiteHealthFleetCache();
   const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
@@ -312,6 +333,9 @@ export async function buildAdminDashboardPayload(
     billingConfigured,
     billingError,
     analyticsConfigured,
+    fleetDiscoveryConfigured,
+    railwayConfigured: isRailwayConfigured(),
+    kinstaConfigured: isKinstaConfigured(),
     analytics,
     siteHealth,
     siteFleetIgnore,

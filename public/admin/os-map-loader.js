@@ -6655,8 +6655,10 @@ function renderAdminDashboard(data, opts = {}) {
 
   mount.appendChild(statsEl);
 
+  const fleetDiscoveryLive = data?.fleetDiscoveryConfigured === true;
   const showFleetGrid =
-    siteCards.length > 0 && (uptimeConfigured || analyticsLive || analyticsPreview);
+    siteCards.length > 0 &&
+    (uptimeConfigured || analyticsLive || analyticsPreview || fleetDiscoveryLive);
   if (showFleetGrid) {
     const list = document.createElement('ul');
     list.className = 'dash-uptime-grid dash-fleet-grid';

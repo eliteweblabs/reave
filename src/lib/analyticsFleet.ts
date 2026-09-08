@@ -9,6 +9,7 @@ import {
 import {
   listAnalyticsSites,
   listHostedAnalyticsSites,
+  mergeAnalyticsSites,
   type AnalyticsSiteOption,
 } from './analyticsSites';
 import {
@@ -111,6 +112,31 @@ export async function loadAnalyticsAccountRow(
   };
 }
 
+export function isFleetDiscoveryConfigured(): boolean {
+  return isPlausibleConfigured() || isRailwayConfigured() || isKinstaConfigured();
+}
+
+/** Railway + Kinsta apex domains with empty Plausible metrics — fast dashboard path. */
+export async function buildHostedFleetPreview(
+  companyDomain: string,
+  opts: { freshHosted?: boolean; rangeDays?: number } = {},
+): Promise<AnalyticsFleetPreview> {
+  const rangeDays = opts.rangeDays === 7 || opts.rangeDays === 90 ? opts.rangeDays : 30;
+  const [hosted, agencyOnly] = await Promise.all([
+    listHostedAnalyticsSites({ fresh: opts.freshHosted }),
+    listAnalyticsSites(companyDomain, { includeHosted: false }),
+  ]);
+  const sites = mergeAnalyticsSites([...agencyOnly, ...hosted.sites]);
+  const accounts: AnalyticsAccountRow[] = sites.map((site) => ({
+    ...site,
+    ...emptyMetrics(),
+    dashboardUrl: plausibleDashboardUrl(site.siteId),
+  }));
+  return summarizeAnalyticsAccounts(accounts, rangeDays, {
+    configured: isPlausibleConfigured(),
+  });
+}
+
 export async function listAnalyticsAccounts(
   companyDomain: string,
   opts: { rangeDays?: number; includeHosted?: boolean; freshHosted?: boolean } = {},
@@ -124,10 +150,15 @@ export async function listAnalyticsAccounts(
 }> {
   const rangeDays = opts.rangeDays === 7 || opts.rangeDays === 90 ? opts.rangeDays : 30;
   const includeHosted = opts.includeHosted !== false;
-  const sites = await listAnalyticsSites(companyDomain, {
-    includeHosted,
-    freshHosted: opts.freshHosted,
-  });
+  const [hosted, agencyOnly] = await Promise.all([
+    includeHosted
+      ? listHostedAnalyticsSites({ fresh: opts.freshHosted })
+      : Promise.resolve({ sites: [] as AnalyticsSiteOption[], warnings: [] as string[] }),
+    listAnalyticsSites(companyDomain, { includeHosted: false }),
+  ]);
+  const sites = includeHosted
+    ? mergeAnalyticsSites([...agencyOnly, ...hosted.sites])
+    : agencyOnly;
 
   const accounts = await mapPool(sites, ANALYTICS_ACCOUNT_CONCURRENCY, (site) =>
     loadAnalyticsAccountRow(site, rangeDays),
@@ -138,7 +169,7 @@ export async function listAnalyticsAccounts(
     railwayConfigured: isRailwayConfigured(),
     kinstaConfigured: isKinstaConfigured(),
     accounts,
-    warnings: [],
+    warnings: hosted.warnings,
   };
 }
 
@@ -200,8 +231,12 @@ export async function buildAnalyticsDashboardPreview(
     return previewInflight;
   }
 
-  if (!isPlausibleConfigured()) {
+  if (!isFleetDiscoveryConfigured()) {
     return summarizeAnalyticsAccounts([], 30, { configured: false });
+  }
+
+  if (!isPlausibleConfigured()) {
+    return buildHostedFleetPreview(companyDomain, { freshHosted: opts.fresh });
   }
 
   const pending = (async () => {
