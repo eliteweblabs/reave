@@ -40,6 +40,7 @@ export const FEATURE_IDS = [
   'stock_photos',
   'wordpress_content',
   'seo_directory',
+  'google_ads',
   'event_ticketing',
   'cookie_notice',
   'deploy_wizard',
@@ -280,6 +281,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   stock_photos: 'Pexels Stock Photos',
   wordpress_content: 'WordPress™ Connect',
   seo_directory: 'SEO Directory API Kit',
+  google_ads: 'Google Ads Campaign Manager',
   event_ticketing: 'Event Ticketing',
   cookie_notice: 'Cookie Notice',
   deploy_wizard: 'Deploy Wizard',
@@ -336,6 +338,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Agent updates posts, pages, media, menus, & redirects on a WordPress™ site via Reave Connect',
   seo_directory:
     'Second-tier citation & directory campaigns beyond Google, Apple, Yelp, & Bing',
+  google_ads:
+    'OAuth-backed Google Ads Search campaigns — geo ad groups, RSA copy, performance sync to landing pages',
   event_ticketing:
     'Ticket sales, QR check-in, & event inventory — reference only until productized',
   cookie_notice: 'Implied-consent cookie bar & Cookie Policy at /cookies',

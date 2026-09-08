@@ -45,6 +45,7 @@ Per-install deployment **status** (`deployed`, `development`, `request`, `reject
 | `content-management/` | `content_management` | `content-management.md`, `github-dev-tools.md` | yes — Git publish to a locked per-install website repo (Agentic Website Editor) |
 | `wordpress-content/` | `wordpress_content` | `wordpress-content.md` | yes — requestable add-on; posts, pages, media, menus, redirects via [Reave Connect](https://github.com/eliteweblabs/reave-connect) |
 | `seo-directory/` | `seo_directory` | `seo-directory.md` | yes — BrightLocal Citation Builder (agency account) |
+| `google-ads/` | `google_ads` | `google-ads.md` | yes — Search campaign management (OAuth + GAQL) |
 | `social-inbox/` | `social_inbox` | `social-inbox.md` | — **paid add-on**; buy from admin → Modules |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
 | `deploy-wizard/` | `deploy_wizard` | `deploy-wizard.md` | — **reave.app install only** (`config-reave.json`) |

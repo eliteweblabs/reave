@@ -45,6 +45,7 @@ import { clerkAuthPlugin } from '../../plugins/clerk-auth/manifest';
 import { cookieNoticePlugin } from '../../plugins/cookie-notice/manifest';
 import { deployWizardPlugin } from '../../plugins/deploy-wizard/manifest';
 import { googleWorkspaceDkimPlugin } from '../../plugins/google-workspace-dkim/manifest';
+import { googleAdsPlugin } from '../../plugins/google-ads/manifest';
 import { websitePlugin } from '../../plugins/website/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
@@ -84,6 +85,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   cookieNoticePlugin,
   deployWizardPlugin,
   googleWorkspaceDkimPlugin,
+  googleAdsPlugin,
   websitePlugin,
 ];
 
@@ -228,6 +230,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['wordpress-content'];
     case 'seo-directory':
       return ['seo-directory'];
+    case 'google-ads':
+      return ['google-ads'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'site-audits':

@@ -6,7 +6,8 @@
     "time_tracking",
     "client_portal",
     "documents",
-    "portal_assistant"
+    "portal_assistant",
+    "google_ads"
   ],
   "footerNav": [
     "__system__",

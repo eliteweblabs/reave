@@ -48,6 +48,12 @@ interface ImportMetaEnv {
   /** Google OAuth client (YouTube social + Search Console / GA4 analytic_audit). */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** Google Ads API developer token (API Center). */
+  GOOGLE_ADS_DEVELOPER_TOKEN?: string;
+  /** 10-digit Google Ads customer id (no dashes). */
+  GOOGLE_ADS_CUSTOMER_ID?: string;
+  /** Optional MCC / manager account id for Google Ads API. */
+  GOOGLE_ADS_LOGIN_CUSTOMER_ID?: string;
   /** Plausible Stats API (admin analytics + agent tools). */
   PLAUSIBLE_API_BASE_URL?: string;
   PLAUSIBLE_API_KEY?: string;

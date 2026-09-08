@@ -55,6 +55,7 @@ const FEATURE_IDS_LIST = [
   'stock_photos',
   'wordpress_content',
   'seo_directory',
+  'google_ads',
   'event_ticketing',
   'cookie_notice',
   'deploy_wizard',

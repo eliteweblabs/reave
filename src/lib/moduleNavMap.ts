@@ -42,6 +42,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   stock_photos: ['__system__', 'media'],
   wordpress_content: ['__system__'],
   seo_directory: ['analytics', '__system__'],
+  google_ads: ['analytics', '__system__'],
   event_ticketing: ['__system__'],
   cookie_notice: [],
   deploy_wizard: ['deploy'],
