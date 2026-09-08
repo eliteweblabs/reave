@@ -623,9 +623,9 @@ function configPathForKey(key: string): string {
 
 function normalizePagePath(pathname: string): string {
   const path = pathname.replace(/\/$/, '') || '/';
-  if (path.startsWith('/form/')) return '/form/';
+  if (path === '/form' || path.startsWith('/form/')) return '/form';
   if (path === '/barbers' || path.startsWith('/barbers/')) return '/barbers';
-  if (path.startsWith('/vet/')) return '/vet/';
+  if (path === '/vet' || path.startsWith('/vet/')) return '/vet';
   return path;
 }
 
