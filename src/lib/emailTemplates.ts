@@ -67,6 +67,8 @@ export async function brandedEmailHtml(opts: {
   firstName?: string;
   /** Auto "Hi {firstName}," row. Keep on for newsletters; off for compose/replies. Default true. */
   greeting?: boolean;
+  /** Optional personal note (share sheet / portal delivery) — shown in a callout after the greeting. */
+  personalNote?: string;
   paragraphs: string[];
   /** Parsed compose shortcodes. When set, wins over `paragraphs`. */
   blocks?: EmailBodyBlock[];
@@ -142,6 +144,15 @@ export async function brandedEmailHtml(opts: {
     .join('\n');
 
   const ctaHtml = opts.cta ? ctaButtonHtml(opts.cta.url, opts.cta.label, 'center') : '';
+  const personalNoteHtml = opts.personalNote?.trim()
+    ? `<tr>
+        <td style="padding:0 0 20px">
+          <div class="email-personal-note" style="margin:0;padding:14px 16px;border-radius:10px;background-color:#f5f5f5;border-left:3px solid ${esc(brandLink)}">
+            <p class="email-text" style="margin:0;color:#1a1a1a;font-family:${fontStack};font-size:15px;line-height:1.65">${esc(opts.personalNote.trim()).replace(/\n/g, '<br>')}</p>
+          </div>
+        </td>
+      </tr>`
+    : '';
   let qrHtml = '';
   if (opts.qr?.url?.trim()) {
     const qrSrc = await qrCodeDataUrl(opts.qr.url.trim(), 168);
@@ -262,6 +273,7 @@ export async function brandedEmailHtml(opts: {
                     : ''
                 }
 
+                ${personalNoteHtml}
                 ${bodyRows}
                 ${inlineImagesHtml}
                 ${signatureHtml}

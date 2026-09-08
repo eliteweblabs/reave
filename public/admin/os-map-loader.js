@@ -18044,6 +18044,7 @@ async function startNewEmail(opts = {}) {
   emailState.activeScheduledId = null;
   emailState.scheduledAt = null;
   emailState.compose = emptyEmailCompose({ to });
+  if (opts.subject) emailState.compose.subject = String(opts.subject);
   emailState.sending = false;
   rememberOpenEmailDraft(null);
   getEmailPanel()?.classList.add('em-pane-active');
@@ -18053,6 +18054,24 @@ async function startNewEmail(opts = {}) {
   requestAnimationFrame(() => {
     const focusSel = to.length ? '.em-compose-textarea' : '.em-compose-to-input';
     getEmailPanel()?.querySelector(focusSel)?.focus();
+  });
+}
+
+async function startFollowUpToSent(sent) {
+  const email = String(sent?.toEmail || '').trim();
+  if (!email) {
+    await osAlert({
+      title: 'No recipient',
+      bodyHtml: '<p>This sent message has no To address to reply to.</p>',
+    });
+    return;
+  }
+  const contactUid = sent?.contactUid?.trim() || null;
+  const client = contactUid ? clientState.clients?.find((c) => c.uid === contactUid) : null;
+  const name = client?.name?.trim() || '';
+  await startNewEmail({
+    to: [{ email, name, uid: contactUid }],
+    subject: buildReplySubjectClient(sent.subject || ''),
   });
 }
 
@@ -19677,6 +19696,24 @@ function mountEmailLabFrame(frame) {
   window.setTimeout(bindFrame, 600);
 }
 
+function mountSentEmailBodyFrame(frame) {
+  if (!(frame instanceof HTMLIFrameElement)) return;
+  frame.addEventListener(
+    'load',
+    () => {
+      try {
+        frame.contentWindow?.scrollTo(0, 0);
+        const doc = frame.contentDocument;
+        const h = doc?.documentElement?.scrollHeight || doc?.body?.scrollHeight;
+        if (h) frame.style.height = `${Math.min(h + 16, Math.round(window.innerHeight * 0.7))}px`;
+      } catch {
+        /* ignore */
+      }
+    },
+    { once: true },
+  );
+}
+
 function mountEmailLabSelection(detail) {
   if (!detail) return;
   bindEmailLabDetail(detail);
@@ -19984,6 +20021,12 @@ function renderEmailPane() {
         },
         title: sent.subject || '(no subject)',
         icons: [
+          createIosIconBtn({
+            iconKey: 'reply',
+            label: `Reply to ${sent.toEmail || 'recipient'}`,
+            className: 'ios-icon-btn de-share-btn',
+            onClick: () => void startFollowUpToSent(sent),
+          }),
           paneShareIcon({
             label: 'Share sent details',
             onClick: (btn) => shareChatText(sentShareText(sent), 'assistant', btn),
@@ -20010,7 +20053,7 @@ function renderEmailPane() {
       `</div>`;
     if (bodyHtmlSource) {
       detailHtml +=
-        `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Sent message"></iframe></div>`;
+        `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" title="Sent message"></iframe></div>`;
     } else if (plainBody) {
       detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
     } else if (sent._bodyLoadFailed) {
@@ -20041,6 +20084,7 @@ function renderEmailPane() {
     const bodyFrame = detail.querySelector('.em-detail-body-frame');
     if (bodyFrame && bodyHtmlSource) {
       bodyFrame.srcdoc = bodyHtmlSource;
+      mountSentEmailBodyFrame(bodyFrame);
     }
     if (!sent._fullLoaded) {
       void fetchFullSentRecord(sent).then((full) => {
