@@ -50,3 +50,9 @@ export function buildSitemapXml(origin: string, site?: SiteContentConfig): strin
     '',
   ].join('\n');
 }
+
+/** Per-install robots.txt — sitemap must match the public site origin, not reave.app. */
+export function buildRobotsTxt(origin: string): string {
+  const base = origin.replace(/\/+$/, '');
+  return ['User-agent: *', 'Allow: /', '', `Sitemap: ${base}/sitemap.xml`, ''].join('\n');
+}

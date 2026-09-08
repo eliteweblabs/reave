@@ -7,6 +7,7 @@ import { getCompanyConfig } from "../../lib/companyConfig";
 import { getSiteContent } from "../../lib/siteContent";
 import { contactTelHref } from "../../lib/contactApi";
 import PawIcon from "../icons/PawIcon.astro";
+import SiteLegalLinks from "../SiteLegalLinks.astro";
 import { loadSiteLandingReviews } from "../../lib/siteLandingGoogleReviews";
 import { SIMPLE_ICONS_CDN, socialBrandIconUrl } from "../../lib/platformStack";
 import { serverEnv } from "../../lib/serverEnv";
@@ -20,6 +21,7 @@ const { landing } = Astro.props;
 const company = await getCompanyConfig(Astro.request);
 const siteContent = getSiteContent();
 const showSignIn = siteContent.nav.showSignIn !== false;
+const showLegalLinks = siteContent.homepage.showLegalLinks !== false;
 const contact = landing.contact ?? {};
 const inquiry = landing.inquiry;
 const about = landing.about ?? {};
@@ -60,12 +62,20 @@ const scheduleUrl = landing.scheduleUrl || "/form/schedule";
 const heroImage = landing.heroImage || landing.pack?.hero?.mainImage || "";
 const aboutImage = landing.pack?.hero?.aboutImage || heroImage;
 
-const navLinks = landing.pack?.nav?.length
-  ? landing.pack.nav
-  : [
-      { href: "#services", label: "Services" },
-      { href: "#contact", label: "Contact" },
-    ];
+const navLinks = (() => {
+  const base = landing.pack?.nav?.length
+    ? [...landing.pack.nav]
+    : [
+        { href: "#services", label: "Services" },
+        { href: "#contact", label: "Contact" },
+      ];
+  const schedulePath =
+    scheduleUrl.startsWith("/") && !scheduleUrl.startsWith("//") ? scheduleUrl : "";
+  if (schedulePath && !base.some((link) => link.href === schedulePath)) {
+    base.splice(Math.max(base.length - 1, 0), 0, { href: schedulePath, label: "Schedule" });
+  }
+  return base;
+})();
 
 const serviceItems =
   services?.items?.map((item) => {
@@ -431,6 +441,11 @@ const placesLocationBias =
         ) : null
       }
       {landing.footer && <p class="vet-footer__note">{landing.footer}</p>}
+      {showLegalLinks ? (
+        <nav class="vet-footer__legal" aria-label="Legal">
+          <SiteLegalLinks />
+        </nav>
+      ) : null}
     </div>
   </footer>
 </div>

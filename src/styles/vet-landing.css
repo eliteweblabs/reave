@@ -818,6 +818,11 @@ a.vet-review:focus-visible {
   color: #8a8f98;
 }
 
+.vet-footer__legal :global(.site-legal-links) {
+  padding: 0.5rem 0 0;
+  font-size: 0.8125rem;
+}
+
 .vet-login {
   position: fixed;
   top: 0.875rem;

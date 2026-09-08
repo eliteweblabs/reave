@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { robotsTxtBlocksAll } from '../src/lib/seoInventoryClient.ts';
+import { buildRobotsTxt } from '../src/lib/sitemap.ts';
 import {
   collectInstantSiteHealthIssues,
   mergeSiteHealthSummary,
@@ -17,6 +18,9 @@ import { buildSiteTechStackSummary } from '../src/lib/siteTechStack.ts';
 assert.equal(robotsTxtBlocksAll('User-agent: *\nDisallow: /\n'), true);
 assert.equal(robotsTxtBlocksAll('User-agent: *\nDisallow: /admin\n'), false);
 assert.equal(robotsTxtBlocksAll('User-agent: Googlebot\nDisallow: /\nUser-agent: *\nDisallow:\n'), false);
+
+assert.match(buildRobotsTxt('https://drpawscalls.com'), /Sitemap: https:\/\/drpawscalls\.com\/sitemap\.xml/);
+assert.doesNotMatch(buildRobotsTxt('https://drpawscalls.com'), /reave\.app/);
 
 const blocked = collectInstantSiteHealthIssues({
   monitor: { status: 2, uptime_ratio_7d: 100 },
