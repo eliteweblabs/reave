@@ -19628,13 +19628,75 @@ function mountEmailLabSelection(detail) {
   mountEmailLabFrame(detail.querySelector('.em-detail-body-frame'));
 }
 
+const EMAIL_LAB_INTRO_SEEN_KEY = 'reave:email-lab-intro-seen';
+
+function hasSeenEmailLabIntro() {
+  try {
+    return localStorage.getItem(EMAIL_LAB_INTRO_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markEmailLabIntroSeen() {
+  try {
+    localStorage.setItem(EMAIL_LAB_INTRO_SEEN_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+function showEmailLabIntroSheet(opts = {}) {
+  const backdrop = document.getElementById('email-lab-intro-backdrop');
+  if (!backdrop || !window.IosSheet?.open) {
+    opts.onAcknowledge?.();
+    return;
+  }
+  const begin = backdrop.querySelector('[data-email-lab-begin]');
+  const defaultLabel = 'Begin';
+  if (begin) begin.textContent = opts.actionLabel || defaultLabel;
+  let acknowledged = false;
+  const onAck = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    acknowledged = true;
+    window.IosSheet.close('email-lab-intro-backdrop');
+    opts.onAcknowledge?.();
+  };
+  begin?.addEventListener('click', onAck, { once: true });
+  window.IosSheet.open('email-lab-intro-backdrop', {
+    onClose: () => {
+      if (!acknowledged) begin?.removeEventListener('click', onAck);
+      if (begin) begin.textContent = defaultLabel;
+      if (!opts.skipMarkSeen) markEmailLabIntroSeen();
+    },
+  });
+}
+
+function openEmailLabIntroHelp() {
+  showEmailLabIntroSheet({
+    actionLabel: 'Got it',
+    skipMarkSeen: true,
+  });
+}
+
 function renderEmailLabBar() {
   const bar = document.createElement('div');
   bar.className = 'em-lab-bar';
   bar.dataset.emailLabBar = '1';
+  const hintRow = document.createElement('div');
+  hintRow.className = 'em-lab-bar-hint-row';
   const hint = document.createElement('p');
   hint.className = 'em-lab-bar-hint';
   hint.textContent = 'Select the text to target.';
+  const infoBtn = createIosIconBtn({
+    iconKey: 'info',
+    label: 'How Email Lab works',
+    size: 'sm',
+    className: 'ios-icon-btn em-lab-info-btn',
+    onClick: () => openEmailLabIntroHelp(),
+  });
+  hintRow.append(hint, infoBtn);
   const list = document.createElement('ul');
   list.className = 'em-lab-bar-chips';
   list.dataset.emailLabChips = '1';
@@ -19652,7 +19714,7 @@ function renderEmailLabBar() {
   doneBtn.textContent = 'Done';
   doneBtn.addEventListener('click', () => exitEmailLabMode());
   actions.append(createBtn, doneBtn);
-  bar.append(hint, list, actions);
+  bar.append(hintRow, list, actions);
   refreshEmailLabBar(bar);
   return bar;
 }
@@ -19667,25 +19729,12 @@ function enterEmailLabMode(ev) {
 }
 
 function openEmailLabIntro(ev) {
-  const backdrop = document.getElementById('email-lab-intro-backdrop');
-  if (!backdrop || !window.IosSheet?.open) {
+  if (hasSeenEmailLabIntro()) {
     enterEmailLabMode(ev);
     return;
   }
-  let started = false;
-  const begin = backdrop.querySelector('[data-email-lab-begin]');
-  const onBegin = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    started = true;
-    window.IosSheet.close('email-lab-intro-backdrop');
-    enterEmailLabMode(ev);
-  };
-  begin?.addEventListener('click', onBegin, { once: true });
-  window.IosSheet.open('email-lab-intro-backdrop', {
-    onClose: () => {
-      if (!started) begin?.removeEventListener('click', onBegin);
-    },
+  showEmailLabIntroSheet({
+    onAcknowledge: () => enterEmailLabMode(ev),
   });
 }
 

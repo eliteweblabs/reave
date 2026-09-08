@@ -1398,11 +1398,25 @@
   border: 0;
   background: none;
 }
+.em-lab-bar-hint-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
 .em-lab-bar-hint {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.4;
   color: var(--muted, rgba(255, 255, 255, 0.6));
+}
+.em-lab-info-btn {
+  flex-shrink: 0;
+  color: var(--muted, rgba(255, 255, 255, 0.55));
+}
+.em-lab-info-btn:hover:not(:disabled) {
+  color: var(--fg, rgba(255, 255, 255, 0.85));
 }
 .em-lab-bar-chips {
   list-style: none;
