@@ -39,6 +39,7 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   buildAnalyticsDashboardPreview,
   buildHostedFleetPreviewCached,
+  hydrateHostedFleetCache,
   isFleetDiscoveryConfigured,
   peekCachedAnalyticsDashboardPreview,
   peekCachedHostedFleetPreview,
