@@ -21,9 +21,22 @@ Prefer these when the owner asked to change copy or media:
 
 Same API key. Use `exec_wp` for everything that is not a dedicated `wp_*` tool.
 
+**Head Script Injection (v1.3.0+)**
+
+Use these to inject analytics (Plausible, GA4, etc.) or any `<head>` snippet without installing an extra plugin:
+
+- `inject_head_script` — `{ handle, html }`. `handle` is a slug like `plausible` or `ga4`. Idempotent — calling again with the same handle updates the snippet. Stored in `wp_options` as `reave_head_scripts` and output via `wp_head` at priority 1.
+- `get_head_script` / `get_head_scripts` — read one (`handle`) or all injected scripts
+- `remove_head_script` — `{ handle }` — removes a previously injected snippet
+
+**Plausible snippet template** (replace `example.com` with the site domain):
+```html
+<script defer data-domain="example.com" src="https://plausible.io/js/script.js"></script>
+```
+
 **Health & indexing**
 
-- `health` / `site_info` / `status` — WP/PHP versions, theme, plugin list
+- `health` / `site_info` / `status` — WP/PHP versions, theme, plugin list, injected head script handles
 - `get_indexing_status` / `enable_indexing` / `disable_indexing`
 - `list_plugins` / `activate_plugin` / `deactivate_plugin` / `install_plugin` (`slug`, optional `activate`)
 - `get_active_theme`
