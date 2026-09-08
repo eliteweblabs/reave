@@ -47,6 +47,7 @@ import { deployWizardPlugin } from '../../plugins/deploy-wizard/manifest';
 import { googleWorkspaceDkimPlugin } from '../../plugins/google-workspace-dkim/manifest';
 import { googleAdsPlugin } from '../../plugins/google-ads/manifest';
 import { websitePlugin } from '../../plugins/website/manifest';
+import { googleBusinessProfilePlugin } from '../../plugins/google-business-profile/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -87,6 +88,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   googleWorkspaceDkimPlugin,
   googleAdsPlugin,
   websitePlugin,
+  googleBusinessProfilePlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -250,6 +252,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['website'];
     case 'scheduling':
       return ['booksy-api-access'];
+    case 'google-business-profile':
+      return ['google-business-profile'];
     default:
       return [];
   }
