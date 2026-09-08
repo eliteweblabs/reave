@@ -1,6 +1,6 @@
 {
   "key": "drpawscalls",
-  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "pages": ["/", "/privacy", "/terms", "/cookies", "/vet/"],
   "nav": {
     "links": [],
     "groups": [],

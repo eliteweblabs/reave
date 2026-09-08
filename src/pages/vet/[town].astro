@@ -1,0 +1,31 @@
+---
+import LandingLayout from "../../layouts/LandingLayout.astro";
+import VetAdsLandingPage from "../../components/home/VetAdsLandingPage.astro";
+import {
+  DR_PAWS_ADS_SITE_KEY,
+  DR_PAWS_ADS_TOWNS,
+  drPawsAdsMetaDescription,
+  drPawsAdsPageTitle,
+  getDrPawsAdsTown,
+} from "../../lib/drPawsAdsTowns";
+import { getSiteContent } from "../../lib/siteContent";
+
+export const prerender = false;
+
+const town = getDrPawsAdsTown(Astro.params.town);
+if (!town) {
+  return new Response("Not found", { status: 404 });
+}
+
+const siteContent = getSiteContent();
+if (siteContent.key !== DR_PAWS_ADS_SITE_KEY || !siteContent.landing) {
+  return new Response("Not found", { status: 404 });
+}
+
+const title = drPawsAdsPageTitle(town);
+const description = drPawsAdsMetaDescription(town);
+---
+
+<LandingLayout title={title} description={description} noIndex>
+  <VetAdsLandingPage landing={siteContent.landing} town={town} />
+</LandingLayout>

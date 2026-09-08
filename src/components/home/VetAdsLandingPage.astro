@@ -1,0 +1,265 @@
+---
+/**
+ * Conversion-focused Google Ads landing for Dr. Paws Calls house-call vet.
+ * No main nav — single book CTA, geo-specific copy, mobile-first.
+ */
+import type { SiteLandingConfig } from "../../lib/siteContent";
+import type { DrPawsAdsTown } from "../../lib/drPawsAdsTowns";
+import {
+  DR_PAWS_ADS_TOWNS,
+  drPawsAdsTownPath,
+} from "../../lib/drPawsAdsTowns";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import { contactTelHref } from "../../lib/contactApi";
+import PawIcon from "../icons/PawIcon.astro";
+import { SIMPLE_ICONS_CDN } from "../../lib/platformStack";
+import "../../styles/vet-ads-landing.css";
+
+interface Props {
+  landing: SiteLandingConfig;
+  town: DrPawsAdsTown;
+}
+
+const { landing, town } = Astro.props;
+const company = await getCompanyConfig(Astro.request);
+const year = new Date().getFullYear();
+
+const brandName = "Dr. Paws Calls";
+const logoSrc = (landing.heroLogo || "").trim();
+const heroImage = landing.heroImage || landing.pack?.hero?.mainImage || "";
+const scheduleUrl = landing.scheduleUrl || "/form/schedule";
+
+const contact = landing.contact ?? {};
+const phoneDisplay = (contact.phone || company.supportPhone || "").trim();
+const phoneDigits = contactTelHref(
+  contact.phoneHref?.replace(/^tel:/i, "") || phoneDisplay,
+);
+const phoneHref = phoneDigits ? `tel:${phoneDigits}` : "";
+const phonePretty = phoneDisplay || phoneDigits;
+
+const reviews = landing.reviews;
+const featuredReview = reviews?.items?.[0];
+const ratingValue = landing.structuredData?.ratingValue || "4.7";
+const ratingCount = landing.structuredData?.ratingCount || "35";
+const googleIconUrl = SIMPLE_ICONS_CDN("google");
+const googleMapsUrl = reviews?.googleMapsUrl || "";
+
+const pageTitle = `${town.name} Veterinary House Calls | ${brandName}`;
+---
+
+<div class="vet-ads" data-vet-ads-root>
+  <header class="vet-ads__header">
+    <div class="vet-ads__header-inner">
+      {
+        logoSrc ? (
+          <img
+            class="vet-ads__logo"
+            src={logoSrc}
+            alt={brandName}
+            width="180"
+            height="62"
+          />
+        ) : (
+          <span class="vet-ads__logo-text">{brandName}</span>
+        )
+      }
+    </div>
+  </header>
+
+  <main class="vet-ads__main">
+    <section class="vet-ads__hero">
+      <div class="vet-ads__hero-copy">
+        <p class="vet-ads__eyebrow">In-home veterinary care · {town.label}</p>
+        <h1 class="vet-ads__title">{pageTitle}</h1>
+        <p class="vet-ads__problem">Stressed pet or vet-phobic animal?</p>
+        <p class="vet-ads__solution">
+          We come to you — no car rides, no waiting room stress. Dr. Kara Ryczek, DVM brings
+          full-service exams and treatments to your {town.name} home.
+        </p>
+        <a class="vet-ads__cta" href={scheduleUrl}>
+          <PawIcon size={18} />
+          Book Your Visit
+        </a>
+      </div>
+      {
+        heroImage ? (
+          <div class="vet-ads__hero-photo">
+            <img
+              src={heroImage}
+              alt="Dr. Kara Ryczek providing in-home veterinary care"
+              width="640"
+              height="480"
+              loading="eager"
+              fetchpriority="high"
+              decoding="async"
+            />
+          </div>
+        ) : null
+      }
+    </section>
+
+    <section class="vet-ads__section" aria-labelledby="vet-ads-benefits">
+      <h2 class="vet-ads__section-title" id="vet-ads-benefits">Why a house call vet?</h2>
+      <ul class="vet-ads__benefits">
+        <li>
+          <svg class="vet-ads__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span>In-home comfort for your pet — exams where they feel safest</span>
+        </li>
+        <li>
+          <svg class="vet-ads__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span>Same-day and next-day availability when you need care fast</span>
+        </li>
+        <li>
+          <svg class="vet-ads__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span>{town.label} area coverage — a mobile vet near you</span>
+        </li>
+        <li>
+          <svg class="vet-ads__check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span>Full-service exams, vaccines, sick visits, and pain management</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="vet-ads__section" aria-labelledby="vet-ads-why">
+      <h2 class="vet-ads__section-title" id="vet-ads-why">Why choose Dr. Paws Calls</h2>
+      <p class="vet-ads__section-intro">
+        Trusted by pet families across Western Massachusetts and Connecticut since 2020.
+      </p>
+      <div class="vet-ads__proof-grid">
+        <article class="vet-ads__proof-card">
+          <p class="vet-ads__proof-label">Experience</p>
+          <p class="vet-ads__proof-value">25+ years in veterinary medicine — wellness, urgent care, and geriatric pain management.</p>
+        </article>
+        <article class="vet-ads__proof-card">
+          <p class="vet-ads__proof-label">Credentials</p>
+          <p class="vet-ads__proof-value">Dr. Kara M. Ryczek, DVM — Tufts Cummings School of Veterinary Medicine; rotating internship at VCA South Shore.</p>
+        </article>
+        <article class="vet-ads__proof-card">
+          <p class="vet-ads__proof-label">Response time</p>
+          <p class="vet-ads__proof-value">Texts and calls answered promptly — most families hear back the same day with scheduling options.</p>
+        </article>
+        <article class="vet-ads__proof-card">
+          <p class="vet-ads__proof-label">Local vet near me</p>
+          <p class="vet-ads__proof-value">Based in Longmeadow and serving {town.name} — real house-call vet care, not a call center.</p>
+        </article>
+      </div>
+      {
+        featuredReview ? (
+          <figure class="vet-ads__review">
+            {featuredReview.stars && (
+              <p class="vet-ads__review-stars" aria-hidden="true">{featuredReview.stars}</p>
+            )}
+            <blockquote class="vet-ads__review-quote">“{featuredReview.quote}”</blockquote>
+            <figcaption class="vet-ads__review-cite">— {featuredReview.cite}</figcaption>
+          </figure>
+        ) : null
+      }
+    </section>
+
+    <section class="vet-ads__section" aria-labelledby="vet-ads-areas">
+      <h2 class="vet-ads__section-title" id="vet-ads-areas">Service areas</h2>
+      <p class="vet-ads__section-intro">
+        House call veterinarian serving {town.name} and nearby communities.
+      </p>
+      <ul class="vet-ads__areas">
+        {
+          DR_PAWS_ADS_TOWNS.map((area) => (
+            <li>
+              <a
+                href={drPawsAdsTownPath(area.slug)}
+                aria-current={area.slug === town.slug ? "page" : undefined}
+              >
+                {area.name}{area.state === "CT" ? ", CT" : ", MA"}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="vet-ads__section" aria-labelledby="vet-ads-trust">
+      <h2 class="vet-ads__section-title" id="vet-ads-trust">Trust &amp; safety</h2>
+      <div class="vet-ads__trust">
+        <p class="vet-ads__trust-item">
+          <svg class="vet-ads__trust-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Licensed veterinarian — MA &amp; CT</span>
+        </p>
+        <p class="vet-ads__trust-item">
+          <svg class="vet-ads__trust-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+          <span>Fully insured &amp; bonded mobile practice</span>
+        </p>
+        <p class="vet-ads__trust-item">
+          <svg class="vet-ads__trust-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Call or book in 30 seconds — no hold music</span>
+        </p>
+        {
+          googleMapsUrl ? (
+            <p class="vet-ads__trust-item">
+              <img class="vet-ads__google-mark" src={googleIconUrl} alt="" width="16" height="16" decoding="async" />
+              <span>
+                <span class="vet-ads__google-rating">{ratingValue}★ · {ratingCount} Google reviews</span>
+                {" "}
+                <a href={googleMapsUrl} target="_blank" rel="noopener noreferrer">Read reviews</a>
+              </span>
+            </p>
+          ) : null
+        }
+      </div>
+    </section>
+
+    <section class="vet-ads__final" aria-labelledby="vet-ads-final">
+      <h2 class="vet-ads__final-title" id="vet-ads-final">Ready for a house call vet in {town.name}?</h2>
+      <p class="vet-ads__final-copy">
+        Skip the clinic stress. Book an in-home visit with Dr. Paws Calls today.
+      </p>
+      <a class="vet-ads__cta" href={scheduleUrl}>
+        <PawIcon size={18} />
+        Book Your Visit
+      </a>
+      {
+        phoneHref ? (
+          <a class="vet-ads__phone" href={phoneHref}>{phonePretty}</a>
+        ) : null
+      }
+    </section>
+  </main>
+
+  <footer class="vet-ads__footer">
+    <p>&copy; {year} {brandName}</p>
+    <nav class="vet-ads__footer-legal" aria-label="Legal">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </nav>
+  </footer>
+
+  {
+    phoneHref ? (
+      <div class="vet-ads__sticky" aria-label="Quick actions">
+        <a class="vet-ads__cta" href={scheduleUrl}>
+          <PawIcon size={16} />
+          Book Your Visit
+        </a>
+        <a class="vet-ads__sticky-phone" href={phoneHref} aria-label={`Call ${phonePretty}`}>
+          <!-- IOS_ICONS.phone — keep in sync with public/admin/admin-ui.js -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"/></svg>
+        </a>
+      </div>
+    ) : (
+      <div class="vet-ads__sticky" aria-label="Quick actions">
+        <a class="vet-ads__cta" href={scheduleUrl}>
+          <PawIcon size={16} />
+          Book Your Visit
+        </a>
+      </div>
+    )
+  }
+</div>
+
+<style is:global>
+  body.vet-body {
+    margin: 0;
+    min-height: 100%;
+    -webkit-font-smoothing: antialiased;
+    background: #fafafa;
+  }
+</style>
