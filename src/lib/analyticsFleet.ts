@@ -25,6 +25,10 @@ import {
 } from './plausibleClient';
 import { isKinstaConfigured } from './kinstaClient';
 import { isRailwayConfigured } from './railwayClient';
+import {
+  loadPersistedHostedFleetPreview,
+  savePersistedHostedFleetPreview,
+} from './hostedFleetStore';
 
 export type { AnalyticsAccountRow, AnalyticsFleetPreview, DashboardSiteCard } from './analyticsSiteMerge';
 export { mergeDashboardSiteCards, summarizeAnalyticsAccounts } from './analyticsSiteMerge';
@@ -183,6 +187,30 @@ let previewInflightDomain = '';
 let hostedPreviewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;
 let hostedPreviewInflight: Promise<AnalyticsFleetPreview> | null = null;
 let hostedPreviewInflightDomain = '';
+let hostedHydratePromise: Promise<void> | null = null;
+
+/** Load last hosted fleet list from Postgres / knowledge file into memory when empty. */
+export async function hydrateHostedFleetCache(companyDomain: string): Promise<void> {
+  const domain = previewCacheDomain(companyDomain);
+  if (hostedPreviewCache?.domain === domain) return;
+  if (hostedHydratePromise) {
+    await hostedHydratePromise;
+    return;
+  }
+  hostedHydratePromise = (async () => {
+    try {
+      const preview = await loadPersistedHostedFleetPreview();
+      if (preview?.sites?.length && !hostedPreviewCache) {
+        hostedPreviewCache = { at: Date.now(), domain, preview };
+      }
+    } catch (e) {
+      console.warn('[analytics-fleet] hosted hydrate failed:', e instanceof Error ? e.message : e);
+    } finally {
+      hostedHydratePromise = null;
+    }
+  })();
+  await hostedHydratePromise;
+}
 
 function previewCacheDomain(companyDomain: string): string {
   return hostnameFromWebsite(companyDomain) || companyDomain.trim().toLowerCase();
@@ -234,7 +262,8 @@ export async function buildHostedFleetPreviewCached(
 ): Promise<AnalyticsFleetPreview> {
   const domain = previewCacheDomain(companyDomain);
   if (!opts.fresh) {
-    const cached = peekCachedHostedFleetPreview(companyDomain);
+    await hydrateHostedFleetCache(companyDomain);
+    const cached = peekCachedHostedFleetPreview(companyDomain, { allowStale: true });
     if (cached) return cached;
     if (hostedPreviewInflight && hostedPreviewInflightDomain === domain) return hostedPreviewInflight;
   } else if (hostedPreviewInflight && hostedPreviewInflightDomain === domain) {
@@ -244,6 +273,12 @@ export async function buildHostedFleetPreviewCached(
   const pending = buildHostedFleetPreview(companyDomain, { freshHosted: opts.freshHosted }).then(
     (preview) => {
       hostedPreviewCache = { at: Date.now(), domain, preview };
+      void savePersistedHostedFleetPreview(preview).catch((e) => {
+        console.warn(
+          '[analytics-fleet] hosted persist failed:',
+          e instanceof Error ? e.message : e,
+        );
+      });
       return preview;
     },
   );

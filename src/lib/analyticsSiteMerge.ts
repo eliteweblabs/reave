@@ -58,6 +58,12 @@ export type DashboardSiteCard = {
   analytics: AnalyticsAccountRow | null;
 };
 
+/** Extra apex domains from persisted health / ignore stores (no live I/O). */
+export type DashboardSiteCardMergeExtras = {
+  siteHealthSites?: Record<string, unknown> | null;
+  ignoredSiteIds?: string[] | null;
+};
+
 export function mergeAnalyticsSites(
   parts: Array<AnalyticsSiteOption | null | undefined>,
 ): AnalyticsSiteOption[] {
@@ -84,9 +90,42 @@ export function mergeAnalyticsSites(
  * Join UptimeRobot apex monitors with Plausible fleet rows into one card per apex.
  * Friendly monitor names win for labels; analytics-only rows keep sourceLabel / domain.
  */
+function mergeExtraDashboardSiteIds(
+  byId: Map<string, DashboardSiteCard>,
+  extras?: DashboardSiteCardMergeExtras,
+): void {
+  const healthSites = extras?.siteHealthSites;
+  if (healthSites && typeof healthSites === 'object') {
+    for (const siteId of Object.keys(healthSites)) {
+      const host = hostnameFromWebsite(siteId) || normalizeMonitorHost(siteId);
+      if (!host || !isApexPublicWebsiteHost(host) || byId.has(host)) continue;
+      byId.set(host, {
+        siteId: host,
+        label: host,
+        monitor: null,
+        analytics: null,
+      });
+    }
+  }
+  const ignored = extras?.ignoredSiteIds;
+  if (Array.isArray(ignored)) {
+    for (const raw of ignored) {
+      const host = hostnameFromWebsite(raw) || normalizeMonitorHost(raw);
+      if (!host || !isApexPublicWebsiteHost(host) || byId.has(host)) continue;
+      byId.set(host, {
+        siteId: host,
+        label: host,
+        monitor: null,
+        analytics: null,
+      });
+    }
+  }
+}
+
 export function mergeDashboardSiteCards(
   monitors: UptimeMonitorForFleetMerge[],
   analyticsSites: AnalyticsAccountRow[],
+  extras?: DashboardSiteCardMergeExtras,
 ): DashboardSiteCard[] {
   const byId = new Map<string, DashboardSiteCard>();
 
@@ -118,6 +157,8 @@ export function mergeDashboardSiteCards(
       analytics: null,
     });
   }
+
+  mergeExtraDashboardSiteIds(byId, extras);
 
   return [...byId.values()].sort((a, b) =>
     a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),

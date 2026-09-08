@@ -137,6 +137,8 @@ async function loadAnalyticsSlice(
     return { analytics: null, analyticsConfigured: false, fleetDiscoveryConfigured: false };
   }
 
+  await hydrateHostedFleetCache(companyDomain);
+
   const analytics =
     peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true }) ||
     peekCachedHostedFleetPreview(companyDomain, { allowStale: true });

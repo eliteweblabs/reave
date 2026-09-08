@@ -171,4 +171,15 @@ assert.equal(fleet[2].siteId, 'thebarbersedge.com');
 assert.equal(fleet[2].label, "The Barber's Edge");
 assert.equal(fleet[2].analytics?.visitors, 209);
 
+const withHealth = mergeDashboardSiteCards([], [], {
+  siteHealthSites: {
+    'cached-only.com': { grade: 'B' },
+    'cal.cached-only.com': { grade: 'C' },
+  },
+  ignoredSiteIds: ['ignored.com'],
+});
+assert.equal(withHealth.length, 2);
+assert.equal(withHealth[0].siteId, 'cached-only.com');
+assert.equal(withHealth[1].siteId, 'ignored.com');
+
 console.log('verify-analytics-sites: ok');

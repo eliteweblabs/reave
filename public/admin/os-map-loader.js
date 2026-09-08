@@ -3876,7 +3876,7 @@ function isDashApexPublicHost(host) {
  * One card per apex: join uptime monitors + analytics fleet.
  * Keep in sync with mergeDashboardSiteCards in analyticsSiteMerge.ts
  */
-function mergeDashboardSiteCards(monitors, analyticsSites) {
+function mergeDashboardSiteCards(monitors, analyticsSites, extras = {}) {
   const byId = new Map();
   for (const site of analyticsSites || []) {
     const siteId = normalizeDashFleetHost(site?.siteId || site?.label || '');
@@ -3906,9 +3906,46 @@ function mergeDashboardSiteCards(monitors, analyticsSites) {
       analytics: null,
     });
   }
+  const healthSites = extras.siteHealthSites;
+  if (healthSites && typeof healthSites === 'object') {
+    for (const siteId of Object.keys(healthSites)) {
+      const host = normalizeDashFleetHost(siteId);
+      if (!host || !isDashApexPublicHost(host) || byId.has(host)) continue;
+      byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
+    }
+  }
+  const ignored = extras.ignoredSiteIds;
+  if (Array.isArray(ignored)) {
+    for (const raw of ignored) {
+      const host = normalizeDashFleetHost(raw);
+      if (!host || !isDashApexPublicHost(host) || byId.has(host)) continue;
+      byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
+    }
+  }
   return [...byId.values()].sort((a, b) =>
     String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }),
   );
+}
+
+function dashboardSiteCardMergeExtras(data) {
+  const ignoreSites = data?.siteFleetIgnore?.sites;
+  return {
+    siteHealthSites: data?.siteHealth?.sites || null,
+    ignoredSiteIds: ignoreSites && typeof ignoreSites === 'object' ? Object.keys(ignoreSites) : [],
+  };
+}
+
+function dashboardAnalyticsNeedsHydrate(data) {
+  const fleetDiscoveryLive = data?.fleetDiscoveryConfigured === true;
+  const analyticsLive = data?.analyticsConfigured === true;
+  if (!fleetDiscoveryLive && !analyticsLive) return false;
+  const preview = data?.analytics;
+  if (!preview) return true;
+  const sites = Array.isArray(preview.sites) ? preview.sites : [];
+  if (!sites.length) return true;
+  // Persisted / hosted preview lists every apex but skips Plausible — refresh metrics in background.
+  if (analyticsLive && sites.every((s) => s.visitors == null)) return true;
+  return false;
 }
 
 function dashboardSiteCardMeta(card, opts = {}) {
@@ -4046,7 +4083,7 @@ function siteHealthIssueCodes(health) {
 function dashboardSiteCardsFromPayload(data) {
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
   const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
-  return mergeDashboardSiteCards(monitors, analyticsSites);
+  return mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
 }
 
 function siteHealthSignalState(key, health, card, fleet, opts = {}) {
@@ -6598,7 +6635,11 @@ function renderAdminDashboard(data, opts = {}) {
   const siteHealth = data?.siteHealth || null;
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
   const analyticsSites = Array.isArray(analyticsPreview?.sites) ? analyticsPreview.sites : [];
-  const siteCards = mergeDashboardSiteCards(monitors, analyticsSites);
+  const siteCards = mergeDashboardSiteCards(
+    monitors,
+    analyticsSites,
+    dashboardSiteCardMergeExtras(data),
+  );
   const fleetUnregistered = siteCards.filter((card) => {
     if (card.analytics) return card.analytics.registered !== true;
     return analyticsLive;
@@ -6807,9 +6848,8 @@ function renderAdminDashboard(data, opts = {}) {
 
   if (
     !opts.skipHydrate &&
-    !analyticsPreview &&
     !analyticsError &&
-    (analyticsLive || fleetDiscoveryLive)
+    dashboardAnalyticsNeedsHydrate(data)
   ) {
     void hydrateDashboardFleet();
   }
