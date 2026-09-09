@@ -4305,7 +4305,7 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
     : '';
 
   const ignoreHtml =
-    `<div class="dash-fleet-popover-ignore">` +
+    `<div class="dash-fleet-popover-ignore dash-fleet-popover-interactive">` +
       `<label class="dash-fleet-popover-ignore-toggle">` +
         `<input type="checkbox" data-fleet-ignore-toggle data-site-id="${escHtml(domain)}"${ignored ? ' checked' : ''}>` +
         `<span>Ignore site issues</span>` +
@@ -4332,7 +4332,7 @@ function buildDashboardSiteCardPopoverHtml(card, health, siteHealth, opts = {}) 
         ? 'WordPress Settings → Reading via Connect (blog_public).'
         : 'Scan sites to detect Connect; toggle uses live status when opened.';
   const indexingHtml =
-    `<div class="dash-fleet-popover-indexing">` +
+    `<div class="dash-fleet-popover-indexing dash-fleet-popover-interactive">` +
       `<div class="dash-fleet-popover-indexing-toggle">` +
         `<span id="fleet-indexing-label-${escHtml(domain)}">Block search engines</span>` +
         `<button type="button" class="prof-plugin-toggle" role="switch"` +
@@ -4378,13 +4378,18 @@ function ensureDashFleetPopover() {
   dashFleetPopEl.className = 'dash-fleet-popover';
   dashFleetPopEl.hidden = true;
   dashFleetPopEl.setAttribute('role', 'tooltip');
-  dashFleetPopEl.addEventListener('pointerenter', () => {
+  dashFleetPopEl.addEventListener('pointerenter', (ev) => {
+    if (!(ev.target instanceof Element) || !ev.target.closest('.dash-fleet-popover-interactive')) return;
     if (dashFleetPopHideTimer) {
       clearTimeout(dashFleetPopHideTimer);
       dashFleetPopHideTimer = null;
     }
   });
-  dashFleetPopEl.addEventListener('pointerleave', () => scheduleHideDashFleetPopover());
+  dashFleetPopEl.addEventListener('pointerleave', (ev) => {
+    const related = ev.relatedTarget;
+    if (related instanceof Node && dashFleetPopEl.contains(related)) return;
+    scheduleHideDashFleetPopover();
+  });
   ensureDashFleetPopoverIgnoreHandlers(dashFleetPopEl);
   ensureDashFleetPopoverIndexingHandlers(dashFleetPopEl);
   document.body.appendChild(dashFleetPopEl);
@@ -4612,25 +4617,73 @@ if (!window.__dashFleetPopBound) {
   });
 }
 
+function dashFleetPopoverOverlapArea(a, b) {
+  const w = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+  const h = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+  return w * h;
+}
+
 function positionDashFleetPopover(anchor) {
   const pop = ensureDashFleetPopover();
   const pad = 10;
   const gap = 6;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
   pop.hidden = false;
   pop.style.visibility = 'hidden';
   pop.style.left = '0';
   pop.style.top = '0';
   const popRect = pop.getBoundingClientRect();
   const rect = anchor.getBoundingClientRect();
-  let top = rect.bottom + gap;
-  if (top + popRect.height > window.innerHeight - pad) {
-    top = rect.top - gap - popRect.height;
+  const otherTiles = [...document.querySelectorAll('.dash-fleet-grid .dash-fleet-tile')].filter(
+    (tile) => tile !== anchor,
+  );
+
+  const scorePlacement = (left, top) => {
+    const box = {
+      left,
+      top,
+      right: left + popRect.width,
+      bottom: top + popRect.height,
+    };
+    let tileOverlap = 0;
+    for (const tile of otherTiles) {
+      tileOverlap += dashFleetPopoverOverlapArea(box, tile.getBoundingClientRect());
+    }
+    const outOfBounds =
+      (left < pad ? 1 : 0) +
+      (top < pad ? 1 : 0) +
+      (box.right > vw - pad ? 1 : 0) +
+      (box.bottom > vh - pad ? 1 : 0);
+    return tileOverlap * 1000 + outOfBounds * 100000;
+  };
+
+  const clampLeft = (left) => Math.max(pad, Math.min(left, vw - pad - popRect.width));
+  const clampTop = (top) => Math.max(pad, Math.min(top, vh - pad - popRect.height));
+
+  const candidates = [
+    { left: rect.left + rect.width / 2 - popRect.width / 2, top: rect.bottom + gap },
+    { left: rect.left + rect.width / 2 - popRect.width / 2, top: rect.top - gap - popRect.height },
+    { left: rect.right + gap, top: rect.top + rect.height / 2 - popRect.height / 2 },
+    { left: rect.left - gap - popRect.width, top: rect.top + rect.height / 2 - popRect.height / 2 },
+  ];
+
+  let bestLeft = clampLeft(candidates[0].left);
+  let bestTop = clampTop(candidates[0].top);
+  let bestScore = scorePlacement(bestLeft, bestTop);
+  for (const candidate of candidates) {
+    const left = clampLeft(candidate.left);
+    const top = clampTop(candidate.top);
+    const score = scorePlacement(left, top);
+    if (score < bestScore) {
+      bestScore = score;
+      bestLeft = left;
+      bestTop = top;
+    }
   }
-  top = Math.max(pad, Math.min(top, window.innerHeight - pad - popRect.height));
-  let left = rect.left + rect.width / 2 - popRect.width / 2;
-  left = Math.max(pad, Math.min(left, window.innerWidth - pad - popRect.width));
-  pop.style.left = `${Math.round(left)}px`;
-  pop.style.top = `${Math.round(top)}px`;
+
+  pop.style.left = `${Math.round(bestLeft)}px`;
+  pop.style.top = `${Math.round(bestTop)}px`;
   pop.style.visibility = 'visible';
 }
 
@@ -4684,6 +4737,12 @@ function attachDashboardFleetTilePopover(btn, html) {
       dashFleetPopHideTimer = null;
     }
     if (dashFleetPopShowTimer) clearTimeout(dashFleetPopShowTimer);
+    const switchingTile =
+      dashFleetPopAnchor && dashFleetPopAnchor !== btn && dashFleetPopEl && !dashFleetPopEl.hidden;
+    if (switchingTile) {
+      showDashFleetPopover(btn, html);
+      return;
+    }
     dashFleetPopShowTimer = setTimeout(() => {
       dashFleetPopShowTimer = null;
       showDashFleetPopover(btn, html);
