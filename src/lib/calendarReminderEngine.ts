@@ -33,7 +33,7 @@ import { createLogger } from './logger';
 import { isPgConfigured } from './pgPool';
 import { storeFindPendingPushAlertByTag } from './pushAlertStore';
 import { serverEnv } from './serverEnv';
-import { sendPushNotification } from './webPush';
+import { isPushConfigured, sendPushNotification } from './webPush';
 
 const log = createLogger('calendar-reminders');
 
@@ -191,10 +191,6 @@ async function fireReminder(row: CalendarReminder): Promise<'sent' | 'skipped' |
 
   const tag = calendarReminderTag(row.bookingUid, row.offsetMinutes);
   const existing = await storeFindPendingPushAlertByTag(tag).catch(() => null);
-  if (existing) {
-    await storeMarkCalendarReminder(row.id, 'sent');
-    return 'sent';
-  }
 
   const copy = reminderPushCopy({
     title: row.title,
@@ -205,7 +201,7 @@ async function fireReminder(row: CalendarReminder): Promise<'sent' | 'skipped' |
   });
 
   try {
-    await sendPushNotification({
+    const delivery = await sendPushNotification({
       title: copy.title,
       body: copy.body,
       tag,
@@ -213,8 +209,28 @@ async function fireReminder(row: CalendarReminder): Promise<'sent' | 'skipped' |
       kind: 'calendar',
       urgent: true,
       bypassQuietHours: true,
+      forcePhonePush: true,
+      skipDashboardAlert: Boolean(existing),
       actions: ['view'],
     });
+
+    const needsPhone = isPushConfigured();
+    if (
+      needsPhone &&
+      !delivery.phoneSkipped &&
+      delivery.phoneTargets > 0 &&
+      delivery.phoneSent === 0
+    ) {
+      await storeReleaseCalendarReminder(row.id, 'phone push failed');
+      log.warn('phone push failed', { id: row.id, bookingUid: row.bookingUid, tag });
+      return 'failed';
+    }
+    if (needsPhone && delivery.phoneSkipReason === 'noSubscriptions') {
+      await storeReleaseCalendarReminder(row.id, 'no push subscriptions');
+      log.warn('no push subscriptions', { id: row.id, bookingUid: row.bookingUid, tag });
+      return 'failed';
+    }
+
     await storeMarkCalendarReminder(row.id, 'sent');
     return 'sent';
   } catch (e) {

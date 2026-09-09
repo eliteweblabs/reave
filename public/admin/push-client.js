@@ -934,6 +934,34 @@ async function maybeOfferTestPushAfterSubscribe() {
   }
 }
 
+async function postPushSubscription(sub) {
+  const res = await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription: sub.toJSON() }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Subscribe failed');
+  return data;
+}
+
+/** Re-register an existing browser subscription with the server (iOS PWA / deploy recovery). */
+export async function syncPushSubscriptionWithServer() {
+  if (!('Notification' in window) || !('PushManager' in window)) return false;
+  if (Notification.permission !== 'granted') return false;
+  if (shouldSkipAdminPoll()) return false;
+
+  const reg = await registerAdminServiceWorker();
+  if (!reg) return false;
+
+  const sub = await reg.pushManager.getSubscription();
+  if (!sub) return false;
+
+  await postPushSubscription(sub);
+  ensureTestPushMenuItem();
+  return true;
+}
+
 export async function subscribeAdminPush() {
   if (!('Notification' in window) || !('PushManager' in window)) {
     throw new Error('Push not supported in this browser');
@@ -959,13 +987,7 @@ export async function subscribeAdminPush() {
     });
   }
 
-  const res = await fetch('/api/push/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription: sub.toJSON() }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Subscribe failed');
+  await postPushSubscription(sub);
   ensureTestPushMenuItem();
   void maybeOfferTestPushAfterSubscribe();
   return sub;
@@ -1023,9 +1045,14 @@ if (typeof document !== 'undefined') {
   document.addEventListener('reave-sleep-settings-updated', (ev) => {
     applySleepModeSettingsPayload(ev.detail);
   });
-  window.addEventListener('pageshow', () => syncAdminPushButton());
+  window.addEventListener('pageshow', () => {
+    void syncPushSubscriptionWithServer().catch(() => undefined);
+    void syncAdminPushButton();
+  });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void syncAdminPushButton();
+    if (document.visibilityState !== 'visible') return;
+    void syncPushSubscriptionWithServer().catch(() => undefined);
+    void syncAdminPushButton();
   });
   try {
     void navigator.permissions?.query({ name: 'notifications' })?.then((status) => {

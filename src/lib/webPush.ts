@@ -52,6 +52,21 @@ export function vapidPublicKey(): string | null {
   return serverEnv('VAPID_PUBLIC_KEY')?.trim() || null;
 }
 
+export type PushDeliveryResult = {
+  dashboardAlertId?: string;
+  dashboardCreated: boolean;
+  phoneSkipped: boolean;
+  phoneSkipReason?:
+    | 'quiet'
+    | 'skipPhonePush'
+    | 'notConfigured'
+    | 'noSubscriptions'
+    | 'duplicate'
+    | 'dedupe';
+  phoneTargets: number;
+  phoneSent: number;
+};
+
 export async function sendPushNotification(payload: {
   title: string;
   body: string;
@@ -64,6 +79,8 @@ export async function sendPushNotification(payload: {
   skipDashboardAlert?: boolean;
   /** When true, skip phone/PWA push (dashboard alert only). */
   skipPhonePush?: boolean;
+  /** When true, send phone push even if a dashboard alert with this tag already exists. */
+  forcePhonePush?: boolean;
   /** When true, deliver even during sleep mode / quiet hours. */
   bypassQuietHours?: boolean;
   /** Client reply and other high-priority alerts — may still deliver if allowUrgentDuringSleep. */
@@ -82,7 +99,15 @@ export async function sendPushNotification(payload: {
   collapseId?: string;
   /** Optional action button ids (view, archive, delete, copy, …). */
   actions?: string[];
-}): Promise<void> {
+}): Promise<PushDeliveryResult> {
+  const emptyResult = (patch: Partial<PushDeliveryResult> = {}): PushDeliveryResult => ({
+    dashboardCreated: false,
+    phoneSkipped: true,
+    phoneTargets: 0,
+    phoneSent: 0,
+    ...patch,
+  });
+
   const badgeOnly = Boolean(payload.badgeOnly);
   const tag = payload.tag ?? (badgeOnly ? 'reave-badge-sync' : 'inbox');
   const url = payload.url ?? (badgeOnly ? '/admin?tab=dashboard' : '/admin?tab=email');
@@ -121,20 +146,38 @@ export async function sendPushNotification(payload: {
     createdDashboardAlert = ensured?.created ?? true;
   }
 
-  if (payload.skipPhonePush || quiet) return;
-  if (!createdDashboardAlert && isReusablePushAlertTag(tag)) {
+  const baseResult = emptyResult({
+    dashboardAlertId: alertId,
+    dashboardCreated: createdDashboardAlert,
+  });
+
+  if (payload.skipPhonePush) {
+    return { ...baseResult, phoneSkipped: true, phoneSkipReason: 'skipPhonePush' };
+  }
+  if (quiet) {
+    return { ...baseResult, phoneSkipped: true, phoneSkipReason: 'quiet' };
+  }
+  if (
+    !payload.forcePhonePush &&
+    !createdDashboardAlert &&
+    isReusablePushAlertTag(tag)
+  ) {
     console.info('[push] skipped duplicate phone push', { tag, collapseId });
-    return;
+    return { ...baseResult, phoneSkipped: true, phoneSkipReason: 'duplicate' };
   }
   if (!claimRecentPushSend(tag, collapseId, verificationCode)) {
     console.info('[push] skipped duplicate in-flight phone push', { tag, collapseId });
-    return;
+    return { ...baseResult, phoneSkipped: true, phoneSkipReason: 'dedupe' };
   }
 
-  if (!isPushConfigured() || !(await configureWebPush())) return;
+  if (!isPushConfigured() || !(await configureWebPush())) {
+    return { ...baseResult, phoneSkipped: true, phoneSkipReason: 'notConfigured' };
+  }
 
   const subs = await listPushSubscriptions();
-  if (!subs.length) return;
+  if (!subs.length) {
+    return { ...baseResult, phoneSkipped: true, phoneSkipReason: 'noSubscriptions' };
+  }
 
   const badgeCount =
     payload.badgeCount != null
@@ -157,6 +200,7 @@ export async function sendPushNotification(payload: {
     ...(badgeCount != null ? { badgeCount } : {}),
   });
 
+  let phoneSent = 0;
   await Promise.all(
     subs.map(async (sub) => {
       try {
@@ -167,6 +211,7 @@ export async function sendPushNotification(payload: {
           },
           note,
         );
+        phoneSent += 1;
       } catch (e) {
         const status = e && typeof e === 'object' && 'statusCode' in e ? Number(e.statusCode) : 0;
         if (status === 404 || status === 410) {
@@ -176,6 +221,13 @@ export async function sendPushNotification(payload: {
       }
     }),
   );
+
+  return {
+    ...baseResult,
+    phoneSkipped: false,
+    phoneTargets: subs.length,
+    phoneSent,
+  };
 }
 
 /** Push for inbound email alerts (legacy alias). */
