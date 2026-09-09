@@ -20,6 +20,7 @@ Reference: [Telnyx 10DLC Opt-in Form](https://support.telnyx.com/en/articles/106
 - [ ] Get API key from https://portal.telnyx.com/#/app/api-keys
 - [ ] Add TELNYX_API_KEY to Railway vars
 - [ ] Add TELNYX_FROM_NUMBER (E.164 format, e.g. +12125551234)
+- [ ] Set SMS_NOTIFY_EMAIL if inbound texts should forward to an email address (needs RESEND_API_KEY)
 - [ ] In Telnyx portal → Messaging → Messaging Profiles → Inbound Webhook → set to https://<host>/api/sms
 - [ ] In Telnyx portal → Numbers → your number → Call Control Webhook → set to https://<host>/api/voice/webhook
 - [ ] Copy TELNYX_WEBHOOK_PUBLIC_KEY from the webhook config in the portal

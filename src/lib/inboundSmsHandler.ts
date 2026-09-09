@@ -1,14 +1,16 @@
 /**
  * Inbound SMS triage pipeline.
  *
- * Flow: sender allowlist → admin System alerts thread → (optional) Claude auto-reply.
+ * Flow: sender allowlist → email forward (optional) → admin System alerts → (optional) Claude auto-reply.
  *
  * Env vars:
  *   SMS_ALLOWED_SENDERS   — comma-separated phone numbers (E.164). If empty, all pass.
+ *   SMS_NOTIFY_EMAIL      — forward inbound SMS to this address via Resend (needs RESEND_API_KEY).
  *   SMS_AI_REPLY_ENABLED  — set to "1" to have Claude auto-reply to every SMS.
  */
 import { serverEnv } from './serverEnv';
 import { postToSystemAlertsThread, agentAlertUserId } from './adminAgentAlert';
+import { isEmailSendConfigured, sendEmail } from './outbound';
 import { sendTelnyxSms } from './telnyxClient';
 import { isSleepModeActive } from './pushQuietHours';
 import { createAnthropicMessage } from './anthropicMessages';
@@ -23,7 +25,7 @@ export interface InboundSms {
 
 export interface InboundSmsResult {
   ok: boolean;
-  /** "notified" | "replied" | "rejected" | "no-target" */
+  /** "notified" | "emailed" | "replied" | "rejected" | "no-target" | "sleep_deferred" */
   action: string;
   from: string;
 }
@@ -50,6 +52,40 @@ function formatSmsAlert(sms: InboundSms): string {
     'Summarize and suggest whether to reply.',
   ];
   return lines.join('\n');
+}
+
+function formatSmsEmail(sms: InboundSms, receivedAt: string): { subject: string; text: string } {
+  const toLine = sms.to || serverEnv('TELNYX_FROM_NUMBER')?.trim() || 'your number';
+  const subject = `SMS from ${sms.from}: ${toLine}`;
+  const text = [
+    `From: ${sms.from}`,
+    `To: ${toLine}`,
+    `Received: ${receivedAt}`,
+    '',
+    sms.text,
+    '',
+    `Reply by texting ${toLine} directly, or open admin → Chats to respond from the dashboard.`,
+  ].join('\n');
+  return { subject, text };
+}
+
+async function forwardSmsToEmail(sms: InboundSms): Promise<boolean> {
+  const to = serverEnv('SMS_NOTIFY_EMAIL')?.trim();
+  if (!to) return false;
+  if (!isEmailSendConfigured()) {
+    console.warn('[sms] SMS_NOTIFY_EMAIL set but RESEND_API_KEY is missing');
+    return false;
+  }
+
+  const receivedAt = new Date().toISOString();
+  const { subject, text } = formatSmsEmail(sms, receivedAt);
+  const result = await sendEmail({ to, subject, text });
+  if (!result.ok) {
+    console.error('[sms] email forward failed', result.error);
+    return false;
+  }
+  console.info('[sms] email forward sent', { to, from: sms.from });
+  return true;
 }
 
 async function aiReply(sms: InboundSms): Promise<string | null> {
@@ -88,6 +124,8 @@ export async function handleInboundSms(sms: InboundSms): Promise<InboundSmsResul
     return { ok: true, action: 'rejected', from };
   }
 
+  const emailed = await forwardSmsToEmail(sms);
+
   if (agentAlertUserId()) {
     await postToSystemAlertsThread({
       message: formatSmsAlert(sms),
@@ -100,8 +138,8 @@ export async function handleInboundSms(sms: InboundSms): Promise<InboundSmsResul
       },
     });
     console.info('[sms] posted to System alerts', { from });
-  } else {
-    console.warn('[sms] AGENT_ALERT_USER_ID not set — alert skipped');
+  } else if (!serverEnv('SMS_NOTIFY_EMAIL')?.trim()) {
+    console.warn('[sms] AGENT_ALERT_USER_ID and SMS_NOTIFY_EMAIL not set — no inbound target');
   }
 
   const aiEnabled = serverEnv('SMS_AI_REPLY_ENABLED') === '1';
@@ -117,5 +155,11 @@ export async function handleInboundSms(sms: InboundSms): Promise<InboundSmsResul
     }
   }
 
-  return { ok: true, action: agentAlertUserId() ? 'notified' : 'no-target', from };
+  if (agentAlertUserId()) {
+    return { ok: true, action: 'notified', from };
+  }
+  if (emailed) {
+    return { ok: true, action: 'emailed', from };
+  }
+  return { ok: true, action: 'no-target', from };
 }

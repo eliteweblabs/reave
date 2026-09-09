@@ -8,7 +8,7 @@
  * Optional signature validation: set TELNYX_WEBHOOK_PUBLIC_KEY.
  *
  * See src/lib/inboundSmsHandler.ts for triage logic.
- * See .env.example for SMS_ALLOWED_SENDERS, SMS_AI_REPLY_ENABLED, SMS_NOTIFY_CHAT_ID.
+ * See .env.example for SMS_ALLOWED_SENDERS, SMS_NOTIFY_EMAIL, SMS_AI_REPLY_ENABLED.
  */
 import type { APIRoute } from 'astro';
 import { serverEnv } from '../../lib/serverEnv';

@@ -15,6 +15,8 @@ stage: 2
 - `TELNYX_API_KEY` — Telnyx portal API key
 - `TELNYX_FROM_NUMBER` — E.164 number used for outbound SMS
 - `TELNYX_WEBHOOK_PUBLIC_KEY` — webhook signature validation for inbound
+- `SMS_NOTIFY_EMAIL` — *(optional)* forward inbound SMS to this address via Resend
+- `AGENT_ALERT_USER_ID` — *(optional)* post inbound SMS to admin System alerts + push
 
 ## External setup
 
@@ -27,6 +29,9 @@ stage: 2
 
 - [ ] Set `TELNYX_API_KEY` and `TELNYX_FROM_NUMBER`
 - [ ] Point inbound SMS webhook at production `/api/sms`
+- [ ] Set `SMS_NOTIFY_EMAIL` and/or `AGENT_ALERT_USER_ID` for inbound delivery
 - [ ] Send a test outbound text from admin chat or Siri `send_sms`
-- [ ] Reply from a phone and confirm inbound lands (System alerts / contact thread)
+- [ ] Reply from a phone and confirm inbound lands (email and/or System alerts)
 - [ ] Set `moduleStatus.sms` → `deployed` in install config
+
+Full Telnyx portal steps: **`plugins/sms/SMS-WEBHOOK-SETUP.md`**
