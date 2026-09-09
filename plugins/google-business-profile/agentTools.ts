@@ -319,41 +319,58 @@ async function handle_google_business_profile(
 // Tool definition
 // ─────────────────────────────────────────────────────────────────────────────
 
-const gbpTool: AgentToolDef = {
-  name: 'google_business_profile',
-  description:
-    'Manage the connected Google Business Profile — check connection status, list locations, read full location details (name, phone, website, hours, address, categories), update any field, sync company hours, or select the active location. Requires GBP OAuth connected in Admin → Company → Hours.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      action: {
-        type: 'string',
-        enum: ['status', 'list_locations', 'get_location', 'update_location', 'sync_hours', 'select_location'],
-        description:
-          'status = connection info + location list; list_locations = all locations; get_location = full details for one location; update_location = PATCH fields; sync_hours = push company hours to GBP; select_location = set active location for future syncs.',
-      },
-      location_id: {
-        type: 'string',
-        description:
-          'Location resource name or bare id, e.g. "locations/12345678" or "12345678". Required for get_location, update_location, select_location.',
-      },
-      update_mask: {
-        type: 'string',
-        description:
-          'Comma-separated field paths to update, e.g. "title,websiteUri,phoneNumbers,regularHours". Required for update_location.',
-      },
-      payload: {
-        type: 'object',
-        description:
-          'Field values to write. Must match the GBP Business Information API v1 Location schema. Required for update_location. Example: { "title": "Elite Web Labs", "websiteUri": "https://eliteweblabs.com", "phoneNumbers": { "primaryPhone": "+18631234567" } }',
-        additionalProperties: true,
-      },
-    },
-    required: ['action'],
-  },
-  handler: handle_google_business_profile,
-};
-
 export const googleBusinessProfileAgentTools: AgentToolModule = {
-  tools: [gbpTool],
+  id: 'google-business-profile',
+  enabled: (_ctx: ToolContext) => isGoogleBusinessProfileOAuthConfigured(),
+  definitions(_ctx: ToolContext): AgentToolDef[] {
+    return [
+      {
+        type: 'function',
+        function: {
+          name: 'google_business_profile',
+          description:
+            'Manage the connected Google Business Profile — check connection status, list locations, read full location details (name, phone, website, hours, address, categories), update any field, sync company hours, or select the active location. Requires GBP OAuth connected in Admin → Company → Hours.',
+          parameters: {
+            type: 'object',
+            properties: {
+              action: {
+                type: 'string',
+                enum: [
+                  'status',
+                  'list_locations',
+                  'get_location',
+                  'update_location',
+                  'sync_hours',
+                  'select_location',
+                ],
+                description:
+                  'status = connection info + location list; list_locations = all locations; get_location = full details for one location; update_location = PATCH fields; sync_hours = push company hours to GBP; select_location = set active location for future syncs.',
+              },
+              location_id: {
+                type: 'string',
+                description:
+                  'Location resource name or bare id, e.g. "locations/12345678" or "12345678". Required for get_location, update_location, select_location.',
+              },
+              update_mask: {
+                type: 'string',
+                description:
+                  'Comma-separated field paths to update, e.g. "title,websiteUri,phoneNumbers,regularHours". Required for update_location.',
+              },
+              payload: {
+                type: 'object',
+                description:
+                  'Field values to write. Must match the GBP Business Information API v1 Location schema. Required for update_location. Example: { "title": "Elite Web Labs", "websiteUri": "https://eliteweblabs.com", "phoneNumbers": { "primaryPhone": "+18631234567" } }',
+                additionalProperties: true,
+              },
+            },
+            required: ['action'],
+            additionalProperties: false,
+          },
+        },
+      },
+    ];
+  },
+  handlers: {
+    google_business_profile: handle_google_business_profile,
+  },
 };
