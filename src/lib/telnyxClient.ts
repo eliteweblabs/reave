@@ -4,7 +4,7 @@
  *
  * Docs: https://developers.telnyx.com/api
  */
-import { createVerify } from 'crypto';
+import { verify } from 'crypto';
 import { serverEnv } from './serverEnv';
 
 const TELNYX_API_BASE = 'https://api.telnyx.com/v2';
@@ -228,10 +228,12 @@ export function verifyTelnyxWebhook(opts: {
     const derPrefix = Buffer.from('302a300506032b6570032100', 'hex');
     const rawKey = Buffer.from(opts.publicKey, 'base64');
     const derKey = Buffer.concat([derPrefix, rawKey]);
+    const signedPayload = Buffer.from(`${opts.timestamp}|${opts.rawBody}`);
 
-    const verifier = createVerify('ed25519');
-    verifier.update(`${opts.timestamp}|${opts.rawBody}`);
-    return verifier.verify(
+    // createVerify('ed25519') throws on Node 22+ — use verify() instead.
+    return verify(
+      null,
+      signedPayload,
       { key: derKey, format: 'der', type: 'spki' },
       Buffer.from(opts.signature, 'base64'),
     );
