@@ -49,7 +49,7 @@ const pageTitle = `${town.name} Veterinary House Calls | ${brandName}`;
 
 <div class="vet-ads" data-vet-ads-root>
   <header class="vet-ads__header">
-    <div class="vet-ads__header-inner">
+    <div class="vet-ads__shell vet-ads__header-inner">
       {
         logoSrc ? (
           <img
@@ -66,7 +66,7 @@ const pageTitle = `${town.name} Veterinary House Calls | ${brandName}`;
     </div>
   </header>
 
-  <main class="vet-ads__main">
+  <main class="vet-ads__main vet-ads__shell">
     <section class="vet-ads__hero">
       <div class="vet-ads__hero-copy">
         <p class="vet-ads__eyebrow">In-home veterinary care · {town.label}</p>
@@ -224,7 +224,7 @@ const pageTitle = `${town.name} Veterinary House Calls | ${brandName}`;
     </section>
   </main>
 
-  <footer class="vet-ads__footer">
+  <footer class="vet-ads__footer vet-ads__shell">
     <p>&copy; {year} {brandName}</p>
     <nav class="vet-ads__footer-legal" aria-label="Legal">
       <a href="/privacy">Privacy</a>

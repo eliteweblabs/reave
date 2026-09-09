@@ -11,6 +11,7 @@
   --vet-ads-radius: 1rem;
   --vet-ads-font: Inter, ui-sans-serif, system-ui, sans-serif;
   --vet-ads-max: 42rem;
+  --vet-ads-gutter: 1.25rem;
   --vet-ads-sticky-h: 4.75rem;
   color: var(--vet-ads-ink);
   font-family: var(--vet-ads-font);
@@ -29,20 +30,26 @@
   height: auto;
 }
 
-.vet-ads a {
+.vet-ads a:not(.vet-ads__cta):not(.vet-ads__phone) {
   color: inherit;
   text-decoration: none;
+}
+
+.vet-ads__shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--vet-ads-max);
+  margin-inline: auto;
+  padding-inline: var(--vet-ads-gutter);
 }
 
 .vet-ads__header {
   border-bottom: 1px solid var(--vet-ads-border);
   background: var(--vet-ads-surface);
-  padding: 0.5rem 1.25rem;
+  padding-block: 0.5rem;
 }
 
 .vet-ads__header-inner {
-  max-width: var(--vet-ads-max);
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -58,9 +65,7 @@
 }
 
 .vet-ads__main {
-  max-width: var(--vet-ads-max);
-  margin: 0 auto;
-  padding: 1.5rem 1.25rem 2.5rem;
+  padding-block: 1.5rem 2.5rem;
 }
 
 .vet-ads__hero {
@@ -74,12 +79,13 @@
   overflow: hidden;
   border: 1px solid var(--vet-ads-border);
   background: var(--vet-ads-surface);
-  aspect-ratio: 4 / 3;
+  min-height: 14rem;
 }
 
 .vet-ads__hero-photo img {
   width: 100%;
   height: 100%;
+  min-height: 14rem;
   object-fit: cover;
   object-position: center top;
 }
@@ -115,7 +121,9 @@
   color: var(--vet-ads-muted);
 }
 
-.vet-ads__cta {
+.vet-ads a.vet-ads__cta,
+.vet-ads a.vet-ads__cta:hover,
+.vet-ads a.vet-ads__cta:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -130,14 +138,17 @@
   font: inherit;
   font-size: 1.0625rem;
   font-weight: 700;
-  transition: background 0.15s ease;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.vet-ads__cta svg {
+.vet-ads a.vet-ads__cta svg,
+.vet-ads a.vet-ads__cta:hover svg {
   color: #fff;
 }
 
-.vet-ads__cta:hover {
+.vet-ads a.vet-ads__cta:hover,
+.vet-ads a.vet-ads__cta:focus-visible {
   background: var(--vet-ads-accent-hover);
   color: #fff;
 }
@@ -339,9 +350,7 @@
 }
 
 .vet-ads__footer {
-  max-width: var(--vet-ads-max);
-  margin: 0 auto;
-  padding: 0 1.25rem 1.5rem;
+  padding-block: 0 1.5rem;
   text-align: center;
   font-size: 0.75rem;
   color: var(--vet-ads-muted);
@@ -407,21 +416,32 @@
   }
 
   .vet-ads__main {
-    padding-top: 2rem;
-    padding-bottom: 3rem;
+    padding-block: 2rem 3rem;
   }
 
   .vet-ads__hero {
-    grid-template-columns: 1fr 1.05fr;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
     gap: 2rem;
   }
 
   .vet-ads__hero-copy {
     order: -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 
-  .vet-ads__cta {
+  .vet-ads__hero-photo {
+    height: 100%;
+    min-height: 18rem;
+  }
+
+  .vet-ads__hero-photo img {
+    min-height: 18rem;
+  }
+
+  .vet-ads a.vet-ads__cta {
     width: auto;
     min-width: 14rem;
   }
