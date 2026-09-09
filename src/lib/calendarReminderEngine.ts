@@ -7,7 +7,9 @@ import { bookingList, bookingTimezone, isBookingConfigured, type BookingSummary 
 import {
   calendarReminderTag,
   calendarReminderUrl,
+  CALENDAR_REMINDER_LATE_GRACE_MS,
   formatReminderWhen,
+  isWithinCalendarReminderLateGrace,
   reminderDecision,
   reminderDedupKey,
   reminderFireAtMs,
@@ -176,7 +178,13 @@ async function syncUpcomingFromCalcom(): Promise<{ synced: number; canceled: num
 
 async function fireReminder(row: CalendarReminder): Promise<'sent' | 'skipped' | 'failed'> {
   const startMs = Date.parse(row.startTime);
-  if (!Number.isFinite(startMs) || startMs <= Date.now()) {
+  const nowMs = Date.now();
+  if (!Number.isFinite(startMs)) {
+    await storeMarkCalendarReminder(row.id, 'skipped');
+    return 'skipped';
+  }
+  const late = isWithinCalendarReminderLateGrace(startMs, nowMs);
+  if (startMs <= nowMs && !late) {
     await storeMarkCalendarReminder(row.id, 'skipped');
     return 'skipped';
   }
@@ -193,6 +201,7 @@ async function fireReminder(row: CalendarReminder): Promise<'sent' | 'skipped' |
     attendee: row.attendee,
     whenLabel: formatReminderWhen(row.startTime, bookingTimezone()),
     offsetMinutes: row.offsetMinutes,
+    late,
   });
 
   try {
@@ -203,6 +212,7 @@ async function fireReminder(row: CalendarReminder): Promise<'sent' | 'skipped' |
       url: calendarReminderUrl(row.bookingUid),
       kind: 'calendar',
       urgent: true,
+      bypassQuietHours: true,
       actions: ['view'],
     });
     await storeMarkCalendarReminder(row.id, 'sent');
@@ -222,7 +232,6 @@ export async function processDueCalendarReminders(): Promise<{
   failed: number;
   skippedPast: number;
 }> {
-  const skippedPast = await storeSkipPastCalendarReminders().catch(() => 0);
   const due = await storeClaimDueCalendarReminders(50);
   let sent = 0;
   let skipped = 0;
@@ -233,6 +242,8 @@ export async function processDueCalendarReminders(): Promise<{
     else if (outcome === 'skipped') skipped += 1;
     else failed += 1;
   }
+  const graceMinutes = Math.ceil(CALENDAR_REMINDER_LATE_GRACE_MS / 60_000);
+  const skippedPast = await storeSkipPastCalendarReminders(graceMinutes).catch(() => 0);
   return { processed: due.length, sent, skipped, failed, skippedPast };
 }
 

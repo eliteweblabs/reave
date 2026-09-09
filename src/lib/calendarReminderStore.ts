@@ -295,13 +295,17 @@ export async function storeCancelOrphanCalendarReminders(activeUids: string[]): 
   return rowCount ?? 0;
 }
 
-export async function storeSkipPastCalendarReminders(): Promise<number> {
+/** Drop stale pending rows after the late-delivery grace window (default 30 min past start). */
+export async function storeSkipPastCalendarReminders(graceMinutes = 30): Promise<number> {
   const pool = await ensureSchema();
   if (!pool) return 0;
+  const grace = Math.max(1, Math.min(Math.round(graceMinutes), 24 * 60));
   const { rowCount } = await pool.query(
     `UPDATE calendar_reminders
      SET status = 'skipped', updated_at = now()
-     WHERE status IN ('pending', 'sending') AND start_time <= now()`,
+     WHERE status IN ('pending', 'sending')
+       AND start_time <= now() - ($1::int * interval '1 minute')`,
+    [grace],
   );
   return rowCount ?? 0;
 }

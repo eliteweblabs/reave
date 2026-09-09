@@ -26,6 +26,10 @@ import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
 // Arm SIGTERM drain as soon as the server handles any request (incl. health).
 import "./lib/processDrain";
+// Start calendar reminder polling on boot — do not rely on dashboard traffic alone.
+import { ensureCalendarReminderScheduler } from "./lib/calendarReminderScheduler";
+
+ensureCalendarReminderScheduler();
 
 const RATE_LIMIT_PRUNE_MS = 5 * 60 * 1000;
 let lastRateLimitPrune = 0;

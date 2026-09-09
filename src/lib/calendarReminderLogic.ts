@@ -6,6 +6,8 @@
 export const DEFAULT_CALENDAR_REMINDER_MINUTES = [15];
 /** Cap a single offset at 7 days. */
 export const MAX_CALENDAR_REMINDER_MINUTES = 10_080;
+/** Still deliver a due reminder shortly after start if the poll was late. */
+export const CALENDAR_REMINDER_LATE_GRACE_MS = 30 * 60_000;
 
 export type CalendarReminderDecision = 'pending' | 'due' | 'skip_past';
 
@@ -152,12 +154,23 @@ export function reminderDecision(opts: {
 }
 
 export function formatReminderOffsetLabel(minutes: number): string {
+  if (minutes === 0) return 'now';
   if (minutes === 1440) return '1 day';
   if (minutes % 1440 === 0) return `${minutes / 1440} days`;
   if (minutes === 60) return '1 hour';
   if (minutes % 60 === 0 && minutes >= 60) return `${minutes / 60} hours`;
   if (minutes === 1) return '1 minute';
   return `${minutes} minutes`;
+}
+
+/** True when the meeting has started but we should still deliver a late reminder. */
+export function isWithinCalendarReminderLateGrace(
+  startMs: number,
+  nowMs = Date.now(),
+  graceMs = CALENDAR_REMINDER_LATE_GRACE_MS,
+): boolean {
+  if (!Number.isFinite(startMs)) return false;
+  return nowMs >= startMs && nowMs < startMs + graceMs;
 }
 
 export function formatReminderWhen(iso: string, timeZone: string): string {
@@ -179,11 +192,17 @@ export function reminderPushCopy(opts: {
   attendee?: string | null;
   whenLabel: string;
   offsetMinutes: number;
+  /** When true, the meeting slot has already started (late poll delivery). */
+  late?: boolean;
 }): { title: string; body: string } {
   const who = (opts.attendee ?? '').trim();
   const whoOk = who && who.toLowerCase() !== 'unknown';
   const meetingTitle = (opts.title ?? '').trim();
-  const heading = `Meeting in ${formatReminderOffsetLabel(opts.offsetMinutes)}`;
+  const heading = opts.late
+    ? 'Meeting starting now'
+    : opts.offsetMinutes === 0
+      ? 'Meeting starting now'
+      : `Meeting in ${formatReminderOffsetLabel(opts.offsetMinutes)}`;
   const subject =
     meetingTitle && (!whoOk || !meetingTitle.toLowerCase().includes(who.toLowerCase()))
       ? meetingTitle
