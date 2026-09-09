@@ -3,9 +3,9 @@ import LandingLayout from "../../layouts/LandingLayout.astro";
 import VetAdsLandingPage from "../../components/home/VetAdsLandingPage.astro";
 import {
   DR_PAWS_ADS_SITE_KEY,
-  DR_PAWS_ADS_TOWNS,
   drPawsAdsMetaDescription,
   drPawsAdsPageTitle,
+  drPawsAdsSeoPlace,
   getDrPawsAdsTown,
 } from "../../lib/drPawsAdsTowns";
 import { getSiteContent } from "../../lib/siteContent";
@@ -26,6 +26,11 @@ const title = drPawsAdsPageTitle(town);
 const description = drPawsAdsMetaDescription(town);
 ---
 
-<LandingLayout title={title} description={description} noIndex>
+<LandingLayout
+  title={title}
+  description={description}
+  noIndex
+  jsonLdAreaServed={drPawsAdsSeoPlace(town)}
+>
   <VetAdsLandingPage landing={siteContent.landing} town={town} />
 </LandingLayout>

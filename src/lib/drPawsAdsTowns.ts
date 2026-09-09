@@ -35,12 +35,17 @@ export function drPawsAdsTownPath(slug: string): string {
   return `/vet/${slug}`;
 }
 
+/** SEO place label — always includes state for local disambiguation. */
+export function drPawsAdsSeoPlace(town: DrPawsAdsTown): string {
+  return `${town.name}, ${town.state}`;
+}
+
 export function drPawsAdsPageTitle(town: DrPawsAdsTown): string {
-  return `${town.name} Veterinary House Calls | Dr. Paws Calls`;
+  return `${drPawsAdsSeoPlace(town)} Veterinary House Calls | Dr. Paws Calls`;
 }
 
 export function drPawsAdsMetaDescription(town: DrPawsAdsTown): string {
-  return `House call veterinarian serving ${town.label}. Same-day & next-day in-home exams for stressed or vet-phobic pets. Book Dr. Paws Calls in 30 seconds.`;
+  return `House call veterinarian serving ${drPawsAdsSeoPlace(town)}. Same-day & next-day in-home exams for stressed or vet-phobic pets. Book Dr. Paws Calls in 30 seconds.`;
 }
 
 export const DR_PAWS_ADS_SITE_KEY = "drpawscalls";

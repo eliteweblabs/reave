@@ -22,6 +22,8 @@ export interface Props {
   ogImage?: string;
   themeColor?: string;
   noIndex?: boolean;
+  /** Overrides JSON-LD areaServed on geo / inner landing pages. */
+  jsonLdAreaServed?: string | string[];
 }
 
 const {
@@ -30,6 +32,7 @@ const {
   ogImage: ogImageProp,
   themeColor: themeColorProp,
   noIndex = false,
+  jsonLdAreaServed,
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -61,7 +64,7 @@ if (pageName) {
 if (!docTitle.trim()) docTitle = siteName || "Home";
 const pwaTitle = formatPwaAppTitle(company.name);
 const description = descriptionProp ?? landing.description ?? company.description;
-const shareTitle = shareSafeText(landing.name ?? company.name);
+const shareTitle = shareSafeText(docTitle);
 const ogImage = ogImageProp ?? siteLandingOgImage(siteContent) ?? landing.ogImage ?? companyOgImageUrl(company);
 const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
 const isLandingOg = Boolean(siteLandingOgImage(siteContent) || landing.ogImage);
@@ -93,7 +96,9 @@ const jsonLdData = structuredData
       url: structuredData.url || canonical,
       ...(structuredData.telephone && { telephone: structuredData.telephone }),
       ...(structuredData.email && { email: structuredData.email }),
-      ...(structuredData.areaServed && { areaServed: structuredData.areaServed }),
+      ...(jsonLdAreaServed
+        ? { areaServed: jsonLdAreaServed }
+        : structuredData.areaServed && { areaServed: structuredData.areaServed }),
       ...(structuredData.priceRange && { priceRange: structuredData.priceRange }),
       ...(structuredData.ratingValue && {
         aggregateRating: {
