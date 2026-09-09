@@ -39,7 +39,7 @@ async function main() {
   }));
 
   console.log(`Fleet: ${cardInputs.length} apex site(s)`);
-  let siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true });
+  let siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true, pruneToCards: false });
   for (const card of cardInputs) {
     const row = siteHealth.sites[card.siteId];
     if (!row) continue;
@@ -63,7 +63,7 @@ async function main() {
 
   if (wireResult.wired > 0) {
     invalidateSiteHealthFleetCache();
-    siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true });
+    siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true, pruneToCards: false });
     console.log('\nAfter re-scan:');
     for (const card of cardInputs) {
       const row = siteHealth.sites[card.siteId];

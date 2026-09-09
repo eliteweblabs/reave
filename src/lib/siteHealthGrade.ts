@@ -204,7 +204,8 @@ export async function buildSiteHealthFleet(
     const id = hostnameFromWebsite(c.siteId) || normalizeMonitorHost(c.siteId);
     return id && isApexPublicWebsiteHost(id);
   });
-  const pruneToCards = opts.pruneToCards !== false;
+  /** Keep persisted grades for sites outside this scan — only drop when explicitly pruning. */
+  const pruneToCards = opts.pruneToCards === true;
 
   const pending = (async (): Promise<SiteHealthFleet> => {
     await hydrateSiteHealthFleetCache();

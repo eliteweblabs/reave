@@ -152,7 +152,7 @@ export async function improveFleetScores(input: {
     });
   }
 
-  const before = await buildSiteHealthFleet(cards, { fresh: true });
+  const before = await buildSiteHealthFleet(cards, { fresh: true, pruneToCards: false });
   const wireResult = await wireFleetSites(cards, before, input.ignore);
 
   if (wireResult.wired > 0) {
@@ -164,7 +164,7 @@ export async function improveFleetScores(input: {
     }
   }
 
-  const after = await buildSiteHealthFleet(cards, { fresh: true });
+  const after = await buildSiteHealthFleet(cards, { fresh: true, pruneToCards: false });
   const report = buildReport(before, after, wireResult, pageSpeedProbed);
 
   return { siteHealth: after, wireResult, report };

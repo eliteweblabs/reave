@@ -3935,14 +3935,75 @@ function dashboardSiteCardMergeExtras(data) {
   };
 }
 
-function dashboardFleetSiteCount(data) {
+const DASH_FLEET_SNAPSHOT_KEY = 'reave:dash:fleet:v1';
+
+/** Expected apex fleet size from persisted health / hosted preview — no card merge recursion. */
+function dashboardFleetExpectedCount(data) {
   const preview = data?.analytics;
   const healthSites = data?.siteHealth?.sites;
   const healthCount =
     data?.siteHealth?.siteCount ??
     (healthSites && typeof healthSites === 'object' ? Object.keys(healthSites).length : 0);
+  const ignoreSites = data?.siteFleetIgnore?.sites;
+  const ignoreCount =
+    ignoreSites && typeof ignoreSites === 'object' ? Object.keys(ignoreSites).length : 0;
+  return Math.max(
+    preview?.siteCount ?? 0,
+    preview?.sites?.length ?? 0,
+    healthCount,
+    ignoreCount,
+    Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors.length : 0,
+  );
+}
+
+function dashboardFleetSiteCount(data) {
+  return Math.max(dashboardFleetExpectedCount(data), dashboardSiteCardsFromPayload(data).length);
+}
+
+function readDashFleetSnapshot() {
+  try {
+    const raw = sessionStorage.getItem(DASH_FLEET_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const cards = parsed.fleetSiteCards;
+    if (!Array.isArray(cards) || !cards.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeDashFleetSnapshot(data) {
+  if (!data) return;
   const cards = dashboardSiteCardsFromPayload(data);
-  return Math.max(preview?.siteCount ?? 0, preview?.sites?.length ?? 0, healthCount, cards.length);
+  if (!cards.length) return;
+  try {
+    sessionStorage.setItem(
+      DASH_FLEET_SNAPSHOT_KEY,
+      JSON.stringify({
+        at: Date.now(),
+        fleetSiteCards: cards,
+        siteHealth: data.siteHealth ?? null,
+        siteFleetIgnore: data.siteFleetIgnore ?? null,
+        analytics: data.analytics ?? null,
+        uptimeMonitors: data.uptimeMonitors ?? null,
+        uptime: data.uptime ?? null,
+        analyticsConfigured: data.analyticsConfigured === true,
+        fleetDiscoveryConfigured: data.fleetDiscoveryConfigured === true,
+        stats: {
+          siteHealthCritical: data.stats?.siteHealthCritical ?? null,
+          siteHealthCheckedAt: data.stats?.siteHealthCheckedAt ?? null,
+          analyticsVisitors: data.stats?.analyticsVisitors ?? null,
+          analyticsRealtime: data.stats?.analyticsRealtime ?? null,
+          analyticsSites: data.stats?.analyticsSites ?? null,
+          analyticsUnregistered: data.stats?.analyticsUnregistered ?? null,
+        },
+      }),
+    );
+  } catch {
+    /* quota / private mode */
+  }
 }
 
 function dashboardAnalyticsNeedsHydrate(data) {
@@ -4095,12 +4156,14 @@ function siteHealthIssueCodes(health) {
 }
 
 function dashboardSiteCardsFromPayload(data) {
-  if (Array.isArray(data?.fleetSiteCards) && data.fleetSiteCards.length) {
-    return data.fleetSiteCards;
-  }
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
   const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
-  return mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
+  const merged = mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
+  const precached = Array.isArray(data?.fleetSiteCards) ? data.fleetSiteCards : null;
+  if (!precached?.length) return merged;
+  const expected = dashboardFleetExpectedCount(data);
+  if (expected > precached.length) return merged.length >= expected ? merged : merged.length > precached.length ? merged : precached;
+  return precached.length >= merged.length ? precached : merged;
 }
 
 function siteHealthSignalState(key, health, card, fleet, opts = {}) {
@@ -6926,10 +6989,14 @@ function renderAdminDashboard(data, opts = {}) {
   }
   if (!opts.skipHydrate && siteCards.length) {
     if (!siteHealth) void hydrateDashboardSiteHealth();
-    else if (dashboardFleetSiteCount(data) > siteCards.length) void hydrateDashboardFleet();
+    else if (dashboardFleetExpectedCount(data) > siteCards.length) void hydrateDashboardFleet();
     scheduleDashboardSiteHealthIdleRefresh(
       siteHealth?.checkedAt ?? stats.siteHealthCheckedAt ?? null,
     );
+  }
+
+  if (siteCards.length >= dashboardFleetExpectedCount(data)) {
+    writeDashFleetSnapshot(data);
   }
 }
 
@@ -7440,19 +7507,42 @@ async function loadAdminDashboard(opts = {}) {
   if (!root) return;
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
-  const hasContent = dashboardPanelHasContent();
+  let hasContent = dashboardPanelHasContent();
   if (!quiet && !force && hasContent) {
     const elapsed = Date.now() - homeDashboardLastLoadAt;
     if (elapsed < DASHBOARD_MIN_RELOAD_MS) return;
   }
 
   homeDashboardLoadPromise = traceAsync('admin:dashboard:load', async () => {
+    let fleetSnapshot = null;
+    if (!hasContent && !force) {
+      fleetSnapshot = readDashFleetSnapshot();
+      if (fleetSnapshot) {
+        renderAdminDashboard(
+          {
+            ok: true,
+            briefing: null,
+            stats: fleetSnapshot.stats || {},
+            fleetSiteCards: fleetSnapshot.fleetSiteCards,
+            siteHealth: fleetSnapshot.siteHealth,
+            siteFleetIgnore: fleetSnapshot.siteFleetIgnore,
+            analytics: fleetSnapshot.analytics,
+            uptimeMonitors: fleetSnapshot.uptimeMonitors,
+            uptime: fleetSnapshot.uptime,
+            analyticsConfigured: fleetSnapshot.analyticsConfigured,
+            fleetDiscoveryConfigured: fleetSnapshot.fleetDiscoveryConfigured,
+          },
+          { skipHydrate: false },
+        );
+        hasContent = true;
+      }
+    }
     if (!hasContent) {
       mountPanelSkeleton(root, 'dashboard-home', 'Loading dashboard…', {
         quiet: false,
         contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
       });
-    } else if (!quiet) {
+    } else if (!quiet && !fleetSnapshot) {
       mountPanelSkeleton(root, 'dashboard-home', 'Loading dashboard…', {
         quiet: true,
         contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',

@@ -183,6 +183,20 @@ assert.equal(withHealth.length, 2);
 assert.equal(withHealth[0].siteId, 'cached-only.com');
 assert.equal(withHealth[1].siteId, 'ignored.com');
 
+// Stale fleetSiteCards must not drop persisted health-only apex domains (client re-merges the same way).
+const partialPrecache = mergeDashboardSiteCards(
+  [],
+  [{ siteId: 'wired.com', label: 'wired.com', kind: 'agency', registered: true, visitors: 1, pageviews: 1, realtimeVisitors: 0, change: null, dashboardUrl: null }],
+  {
+    siteHealthSites: {
+      'cached-only.com': { grade: 'B' },
+      'also-cached.com': { grade: 'C' },
+    },
+  },
+);
+assert.equal(partialPrecache.length, 3);
+assert.ok(partialPrecache.some((row) => row.siteId === 'also-cached.com'));
+
 const mergedPreview = mergeAnalyticsFleetPreviews(
   {
     configured: true,

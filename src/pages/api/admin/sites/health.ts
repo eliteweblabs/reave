@@ -114,7 +114,7 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  const siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true });
+  const siteHealth = await buildSiteHealthFleet(cardInputs, { fresh: true, pruneToCards: false });
   return jsonResponse({
     ok: true,
     siteHealth: annotateSiteHealthFleet(siteHealth, ignore),
