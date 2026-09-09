@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import {
+  mergeAnalyticsFleetPreviews,
   mergeAnalyticsSites,
   mergeDashboardSiteCards,
   summarizeAnalyticsAccounts,
@@ -181,5 +182,70 @@ const withHealth = mergeDashboardSiteCards([], [], {
 assert.equal(withHealth.length, 2);
 assert.equal(withHealth[0].siteId, 'cached-only.com');
 assert.equal(withHealth[1].siteId, 'ignored.com');
+
+const mergedPreview = mergeAnalyticsFleetPreviews(
+  {
+    configured: true,
+    rangeDays: 30,
+    siteCount: 2,
+    registeredCount: 1,
+    unregisteredCount: 1,
+    visitors: 100,
+    pageviews: 200,
+    realtimeVisitors: 1,
+    sites: [
+      {
+        siteId: 'alpha.com',
+        label: 'alpha.com',
+        kind: 'agency',
+        registered: true,
+        visitors: 100,
+        pageviews: 200,
+        realtimeVisitors: 1,
+        change: null,
+        dashboardUrl: null,
+      },
+    ],
+  },
+  {
+    configured: true,
+    rangeDays: 30,
+    siteCount: 2,
+    registeredCount: 0,
+    unregisteredCount: 2,
+    visitors: 0,
+    pageviews: 0,
+    realtimeVisitors: 0,
+    sites: [
+      {
+        siteId: 'alpha.com',
+        label: 'Alpha',
+        kind: 'railway',
+        sourceLabel: 'Alpha Railway',
+        registered: false,
+        visitors: null,
+        pageviews: null,
+        realtimeVisitors: null,
+        change: null,
+        dashboardUrl: null,
+      },
+      {
+        siteId: 'beta.com',
+        label: 'beta.com',
+        kind: 'kinsta',
+        registered: false,
+        visitors: null,
+        pageviews: null,
+        realtimeVisitors: null,
+        change: null,
+        dashboardUrl: null,
+      },
+    ],
+  },
+);
+assert.equal(mergedPreview?.siteCount, 2);
+assert.equal(mergedPreview?.sites.length, 2);
+assert.equal(mergedPreview?.sites.find((row) => row.siteId === 'alpha.com')?.visitors, 100);
+assert.equal(mergedPreview?.sites.find((row) => row.siteId === 'beta.com')?.siteId, 'beta.com');
 
 console.log('verify-analytics-sites: ok');

@@ -38,7 +38,13 @@ async function loadFleetCards(context: APIContext) {
   if (!analytics && hasFeature('analytic_audit')) {
     analytics = await buildAnalyticsDashboardPreview(company.domain).catch(() => null);
   }
-  return mergeDashboardSiteCards(monitors, analytics?.sites ?? []);
+  await hydrateSiteHealthFleetCache();
+  const ignore = await loadSiteFleetIgnoreState();
+  const fleet = peekCachedSiteHealthFleet({ allowStale: true });
+  return mergeDashboardSiteCards(monitors, analytics?.sites ?? [], {
+    siteHealthSites: fleet?.sites ?? null,
+    ignoredSiteIds: Object.keys(ignore.sites ?? {}),
+  });
 }
 
 export async function GET(context: APIContext): Promise<Response> {

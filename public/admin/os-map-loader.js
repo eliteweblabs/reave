@@ -3935,14 +3935,28 @@ function dashboardSiteCardMergeExtras(data) {
   };
 }
 
+function dashboardFleetSiteCount(data) {
+  const preview = data?.analytics;
+  const healthSites = data?.siteHealth?.sites;
+  const healthCount =
+    data?.siteHealth?.siteCount ??
+    (healthSites && typeof healthSites === 'object' ? Object.keys(healthSites).length : 0);
+  const cards = dashboardSiteCardsFromPayload(data);
+  return Math.max(preview?.siteCount ?? 0, preview?.sites?.length ?? 0, healthCount, cards.length);
+}
+
 function dashboardAnalyticsNeedsHydrate(data) {
   const fleetDiscoveryLive = data?.fleetDiscoveryConfigured === true;
   const analyticsLive = data?.analyticsConfigured === true;
   if (!fleetDiscoveryLive && !analyticsLive) return false;
   const preview = data?.analytics;
+  const expected = dashboardFleetSiteCount(data);
+  const cards = dashboardSiteCardsFromPayload(data);
   if (!preview) return true;
   const sites = Array.isArray(preview.sites) ? preview.sites : [];
   if (!sites.length) return true;
+  if (expected > sites.length) return true;
+  if (expected > cards.length) return true;
   // Persisted / hosted preview lists every apex but skips Plausible — refresh metrics in background.
   if (analyticsLive && sites.every((s) => s.visitors == null)) return true;
   return false;
@@ -4081,6 +4095,9 @@ function siteHealthIssueCodes(health) {
 }
 
 function dashboardSiteCardsFromPayload(data) {
+  if (Array.isArray(data?.fleetSiteCards) && data.fleetSiteCards.length) {
+    return data.fleetSiteCards;
+  }
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
   const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
   return mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
@@ -4447,6 +4464,7 @@ async function saveDashboardSiteFleetIgnore(siteId, ignored, reason) {
       ...lastDashboardPayload,
       siteFleetIgnore: payload.ignore || lastDashboardPayload.siteFleetIgnore,
       siteHealth: payload.siteHealth || lastDashboardPayload.siteHealth,
+      fleetSiteCards: undefined,
       stats: {
         ...(lastDashboardPayload.stats || {}),
         siteHealthCritical: payload.siteHealth?.criticalSites ?? null,
@@ -6692,13 +6710,7 @@ function renderAdminDashboard(data, opts = {}) {
   const analyticsPreview = data?.analytics;
   const analyticsError = typeof data?.analyticsError === 'string' ? data.analyticsError : '';
   const siteHealth = data?.siteHealth || null;
-  const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
-  const analyticsSites = Array.isArray(analyticsPreview?.sites) ? analyticsPreview.sites : [];
-  const siteCards = mergeDashboardSiteCards(
-    monitors,
-    analyticsSites,
-    dashboardSiteCardMergeExtras(data),
-  );
+  const siteCards = dashboardSiteCardsFromPayload(data);
   const fleetUnregistered = siteCards.filter((card) => {
     if (card.analytics) return card.analytics.registered !== true;
     return analyticsLive;
@@ -6914,6 +6926,7 @@ function renderAdminDashboard(data, opts = {}) {
   }
   if (!opts.skipHydrate && siteCards.length) {
     if (!siteHealth) void hydrateDashboardSiteHealth();
+    else if (dashboardFleetSiteCount(data) > siteCards.length) void hydrateDashboardFleet();
     scheduleDashboardSiteHealthIdleRefresh(
       siteHealth?.checkedAt ?? stats.siteHealthCheckedAt ?? null,
     );
@@ -6956,6 +6969,7 @@ async function hydrateDashboardSiteHealth() {
     lastDashboardPayload = {
       ...lastDashboardPayload,
       siteHealth: health,
+      fleetSiteCards: undefined,
       siteFleetIgnore: payload.siteFleetIgnore || lastDashboardPayload.siteFleetIgnore,
       stats: {
         ...(lastDashboardPayload.stats || {}),
@@ -7034,6 +7048,7 @@ async function refreshDashboardSiteHealth(opts = {}) {
     lastDashboardPayload = {
       ...lastDashboardPayload,
       siteHealth: health,
+      fleetSiteCards: undefined,
       siteFleetIgnore: payload.siteFleetIgnore || lastDashboardPayload.siteFleetIgnore,
       siteScoreReport: payload.scoreReport || null,
       stats: {
@@ -7059,18 +7074,71 @@ async function refreshDashboardSiteHealth(opts = {}) {
   }
 }
 
+function mergeDashboardAnalyticsPreview(existing, incoming) {
+  if (!incoming) return existing || null;
+  if (!existing?.sites?.length) return incoming;
+  const byId = new Map();
+  for (const site of existing.sites) {
+    const siteId = normalizeDashFleetHost(site?.siteId || site?.label || '');
+    if (siteId) byId.set(siteId, site);
+  }
+  for (const site of incoming.sites || []) {
+    const siteId = normalizeDashFleetHost(site?.siteId || site?.label || '');
+    if (!siteId) continue;
+    const prev = byId.get(siteId);
+    if (!prev) {
+      byId.set(siteId, site);
+      continue;
+    }
+    const prevHasMetrics =
+      prev.registered || prev.visitors != null || prev.pageviews != null || prev.realtimeVisitors != null;
+    const nextHasMetrics =
+      site.registered || site.visitors != null || site.pageviews != null || site.realtimeVisitors != null;
+    const metrics = prevHasMetrics && !nextHasMetrics ? prev : nextHasMetrics && !prevHasMetrics ? site : site;
+    const meta = prevHasMetrics && !nextHasMetrics ? site : prev;
+    byId.set(siteId, {
+      ...meta,
+      ...metrics,
+      siteId,
+      label: metrics.label || meta.label || siteId,
+      sourceLabel: metrics.sourceLabel || meta.sourceLabel,
+    });
+  }
+  const sites = [...byId.values()].sort((a, b) =>
+    String(a.label || a.siteId).localeCompare(String(b.label || b.siteId), undefined, {
+      sensitivity: 'base',
+    }),
+  );
+  const registeredCount = sites.filter((row) => row.registered).length;
+  return {
+    ...incoming,
+    ...existing,
+    configured: incoming.configured ?? existing.configured,
+    rangeDays: incoming.rangeDays ?? existing.rangeDays ?? 30,
+    siteCount: sites.length,
+    registeredCount,
+    unregisteredCount: sites.length - registeredCount,
+    visitors: sites.reduce((sum, row) => sum + (row.visitors ?? 0), 0),
+    pageviews: sites.reduce((sum, row) => sum + (row.pageviews ?? 0), 0),
+    realtimeVisitors: sites.reduce((sum, row) => sum + (row.realtimeVisitors ?? 0), 0),
+    sites,
+  };
+}
+
 function applyDashboardAnalyticsPreview(preview) {
   if (!lastDashboardPayload || !preview) return;
+  const merged = mergeDashboardAnalyticsPreview(lastDashboardPayload.analytics, preview);
   lastDashboardPayload = {
     ...lastDashboardPayload,
-    analytics: preview,
+    analytics: merged,
+    fleetSiteCards: undefined,
     analyticsError: '',
     stats: {
       ...(lastDashboardPayload.stats || {}),
-      analyticsVisitors: preview.visitors ?? null,
-      analyticsRealtime: preview.realtimeVisitors ?? null,
-      analyticsSites: preview.siteCount ?? null,
-      analyticsUnregistered: preview.unregisteredCount ?? null,
+      analyticsVisitors: merged?.visitors ?? null,
+      analyticsRealtime: merged?.realtimeVisitors ?? null,
+      analyticsSites: merged?.siteCount ?? null,
+      analyticsUnregistered: merged?.unregisteredCount ?? null,
     },
   };
   renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });

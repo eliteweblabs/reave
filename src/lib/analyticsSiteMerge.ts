@@ -4,6 +4,15 @@
 import { hostnameFromWebsite } from './plausibleClient';
 import { isApexPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
 
+function analyticsRowHasMetrics(row: AnalyticsAccountRow): boolean {
+  return (
+    row.registered ||
+    row.visitors != null ||
+    row.pageviews != null ||
+    row.realtimeVisitors != null
+  );
+}
+
 export type AnalyticsSiteKind = 'agency' | 'railway' | 'kinsta';
 
 export type AnalyticsSiteOption = {
@@ -163,6 +172,45 @@ export function mergeDashboardSiteCards(
   return [...byId.values()].sort((a, b) =>
     a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
   );
+}
+
+/** Union Plausible metrics preview with the persisted Railway/Kinsta apex list. */
+export function mergeAnalyticsFleetPreviews(
+  ...previews: Array<AnalyticsFleetPreview | null | undefined>
+): AnalyticsFleetPreview | null {
+  const rows = previews.filter((p): p is AnalyticsFleetPreview => Boolean(p));
+  if (!rows.length) return null;
+
+  const byId = new Map<string, AnalyticsAccountRow>();
+  for (const preview of rows) {
+    for (const site of preview.sites) {
+      const siteId =
+        hostnameFromWebsite(site.siteId) || normalizeMonitorHost(site.siteId) || site.siteId;
+      if (!siteId) continue;
+      const prev = byId.get(siteId);
+      if (!prev) {
+        byId.set(siteId, { ...site, siteId });
+        continue;
+      }
+      const prevMetrics = analyticsRowHasMetrics(prev);
+      const nextMetrics = analyticsRowHasMetrics(site);
+      const metrics = prevMetrics && !nextMetrics ? prev : nextMetrics && !prevMetrics ? site : site;
+      const meta = prevMetrics && !nextMetrics ? site : prev;
+      byId.set(siteId, {
+        ...meta,
+        ...metrics,
+        siteId,
+        label: metrics.label || meta.label || siteId,
+        sourceLabel: metrics.sourceLabel || meta.sourceLabel,
+        kind: metrics.kind || meta.kind,
+        website: metrics.website || meta.website,
+      });
+    }
+  }
+
+  const rangeDays = rows.find((r) => r.rangeDays)?.rangeDays ?? 30;
+  const configured = rows.some((r) => r.configured);
+  return summarizeAnalyticsAccounts([...byId.values()], rangeDays, { configured });
 }
 
 export function summarizeAnalyticsAccounts(

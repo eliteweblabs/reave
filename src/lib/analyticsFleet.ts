@@ -31,7 +31,11 @@ import {
 } from './hostedFleetStore';
 
 export type { AnalyticsAccountRow, AnalyticsFleetPreview, DashboardSiteCard } from './analyticsSiteMerge';
-export { mergeDashboardSiteCards, summarizeAnalyticsAccounts } from './analyticsSiteMerge';
+export {
+  mergeAnalyticsFleetPreviews,
+  mergeDashboardSiteCards,
+  summarizeAnalyticsAccounts,
+} from './analyticsSiteMerge';
 
 export type AnalyticsSyncItem = {
   siteId: string;

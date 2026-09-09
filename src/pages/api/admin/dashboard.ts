@@ -41,6 +41,8 @@ import {
   buildHostedFleetPreviewCached,
   hydrateHostedFleetCache,
   isFleetDiscoveryConfigured,
+  mergeAnalyticsFleetPreviews,
+  mergeDashboardSiteCards,
   peekCachedAnalyticsDashboardPreview,
   peekCachedHostedFleetPreview,
   type AnalyticsFleetPreview,
@@ -140,9 +142,10 @@ async function loadAnalyticsSlice(
 
   await hydrateHostedFleetCache(companyDomain);
 
-  const analytics =
-    peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true }) ||
-    peekCachedHostedFleetPreview(companyDomain, { allowStale: true });
+  const analytics = mergeAnalyticsFleetPreviews(
+    peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true }),
+    peekCachedHostedFleetPreview(companyDomain, { allowStale: true }),
+  );
   const freshFull = peekCachedAnalyticsDashboardPreview(companyDomain);
   const freshHosted = peekCachedHostedFleetPreview(companyDomain);
 
@@ -258,6 +261,14 @@ export async function buildAdminDashboardPayload(
   const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
   const siteFleetIgnore = await loadSiteFleetIgnoreState();
   const siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);
+  const fleetSiteCards = mergeDashboardSiteCards(
+    uptimeMonitors,
+    analytics?.sites ?? [],
+    {
+      siteHealthSites: siteHealth?.sites ?? null,
+      ignoredSiteIds: Object.keys(siteFleetIgnore.sites ?? {}),
+    },
+  );
 
   const uptimeExcludeMonitorIds = uptimeMonitorIdsForIgnoredSites(uptimeMonitors, siteFleetIgnore);
   const uptimeSummaryEffective =
@@ -338,6 +349,7 @@ export async function buildAdminDashboardPayload(
     railwayConfigured: isRailwayConfigured(),
     kinstaConfigured: isKinstaConfigured(),
     analytics,
+    fleetSiteCards,
     siteHealth,
     siteFleetIgnore,
     uptime: uptimeEffective,
