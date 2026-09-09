@@ -16,6 +16,17 @@ function apiBase(): string | null {
   return raw.replace(/\/+$/, '');
 }
 
+/** Public script + beacon origin for CSP (self-hosted CE on Railway, etc.). */
+export function plausiblePublicOrigin(): string | null {
+  const base = apiBase();
+  if (!base) return null;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
+}
+
 function apiKey(): string | null {
   return trim(serverEnv('PLAUSIBLE_API_KEY')) || null;
 }

@@ -4,6 +4,7 @@
  * can be tested without blocking.
  */
 import { clerkPublishableKey } from './clerkClient';
+import { plausiblePublicOrigin } from './plausibleClient';
 import { serverEnv } from './serverEnv';
 
 /**
@@ -33,16 +34,18 @@ const CLERK_SRC = ['https://*.clerk.accounts.dev', 'https://*.clerk.com', ...cle
 /** Clerk bot protection (Turnstile) — without these the sign-up CAPTCHA never mounts. */
 const CLERK_CAPTCHA_SRC = 'https://challenges.cloudflare.com https://*.protect.clerk.com';
 
+const PLAUSIBLE_SRC = plausiblePublicOrigin() ?? '';
+
 /** Deploy-wizard GitHub App manifest POSTs to github.com; client landings use Web3Forms. */
 export const CSP_FORM_ACTION = "'self' https://github.com https://api.web3forms.com";
 
 const CSP_VALUE = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC} https://cdn.jsdelivr.net https://api.mapbox.com https://static.cloudflareinsights.com`,
+  `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC}${PLAUSIBLE_SRC ? ` ${PLAUSIBLE_SRC}` : ''} https://cdn.jsdelivr.net https://api.mapbox.com https://static.cloudflareinsights.com`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.mapbox.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
-  `connect-src 'self' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC} https://clerk-telemetry.com https://*.clerk-telemetry.com https://cdn.jsdelivr.net https://api.vapi.ai https://*.vapi.ai wss://*.vapi.ai https://*.daily.co wss://*.daily.co https://cloudflareinsights.com https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com https://*.openstreetmap.org https://nominatim.openstreetmap.org`,
+  `connect-src 'self' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC}${PLAUSIBLE_SRC ? ` ${PLAUSIBLE_SRC}` : ''} https://clerk-telemetry.com https://*.clerk-telemetry.com https://cdn.jsdelivr.net https://api.vapi.ai https://*.vapi.ai wss://*.vapi.ai https://*.daily.co wss://*.daily.co https://cloudflareinsights.com https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com https://*.openstreetmap.org https://nominatim.openstreetmap.org`,
   "media-src 'self' blob: https:",
   "worker-src 'self' blob:",
   `frame-src 'self' ${CLERK_SRC} ${CLERK_CAPTCHA_SRC}`,
