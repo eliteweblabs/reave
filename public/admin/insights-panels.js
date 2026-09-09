@@ -299,6 +299,53 @@ function analyticsShortDate(iso) {
   return raw;
 }
 
+/** Plausible / GA-style axis label — "Aug 10" not "8/10". */
+function analyticsAxisDate(iso) {
+  const raw = String(iso || '').trim();
+  if (!raw) return '';
+  const d = new Date(`${raw}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return analyticsShortDate(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function analyticsChartXTickIndices(pointCount, chartW) {
+  const n = pointCount;
+  if (n < 2) return [0];
+  const minGap = 76;
+  const widthCap = Math.max(2, Math.floor(chartW / minGap) + 1);
+  let target;
+  if (n <= 8) target = n;
+  else if (n <= 14) target = 5;
+  else if (n <= 31) target = 6;
+  else if (n <= 90) target = 7;
+  else target = 8;
+  target = Math.min(target, widthCap, n);
+  const indices = [];
+  for (let t = 0; t < target; t++) {
+    indices.push(Math.round((t / (target - 1)) * (n - 1)));
+  }
+  return [...new Set(indices)].sort((a, b) => a - b);
+}
+
+function analyticsChartXAxisMarkup(points, pad, chartW, chartH, h, toX) {
+  const indices = analyticsChartXTickIndices(points.length, chartW);
+  const yBase = pad.top + chartH;
+  const labelY = h - 6;
+  return indices
+    .map((idx, i) => {
+      const x = toX(idx);
+      const label = analyticsAxisDate(points[idx]?.date);
+      let anchor = 'middle';
+      if (i === 0) anchor = 'start';
+      else if (i === indices.length - 1) anchor = 'end';
+      return (
+        `<line class="ana-chart-grid ana-chart-grid--x" x1="${x.toFixed(1)}" y1="${pad.top}" x2="${x.toFixed(1)}" y2="${yBase}"></line>` +
+        `<text class="ana-chart-tick ana-chart-tick--x" x="${x.toFixed(1)}" y="${labelY}" text-anchor="${anchor}">${escHtml(label)}</text>`
+      );
+    })
+    .join('');
+}
+
 function analyticsLongDate(iso) {
   const raw = String(iso || '').trim();
   if (!raw) return '';
@@ -336,20 +383,26 @@ function analyticsTimeseriesChart(series) {
     visitorCoords.map((c) => `L ${c}`).join(' ') +
     ` L ${toX(points.length - 1).toFixed(1)},${(pad.top + chartH).toFixed(1)} Z`;
   const yMid = Math.round(max / 2);
+  const yGridLines = [0, yMid, max]
+    .map(
+      (v) =>
+        `<line class="ana-chart-grid ana-chart-grid--y" x1="${pad.left}" y1="${toY(v).toFixed(1)}" x2="${pad.left + chartW}" y2="${toY(v).toFixed(1)}"></line>`,
+    )
+    .join('');
   const yTicks = [0, yMid, max]
     .map(
       (v) =>
         `<text class="ana-chart-tick ana-chart-tick--y" x="${pad.left - 6}" y="${toY(v).toFixed(1)}" text-anchor="end" dominant-baseline="middle">${escHtml(analyticsNumFmt(v))}</text>`,
     )
     .join('');
-  const xStart = analyticsShortDate(points[0]?.date);
-  const xEnd = analyticsShortDate(points[points.length - 1]?.date);
+  const xAxis = analyticsChartXAxisMarkup(points, pad, chartW, chartH, h, toX);
   const seriesJson = analyticsEscAttr(JSON.stringify(points));
   return (
     `<div class="ana-chart-wrap" data-ana-chart data-ana-series="${seriesJson}">` +
       `<div class="ana-chart-stage">` +
         `<svg class="ana-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Visitors and pageviews over time">` +
-          `<line class="ana-chart-grid" x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}"></line>` +
+          yGridLines +
+          xAxis +
           yTicks +
           `<path class="ana-chart-area" d="${areaPath}"></path>` +
           `<polyline class="ana-chart-line ana-chart-line--pageviews" fill="none" points="${pageviewCoords.join(' ')}"></polyline>` +
@@ -358,8 +411,6 @@ function analyticsTimeseriesChart(series) {
           `<circle class="ana-chart-dot ana-chart-dot--visitors" r="3.5" visibility="hidden"></circle>` +
           `<circle class="ana-chart-dot ana-chart-dot--pageviews" r="3.5" visibility="hidden"></circle>` +
           `<rect class="ana-chart-hit" x="${pad.left}" y="${pad.top}" width="${chartW}" height="${chartH}"></rect>` +
-          `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left}" y="${h - 6}">${escHtml(xStart)}</text>` +
-          `<text class="ana-chart-tick ana-chart-tick--x" x="${pad.left + chartW}" y="${h - 6}" text-anchor="end">${escHtml(xEnd)}</text>` +
         `</svg>` +
         `<div class="ana-chart-tooltip" hidden role="tooltip">` +
           `<div class="ana-chart-tooltip-date" data-ana-tip-date></div>` +

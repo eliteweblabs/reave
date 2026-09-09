@@ -885,10 +885,19 @@
   stroke: var(--panel-border);
   stroke-width: 1;
 }
+.ana-chart-grid--y {
+  stroke: color-mix(in srgb, var(--panel-border) 72%, transparent);
+}
+.ana-chart-grid--x {
+  stroke: color-mix(in srgb, var(--panel-border) 55%, transparent);
+}
 .ana-chart-tick {
   fill: var(--muted);
   font-size: 10px;
   font-family: inherit;
+}
+.ana-chart-tick--x {
+  font-size: 9.5px;
 }
 .ana-chart-area {
   fill: color-mix(in srgb, var(--fg) 12%, transparent);
