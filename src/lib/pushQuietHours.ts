@@ -411,7 +411,13 @@ export async function isPushQuietHoursActive(opts?: {
   now?: Date;
 }): Promise<boolean> {
   if (opts?.bypassQuietHours) return false;
-  return isSleepModeActive({ now: opts?.now });
+  const active = await isSleepModeActive({ now: opts?.now });
+  if (!active) return false;
+  if (opts?.urgent) {
+    const settings = await getPushQuietHoursSettings();
+    if (settings.allowUrgentDuringSleep) return false;
+  }
+  return true;
 }
 
 export function formatQuietHoursLabel(settings: PushQuietHoursSettings): string {

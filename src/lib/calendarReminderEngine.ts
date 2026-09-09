@@ -7,7 +7,9 @@ import { bookingList, bookingTimezone, isBookingConfigured, type BookingSummary 
 import {
   calendarReminderTag,
   calendarReminderUrl,
+  CALENDAR_REMINDER_LATE_GRACE_MS,
   formatReminderWhen,
+  isWithinCalendarReminderLateGrace,
   reminderDecision,
   reminderDedupKey,
   reminderFireAtMs,
@@ -31,7 +33,7 @@ import { createLogger } from './logger';
 import { isPgConfigured } from './pgPool';
 import { storeFindPendingPushAlertByTag } from './pushAlertStore';
 import { serverEnv } from './serverEnv';
-import { sendPushNotification } from './webPush';
+import { isPushConfigured, sendPushNotification } from './webPush';
 
 const log = createLogger('calendar-reminders');
 
@@ -176,35 +178,59 @@ async function syncUpcomingFromCalcom(): Promise<{ synced: number; canceled: num
 
 async function fireReminder(row: CalendarReminder): Promise<'sent' | 'skipped' | 'failed'> {
   const startMs = Date.parse(row.startTime);
-  if (!Number.isFinite(startMs) || startMs <= Date.now()) {
+  const nowMs = Date.now();
+  if (!Number.isFinite(startMs)) {
+    await storeMarkCalendarReminder(row.id, 'skipped');
+    return 'skipped';
+  }
+  const late = isWithinCalendarReminderLateGrace(startMs, nowMs);
+  if (startMs <= nowMs && !late) {
     await storeMarkCalendarReminder(row.id, 'skipped');
     return 'skipped';
   }
 
   const tag = calendarReminderTag(row.bookingUid, row.offsetMinutes);
   const existing = await storeFindPendingPushAlertByTag(tag).catch(() => null);
-  if (existing) {
-    await storeMarkCalendarReminder(row.id, 'sent');
-    return 'sent';
-  }
 
   const copy = reminderPushCopy({
     title: row.title,
     attendee: row.attendee,
     whenLabel: formatReminderWhen(row.startTime, bookingTimezone()),
     offsetMinutes: row.offsetMinutes,
+    late,
   });
 
   try {
-    await sendPushNotification({
+    const delivery = await sendPushNotification({
       title: copy.title,
       body: copy.body,
       tag,
       url: calendarReminderUrl(row.bookingUid),
       kind: 'calendar',
       urgent: true,
+      bypassQuietHours: true,
+      forcePhonePush: true,
+      skipDashboardAlert: Boolean(existing),
       actions: ['view'],
     });
+
+    const needsPhone = isPushConfigured();
+    if (
+      needsPhone &&
+      !delivery.phoneSkipped &&
+      delivery.phoneTargets > 0 &&
+      delivery.phoneSent === 0
+    ) {
+      await storeReleaseCalendarReminder(row.id, 'phone push failed');
+      log.warn('phone push failed', { id: row.id, bookingUid: row.bookingUid, tag });
+      return 'failed';
+    }
+    if (needsPhone && delivery.phoneSkipReason === 'noSubscriptions') {
+      await storeReleaseCalendarReminder(row.id, 'no push subscriptions');
+      log.warn('no push subscriptions', { id: row.id, bookingUid: row.bookingUid, tag });
+      return 'failed';
+    }
+
     await storeMarkCalendarReminder(row.id, 'sent');
     return 'sent';
   } catch (e) {
@@ -222,7 +248,6 @@ export async function processDueCalendarReminders(): Promise<{
   failed: number;
   skippedPast: number;
 }> {
-  const skippedPast = await storeSkipPastCalendarReminders().catch(() => 0);
   const due = await storeClaimDueCalendarReminders(50);
   let sent = 0;
   let skipped = 0;
@@ -233,6 +258,8 @@ export async function processDueCalendarReminders(): Promise<{
     else if (outcome === 'skipped') skipped += 1;
     else failed += 1;
   }
+  const graceMinutes = Math.ceil(CALENDAR_REMINDER_LATE_GRACE_MS / 60_000);
+  const skippedPast = await storeSkipPastCalendarReminders(graceMinutes).catch(() => 0);
   return { processed: due.length, sent, skipped, failed, skippedPast };
 }
 

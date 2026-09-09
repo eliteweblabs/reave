@@ -8,6 +8,7 @@ import {
   calendarReminderUrl,
   formatCalendarReminderOffsets,
   formatReminderOffsetLabel,
+  isWithinCalendarReminderLateGrace,
   inferCalendarReminderStartMs,
   isExpiredMeetingNotice,
   isExpiringMeetingNotice,
@@ -53,6 +54,20 @@ assert.equal(
 assert.equal(formatReminderOffsetLabel(15), '15 minutes');
 assert.equal(formatReminderOffsetLabel(60), '1 hour');
 assert.equal(formatReminderOffsetLabel(1440), '1 day');
+assert.equal(formatReminderOffsetLabel(0), 'now');
+
+const lateStart = Date.parse('2026-09-09T19:20:00.000Z');
+assert.equal(isWithinCalendarReminderLateGrace(lateStart, lateStart + 60_000), true);
+assert.equal(isWithinCalendarReminderLateGrace(lateStart, lateStart + 31 * 60_000), false);
+
+const lateCopy = reminderPushCopy({
+  title: '15 Minute Meeting',
+  attendee: 'Thomas Reave',
+  whenLabel: 'September 9 at 3:20 PM',
+  offsetMinutes: 15,
+  late: true,
+});
+assert.equal(lateCopy.title, 'Meeting starting now');
 
 const copy = reminderPushCopy({
   title: 'Site visit',
