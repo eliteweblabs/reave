@@ -61,7 +61,7 @@ export const SITE_READINESS_DEFINITIONS: Array<{
   {
     id: 'internal_linking',
     label: 'Internal Linking (service pages)',
-    effort: 'Complete',
+    effort: '1–2 hours',
     impact: 'High',
   },
   {
@@ -309,7 +309,7 @@ export function readinessStatusLabel(status: SiteReadinessStatus): string {
     case 'warn':
       return 'Needs Attention';
     case 'crit':
-      return 'Not Started';
+      return 'Critical Issue';
     case 'pending':
       return 'Scanning…';
     default:
