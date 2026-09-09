@@ -133,6 +133,10 @@
   transition: background 0.15s ease;
 }
 
+.vet-ads__cta svg {
+  color: #fff;
+}
+
 .vet-ads__cta:hover {
   background: var(--vet-ads-accent-hover);
   color: #fff;
