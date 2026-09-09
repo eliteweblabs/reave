@@ -7,7 +7,8 @@
     "client_portal",
     "documents",
     "portal_assistant",
-    "google_ads"
+    "google_ads",
+    "sms"
   ],
   "footerNav": [
     "__system__",
