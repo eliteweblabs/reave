@@ -18,7 +18,9 @@ export const DR_PAWS_ADS_TOWNS: DrPawsAdsTown[] = [
   { slug: "hampden", name: "Hampden", state: "MA", label: "Hampden" },
   { slug: "chicopee", name: "Chicopee", state: "MA", label: "Chicopee" },
   { slug: "holyoke", name: "Holyoke", state: "MA", label: "Holyoke" },
+  { slug: "westfield", name: "Westfield", state: "MA", label: "Westfield" },
   { slug: "enfield", name: "Enfield", state: "CT", label: "Enfield, CT" },
+  { slug: "suffield", name: "Suffield", state: "CT", label: "Suffield, CT" },
   { slug: "somers", name: "Somers", state: "CT", label: "Somers, CT" },
 ];
 
