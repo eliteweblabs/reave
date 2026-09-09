@@ -23,7 +23,7 @@
   background: rgb(217 122 57 / 0.18);
 }
 
-.vet-ads img {
+.vet-ads img:not(.vet-ads__logo) {
   display: block;
   max-width: 100%;
   height: auto;
@@ -37,7 +37,7 @@
 .vet-ads__header {
   border-bottom: 1px solid var(--vet-ads-border);
   background: var(--vet-ads-surface);
-  padding: 0.75rem 1.25rem;
+  padding: 0.5rem 1.25rem;
 }
 
 .vet-ads__header-inner {
@@ -45,13 +45,15 @@
   margin: 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
-.vet-ads__logo {
-  height: 2.125rem;
+.vet-ads__header .vet-ads__logo {
+  display: block;
+  height: 1.75rem;
   width: auto;
-  max-width: min(11rem, 58vw);
+  max-width: min(8.5rem, 40vw);
+  max-height: 1.75rem;
   object-fit: contain;
 }
 
@@ -394,12 +396,10 @@
     padding-bottom: 0;
   }
 
-  .vet-ads__header-inner {
-    justify-content: flex-start;
-  }
-
-  .vet-ads__logo {
-    height: 2.375rem;
+  .vet-ads__header .vet-ads__logo {
+    height: 2rem;
+    max-height: 2rem;
+    max-width: min(9rem, 32vw);
   }
 
   .vet-ads__main {
