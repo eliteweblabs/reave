@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import type { AnalyticsFleetPreview } from './analyticsSiteMerge';
 import { getPgPool } from './pgPool';
+import { invalidateDashboardCache } from './dashboardPayloadCache';
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS hosted_fleet_preview (
@@ -144,5 +145,7 @@ export async function savePersistedHostedFleetPreview(preview: AnalyticsFleetPre
     : writeFilePreview(normalized);
   if (!ok) {
     console.warn('[hosted-fleet-store] persist failed');
+    return;
   }
+  invalidateDashboardCache();
 }

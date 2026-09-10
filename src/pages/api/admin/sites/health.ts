@@ -6,14 +6,7 @@ import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
 import { hasFeature } from '../../../../lib/features';
-import { getUptimeMonitorsView, syncUptimeMonitorsFromApiIfStale } from '../../../../lib/uptimeMonitoring';
-import { enrichUptimeMonitorView } from '../../../../lib/uptimerobotClient';
-import {
-  buildAnalyticsDashboardPreview,
-  peekCachedAnalyticsDashboardPreview,
-} from '../../../../lib/analyticsFleet';
-import { mergeDashboardSiteCards } from '../../../../lib/analyticsSiteMerge';
-import { getCompanyConfig } from '../../../../lib/companyConfig';
+import { loadDashboardFleetCards } from '../../../../lib/dashboardFleetCards';
 import {
   buildSiteHealthFleet,
   hydrateSiteHealthFleetCache,
@@ -24,28 +17,6 @@ import { annotateSiteHealthFleet, loadSiteFleetIgnoreState } from '../../../../l
 import type { SiteHealthCardInput } from '../../../../lib/siteHealthGrade';
 
 export const prerender = false;
-
-async function loadFleetCards(context: APIContext) {
-  const company = await getCompanyConfig(context.request);
-  if (hasFeature('uptime_monitoring')) {
-    await syncUptimeMonitorsFromApiIfStale();
-  }
-  const monitorsView = hasFeature('uptime_monitoring')
-    ? await getUptimeMonitorsView()
-    : { monitors: [] as Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'] };
-  const monitors = monitorsView.monitors.map(enrichUptimeMonitorView);
-  let analytics = peekCachedAnalyticsDashboardPreview(company.domain, { allowStale: true });
-  if (!analytics && hasFeature('analytic_audit')) {
-    analytics = await buildAnalyticsDashboardPreview(company.domain).catch(() => null);
-  }
-  await hydrateSiteHealthFleetCache();
-  const ignore = await loadSiteFleetIgnoreState();
-  const fleet = peekCachedSiteHealthFleet({ allowStale: true });
-  return mergeDashboardSiteCards(monitors, analytics?.sites ?? [], {
-    siteHealthSites: fleet?.sites ?? null,
-    ignoredSiteIds: Object.keys(ignore.sites ?? {}),
-  });
-}
 
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
@@ -68,7 +39,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 async function loadCardInputs(context: APIContext): Promise<SiteHealthCardInput[]> {
-  const cards = await loadFleetCards(context);
+  const cards = await loadDashboardFleetCards(context);
   return cards.map((card) => ({
     siteId: card.siteId,
     website: card.analytics?.website ?? null,

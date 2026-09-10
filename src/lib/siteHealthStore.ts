@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { getPgPool } from './pgPool';
 import type { SiteHealthFleet } from './siteHealthScore';
+import { invalidateDashboardCache } from './dashboardPayloadCache';
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS site_health_fleet (
@@ -137,7 +138,9 @@ export async function savePersistedSiteHealthFleet(fleet: SiteHealthFleet): Prom
   const ok = getPgPool() ? await writePgFleet(normalized) : writeFileFleet(normalized);
   if (!ok) {
     console.warn('[site-health-store] persist failed');
+    return;
   }
+  invalidateDashboardCache();
 }
 
 export async function clearPersistedSiteHealthFleet(): Promise<void> {

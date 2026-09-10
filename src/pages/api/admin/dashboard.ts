@@ -42,7 +42,6 @@ import {
   hydrateHostedFleetCache,
   isFleetDiscoveryConfigured,
   mergeAnalyticsFleetPreviews,
-  mergeDashboardSiteCards,
   peekCachedAnalyticsDashboardPreview,
   peekCachedHostedFleetPreview,
   type AnalyticsFleetPreview,
@@ -52,6 +51,7 @@ import { isKinstaConfigured } from '../../../lib/kinstaClient';
 import { isRailwayConfigured } from '../../../lib/railwayClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { jsonResponse } from '../../../lib/apiResponse';
+import { loadDashboardFleetCards } from '../../../lib/dashboardFleetCards';
 import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
 import { annotateSiteHealthFleet, loadSiteFleetIgnoreState, uptimeMonitorIdsForIgnoredSites } from '../../../lib/siteFleetIgnore';
 import { dbUptimeSummary } from '../../../lib/pgUptime';
@@ -142,15 +142,28 @@ async function loadAnalyticsSlice(
 
   await hydrateHostedFleetCache(companyDomain);
 
+  let hostedPreview = peekCachedHostedFleetPreview(companyDomain, { allowStale: true });
+  if (!hostedPreview?.sites?.length) {
+    try {
+      hostedPreview = await buildHostedFleetPreviewCached(companyDomain);
+    } catch (e) {
+      console.error('[dashboard] hosted fleet preview failed:', e instanceof Error ? e.message : e);
+    }
+  }
+
   const analytics = mergeAnalyticsFleetPreviews(
     peekCachedAnalyticsDashboardPreview(companyDomain, { allowStale: true }),
-    peekCachedHostedFleetPreview(companyDomain, { allowStale: true }),
+    hostedPreview,
   );
   const freshFull = peekCachedAnalyticsDashboardPreview(companyDomain);
   const freshHosted = peekCachedHostedFleetPreview(companyDomain);
 
-  if (!freshHosted) {
-    void buildHostedFleetPreviewCached(companyDomain, { fresh: !freshHosted }).catch((e) => {
+  if (freshHosted && hostedPreview && hostedPreview.siteCount > (freshHosted.siteCount ?? 0)) {
+    void buildHostedFleetPreviewCached(companyDomain, { fresh: true }).catch((e) => {
+      console.error('[dashboard] hosted fleet refresh failed:', e instanceof Error ? e.message : e);
+    });
+  } else if (!freshHosted && !hostedPreview?.sites?.length) {
+    void buildHostedFleetPreviewCached(companyDomain).catch((e) => {
       console.error('[dashboard] hosted fleet preview failed:', e instanceof Error ? e.message : e);
     });
   }
@@ -261,14 +274,7 @@ export async function buildAdminDashboardPayload(
   const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
   const siteFleetIgnore = await loadSiteFleetIgnoreState();
   const siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);
-  const fleetSiteCards = mergeDashboardSiteCards(
-    uptimeMonitors,
-    analytics?.sites ?? [],
-    {
-      siteHealthSites: siteHealth?.sites ?? null,
-      ignoredSiteIds: Object.keys(siteFleetIgnore.sites ?? {}),
-    },
-  );
+  const fleetSiteCards = await loadDashboardFleetCards(context);
 
   const uptimeExcludeMonitorIds = uptimeMonitorIdsForIgnoredSites(uptimeMonitors, siteFleetIgnore);
   const uptimeSummaryEffective =

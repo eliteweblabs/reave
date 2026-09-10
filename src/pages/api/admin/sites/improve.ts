@@ -5,13 +5,7 @@ import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
 import { hasFeature } from '../../../../lib/features';
-import { getUptimeMonitorsView, syncUptimeMonitorsFromApiIfStale } from '../../../../lib/uptimeMonitoring';
-import { enrichUptimeMonitorView } from '../../../../lib/uptimerobotClient';
-import {
-  buildAnalyticsDashboardPreview,
-  peekCachedAnalyticsDashboardPreview,
-} from '../../../../lib/analyticsFleet';
-import { mergeDashboardSiteCards } from '../../../../lib/analyticsSiteMerge';
+import { loadDashboardFleetCards } from '../../../../lib/dashboardFleetCards';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { improveFleetScores } from '../../../../lib/fleetScoreFix';
 import { annotateSiteHealthFleet, loadSiteFleetIgnoreState } from '../../../../lib/siteFleetIgnore';
@@ -20,19 +14,7 @@ import type { SiteHealthCardInput } from '../../../../lib/siteHealthGrade';
 export const prerender = false;
 
 async function loadCardInputs(context: APIContext): Promise<SiteHealthCardInput[]> {
-  const company = await getCompanyConfig(context.request);
-  if (hasFeature('uptime_monitoring')) {
-    await syncUptimeMonitorsFromApiIfStale();
-  }
-  const monitorsView = hasFeature('uptime_monitoring')
-    ? await getUptimeMonitorsView()
-    : { monitors: [] as Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'] };
-  const monitors = monitorsView.monitors.map(enrichUptimeMonitorView);
-  let analytics = peekCachedAnalyticsDashboardPreview(company.domain, { allowStale: true });
-  if (!analytics && hasFeature('analytic_audit')) {
-    analytics = await buildAnalyticsDashboardPreview(company.domain).catch(() => null);
-  }
-  return mergeDashboardSiteCards(monitors, analytics?.sites ?? []).map((card) => ({
+  return (await loadDashboardFleetCards(context)).map((card) => ({
     siteId: card.siteId,
     website: card.analytics?.website ?? null,
     monitor: card.monitor,

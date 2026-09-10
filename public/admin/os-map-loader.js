@@ -3937,6 +3937,71 @@ function dashboardSiteCardMergeExtras(data) {
 
 const DASH_FLEET_SNAPSHOT_KEY = 'reave:dash:fleet:v1';
 
+function dashFleetSnapshotStores() {
+  const stores = [];
+  try {
+    stores.push(localStorage);
+  } catch {
+    /* private mode */
+  }
+  try {
+    stores.push(sessionStorage);
+  } catch {
+    /* private mode */
+  }
+  return stores;
+}
+
+function mergeDashboardSiteHealthFleet(prev, next) {
+  if (!prev) return next || null;
+  if (!next) return prev;
+  const sites = { ...(prev.sites || {}) };
+  for (const [siteId, row] of Object.entries(next.sites || {})) {
+    const existing = sites[siteId];
+    if (!existing || Number(row?.checkedAt || 0) >= Number(existing?.checkedAt || 0)) {
+      sites[siteId] = row;
+    }
+  }
+  const checkedAt = Math.max(Number(prev.checkedAt || 0), Number(next.checkedAt || 0));
+  return {
+    ...prev,
+    ...next,
+    checkedAt: checkedAt || next.checkedAt || prev.checkedAt,
+    googleConnected: next.googleConnected ?? prev.googleConnected,
+    sites,
+    siteCount: Object.keys(sites).length,
+    criticalSites: Object.values(sites).filter((row) => row && row.criticalCount > 0).length,
+  };
+}
+
+/** Union fleet payload layers — never drop cached tiles on a partial API refresh. */
+function coalesceDashboardFleetPayload(baseline, incoming) {
+  if (!baseline) return incoming;
+  if (!incoming?.ok) return baseline.ok !== false ? baseline : incoming;
+
+  const siteHealth = mergeDashboardSiteHealthFleet(baseline.siteHealth, incoming.siteHealth);
+  const analytics = mergeDashboardAnalyticsPreview(baseline.analytics, incoming.analytics);
+  const siteFleetIgnore = incoming.siteFleetIgnore || baseline.siteFleetIgnore;
+  const uptimeMonitors =
+    Array.isArray(incoming.uptimeMonitors) &&
+    incoming.uptimeMonitors.length >= (baseline.uptimeMonitors?.length || 0)
+      ? incoming.uptimeMonitors
+      : baseline.uptimeMonitors || incoming.uptimeMonitors;
+
+  const merged = {
+    ...baseline,
+    ...incoming,
+    siteHealth,
+    analytics,
+    siteFleetIgnore,
+    uptimeMonitors,
+    fleetSiteCards: undefined,
+  };
+  const cards = dashboardSiteCardsFromPayload(merged);
+  if (cards.length) merged.fleetSiteCards = cards;
+  return merged;
+}
+
 /** Expected apex fleet size from persisted health / hosted preview — no card merge recursion. */
 function dashboardFleetExpectedCount(data) {
   const preview = data?.analytics;
@@ -3961,48 +4026,54 @@ function dashboardFleetSiteCount(data) {
 }
 
 function readDashFleetSnapshot() {
-  try {
-    const raw = sessionStorage.getItem(DASH_FLEET_SNAPSHOT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return null;
-    const cards = parsed.fleetSiteCards;
-    if (!Array.isArray(cards) || !cards.length) return null;
-    return parsed;
-  } catch {
-    return null;
+  for (const store of dashFleetSnapshotStores()) {
+    try {
+      const raw = store.getItem(DASH_FLEET_SNAPSHOT_KEY);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') continue;
+      const cards = parsed.fleetSiteCards;
+      if (!Array.isArray(cards) || !cards.length) continue;
+      return parsed;
+    } catch {
+      /* try next store */
+    }
   }
+  return null;
 }
 
 function writeDashFleetSnapshot(data) {
   if (!data) return;
-  const cards = dashboardSiteCardsFromPayload(data);
+  const existing = readDashFleetSnapshot();
+  const payload = coalesceDashboardFleetPayload(existing, data);
+  const cards = dashboardSiteCardsFromPayload(payload);
   if (!cards.length) return;
-  try {
-    sessionStorage.setItem(
-      DASH_FLEET_SNAPSHOT_KEY,
-      JSON.stringify({
-        at: Date.now(),
-        fleetSiteCards: cards,
-        siteHealth: data.siteHealth ?? null,
-        siteFleetIgnore: data.siteFleetIgnore ?? null,
-        analytics: data.analytics ?? null,
-        uptimeMonitors: data.uptimeMonitors ?? null,
-        uptime: data.uptime ?? null,
-        analyticsConfigured: data.analyticsConfigured === true,
-        fleetDiscoveryConfigured: data.fleetDiscoveryConfigured === true,
-        stats: {
-          siteHealthCritical: data.stats?.siteHealthCritical ?? null,
-          siteHealthCheckedAt: data.stats?.siteHealthCheckedAt ?? null,
-          analyticsVisitors: data.stats?.analyticsVisitors ?? null,
-          analyticsRealtime: data.stats?.analyticsRealtime ?? null,
-          analyticsSites: data.stats?.analyticsSites ?? null,
-          analyticsUnregistered: data.stats?.analyticsUnregistered ?? null,
-        },
-      }),
-    );
-  } catch {
-    /* quota / private mode */
+  const blob = JSON.stringify({
+    at: Date.now(),
+    fleetSiteCards: cards,
+    siteHealth: payload.siteHealth ?? null,
+    siteFleetIgnore: payload.siteFleetIgnore ?? null,
+    analytics: payload.analytics ?? null,
+    uptimeMonitors: payload.uptimeMonitors ?? null,
+    uptime: payload.uptime ?? null,
+    analyticsConfigured: payload.analyticsConfigured === true,
+    fleetDiscoveryConfigured: payload.fleetDiscoveryConfigured === true,
+    stats: {
+      siteHealthCritical: payload.stats?.siteHealthCritical ?? null,
+      siteHealthCheckedAt: payload.stats?.siteHealthCheckedAt ?? null,
+      analyticsVisitors: payload.stats?.analyticsVisitors ?? null,
+      analyticsRealtime: payload.stats?.analyticsRealtime ?? null,
+      analyticsSites: payload.stats?.analyticsSites ?? null,
+      analyticsUnregistered: payload.stats?.analyticsUnregistered ?? null,
+    },
+  });
+  for (const store of dashFleetSnapshotStores()) {
+    try {
+      store.setItem(DASH_FLEET_SNAPSHOT_KEY, blob);
+      return;
+    } catch {
+      /* quota — try sessionStorage */
+    }
   }
 }
 
@@ -7016,9 +7087,7 @@ function renderAdminDashboard(data, opts = {}) {
     );
   }
 
-  if (siteCards.length >= dashboardFleetExpectedCount(data)) {
-    writeDashFleetSnapshot(data);
-  }
+  if (siteCards.length) writeDashFleetSnapshot(data);
 }
 
 let dashboardSiteHealthHydrateGen = 0;
@@ -7578,7 +7647,11 @@ async function loadAdminDashboard(opts = {}) {
       if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       syncDashboardFooterBadges(data.stats);
       const endRender = traceStart('admin:dashboard:render');
-      renderAdminDashboard(data);
+      const merged = coalesceDashboardFleetPayload(
+        fleetSnapshot || lastDashboardPayload || readDashFleetSnapshot(),
+        data,
+      );
+      renderAdminDashboard(merged);
       endRender();
       traceSincePage('admin:dashboard:ready', { tab: 'dashboard' });
       homeDashboardLastLoadAt = Date.now();
