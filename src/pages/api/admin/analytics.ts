@@ -14,8 +14,10 @@ import { buildAnalyticsDashboard } from '../../../lib/analyticsDashboard';
 import {
   buildAnalyticsDashboardPreview,
   buildHostedFleetPreviewCached,
-  listAnalyticsAccounts,
+  listAnalyticsAccountsCached,
 } from '../../../lib/analyticsFleet';
+import { isKinstaConfigured } from '../../../lib/kinstaClient';
+import { isRailwayConfigured } from '../../../lib/railwayClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
@@ -54,9 +56,26 @@ export async function GET(context: APIContext): Promise<Response> {
       return jsonResponse({ ok: true, view: 'preview', analytics });
     }
     if (view === 'accounts') {
-      const fleet = await listAnalyticsAccounts(company.domain, {
+      const lite = url.searchParams.get('lite') === '1';
+      const fresh = url.searchParams.get('fresh') === '1';
+      if (lite) {
+        const preview = await buildHostedFleetPreviewCached(company.domain, { fresh });
+        return jsonResponse({
+          ok: true,
+          view: 'accounts',
+          lite: true,
+          configured: preview.configured,
+          rangeDays: preview.rangeDays,
+          railwayConfigured: isRailwayConfigured(),
+          kinstaConfigured: isKinstaConfigured(),
+          accounts: preview.sites,
+          warnings: [],
+        });
+      }
+      const fleet = await listAnalyticsAccountsCached(company.domain, {
         rangeDays,
         includeHosted: true,
+        fresh,
       });
       return jsonResponse({
         ok: true,

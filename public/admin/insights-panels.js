@@ -1235,6 +1235,39 @@ function patchAnalyticsReadiness(root, readiness, loading = false) {
 }
 
 /** Cached checklist first, then full PageSpeed/link crawl — never blocks charts. */
+function applyAnalyticsListPayload(data) {
+  analyticsAccounts = Array.isArray(data?.accounts) ? data.accounts : [];
+  analyticsMeta = {
+    configured: data?.configured,
+    rangeDays: data?.rangeDays,
+    railwayConfigured: data?.railwayConfigured,
+    kinstaConfigured: data?.kinstaConfigured,
+  };
+}
+
+async function fetchAnalyticsJson(params) {
+  const res = await fetch(`/api/admin/analytics?${params}`, { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  return { res, data };
+}
+
+/** Sidebar / overview visitor counts — never blocks the detail pane. */
+async function hydrateFullAnalyticsAccounts(loadGen) {
+  try {
+    const params = new URLSearchParams({
+      view: 'accounts',
+      range: String(analyticsRangeDays),
+    });
+    const { res, data } = await fetchAnalyticsJson(params);
+    if (loadGen !== analyticsLoadGen) return;
+    if (!res.ok || !data.ok) return;
+    applyAnalyticsListPayload(data);
+    renderAnalyticsPanel({ preserveSidebar: true });
+  } catch {
+    /* optional sidebar hydration */
+  }
+}
+
 async function refreshAnalyticsReadiness(root, siteId) {
   const gen = ++analyticsReadinessGen;
   const site = String(siteId || '').trim();
@@ -1294,46 +1327,22 @@ async function loadAnalyticsTab(opts = {}) {
   }
 
   try {
-    const accountsParams = new URLSearchParams({
-      view: 'accounts',
-      range: String(analyticsRangeDays),
-    });
-    const dashParams = new URLSearchParams({
-      range: String(analyticsRangeDays),
-      source: analyticsSource,
-    });
-    if (analyticsSiteId) dashParams.set('site_id', analyticsSiteId);
+    const range = String(analyticsRangeDays);
+    const liteParams = new URLSearchParams({ view: 'accounts', range, lite: '1' });
 
-    const fetches = [
-      fetch(`/api/admin/analytics?${accountsParams}`, { cache: 'no-store' }),
+    const [liteResult, statusRes] = await Promise.all([
+      fetchAnalyticsJson(liteParams),
       fetch('/api/admin/analytic-audit/status', { cache: 'no-store' }),
-      analyticsSiteId
-        ? fetch(`/api/admin/analytics?${dashParams}`, { cache: 'no-store' })
-        : Promise.resolve(null),
-    ];
-    const [listRes, statusRes, dashRes] = await Promise.all(fetches);
-    const listData = await listRes.json();
+    ]);
     const statusData = await statusRes.json().catch(() => ({}));
     analyticsStatus = statusData?.ok ? statusData : null;
-    if (!listRes.ok || !listData.ok) throw new Error(listData.error || `HTTP ${listRes.status}`);
 
-    analyticsAccounts = Array.isArray(listData.accounts) ? listData.accounts : [];
-    analyticsMeta = {
-      configured: listData.configured,
-      rangeDays: listData.rangeDays,
-      railwayConfigured: listData.railwayConfigured,
-      kinstaConfigured: listData.kinstaConfigured,
-    };
-
-    if (analyticsSiteId && dashRes) {
-      const dashData = await dashRes.json();
-      if (!dashRes.ok || !dashData.ok) throw new Error(dashData.error || `HTTP ${dashRes.status}`);
-      analyticsDetail = dashData.dashboard;
-    } else {
-      analyticsDetail = null;
-    }
-
+    const { res: liteRes, data: liteData } = liteResult;
+    if (!liteRes.ok || !liteData.ok) throw new Error(liteData.error || `HTTP ${liteRes.status}`);
     if (loadGen !== analyticsLoadGen) return;
+
+    applyAnalyticsListPayload(liteData);
+    if (analyticsSiteId) analyticsDetail = null;
 
     renderAnalyticsPanel({
       preserveSidebar,
@@ -1341,7 +1350,26 @@ async function loadAnalyticsTab(opts = {}) {
       readinessLoading: Boolean(analyticsSiteId),
     });
 
-    if (analyticsSiteId) void refreshAnalyticsReadiness(root, analyticsSiteId);
+    if (analyticsSiteId) {
+      const dashParams = new URLSearchParams({
+        range,
+        source: analyticsSource,
+        site_id: analyticsSiteId,
+      });
+      const { res: dashRes, data: dashData } = await fetchAnalyticsJson(dashParams);
+      if (loadGen !== analyticsLoadGen) return;
+      if (!dashRes.ok || !dashData.ok) throw new Error(dashData.error || `HTTP ${dashRes.status}`);
+      analyticsDetail = dashData.dashboard;
+      renderAnalyticsPanel({
+        preserveSidebar: true,
+        readiness: null,
+        readinessLoading: true,
+      });
+      void refreshAnalyticsReadiness(root, analyticsSiteId);
+      void hydrateFullAnalyticsAccounts(loadGen);
+    } else {
+      void hydrateFullAnalyticsAccounts(loadGen);
+    }
   } catch (e) {
     if (loadGen !== analyticsLoadGen) return;
     root.innerHTML =

@@ -154,12 +154,14 @@ export async function resolveAnalyticsSource(opts: {
 async function attachPlausibleWired(
   dashboard: AnalyticsDashboard,
   websiteUrl?: string,
+  opts: { probeScript?: boolean } = {},
 ): Promise<AnalyticsDashboard> {
   const siteId = dashboard.siteId;
   const registered = Boolean(dashboard.configured && !dashboard.failed);
-  const scriptInstalled = siteId
-    ? await detectPlausibleScriptOnSite(websiteUrl || `https://${siteId}`, siteId)
-    : null;
+  const scriptInstalled =
+    opts.probeScript === true && siteId
+      ? await detectPlausibleScriptOnSite(websiteUrl || `https://${siteId}`, siteId)
+      : null;
   return {
     ...dashboard,
     wired: {

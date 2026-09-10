@@ -12,8 +12,8 @@ import { hasFeature } from '../../../../lib/features';
 import { getUptimeMonitorsView, syncUptimeMonitorsFromApiIfStale } from '../../../../lib/uptimeMonitoring';
 import { enrichUptimeMonitorView } from '../../../../lib/uptimerobotClient';
 import {
-  buildAnalyticsDashboardPreview,
-  peekCachedAnalyticsDashboardPreview,
+  buildHostedFleetPreviewCached,
+  peekCachedHostedFleetPreview,
 } from '../../../../lib/analyticsFleet';
 import { mergeDashboardSiteCards } from '../../../../lib/analyticsSiteMerge';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
@@ -48,9 +48,9 @@ async function loadSiteCard(context: APIContext, siteId: string) {
     ? await getUptimeMonitorsView()
     : { monitors: [] as Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'] };
   const monitors = monitorsView.monitors.map(enrichUptimeMonitorView);
-  let analytics = peekCachedAnalyticsDashboardPreview(company.domain, { allowStale: true });
+  let analytics = peekCachedHostedFleetPreview(company.domain, { allowStale: true });
   if (!analytics && hasFeature('analytic_audit')) {
-    analytics = await buildAnalyticsDashboardPreview(company.domain).catch(() => null);
+    analytics = await buildHostedFleetPreviewCached(company.domain).catch(() => null);
   }
   const cards = mergeDashboardSiteCards(monitors, analytics?.sites ?? []);
   const host = hostnameFromWebsite(siteId) || normalizeMonitorHost(siteId) || siteId;
@@ -105,27 +105,24 @@ export async function GET(context: APIContext): Promise<Response> {
   let fleet = peekCachedSiteHealthFleet({ allowStale: true });
   const host = hostnameFromWebsite(siteId) || normalizeMonitorHost(siteId) || siteId;
   let cachedRow = fleet?.sites?.[host];
+  const card = await loadSiteCard(context, host);
 
-  if (!cachedRow || fresh) {
-    const card = await loadSiteCard(context, host);
-    if (card) {
-      fleet = await buildSiteHealthFleet(
-        [
-          {
-            siteId: card.siteId,
-            website: card.analytics?.website ?? null,
-            monitor: card.monitor,
-            analytics: card.analytics,
-          },
-        ],
-        { fresh: true, pruneToCards: false },
-      );
-      cachedRow = fleet.sites[host];
-    }
+  if ((!cachedRow || fresh) && card) {
+    fleet = await buildSiteHealthFleet(
+      [
+        {
+          siteId: card.siteId,
+          website: card.analytics?.website ?? null,
+          monitor: card.monitor,
+          analytics: card.analytics,
+        },
+      ],
+      { fresh: true, pruneToCards: false },
+    );
+    cachedRow = fleet.sites[host];
   }
 
   let readiness: SiteReadinessSummary | null = cachedRow?.readiness ?? null;
-  const card = await loadSiteCard(context, host);
 
   if (full && card) {
     const siteUrl = `https://${host.replace(/^www\./, '')}/`;

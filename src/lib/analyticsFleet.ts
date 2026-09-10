@@ -85,6 +85,7 @@ function metricValue(
 export async function loadAnalyticsAccountRow(
   site: AnalyticsSiteOption,
   rangeDays: number,
+  opts: { includeRealtime?: boolean } = {},
 ): Promise<AnalyticsAccountRow> {
   const dashboardUrl = plausibleDashboardUrl(site.siteId);
   const base: AnalyticsAccountRow = {
@@ -95,10 +96,11 @@ export async function loadAnalyticsAccountRow(
   if (!isPlausibleConfigured()) return base;
 
   const period = plausiblePeriodForDays(rangeDays);
-  const [aggregate, realtime] = await Promise.all([
-    plausibleAggregate(site.siteId, period, ['visitors', 'pageviews'], true),
-    plausibleRealtimeVisitors(site.siteId),
-  ]);
+  const aggregate = await plausibleAggregate(site.siteId, period, ['visitors', 'pageviews'], true);
+  const realtime =
+    opts.includeRealtime === true
+      ? await plausibleRealtimeVisitors(site.siteId)
+      : { ok: false as const, error: 'skipped' };
 
   if (!aggregate.ok) {
     return {
@@ -183,7 +185,19 @@ export async function listAnalyticsAccounts(
 
 const PREVIEW_TTL_MS = 5 * 60_000;
 const HOSTED_PREVIEW_TTL_MS = 5 * 60_000;
+const ACCOUNTS_LIST_TTL_MS = 3 * 60_000;
 const ANALYTICS_ACCOUNT_CONCURRENCY = 6;
+
+type AnalyticsAccountsList = Awaited<ReturnType<typeof listAnalyticsAccounts>>;
+
+let accountsListCache: {
+  at: number;
+  domain: string;
+  rangeDays: number;
+  result: AnalyticsAccountsList;
+} | null = null;
+let accountsListInflight: Promise<AnalyticsAccountsList> | null = null;
+let accountsListInflightKey = '';
 
 let previewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;
 let previewInflight: Promise<AnalyticsFleetPreview> | null = null;
@@ -192,6 +206,50 @@ let hostedPreviewCache: { at: number; domain: string; preview: AnalyticsFleetPre
 let hostedPreviewInflight: Promise<AnalyticsFleetPreview> | null = null;
 let hostedPreviewInflightDomain = '';
 let hostedHydratePromise: Promise<void> | null = null;
+
+/** Full fleet metrics — cached briefly; sidebar/overview hydration only. */
+export async function listAnalyticsAccountsCached(
+  companyDomain: string,
+  opts: { rangeDays?: number; includeHosted?: boolean; freshHosted?: boolean; fresh?: boolean } = {},
+): Promise<AnalyticsAccountsList> {
+  const rangeDays = opts.rangeDays === 7 || opts.rangeDays === 90 ? opts.rangeDays : 30;
+  const domain = previewCacheDomain(companyDomain);
+  const cacheKey = `${domain}:${rangeDays}:${opts.includeHosted === false ? 'agency' : 'hosted'}`;
+
+  if (!opts.fresh) {
+    if (
+      accountsListCache &&
+      accountsListCache.domain === domain &&
+      accountsListCache.rangeDays === rangeDays &&
+      Date.now() - accountsListCache.at < ACCOUNTS_LIST_TTL_MS
+    ) {
+      return accountsListCache.result;
+    }
+    if (accountsListInflight && accountsListInflightKey === cacheKey) return accountsListInflight;
+  } else if (accountsListInflight && accountsListInflightKey === cacheKey) {
+    return accountsListInflight;
+  }
+
+  const pending = listAnalyticsAccounts(companyDomain, {
+    rangeDays,
+    includeHosted: opts.includeHosted,
+    freshHosted: opts.freshHosted,
+  }).then((result) => {
+    accountsListCache = { at: Date.now(), domain, rangeDays, result };
+    return result;
+  });
+
+  accountsListInflight = pending;
+  accountsListInflightKey = cacheKey;
+  try {
+    return await pending;
+  } finally {
+    if (accountsListInflight === pending) {
+      accountsListInflight = null;
+      accountsListInflightKey = '';
+    }
+  }
+}
 
 /** Load last hosted fleet list from Postgres / knowledge file into memory when empty. */
 export async function hydrateHostedFleetCache(companyDomain: string): Promise<void> {
@@ -306,6 +364,9 @@ export function invalidateAnalyticsDashboardPreview(): void {
   hostedPreviewCache = null;
   hostedPreviewInflight = null;
   hostedPreviewInflightDomain = '';
+  accountsListCache = null;
+  accountsListInflight = null;
+  accountsListInflightKey = '';
 }
 
 export async function buildAnalyticsDashboardPreview(
@@ -330,7 +391,7 @@ export async function buildAnalyticsDashboardPreview(
   }
 
   const pending = (async () => {
-    const { accounts } = await listAnalyticsAccounts(companyDomain, {
+    const { accounts } = await listAnalyticsAccountsCached(companyDomain, {
       rangeDays: 30,
       includeHosted: true,
     });
