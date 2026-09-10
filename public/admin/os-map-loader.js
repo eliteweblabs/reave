@@ -4457,17 +4457,14 @@ function ensureDashFleetPopover() {
   dashFleetPopEl.id = 'dash-fleet-popover';
   dashFleetPopEl.className = 'dash-fleet-popover';
   dashFleetPopEl.hidden = true;
-  dashFleetPopEl.setAttribute('role', 'tooltip');
-  dashFleetPopEl.addEventListener('pointerenter', (ev) => {
-    if (!(ev.target instanceof Element) || !ev.target.closest('.dash-fleet-popover-interactive')) return;
-    if (dashFleetPopHideTimer) {
-      clearTimeout(dashFleetPopHideTimer);
-      dashFleetPopHideTimer = null;
-    }
+  dashFleetPopEl.setAttribute('role', 'dialog');
+  dashFleetPopEl.setAttribute('aria-modal', 'false');
+  dashFleetPopEl.addEventListener('pointerenter', () => {
+    cancelHideDashFleetPopover();
   });
   dashFleetPopEl.addEventListener('pointerleave', (ev) => {
     const related = ev.relatedTarget;
-    if (related instanceof Node && dashFleetPopEl.contains(related)) return;
+    if (related instanceof Node && dashFleetPopAnchor?.contains(related)) return;
     scheduleHideDashFleetPopover();
   });
   ensureDashFleetPopoverIgnoreHandlers(dashFleetPopEl);
@@ -4670,6 +4667,7 @@ function hideDashFleetPopover() {
 }
 
 const DASH_FLEET_HOVER_SHOW_MS = 320;
+const DASH_FLEET_HIDE_MS = 450;
 const DASH_FLEET_LONG_PRESS_MS = 480;
 const DASH_FLEET_MOVE_CANCEL_PX = 10;
 
@@ -4696,6 +4694,18 @@ if (!window.__dashFleetPopBound) {
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape') hideDashFleetPopover();
   });
+  document.addEventListener(
+    'pointerdown',
+    (ev) => {
+      if (!dashFleetPopEl || dashFleetPopEl.hidden) return;
+      const target = ev.target;
+      if (!(target instanceof Node)) return;
+      if (dashFleetPopEl.contains(target)) return;
+      if (dashFleetPopAnchor?.contains(target)) return;
+      hideDashFleetPopover();
+    },
+    true,
+  );
 }
 
 function dashFleetPopoverOverlapArea(a, b) {
@@ -4780,12 +4790,22 @@ function showDashFleetPopover(anchor, html) {
   if (siteId) void refreshDashFleetIndexingStatus(siteId);
 }
 
+function cancelHideDashFleetPopover() {
+  if (dashFleetPopHideTimer) {
+    clearTimeout(dashFleetPopHideTimer);
+    dashFleetPopHideTimer = null;
+  }
+}
+
 function scheduleHideDashFleetPopover() {
-  if (dashFleetPopHideTimer) clearTimeout(dashFleetPopHideTimer);
+  cancelHideDashFleetPopover();
   dashFleetPopHideTimer = setTimeout(() => {
     dashFleetPopHideTimer = null;
+    const pop = dashFleetPopEl;
+    const anchor = dashFleetPopAnchor;
+    if (pop && !pop.hidden && (pop.matches(':hover') || anchor?.matches(':hover'))) return;
     hideDashFleetPopover();
-  }, 80);
+  }, DASH_FLEET_HIDE_MS);
 }
 
 function attachDashboardFleetTilePopover(btn, html) {
@@ -4813,10 +4833,7 @@ function attachDashboardFleetTilePopover(btn, html) {
   // with a finger parked on a tile would open the tip after the delay.
   btn.addEventListener('pointerenter', (ev) => {
     if (ev.pointerType && ev.pointerType !== 'mouse') return;
-    if (dashFleetPopHideTimer) {
-      clearTimeout(dashFleetPopHideTimer);
-      dashFleetPopHideTimer = null;
-    }
+    cancelHideDashFleetPopover();
     if (dashFleetPopShowTimer) clearTimeout(dashFleetPopShowTimer);
     const switchingTile =
       dashFleetPopAnchor && dashFleetPopAnchor !== btn && dashFleetPopEl && !dashFleetPopEl.hidden;
@@ -4868,7 +4885,11 @@ function attachDashboardFleetTilePopover(btn, html) {
       showDashFleetPopover(btn, html);
     }
   });
-  btn.addEventListener('blur', () => scheduleHideDashFleetPopover());
+  btn.addEventListener('blur', (ev) => {
+    const related = ev.relatedTarget;
+    if (related instanceof Node && dashFleetPopEl?.contains(related)) return;
+    scheduleHideDashFleetPopover();
+  });
 
   btn.addEventListener(
     'click',

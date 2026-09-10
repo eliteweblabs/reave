@@ -120,8 +120,7 @@
   color: var(--fg);
   font-size: 0.72rem;
   line-height: 1.35;
-  /* Pass clicks through to fleet tiles; interactive blocks opt back in. */
-  pointer-events: none;
+  pointer-events: auto;
   box-sizing: border-box;
 }
 .dash-fleet-popover[hidden] {
