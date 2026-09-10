@@ -84,6 +84,18 @@ export type PageSpeedProbe = {
   detail: string;
 };
 
+/** Placeholder copy — not a real scan result (merge must not treat as archival). */
+export function isReadinessPlaceholderDetail(detail: string | null | undefined): boolean {
+  const d = String(detail || '').trim().toLowerCase();
+  return (
+    !d ||
+    d.startsWith('not scanned') ||
+    d.startsWith('pending') ||
+    d.startsWith('not verified') ||
+    d === 'pagespeed scan unavailable'
+  );
+}
+
 export type LinkCrawlProbe = {
   broken: number;
   internal: number;
@@ -122,13 +134,18 @@ function schemaStatus(
 }
 
 function pageSpeedStatus(probe: PageSpeedProbe | null | undefined): Pick<SiteReadinessItem, 'status' | 'detail'> {
-  if (!probe) return { status: 'unknown', detail: 'Not verified — open site for PageSpeed scan' };
+  if (!probe) {
+    return { status: 'unknown', detail: 'PageSpeed not run yet — use Scan sites' };
+  }
   const score = probe.performanceScore;
   const field = probe.fieldCategory?.toUpperCase();
   if (field === 'FAST') return { status: 'ok', detail: probe.detail || 'Real-user experience: Fast' };
   if (field === 'AVERAGE') return { status: 'warn', detail: probe.detail || 'Real-user experience: Average' };
   if (field === 'SLOW') return { status: 'crit', detail: probe.detail || 'Real-user experience: Slow' };
-  if (score == null) return { status: 'unknown', detail: probe.detail || 'PageSpeed scan unavailable' };
+  if (score == null) {
+    const detail = probe.detail?.trim() || 'PageSpeed scan unavailable';
+    return { status: 'warn', detail: `PageSpeed failed — ${detail}` };
+  }
   if (score >= 80) return { status: 'ok', detail: probe.detail || `Performance score ${score}` };
   if (score >= 50) return { status: 'warn', detail: probe.detail || `Performance score ${score} — room to optimize` };
   return { status: 'crit', detail: probe.detail || `Performance score ${score} — needs work` };

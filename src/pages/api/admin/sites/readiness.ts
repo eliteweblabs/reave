@@ -29,15 +29,12 @@ import {
 } from '../../../../lib/siteReadinessChecklist';
 import { seoInventory } from '../../../../lib/seoInventoryClient';
 import { checkLinks } from '../../../../lib/checkLinksClient';
-import { lighthousePsiMobile } from '../../../../lib/lighthouseClient';
+import { pageSpeedProbeFromPsi } from '../../../../lib/fleetPageSpeedCache';
 import { hostnameFromWebsite } from '../../../../lib/plausibleClient';
 import { normalizeMonitorHost } from '../../../../lib/publicUrl';
 import { collectInstantSiteHealthIssues } from '../../../../lib/siteHealthScore';
 
 export const prerender = false;
-
-const PSI_CACHE_TTL_MS = 24 * 60 * 60_000;
-const psiCache = new Map<string, { at: number; probe: Parameters<typeof buildSiteReadinessChecklist>[0]['pageSpeed'] }>();
 
 async function loadSiteCard(context: APIContext, siteId: string) {
   const company = await getCompanyConfig(context.request);
@@ -55,33 +52,6 @@ async function loadSiteCard(context: APIContext, siteId: string) {
   const cards = mergeDashboardSiteCards(monitors, analytics?.sites ?? []);
   const host = hostnameFromWebsite(siteId) || normalizeMonitorHost(siteId) || siteId;
   return cards.find((c) => c.siteId === host) ?? null;
-}
-
-async function cachedPageSpeedProbe(url: string, fresh: boolean) {
-  const key = url.replace(/\/+$/, '').toLowerCase();
-  const cached = psiCache.get(key);
-  if (!fresh && cached && Date.now() - cached.at < PSI_CACHE_TTL_MS) {
-    return cached.probe ?? null;
-  }
-  const res = await lighthousePsiMobile(url);
-  if (!res.ok) {
-    const probe = { performanceScore: null, fieldCategory: null, detail: res.error };
-    psiCache.set(key, { at: Date.now(), probe });
-    return probe;
-  }
-  const score = res.scores.performance != null ? Math.round(res.scores.performance * 100) : null;
-  const field = res.pageExperience?.overall || res.originExperience?.overall || null;
-  const detailParts: string[] = [];
-  if (field) detailParts.push(`Field data: ${field}`);
-  if (score != null) detailParts.push(`Lab mobile score ${score}`);
-  if (res.metrics.lcp) detailParts.push(`LCP ${res.metrics.lcp}`);
-  const probe = {
-    performanceScore: score,
-    fieldCategory: field,
-    detail: detailParts.join(' · ') || 'PageSpeed scan complete',
-  };
-  psiCache.set(key, { at: Date.now(), probe });
-  return probe;
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -128,7 +98,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const siteUrl = `https://${host.replace(/^www\./, '')}/`;
     const [seoResult, pageSpeed, linkResult] = await Promise.all([
       seoInventory(siteUrl),
-      cachedPageSpeedProbe(siteUrl, fresh),
+      pageSpeedProbeFromPsi(siteUrl, fresh),
       checkLinks(siteUrl, true),
     ]);
     const seo = seoResult.ok ? seoResult : null;

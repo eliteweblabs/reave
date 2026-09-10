@@ -12,6 +12,7 @@ import type {
   SiteReadinessStatus,
   SiteReadinessSummary,
 } from './siteReadinessChecklist';
+import { isReadinessPlaceholderDetail } from './siteReadinessChecklist';
 import type { SiteTechStackSummary } from './siteTechStack';
 import { mergeSiteTechStackSummary } from './siteTechStack';
 
@@ -103,25 +104,30 @@ const SEO_ISSUE_CODES = new Set<SiteHealthIssueCode>(['robots_blocked', 'robots_
 function isArchivalReadinessItem(item: SiteReadinessItem | null | undefined): boolean {
   if (!item) return false;
   if (item.status !== 'unknown') return true;
-  const detail = String(item.detail || '').trim().toLowerCase();
-  return detail.length > 0 && !detail.startsWith('not scanned') && !detail.startsWith('pending');
+  return !isReadinessPlaceholderDetail(item.detail);
 }
 
 /** Keep last good checklist rows when a fresh probe comes back empty. */
 export function mergeSiteReadinessSummary(
   previous: SiteReadinessSummary | null | undefined,
   next: SiteReadinessSummary,
-  opts: { seoProbed?: boolean } = {},
+  opts: { seoProbed?: boolean; pageSpeedProbed?: boolean } = {},
 ): SiteReadinessSummary {
   if (!previous?.items?.length) return next;
   const seoProbed = opts.seoProbed === true;
+  const pageSpeedProbed = opts.pageSpeedProbed === true;
   const prevById = new Map(previous.items.map((item) => [item.id, item]));
   const items = next.items.map((item) => {
     const prev = prevById.get(item.id);
     if (!prev || !isArchivalReadinessItem(prev)) return item;
     if (item.status !== 'unknown') return item;
     if (!seoProbed && SEO_READINESS_IDS.has(item.id)) return prev;
-    if (isArchivalReadinessItem(prev)) return prev;
+    if (item.id === 'page_speed') {
+      if (pageSpeedProbed && !isReadinessPlaceholderDetail(item.detail)) return item;
+      if (pageSpeedProbed && isReadinessPlaceholderDetail(item.detail)) return prev;
+      if (!pageSpeedProbed && !isReadinessPlaceholderDetail(prev.detail)) return prev;
+    }
+    if (isArchivalReadinessItem(prev) && isReadinessPlaceholderDetail(item.detail)) return prev;
     return item;
   });
   const okCount = items.filter((i) => i.status === 'ok').length;
@@ -137,7 +143,7 @@ export function mergeSiteReadinessSummary(
 export function mergeSiteHealthSummary(
   previous: SiteHealthSummary | null | undefined,
   next: SiteHealthSummary,
-  opts: { seoProbed?: boolean } = {},
+  opts: { seoProbed?: boolean; pageSpeedProbed?: boolean } = {},
 ): SiteHealthSummary {
   if (!previous) return next;
   const seoProbed = opts.seoProbed === true;
@@ -146,7 +152,7 @@ export function mergeSiteHealthSummary(
     okCount: 0,
     totalCount: 0,
     checkedAt: next.checkedAt,
-  }, { seoProbed });
+  }, { seoProbed, pageSpeedProbed: opts.pageSpeedProbed === true });
   const scored = scoreSiteHealthFromReadiness(readiness);
 
   let issues = next.issues;

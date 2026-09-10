@@ -12,7 +12,10 @@ import {
   scoreSiteHealthFromReadiness,
   scoreSiteHealthIssues,
 } from '../src/lib/siteHealthScore.ts';
-import { buildSiteReadinessChecklist } from '../src/lib/siteReadinessChecklist.ts';
+import {
+  buildSiteReadinessChecklist,
+  isReadinessPlaceholderDetail,
+} from '../src/lib/siteReadinessChecklist.ts';
 import { buildSiteTechStackSummary } from '../src/lib/siteTechStack.ts';
 
 assert.equal(robotsTxtBlocksAll('User-agent: *\nDisallow: /\n'), true);
@@ -208,6 +211,35 @@ assert.equal(
   'ok',
 );
 assert.notEqual(mergedReadiness.items.find((item) => item.id === 'schema_markup')?.detail, 'Not scanned yet');
+
+assert.equal(isReadinessPlaceholderDetail('Not verified — open site for PageSpeed scan'), true);
+assert.equal(isReadinessPlaceholderDetail('PageSpeed failed — quota exceeded'), false);
+
+const prevPageSpeed = buildSiteReadinessChecklist({
+  seo: null,
+  issues: [],
+  googleConnected: true,
+  gscHasProperty: true,
+  gscSitemapCount: null,
+  analytics: null,
+  monitor: null,
+});
+const nextPageSpeedError = buildSiteReadinessChecklist({
+  seo: null,
+  issues: [],
+  googleConnected: true,
+  gscHasProperty: true,
+  gscSitemapCount: null,
+  analytics: null,
+  monitor: null,
+  pageSpeed: { performanceScore: null, fieldCategory: null, detail: 'quota exceeded' },
+});
+const mergedPageSpeed = mergeSiteReadinessSummary(prevPageSpeed, nextPageSpeedError, {
+  pageSpeedProbed: true,
+});
+const pageSpeedItem = mergedPageSpeed.items.find((item) => item.id === 'page_speed');
+assert.match(String(pageSpeedItem?.detail || ''), /quota exceeded/);
+assert.equal(pageSpeedItem?.status, 'warn');
 
 const mergedRow = mergeSiteHealthSummary(
   {

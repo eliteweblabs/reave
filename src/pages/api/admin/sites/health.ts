@@ -7,6 +7,7 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
 import { hasFeature } from '../../../../lib/features';
 import { loadDashboardFleetCards } from '../../../../lib/dashboardFleetCards';
+import { getCompanyConfig } from '../../../../lib/companyConfig';
 import {
   buildSiteHealthFleet,
   hydrateSiteHealthFleetCache,

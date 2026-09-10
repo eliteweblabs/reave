@@ -2,8 +2,8 @@
  * Sites fleet health grades — lightweight critical checks with a long SWR cache.
  *
  * Probes seo_inventory (schema, sitemap, internal links), Search Console coverage,
- * uptime, and Plausible wiring for dashboard tiles. PageSpeed and full link crawls
- * run on the Sites detail view only.
+ * uptime, Plausible wiring, and optional PageSpeed (Scan sites / improve) for dashboard tiles.
+ * Full link crawls run on the Sites detail view only.
  */
 import {
   agencySubject,
@@ -24,7 +24,7 @@ import { hostnameFromWebsite } from './plausibleClient';
 import { isApexPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
 import { buildSiteReadinessChecklist } from './siteReadinessChecklist';
 import { buildSiteTechStackSummary } from './siteTechStack';
-import { peekCachedPageSpeedProbe } from './fleetPageSpeedCache';
+import { peekCachedPageSpeedProbe, warmFleetPageSpeedCache } from './fleetPageSpeedCache';
 import type {
   AnalyticsAccountRow,
   UptimeMonitorForFleetMerge,
@@ -190,7 +190,13 @@ async function mapPool<T, R>(
 
 export async function buildSiteHealthFleet(
   cards: SiteHealthCardInput[],
-  opts: { fresh?: boolean; pruneToCards?: boolean } = {},
+  opts: {
+    fresh?: boolean;
+    pruneToCards?: boolean;
+    /** Run Google PageSpeed Insights for each apex site (Scan sites / improve). */
+    runPageSpeed?: boolean;
+    pageSpeedFresh?: boolean;
+  } = {},
 ): Promise<SiteHealthFleet> {
   if (!opts.fresh) {
     const cached = peekCachedSiteHealthFleet();
@@ -219,6 +225,19 @@ export async function buildSiteHealthFleet(
       } catch {
         gscEntries = null;
       }
+    }
+
+    const runPageSpeed = opts.runPageSpeed === true;
+    if (runPageSpeed && apexCards.length) {
+      const psiUrls = apexCards.map((card) => {
+        const siteId =
+          hostnameFromWebsite(card.siteId) || normalizeMonitorHost(card.siteId) || card.siteId;
+        return `https://${siteId.replace(/^www\./, '')}/`;
+      });
+      await warmFleetPageSpeedCache(psiUrls, {
+        fresh: opts.pageSpeedFresh === true,
+        concurrency: 1,
+      });
     }
 
     const seoResults = await mapPool(apexCards, SEO_PROBE_CONCURRENCY, (card) =>
@@ -311,6 +330,7 @@ export async function buildSiteHealthFleet(
       };
       scannedSites[siteId] = mergeSiteHealthSummary(previousFleet?.sites?.[siteId], freshRow, {
         seoProbed: Boolean(seo),
+        pageSpeedProbed: runPageSpeed,
       });
     }
 

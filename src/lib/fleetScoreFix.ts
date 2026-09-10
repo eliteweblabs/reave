@@ -6,7 +6,7 @@ import {
   invalidateAnalyticsDashboardPreview,
 } from './analyticsFleet';
 import { mergeDashboardSiteCards } from './analyticsSiteMerge';
-import { warmFleetPageSpeedCache } from './fleetPageSpeedCache';
+import { isReadinessPlaceholderDetail } from './siteReadinessChecklist';
 import {
   buildSiteHealthFleet,
   invalidateSiteHealthFleetCache,
@@ -16,9 +16,6 @@ import type { SiteHealthFleet } from './siteHealthScore';
 import type { SiteReadinessItem } from './siteReadinessChecklist';
 import type { SiteFleetIgnoreState } from './siteFleetIgnore';
 import { wireFleetSites, type SiteWireFleetResult } from './siteWiring';
-import { hostnameFromWebsite } from './plausibleClient';
-import { normalizeMonitorHost } from './publicUrl';
-
 export type FleetScoreRemainingItem = {
   id: string;
   label: string;
@@ -49,15 +46,6 @@ const AUTO_FIXABLE_IDS = new Set([
   'xml_sitemap',
   'analytics',
 ]);
-
-function siteHost(card: SiteHealthCardInput): string {
-  return (
-    hostnameFromWebsite(card.website || '') ||
-    hostnameFromWebsite(card.siteId) ||
-    normalizeMonitorHost(card.siteId) ||
-    card.siteId
-  );
-}
 
 function remainingItems(items: SiteReadinessItem[] | undefined): FleetScoreRemainingItem[] {
   if (!Array.isArray(items)) return [];
@@ -139,20 +127,12 @@ export async function improveFleetScores(input: {
   const includePageSpeed = input.includePageSpeed !== false;
   let cards = input.cards;
 
-  const urls = cards
-    .map((card) => siteHost(card))
-    .filter(Boolean)
-    .map((host) => `https://${host.replace(/^www\./, '')}/`);
-
-  let pageSpeedProbed = 0;
-  if (includePageSpeed && urls.length) {
-    pageSpeedProbed = await warmFleetPageSpeedCache(urls, {
-      fresh: input.pageSpeedFresh === true,
-      concurrency: 1,
-    });
-  }
-
-  const before = await buildSiteHealthFleet(cards, { fresh: true, pruneToCards: false });
+  const before = await buildSiteHealthFleet(cards, {
+    fresh: true,
+    pruneToCards: false,
+    runPageSpeed: includePageSpeed,
+    pageSpeedFresh: input.pageSpeedFresh === true,
+  });
   const wireResult = await wireFleetSites(cards, before, input.ignore);
 
   if (wireResult.wired > 0) {
@@ -164,7 +144,18 @@ export async function improveFleetScores(input: {
     }
   }
 
-  const after = await buildSiteHealthFleet(cards, { fresh: true, pruneToCards: false });
+  const after = await buildSiteHealthFleet(cards, {
+    fresh: true,
+    pruneToCards: false,
+    runPageSpeed: includePageSpeed,
+    pageSpeedFresh: input.pageSpeedFresh === true,
+  });
+  const pageSpeedProbed = includePageSpeed
+    ? Object.values(after.sites).filter((row) => {
+        const item = row.readiness?.items.find((i) => i.id === 'page_speed');
+        return item && !isReadinessPlaceholderDetail(item.detail);
+      }).length
+    : 0;
   const report = buildReport(before, after, wireResult, pageSpeedProbed);
 
   return { siteHealth: after, wireResult, report };

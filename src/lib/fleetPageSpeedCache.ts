@@ -28,6 +28,7 @@ export function pageSpeedProbeFromPsi(url: string, fresh: boolean): Promise<Page
         detail: res.error,
       };
       psiCache.set(key, { at: Date.now(), probe });
+      console.warn('[pagespeed] PSI failed', { url, error: res.error.slice(0, 160) });
       return probe;
     }
     const score = res.scores.performance != null ? Math.round(res.scores.performance * 100) : null;
