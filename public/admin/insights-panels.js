@@ -1171,11 +1171,11 @@ function bindAnalyticsControls(root) {
 }
 
 function readinessStatusLabel(status) {
-  if (status === 'ok') return 'Likely Good';
-  if (status === 'warn') return 'Needs Attention';
-  if (status === 'crit') return 'Critical Issue';
+  if (status === 'ok') return 'OK';
+  if (status === 'warn') return 'Warning';
+  if (status === 'crit') return 'Critical';
   if (status === 'pending') return 'Scanning…';
-  return 'Not Verified';
+  return 'Not scanned';
 }
 
 function readinessStatusClass(status) {

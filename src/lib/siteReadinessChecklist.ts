@@ -322,14 +322,14 @@ export function buildSiteReadinessChecklist(input: {
 export function readinessStatusLabel(status: SiteReadinessStatus): string {
   switch (status) {
     case 'ok':
-      return 'Likely Good';
+      return 'OK';
     case 'warn':
-      return 'Needs Attention';
+      return 'Warning';
     case 'crit':
-      return 'Critical Issue';
+      return 'Critical';
     case 'pending':
       return 'Scanning…';
     default:
-      return 'Not Verified';
+      return 'Not scanned';
   }
 }

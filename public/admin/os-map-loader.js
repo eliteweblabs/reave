@@ -4303,9 +4303,9 @@ function dashboardSiteHealthSignalsHtml(health, card, fleet, opts = {}) {
 }
 
 function dashboardReadinessPopoverStatus(state) {
-  if (state === 'ok') return 'Likely good';
-  if (state === 'warn') return 'Needs attention';
-  if (state === 'crit') return 'Issue';
+  if (state === 'ok') return 'OK';
+  if (state === 'warn') return 'Warning';
+  if (state === 'crit') return 'Critical';
   if (state === 'pending') return 'Scanning…';
   return 'Not scanned';
 }
