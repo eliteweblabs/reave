@@ -1,0 +1,517 @@
+---
+/**
+ * /rate-your-experience — joke customer-satisfaction survey (official reave.app only).
+ * Not in nav. noindex. "No" becomes Yes; low stars become five.
+ */
+import Layout from "../layouts/MarketingLayout.astro";
+import { isCanonicalReaveInstall } from "../lib/installConfig";
+
+export const prerender = false;
+
+if (!isCanonicalReaveInstall()) {
+  return new Response("Not found", { status: 404 });
+}
+
+const questions = [
+  { id: "timely", type: "yesno", prompt: "Have we answered all your questions in a timely manner?" },
+  { id: "service", type: "stars", prompt: "How would you rate your service today?" },
+  { id: "knowledge", type: "yesno", prompt: "Was your representative knowledgeable and helpful?" },
+  { id: "recommend", type: "yesno", prompt: "Would you recommend us to friends and family?" },
+  { id: "overall", type: "stars", prompt: "Overall, how satisfied are you with your experience?" },
+];
+---
+
+<Layout
+  title="Customer satisfaction survey"
+  description="Tell us how we're doing."
+  noIndex={true}
+  showSiteAssistant={false}
+>
+  <div class="cs-survey" id="cs-survey">
+    <header class="cs-header">
+      <p class="cs-kicker">ReΛve Customer Care™</p>
+      <h1 class="cs-title">We value your feedback</h1>
+      <p class="cs-lead">
+        Your opinion helps us maintain our <strong>100% five-star</strong> satisfaction record.
+        This survey takes about 30 seconds.
+      </p>
+    </header>
+
+    <div class="cs-progress-wrap" aria-hidden="true">
+      <div class="cs-progress-bar" id="cs-progress-bar"></div>
+    </div>
+    <p class="cs-progress-label" id="cs-progress-label">Question 1 of {questions.length}</p>
+
+    <div class="cs-questions" id="cs-questions">
+      {
+        questions.map((q, i) => (
+          <section
+            class:list={["cs-question", i === 0 && "cs-question-active"]}
+            data-question-index={i}
+            data-question-type={q.type}
+            aria-labelledby={`cs-q-${q.id}`}
+            hidden={i !== 0}
+          >
+            <h2 class="cs-question-prompt" id={`cs-q-${q.id}`}>
+              {q.prompt}
+            </h2>
+
+            {q.type === "yesno" ? (
+              <div class="cs-yesno" role="group" aria-label={q.prompt}>
+                <button type="button" class="cs-yesno-btn cs-yesno-yes" data-answer="yes">
+                  Yes
+                </button>
+                <button type="button" class="cs-yesno-btn cs-yesno-no" data-answer="no">
+                  No
+                </button>
+              </div>
+            ) : (
+              <div class="cs-stars-row" role="group" aria-label={q.prompt}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    type="button"
+                    class="cs-star-btn"
+                    data-stars={n}
+                    aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                  >
+                    <span class="cs-star-glyph" aria-hidden="true">★</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <p class="cs-correction" hidden aria-live="polite"></p>
+          </section>
+        ))
+      }
+    </div>
+
+    <section class="cs-thanks" id="cs-thanks" hidden>
+      <div class="cs-thanks-badge" aria-hidden="true">★★★★★</div>
+      <h2 class="cs-thanks-title">Thank you for your glowing feedback!</h2>
+      <p class="cs-thanks-body">
+        Your responses have been recorded. Our satisfaction dashboard now reads
+        <strong>5.00 / 5.00</strong> — unchanged, as intended.
+      </p>
+      <p class="cs-thanks-foot">
+        A member of our team may reach out to thank you for thanking us.
+      </p>
+    </section>
+  </div>
+
+  <script define:vars={{ totalQuestions: questions.length }}>
+    (function () {
+      var root = document.getElementById("cs-survey");
+      if (!root) return;
+
+      var sections = Array.prototype.slice.call(root.querySelectorAll(".cs-question"));
+      var progressBar = document.getElementById("cs-progress-bar");
+      var progressLabel = document.getElementById("cs-progress-label");
+      var thanks = document.getElementById("cs-thanks");
+      var current = 0;
+      var busy = false;
+
+      function setProgress(index) {
+        var pct = Math.round(((index + 1) / totalQuestions) * 100);
+        if (progressBar) progressBar.style.width = pct + "%";
+        if (progressLabel) {
+          progressLabel.textContent =
+            index >= totalQuestions
+              ? "Complete"
+              : "Question " + (index + 1) + " of " + totalQuestions;
+        }
+      }
+
+      function showQuestion(index) {
+        sections.forEach(function (section, i) {
+          var active = i === index;
+          section.hidden = !active;
+          section.classList.toggle("cs-question-active", active);
+        });
+        setProgress(index);
+      }
+
+      function finishSurvey() {
+        sections.forEach(function (section) {
+          section.hidden = true;
+          section.classList.remove("cs-question-active");
+        });
+        if (thanks) thanks.hidden = false;
+        if (progressBar) progressBar.style.width = "100%";
+        if (progressLabel) progressLabel.textContent = "Complete";
+        busy = false;
+      }
+
+      function advanceAfterDelay() {
+        current += 1;
+        if (current >= totalQuestions) {
+          window.setTimeout(finishSurvey, 400);
+          return;
+        }
+        window.setTimeout(function () {
+          busy = false;
+          showQuestion(current);
+        }, 500);
+      }
+
+      function showCorrection(section, message) {
+        var note = section.querySelector(".cs-correction");
+        if (!note) return;
+        note.textContent = message;
+        note.hidden = false;
+      }
+
+      function handleYesNo(section, btn) {
+        var isNo = btn.getAttribute("data-answer") === "no";
+        var yesBtn = section.querySelector(".cs-yesno-yes");
+        var noBtn = section.querySelector(".cs-yesno-no");
+
+        section.querySelectorAll(".cs-yesno-btn").forEach(function (b) {
+          b.disabled = true;
+        });
+
+        if (isNo && yesBtn && noBtn) {
+          noBtn.classList.add("cs-yesno-correcting");
+          showCorrection(section, "Thanks — we've updated your response to Yes.");
+          window.setTimeout(function () {
+            noBtn.hidden = true;
+            yesBtn.classList.add("cs-yesno-selected");
+            noBtn.classList.remove("cs-yesno-correcting");
+            advanceAfterDelay();
+          }, 650);
+          return;
+        }
+
+        btn.classList.add("cs-yesno-selected");
+        advanceAfterDelay();
+      }
+
+      function highlightStars(section, count) {
+        var starBtns = section.querySelectorAll(".cs-star-btn");
+        starBtns.forEach(function (star, i) {
+          star.classList.toggle("cs-star-lit", i < count);
+        });
+      }
+
+      function handleStars(section, btn) {
+        var picked = parseInt(btn.getAttribute("data-stars") || "5", 10);
+        var starBtns = section.querySelectorAll(".cs-star-btn");
+
+        starBtns.forEach(function (b) {
+          b.disabled = true;
+        });
+
+        highlightStars(section, picked);
+
+        if (picked < 5) {
+          btn.classList.add("cs-star-correcting");
+          showCorrection(section, "Thanks — we've updated your rating to 5 stars.");
+          window.setTimeout(function () {
+            highlightStars(section, 5);
+            starBtns.forEach(function (b) {
+              b.classList.remove("cs-star-correcting");
+            });
+            advanceAfterDelay();
+          }, 700);
+          return;
+        }
+
+        advanceAfterDelay();
+      }
+
+      root.addEventListener("click", function (event) {
+        if (busy) return;
+
+        var yesNoBtn = event.target.closest(".cs-yesno-btn");
+        var starBtn = event.target.closest(".cs-star-btn");
+        if (!yesNoBtn && !starBtn) return;
+
+        var section = event.target.closest(".cs-question");
+        if (!section) return;
+
+        busy = true;
+
+        if (yesNoBtn) {
+          handleYesNo(section, yesNoBtn);
+          return;
+        }
+
+        if (starBtn) {
+          handleStars(section, starBtn);
+        }
+      });
+
+      setProgress(0);
+    })();
+  </script>
+</Layout>
+
+<style>
+  .cs-survey {
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: clamp(2rem, 6vw, 4rem) 1.25rem 5rem;
+  }
+
+  .cs-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .cs-kicker {
+    margin: 0 0 0.35rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #2563eb;
+    font-weight: 600;
+  }
+
+  .cs-title {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.65rem, 4.5vw, 2.1rem);
+    font-weight: 600;
+    line-height: 1.15;
+    color: #0f172a;
+  }
+
+  .cs-lead {
+    margin: 0;
+    color: #475569;
+    line-height: 1.55;
+    font-size: 0.98rem;
+  }
+
+  .cs-progress-wrap {
+    height: 6px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  .cs-progress-bar {
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+    transition: width 0.35s ease;
+  }
+
+  .cs-progress-label {
+    margin: 0 0 1.5rem;
+    font-size: 0.8rem;
+    color: #64748b;
+    text-align: center;
+  }
+
+  .cs-question {
+    animation: cs-fade-in 0.3s ease;
+  }
+
+  @keyframes cs-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .cs-question-prompt {
+    margin: 0 0 1.25rem;
+    font-size: 1.15rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: #1e293b;
+    text-align: center;
+  }
+
+  .cs-yesno {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .cs-yesno-btn {
+    padding: 0.95rem 1rem;
+    border: 2px solid #cbd5e1;
+    border-radius: 14px;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      transform 0.12s ease,
+      opacity 0.2s ease;
+  }
+
+  .cs-yesno-btn:hover:not(:disabled) {
+    border-color: #2563eb;
+    background: #f8fafc;
+  }
+
+  .cs-yesno-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .cs-yesno-yes.cs-yesno-selected {
+    border-color: #16a34a;
+    background: #f0fdf4;
+    color: #15803d;
+  }
+
+  .cs-yesno-no.cs-yesno-correcting {
+    border-color: #dc2626;
+    background: #fef2f2;
+    color: #b91c1c;
+    animation: cs-wiggle 0.35s ease;
+  }
+
+  .cs-stars-row {
+    display: flex;
+    justify-content: center;
+    gap: 0.35rem;
+  }
+
+  .cs-star-btn {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #cbd5e1;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      transform 0.12s ease;
+  }
+
+  .cs-star-btn:hover:not(:disabled) {
+    border-color: #2563eb;
+    background: #f8fafc;
+  }
+
+  .cs-star-btn:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .cs-star-glyph {
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #cbd5e1;
+    transition: color 0.2s ease;
+  }
+
+  .cs-star-btn.cs-star-lit .cs-star-glyph {
+    color: #eab308;
+  }
+
+  .cs-star-btn.cs-star-correcting {
+    border-color: #dc2626;
+    animation: cs-wiggle 0.35s ease;
+  }
+
+  .cs-star-btn.cs-star-correcting .cs-star-glyph {
+    color: #dc2626;
+  }
+
+  .cs-correction {
+    margin: 1rem 0 0;
+    text-align: center;
+    font-size: 0.88rem;
+    color: #64748b;
+    font-style: italic;
+  }
+
+  @keyframes cs-wiggle {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(-4px);
+    }
+    75% {
+      transform: translateX(4px);
+    }
+  }
+
+  .cs-thanks {
+    text-align: center;
+    padding: 1.5rem 0 0;
+    animation: cs-fade-in 0.4s ease;
+  }
+
+  .cs-thanks-badge {
+    display: inline-block;
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    background: #fef9c3;
+    color: #ca8a04;
+    font-size: 1.25rem;
+    letter-spacing: 0.12em;
+  }
+
+  .cs-thanks-title {
+    margin: 0 0 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .cs-thanks-body,
+  .cs-thanks-foot {
+    margin: 0 0 0.65rem;
+    color: #475569;
+    line-height: 1.55;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .cs-title {
+      color: #f1f5f9;
+    }
+
+    .cs-lead,
+    .cs-thanks-body,
+    .cs-thanks-foot,
+    .cs-correction {
+      color: #94a3b8;
+    }
+
+    .cs-question-prompt,
+    .cs-thanks-title {
+      color: #e2e8f0;
+    }
+
+    .cs-progress-wrap {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .cs-yesno-btn,
+    .cs-star-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #e2e8f0;
+    }
+
+    .cs-yesno-btn:hover:not(:disabled),
+    .cs-star-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .cs-yesno-yes.cs-yesno-selected {
+      background: rgba(22, 163, 74, 0.15);
+    }
+  }
+</style>
