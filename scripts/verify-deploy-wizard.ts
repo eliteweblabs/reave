@@ -637,6 +637,9 @@ assert.ok(core.services.find((s) => s.id === 'reave')?.repo);
 const sharedPlausible = core.variables.find((v) => v.name === 'PLAUSIBLE_API_BASE_URL');
 assert.equal(sharedPlausible?.kind, 'literal');
 assert.match(sharedPlausible?.filled || '', /plausible-analytics-ce-production-6fd8\.up\.railway\.app/);
+assert.ok(core.variables.some((v) => v.name === 'PLAUSIBLE_API_KEY' && v.inheritFromHost));
+const tzPlan = buildDeployWizardPlan({ features: [], installSlug: 'acme', timezone: 'America/Los_Angeles' });
+assert.equal(tzPlan.variables.find((v) => v.name === 'PLAUSIBLE_TIMEZONE')?.filled, 'America/Los_Angeles');
 const ownPlausible = buildDeployWizardPlan({
   features: ['analytic_audit'],
   extras: ['plausible_railway'],

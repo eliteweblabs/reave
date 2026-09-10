@@ -1867,9 +1867,15 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'PLAUSIBLE_API_KEY',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',
-    description: 'Plausible API key.',
-    features: ['analytic_audit'],
+    description: 'Plausible API key (shared fleet + Sites module).',
     required: false,
+  }),
+  v({
+    name: 'PLAUSIBLE_TIMEZONE',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'literal',
+    required: false,
+    description: 'Plausible site timezone — filled from booking timezone on Apply.',
   }),
   v({
     name: 'INDEXNOW_KEY',
@@ -2345,6 +2351,7 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
     if (raw.name === 'OWNER_EMAIL') filled = ownerEmail;
     if (raw.name === 'OWNER_PHONE') filled = ownerPhone;
     if (raw.name === 'BOOKING_TIMEZONE') filled = timezone;
+    if (raw.name === 'PLAUSIBLE_TIMEZONE') filled = timezone;
     if (raw.name === 'PUBLIC_SITE_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'COMPANY_DOMAIN' && siteDomain) filled = siteDomain;
     if (raw.name === 'PLANNED_SITE_DOMAIN') filled = '';

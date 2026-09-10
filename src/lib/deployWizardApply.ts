@@ -24,6 +24,10 @@ import { syncCalcomIdentityFromReave } from './calcomIdentitySync';
 import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
 import { railwaySetVariables } from './railwayAgentApi';
 import { ensureDeployWizardStack } from './deployWizardProvision';
+import {
+  formatDeployWizardPlausibleNote,
+  registerDeployWizardPlausibleSite,
+} from './deployWizardPlausible';
 
 export type DeployWizardApplyProgress = (message: string) => void;
 
@@ -223,6 +227,19 @@ export async function executeDeployWizardApply(opts: {
         say(`Cal.com URL updated (${cal.updated.join(', ')}).`);
       }
     }
+  }
+
+  const plausibleDomain = !opts.plan.stagingHost
+    ? opts.plan.plannedSiteDomain || opts.plan.siteDomain
+    : '';
+  if (plausibleDomain) {
+    say(`Registering ${plausibleDomain} in Plausible…`);
+    const plausible = await registerDeployWizardPlausibleSite({
+      domain: plausibleDomain,
+      timezone: opts.plan.timezone,
+    });
+    const plausibleNote = formatDeployWizardPlausibleNote(plausible);
+    if (plausibleNote) say(plausibleNote);
   }
 
   const provisioned = [...stack.notes, ...resolved.notes];

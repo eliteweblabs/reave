@@ -20,6 +20,10 @@ import { isNamecomConfigured } from './namecomClient';
 import { isGoDaddyConfigured } from './godaddyClient';
 import { isRailwayConfigured, railwayResolveProject } from './railwayClient';
 import { railwayListVariables, railwaySetVariables } from './railwayAgentApi';
+import {
+  formatDeployWizardPlausibleNote,
+  registerDeployWizardPlausibleSite,
+} from './deployWizardPlausible';
 
 export type GoLiveRegistrar = 'namecom' | 'godaddy' | 'manual';
 
@@ -36,6 +40,7 @@ export type GoLiveInstallContext = {
   extras: DeployWizardExtraId[];
   postAlias: string;
   companyName: string;
+  timezone: string;
 };
 
 export type GoLiveStep = {
@@ -130,6 +135,9 @@ export async function loadGoLiveInstallContext(opts: {
       extras: inferExtras(resolved.services.map((s) => s.name)),
       postAlias: (vars.variables.POST_ALIAS ?? 'project').trim() || 'project',
       companyName: (vars.variables.COMPANY_NAME ?? '').trim(),
+      timezone:
+        (vars.variables.PLAUSIBLE_TIMEZONE ?? vars.variables.BOOKING_TIMEZONE ?? 'America/New_York').trim() ||
+        'America/New_York',
     },
   };
 }
@@ -319,6 +327,35 @@ export async function executeGoLive(opts: {
         detail: `https://cal.${apex} · ${cal.updated.join(', ')}`,
       });
     }
+  }
+
+  pushStep({ id: 'plausible', label: 'Plausible analytics', status: 'running' });
+  say(`Registering ${apex} in Plausible…`);
+  const plausible = await registerDeployWizardPlausibleSite({ domain: apex, timezone: ctx.timezone });
+  const plausibleNote = formatDeployWizardPlausibleNote(plausible);
+  if (plausible.skipped && !plausibleNote) {
+    pushStep({
+      id: 'plausible',
+      label: 'Plausible analytics',
+      status: 'skipped',
+      detail: 'Plausible not configured on this host',
+    });
+  } else if (plausible.ok && !plausible.skipped) {
+    pushStep({
+      id: 'plausible',
+      label: 'Plausible analytics',
+      status: 'done',
+      detail: plausibleNote || apex,
+    });
+  } else if (plausibleNote) {
+    pushStep({
+      id: 'plausible',
+      label: 'Plausible analytics',
+      status: plausible.manualUrl ? 'skipped' : 'error',
+      detail: plausibleNote,
+    });
+  } else {
+    pushStep({ id: 'plausible', label: 'Plausible analytics', status: 'skipped' });
   }
 
   pushStep({ id: 'clerk', label: 'Clerk domain', status: 'running' });
