@@ -44,9 +44,10 @@ import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop } from 
 import {
   formatRuleWhenClause,
   formatRuleLabMeta,
+  formatRuleCreatedLabel,
   formatRuleProcessLabel,
   insertDragWithinScope,
-} from './email-triage-lab.js?v=20260829a';
+} from './email-triage-lab.js?v=20260909a';
 import {
   createChipPair,
   chipsFromRulePhrases,
@@ -222,6 +223,8 @@ function ruleHitsSubline(rule) {
   const bits = [formatRuleHitLabel(rule)];
   const last = formatRuleLastMatchedLabel(rule);
   if (last) bits.push(last);
+  const created = formatRuleCreatedLabel(rule?.createdAt);
+  if (created) bits.push(`Created ${created}`);
   return bits.join(' · ');
 }
 
@@ -369,6 +372,8 @@ function ruleSubline(rule) {
     bits.push(`→ ${rule.forwardTo}`);
     if (rule.createProject) bits.push('create project');
   }
+  const created = formatRuleCreatedLabel(rule?.createdAt);
+  if (created) bits.push(`Created ${created}`);
   return bits.join(' · ');
 }
 

@@ -211,6 +211,14 @@ export function insertDragWithinScope(listEl, dragEl, clientY, cardSelector) {
   else listEl.appendChild(dragEl);
 }
 
+/** Short created date for rule cards (Email Lab meta line). */
+export function formatRuleCreatedLabel(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 /** Scope · process · notify/silent meta under the WHEN clause. */
 export function formatRuleLabMeta(rule) {
   const scope = rule?.scope === 'universal' ? 'Universal' : 'Personal';
@@ -225,6 +233,8 @@ export function formatRuleLabMeta(rule) {
     bits.push(`→ ${rule.forwardTo}`);
     if (rule.createProject) bits.push('create project');
   }
+  const created = formatRuleCreatedLabel(rule?.createdAt);
+  if (created) bits.push(`Created ${created}`);
   return bits.join(' · ');
 }
 
