@@ -192,10 +192,54 @@ const partialPrecache = mergeDashboardSiteCards(
       'cached-only.com': { grade: 'B' },
       'also-cached.com': { grade: 'C' },
     },
+    includeHealthOnlySites: false,
   },
 );
-assert.equal(partialPrecache.length, 3);
-assert.ok(partialPrecache.some((row) => row.siteId === 'also-cached.com'));
+assert.equal(partialPrecache.length, 1);
+assert.equal(partialPrecache[0]?.siteId, 'wired.com');
+
+const liveFleetNoHealthGhosts = mergeDashboardSiteCards(
+  [],
+  [{ siteId: 'wired.com', label: 'wired.com', kind: 'agency', registered: true, visitors: 1, pageviews: 1, realtimeVisitors: 0, change: null, dashboardUrl: null }],
+  {
+    siteHealthSites: { 'stale-old.com': { grade: 'F' } },
+    includeHealthOnlySites: false,
+  },
+);
+assert.equal(liveFleetNoHealthGhosts.length, 1);
+
+const duplicateLabels = mergeDashboardSiteCards(
+  [],
+  [
+    {
+      siteId: 'old-paradigm.com',
+      label: 'old-paradigm.com',
+      kind: 'kinsta',
+      sourceLabel: 'Paradigm Landscape',
+      registered: false,
+      visitors: null,
+      pageviews: null,
+      realtimeVisitors: null,
+      change: null,
+      dashboardUrl: null,
+    },
+    {
+      siteId: 'paradigmlandscape.com',
+      label: 'paradigmlandscape.com',
+      kind: 'kinsta',
+      sourceLabel: 'Paradigm Landscape',
+      registered: true,
+      visitors: 50,
+      pageviews: 100,
+      realtimeVisitors: 0,
+      change: null,
+      dashboardUrl: null,
+    },
+  ],
+);
+assert.equal(duplicateLabels.length, 1);
+assert.equal(duplicateLabels[0]?.siteId, 'paradigmlandscape.com');
+assert.equal(duplicateLabels[0]?.label, 'Paradigm Landscape');
 
 const mergedPreview = mergeAnalyticsFleetPreviews(
   {

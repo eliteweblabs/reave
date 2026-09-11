@@ -3872,6 +3872,45 @@ function isDashApexPublicHost(host) {
   return parts.length === 2;
 }
 
+function dashFleetCardRank(card) {
+  const registered = Boolean(card?.analytics?.registered);
+  const hasAnalytics = Boolean(card?.analytics);
+  const hasMonitor = Boolean(card?.monitor);
+  if (registered && hasMonitor) return 0;
+  if (registered) return 1;
+  if (hasAnalytics && hasMonitor) return 2;
+  if (hasAnalytics) return 3;
+  if (hasMonitor) return 4;
+  return 5;
+}
+
+/** Keep one tile when multiple apex domains share the same Kinsta/Railway label. */
+function collapseDashboardSiteCardsByLabel(cards) {
+  const byLabel = new Map();
+  for (const card of cards || []) {
+    const key = String(card?.label || '').trim().toLowerCase() || String(card?.siteId || '').toLowerCase();
+    const group = byLabel.get(key) || [];
+    group.push(card);
+    byLabel.set(key, group);
+  }
+  const kept = [];
+  for (const group of byLabel.values()) {
+    if (group.length === 1) {
+      kept.push(group[0]);
+      continue;
+    }
+    group.sort((a, b) => {
+      const rankDiff = dashFleetCardRank(a) - dashFleetCardRank(b);
+      if (rankDiff) return rankDiff;
+      return String(a.siteId).localeCompare(String(b.siteId), undefined, { sensitivity: 'base' });
+    });
+    kept.push(group[0]);
+  }
+  return kept.sort((a, b) =>
+    String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }),
+  );
+}
+
 /**
  * One card per apex: join uptime monitors + analytics fleet.
  * Keep in sync with mergeDashboardSiteCards in analyticsSiteMerge.ts
@@ -3906,12 +3945,14 @@ function mergeDashboardSiteCards(monitors, analyticsSites, extras = {}) {
       analytics: null,
     });
   }
-  const healthSites = extras.siteHealthSites;
-  if (healthSites && typeof healthSites === 'object') {
-    for (const siteId of Object.keys(healthSites)) {
-      const host = normalizeDashFleetHost(siteId);
-      if (!host || !isDashApexPublicHost(host) || byId.has(host)) continue;
-      byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
+  if (extras.includeHealthOnlySites !== false) {
+    const healthSites = extras.siteHealthSites;
+    if (healthSites && typeof healthSites === 'object') {
+      for (const siteId of Object.keys(healthSites)) {
+        const host = normalizeDashFleetHost(siteId);
+        if (!host || !isDashApexPublicHost(host) || byId.has(host)) continue;
+        byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
+      }
     }
   }
   const ignored = extras.ignoredSiteIds;
@@ -3922,16 +3963,18 @@ function mergeDashboardSiteCards(monitors, analyticsSites, extras = {}) {
       byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
     }
   }
-  return [...byId.values()].sort((a, b) =>
-    String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }),
-  );
+  return collapseDashboardSiteCardsByLabel([...byId.values()]);
 }
 
 function dashboardSiteCardMergeExtras(data) {
   const ignoreSites = data?.siteFleetIgnore?.sites;
+  const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
+  const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
+  const hasLiveFleet = analyticsSites.length > 0 || monitors.length > 0;
   return {
     siteHealthSites: data?.siteHealth?.sites || null,
     ignoredSiteIds: ignoreSites && typeof ignoreSites === 'object' ? Object.keys(ignoreSites) : [],
+    includeHealthOnlySites: !hasLiveFleet,
   };
 }
 

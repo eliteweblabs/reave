@@ -3,7 +3,10 @@
  * Run: node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-kinsta-fleet.ts
  */
 import assert from 'node:assert/strict';
-import { kinstaEnvironmentDomainNames } from '../src/lib/kinstaClient.ts';
+import {
+  kinstaEnvironmentCanonicalApexDomain,
+  kinstaEnvironmentDomainNames,
+} from '../src/lib/kinstaClient.ts';
 import { isApexPublicWebsiteHost, normalizeMonitorHost } from '../src/lib/publicUrl.ts';
 
 const kinstaPrimaryOnly = kinstaEnvironmentDomainNames({
@@ -26,5 +29,21 @@ const apexHosts = [
   ),
 ];
 assert.deepEqual(apexHosts, ['levineslaw.com']);
+
+assert.equal(
+  kinstaEnvironmentCanonicalApexDomain({
+    primary_domain: 'levineslaw.kinsta.cloud',
+    domains: ['levineslaw.kinsta.cloud', 'levineslaw.com', 'www.levineslaw.com'],
+  }),
+  'levineslaw.com',
+);
+
+assert.equal(
+  kinstaEnvironmentCanonicalApexDomain({
+    primary_domain: 'paradigmlandscape.com',
+    domains: ['paradigmlandscape.com', 'old-paradigm-landscape.com'],
+  }),
+  'paradigmlandscape.com',
+);
 
 console.log('verify-kinsta-fleet: ok');

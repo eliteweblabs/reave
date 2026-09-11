@@ -71,7 +71,46 @@ export type DashboardSiteCard = {
 export type DashboardSiteCardMergeExtras = {
   siteHealthSites?: Record<string, unknown> | null;
   ignoredSiteIds?: string[] | null;
+  /** When false, omit health-only ghost tiles (live fleet already defines the card list). */
+  includeHealthOnlySites?: boolean;
 };
+
+function fleetCardRank(card: DashboardSiteCard): number {
+  const registered = Boolean(card.analytics?.registered);
+  const hasAnalytics = Boolean(card.analytics);
+  const hasMonitor = Boolean(card.monitor);
+  if (registered && hasMonitor) return 0;
+  if (registered) return 1;
+  if (hasAnalytics && hasMonitor) return 2;
+  if (hasAnalytics) return 3;
+  if (hasMonitor) return 4;
+  return 5;
+}
+
+/** Keep one tile when multiple apex domains share the same Kinsta/Railway label. */
+function collapseDashboardSiteCardsByLabel(cards: DashboardSiteCard[]): DashboardSiteCard[] {
+  const byLabel = new Map<string, DashboardSiteCard[]>();
+  for (const card of cards) {
+    const key = card.label.trim().toLowerCase() || card.siteId.toLowerCase();
+    const group = byLabel.get(key) ?? [];
+    group.push(card);
+    byLabel.set(key, group);
+  }
+  const kept: DashboardSiteCard[] = [];
+  for (const group of byLabel.values()) {
+    if (group.length === 1) {
+      kept.push(group[0]!);
+      continue;
+    }
+    group.sort((a, b) => {
+      const rankDiff = fleetCardRank(a) - fleetCardRank(b);
+      if (rankDiff) return rankDiff;
+      return a.siteId.localeCompare(b.siteId, undefined, { sensitivity: 'base' });
+    });
+    kept.push(group[0]!);
+  }
+  return kept.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+}
 
 export function mergeAnalyticsSites(
   parts: Array<AnalyticsSiteOption | null | undefined>,
@@ -103,17 +142,19 @@ function mergeExtraDashboardSiteIds(
   byId: Map<string, DashboardSiteCard>,
   extras?: DashboardSiteCardMergeExtras,
 ): void {
-  const healthSites = extras?.siteHealthSites;
-  if (healthSites && typeof healthSites === 'object') {
-    for (const siteId of Object.keys(healthSites)) {
-      const host = hostnameFromWebsite(siteId) || normalizeMonitorHost(siteId);
-      if (!host || !isApexPublicWebsiteHost(host) || byId.has(host)) continue;
-      byId.set(host, {
-        siteId: host,
-        label: host,
-        monitor: null,
-        analytics: null,
-      });
+  if (extras?.includeHealthOnlySites !== false) {
+    const healthSites = extras?.siteHealthSites;
+    if (healthSites && typeof healthSites === 'object') {
+      for (const siteId of Object.keys(healthSites)) {
+        const host = hostnameFromWebsite(siteId) || normalizeMonitorHost(siteId);
+        if (!host || !isApexPublicWebsiteHost(host) || byId.has(host)) continue;
+        byId.set(host, {
+          siteId: host,
+          label: host,
+          monitor: null,
+          analytics: null,
+        });
+      }
     }
   }
   const ignored = extras?.ignoredSiteIds;
@@ -169,9 +210,7 @@ export function mergeDashboardSiteCards(
 
   mergeExtraDashboardSiteIds(byId, extras);
 
-  return [...byId.values()].sort((a, b) =>
-    a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
-  );
+  return collapseDashboardSiteCardsByLabel([...byId.values()]);
 }
 
 /** Union Plausible metrics preview with the persisted Railway/Kinsta apex list. */

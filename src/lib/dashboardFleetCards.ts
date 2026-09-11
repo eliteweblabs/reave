@@ -68,8 +68,10 @@ export async function loadDashboardFleetCards(context: APIContext): Promise<Dash
   const ignore = await loadSiteFleetIgnoreState();
   const fleet = peekCachedSiteHealthFleet({ allowStale: true });
 
+  const hasLiveFleet = analyticsSites.length > 0 || monitors.length > 0;
   return mergeDashboardSiteCards(monitors, analyticsSites, {
     siteHealthSites: fleet?.sites ?? null,
     ignoredSiteIds: Object.keys(ignore.sites ?? {}),
+    includeHealthOnlySites: !hasLiveFleet,
   });
 }

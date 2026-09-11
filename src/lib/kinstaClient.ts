@@ -3,6 +3,7 @@
  * @see https://kinsta.com/docs/kinsta-api/
  */
 import {
+  isApexPublicWebsiteHost,
   isInternalInfraService,
   isNonProductionLabel,
   isPublicWebsiteHost,
@@ -121,6 +122,34 @@ export function kinstaEnvironmentDomainNames(
     if (key && isPublicWebsiteHost(key)) names.add(primary);
   }
   return [...names];
+}
+
+/**
+ * One public apex hostname per Kinsta environment for fleet tiles and uptime sync.
+ * When primary is still *.kinsta.cloud, picks the first public apex custom domain.
+ */
+export function kinstaEnvironmentCanonicalApexDomain(
+  env: Pick<KinstaEnvironmentSummary, 'primary_domain' | 'domains'>,
+): string | null {
+  const ordered = kinstaEnvironmentDomainNames(env);
+  const apexHosts = [
+    ...new Set(
+      ordered
+        .map((domain) => normalizeMonitorHost(domain))
+        .filter((host): host is string => Boolean(host && isApexPublicWebsiteHost(host))),
+    ),
+  ];
+  if (!apexHosts.length) return null;
+  if (apexHosts.length === 1) return apexHosts[0]!;
+
+  const primaryKey = env.primary_domain ? normalizeMonitorHost(env.primary_domain) : null;
+  if (primaryKey && apexHosts.includes(primaryKey)) return primaryKey;
+
+  for (const domain of ordered) {
+    const key = normalizeMonitorHost(domain);
+    if (key && apexHosts.includes(key)) return key;
+  }
+  return apexHosts[0]!;
 }
 
 function domainsFromEnv(env: KinstaApiEnvironment): string[] {
@@ -519,16 +548,16 @@ function collectKinstaEnvUrls(
       envLabel && envLabel.toLowerCase() !== 'live' && envLabel.toLowerCase() !== siteLabel.toLowerCase()
         ? `${siteLabel} (${envLabel})`
         : siteLabel;
-    for (const domain of kinstaEnvironmentDomainNames(env)) {
-      const key = normalizeMonitorHost(domain);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      urls.push({
-        url: domain.startsWith('http') ? domain : `https://${domain}`,
-        friendlyName,
-      });
-      added += 1;
-    }
+    const domain = kinstaEnvironmentCanonicalApexDomain(env);
+    if (!domain) continue;
+    const key = normalizeMonitorHost(domain);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    urls.push({
+      url: domain.startsWith('http') ? domain : `https://${domain}`,
+      friendlyName,
+    });
+    added += 1;
   }
   return added;
 }
