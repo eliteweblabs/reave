@@ -1753,5 +1753,4 @@ export {
   loadFleetTabQuiet,
   initFleetLocationReporter,
   stopFleetPoll,
-  syncAnalyticsAccountMenu,
 };

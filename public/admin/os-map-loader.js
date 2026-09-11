@@ -286,7 +286,7 @@ import {
   initFleetLocationReporter,
   teardownFleetMap,
   syncAnalyticsAccountMenu,
-} from './insights-panels.js?v=20260911a';
+} from './insights-panels.js?v=20260911b';
 import {
   initRulesPanel,
   ruleState,
