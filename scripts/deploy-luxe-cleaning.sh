@@ -8,11 +8,11 @@
 #       LUXE_CLEANING_RAILWAY_SERVICE  — service name (default: reave)
 #       LUXE_CLEANING_RAILWAY_ENV      — environment (default: production)
 #   - Vapi keys in your shell (or pass inline):
-#       VAPI_API_KEY, PUBLIC_VAPI_PUBLIC_KEY, PUBLIC_VAPI_ASSISTANT_ID
+#       VAPI_API_KEY, PUBLIC_VAPI_PUBLIC_KEY
+#       PUBLIC_VAPI_ASSISTANT_ID — optional; created automatically when omitted
 #
 # Usage (from repo root):
-#   VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… PUBLIC_VAPI_ASSISTANT_ID=… \
-#     bash scripts/deploy-luxe-cleaning.sh
+#   VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… bash scripts/deploy-luxe-cleaning.sh
 #
 # Dry run:
 #   DRY_RUN=1 bash scripts/deploy-luxe-cleaning.sh
@@ -41,6 +41,21 @@ fi
 
 PUBLIC_SITE_DOMAIN="${PUBLIC_SITE_DOMAIN:-luxecleaning.com}"
 VAPI_PHONE="${VAPI_PHONE_NUMBER:-+15089558850}"
+ASSISTANT_ID="${PUBLIC_VAPI_ASSISTANT_ID:-}"
+
+if [[ -z "$ASSISTANT_ID" && -n "${VAPI_API_KEY:-}" && "${DRY_RUN:-}" != "1" ]]; then
+  echo "No PUBLIC_VAPI_ASSISTANT_ID — creating Vapi assistant for Luxe Cleaning…"
+  ASSISTANT_ID="$(
+    INSTALL_CONFIG=luxe-cleaning \
+    COMPANY_NAME="Luxe Cleaning" \
+    COMPANY_DESCRIPTION="Woman-owned premium house cleaning in Central Massachusetts." \
+    VAPI_PHONE_NUMBER="$VAPI_PHONE" \
+    VAPI_CREATE_IF_MISSING=1 \
+    node --experimental-strip-types scripts/provision-vapi-assistant.ts --print-id
+  )"
+  echo "  → assistant id: $ASSISTANT_ID"
+  echo ""
+fi
 
 set_var() {
   local key="$1"
@@ -72,13 +87,14 @@ set_var COMPANY_SUPPORT_PHONE "$VAPI_PHONE"
 set_var VAPI_PHONE_NUMBER "$VAPI_PHONE"
 set_var VAPI_API_KEY "${VAPI_API_KEY:-}"
 set_var PUBLIC_VAPI_PUBLIC_KEY "${PUBLIC_VAPI_PUBLIC_KEY:-}"
-set_var PUBLIC_VAPI_ASSISTANT_ID "${PUBLIC_VAPI_ASSISTANT_ID:-}"
+set_var PUBLIC_VAPI_ASSISTANT_ID "${ASSISTANT_ID:-${PUBLIC_VAPI_ASSISTANT_ID:-}}"
+set_var VAPI_CREATE_IF_MISSING "1"
 set_var VAPI_PHONE_NUMBER_ID "${VAPI_PHONE_NUMBER_ID:-}"
 
-if [[ -z "${VAPI_API_KEY:-}" || -z "${PUBLIC_VAPI_PUBLIC_KEY:-}" || -z "${PUBLIC_VAPI_ASSISTANT_ID:-}" ]]; then
+if [[ -z "${VAPI_API_KEY:-}" || -z "${PUBLIC_VAPI_PUBLIC_KEY:-}" ]]; then
   echo ""
-  echo "Warning: set VAPI_API_KEY, PUBLIC_VAPI_PUBLIC_KEY, and PUBLIC_VAPI_ASSISTANT_ID before deploy."
-  echo "Phone attach runs at build via sync:vapi when VAPI_PHONE_NUMBER is set."
+  echo "Warning: set VAPI_API_KEY and PUBLIC_VAPI_PUBLIC_KEY before deploy."
+  echo "Assistant auto-create runs when PUBLIC_VAPI_ASSISTANT_ID is empty and VAPI_API_KEY is set."
 fi
 
 echo ""

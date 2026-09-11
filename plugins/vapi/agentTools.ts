@@ -187,7 +187,7 @@ async function handle_sync_vapi_assistant(args: Record<string, unknown>, _ctx: T
   }
   if (!isVapiAdminConfigured()) {
     return JSON.stringify({
-      error: 'Vapi admin not configured — enable the plugin and set VAPI_API_KEY + assistant id',
+      error: 'Vapi admin not configured — enable the plugin and set VAPI_API_KEY (assistant id optional; auto-created when missing)',
     });
   }
   const result = await syncVapiAssistantBrand(_ctx.brand);
@@ -213,7 +213,7 @@ export const vapiModule: AgentToolModule = {
             function: {
               name: 'sync_vapi_assistant',
               description:
-                `Sync the Vapi voice assistant name, first message, and system prompt from admin Company details (${brand.name}). Requires VAPI_API_KEY on the server. Does not affect the public homepage widget — that is a separate installation setting.`,
+                `Sync (or create) the Vapi voice assistant name, first message, and system prompt from admin Company details (${brand.name}). Requires VAPI_API_KEY. Creates a new assistant when no id is configured. Attaches VAPI_PHONE_NUMBER when set.`,
               parameters: { type: 'object', properties: {}, additionalProperties: false },
             },
           }

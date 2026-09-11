@@ -346,6 +346,14 @@ interface ImportMetaEnv {
   VAPI_PHONE_NUMBER?: string;
   /** Vapi phone-number resource id — skips list lookup when set. */
   VAPI_PHONE_NUMBER_ID?: string;
+  /** When not 0, prebuild sync creates a Vapi assistant if PUBLIC_VAPI_ASSISTANT_ID is unset. */
+  VAPI_CREATE_IF_MISSING?: string;
+  VAPI_MODEL_PROVIDER?: string;
+  VAPI_MODEL?: string;
+  VAPI_VOICE_PROVIDER?: string;
+  VAPI_VOICE_ID?: string;
+  VAPI_TRANSCRIBER_PROVIDER?: string;
+  VAPI_TRANSCRIBER_MODEL?: string;
   /** Vapi web SDK public key. */
   PUBLIC_VAPI_PUBLIC_KEY?: string;
   /** Vapi assistant id for Live Speak Agent Widget. */

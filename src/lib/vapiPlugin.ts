@@ -41,10 +41,12 @@ export function vapiPublicKey(): string | undefined {
   return serverEnv('PUBLIC_VAPI_PUBLIC_KEY')?.trim() || undefined;
 }
 
-/** Admin plugin: private API key + assistant id (build sync, manual sync API). */
+/** Admin plugin: private API key (+ assistant id, or auto-create when id missing). */
 export function isVapiAdminConfigured(company?: Pick<CompanyConfig, 'vapiAssistantId'>): boolean {
   if (!isVapiAdminPluginEnabled()) return false;
-  return Boolean(serverEnv('VAPI_API_KEY')?.trim() && resolveVapiAssistantId(company));
+  if (!serverEnv('VAPI_API_KEY')?.trim()) return false;
+  if (resolveVapiAssistantId(company)) return true;
+  return serverEnv('VAPI_CREATE_IF_MISSING') !== '0';
 }
 
 /**

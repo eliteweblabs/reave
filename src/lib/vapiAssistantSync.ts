@@ -12,6 +12,7 @@ export type VapiSyncResult =
       assistantId: string;
       companyName: string;
       firstMessage: string;
+      created?: boolean;
       phoneAttached?: boolean;
       phoneNumber?: string;
     }
@@ -63,7 +64,70 @@ export function resolveVapiAssistantId(templates?: VapiTemplateConfig): string |
 }
 
 export function isVapiSyncConfigured(templates?: VapiTemplateConfig): boolean {
-  return Boolean(env('VAPI_API_KEY') && resolveVapiAssistantId(templates));
+  if (!env('VAPI_API_KEY')) return false;
+  if (resolveVapiAssistantId(templates)) return true;
+  return env('VAPI_CREATE_IF_MISSING') !== '0';
+}
+
+/** Default POST body for a new Vapi assistant (voice + phone + web widget). */
+export function buildVapiAssistantCreateBody(
+  brand: BuildBrandContext,
+  templates?: VapiTemplateConfig,
+): Record<string, unknown> {
+  const firstMessage = vapiFirstMessageTemplate(templates);
+  const systemContent = vapiSystemPromptTemplate(templates);
+  const modelProvider = env('VAPI_MODEL_PROVIDER') || 'openai';
+  const modelName = env('VAPI_MODEL') || 'gpt-4o-mini';
+  const voiceProvider = env('VAPI_VOICE_PROVIDER') || '11labs';
+  const voiceId = env('VAPI_VOICE_ID') || 'sarah';
+
+  return {
+    name: brand.name,
+    firstMessage,
+    model: {
+      provider: modelProvider,
+      model: modelName,
+      messages: [{ role: 'system', content: systemContent }],
+    },
+    voice: { provider: voiceProvider, voiceId },
+    transcriber: {
+      provider: env('VAPI_TRANSCRIBER_PROVIDER') || 'deepgram',
+      model: env('VAPI_TRANSCRIBER_MODEL') || 'nova-2',
+      language: 'en',
+    },
+  };
+}
+
+async function resolveOrCreateAssistantId(
+  brand: BuildBrandContext,
+  templates?: VapiTemplateConfig,
+): Promise<{ ok: true; assistantId: string; created: boolean } | { ok: false; error: string }> {
+  const existingId = resolveVapiAssistantId(templates);
+  if (existingId) return { ok: true, assistantId: existingId, created: false };
+
+  if (env('VAPI_CREATE_IF_MISSING') === '0') {
+    return {
+      ok: false,
+      error: 'Vapi assistant ID not set (Admin → Vapi or PUBLIC_VAPI_ASSISTANT_ID)',
+    };
+  }
+
+  const listed = await vapiRequest<VapiAssistant[]>('/assistant');
+  if (listed.ok && Array.isArray(listed.data)) {
+    const target = brand.name.trim().toLowerCase();
+    const match = listed.data.find((row) => (row.name ?? '').trim().toLowerCase() === target);
+    if (match?.id) return { ok: true, assistantId: match.id, created: false };
+  }
+
+  const created = await vapiRequest<VapiAssistant>('/assistant', {
+    method: 'POST',
+    body: JSON.stringify(buildVapiAssistantCreateBody(brand, templates)),
+  });
+  if (!created.ok) return { ok: false, error: created.error };
+  if (!created.data.id) {
+    return { ok: false, error: 'Vapi create assistant returned no id' };
+  }
+  return { ok: true, assistantId: created.data.id, created: true };
 }
 
 /** Spoken greeting — uses Vapi {{companyName}} variable filled at call time. */
@@ -222,17 +286,15 @@ export async function syncVapiAssistantBrand(
   }
 
   const templates = opts?.templates;
-  const assistantId = resolveVapiAssistantId(templates);
-  if (!assistantId) {
-    return {
-      ok: false,
-      error: 'Vapi assistant ID not set (Admin → Vapi or PUBLIC_VAPI_ASSISTANT_ID)',
-      skipped: true,
-    };
-  }
   if (!env('VAPI_API_KEY')) {
     return { ok: false, error: 'VAPI_API_KEY not set', skipped: true };
   }
+
+  const resolved = await resolveOrCreateAssistantId(brand, templates);
+  if (!resolved.ok) {
+    return { ok: false, error: resolved.error, skipped: true };
+  }
+  const { assistantId, created } = resolved;
 
   const existing = await vapiRequest<VapiAssistant>(`/assistant/${assistantId}`);
   const current = existing.ok ? existing.data : undefined;
@@ -260,9 +322,21 @@ export async function syncVapiAssistantBrand(
     assistantId,
     companyName: brand.name,
     firstMessage,
+    created,
     phoneAttached: phone.ok,
     phoneNumber: phone.ok ? phone.phoneNumber : undefined,
   };
+}
+
+/** Create (or reuse by name) a Vapi assistant — for provisioning before Railway env is set. */
+export async function provisionVapiAssistant(
+  brand: BuildBrandContext,
+  templates?: VapiTemplateConfig,
+): Promise<VapiSyncResult> {
+  if (!env('VAPI_API_KEY')) {
+    return { ok: false, error: 'VAPI_API_KEY not set' };
+  }
+  return syncVapiAssistantBrand(brand, { requirePlugin: false, templates });
 }
 
 export async function syncVapiAssistantFromConfig(): Promise<VapiSyncResult> {

@@ -33,9 +33,12 @@ async function main() {
 
   if (result.ok) {
     console.log(
-      `[vapi-sync] Updated assistant ${result.assistantId} for "${result.companyName}"`,
+      `[vapi-sync] ${result.created ? 'Created' : 'Updated'} assistant ${result.assistantId} for "${result.companyName}"`,
     );
     console.log(`[vapi-sync] firstMessage: ${result.firstMessage}`);
+    if (result.created) {
+      console.log(`[vapi-sync] NEW — set PUBLIC_VAPI_ASSISTANT_ID=${result.assistantId} on Railway`);
+    }
     if (result.phoneAttached && result.phoneNumber) {
       console.log(`[vapi-sync] phone attached: ${result.phoneNumber}`);
     }

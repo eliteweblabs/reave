@@ -5,8 +5,15 @@ Formerly **Maid & Marble** — install slug `luxe-cleaning`.
 ## Railway (Astro service)
 
 ```bash
-VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… PUBLIC_VAPI_ASSISTANT_ID=… \
-  bash scripts/deploy-luxe-cleaning.sh
+VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… bash scripts/deploy-luxe-cleaning.sh
+```
+
+The deploy script **creates the Vapi assistant** when `PUBLIC_VAPI_ASSISTANT_ID` is empty, then writes the new id to Railway.
+
+Or provision only:
+
+```bash
+INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 ```
 
 Or set manually:
