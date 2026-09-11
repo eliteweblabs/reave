@@ -545,10 +545,22 @@ export function createEmailTriageLab(deps) {
     return 'Term or phrase';
   }
 
+  function bindLabSuggestPick(btn, onPick, input) {
+    btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+    btn.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      onPick();
+      input?.blur();
+    });
+  }
+
   function addChip(partial) {
     const field = partial.field || state.chipField || 'body';
     const text = normalizeTargetPhrase(partial.text);
     if (text.length < 2) return false;
+    if (field === 'from' && !partial.contact && !text.includes('@')) return false;
     const dup = state.chips.some(
       (c) => c.field === field && c.text.toLowerCase() === text.toLowerCase(),
     );
@@ -922,7 +934,7 @@ export function createEmailTriageLab(deps) {
 
   function unbindSuggestOutside() {
     if (!state._suggestOutsideBound) return;
-    document.removeEventListener('pointerdown', state._suggestOutsideBound, true);
+    document.removeEventListener('click', state._suggestOutsideBound);
     state._suggestOutsideBound = null;
   }
 
@@ -938,13 +950,17 @@ export function createEmailTriageLab(deps) {
 
   function bindSuggestOutside(box, wrap) {
     unbindSuggestOutside();
+    const gen = state.suggestGen;
     state._suggestOutsideBound = (ev) => {
       const t = ev.target;
       if (!(t instanceof Node)) return;
       if (wrap.contains(t) || box.contains(t)) return;
-      closeContactSuggestions(box);
+      window.setTimeout(() => {
+        if (gen !== state.suggestGen || !state.suggestOpen) return;
+        closeContactSuggestions(box);
+      }, 0);
     };
-    document.addEventListener('pointerdown', state._suggestOutsideBound, true);
+    document.addEventListener('click', state._suggestOutsideBound);
   }
 
   function renderContactSuggestions(box, input, wrap, gen) {
@@ -977,13 +993,14 @@ export function createEmailTriageLab(deps) {
       btn.innerHTML =
         contactAvatarHtml({ iconUrl: c.iconUrl, logoUrl: c.logoUrl, iconSize: 16 }) +
         `<span class="re-lab-suggest-copy"><strong>${escHtml(c.name)}</strong><span>${escHtml(c.email)}</span></span>`;
-      btn.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        addChip({ field: 'from', text: c.email, contact: c });
-        closeContactSuggestions(box);
-        input.blur();
-      });
+      bindLabSuggestPick(
+        btn,
+        () => {
+          addChip({ field: 'from', text: c.email, contact: c });
+          closeContactSuggestions(box);
+        },
+        input,
+      );
       box.appendChild(btn);
     }
     mountContactAvatars(box);
@@ -1098,6 +1115,7 @@ export function createEmailTriageLab(deps) {
     draftIn.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') {
         ev.preventDefault();
+        if (state.suggestOpen) return;
         commitDraft();
       }
       if (ev.key === 'Escape') {

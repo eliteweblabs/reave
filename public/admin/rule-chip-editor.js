@@ -346,6 +346,7 @@ export function createChipComposer(opts = {}) {
     const field = normalizeChipField(partial.field || state.field);
     const text = normalizeTargetPhrase(partial.text);
     if (text.length < 2) return false;
+    if (field === 'from' && !partial.contact && !text.includes('@')) return false;
     if (chipTaken({ field, text }, partial.id || '')) {
       flashDup();
       return false;
@@ -376,20 +377,24 @@ export function createChipComposer(opts = {}) {
     suggest.hidden = true;
     suggest.replaceChildren();
     if (state._suggestOutsideBound) {
-      document.removeEventListener('pointerdown', state._suggestOutsideBound, true);
+      document.removeEventListener('click', state._suggestOutsideBound);
       state._suggestOutsideBound = null;
     }
   }
 
   function bindSuggestOutside() {
     if (state._suggestOutsideBound) return;
+    const gen = state.suggestGen;
     state._suggestOutsideBound = (ev) => {
       const t = ev.target;
       if (!(t instanceof Node)) return;
       if (draftWrap.contains(t) || suggest.contains(t)) return;
-      closeContactSuggestions();
+      window.setTimeout(() => {
+        if (gen !== state.suggestGen || suggest.hidden) return;
+        closeContactSuggestions();
+      }, 0);
     };
-    document.addEventListener('pointerdown', state._suggestOutsideBound, true);
+    document.addEventListener('click', state._suggestOutsideBound);
   }
 
   function renderContactSuggestions() {
@@ -420,7 +425,9 @@ export function createChipComposer(opts = {}) {
       btn.innerHTML =
         contactAvatarHtml({ iconUrl: c.iconUrl, logoUrl: c.logoUrl, iconSize: 16 }) +
         `<span class="re-lab-suggest-copy"><strong>${escHtml(c.name)}</strong><span>${escHtml(c.email)}</span></span>`;
-      btn.addEventListener('pointerdown', (ev) => {
+      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      btn.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
+      btn.addEventListener('click', (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
         addChipRecord({ field: 'from', text: c.email, contact: c });
@@ -507,6 +514,7 @@ export function createChipComposer(opts = {}) {
   draftIn.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') {
       ev.preventDefault();
+      if (!suggest.hidden && suggest.childElementCount > 0) return;
       commitDraft();
     }
     if (ev.key === 'Escape') {
