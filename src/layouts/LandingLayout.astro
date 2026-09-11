@@ -13,6 +13,7 @@ import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import PlausibleScript from "../components/PlausibleScript.astro";
+import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import "../styles/scroll-fade.css";
 
 export interface Props {
@@ -183,6 +184,7 @@ const manifest = landing.manifest;
   </head>
   <body class={isVet ? "vet-body" : isPack ? "pack-body" : isEditorial ? "editorial-body" : isLuxury ? "luxury-body" : isService ? "service-body" : isTech ? "tech-body" : "landing-body"}>
     <slot />
+    <SiteVoiceWidget />
     <ScrollFadeIn />
     <CookieNotice />
   </body>

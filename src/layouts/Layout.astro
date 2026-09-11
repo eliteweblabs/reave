@@ -22,6 +22,7 @@ import ThemeInit from "../components/ThemeInit.astro";
 import BrowserUiBottomInsetInit from "../components/BrowserUiBottomInsetInit.astro";
 import PlausibleScript from "../components/PlausibleScript.astro";
 import OrganizationJsonLd from "../components/OrganizationJsonLd.astro";
+import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import "../styles/brand.css";
 
 export interface Props {
@@ -188,6 +189,7 @@ try {
 		{marketingNav && <HomepageSectionScroll />}
 		<ScrollFadeIn />
 		<CookieNotice />
+		<SiteVoiceWidget />
 		<slot name="end" />
 	</body>
 </html>
