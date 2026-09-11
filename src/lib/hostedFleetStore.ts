@@ -73,11 +73,30 @@ function normalizePreview(raw: unknown): AnalyticsFleetPreview | null {
   };
 }
 
-function readFilePreview(): AnalyticsFleetPreview | null {
+export type PersistedHostedFleetSnapshot = {
+  preview: AnalyticsFleetPreview;
+  savedAtMs: number;
+};
+
+function parseSavedAtMs(raw: unknown): number {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === 'string') {
+    const ms = Date.parse(raw);
+    if (Number.isFinite(ms) && ms > 0) return ms;
+  }
+  return 0;
+}
+
+function readFilePreview(): PersistedHostedFleetSnapshot | null {
   try {
     if (!existsSync(FILE_PATH)) return null;
-    const parsed = JSON.parse(readFileSync(FILE_PATH, 'utf8')) as { preview?: unknown };
-    return normalizePreview(parsed?.preview);
+    const parsed = JSON.parse(readFileSync(FILE_PATH, 'utf8')) as {
+      preview?: unknown;
+      savedAt?: unknown;
+    };
+    const preview = normalizePreview(parsed?.preview);
+    if (!preview) return null;
+    return { preview, savedAtMs: parseSavedAtMs(parsed?.savedAt) };
   } catch (e) {
     console.warn('[hosted-fleet-store] file read failed', e);
     return null;
@@ -99,14 +118,22 @@ function writeFilePreview(preview: AnalyticsFleetPreview): boolean {
   }
 }
 
-async function readPgPreview(): Promise<AnalyticsFleetPreview | null> {
+async function readPgPreview(): Promise<PersistedHostedFleetSnapshot | null> {
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
-    const { rows } = await pool.query(`SELECT preview FROM hosted_fleet_preview WHERE id = 1`);
-    const row = rows[0] as { preview?: unknown } | undefined;
+    const { rows } = await pool.query(
+      `SELECT preview, EXTRACT(EPOCH FROM saved_at) * 1000 AS saved_at_ms FROM hosted_fleet_preview WHERE id = 1`,
+    );
+    const row = rows[0] as { preview?: unknown; saved_at_ms?: unknown } | undefined;
     if (!row?.preview) return null;
-    return normalizePreview(row.preview);
+    const preview = normalizePreview(row.preview);
+    if (!preview) return null;
+    const savedAtMs =
+      typeof row.saved_at_ms === 'number' && Number.isFinite(row.saved_at_ms)
+        ? row.saved_at_ms
+        : parseSavedAtMs(row.saved_at_ms);
+    return { preview, savedAtMs };
   } catch (e) {
     console.error('[hosted-fleet-store] pg read failed', e);
     return null;
@@ -132,7 +159,7 @@ async function writePgPreview(preview: AnalyticsFleetPreview): Promise<boolean> 
   }
 }
 
-export async function loadPersistedHostedFleetPreview(): Promise<AnalyticsFleetPreview | null> {
+export async function loadPersistedHostedFleetPreview(): Promise<PersistedHostedFleetSnapshot | null> {
   const fromPg = getPgPool() ? await readPgPreview() : null;
   return fromPg ?? readFilePreview();
 }

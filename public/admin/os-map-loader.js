@@ -4227,14 +4227,11 @@ function siteHealthIssueCodes(health) {
 }
 
 function dashboardSiteCardsFromPayload(data) {
+  const precached = Array.isArray(data?.fleetSiteCards) ? data.fleetSiteCards : null;
+  if (precached?.length) return precached;
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
   const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
-  const merged = mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
-  const precached = Array.isArray(data?.fleetSiteCards) ? data.fleetSiteCards : null;
-  if (!precached?.length) return merged;
-  const expected = dashboardFleetExpectedCount(data);
-  if (expected > precached.length) return merged.length >= expected ? merged : merged.length > precached.length ? merged : precached;
-  return precached.length >= merged.length ? precached : merged;
+  return mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
 }
 
 function siteHealthSignalState(key, health, card, fleet, opts = {}) {

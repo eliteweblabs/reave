@@ -38,10 +38,16 @@ export async function loadDashboardFleetCards(context: APIContext): Promise<Dash
   let analyticsSites: AnalyticsAccountRow[] = [];
 
   if (isFleetDiscoveryConfigured()) {
-    await hydrateHostedFleetCache(company.domain);
-    let hosted = peekCachedHostedFleetPreview(company.domain, { allowStale: true });
+    let hosted = await buildHostedFleetPreviewCached(company.domain, { requireLive: true }).catch(
+      () => null,
+    );
     if (!hosted?.sites?.length) {
-      hosted = await buildHostedFleetPreviewCached(company.domain).catch(() => null);
+      await hydrateHostedFleetCache(company.domain);
+      hosted =
+        peekCachedHostedFleetPreview(company.domain, {
+          allowStale: true,
+          allowPersisted: true,
+        }) ?? null;
     }
     const analytics = mergeAnalyticsFleetPreviews(
       peekCachedAnalyticsDashboardPreview(company.domain, { allowStale: true }),
