@@ -234,6 +234,31 @@ function bookingDetailsLines(booking: ShareBookingInput): string[] {
   return lines;
 }
 
+export async function buildPortalShareEmail(opts: {
+  recipient: Pick<ResolvedRecipient, 'firstName' | 'contact'>;
+  url: string;
+  message?: string;
+}): Promise<{ subject: string; text: string; html: string }> {
+  const shareUrl = opts.url.trim();
+  const personalNote = opts.message?.trim() || undefined;
+  const intro = personalNote ? `${personalNote}\n\n` : '';
+  const company = opts.recipient.contact?.company?.trim();
+  const subject = company ? `Your client page — ${company}` : 'Your client page';
+  const text =
+    `${intro}Hi ${opts.recipient.firstName},\n\n` +
+    `Here's your personal client page — your details and any outstanding invoices live here:\n\n${shareUrl}\n\n` +
+    `Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
+  const html = await brandedEmailHtml({
+    firstName: opts.recipient.firstName,
+    personalNote,
+    paragraphs: ["Here's your personal client page — your details and any outstanding invoices live here:"],
+    cta: { label: 'Open your client page', url: shareUrl },
+    qr: { url: shareUrl, label: 'Or scan to open on your phone' },
+    note: 'Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.',
+  });
+  return { subject, text, html };
+}
+
 async function sendPortalShare(opts: {
   recipient: ResolvedRecipient;
   channel: ShareChannel;
@@ -245,32 +270,15 @@ async function sendPortalShare(opts: {
   source?: string;
 }): Promise<DeliverShareResult> {
   const { recipient, channel, url, message, jobSlug, sentBy, tracked, source = 'share_sheet' } = opts;
-  const intro = message?.trim() ? `${message.trim()}\n\n` : '';
   const shareUrl = url;
-  const company = recipient.contact?.company?.trim();
 
   if (channel === 'email') {
     if (!isEmailSendConfigured()) return { ok: false, error: 'Email not configured. Set RESEND_API_KEY.' };
     const to = recipient.email?.trim();
     if (!to) return { ok: false, error: 'No email on file for this recipient.' };
 
-    const subject = company ? `Your client page — ${company}` : 'Your client page';
-    const introLines = intro ? [intro.trim()] : [];
-    const text =
-      `${intro}Hi ${recipient.firstName},\n\n` +
-      `Here's your personal client page — your details and any outstanding invoices live here:\n\n${shareUrl}\n\n` +
-      `Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
-    const html = await brandedEmailHtml({
-      firstName: recipient.firstName,
-      paragraphs: [
-        ...introLines,
-        "Here's your personal client page — your details and any outstanding invoices live here:",
-      ],
-      cta: { label: 'Open your client page', url: shareUrl },
-      qr: { url: shareUrl, label: 'Or scan to open on your phone' },
-      note: 'Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.',
-    });
-    const r = await sendEmail({ to, subject, text, html });
+    const built = await buildPortalShareEmail({ recipient, url: shareUrl, message });
+    const r = await sendEmail({ to, subject: built.subject, text: built.text, html: built.html });
     if (!r.ok) return { ok: false, error: r.error };
 
     if (tracked?.token) void markTrackedLinkDelivered(tracked.token, to);
@@ -282,24 +290,24 @@ async function sendPortalShare(opts: {
         jobTitle: job?.title ?? '',
         contactUid: recipient.contactUid ?? null,
         toEmail: to,
-        subject,
+        subject: built.subject,
         resendId: r.id,
         sentBy: sentBy ?? null,
         source,
-        bodyText: text,
-        bodyHtml: html,
+        bodyText: built.text,
+        bodyHtml: built.html,
       });
     } else if (recipient.contactUid) {
       void logOutboundEmailForProject({
         toEmail: to,
-        subject,
+        subject: built.subject,
         resendId: r.id,
         sentBy: sentBy ?? null,
         source,
         contactUid: recipient.contactUid,
         jobSlug: jobSlug || null,
-        bodyText: text,
-        bodyHtml: html,
+        bodyText: built.text,
+        bodyHtml: built.html,
       });
     }
 
@@ -312,6 +320,7 @@ async function sendPortalShare(opts: {
   const to = recipient.phone?.trim();
   if (!to) return { ok: false, error: 'No phone on file for this recipient.' };
 
+  const intro = message?.trim() ? `${message.trim()}\n\n` : '';
   const body = `${intro}Hi ${recipient.firstName}, here's your client page: ${shareUrl}`;
   const r = await sendSms({ to, body });
   if (!r.ok) return { ok: false, error: r.error };
@@ -461,4 +470,35 @@ export async function deliverShare(input: DeliverShareInput): Promise<DeliverSha
     tracked: resolved.tracked,
     source: input.source,
   });
+}
+
+/** Render portal/work share email HTML without sending (admin share sheet preview). */
+export async function previewPortalShareEmail(
+  input: Pick<DeliverShareInput, 'recipient' | 'url' | 'message' | 'jobSlug' | 'tab' | 'request'>,
+): Promise<{ ok: true; subject: string; html: string; text: string } | { ok: false; error: string }> {
+  const recipient = await resolveShareRecipient(input.recipient ?? {});
+  if (recipient.contact) {
+    const portal = extractPortal(recipient.contact);
+    if (portal && portal.enabled === false) {
+      return { ok: false, error: 'This client’s page is hidden. Re-enable it before sharing.' };
+    }
+  }
+  const resolved = await resolveShareUrl(
+    {
+      kind: 'portal',
+      channel: 'email',
+      recipient: input.recipient ?? {},
+      url: input.url,
+      jobSlug: input.jobSlug,
+      tab: input.tab,
+    },
+    recipient,
+  );
+  if (!resolved.url) return { ok: false, error: 'Could not build a share link.' };
+  const built = await buildPortalShareEmail({
+    recipient,
+    url: resolved.url,
+    message: input.message,
+  });
+  return { ok: true, subject: built.subject, html: built.html, text: built.text };
 }

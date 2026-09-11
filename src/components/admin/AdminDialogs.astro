@@ -35,6 +35,10 @@ import IosBottomSheet from '../IosBottomSheet.astro';
   <p class="reave-share-sub" id="reave-share-sub"></p>
   <label class="reave-share-note-label" for="reave-share-note">Personal note <span class="reave-share-optional">(optional)</span></label>
   <textarea id="reave-share-note" class="reave-share-note" rows="2" placeholder="Add a short note for the recipient…"></textarea>
+  <div class="reave-share-email-preview" id="reave-share-email-preview" hidden>
+    <p class="reave-share-preview-label">Email preview</p>
+    <iframe id="reave-share-email-preview-frame" class="reave-share-email-preview-frame" title="Share email preview" sandbox="allow-same-origin"></iframe>
+  </div>
   <div class="reave-share-actions" id="reave-share-actions"></div>
   <p class="reave-share-status" id="reave-share-status" hidden role="status"></p>
 </IosBottomSheet>

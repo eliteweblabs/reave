@@ -536,6 +536,29 @@
   outline: none;
   border-color: #0a84ff;
 }
+.reave-share-email-preview {
+  margin-top: 0.65rem;
+}
+.reave-share-email-preview[hidden] {
+  display: none !important;
+}
+.reave-share-preview-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.reave-share-email-preview-frame {
+  display: block;
+  width: 100%;
+  min-height: 280px;
+  height: min(52vh, 560px);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #fff;
+}
 .reave-share-actions {
   display: flex;
   flex-direction: row;

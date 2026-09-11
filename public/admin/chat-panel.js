@@ -510,6 +510,109 @@ function closeReaveShareSheet() {
   window.IosSheet?.close('reave-share-backdrop');
   _reaveShareState = null;
   setReaveShareQr('');
+  hideReaveShareEmailPreview();
+}
+
+function hideReaveShareEmailPreview() {
+  const wrap = document.getElementById('reave-share-email-preview');
+  const frame = document.getElementById('reave-share-email-preview-frame');
+  if (wrap) wrap.hidden = true;
+  if (frame) frame.removeAttribute('srcdoc');
+  _reaveSharePreviewOpen = false;
+}
+
+let _reaveSharePreviewOpen = false;
+let _reaveSharePreviewTimer = null;
+
+function mountReaveSharePreviewFrame(frame) {
+  if (!(frame instanceof HTMLIFrameElement)) return;
+  frame.addEventListener(
+    'load',
+    () => {
+      try {
+        frame.contentWindow?.scrollTo(0, 0);
+        const doc = frame.contentDocument;
+        const h = doc?.documentElement?.scrollHeight || doc?.body?.scrollHeight;
+        if (h) frame.style.height = `${Math.min(h + 12, Math.round(window.innerHeight * 0.52))}px`;
+      } catch {
+        /* ignore */
+      }
+    },
+    { once: true },
+  );
+}
+
+async function buildReaveSharePreviewPayload(state) {
+  const noteEl = document.getElementById('reave-share-note');
+  const message = noteEl?.value?.trim() || undefined;
+  let url;
+  if (state.kind === 'document') {
+    url = state.url;
+  } else if (state.kind === 'booking') {
+    url = state.url || scheduleShareBookingUrl(state.booking);
+  } else if (!state.jobSlug && state.recipient?.contactUid) {
+    url = clientPortalShareUrl(state.recipient.contactUid, state.tab, undefined);
+  } else if (state.url && !state.jobSlug) {
+    url = state.url;
+  }
+  return {
+    kind: state.kind === 'work' ? 'work' : state.kind,
+    recipient: state.recipient,
+    message,
+    url: url || undefined,
+    jobSlug: state.jobSlug || undefined,
+    tab: state.tab || undefined,
+    booking: state.booking || undefined,
+    template: state.template || undefined,
+    docTitle: state.docTitle || undefined,
+  };
+}
+
+async function refreshReaveShareEmailPreview(state, opts = {}) {
+  if (state.kind === 'booking' || state.kind === 'document') return;
+  const previewWrap = document.getElementById('reave-share-email-preview');
+  const previewFrame = document.getElementById('reave-share-email-preview-frame');
+  if (!previewWrap || !previewFrame) return;
+  if (!_reaveSharePreviewOpen && !opts.forceOpen) return;
+
+  previewWrap.hidden = false;
+  if (!opts.silent) previewFrame.removeAttribute('srcdoc');
+
+  try {
+    const payload = await buildReaveSharePreviewPayload(state);
+    const res = await fetch('/api/share/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    previewFrame.srcdoc = String(data.html || '');
+    mountReaveSharePreviewFrame(previewFrame);
+  } catch (e) {
+    if (opts.forceOpen) {
+      setReaveShareStatus(e?.message || 'Could not preview email', 'err');
+      hideReaveShareEmailPreview();
+    }
+  }
+}
+
+function scheduleReaveShareEmailPreview(state) {
+  if (!_reaveSharePreviewOpen) return;
+  if (_reaveSharePreviewTimer) clearTimeout(_reaveSharePreviewTimer);
+  _reaveSharePreviewTimer = setTimeout(() => {
+    _reaveSharePreviewTimer = null;
+    void refreshReaveShareEmailPreview(state, { silent: true });
+  }, 280);
+}
+
+async function toggleReaveShareEmailPreview(state) {
+  if (_reaveSharePreviewOpen) {
+    hideReaveShareEmailPreview();
+    return;
+  }
+  _reaveSharePreviewOpen = true;
+  await refreshReaveShareEmailPreview(state, { forceOpen: true });
 }
 
 function setReaveShareQr(qrDataUrl) {
@@ -675,7 +778,14 @@ function buildReaveShareActions(state, opts = {}) {
 
   const previewBtn = createIosIconBtn({
     iconKey: 'eye',
-    label: 'Preview',
+    label: 'Preview email',
+    className: 'ios-icon-btn reave-share-icon',
+    onClick: () => void toggleReaveShareEmailPreview(state),
+  });
+
+  const pagePreviewBtn = createIosIconBtn({
+    iconKey: 'link',
+    label: 'Preview page',
     className: 'ios-icon-btn reave-share-icon',
     onClick: async () => {
       const url = await resolveReaveShareUrl(state);
@@ -695,7 +805,7 @@ function buildReaveShareActions(state, opts = {}) {
     onError: () => showChatToast('Copy failed — check browser permissions'),
   });
 
-  actionsEl.append(emailBtn, smsBtn, previewBtn, copyBtn);
+  actionsEl.append(emailBtn, smsBtn, previewBtn, pagePreviewBtn, copyBtn);
 
   if (navigator.share) {
     const moreBtn = createIosIconBtn({
@@ -762,13 +872,17 @@ async function openReaveShareSheet(opts = {}) {
         ? `Send meeting details via ${brandName} — branded email or SMS, not your personal account.`
         : `Send ${reaveShareKindLabel(kind).toLowerCase()} via ${brandName}.`;
   }
-  if (noteEl) noteEl.value = '';
+  if (noteEl) {
+    noteEl.value = '';
+    noteEl.oninput = () => scheduleReaveShareEmailPreview(state);
+  }
+  hideReaveShareEmailPreview();
   setReaveShareStatus('', null);
   await loadReaveShareQr({ kind, jobSlug: opts.jobSlug, qrDataUrl: opts.qrDataUrl });
   buildReaveShareActions(state, opts);
 
   window.IosSheet?.open('reave-share-backdrop', {
-    onClose: () => { _reaveShareState = null; },
+    onClose: () => { _reaveShareState = null; hideReaveShareEmailPreview(); },
   });
 }
 
