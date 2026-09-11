@@ -4,6 +4,10 @@
  */
 import assert from 'node:assert/strict';
 import {
+  dropIncompleteTodayFromSeries,
+  todayIsoDate,
+} from '../src/lib/analyticsSeries.ts';
+import {
   mergeAnalyticsFleetPreviews,
   mergeAnalyticsSites,
   mergeDashboardSiteCards,
@@ -305,5 +309,20 @@ assert.equal(mergedPreview?.siteCount, 2);
 assert.equal(mergedPreview?.sites.length, 2);
 assert.equal(mergedPreview?.sites.find((row) => row.siteId === 'alpha.com')?.visitors, 100);
 assert.equal(mergedPreview?.sites.find((row) => row.siteId === 'beta.com')?.siteId, 'beta.com');
+
+const today = todayIsoDate('UTC');
+const series = dropIncompleteTodayFromSeries(
+  [
+    { date: '2026-09-09', visitors: 10, pageviews: 20 },
+    { date: today, visitors: 1, pageviews: 2 },
+  ],
+  'UTC',
+);
+assert.equal(series.length, 1);
+assert.equal(series[0]?.date, '2026-09-09');
+assert.equal(
+  dropIncompleteTodayFromSeries([{ date: '2026-09-09', visitors: 10, pageviews: 20 }], 'UTC').length,
+  1,
+);
 
 console.log('verify-analytics-sites: ok');

@@ -11,7 +11,9 @@ import {
   plausibleRealtimeVisitors,
   plausibleSiteId,
   plausibleTimeseries,
+  plausibleTimezone,
 } from './plausibleClient';
+import { dropIncompleteTodayFromSeries } from './analyticsSeries';
 import { ga4DashboardStats } from './ga4Client';
 import {
   AnalyticsApiError,
@@ -268,13 +270,16 @@ async function buildPlausibleDashboard(
   }
 
   const agg = aggregate.ok ? aggregate.data.results : undefined;
-  const series = timeseries.ok
-    ? (timeseries.data.results ?? []).map((row) => ({
-        date: String(row.date ?? ''),
-        visitors: Number(row.visitors) || 0,
-        pageviews: Number(row.pageviews) || 0,
-      }))
-    : [];
+  const series = dropIncompleteTodayFromSeries(
+    timeseries.ok
+      ? (timeseries.data.results ?? []).map((row) => ({
+          date: String(row.date ?? ''),
+          visitors: Number(row.visitors) || 0,
+          pageviews: Number(row.pageviews) || 0,
+        }))
+      : [],
+    plausibleTimezone(),
+  );
 
   return attachPlausibleWired({
     configured: true,

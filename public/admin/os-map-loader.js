@@ -285,7 +285,8 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260905b';
+  syncAnalyticsAccountMenu,
+} from './insights-panels.js?v=20260911a';
 import {
   initRulesPanel,
   ruleState,
@@ -12329,6 +12330,8 @@ function initTopbarMenus() {
       }
     });
   }
+
+  void syncAnalyticsAccountMenu();
 
   const logoLink = document.querySelector('.app-header-logo');
   if (logoLink && !logoLink.dataset.bound) {
