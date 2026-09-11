@@ -17,6 +17,8 @@ interface Props {
   brandName?: string;
   /** Override the first field’s input placeholder (embedded footers, etc.). */
   inputPlaceholder?: string;
+  /** Start the conversation on load (primary conversion forms above the fold). */
+  eager?: boolean;
 }
 
 const {
@@ -26,6 +28,7 @@ const {
   heroChat = false,
   brandName = "reave.app",
   inputPlaceholder = "",
+  eager = false,
 } = Astro.props;
 const company = heroChat ? await getCompanyConfig(Astro.request) : null;
 const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
@@ -691,13 +694,14 @@ const rootClass = [
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, brandName, embedded, dock, inputPlaceholder, heroChat }}>
+<script define:vars={{ bookingApiUrl, slug, brandName, embedded, dock, inputPlaceholder, heroChat, eager }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
   const BRAND_NAME = brandName;
   const IS_EMBEDDED = Boolean(embedded) || Boolean(dock);
   const IS_DOCK = Boolean(dock);
   const HERO_CHAT = Boolean(heroChat);
+  const EAGER = Boolean(eager);
   const INPUT_PLACEHOLDER_OVERRIDE = String(inputPlaceholder || "").trim();
   const SMS_USE_CASES = "inquiry updates and appointment reminders";
 
@@ -1444,7 +1448,7 @@ const rootClass = [
     const el = root();
     if (!el) return;
 
-    if (!IS_EMBEDDED && !IS_DOCK) {
+    if (EAGER || !IS_EMBEDDED || IS_DOCK) {
       loadForm();
       return;
     }

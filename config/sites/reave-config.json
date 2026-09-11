@@ -45,8 +45,8 @@
         "label": "About"
       },
       {
-        "href": "/#contact",
-        "label": "Contact"
+        "href": "/#apply",
+        "label": "Apply"
       }
     ],
     "groups": [
@@ -86,8 +86,8 @@
             "label": "Portfolio"
           },
           {
-            "href": "/#contact",
-            "label": "Contact"
+            "href": "/#apply",
+            "label": "Apply"
           }
         ]
       }
