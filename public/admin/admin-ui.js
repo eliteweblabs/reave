@@ -2121,8 +2121,8 @@ export function createEditableHeaderTitleInput(opts = {}) {
 }
 
 /**
- * Detail-pane title row: title + optional middle + icon actions.
- * `back` hoists to `#admin-special-back` (left of the wordmark), not this row.
+ * Detail-pane title row: back chevron + title + optional middle + icon actions.
+ * Pass `back.hoist: true` to bind `#admin-special-back` instead (settings only).
  *
  * Prefer `createPaneHeader` from `pane-header.js` when mounting under the logo
  * topbar — that API owns the full header/subheader stack (optional secondary
@@ -2130,7 +2130,7 @@ export function createEditableHeaderTitleInput(opts = {}) {
  * bare `.de-header` node (e.g. inside `.detail-chrome`).
  *
  * @param {object} opts
- * @param {object|false} [opts.back] — hoisted to the logo topbar; omit for none
+ * @param {object|false} [opts.back] — in-pane chevron; pass `hoist: true` for logo topbar only
  * @param {string} [opts.title] — static title text
  * @param {object} [opts.editableTitle] — passed to createEditableHeaderTitleInput
  * @param {HTMLElement} [opts.titleNode] — custom title block (click-to-edit, client name, etc.)
@@ -2146,12 +2146,16 @@ export function createPaneSubheader(opts = {}) {
   header.className = 'de-header' + (opts.className ? ` ${opts.className}` : '');
 
   if (opts.back) {
-    bindAppHeaderBack({
-      label: opts.back.label,
-      onClick: opts.back.onClick,
-      owner: header,
-    });
-    header.dataset.headerBack = '1';
+    if (opts.back.hoist) {
+      bindAppHeaderBack({
+        label: opts.back.label,
+        onClick: opts.back.onClick,
+        owner: header,
+      });
+      header.dataset.headerBack = '1';
+    } else {
+      header.appendChild(createPanelBackBtn(opts.back));
+    }
   }
 
   let titleInput = null;
