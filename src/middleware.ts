@@ -289,7 +289,8 @@ const appHandler = async (
       normalizedPath !== "/nfc" &&
       normalizedPath !== "/contact.vcf" &&
       normalizedPath !== "/dealer-map" &&
-      normalizedPath !== "/test";
+      normalizedPath !== "/test" &&
+      normalizedPath !== "/rate-your-experience";
     if (isMarketingLike) {
       return featureBlockedResponse();
     }
