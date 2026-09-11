@@ -43,6 +43,7 @@ import {
 } from './admin-ui.js?v=20260825h';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
+import { sharePortalLink, showChatToast } from './chat-panel.js?v=20260824a';
 import { createFleetMap } from '/admin/fleet-map.js';
 import { initSocialPanel, loadSocialTab } from './social-panel.js?v=20260827a';
 
@@ -617,21 +618,89 @@ function analyticsSourceTabs(available) {
   );
 }
 
-function analyticsGoogleConnectHtml(status) {
-  if (!status) return '';
-  if (status.google?.connected) {
-    const label = status.google.accountLabel || 'Google connected';
-    return (
-      `<div class="ana-google-row">` +
-        `<span class="soc-sub">${escHtml(label)}</span>` +
-        `<button type="button" class="prof-btn-secondary" data-analytics-disconnect>Disconnect</button>` +
-      `</div>`
-    );
+function closeAccountMenu() {
+  const menu = document.getElementById('topbar-profile-menu');
+  if (menu && typeof window.__setOverlayMenuOpen === 'function') {
+    window.__setOverlayMenuOpen(menu, false);
+    return;
   }
-  if (!status.googleOAuthConfigured) {
-    return `<p class="soc-empty-hint">Set <code>GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_SECRET</code> to connect Search Console &amp; GA4.</p>`;
+  if (menu) menu.hidden = true;
+}
+
+async function disconnectGoogleAnalytics() {
+  if (!confirm('Disconnect Google Search Console / Analytics from this install?')) return;
+  try {
+    const res = await fetch('/api/admin/analytic-audit/status', { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    analyticsStatus = null;
+    await syncAnalyticsAccountMenu();
+    if (analyticsRoot()) void loadAnalyticsTab({ preserveSidebar: true });
+    showChatToast('Google disconnected');
+  } catch (e) {
+    showChatToast(e.message || 'Disconnect failed');
   }
-  return `<a class="prof-btn-secondary" href="${escHtml(status.connectUrl || '/api/admin/analytic-audit/connect')}">Connect Google</a>`;
+}
+
+/** Google connect/disconnect lives in the account menu — not the Sites pane header. */
+export async function syncAnalyticsAccountMenu(status = analyticsStatus) {
+  const actions = document.querySelector('#topbar-profile-menu .overlay-menu-footer-actions');
+  if (!actions) return;
+
+  let data = status;
+  if (!data) {
+    try {
+      const res = await fetch('/api/admin/analytic-audit/status', { cache: 'no-store' });
+      data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.ok) data = null;
+    } catch {
+      data = null;
+    }
+  }
+  if (data?.ok) analyticsStatus = data;
+
+  let btn = actions.querySelector('[data-analytics-google-account]');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.analyticsGoogleAccount = '1';
+    btn.className = 'brand-btn brand-btn-glass overlay-menu-action';
+    const signOut = document.getElementById('topbar-sign-out');
+    actions.insertBefore(btn, signOut || null);
+  }
+
+  if (!data?.googleOAuthConfigured) {
+    btn.hidden = true;
+    return;
+  }
+
+  btn.hidden = false;
+  if (data.google?.connected) {
+    const label = data.google.accountLabel || 'Google connected';
+    btn.textContent = 'Disconnect Google';
+    btn.title = label;
+    btn.onclick = (ev) => {
+      ev.preventDefault();
+      closeAccountMenu();
+      void disconnectGoogleAnalytics();
+    };
+  } else {
+    btn.textContent = 'Connect Google';
+    btn.title = 'Search Console & GA4';
+    btn.onclick = (ev) => {
+      ev.preventDefault();
+      closeAccountMenu();
+      window.location.href = data.connectUrl || '/api/admin/analytic-audit/connect';
+    };
+  }
+}
+
+function analyticsShareUrl(siteId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('tab', 'analytics');
+  if (siteId) url.searchParams.set('site', siteId);
+  else url.searchParams.delete('site');
+  return url.toString();
 }
 
 function analyticsMetricCard(value, label, hint, change) {
@@ -897,8 +966,7 @@ function analyticsPaneActionsHtml(status, opts = {}) {
     (opts.openLink || '') +
     (opts.showSync && hostedConfigured
       ? `<button type="button" class="prof-btn-secondary" data-analytics-sync${analyticsSyncing ? ' disabled' : ''}>${analyticsSyncing ? 'Syncing…' : 'Sync hosted sites'}</button>`
-      : '') +
-    analyticsGoogleConnectHtml(status)
+      : '')
   );
 }
 
@@ -1008,6 +1076,7 @@ function buildAnalyticsDetailHtml(d, status, readiness, readinessLoading) {
         `</p>` +
       `</div>` +
       `<div class="ana-header-actions">` +
+        `<span class="ana-share-mount"></span>` +
         analyticsPaneActionsHtml(status, {
           showBack: true,
           wired: d?.wired,
@@ -1141,19 +1210,18 @@ function bindAnalyticsControls(root) {
       if (next) openAnalyticsSite(next);
     });
   });
-  root.querySelectorAll('[data-analytics-disconnect]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('Disconnect Google Search Console / Analytics from this install?')) return;
-      try {
-        const res = await fetch('/api/admin/analytic-audit/status', { method: 'DELETE' });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-        void loadAnalyticsTab({ preserveSidebar: true });
-      } catch (e) {
-        alert(e.message || 'Disconnect failed');
-      }
+  const shareMount = root.querySelector('.ana-share-mount');
+  if (shareMount && analyticsSiteId) {
+    shareMount.replaceChildren();
+    const shareBtn = paneShareIcon({
+      label: 'Share site analytics',
+      onClick: () => {
+        const url = analyticsShareUrl(analyticsSiteId);
+        void sharePortalLink(url, `${analyticsSiteId} — Sites`, shareBtn);
+      },
     });
-  });
+    shareMount.appendChild(shareBtn);
+  }
   root.querySelectorAll('[data-analytics-back]').forEach((btn) => {
     btn.addEventListener('click', () => {
       analyticsSiteId = '';
@@ -1336,6 +1404,7 @@ async function loadAnalyticsTab(opts = {}) {
     ]);
     const statusData = await statusRes.json().catch(() => ({}));
     analyticsStatus = statusData?.ok ? statusData : null;
+    void syncAnalyticsAccountMenu(analyticsStatus);
 
     const { res: liteRes, data: liteData } = liteResult;
     if (!liteRes.ok || !liteData.ok) throw new Error(liteData.error || `HTTP ${liteRes.status}`);

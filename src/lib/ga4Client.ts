@@ -171,6 +171,12 @@ export async function ga4DashboardStats(args: {
   start.setUTCDate(end.getUTCDate() - (args.rangeDays - 1));
   const startDate = start.toISOString().slice(0, 10);
   const endDate = end.toISOString().slice(0, 10);
+  const seriesEnd = new Date(end);
+  seriesEnd.setUTCDate(end.getUTCDate() - 1);
+  const seriesStart = new Date(seriesEnd);
+  seriesStart.setUTCDate(seriesEnd.getUTCDate() - (args.rangeDays - 1));
+  const seriesStartDate = seriesStart.toISOString().slice(0, 10);
+  const seriesEndDate = seriesEnd.toISOString().slice(0, 10);
   const subject = args.subject ?? agencySubject();
   const propertyId = normalizePropertyId(args.propertyId);
 
@@ -184,8 +190,8 @@ export async function ga4DashboardStats(args: {
     }),
     ga4RunReport({
       propertyId,
-      startDate,
-      endDate,
+      startDate: seriesStartDate,
+      endDate: seriesEndDate,
       metrics: ['activeUsers', 'screenPageViews'],
       dimensions: ['date'],
       limit: args.rangeDays + 5,

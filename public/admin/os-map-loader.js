@@ -285,7 +285,8 @@ import {
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
-} from './insights-panels.js?v=20260905b';
+  syncAnalyticsAccountMenu,
+} from './insights-panels.js?v=20260911b';
 import {
   initRulesPanel,
   ruleState,
@@ -3872,6 +3873,45 @@ function isDashApexPublicHost(host) {
   return parts.length === 2;
 }
 
+function dashFleetCardRank(card) {
+  const registered = Boolean(card?.analytics?.registered);
+  const hasAnalytics = Boolean(card?.analytics);
+  const hasMonitor = Boolean(card?.monitor);
+  if (registered && hasMonitor) return 0;
+  if (registered) return 1;
+  if (hasAnalytics && hasMonitor) return 2;
+  if (hasAnalytics) return 3;
+  if (hasMonitor) return 4;
+  return 5;
+}
+
+/** Keep one tile when multiple apex domains share the same Kinsta/Railway label. */
+function collapseDashboardSiteCardsByLabel(cards) {
+  const byLabel = new Map();
+  for (const card of cards || []) {
+    const key = String(card?.label || '').trim().toLowerCase() || String(card?.siteId || '').toLowerCase();
+    const group = byLabel.get(key) || [];
+    group.push(card);
+    byLabel.set(key, group);
+  }
+  const kept = [];
+  for (const group of byLabel.values()) {
+    if (group.length === 1) {
+      kept.push(group[0]);
+      continue;
+    }
+    group.sort((a, b) => {
+      const rankDiff = dashFleetCardRank(a) - dashFleetCardRank(b);
+      if (rankDiff) return rankDiff;
+      return String(a.siteId).localeCompare(String(b.siteId), undefined, { sensitivity: 'base' });
+    });
+    kept.push(group[0]);
+  }
+  return kept.sort((a, b) =>
+    String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }),
+  );
+}
+
 /**
  * One card per apex: join uptime monitors + analytics fleet.
  * Keep in sync with mergeDashboardSiteCards in analyticsSiteMerge.ts
@@ -3906,12 +3946,14 @@ function mergeDashboardSiteCards(monitors, analyticsSites, extras = {}) {
       analytics: null,
     });
   }
-  const healthSites = extras.siteHealthSites;
-  if (healthSites && typeof healthSites === 'object') {
-    for (const siteId of Object.keys(healthSites)) {
-      const host = normalizeDashFleetHost(siteId);
-      if (!host || !isDashApexPublicHost(host) || byId.has(host)) continue;
-      byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
+  if (extras.includeHealthOnlySites !== false) {
+    const healthSites = extras.siteHealthSites;
+    if (healthSites && typeof healthSites === 'object') {
+      for (const siteId of Object.keys(healthSites)) {
+        const host = normalizeDashFleetHost(siteId);
+        if (!host || !isDashApexPublicHost(host) || byId.has(host)) continue;
+        byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
+      }
     }
   }
   const ignored = extras.ignoredSiteIds;
@@ -3922,16 +3964,18 @@ function mergeDashboardSiteCards(monitors, analyticsSites, extras = {}) {
       byId.set(host, { siteId: host, label: host, monitor: null, analytics: null });
     }
   }
-  return [...byId.values()].sort((a, b) =>
-    String(a.label).localeCompare(String(b.label), undefined, { sensitivity: 'base' }),
-  );
+  return collapseDashboardSiteCardsByLabel([...byId.values()]);
 }
 
 function dashboardSiteCardMergeExtras(data) {
   const ignoreSites = data?.siteFleetIgnore?.sites;
+  const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
+  const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
+  const hasLiveFleet = analyticsSites.length > 0 || monitors.length > 0;
   return {
     siteHealthSites: data?.siteHealth?.sites || null,
     ignoredSiteIds: ignoreSites && typeof ignoreSites === 'object' ? Object.keys(ignoreSites) : [],
+    includeHealthOnlySites: !hasLiveFleet,
   };
 }
 
@@ -4227,14 +4271,11 @@ function siteHealthIssueCodes(health) {
 }
 
 function dashboardSiteCardsFromPayload(data) {
+  const precached = Array.isArray(data?.fleetSiteCards) ? data.fleetSiteCards : null;
+  if (precached?.length) return precached;
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
   const analyticsSites = Array.isArray(data?.analytics?.sites) ? data.analytics.sites : [];
-  const merged = mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
-  const precached = Array.isArray(data?.fleetSiteCards) ? data.fleetSiteCards : null;
-  if (!precached?.length) return merged;
-  const expected = dashboardFleetExpectedCount(data);
-  if (expected > precached.length) return merged.length >= expected ? merged : merged.length > precached.length ? merged : precached;
-  return precached.length >= merged.length ? precached : merged;
+  return mergeDashboardSiteCards(monitors, analyticsSites, dashboardSiteCardMergeExtras(data));
 }
 
 function siteHealthSignalState(key, health, card, fleet, opts = {}) {
@@ -10391,7 +10432,7 @@ function renderVapiPanel(company) {
 function prependSettingsBackHeader(root) {
   root.prepend(
     createPaneHeader({
-      back: { label: 'Back', onClick: () => setActiveMap('dashboard') },
+      back: { label: 'Back', onClick: () => setActiveMap('dashboard'), hoist: true },
       className: 'settings-subheader',
     }).root,
   );
@@ -12290,6 +12331,8 @@ function initTopbarMenus() {
     });
   }
 
+  void syncAnalyticsAccountMenu();
+
   const logoLink = document.querySelector('.app-header-logo');
   if (logoLink && !logoLink.dataset.bound) {
     logoLink.dataset.bound = '1';
@@ -14007,7 +14050,7 @@ function senderAddressForContact(ev) {
 
 function emailDetailFromHtml(ev) {
   const fromDisplay = ev.from || '(unknown)';
-  const canAdd = Boolean(senderAddressForContact(ev));
+  const canAdd = Boolean(senderAddressForContact(ev)) && !isEmailLabModeFor(ev);
   return (
     `<span class="em-from-client">` +
       `<strong>From</strong> ` +
@@ -19714,9 +19757,21 @@ function captureLabWindowSelection(winOrDoc, field, detail) {
 
 let labSelecting = false;
 let labCommitTimer = 0;
+let labReleaseGen = 0;
 let labDocSelectionBound = false;
+let labSelectionChangeBound = false;
+/** @type {{ x: number, y: number } | null} */
+let labPointerStart = null;
 /** @type {Document | null} */
 let labSelectionSource = null;
+
+function isCoarsePointerDevice() {
+  return window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
+}
+
+function labSelectionCommitDelay() {
+  return isCoarsePointerDevice() ? 280 : 60;
+}
 
 function getEmailLabBodyFrameDoc() {
   const frame = emailState.labDetail?.querySelector('.em-detail-body-frame');
@@ -19835,7 +19890,9 @@ function enableEmailLabSelectionStyles(doc) {
 
 function labEventOnChrome(ev) {
   const el = ev?.target instanceof Element ? ev.target : null;
-  return Boolean(el?.closest('button, input, textarea, select, .em-lab-bar'));
+  return Boolean(
+    el?.closest('button, input, textarea, select, .em-lab-bar, .em-from-contact, .em-from-add'),
+  );
 }
 
 function markLabSelecting(ev) {
@@ -19848,13 +19905,17 @@ function markLabSelecting(ev) {
   if (!fromIframe && detail && el && !detail.contains(el)) return;
   labSelectionSource = labDocFromEventTarget(ev);
   labSelecting = true;
+  if (typeof ev.clientX === 'number' && typeof ev.clientY === 'number') {
+    labPointerStart = { x: ev.clientX, y: ev.clientY };
+  }
   window.clearTimeout(labCommitTimer);
 }
 
-function scheduleLabCommit(delay = 0) {
+function scheduleLabCommit(delay = 0, gen = 0) {
   window.clearTimeout(labCommitTimer);
   labCommitTimer = window.setTimeout(() => {
     labCommitTimer = 0;
+    if (gen && gen !== labReleaseGen) return;
     commitLabSelectionNow();
   }, delay);
 }
@@ -19871,9 +19932,26 @@ function commitLabSelectionNow() {
 function finishLabSelecting(opts = {}) {
   const wasSelecting = labSelecting;
   labSelecting = false;
-  if (!wasSelecting && labEventOnChrome(opts.event)) return;
-  if (opts.event) labSelectionSource = labDocFromEventTarget(opts.event);
-  scheduleLabCommit(Number(opts.delay) || 0);
+  const ev = opts.event;
+  if (!wasSelecting && labEventOnChrome(ev)) return;
+  if (labPointerStart && ev && typeof ev.clientX === 'number' && typeof ev.clientY === 'number') {
+    const dx = Math.abs(ev.clientX - labPointerStart.x);
+    const dy = Math.abs(ev.clientY - labPointerStart.y);
+    labPointerStart = null;
+    if (dx > 10 || dy > 10) return;
+  } else {
+    labPointerStart = null;
+  }
+  if (ev) labSelectionSource = labDocFromEventTarget(ev);
+  const gen = ++labReleaseGen;
+  scheduleLabCommit(Number(opts.delay) || labSelectionCommitDelay(), gen);
+}
+
+function onLabSelectionChange() {
+  if (!emailState.labMode || labSelecting) return;
+  const frameDoc = getEmailLabBodyFrameDoc();
+  if (!labSelectionDocHasText(document) && !(frameDoc && labSelectionDocHasText(frameDoc))) return;
+  scheduleLabCommit(labSelectionCommitDelay(), ++labReleaseGen);
 }
 
 function onLabKeyUp(ev) {
@@ -19898,8 +19976,8 @@ function bindEmailLabReleaseListeners(target) {
   } else {
     target.addEventListener('mousedown', markLabSelecting);
     target.addEventListener('mouseup', (ev) => finishLabSelecting({ event: ev }));
+    target.addEventListener('touchend', (ev) => finishLabSelecting({ event: ev }));
   }
-  target.addEventListener('touchend', (ev) => finishLabSelecting({ event: ev, delay: 80 }));
 }
 
 function bindEmailLabDocument(doc) {
@@ -19934,8 +20012,52 @@ function bindEmailLabDetail(detail) {
     bindEmailLabReleaseListeners(document);
     document.addEventListener('keyup', onLabKeyUp);
   }
+  if (!labSelectionChangeBound) {
+    labSelectionChangeBound = true;
+    document.addEventListener('selectionchange', onLabSelectionChange);
+  }
   if (detail.dataset.emailLabDetailBound === '1') return;
   detail.dataset.emailLabDetailBound = '1';
+}
+
+function bindEmailLabFromTap(detail, ev) {
+  const valueEl = detail.querySelector('.em-from-value');
+  if (!(valueEl instanceof HTMLElement) || valueEl.dataset.emLabFromTapBound === '1') return;
+  valueEl.dataset.emLabFromTapBound = '1';
+  valueEl.classList.add('em-lab-from-target');
+  valueEl.setAttribute('role', 'button');
+  valueEl.setAttribute('tabindex', '0');
+  valueEl.setAttribute(
+    'aria-label',
+    'Add sender email as rule target. Long-press to select part of the address instead.',
+  );
+
+  const pickSenderEmail = () => {
+    const email =
+      senderAddressForContact(ev) ||
+      parseSenderEmail(ev.from) ||
+      parseSenderEmail(valueEl.textContent);
+    if (!email || !email.includes('@')) return false;
+    return addEmailLabPhrase(email, 'from');
+  };
+
+  valueEl.addEventListener('click', (e) => {
+    if (!emailState.labMode) return;
+    const sel = document.getSelection();
+    const selected = String(sel?.toString() || '').trim();
+    if (selected && sel && !sel.isCollapsed) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pickSenderEmail();
+  });
+
+  valueEl.addEventListener('keydown', (e) => {
+    if (!emailState.labMode) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      pickSenderEmail();
+    }
+  });
 }
 
 function iframeDocLooksEmpty(doc) {
@@ -19974,7 +20096,7 @@ function mountEmailLabFrame(frame) {
   window.setTimeout(bindFrame, 600);
 }
 
-function mountEmailLabSelection(detail) {
+function mountEmailLabSelection(detail, ev) {
   if (!detail) return;
   bindEmailLabDetail(detail);
   bindEmailLabDom(detail.querySelector('.em-detail-body'), 'body');
@@ -19983,6 +20105,7 @@ function mountEmailLabSelection(detail) {
   bindEmailLabDom(detail.querySelector('.em-to-value'), 'body');
   bindEmailLabDom(detail.querySelector('.em-detail-subject'), 'subject');
   bindEmailLabDom(detail.querySelector('.em-subject-value'), 'subject');
+  if (ev) bindEmailLabFromTap(detail, ev);
   mountEmailLabFrame(detail.querySelector('.em-detail-body-frame'));
 }
 
@@ -20129,8 +20252,12 @@ async function createRuleFromEmailLab() {
     return;
   }
   if (!emailState.labPhrases.length) {
-    const subject = String(ev.subject || '').trim();
-    if (subject) addEmailLabPhrase(subject, 'subject');
+    await osAlert({
+      title: 'Select text first',
+      bodyHtml:
+        'Highlight a phrase in From, subject, or body — or tap the sender email — then tap Create Rule.',
+    });
+    return;
   }
   const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
   const phraseFields =
@@ -20594,7 +20721,7 @@ function renderEmailPane() {
   if (isEmailLabModeFor(ev)) detail.prepend(renderEmailLabBar());
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
   // Bind before srcdoc so we don't miss the load event on a fast parse.
-  if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail);
+  if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail, ev);
   if (bodyFrame && bodyHtmlSource) {
     bodyFrame.srcdoc = bodyHtmlSource;
     if (isEmailLabModeFor(ev)) mountEmailLabFrame(bodyFrame);
@@ -20644,6 +20771,7 @@ function renderEmailPane() {
   void hydrateEmailFromClient(detail, ev).then(() => {
     if (isEmailLabModeFor(ev)) {
       bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
+      bindEmailLabFromTap(detail, ev);
     }
   });
   if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))) {

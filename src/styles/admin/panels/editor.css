@@ -2542,6 +2542,8 @@ button.de-placeholder-action:active {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .re-lab-suggest:hover,
 .re-lab-suggest:focus-visible {

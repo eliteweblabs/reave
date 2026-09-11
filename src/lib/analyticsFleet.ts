@@ -202,7 +202,15 @@ let accountsListInflightKey = '';
 let previewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;
 let previewInflight: Promise<AnalyticsFleetPreview> | null = null;
 let previewInflightDomain = '';
-let hostedPreviewCache: { at: number; domain: string; preview: AnalyticsFleetPreview } | null = null;
+type HostedPreviewCacheEntry = {
+  at: number;
+  domain: string;
+  preview: AnalyticsFleetPreview;
+  /** Postgres/file snapshot — never blocks live Railway/Kinsta discovery. */
+  fromPersisted?: boolean;
+};
+
+let hostedPreviewCache: HostedPreviewCacheEntry | null = null;
 let hostedPreviewInflight: Promise<AnalyticsFleetPreview> | null = null;
 let hostedPreviewInflightDomain = '';
 let hostedHydratePromise: Promise<void> | null = null;
@@ -261,9 +269,14 @@ export async function hydrateHostedFleetCache(companyDomain: string): Promise<vo
   }
   hostedHydratePromise = (async () => {
     try {
-      const preview = await loadPersistedHostedFleetPreview();
-      if (preview?.sites?.length && !hostedPreviewCache) {
-        hostedPreviewCache = { at: Date.now(), domain, preview };
+      const snapshot = await loadPersistedHostedFleetPreview();
+      if (snapshot?.preview.sites?.length && !hostedPreviewCache) {
+        hostedPreviewCache = {
+          at: snapshot.savedAtMs || 0,
+          domain,
+          preview: snapshot.preview,
+          fromPersisted: true,
+        };
       }
     } catch (e) {
       console.warn('[analytics-fleet] hosted hydrate failed:', e instanceof Error ? e.message : e);
@@ -308,43 +321,72 @@ export function peekCachedAnalyticsDashboardPreview(
 
 export function peekCachedHostedFleetPreview(
   companyDomain: string,
-  opts: { allowStale?: boolean } = {},
+  opts: { allowStale?: boolean; allowPersisted?: boolean } = {},
 ): AnalyticsFleetPreview | null {
   if (!hostedPreviewCache) return null;
   const domain = previewCacheDomain(companyDomain);
   if (hostedPreviewCache.domain !== domain) return null;
+  if (hostedPreviewCache.fromPersisted && !opts.allowPersisted && !opts.allowStale) return null;
   if (!opts.allowStale && Date.now() - hostedPreviewCache.at > HOSTED_PREVIEW_TTL_MS) return null;
   return hostedPreviewCache.preview;
+}
+
+async function refreshHostedFleetPreview(
+  companyDomain: string,
+  freshHosted?: boolean,
+): Promise<AnalyticsFleetPreview> {
+  const domain = previewCacheDomain(companyDomain);
+  const preview = await buildHostedFleetPreview(companyDomain, { freshHosted });
+  hostedPreviewCache = { at: Date.now(), domain, preview };
+  void savePersistedHostedFleetPreview(preview).catch((e) => {
+    console.warn('[analytics-fleet] hosted persist failed:', e instanceof Error ? e.message : e);
+  });
+  return preview;
 }
 
 /** Cached Railway + Kinsta apex list — no Plausible calls. */
 export async function buildHostedFleetPreviewCached(
   companyDomain: string,
-  opts: { fresh?: boolean; freshHosted?: boolean } = {},
+  opts: {
+    fresh?: boolean;
+    freshHosted?: boolean;
+    /** Dashboard fleet cards: always hit Railway/Kinsta (5m in-memory TTL). */
+    requireLive?: boolean;
+  } = {},
 ): Promise<AnalyticsFleetPreview> {
   const domain = previewCacheDomain(companyDomain);
+
   if (!opts.fresh) {
-    await hydrateHostedFleetCache(companyDomain);
-    const cached = peekCachedHostedFleetPreview(companyDomain, { allowStale: true });
-    if (cached) return cached;
+    const live = peekCachedHostedFleetPreview(companyDomain);
+    if (live) return live;
     if (hostedPreviewInflight && hostedPreviewInflightDomain === domain) return hostedPreviewInflight;
   } else if (hostedPreviewInflight && hostedPreviewInflightDomain === domain) {
     return hostedPreviewInflight;
   }
 
-  const pending = buildHostedFleetPreview(companyDomain, { freshHosted: opts.freshHosted }).then(
-    (preview) => {
-      hostedPreviewCache = { at: Date.now(), domain, preview };
-      void savePersistedHostedFleetPreview(preview).catch((e) => {
-        console.warn(
-          '[analytics-fleet] hosted persist failed:',
-          e instanceof Error ? e.message : e,
-        );
-      });
-      return preview;
-    },
-  );
+  if (!opts.fresh && !opts.requireLive) {
+    await hydrateHostedFleetCache(companyDomain);
+    const stale = peekCachedHostedFleetPreview(companyDomain, {
+      allowStale: true,
+      allowPersisted: true,
+    });
+    if (stale) {
+      if (!hostedPreviewInflight || hostedPreviewInflightDomain !== domain) {
+        const pending = refreshHostedFleetPreview(companyDomain, opts.freshHosted);
+        hostedPreviewInflight = pending;
+        hostedPreviewInflightDomain = domain;
+        void pending.finally(() => {
+          if (hostedPreviewInflight === pending) {
+            hostedPreviewInflight = null;
+            hostedPreviewInflightDomain = '';
+          }
+        });
+      }
+      return stale;
+    }
+  }
 
+  const pending = refreshHostedFleetPreview(companyDomain, opts.freshHosted);
   hostedPreviewInflight = pending;
   hostedPreviewInflightDomain = domain;
   try {

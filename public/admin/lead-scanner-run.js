@@ -186,7 +186,7 @@ export class LeadScannerRunSession {
       this.savedSubheader = existing;
     }
     const { root: header } = createPaneHeader({
-      back: { label: 'Back', onClick: () => this.close() },
+      back: { label: 'Back', onClick: () => this.close(), hoist: true },
       title,
       subtitle,
       className: 'settings-subheader',

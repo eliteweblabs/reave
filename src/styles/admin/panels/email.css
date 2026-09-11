@@ -1507,6 +1507,13 @@
   user-select: text;
   -webkit-user-select: text;
 }
+.em-detail--lab .em-from-value.em-lab-from-target {
+  cursor: pointer;
+  touch-action: manipulation;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 0.18em;
+}
 .em-detail--lab .em-detail-meta strong,
 .em-detail--lab .em-from-client strong {
   user-select: none;

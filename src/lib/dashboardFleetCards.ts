@@ -38,10 +38,16 @@ export async function loadDashboardFleetCards(context: APIContext): Promise<Dash
   let analyticsSites: AnalyticsAccountRow[] = [];
 
   if (isFleetDiscoveryConfigured()) {
-    await hydrateHostedFleetCache(company.domain);
-    let hosted = peekCachedHostedFleetPreview(company.domain, { allowStale: true });
+    let hosted = await buildHostedFleetPreviewCached(company.domain, { requireLive: true }).catch(
+      () => null,
+    );
     if (!hosted?.sites?.length) {
-      hosted = await buildHostedFleetPreviewCached(company.domain).catch(() => null);
+      await hydrateHostedFleetCache(company.domain);
+      hosted =
+        peekCachedHostedFleetPreview(company.domain, {
+          allowStale: true,
+          allowPersisted: true,
+        }) ?? null;
     }
     const analytics = mergeAnalyticsFleetPreviews(
       peekCachedAnalyticsDashboardPreview(company.domain, { allowStale: true }),
@@ -62,8 +68,10 @@ export async function loadDashboardFleetCards(context: APIContext): Promise<Dash
   const ignore = await loadSiteFleetIgnoreState();
   const fleet = peekCachedSiteHealthFleet({ allowStale: true });
 
+  const hasLiveFleet = analyticsSites.length > 0 || monitors.length > 0;
   return mergeDashboardSiteCards(monitors, analyticsSites, {
     siteHealthSites: fleet?.sites ?? null,
     ignoredSiteIds: Object.keys(ignore.sites ?? {}),
+    includeHealthOnlySites: !hasLiveFleet,
   });
 }
