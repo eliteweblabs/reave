@@ -50,18 +50,9 @@ const DEFAULT_GREETING = 'Hi. What can I assist you with today?';
 /** Known public pages the site chat should acknowledge by name (reave marketing). */
 const SITE_ASSISTANT_PAGES: Record<string, Omit<SiteAssistantPageContext, 'path'>> = {
   '/': {
-    label: 'Grand opening offer',
-    topic:
-      'the limited-time grand opening offer — free custom website design with a one-year managed hosting plan ($500/year or $50/month)',
-    greeting:
-      'Hi. Questions about the grand opening offer, or ready to apply? I can walk you through what’s included.',
-  },
-  '/grand-opening': {
-    label: 'Grand opening offer',
-    topic:
-      'the limited-time grand opening offer — free custom website design with a one-year managed hosting plan ($500/year or $50/month)',
-    greeting:
-      'Hi. Questions about the grand opening offer, or ready to apply? I can walk you through what’s included.',
+    label: 'Homepage',
+    topic: 'the homepage overview of the company and platform',
+    greeting: DEFAULT_GREETING,
   },
   '/features': {
     label: 'Features',
