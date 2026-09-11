@@ -7,7 +7,8 @@
     "documents",
     "digital_signature",
     "scheduling",
-    "carddav"
+    "carddav",
+    "website"
   ],
   "footerNav": [
     "__system__",
@@ -32,6 +33,7 @@
   "chatFocusSkin": true,
   "homepageTemplate": "login",
   "siteContentKey": "jk",
+  "websiteRepo": "eliteweblabs/capco",
   "moduleStatus": {
     "client_portal": "deployed",
     "web_handoff": "deployed",
@@ -40,6 +42,7 @@
     "documents": "deployed",
     "digital_signature": "deployed",
     "scheduling": "deployed",
-    "carddav": "deployed"
+    "carddav": "deployed",
+    "website": "deployed"
   }
 }
