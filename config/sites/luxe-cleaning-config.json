@@ -1,6 +1,5 @@
 {
-  "key": "maid-marble",
-  "_deprecated": "Use luxe-cleaning-config.json — Maid & Marble renamed to Luxe Cleaning.",
+  "key": "luxe-cleaning",
   "pages": ["/", "/services", "/pricing", "/about", "/contact", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [],
@@ -10,7 +9,7 @@
   },
   "homepage": {
     "template": "landing",
-    "heroHeadlineHtml": "A home that feels like marble.",
+    "heroHeadlineHtml": "Elevated cleaning for the homes you love.",
     "showHeroDemo": false,
     "showDialogue": false,
     "showIntegrations": false,
@@ -20,17 +19,17 @@
   },
   "landing": {
     "variant": "luxury",
-    "title": "Maid & Marble | Premium House Cleaning · Central Massachusetts",
+    "title": "Luxe Cleaning | Premium House Cleaning · Central Massachusetts",
     "description": "Woman-owned premium house cleaning in Central Massachusetts. Recurring maintenance, deep cleans, move-in/move-out, and post-renovation detail for homes that deserve a polished finish.",
     "themeColor": "#f7f4ef",
     "eyebrow": "Woman-owned · Central Massachusetts",
-    "name": "Maid & Marble",
+    "name": "Luxe Cleaning",
     "role": "Felicia Tracy, owner",
     "tagline": "Hotel-level attention for the homes you love — Worcester County, MetroWest, and the I-495 corridor.",
-    "heroHeadline": "A home that feels like marble.",
-    "heroBody": "Maid & Marble is premium residential cleaning, owned and led by Felicia Tracy. You get clear communication, consistent standards, and finishes that feel intentional — not a rotating crew or a call center.",
-    "heroImage": "/sites/maid-marble/photos/hero.jpg",
-    "heroLogo": "/sites/maid-marble/logo.png",
+    "heroHeadline": "Elevated cleaning for the homes you love.",
+    "heroBody": "Luxe Cleaning is premium residential cleaning, owned and led by Felicia Tracy. You get clear communication, consistent standards, and finishes that feel intentional — not a rotating crew or a call center.",
+    "heroImage": "/sites/luxe-cleaning/photos/hero.jpg",
+    "heroLogo": "/sites/luxe-cleaning/logo.png",
     "scheduleUrl": "/form/schedule",
     "nav": [
       { "href": "/", "label": "Home" },
@@ -48,9 +47,9 @@
       "dockPlaceholder": "Message Felicia…",
       "inputPlaceholder": "Message Felicia…",
       "introPhrases": [],
-      "greeting": "Hi — Felicia here. How can Maid & Marble help?",
+      "greeting": "Hi — Felicia here. How can Luxe Cleaning help?",
       "avatarAlt": "Felicia Tracy",
-      "headerTitle": "Maid & Marble",
+      "headerTitle": "Luxe Cleaning",
       "headerSubtitle": "Felicia Tracy",
       "footerPrefix": "Questions? Ask Felicia",
       "hideFab": true,
@@ -62,7 +61,7 @@
       "engagement": {
         "mode": "none"
       },
-      "businessNotes": "Felicia Tracy owns Maid & Marble, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 774-452-4319. Starting prices are listed on the website — confirm exact quotes after a walk-through. Do not invent availability."
+      "businessNotes": "Felicia Tracy owns Luxe Cleaning, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 508-955-8850. Starting prices are listed on the website — confirm exact quotes after a walk-through. Do not invent availability."
     },
     "schedule": {
       "formSlug": "schedule"
@@ -84,7 +83,7 @@
           "label": "Recurring maintenance",
           "kicker": "Most popular",
           "featured": true,
-          "image": "/sites/maid-marble/photos/living.jpg",
+          "image": "/sites/luxe-cleaning/photos/living.jpg",
           "imageAlt": "Bright, tidy living room after a maintenance clean",
           "description": "Weekly, bi-weekly, or monthly service built around your rhythm. We learn your home, protect surfaces, and keep finishes looking fresh without you managing a checklist.",
           "prices": ["From $179 · 2 bed", "From $219 · 3 bed", "From $269 · 4+ bed"],
@@ -99,7 +98,7 @@
         {
           "label": "Deep clean & seasonal refresh",
           "kicker": "Reset visit",
-          "image": "/sites/maid-marble/photos/kitchen.jpg",
+          "image": "/sites/luxe-cleaning/photos/kitchen.jpg",
           "imageAlt": "Spotless kitchen after a deep clean",
           "description": "For first-time clients, spring refresh, or when life gets ahead of you. Baseboards, detail work, and the rooms that need more than a maintenance pass.",
           "prices": ["From $249 · 2 bed", "From $319 · 3 bed", "From $389 · 4+ bed"],
@@ -114,7 +113,7 @@
         {
           "label": "Move-in & move-out",
           "kicker": "Turnover ready",
-          "image": "/sites/maid-marble/photos/bedroom.jpg",
+          "image": "/sites/luxe-cleaning/photos/bedroom.jpg",
           "imageAlt": "Empty bedroom prepared for move-in cleaning",
           "description": "Empty-home detail for buyers, sellers, landlords, and tenants. Handover-ready finishes so the next chapter starts clean.",
           "prices": ["From $349 · 2 bed", "From $429 · 3 bed", "From $519 · 4+ bed"],
@@ -129,7 +128,7 @@
         {
           "label": "Post-renovation polish",
           "kicker": "After construction",
-          "image": "/sites/maid-marble/photos/floor.jpg",
+          "image": "/sites/luxe-cleaning/photos/floor.jpg",
           "imageAlt": "Clean hardwood floors after post-renovation detail",
           "description": "Fine dust, smudges, and sticker residue after remodel or new build. We protect new finishes and get you move-in ready.",
           "prices": ["Quoted after walk-through", "Typical range $449–$850"],
@@ -144,7 +143,7 @@
         {
           "label": "One-time refresh",
           "kicker": "Before guests or events",
-          "image": "/sites/maid-marble/photos/bathroom.jpg",
+          "image": "/sites/luxe-cleaning/photos/bathroom.jpg",
           "imageAlt": "Sparkling bathroom vanity",
           "description": "Hosting, holidays, or a reset between recurring plans. Focused on the rooms that matter most for your timeline.",
           "prices": ["From $199 · focused visit", "From $279 · whole-home light"],
@@ -159,7 +158,7 @@
         {
           "label": "Airbnb & short-term rental turnover",
           "kicker": "Optional",
-          "image": "/sites/maid-marble/photos/supplies.jpg",
+          "image": "/sites/luxe-cleaning/photos/supplies.jpg",
           "imageAlt": "Cleaning supplies arranged for turnover service",
           "description": "Between-guest resets with linen change, restock check, and photo-ready common spaces. Ideal for hosts who want reliable turnaround.",
           "prices": ["From $149 · studio/1 bed", "From $189 · 2 bed"],
@@ -174,7 +173,7 @@
         {
           "label": "Commercial & office cleaning",
           "kicker": "Optional",
-          "image": "/sites/maid-marble/photos/team.jpg",
+          "image": "/sites/luxe-cleaning/photos/team.jpg",
           "imageAlt": "Professional cleaning team at work",
           "description": "Small offices, boutique retail, and professional suites. After-hours or low-traffic windows — custom scope and frequency.",
           "prices": ["Custom quote", "Nightly, weekly, or monthly"],
@@ -323,27 +322,27 @@
       "intro": "Clean lines, calm spaces, and the details that make a home feel cared for.",
       "photos": [
         {
-          "src": "/sites/maid-marble/photos/living.jpg",
+          "src": "/sites/luxe-cleaning/photos/living.jpg",
           "alt": "Sunlit living room after cleaning"
         },
         {
-          "src": "/sites/maid-marble/photos/kitchen.jpg",
+          "src": "/sites/luxe-cleaning/photos/kitchen.jpg",
           "alt": "Kitchen counters and appliances polished"
         },
         {
-          "src": "/sites/maid-marble/photos/bathroom.jpg",
+          "src": "/sites/luxe-cleaning/photos/bathroom.jpg",
           "alt": "Bathroom vanity and mirror gleaming"
         },
         {
-          "src": "/sites/maid-marble/photos/bedroom.jpg",
+          "src": "/sites/luxe-cleaning/photos/bedroom.jpg",
           "alt": "Fresh, made bed in a tidy bedroom"
         },
         {
-          "src": "/sites/maid-marble/photos/floor.jpg",
+          "src": "/sites/luxe-cleaning/photos/floor.jpg",
           "alt": "Hardwood floors cleaned and shining"
         },
         {
-          "src": "/sites/maid-marble/photos/supplies.jpg",
+          "src": "/sites/luxe-cleaning/photos/supplies.jpg",
           "alt": "Professional-grade cleaning supplies"
         }
       ],
@@ -393,7 +392,7 @@
         },
         {
           "q": "Are you insured?",
-          "a": "Yes — Maid & Marble is licensed and insured in Massachusetts. Certificate available on request for landlords and property managers."
+          "a": "Yes — Luxe Cleaning is licensed and insured in Massachusetts. Certificate available on request for landlords and property managers."
         },
         {
           "q": "What's your cancellation policy?",
@@ -416,7 +415,7 @@
     "about": {
       "heading": "Led by Felicia Tracy",
       "body": [
-        "Maid & Marble was built for homeowners who want more than a quick wipe-down — meticulous care, reliable scheduling, and a team that treats your home with respect.",
+        "Luxe Cleaning was built for homeowners who want more than a quick wipe-down — meticulous care, reliable scheduling, and a team that treats your home with respect.",
         "Felicia works directly with every client: walk-through, clear scope, and follow-through. Licensed and insured across Central Massachusetts.",
         "We serve busy families, professionals working from home, new homeowners, and property managers who need a partner — not a franchise call center."
       ],
@@ -431,10 +430,10 @@
     },
     "contact": {
       "heading": "Call or text",
-      "phone": "774-452-4319",
-      "phoneHref": "tel:+17744524319",
-      "email": "hello@maidandmarble.com"
+      "phone": "508-955-8850",
+      "phoneHref": "tel:+15089558850",
+      "email": "hello@luxecleaning.com"
     },
-    "footer": "Maid & Marble · Felicia Tracy · Central Massachusetts"
+    "footer": "Luxe Cleaning · Felicia Tracy · Central Massachusetts"
   }
 }

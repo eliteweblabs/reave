@@ -7,8 +7,21 @@ import type { BuildBrandContext } from './vapiBuildBrand.ts';
 const VAPI_API = 'https://api.vapi.ai';
 
 export type VapiSyncResult =
-  | { ok: true; assistantId: string; companyName: string; firstMessage: string }
+  | {
+      ok: true;
+      assistantId: string;
+      companyName: string;
+      firstMessage: string;
+      phoneAttached?: boolean;
+      phoneNumber?: string;
+    }
   | { ok: false; error: string; skipped?: boolean };
+
+type VapiPhoneNumber = {
+  id?: string;
+  number?: string;
+  assistantId?: string | null;
+};
 
 export type VapiTemplateConfig = {
   assistantId?: string;
@@ -85,6 +98,60 @@ You are the voice assistant for {{companyName}}.
 
 [Channel]
 You are on the website voice widget (web call). Keep replies short enough to say aloud in one breath.`;
+}
+
+function normalizeVapiPhone(raw: string): string {
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return trimmed.startsWith('+') ? trimmed : `+${digits}`;
+}
+
+/** Attach a Vapi phone number to the configured assistant (inbound voice). */
+export async function attachVapiPhoneToAssistant(
+  assistantId: string,
+  opts?: { phoneNumber?: string; phoneNumberId?: string },
+): Promise<{ ok: true; phoneNumberId: string; phoneNumber?: string } | { ok: false; error: string; skipped?: boolean }> {
+  if (!env('VAPI_API_KEY')) {
+    return { ok: false, error: 'VAPI_API_KEY not set', skipped: true };
+  }
+
+  const phoneNumberId = opts?.phoneNumberId?.trim() || env('VAPI_PHONE_NUMBER_ID');
+  const phoneTarget = opts?.phoneNumber?.trim() || env('VAPI_PHONE_NUMBER');
+  if (!phoneNumberId && !phoneTarget) {
+    return { ok: false, error: 'VAPI_PHONE_NUMBER or VAPI_PHONE_NUMBER_ID not set', skipped: true };
+  }
+
+  let resolvedId = phoneNumberId;
+  let resolvedNumber = phoneTarget ? normalizeVapiPhone(phoneTarget) : undefined;
+
+  if (!resolvedId) {
+    const listed = await vapiRequest<VapiPhoneNumber[]>('/phone-number');
+    if (!listed.ok) return { ok: false, error: listed.error };
+    const rows = Array.isArray(listed.data) ? listed.data : [];
+    const targetDigits = resolvedNumber?.replace(/\D/g, '') ?? '';
+    const match = rows.find((row) => {
+      const rowDigits = String(row.number ?? '').replace(/\D/g, '');
+      return rowDigits === targetDigits || rowDigits.endsWith(targetDigits.slice(-10));
+    });
+    if (!match?.id) {
+      return {
+        ok: false,
+        error: `Vapi phone number not found for ${resolvedNumber ?? phoneTarget}`,
+      };
+    }
+    resolvedId = match.id;
+    resolvedNumber = match.number ?? resolvedNumber;
+  }
+
+  const patch = await vapiRequest<VapiPhoneNumber>(`/phone-number/${resolvedId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ assistantId }),
+  });
+  if (!patch.ok) return { ok: false, error: patch.error };
+
+  return { ok: true, phoneNumberId: resolvedId, phoneNumber: patch.data.number ?? resolvedNumber };
 }
 
 async function vapiRequest<T>(
@@ -187,7 +254,15 @@ export async function syncVapiAssistantBrand(
     return { ok: false, error: patch.error };
   }
 
-  return { ok: true, assistantId, companyName: brand.name, firstMessage };
+  const phone = await attachVapiPhoneToAssistant(assistantId);
+  return {
+    ok: true,
+    assistantId,
+    companyName: brand.name,
+    firstMessage,
+    phoneAttached: phone.ok,
+    phoneNumber: phone.ok ? phone.phoneNumber : undefined,
+  };
 }
 
 export async function syncVapiAssistantFromConfig(): Promise<VapiSyncResult> {

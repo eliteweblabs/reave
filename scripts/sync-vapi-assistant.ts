@@ -36,6 +36,9 @@ async function main() {
       `[vapi-sync] Updated assistant ${result.assistantId} for "${result.companyName}"`,
     );
     console.log(`[vapi-sync] firstMessage: ${result.firstMessage}`);
+    if (result.phoneAttached && result.phoneNumber) {
+      console.log(`[vapi-sync] phone attached: ${result.phoneNumber}`);
+    }
     return;
   }
 

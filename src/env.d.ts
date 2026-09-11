@@ -342,6 +342,10 @@ interface ImportMetaEnv {
   VAPI_FIRST_MESSAGE?: string;
   /** Override synced system prompt (supports {{companyName}} etc.). */
   VAPI_SYSTEM_PROMPT?: string;
+  /** Inbound Vapi phone number (E.164) — prebuild sync attaches to assistant. */
+  VAPI_PHONE_NUMBER?: string;
+  /** Vapi phone-number resource id — skips list lookup when set. */
+  VAPI_PHONE_NUMBER_ID?: string;
   /** Vapi web SDK public key. */
   PUBLIC_VAPI_PUBLIC_KEY?: string;
   /** Vapi assistant id for Live Speak Agent Widget. */
