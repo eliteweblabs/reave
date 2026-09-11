@@ -2,7 +2,12 @@
  * Kinsta REST API v2 client for the admin agent.
  * @see https://kinsta.com/docs/kinsta-api/
  */
-import { isInternalInfraService, isNonProductionLabel, normalizeMonitorHost } from './publicUrl';
+import {
+  isInternalInfraService,
+  isNonProductionLabel,
+  isPublicWebsiteHost,
+  normalizeMonitorHost,
+} from './publicUrl';
 import { serverEnv } from './serverEnv';
 
 const KINSTA_API_BASE = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
@@ -25,6 +30,8 @@ export type KinstaEnvironmentSummary = {
   name: string;
   display_name: string;
   primary_domain: string | null;
+  /** All domain hostnames on the environment (primary + additional custom domains). */
+  domains: string[];
   php_version: string | null;
 };
 
@@ -96,12 +103,44 @@ function primaryDomainFromEnv(env: KinstaApiEnvironment): string | null {
   return env.domains?.[0]?.name?.trim() || null;
 }
 
+/** Unique public custom domain hostnames on a Kinsta environment. */
+export function kinstaEnvironmentDomainNames(
+  env: Pick<KinstaEnvironmentSummary, 'primary_domain' | 'domains'>,
+): string[] {
+  const names = new Set<string>();
+  for (const raw of env.domains ?? []) {
+    const trimmed = raw?.trim();
+    if (!trimmed) continue;
+    const key = normalizeMonitorHost(trimmed);
+    if (!key || !isPublicWebsiteHost(key)) continue;
+    names.add(trimmed);
+  }
+  const primary = env.primary_domain?.trim();
+  if (primary) {
+    const key = normalizeMonitorHost(primary);
+    if (key && isPublicWebsiteHost(key)) names.add(primary);
+  }
+  return [...names];
+}
+
+function domainsFromEnv(env: KinstaApiEnvironment): string[] {
+  const names = new Set<string>();
+  for (const domain of env.domains ?? []) {
+    const trimmed = domain.name?.trim();
+    if (trimmed) names.add(trimmed);
+  }
+  const primary = primaryDomainFromEnv(env);
+  if (primary) names.add(primary);
+  return [...names];
+}
+
 function mapEnvironment(env: KinstaApiEnvironment): KinstaEnvironmentSummary {
   return {
     id: String(env.id ?? ''),
     name: String(env.name ?? ''),
     display_name: String(env.display_name ?? env.name ?? ''),
     primary_domain: primaryDomainFromEnv(env),
+    domains: domainsFromEnv(env),
     php_version: env.container_info?.php_engine_version?.trim() || null,
   };
 }
@@ -452,7 +491,12 @@ export function formatKinstaSitesSummary(sites: KinstaSiteSummary[]): string {
   for (const site of sites) {
     lines.push(`${site.display_name || site.name} (${site.status}) — site_id ${site.id}`);
     for (const env of site.environments) {
-      const domain = env.primary_domain ? ` · ${env.primary_domain}` : '';
+      const publicDomains = kinstaEnvironmentDomainNames(env);
+      const domain = publicDomains.length
+        ? ` · ${publicDomains.join(', ')}`
+        : env.primary_domain
+          ? ` · ${env.primary_domain}`
+          : '';
       const php = env.php_version ? ` · PHP ${env.php_version}` : '';
       lines.push(`  ${env.display_name || env.name}: env_id ${env.id}${domain}${php}`);
     }
@@ -464,29 +508,78 @@ function collectKinstaEnvUrls(
   site: KinstaSiteSummary,
   urls: Array<{ url: string; friendlyName: string }>,
   seen: Set<string>,
-): void {
+): number {
+  let added = 0;
   const siteLabel = site.display_name || site.name;
   for (const env of site.environments) {
     if (isNonProductionLabel(env.name) || isNonProductionLabel(env.display_name)) continue;
     if (isInternalInfraService(env.name) || isInternalInfraService(env.display_name)) continue;
-    const domain = env.primary_domain?.trim();
-    if (!domain) continue;
-    const key = normalizeMonitorHost(domain);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
     const envLabel = env.display_name || env.name;
     const friendlyName =
       envLabel && envLabel.toLowerCase() !== 'live' && envLabel.toLowerCase() !== siteLabel.toLowerCase()
         ? `${siteLabel} (${envLabel})`
         : siteLabel;
-    urls.push({
-      url: domain.startsWith('http') ? domain : `https://${domain}`,
-      friendlyName,
-    });
+    for (const domain of kinstaEnvironmentDomainNames(env)) {
+      const key = normalizeMonitorHost(domain);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      urls.push({
+        url: domain.startsWith('http') ? domain : `https://${domain}`,
+        friendlyName,
+      });
+      added += 1;
+    }
   }
+  return added;
 }
 
-/** Public site URLs from Kinsta production primary domains. */
+async function kinstaListEnvDomains(environmentId: string): Promise<
+  | { ok: true; domains: string[] }
+  | { ok: false; error: string }
+> {
+  const envId = environmentId.trim();
+  if (!envId) return { ok: false, error: 'environment_id is required' };
+
+  const result = await kinstaRequest<{
+    environment?: { domains?: Array<{ name?: string }> };
+    site_domains?: Array<{ name?: string }>;
+  }>({
+    path: `/sites/environments/${encodeURIComponent(envId)}/domains`,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const raw =
+    result.data.environment?.domains ??
+    result.data.site_domains ??
+    [];
+  const domains = raw
+    .map((row) => row.name?.trim())
+    .filter((name): name is string => Boolean(name));
+  return { ok: true, domains: [...new Set(domains)] };
+}
+
+async function enrichKinstaSiteDomains(site: KinstaSiteSummary): Promise<KinstaSiteSummary> {
+  const environments: KinstaEnvironmentSummary[] = [];
+  for (const env of site.environments) {
+    if (kinstaEnvironmentDomainNames(env).length > 0) {
+      environments.push(env);
+      continue;
+    }
+    const listed = await kinstaListEnvDomains(env.id);
+    if (!listed.ok || !listed.domains.length) {
+      environments.push(env);
+      continue;
+    }
+    environments.push({
+      ...env,
+      domains: listed.domains,
+      primary_domain: env.primary_domain ?? listed.domains[0] ?? null,
+    });
+  }
+  return { ...site, environments };
+}
+
+/** Public site URLs from Kinsta production custom domains (primary + additional). */
 export async function kinstaCollectMonitorUrls(): Promise<
   | { ok: true; urls: Array<{ url: string; friendlyName: string }> }
   | { ok: false; error: string }
@@ -500,22 +593,29 @@ export async function kinstaCollectMonitorUrls(): Promise<
 
   const urls: Array<{ url: string; friendlyName: string }> = [];
   const seen = new Set<string>();
+  const sitesNeedingDetail: KinstaSiteSummary[] = [];
 
   for (const site of listed.sites) {
-    collectKinstaEnvUrls(site, urls, seen);
+    const added = collectKinstaEnvUrls(site, urls, seen);
+    if (added === 0 && site.environments.length > 0) {
+      sitesNeedingDetail.push(site);
+    }
   }
 
-  // List endpoint sometimes omits nested domain details — fetch each site if needed.
-  if (!urls.length && listed.sites.length > 0) {
-    for (const site of listed.sites) {
-      const detail = await kinstaGetSite(site.id);
-      if (!detail.ok) continue;
-      collectKinstaEnvUrls(detail.site, urls, seen);
+  // List endpoint sometimes omits nested domain details — fetch per site that contributed nothing.
+  for (const site of sitesNeedingDetail) {
+    const detail = await kinstaGetSite(site.id);
+    if (!detail.ok) continue;
+    const added = collectKinstaEnvUrls(detail.site, urls, seen);
+    if (added === 0) {
+      const enriched = await enrichKinstaSiteDomains(detail.site);
+      collectKinstaEnvUrls(enriched, urls, seen);
     }
   }
 
   console.info('[kinsta-sync] monitor urls', {
     sites: listed.sites.length,
+    detailFetches: sitesNeedingDetail.length,
     urls: urls.length,
   });
 
