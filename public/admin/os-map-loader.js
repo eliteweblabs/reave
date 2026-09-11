@@ -14007,7 +14007,7 @@ function senderAddressForContact(ev) {
 
 function emailDetailFromHtml(ev) {
   const fromDisplay = ev.from || '(unknown)';
-  const canAdd = Boolean(senderAddressForContact(ev));
+  const canAdd = Boolean(senderAddressForContact(ev)) && !isEmailLabModeFor(ev);
   return (
     `<span class="em-from-client">` +
       `<strong>From</strong> ` +
@@ -19714,9 +19714,21 @@ function captureLabWindowSelection(winOrDoc, field, detail) {
 
 let labSelecting = false;
 let labCommitTimer = 0;
+let labReleaseGen = 0;
 let labDocSelectionBound = false;
+let labSelectionChangeBound = false;
+/** @type {{ x: number, y: number } | null} */
+let labPointerStart = null;
 /** @type {Document | null} */
 let labSelectionSource = null;
+
+function isCoarsePointerDevice() {
+  return window.matchMedia?.('(pointer: coarse)')?.matches ?? false;
+}
+
+function labSelectionCommitDelay() {
+  return isCoarsePointerDevice() ? 280 : 60;
+}
 
 function getEmailLabBodyFrameDoc() {
   const frame = emailState.labDetail?.querySelector('.em-detail-body-frame');
@@ -19835,7 +19847,9 @@ function enableEmailLabSelectionStyles(doc) {
 
 function labEventOnChrome(ev) {
   const el = ev?.target instanceof Element ? ev.target : null;
-  return Boolean(el?.closest('button, input, textarea, select, .em-lab-bar'));
+  return Boolean(
+    el?.closest('button, input, textarea, select, .em-lab-bar, .em-from-contact, .em-from-add'),
+  );
 }
 
 function markLabSelecting(ev) {
@@ -19848,13 +19862,17 @@ function markLabSelecting(ev) {
   if (!fromIframe && detail && el && !detail.contains(el)) return;
   labSelectionSource = labDocFromEventTarget(ev);
   labSelecting = true;
+  if (typeof ev.clientX === 'number' && typeof ev.clientY === 'number') {
+    labPointerStart = { x: ev.clientX, y: ev.clientY };
+  }
   window.clearTimeout(labCommitTimer);
 }
 
-function scheduleLabCommit(delay = 0) {
+function scheduleLabCommit(delay = 0, gen = 0) {
   window.clearTimeout(labCommitTimer);
   labCommitTimer = window.setTimeout(() => {
     labCommitTimer = 0;
+    if (gen && gen !== labReleaseGen) return;
     commitLabSelectionNow();
   }, delay);
 }
@@ -19871,9 +19889,26 @@ function commitLabSelectionNow() {
 function finishLabSelecting(opts = {}) {
   const wasSelecting = labSelecting;
   labSelecting = false;
-  if (!wasSelecting && labEventOnChrome(opts.event)) return;
-  if (opts.event) labSelectionSource = labDocFromEventTarget(opts.event);
-  scheduleLabCommit(Number(opts.delay) || 0);
+  const ev = opts.event;
+  if (!wasSelecting && labEventOnChrome(ev)) return;
+  if (labPointerStart && ev && typeof ev.clientX === 'number' && typeof ev.clientY === 'number') {
+    const dx = Math.abs(ev.clientX - labPointerStart.x);
+    const dy = Math.abs(ev.clientY - labPointerStart.y);
+    labPointerStart = null;
+    if (dx > 10 || dy > 10) return;
+  } else {
+    labPointerStart = null;
+  }
+  if (ev) labSelectionSource = labDocFromEventTarget(ev);
+  const gen = ++labReleaseGen;
+  scheduleLabCommit(Number(opts.delay) || labSelectionCommitDelay(), gen);
+}
+
+function onLabSelectionChange() {
+  if (!emailState.labMode || labSelecting) return;
+  const frameDoc = getEmailLabBodyFrameDoc();
+  if (!labSelectionDocHasText(document) && !(frameDoc && labSelectionDocHasText(frameDoc))) return;
+  scheduleLabCommit(labSelectionCommitDelay(), ++labReleaseGen);
 }
 
 function onLabKeyUp(ev) {
@@ -19898,8 +19933,8 @@ function bindEmailLabReleaseListeners(target) {
   } else {
     target.addEventListener('mousedown', markLabSelecting);
     target.addEventListener('mouseup', (ev) => finishLabSelecting({ event: ev }));
+    target.addEventListener('touchend', (ev) => finishLabSelecting({ event: ev }));
   }
-  target.addEventListener('touchend', (ev) => finishLabSelecting({ event: ev, delay: 80 }));
 }
 
 function bindEmailLabDocument(doc) {
@@ -19934,8 +19969,52 @@ function bindEmailLabDetail(detail) {
     bindEmailLabReleaseListeners(document);
     document.addEventListener('keyup', onLabKeyUp);
   }
+  if (!labSelectionChangeBound) {
+    labSelectionChangeBound = true;
+    document.addEventListener('selectionchange', onLabSelectionChange);
+  }
   if (detail.dataset.emailLabDetailBound === '1') return;
   detail.dataset.emailLabDetailBound = '1';
+}
+
+function bindEmailLabFromTap(detail, ev) {
+  const valueEl = detail.querySelector('.em-from-value');
+  if (!(valueEl instanceof HTMLElement) || valueEl.dataset.emLabFromTapBound === '1') return;
+  valueEl.dataset.emLabFromTapBound = '1';
+  valueEl.classList.add('em-lab-from-target');
+  valueEl.setAttribute('role', 'button');
+  valueEl.setAttribute('tabindex', '0');
+  valueEl.setAttribute(
+    'aria-label',
+    'Add sender email as rule target. Long-press to select part of the address instead.',
+  );
+
+  const pickSenderEmail = () => {
+    const email =
+      senderAddressForContact(ev) ||
+      parseSenderEmail(ev.from) ||
+      parseSenderEmail(valueEl.textContent);
+    if (!email || !email.includes('@')) return false;
+    return addEmailLabPhrase(email, 'from');
+  };
+
+  valueEl.addEventListener('click', (e) => {
+    if (!emailState.labMode) return;
+    const sel = document.getSelection();
+    const selected = String(sel?.toString() || '').trim();
+    if (selected && sel && !sel.isCollapsed) return;
+    e.preventDefault();
+    e.stopPropagation();
+    pickSenderEmail();
+  });
+
+  valueEl.addEventListener('keydown', (e) => {
+    if (!emailState.labMode) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      pickSenderEmail();
+    }
+  });
 }
 
 function iframeDocLooksEmpty(doc) {
@@ -19974,7 +20053,7 @@ function mountEmailLabFrame(frame) {
   window.setTimeout(bindFrame, 600);
 }
 
-function mountEmailLabSelection(detail) {
+function mountEmailLabSelection(detail, ev) {
   if (!detail) return;
   bindEmailLabDetail(detail);
   bindEmailLabDom(detail.querySelector('.em-detail-body'), 'body');
@@ -19983,6 +20062,7 @@ function mountEmailLabSelection(detail) {
   bindEmailLabDom(detail.querySelector('.em-to-value'), 'body');
   bindEmailLabDom(detail.querySelector('.em-detail-subject'), 'subject');
   bindEmailLabDom(detail.querySelector('.em-subject-value'), 'subject');
+  if (ev) bindEmailLabFromTap(detail, ev);
   mountEmailLabFrame(detail.querySelector('.em-detail-body-frame'));
 }
 
@@ -20129,8 +20209,12 @@ async function createRuleFromEmailLab() {
     return;
   }
   if (!emailState.labPhrases.length) {
-    const subject = String(ev.subject || '').trim();
-    if (subject) addEmailLabPhrase(subject, 'subject');
+    await osAlert({
+      title: 'Select text first',
+      bodyHtml:
+        'Highlight a phrase in From, subject, or body — or tap the sender email — then tap Create Rule.',
+    });
+    return;
   }
   const phrases = emailState.labPhrases.map((p) => p.text).filter(Boolean);
   const phraseFields =
@@ -20594,7 +20678,7 @@ function renderEmailPane() {
   if (isEmailLabModeFor(ev)) detail.prepend(renderEmailLabBar());
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
   // Bind before srcdoc so we don't miss the load event on a fast parse.
-  if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail);
+  if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail, ev);
   if (bodyFrame && bodyHtmlSource) {
     bodyFrame.srcdoc = bodyHtmlSource;
     if (isEmailLabModeFor(ev)) mountEmailLabFrame(bodyFrame);
@@ -20644,6 +20728,7 @@ function renderEmailPane() {
   void hydrateEmailFromClient(detail, ev).then(() => {
     if (isEmailLabModeFor(ev)) {
       bindEmailLabDom(detail.querySelector('.em-from-value'), 'from');
+      bindEmailLabFromTap(detail, ev);
     }
   });
   if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev) || isProjectMatchSuggested(ev))) {
