@@ -93,14 +93,19 @@ set_var VAPI_PHONE_NUMBER_ID "${VAPI_PHONE_NUMBER_ID:-}"
 
 if [[ -z "${VAPI_API_KEY:-}" || -z "${PUBLIC_VAPI_PUBLIC_KEY:-}" ]]; then
   echo ""
-  echo "Warning: set VAPI_API_KEY and PUBLIC_VAPI_PUBLIC_KEY before deploy."
-  echo "Assistant auto-create runs when PUBLIC_VAPI_ASSISTANT_ID is empty and VAPI_API_KEY is set."
+  echo "Warning: set VAPI_API_KEY and PUBLIC_VAPI_PUBLIC_KEY on the Astro service."
 fi
 
 echo ""
+echo "Build-time (prebuild): npm run build runs sync-vapi-assistant.ts when vapi is enabled."
+echo "  • Creates the assistant if PUBLIC_VAPI_ASSISTANT_ID is empty"
+echo "  • Saves the id to company_config when DATABASE_URL is on the build service"
+echo "  • Attaches VAPI_PHONE_NUMBER (+15089558850)"
+echo "  Check Railway build logs for: [vapi-sync] Created assistant …"
+echo ""
+
 if [[ "${DRY_RUN:-}" == "1" ]]; then
   echo "Dry run complete — no Railway changes."
 else
-  echo "Variables set. Push to main (or redeploy this service) to run prebuild Vapi sync + phone attach."
-  echo "Then Admin → Vapi → Sync assistant now on the live site."
+  echo "Variables set. Redeploy this service (or push to main if auto-deploy) to run prebuild."
 fi

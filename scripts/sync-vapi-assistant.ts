@@ -3,7 +3,9 @@
  * Sync Vapi assistant name, first message, and system prompt from admin Company details.
  *
  * Runs automatically before `astro build` (see package.json prebuild).
- * Requires VAPI_API_KEY + PUBLIC_VAPI_ASSISTANT_ID (or VAPI_ASSISTANT_ID).
+ * Requires `vapi` in install config + VAPI_API_KEY on the build service.
+ * Creates a new assistant when no id is set (VAPI_CREATE_IF_MISSING≠0), saves the
+ * id to company_config when DATABASE_URL is available, then syncs prompts + phone.
  * Company name/domain come from DATABASE_URL (company_config) or COMPANY_* env vars.
  *
  * Set VAPI_SYNC_SKIP=1 to skip (local builds without Vapi credentials).

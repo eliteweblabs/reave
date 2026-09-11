@@ -182,6 +182,35 @@ export async function loadBuildBrandContext(): Promise<BuildBrandContext> {
   return brandFromParts({});
 }
 
+/** Save assistant id to company_config so runtime resolves it without a Railway var update. */
+export async function persistVapiAssistantIdToPostgres(assistantId: string): Promise<boolean> {
+  const id = trim(assistantId);
+  if (!id) return false;
+  const url = trim(process.env.DATABASE_URL);
+  if (!url) return false;
+
+  const pg = await import('pg');
+  const pool = new pg.default.Pool({
+    connectionString: url,
+    ssl: /sslmode=(require|verify-full|verify-ca)/i.test(url)
+      ? { rejectUnauthorized: false }
+      : undefined,
+    max: 1,
+  });
+
+  try {
+    const res = await pool.query(
+      `UPDATE company_config SET vapi_assistant_id = $1, updated_at = NOW() WHERE id = 1`,
+      [id],
+    );
+    return (res.rowCount ?? 0) > 0;
+  } catch {
+    return false;
+  } finally {
+    await pool.end().catch(() => undefined);
+  }
+}
+
 /** Vapi assistant ID + prompt templates for build scripts. */
 export async function loadBuildVapiTemplates(): Promise<BuildVapiTemplates> {
   const fromPg = await readPostgresVapiTemplates();

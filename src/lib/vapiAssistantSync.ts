@@ -317,6 +317,15 @@ export async function syncVapiAssistantBrand(
   }
 
   const phone = await attachVapiPhoneToAssistant(assistantId);
+
+  if (created) {
+    const { persistVapiAssistantIdToPostgres } = await import('./vapiBuildBrand.ts');
+    const persisted = await persistVapiAssistantIdToPostgres(assistantId);
+    if (persisted) {
+      console.log(`[vapi-sync] saved assistant id to company_config`);
+    }
+  }
+
   return {
     ok: true,
     assistantId,

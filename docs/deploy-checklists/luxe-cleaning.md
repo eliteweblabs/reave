@@ -29,7 +29,23 @@ Or set manually:
 | `PUBLIC_VAPI_PUBLIC_KEY` | browser SDK key |
 | `PUBLIC_VAPI_ASSISTANT_ID` | assistant UUID |
 
-Build runs `scripts/sync-vapi-assistant.ts`, which pushes Company branding to the assistant and attaches `VAPI_PHONE_NUMBER` when set.
+Every deploy runs **prebuild** → `scripts/sync-vapi-assistant.ts`. On the first build with
+`VAPI_API_KEY` set it **creates** the assistant, saves the id to `company_config`, syncs
+prompts, and attaches `VAPI_PHONE_NUMBER`.
+
+**Railway build service must have:**
+
+| Variable | Required |
+|----------|----------|
+| `INSTALL_CONFIG` | `luxe-cleaning` |
+| `VAPI_API_KEY` | yes — private key |
+| `DATABASE_URL` | yes — so the new assistant id persists to Admin → Vapi |
+| `VAPI_PHONE_NUMBER` | `+15089558850` |
+| `PUBLIC_VAPI_PUBLIC_KEY` | yes — browser widget |
+| `PUBLIC_VAPI_ASSISTANT_ID` | optional after first successful build |
+
+Check build logs for `[vapi-sync] Created assistant …`. If you see `skipped`, the install
+config slug or `VAPI_API_KEY` is missing on the **build** service (not just runtime).
 
 ## Vapi dashboard
 

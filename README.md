@@ -126,7 +126,7 @@ Vapi is **not part of the default Reave install**. Enable the `vapi` feature in 
 
 When enabled, `VoiceChatButton` reads `PUBLIC_VAPI_PUBLIC_KEY` and `PUBLIC_VAPI_ASSISTANT_ID` from **`process.env` at request time** (with `import.meta.env` as a fallback for local dev). Ensure these variables are on the **running service**. Set `"homepageVoice": true` in install config for the public website widget.
 
-**Build-time sync:** `npm run build` runs `scripts/sync-vapi-assistant.ts` only when the **`vapi` feature** is enabled in install config. Requires `VAPI_API_KEY` on the build service. Set `VAPI_SYNC_SKIP=1` to skip sync locally.
+**Build-time sync:** `npm run build` runs `scripts/sync-vapi-assistant.ts` (prebuild) when the **`vapi` feature** is enabled (`INSTALL_CONFIG` must match `config-{slug}.json`). Requires `VAPI_API_KEY` on the **build** service. Creates the Vapi assistant when no id exists, saves it to `company_config` when `DATABASE_URL` is set, then syncs prompts and attaches `VAPI_PHONE_NUMBER`. Set `VAPI_SYNC_SKIP=1` to skip locally.
 
 ## 📱 SMS Integration (Twilio)
 

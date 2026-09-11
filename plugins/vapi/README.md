@@ -16,11 +16,14 @@ Separate from the **`voice`** feature (Telnyx inbound phone agent).
 1. Add `"vapi"` to `features` in `config/config-{slug}.json`
 2. Add `"vapi"` to `profileMenu` if the settings tab should appear
 3. Set `"homepageVoice": true` only when the customer wants the public website widget
-4. On Railway (build + runtime service):
-   - `VAPI_API_KEY` — private key (build sync + admin API)
+4. On Railway (**build + runtime** service):
+   - `INSTALL_CONFIG` — install slug (e.g. `luxe-cleaning`) so prebuild loads the right `config-*.json`
+   - `VAPI_API_KEY` — private key (prebuild creates/syncs assistant + admin API)
+   - `DATABASE_URL` — prebuild saves new assistant id to Admin → Vapi
+   - `VAPI_PHONE_NUMBER` — optional E.164; prebuild attaches inbound number
    - `PUBLIC_VAPI_PUBLIC_KEY` — client SDK key
-   - `PUBLIC_VAPI_ASSISTANT_ID` — assistant UUID (or set in Admin → Vapi)
-5. Redeploy
+   - `PUBLIC_VAPI_ASSISTANT_ID` — optional after first build (or set in Admin → Vapi)
+5. Redeploy — check build logs for `[vapi-sync] Created assistant …`
 
 To skip build-time sync during development: `VAPI_SYNC_SKIP=1`.
 

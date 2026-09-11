@@ -12,9 +12,12 @@ stage: 3
 
 ## Required env vars
 
-- `VAPI_API_KEY` — private key for build sync and admin API
+- `INSTALL_CONFIG` — install slug with `vapi` in features (prebuild reads `config-{slug}.json`)
+- `VAPI_API_KEY` — private key on **build + runtime** (prebuild creates/syncs assistant)
+- `DATABASE_URL` — on build service so new assistant id saves to Admin → Vapi
 - `PUBLIC_VAPI_PUBLIC_KEY` — client SDK key (browser-safe)
-- `PUBLIC_VAPI_ASSISTANT_ID` — assistant UUID (or set in Admin → Vapi)
+- `VAPI_PHONE_NUMBER` — optional E.164 inbound number (prebuild attaches to assistant)
+- `PUBLIC_VAPI_ASSISTANT_ID` — optional after first build (or Admin → Vapi / Postgres)
 
 ## External setup
 
