@@ -2,7 +2,6 @@
   "key": "reave",
   "pages": [
     "/",
-    "/home",
     "/card",
     "/platform",
     "/features",
@@ -45,8 +44,8 @@
         "label": "About"
       },
       {
-        "href": "/#apply",
-        "label": "Apply"
+        "href": "/#contact",
+        "label": "Contact"
       }
     ],
     "groups": [
@@ -86,8 +85,8 @@
             "label": "Portfolio"
           },
           {
-            "href": "/#apply",
-            "label": "Apply"
+            "href": "/#contact",
+            "label": "Contact"
           }
         ]
       }
