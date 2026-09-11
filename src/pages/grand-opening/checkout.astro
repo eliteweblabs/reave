@@ -27,7 +27,7 @@ const addonsJson = JSON.stringify(session?.addons ?? []);
         <div class="go-checkout-card go-checkout-card--center">
           <h1>Checkout link expired</h1>
           <p>This checkout session is invalid or has expired. Start again from the grand opening page.</p>
-          <BrandBtn href="/grand-opening" variant="filled">Back to grand opening</BrandBtn>
+          <BrandBtn href="/" variant="filled">Back to grand opening</BrandBtn>
         </div>
       ) : (
         <div
@@ -81,7 +81,7 @@ const addonsJson = JSON.stringify(session?.addons ?? []);
           <div id="go-checkout-success" class="go-checkout-success hidden">
             <h2>Invoice created</h2>
             <p>We created your invoice and will follow up at {session.email} with payment details.</p>
-            <BrandBtn href="/grand-opening" variant="glass">Back to grand opening</BrandBtn>
+            <BrandBtn href="/" variant="glass">Back to grand opening</BrandBtn>
           </div>
         </div>
       )
