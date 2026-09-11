@@ -4,6 +4,19 @@ Formerly **Maid & Marble** — install slug `luxe-cleaning`.
 
 ## Railway access (Cloud Agent — no MCP required)
 
+### Cursor Mobile / Cloud Agent: Railway MCP toggle lies
+
+On Cloud Agent runs (including Cursor Mobile), Railway MCP can show **toggle ON with no
+status dot** while the runtime reports `namespaceStatus: "error"` and zero tools
+(`failed during live tool discovery`). GitHub shows red on auth failure; Cloudflare
+shows **Connect** when OAuth is needed. Railway fails **after** the session attaches
+the server name but **before** live tool discovery completes — often because Cursor’s
+backend OAuth proxy for `https://mcp.railway.com` cannot refresh or forward tokens on
+headless Cloud Agent workers (no browser, no local `railway login`).
+
+**Do not rely on Railway MCP from mobile Cloud Agents.** Use `RAILWAY_API_TOKEN` +
+`npm run configure:luxe-cleaning-railway` instead (GraphQL — no MCP, no CLI).
+
 Railway MCP often fails on Cloud Agents (OAuth/CLI not on the remote VM). Use a
 **Railway account token** instead:
 
@@ -26,9 +39,9 @@ Document the discovered ids here after first run:
 
 | Setting | Value |
 |---------|--------|
-| `LUXE_CLEANING_RAILWAY_PROJECT` | _(run --discover)_ |
-| `LUXE_CLEANING_RAILWAY_SERVICE` | _(usually `reave` or sole Astro service)_ |
-| `LUXE_CLEANING_RAILWAY_ENV` | `production` |
+| `LUXE_CLEANING_RAILWAY_PROJECT` | `1df6001c-be5a-4340-8a2a-097d22c7ebb2` (Maid & Marble) |
+| `LUXE_CLEANING_RAILWAY_SERVICE` | `reave` (`f2f2bd9b-ae28-4b27-8fee-f2126450ffd4`) |
+| `LUXE_CLEANING_RAILWAY_ENV` | `production` (`7c36f17d-f049-4cf4-b8cc-db6764f34ea8`) |
 
 ## Apply vars + redeploy (recommended)
 
