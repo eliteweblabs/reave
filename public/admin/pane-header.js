@@ -2,7 +2,8 @@
  * Pane header + subheader chrome — single config API for detail panes.
  *
  * The global logo / sleep / profile topbar lives in `src/components/Header.astro`
- * (`#topbar`). `back` hoists to `#admin-special-back` (left of the wordmark).
+ * (`#topbar`). `back` adds a chevron beside the title; `back.hoist: true` uses
+ * `#admin-special-back` (settings takeover pages only).
  * Title, actions, and the optional secondary row stay in the pane so spacing
  * stays consistent across schedule, chat, email, clients, work, etc.
  *
@@ -16,7 +17,7 @@ import { createPaneSubheader } from './admin-ui.js?v=20260825h';
 
 /**
  * @typedef {object} PaneHeaderOpts
- * @property {object|false} [back] — hoisted to the logo topbar; omit for none
+ * @property {object|false} [back] — in-pane chevron; `hoist: true` for logo topbar
  * @property {string} [title] — static title text
  * @property {object} [editableTitle] — passed to createEditableHeaderTitleInput
  * @property {HTMLElement} [titleNode] — custom title block

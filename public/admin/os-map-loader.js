@@ -10431,7 +10431,7 @@ function renderVapiPanel(company) {
 function prependSettingsBackHeader(root) {
   root.prepend(
     createPaneHeader({
-      back: { label: 'Back', onClick: () => setActiveMap('dashboard') },
+      back: { label: 'Back', onClick: () => setActiveMap('dashboard'), hoist: true },
       className: 'settings-subheader',
     }).root,
   );
