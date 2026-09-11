@@ -25,6 +25,10 @@ Railway MCP often fails on Cloud Agents (OAuth/CLI not on the remote VM). Use a
 3. Start a **new** Cloud Agent (running agents do not pick up new secrets)
 4. Optionally add **`VAPI_API_KEY`** and **`PUBLIC_VAPI_PUBLIC_KEY`** to the same secrets
 
+**Where the fleet Vapi private key lives on Railway:** **CAPCO Design Group** →
+`capco` service (`VAPI_API_KEY` + `PUBLIC_VAPI_KEY`). Do **not** use the project
+shared copy — it 401s. reave.app only has the public keys.
+
 ### Discover the client project
 
 ```bash
