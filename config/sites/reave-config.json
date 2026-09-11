@@ -2,6 +2,7 @@
   "key": "reave",
   "pages": [
     "/",
+    "/home",
     "/card",
     "/platform",
     "/features",

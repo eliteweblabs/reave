@@ -1,0 +1,17 @@
+---
+/**
+ * Archived reave.app marketing homepage — kept for later use while
+ * `/` serves the grand opening offer.
+ */
+import ReaveMarketingHomePage from "../components/home/ReaveMarketingHomePage.astro";
+import { isReaveMarketingHost, resolvePublicHost } from "../lib/requestHost";
+
+export const prerender = false;
+
+const requestHost = resolvePublicHost(Astro.request);
+if (!isReaveMarketingHost(requestHost)) {
+  return Astro.redirect("/");
+}
+---
+
+<ReaveMarketingHomePage />
