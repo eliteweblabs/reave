@@ -2,50 +2,86 @@
 
 Formerly **Maid & Marble** — install slug `luxe-cleaning`.
 
-## Railway (Astro service)
+## Railway access (Cloud Agent — no MCP required)
+
+Railway MCP often fails on Cloud Agents (OAuth/CLI not on the remote VM). Use a
+**Railway account token** instead:
+
+1. Create token at [railway.com/account/tokens](https://railway.com/account/tokens)
+2. Add **`RAILWAY_API_TOKEN`** to Cursor → Cloud Agents → Environment → Secrets
+3. Start a **new** Cloud Agent (running agents do not pick up new secrets)
+4. Optionally add **`VAPI_API_KEY`** and **`PUBLIC_VAPI_PUBLIC_KEY`** to the same secrets
+
+### Discover the client project
 
 ```bash
-VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… bash scripts/deploy-luxe-cleaning.sh
+RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --discover
 ```
 
-The deploy script **creates the Vapi assistant** when `PUBLIC_VAPI_ASSISTANT_ID` is empty, then writes the new id to Railway.
+Matches projects by name (Maid / Marble / Luxe) or custom domain
+`maidandmarble.com` / `luxecleaning.com`. Excludes the official **reave.app**
+project (`af65eb9a-b11c-4c1c-8030-66b4347dcf71`).
 
-Or provision only:
+Document the discovered ids here after first run:
+
+| Setting | Value |
+|---------|--------|
+| `LUXE_CLEANING_RAILWAY_PROJECT` | _(run --discover)_ |
+| `LUXE_CLEANING_RAILWAY_SERVICE` | _(usually `reave` or sole Astro service)_ |
+| `LUXE_CLEANING_RAILWAY_ENV` | `production` |
+
+## Apply vars + redeploy (recommended)
+
+```bash
+RAILWAY_API_TOKEN=… \
+VAPI_API_KEY=… \
+PUBLIC_VAPI_PUBLIC_KEY=… \
+npm run configure:luxe-cleaning-railway
+```
+
+Dry run:
+
+```bash
+RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --dry-run
+```
+
+CLI fallback (local `railway login`):
+
+```bash
+LUXE_CLEANING_RAILWAY_PROJECT=<id> \
+VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… \
+bash scripts/deploy-luxe-cleaning.sh
+```
+
+Or provision Vapi only:
 
 ```bash
 INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 ```
 
-Or set manually:
+## Railway variables (Astro service)
 
 | Variable | Value |
 |----------|--------|
 | `INSTALL_CONFIG` | `luxe-cleaning` |
-| `PUBLIC_SITE_DOMAIN` | production apex domain |
+| `PUBLIC_SITE_DOMAIN` | production apex (e.g. `maidandmarble.com` until DNS moves) |
 | `PUBLIC_INSTALL_HOMEPAGE_VOICE` | `1` |
 | `COMPANY_NAME` | `Luxe Cleaning` |
+| `COMPANY_DESCRIPTION` | Woman-owned premium house cleaning… |
+| `COMPANY_SUPPORT_PHONE` | `+15089558850` |
 | `VAPI_PHONE_NUMBER` | `+15089558850` |
 | `VAPI_API_KEY` | private key |
 | `PUBLIC_VAPI_PUBLIC_KEY` | browser SDK key |
-| `PUBLIC_VAPI_ASSISTANT_ID` | assistant UUID |
+| `PUBLIC_VAPI_ASSISTANT_ID` | assistant UUID (optional after first build) |
+| `VAPI_CREATE_IF_MISSING` | `1` |
+| `DATABASE_URL` | required at **build** time |
 
-Every deploy runs **prebuild** → `scripts/sync-vapi-assistant.ts`. On the first build with
-`VAPI_API_KEY` set it **creates** the assistant, saves the id to `company_config`, syncs
-prompts, and attaches `VAPI_PHONE_NUMBER`.
+Every deploy runs **prebuild** → `scripts/sync-vapi-assistant.ts`. On the first build
+with `VAPI_API_KEY` set it **creates** the assistant, saves the id to `company_config`,
+syncs prompts, and attaches `VAPI_PHONE_NUMBER`.
 
-**Railway build service must have:**
-
-| Variable | Required |
-|----------|----------|
-| `INSTALL_CONFIG` | `luxe-cleaning` |
-| `VAPI_API_KEY` | yes — private key |
-| `DATABASE_URL` | yes — so the new assistant id persists to Admin → Vapi |
-| `VAPI_PHONE_NUMBER` | `+15089558850` |
-| `PUBLIC_VAPI_PUBLIC_KEY` | yes — browser widget |
-| `PUBLIC_VAPI_ASSISTANT_ID` | optional after first successful build |
-
-Check build logs for `[vapi-sync] Created assistant …`. If you see `skipped`, the install
-config slug or `VAPI_API_KEY` is missing on the **build** service (not just runtime).
+Check build logs for `[vapi-sync] Created assistant …`. If you see `skipped`, the
+install config slug or `VAPI_API_KEY` is missing on the **build** service.
 
 ## Vapi dashboard
 
@@ -58,3 +94,4 @@ config slug or `VAPI_API_KEY` is missing on the **build** service (not just runt
 - Homepage shows **Luxe Cleaning** copy and **508-955-8850**.
 - **Touch to speak** widget works on the deployed URL (not localhost).
 - Inbound call to **508-955-8850** reaches the same assistant.
+- Admin → Company shows Luxe Cleaning (update manually if DB still has Maid & Marble).

@@ -13,6 +13,7 @@
     "sync:vapi": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "provision:vapi": "node --experimental-strip-types scripts/provision-vapi-assistant.ts",
     "deploy:luxe-cleaning": "bash scripts/deploy-luxe-cleaning.sh",
+    "configure:luxe-cleaning-railway": "node --experimental-strip-types scripts/configure-luxe-cleaning-railway.ts",
     "seed:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-demo.ts",
     "deploy:checklist": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/generate-deploy-checklist.ts",
     "seed:bookings": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-bookings.ts",
