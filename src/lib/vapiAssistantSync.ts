@@ -69,13 +69,28 @@ export function isVapiSyncConfigured(templates?: VapiTemplateConfig): boolean {
   return env('VAPI_CREATE_IF_MISSING') !== '0';
 }
 
+/** Brand placeholders for Vapi templates — widget may override at runtime; phone needs literals. */
+export function vapiBrandVariableValues(brand: BuildBrandContext): Record<string, string> {
+  return {
+    companyName: brand.name,
+    companyDescription: brand.description,
+    companyDomain: brand.domain,
+  };
+}
+
+/** Replace {{companyName}} etc. so inbound phone calls speak the install brand (no server URL). */
+export function applyVapiBrandVariables(text: string, brand: BuildBrandContext): string {
+  const vars = vapiBrandVariableValues(brand);
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key: string) => vars[key as keyof typeof vars] ?? match);
+}
+
 /** Default POST body for a new Vapi assistant (voice + phone + web widget). */
 export function buildVapiAssistantCreateBody(
   brand: BuildBrandContext,
   templates?: VapiTemplateConfig,
 ): Record<string, unknown> {
-  const firstMessage = vapiFirstMessageTemplate(templates);
-  const systemContent = vapiSystemPromptTemplate(templates);
+  const firstMessage = applyVapiBrandVariables(vapiFirstMessageTemplate(templates), brand);
+  const systemContent = applyVapiBrandVariables(vapiSystemPromptTemplate(templates), brand);
   const modelProvider = env('VAPI_MODEL_PROVIDER') || 'openai';
   const modelName = env('VAPI_MODEL') || 'gpt-4o-mini';
   const voiceProvider = env('VAPI_VOICE_PROVIDER') || '11labs';
@@ -130,7 +145,7 @@ async function resolveOrCreateAssistantId(
   return { ok: true, assistantId: created.data.id, created: true };
 }
 
-/** Spoken greeting — uses Vapi {{companyName}} variable filled at call time. */
+/** Spoken greeting template — {{companyName}} resolved on sync for phone; widget also passes overrides. */
 export function vapiFirstMessageTemplate(templates?: VapiTemplateConfig): string {
   const fromAdmin = templates?.firstMessage?.trim();
   if (fromAdmin) return fromAdmin;
@@ -299,8 +314,8 @@ export async function syncVapiAssistantBrand(
   const existing = await vapiRequest<VapiAssistant>(`/assistant/${assistantId}`);
   const current = existing.ok ? existing.data : undefined;
 
-  const firstMessage = vapiFirstMessageTemplate(templates);
-  const systemContent = vapiSystemPromptTemplate(templates);
+  const firstMessage = applyVapiBrandVariables(vapiFirstMessageTemplate(templates), brand);
+  const systemContent = applyVapiBrandVariables(vapiSystemPromptTemplate(templates), brand);
   const model = mergeSystemMessage(current, systemContent);
 
   const patch = await vapiRequest<VapiAssistant>(`/assistant/${assistantId}`, {
