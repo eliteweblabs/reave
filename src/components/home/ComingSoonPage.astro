@@ -1,5 +1,6 @@
 ---
 import type { SiteLandingConfig } from '../../lib/siteContent';
+import UdbIntroSequence from './UdbIntroSequence.astro';
 
 interface Props {
   landing: SiteLandingConfig;
@@ -8,7 +9,9 @@ interface Props {
 const { landing } = Astro.props;
 ---
 
-<main class="udb-wrap">
+<UdbIntroSequence />
+
+<main class="udb-wrap" data-udb-content hidden aria-hidden="true">
   {landing.tagline && <p class="udb-lead">{landing.tagline}</p>}
 
   <div class="udb-block">
