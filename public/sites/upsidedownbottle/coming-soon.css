@@ -2,6 +2,7 @@
     --paper:#ddd0ab;
     --paper-shadow:#c7b78c;
     --paper-shadow2:#d2c393;
+    --paper-top:#c4b896;
     --ink:#2b2318;
     --ink-soft:#5a4d3a;
     --ink-muted:#8a7d6a;
@@ -11,6 +12,17 @@
   *{box-sizing:border-box;}
   html{font-size:18px;}
   html,body{margin:0;padding:0;background:var(--paper);position:relative;}
+  body.udb-page::after{
+    content:'';
+    position:fixed;
+    top:0;
+    left:0;
+    right:0;
+    height:env(safe-area-inset-top, 0px);
+    background:var(--paper-top);
+    z-index:101;
+    pointer-events:none;
+  }
   body::before{
     content:'';
     position:fixed;
