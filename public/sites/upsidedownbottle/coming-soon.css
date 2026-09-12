@@ -181,6 +181,11 @@
     border:none;
     max-width:56ch;
   }
+  .udb-quote p{
+    font-family:'Kalam', cursive;
+    font-size:1.12rem;
+    line-height:1.58;
+  }
   .udb-quote cite{
     display:block;
     font-family:var(--udb-serif);
