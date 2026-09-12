@@ -32,7 +32,14 @@ const beatMs = 1800;
 /** Hold the final frame, then fade the overlay to the page beneath. */
 const finalHoldMs = 2200;
 const fadeOutMs = 900;
+const frameSrcs = frames.map((frame) => frame.src);
 ---
+
+{
+  frameSrcs.map((src) => (
+    <link rel="preload" as="image" href={src} />
+  ))
+}
 
 <div class="udb-intro" data-udb-intro aria-hidden="true">
   <div class="udb-hero" data-udb-hero>
@@ -53,11 +60,14 @@ const fadeOutMs = 900;
   </div>
 </div>
 
-<script define:vars={{ beatMs, finalHoldMs, fadeOutMs }}>
+<script define:vars={{ beatMs, finalHoldMs, fadeOutMs, frameSrcs }}>
   const intro = document.querySelector('[data-udb-intro]');
   const content = document.querySelector('[data-udb-content]');
+  let finished = false;
 
   const landOnPage = () => {
+    if (finished) return;
+    finished = true;
     document.body.classList.remove('udb-intro-active');
     intro?.classList.add('is-out');
     content?.removeAttribute('aria-hidden');
@@ -65,22 +75,35 @@ const fadeOutMs = 900;
     window.setTimeout(() => intro?.remove(), fadeOutMs);
   };
 
-  if (!intro) {
-    content?.removeAttribute('aria-hidden');
-    window.dispatchEvent(new CustomEvent('udb-intro-done'));
-  } else if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    landOnPage();
-  } else {
+  const preloadFrames = () =>
+    Promise.all(
+      frameSrcs.map(
+        (src) =>
+          new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = src;
+          }),
+      ),
+    );
+
+  const runIntro = () => {
+    if (!intro || finished) return;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) intro.classList.add('udb-intro--instant');
+
     document.body.classList.add('udb-intro-active');
-    const frames = [...intro.querySelectorAll('.udb-hero-frame')];
+    const frameEls = [...intro.querySelectorAll('.udb-hero-frame')];
     let index = 0;
 
     const show = (n) => {
-      frames.forEach((el, i) => el.classList.toggle('is-active', i === n));
+      frameEls.forEach((el, i) => el.classList.toggle('is-active', i === n));
     };
 
     const advance = () => {
-      if (index >= frames.length - 1) {
+      if (index >= frameEls.length - 1) {
         window.setTimeout(landOnPage, finalHoldMs);
         return;
       }
@@ -90,5 +113,29 @@ const fadeOutMs = 900;
     };
 
     window.setTimeout(advance, beatMs);
+  };
+
+  if (!intro) {
+    content?.removeAttribute('aria-hidden');
+    window.dispatchEvent(new CustomEvent('udb-intro-done'));
+  } else {
+    const start = () => {
+      void preloadFrames().then(runIntro);
+    };
+
+    // bfcache restore — DOM may still show the intro overlay; skip replay.
+    window.addEventListener(
+      'pageshow',
+      (event) => {
+        if (event.persisted) landOnPage();
+      },
+      { once: true },
+    );
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start, { once: true });
+    } else {
+      start();
+    }
   }
 </script>

@@ -211,12 +211,15 @@
 .udb-intro {
   position: fixed;
   inset: 0;
+  min-height: 100dvh;
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--paper);
   transition: opacity 0.9s ease;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .udb-intro.is-out {
@@ -240,8 +243,15 @@
   opacity: 0;
   transition: opacity 0.65s ease;
   pointer-events: none;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  will-change: opacity;
 }
 
 .udb-hero-frame.is-active {
   opacity: 1;
+}
+
+.udb-intro--instant .udb-hero-frame {
+  transition: none;
 }
