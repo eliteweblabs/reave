@@ -2,17 +2,12 @@ import type { APIRoute } from 'astro';
 import { clerkCreateUser, isClerkConfigured } from '../../../lib/clerkClient';
 import { sendEmail, isEmailSendConfigured } from '../../../lib/outbound';
 import { jsonResponse } from '../../../lib/apiResponse';
+import { clientIp } from '../../../lib/clientIp';
+import { checkRateLimit, resetRateLimit } from '../../../lib/inMemoryRateLimit';
 
-const rate = new Map<string, number>();
-const RATE_MS = 60_000;
-
-function clientKey(request: Request): string {
-  return (
-    request.headers.get('cf-connecting-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    'unknown'
-  );
-}
+const EMAIL_WINDOW_MS = 60_000;
+const IP_WINDOW_MS = 10 * 60_000;
+const IP_MAX_PER_WINDOW = 8;
 
 function normalizeEmail(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
@@ -21,15 +16,16 @@ function normalizeEmail(raw: unknown): string | null {
   return email;
 }
 
-export const POST: APIRoute = async ({ request }) => {
-  const key = clientKey(request);
-  const now = Date.now();
-  const last = rate.get(key) ?? 0;
-  if (now - last < RATE_MS) {
-    return jsonResponse({ ok: false, error: 'Wait a minute before trying again.' }, 429);
-  }
-  rate.set(key, now);
+function rateLimited(retryAfterMs: number): Response {
+  const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  return jsonResponse(
+    { ok: false, error: 'Wait a minute before trying again.' },
+    429,
+    { headers: { 'Retry-After': String(retryAfterSeconds) } },
+  );
+}
 
+export const POST: APIRoute = async ({ request }) => {
   let body: { email?: string };
   try {
     body = await request.json();
@@ -42,7 +38,25 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonResponse({ ok: false, error: 'Enter a valid email.' }, 400);
   }
 
+  const ip = clientIp(request);
+  const ipKey = `coming-soon-ip:${ip}`;
+  const emailKey = `coming-soon-email:${email}`;
+
+  const emailRate = checkRateLimit(emailKey, 1, EMAIL_WINDOW_MS);
+  if (!emailRate.allowed) {
+    // Same address was just saved — idempotent success instead of a false "wait" error.
+    return jsonResponse({ ok: true });
+  }
+
+  const ipRate = checkRateLimit(ipKey, IP_MAX_PER_WINDOW, IP_WINDOW_MS);
+  if (!ipRate.allowed) {
+    resetRateLimit(emailKey);
+    return rateLimited(ipRate.retryAfterMs);
+  }
+
   if (!isClerkConfigured()) {
+    resetRateLimit(ipKey);
+    resetRateLimit(emailKey);
     return jsonResponse({ ok: false, error: 'Sign-up is not configured yet.' }, 503);
   }
 
@@ -55,6 +69,8 @@ export const POST: APIRoute = async ({ request }) => {
   if (!created.ok) {
     const msg = created.error || '';
     if (!/already exists|taken|duplicate/i.test(msg)) {
+      resetRateLimit(ipKey);
+      resetRateLimit(emailKey);
       return jsonResponse({ ok: false, error: msg || 'Could not save email.' }, 400);
     }
   }
