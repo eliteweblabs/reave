@@ -1,0 +1,7 @@
+{
+  "features": [],
+  "footerNav": ["__system__", "dashboard"],
+  "profileMenu": ["profile", "company", "settings"],
+  "homepageTemplate": "landing",
+  "siteContentKey": "upsidedownbottle"
+}

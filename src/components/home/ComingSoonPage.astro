@@ -1,0 +1,104 @@
+---
+import type { SiteLandingConfig } from '../../lib/siteContent';
+
+interface Props {
+  landing: SiteLandingConfig;
+}
+
+const { landing } = Astro.props;
+---
+
+<main class="udb-wrap">
+  <p class="udb-site-id">Upside Down Bottle</p>
+  <p class="udb-tagline">A union for people</p>
+
+  {landing.eyebrow && <p class="udb-eyebrow">{landing.eyebrow}</p>}
+  {landing.name && <h1>{landing.name}</h1>}
+  {landing.tagline && <p class="udb-lead">{landing.tagline}</p>}
+
+  <div class="udb-block">
+    <p>No brand. No sponsor. No hashtag. No social. No tracking. No marketing.</p>
+    <p>
+      If we all commit a fraction of our day — organized, grassroots, transparent — we might just be
+      able to unfuck things.
+    </p>
+  </div>
+
+  <section class="udb-signup" id="udb-signup">
+    <form class="udb-signup-row" id="udb-signup-form" novalidate>
+      <input type="email" name="email" placeholder="you@wherever.com" autocomplete="email" required />
+      <button type="submit">Leave it</button>
+    </form>
+    <p class="udb-confirm" id="udb-signup-confirm" role="status">Got it. That's all for now.</p>
+    <p class="udb-fine">
+      No sign-up wall. Just an email, if you want to know what the next small thing is.
+    </p>
+    <p class="udb-error" id="udb-signup-error" hidden></p>
+  </section>
+
+  <section class="udb-resources">
+    <p class="udb-section-title">If you're struggling to keep your phone on</p>
+    <p>
+      This isn't a pitch. There's a real federal program — Lifeline — that lowers or covers phone and
+      internet service for people who qualify. It's run by the FCC, not by us, and it existed before
+      this page did.
+    </p>
+    <ul>
+      <li>
+        Check eligibility — <a href="https://www.lifelinesupport.org" rel="noopener noreferrer"
+          >lifelinesupport.org</a
+        >
+      </li>
+      <li>Apply through your state or a participating carrier</li>
+    </ul>
+  </section>
+
+  <footer class="udb-footer">
+    <p>Nothing is sold here. No sponsors. Whoever's behind it pays for the hosting themselves.</p>
+    <p>100% for the Planet.</p>
+  </footer>
+</main>
+
+<script>
+  const form = document.getElementById('udb-signup-form');
+  const box = document.getElementById('udb-signup');
+  const confirm = document.getElementById('udb-signup-confirm');
+  const errorEl = document.getElementById('udb-signup-error');
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!(form instanceof HTMLFormElement) || !box || !confirm || !errorEl) return;
+
+    const input = form.querySelector('input[name="email"]');
+    const button = form.querySelector('button[type="submit"]');
+    if (!(input instanceof HTMLInputElement) || !(button instanceof HTMLButtonElement)) return;
+
+    const email = input.value.trim();
+    if (!email) return;
+
+    button.disabled = true;
+    errorEl.hidden = true;
+    errorEl.textContent = '';
+
+    try {
+      const res = await fetch('/api/coming-soon/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Something went wrong.';
+        errorEl.hidden = false;
+        button.disabled = false;
+        return;
+      }
+      box.classList.add('is-done');
+      confirm.classList.add('is-visible');
+    } catch {
+      errorEl.textContent = 'Could not reach the server.';
+      errorEl.hidden = false;
+      button.disabled = false;
+    }
+  });
+</script>

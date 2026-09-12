@@ -6,6 +6,7 @@ import LuxuryLandingPage from "./LuxuryLandingPage.astro";
 import ServiceLandingPage from "./ServiceLandingPage.astro";
 import TechLandingPage from "./TechLandingPage.astro";
 import VetLandingPage from "./VetLandingPage.astro";
+import ComingSoonPage from "./ComingSoonPage.astro";
 
 interface Props {
   landing: SiteLandingConfig;
@@ -24,10 +25,13 @@ const isService = landing.variant === "service";
 const isLuxury = landing.variant === "luxury";
 const isTech = landing.variant === "tech";
 const isVet = landing.variant === "vet";
+const isComingSoon = landing.variant === "coming-soon";
 ---
 
 {
-  isVet ? (
+  isComingSoon ? (
+    <ComingSoonPage landing={landing} />
+  ) : isVet ? (
     <VetLandingPage landing={landing} />
   ) : isPack ? (
     <PackLandingPage landing={landing} />

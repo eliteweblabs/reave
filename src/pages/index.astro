@@ -4,6 +4,7 @@
  * Previous marketing homepage preserved at /home and src/pages/_backup/index.marketing-home.astro.
  */
 import LandingLayout from "../layouts/LandingLayout.astro";
+import ComingSoonLayout from "../layouts/ComingSoonLayout.astro";
 import SiteLandingPage from "../components/home/SiteLandingPage.astro";
 import HomeLoginPage from "../components/home/HomeLoginPage.astro";
 import ReaveMarketingHomePage from "../components/home/ReaveMarketingHomePage.astro";
@@ -34,6 +35,7 @@ if (isLogin) {
 const isBarbersEdge = siteContent.key === "barbersedge";
 const barbersEdgeOwner = getBarbersEdgeBarber("horell-cruz");
 const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteContent.landing;
+const isComingSoon = isLanding && siteContent.landing?.variant === "coming-soon";
 const isReaveGrandOpening =
   isReaveMarketingHost(requestHost) && homepageTemplate === "default" && !isBarbersEdge;
 
@@ -52,6 +54,14 @@ if (isReaveGrandOpening) {
     >
       <BarbersEdgeProfile barber={barbersEdgeOwner} />
     </BarbersEdgeLayout>
+  ) : isComingSoon ? (
+    <ComingSoonLayout
+      title={siteContent.landing?.title}
+      description={siteContent.landing?.description}
+      themeColor={siteContent.landing?.themeColor}
+    >
+      <SiteLandingPage landing={siteContent.landing!} />
+    </ComingSoonLayout>
   ) : isLanding ? (
     <LandingLayout>
       <SiteLandingPage landing={siteContent.landing!} />

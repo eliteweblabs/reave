@@ -1,0 +1,28 @@
+{
+  "key": "upsidedownbottle",
+  "pages": ["/"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": false
+  },
+  "homepage": {
+    "template": "landing",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": false
+  },
+  "landing": {
+    "variant": "coming-soon",
+    "title": "Upside Down Bottle",
+    "description": "A union for people.",
+    "themeColor": "#ddd0ab",
+    "eyebrow": "You saw it.",
+    "name": "This is an experiment.",
+    "tagline": "To spread love and decency. To make ignorance ignored again."
+  }
+}

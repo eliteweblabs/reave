@@ -212,7 +212,7 @@ export type SiteLandingConfig = {
    * `vet` = clean mobile-vet landing (tandem.vet–inspired).
    * Default keeps the original navy landing.
    */
-  variant?: "default" | "editorial" | "service" | "luxury" | "tech" | "pack" | "vet";
+  variant?: "default" | "editorial" | "service" | "luxury" | "tech" | "pack" | "vet" | "coming-soon";
   photo?: {
     src: string;
     alt: string;

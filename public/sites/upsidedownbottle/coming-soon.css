@@ -1,0 +1,192 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --paper: #ddd0ab;
+  --paper-shadow: #c7b78c;
+  --ink: #2b2318;
+  --ink-soft: #5a4d3a;
+  --rule: #8a7550;
+  --max: 40rem;
+}
+
+html {
+  font-size: 18px;
+}
+
+body {
+  font-family: 'EB Garamond', Georgia, serif;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.55;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--ink);
+}
+
+.udb-wrap {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 3.5rem;
+}
+
+.udb-site-id {
+  font-family: 'IM Fell English SC', Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  margin-bottom: 0.25rem;
+}
+
+.udb-tagline {
+  font-family: 'IM Fell English SC', Georgia, serif;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: 2.5rem;
+}
+
+.udb-eyebrow {
+  font-family: 'IM Fell English SC', Georgia, serif;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.75rem;
+}
+
+.udb-wrap h1 {
+  font-size: 1.85rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-bottom: 0.85rem;
+}
+
+.udb-lead {
+  font-size: 1.05rem;
+  margin-bottom: 2rem;
+}
+
+.udb-block {
+  margin-bottom: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.udb-block p + p {
+  margin-top: 0.75rem;
+}
+
+.udb-signup {
+  margin-bottom: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.udb-signup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.udb-signup input[type='email'] {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--rule);
+  background: var(--paper-shadow);
+  color: var(--ink);
+  font-family: 'EB Garamond', Georgia, serif;
+  font-size: 1rem;
+  border-radius: 0;
+}
+
+.udb-signup input[type='email']:focus {
+  outline: 1px solid var(--ink-soft);
+  outline-offset: 0;
+}
+
+.udb-signup button {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font-family: 'IM Fell English SC', Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.udb-signup button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.udb-signup button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.udb-fine,
+.udb-error {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.udb-error {
+  color: #6b3a2a;
+  margin-top: 0.5rem;
+}
+
+.udb-confirm {
+  display: none;
+  font-size: 1rem;
+}
+
+.udb-confirm.is-visible {
+  display: block;
+}
+
+.udb-signup.is-done .udb-signup-row,
+.udb-signup.is-done .udb-fine {
+  display: none;
+}
+
+.udb-resources {
+  margin-bottom: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+}
+
+.udb-section-title {
+  font-family: 'IM Fell English SC', Georgia, serif;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.65rem;
+}
+
+.udb-resources ul {
+  list-style: none;
+  margin-top: 0.65rem;
+}
+
+.udb-resources li {
+  margin-top: 0.35rem;
+}
+
+.udb-footer {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.udb-footer p + p {
+  margin-top: 0.65rem;
+}

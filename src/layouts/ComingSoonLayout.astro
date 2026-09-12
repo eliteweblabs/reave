@@ -1,0 +1,36 @@
+---
+import ViewportMeta from '../components/ViewportMeta.astro';
+import Favicon from '../components/Favicon.astro';
+
+export interface Props {
+  title?: string;
+  description?: string;
+  themeColor?: string;
+}
+
+const { title = 'Upside Down Bottle', description = 'A union for people.', themeColor = '#ddd0ab' } =
+  Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <ViewportMeta />
+    <Favicon />
+    <meta name="description" content={description} />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content={themeColor} />
+    <title>{title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IM+Fell+English+SC&family=Kalam:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/sites/upsidedownbottle/coming-soon.css" />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
