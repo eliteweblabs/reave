@@ -147,7 +147,22 @@
   .counter-sep{margin:0 0.6em;}
 
   p{font-size:1.1rem;margin:0 0 1.1em;max-width:56ch;}
-  s{text-decoration-color:var(--rule);text-decoration-thickness:1.5px;color:#8a7550;}
+  p.goal{
+    font-size:1.15rem;
+    line-height:1.75;
+    max-width:none;
+  }
+  .strike-list{
+    display:block;
+    margin:0.2em 0 0.35em;
+    letter-spacing:0.02em;
+  }
+  s{
+    text-decoration:line-through;
+    text-decoration-color:var(--rule);
+    text-decoration-thickness:1.5px;
+    color:#8a7550;
+  }
   a{color:var(--ink);text-decoration-color:var(--rule);text-underline-offset:3px;}
   a:hover{color:var(--ink-soft);}
 
