@@ -153,8 +153,8 @@
     max-width:none;
   }
   .strike-list{
-    display:block;
-    margin:0.2em 0 0.35em;
+    display:inline;
+    margin:0 0.15em;
     letter-spacing:0.02em;
   }
   s{
