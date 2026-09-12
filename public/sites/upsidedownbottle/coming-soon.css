@@ -26,7 +26,27 @@
     line-height:1.7;
     -webkit-font-smoothing:antialiased;
   }
-  .sheet{max-width:640px;margin:0 auto;padding:0 32px 220px;position:relative;z-index:1;}
+  .sheet{
+    max-width:640px;
+    margin:0 auto;
+    padding:0 32px 220px;
+    position:relative;
+    z-index:1;
+  }
+  .sheet::before{
+    content:'';
+    position:absolute;
+    left:50%;
+    top:42%;
+    transform:translate(-50%,-50%);
+    width:min(92%,440px);
+    aspect-ratio:1;
+    background:url('/sites/upsidedownbottle/hero-assets/scene2_bottle_inverted.jpg') center/contain no-repeat;
+    opacity:0.11;
+    pointer-events:none;
+    z-index:0;
+  }
+  .sheet > section{position:relative;z-index:1;}
 
   .lifecycle{
     position:fixed;
@@ -34,14 +54,17 @@
     left:0;
     right:0;
     z-index:10;
-    background:var(--paper);
-    border-top:1px solid var(--rule);
-    padding:10px 32px;
+    background:var(--paper-shadow2);
+    border-top:none;
+    padding:0;
+  }
+  .lifecycle-inner{
+    max-width:640px;
+    margin:0 auto;
+    padding:12px 32px;
     display:flex;
     flex-direction:column;
     gap:10px;
-    max-width:640px;
-    margin:0 auto;
   }
   .lc-counts{
     display:flex;
@@ -77,29 +100,27 @@
   .stage{
     display:flex;
     align-items:center;
-    gap:6px;
-    margin-top:1em;
-    flex-wrap:nowrap;
-    overflow-x:auto;
+    flex-wrap:wrap;
+    gap:0.35em;
+    margin:0.85em 0 0;
+    font-family:'IM Fell English SC', serif;
+    font-size:0.68rem;
+    letter-spacing:0.1em;
+    line-height:1.4;
+    color:var(--ink-soft);
   }
   .stage-item{
-    display:flex;
-    align-items:center;
-    gap:4px;
-    opacity:0.4;
-    flex-shrink:0;
+    opacity:0.42;
+    white-space:nowrap;
   }
   .stage-item.stage-reached{
     opacity:1;
-  }
-  .stage-svg{width:10px;height:18px;flex-shrink:0;}
-  .stage-arrow{width:14px;height:8px;flex-shrink:0;opacity:0.7;}
-  .stage-label{
-    font-family:'IM Fell English SC', serif;
-    font-size:0.72rem;
-    letter-spacing:0.02em;
     color:var(--ink-soft);
-    white-space:nowrap;
+  }
+  .stage-sep{
+    opacity:0.5;
+    font-size:0.62rem;
+    line-height:1;
   }
 
   section{padding:2.5vh 0;}
@@ -126,7 +147,7 @@
   .counter-sep{margin:0 0.6em;}
 
   p{font-size:1.1rem;margin:0 0 1.1em;max-width:56ch;}
-  s{text-decoration-color:var(--rule);text-decoration-thickness:1.5px;color:var(--ink-soft);}
+  s{text-decoration-color:var(--rule);text-decoration-thickness:1.5px;color:#8a7550;}
   a{color:var(--ink);text-decoration-color:var(--rule);text-underline-offset:3px;}
   a:hover{color:var(--ink-soft);}
 

@@ -6,6 +6,7 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
 
 <div data-udb-content aria-hidden="true">
   <div class="lifecycle">
+    <div class="lifecycle-inner">
     <div class="lc-signup" id="udb-signup">
       <form id="udb-signup-form" novalidate>
         <input type="email" name="email" placeholder="you@wherever.com" autocomplete="email" required />
@@ -38,37 +39,19 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
         </svg>
       </span>
     </div>
+    </div>
   </div>
 
   <div class="sheet">
     <section>
       <h1>This is an experiment in communication.</h1>
-      <div class="stage">
-        <span class="stage-item stage-reached">
-          <span class="stage-label">seed</span>
-        </span>
-        <svg class="stage-arrow" viewBox="0 0 20 10" fill="none" stroke="#8a7550" stroke-width="1.4" stroke-linecap="round">
-          <path d="M1 5 C 8 4.4, 13 5.6, 16 5"></path>
-          <path d="M12 2 C 14 3.5, 15.5 4.5, 16.5 5 C 15.5 5.5, 14 6.5, 12 8"></path>
-        </svg>
-        <span class="stage-item">
-          <span class="stage-label">recruitment</span>
-        </span>
-        <svg class="stage-arrow" viewBox="0 0 20 10" fill="none" stroke="#8a7550" stroke-width="1.4" stroke-linecap="round">
-          <path d="M1 5 C 8 4.4, 13 5.6, 16 5"></path>
-          <path d="M12 2 C 14 3.5, 15.5 4.5, 16.5 5 C 15.5 5.5, 14 6.5, 12 8"></path>
-        </svg>
-        <span class="stage-item">
-          <span class="stage-label">organization</span>
-        </span>
-        <svg class="stage-arrow" viewBox="0 0 20 10" fill="none" stroke="#8a7550" stroke-width="1.4" stroke-linecap="round">
-          <path d="M1 5 C 8 4.4, 13 5.6, 16 5"></path>
-          <path d="M12 2 C 14 3.5, 15.5 4.5, 16.5 5 C 15.5 5.5, 14 6.5, 12 8"></path>
-        </svg>
-        <span class="stage-item">
-          <span class="stage-label">implement</span>
-        </span>
-      </div>
+      <p class="stage" aria-label="Progress">
+        <span class="stage-item stage-reached">Seed</span>
+        <span class="stage-sep" aria-hidden="true">&gt;</span>
+        <span class="stage-item">Coalesce</span>
+        <span class="stage-sep" aria-hidden="true">&gt;</span>
+        <span class="stage-item">Change</span>
+      </p>
     </section>
 
     <section>
