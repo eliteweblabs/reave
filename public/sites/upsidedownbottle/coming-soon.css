@@ -209,9 +209,26 @@
   .list-plain li{font-size:1rem;padding:0.3em 0;border-bottom:1px solid var(--rule);}
   .list-plain li:last-child{border-bottom:none;}
 
-  .sheet footer p{font-family:var(--udb-serif);font-size:0.85rem;color:var(--ink-soft);margin:0 0 0.4em;}
+  .sheet footer.footer-credits{
+    overflow:hidden;
+    line-height:26px;
+  }
+  .sheet footer.footer-credits p{
+    font-family:var(--udb-serif);
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    margin:0;
+  }
   .sheet a{font-family:var(--udb-serif);}
-  .mark{width:26px;height:26px;opacity:0.75;margin-top:1em;display:block;color:var(--ink-soft);}
+  .footer-credits .mark{
+    float:right;
+    width:26px;
+    height:26px;
+    opacity:0.75;
+    margin:0;
+    display:block;
+    color:var(--ink-soft);
+  }
 
 /* intro overlay */
 .udb-intro-active {
