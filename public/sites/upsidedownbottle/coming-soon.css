@@ -175,6 +175,20 @@
     line-height:1.68;
     max-width:none;
   }
+  .udb-quote{
+    margin:0 0 1.1em;
+    padding:0;
+    border:none;
+    max-width:56ch;
+  }
+  .udb-quote cite{
+    display:block;
+    font-family:var(--udb-serif);
+    font-style:normal;
+    font-size:0.9rem;
+    color:var(--ink-soft);
+    margin-top:0.65em;
+  }
   .strike-list{
     display:inline;
     margin:0 0.15em;
