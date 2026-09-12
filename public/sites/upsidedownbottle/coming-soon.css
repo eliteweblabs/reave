@@ -4,9 +4,12 @@
     --paper-shadow2:#d2c393;
     --ink:#2b2318;
     --ink-soft:#5a4d3a;
+    --ink-muted:#8a7d6a;
     --rule:#8a7550;
+    --udb-serif:'EB Garamond', 'Times New Roman', Times, Georgia, serif;
   }
   *{box-sizing:border-box;}
+  html{font-size:18px;}
   html,body{margin:0;padding:0;background:var(--paper);position:relative;}
   body::before{
     content:'';
@@ -20,11 +23,13 @@
     z-index:0;
     pointer-events:none;
   }
-  body{
-    font-family:'EB Garamond', Georgia, serif;
+  .udb-page{
+    font-family:var(--udb-serif);
     color:var(--ink);
-    line-height:1.7;
+    line-height:1.65;
+    font-weight:400;
     -webkit-font-smoothing:antialiased;
+    font-optical-sizing:auto;
   }
   .sheet{
     max-width:640px;
@@ -32,6 +37,7 @@
     padding:0 32px 220px;
     position:relative;
     z-index:1;
+    font-family:var(--udb-serif);
   }
   .sheet::before{
     content:'';
@@ -101,25 +107,28 @@
     display:flex;
     align-items:center;
     flex-wrap:wrap;
-    gap:0.35em;
-    margin:0.85em 0 0;
-    font-family:'IM Fell English SC', serif;
-    font-size:0.68rem;
-    letter-spacing:0.1em;
-    line-height:1.4;
-    color:var(--ink-soft);
+    gap:0.45em;
+    margin:0.95em 0 0;
+    font-family:var(--udb-serif);
+    font-size:0.62rem;
+    font-weight:400;
+    letter-spacing:0.14em;
+    line-height:1.35;
+    text-transform:uppercase;
+    color:var(--ink-muted);
   }
   .stage-item{
-    opacity:0.42;
+    opacity:0.55;
     white-space:nowrap;
   }
   .stage-item.stage-reached{
-    opacity:1;
-    color:var(--ink-soft);
+    opacity:0.85;
+    color:var(--ink-muted);
   }
   .stage-sep{
-    opacity:0.5;
-    font-size:0.62rem;
+    opacity:0.45;
+    font-size:0.58rem;
+    letter-spacing:0;
     line-height:1;
   }
 
@@ -127,17 +136,25 @@
   section.tight{padding:1.5vh 0;}
 
   .eyebrow{
-    font-family:'IM Fell English SC', serif;
+    font-family:var(--udb-serif);
     font-size:0.95rem;
     letter-spacing:0.04em;
     color:var(--ink-soft);
     margin:0 0 0.6em;
   }
-  h1{font-size:2.4rem;font-weight:500;margin:0 0 0.3em;line-height:1.15;}
+  .sheet h1{
+    font-family:var(--udb-serif);
+    font-size:clamp(1.75rem, 6.2vw, 2.35rem);
+    font-weight:600;
+    margin:0 0 0.35em;
+    line-height:1.18;
+    letter-spacing:-0.012em;
+    color:var(--ink);
+  }
   .sub{font-style:italic;color:var(--ink-soft);font-size:1.1rem;margin:0 0 1.2em;}
 
   .counter{
-    font-family:'IM Fell English SC', serif;
+    font-family:var(--udb-serif);
     font-size:0.9rem;
     letter-spacing:0.02em;
     color:var(--ink-soft);
@@ -146,25 +163,35 @@
   .counter strong{color:var(--ink);font-weight:500;}
   .counter-sep{margin:0 0.6em;}
 
-  p{font-size:1.1rem;margin:0 0 1.1em;max-width:56ch;}
-  p.goal{
-    font-size:1.15rem;
-    line-height:1.75;
+  .sheet p{
+    font-family:var(--udb-serif);
+    font-size:1.05rem;
+    font-weight:400;
+    line-height:1.68;
+    margin:0 0 1.1em;
+    max-width:56ch;
+    color:var(--ink);
+  }
+  .sheet p.goal{
+    font-size:1.05rem;
+    line-height:1.68;
     max-width:none;
   }
   .strike-list{
-    display:inline;
-    margin:0 0.15em;
-    letter-spacing:0.02em;
+    display:block;
+    margin:0.25em 0 0.4em;
+    letter-spacing:0.01em;
+    font-weight:400;
   }
-  s{
+  .sheet s{
+    font-family:var(--udb-serif);
     text-decoration:line-through;
     text-decoration-color:var(--rule);
-    text-decoration-thickness:1.5px;
+    text-decoration-thickness:1px;
     color:#8a7550;
   }
-  a{color:var(--ink);text-decoration-color:var(--rule);text-underline-offset:3px;}
-  a:hover{color:var(--ink-soft);}
+  .sheet a{color:var(--ink);text-decoration-color:var(--rule);text-underline-offset:3px;}
+  .sheet a:hover{color:var(--ink-soft);}
 
   form{
     display:flex;
@@ -175,13 +202,13 @@
   }
   input[type=email]{
     flex:1;border:none;background:transparent;padding:10px 4px;
-    font-family:'EB Garamond', serif;font-size:1.1rem;color:var(--ink);
+    font-family:var(--udb-serif);font-size:1.05rem;color:var(--ink);
   }
   input[type=email]::placeholder{color:var(--ink-soft);font-style:italic;}
   input[type=email]:focus{outline:none;}
   button{
-    border:none;background:transparent;font-family:'IM Fell English SC', serif;
-    font-size:0.95rem;letter-spacing:0.03em;color:var(--ink);padding:10px 8px;cursor:pointer;
+    border:none;background:transparent;font-family:var(--udb-serif);
+    font-size:0.95rem;letter-spacing:0.02em;color:var(--ink);padding:10px 8px;cursor:pointer;
   }
   button:hover{color:var(--ink-soft);}
   .confirm{display:none;font-style:italic;color:var(--ink-soft);margin-top:0.6em;}
@@ -196,7 +223,8 @@
   .list-plain li{font-size:1rem;padding:0.3em 0;border-bottom:1px solid var(--rule);}
   .list-plain li:last-child{border-bottom:none;}
 
-  footer p{font-size:0.85rem;color:var(--ink-soft);margin:0 0 0.4em;}
+  .sheet footer p{font-family:var(--udb-serif);font-size:0.85rem;color:var(--ink-soft);margin:0 0 0.4em;}
+  .sheet a{font-family:var(--udb-serif);}
   .mark{width:26px;height:26px;opacity:0.75;margin-top:1em;display:block;color:var(--ink-soft);}
 
 /* intro overlay */
