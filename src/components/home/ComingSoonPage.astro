@@ -1,64 +1,147 @@
 ---
-import type { SiteLandingConfig } from '../../lib/siteContent';
 import UdbIntroSequence from './UdbIntroSequence.astro';
-
-interface Props {
-  landing: SiteLandingConfig;
-}
-
-const { landing } = Astro.props;
 ---
 
 <UdbIntroSequence />
 
-<main class="udb-wrap" data-udb-content aria-hidden="true">
-  {landing.tagline && <p class="udb-lead">{landing.tagline}</p>}
-
-  <div class="udb-block">
-    <p>To spread love and decency. To make ignorance ignored again.</p>
-    <p>No brand. No sponsor. No hashtag. No social. No tracking. No marketing.</p>
-    <p>
-      If we all commit a fraction of our day — organized, grassroots, transparent — we might just be
-      able to unfuck things.
-    </p>
+<div data-udb-content aria-hidden="true">
+  <div class="lifecycle">
+    <div class="lc-signup" id="udb-signup">
+      <form id="udb-signup-form" novalidate>
+        <input type="email" name="email" placeholder="you@wherever.com" autocomplete="email" required />
+        <button type="submit">Leave it</button>
+      </form>
+      <p class="confirm" id="udb-signup-confirm" role="status">Got it. That's all for now.</p>
+      <p class="fine">No sign-up wall. Just an email, if you want to know what the next small thing is.</p>
+      <p class="lc-error" id="udb-signup-error" hidden></p>
+    </div>
+    <div class="lc-counts">
+      <span class="lc-item">
+        <svg class="lc-icon" viewBox="0 0 40 40" fill="none" stroke="#2b2318" stroke-width="1.6" stroke-linecap="round">
+          <path d="M4 20 C 10 9, 30 9, 36 20 C 30 31, 10 31, 4 20 Z" stroke-linejoin="round"></path>
+          <path d="M17 20 a3.2 3 0 1 0 6.3 -0.4 a3.2 3 0 1 0 -6.3 0.4 Z" fill="#2b2318" stroke="none"></path>
+        </svg>
+        <span class="lc-num" id="impressionsCount">1</span>
+      </span>
+      <span class="lc-item">
+        <svg class="lc-icon" viewBox="0 0 40 40" fill="none" stroke="#2b2318" stroke-width="1.6" stroke-linecap="round">
+          <path d="M14 19 a4.3 4 0 1 0 0.1 0" stroke-linejoin="round"></path>
+          <path d="M6 32 C 6 24, 22 24, 22 32" stroke-linejoin="round"></path>
+          <path d="M24 20 a3.6 3.4 0 1 0 0.1 0" stroke-linejoin="round"></path>
+          <path d="M23 26 C 27 26, 34 28, 34 33" stroke-linejoin="round"></path>
+        </svg>
+        <span class="lc-num" id="peopleCount">1</span>
+      </span>
+      <span class="lc-tally" id="dayTally">
+        <svg class="tally-svg" viewBox="0 0 30 26" fill="none" stroke="#2b2318" stroke-width="1.8" stroke-linecap="round">
+          <path d="M4 3 C 3.6 9, 4.3 17, 4 23"></path>
+        </svg>
+      </span>
+    </div>
   </div>
 
-  <section class="udb-signup" id="udb-signup">
-    <form class="udb-signup-row" id="udb-signup-form" novalidate>
-      <input type="email" name="email" placeholder="you@wherever.com" autocomplete="email" required />
-      <button type="submit">Leave it</button>
-    </form>
-    <p class="udb-confirm" id="udb-signup-confirm" role="status">Got it. That's all for now.</p>
-    <p class="udb-fine">
-      No sign-up wall. Just an email, if you want to know what the next small thing is.
-    </p>
-    <p class="udb-error" id="udb-signup-error" hidden></p>
-  </section>
+  <div class="sheet">
+    <section>
+      <h1>This is an experiment in communication.</h1>
+      <div class="stage">
+        <span class="stage-item stage-reached">
+          <span class="stage-label">seed</span>
+        </span>
+        <svg class="stage-arrow" viewBox="0 0 20 10" fill="none" stroke="#8a7550" stroke-width="1.4" stroke-linecap="round">
+          <path d="M1 5 C 8 4.4, 13 5.6, 16 5"></path>
+          <path d="M12 2 C 14 3.5, 15.5 4.5, 16.5 5 C 15.5 5.5, 14 6.5, 12 8"></path>
+        </svg>
+        <span class="stage-item">
+          <span class="stage-label">recruitment</span>
+        </span>
+        <svg class="stage-arrow" viewBox="0 0 20 10" fill="none" stroke="#8a7550" stroke-width="1.4" stroke-linecap="round">
+          <path d="M1 5 C 8 4.4, 13 5.6, 16 5"></path>
+          <path d="M12 2 C 14 3.5, 15.5 4.5, 16.5 5 C 15.5 5.5, 14 6.5, 12 8"></path>
+        </svg>
+        <span class="stage-item">
+          <span class="stage-label">organization</span>
+        </span>
+        <svg class="stage-arrow" viewBox="0 0 20 10" fill="none" stroke="#8a7550" stroke-width="1.4" stroke-linecap="round">
+          <path d="M1 5 C 8 4.4, 13 5.6, 16 5"></path>
+          <path d="M12 2 C 14 3.5, 15.5 4.5, 16.5 5 C 15.5 5.5, 14 6.5, 12 8"></path>
+        </svg>
+        <span class="stage-item">
+          <span class="stage-label">implement</span>
+        </span>
+      </div>
+    </section>
 
-  <section class="udb-resources">
-    <p class="udb-section-title">If you're struggling to keep your phone on</p>
-    <p>
-      This isn't a pitch. There's a real federal program — Lifeline — that lowers or covers phone and
-      internet service for people who qualify. It's run by the FCC, not by us, and it existed before
-      this page did.
-    </p>
-    <ul>
-      <li>
-        Check eligibility — <a href="https://www.lifelinesupport.org" rel="noopener noreferrer"
-          >lifelinesupport.org</a
-        >
-      </li>
-      <li>Apply through your state or a participating carrier</li>
-    </ul>
-  </section>
+    <section>
+      <p><s>brand</s>. <s>sponsor</s>. <s>hashtag</s>. <s>social</s>. <s>tracking</s>. <s>marketing</s>.</p>
+      <p>
+        If we all commit a fraction of our day — organized, grassroots, transparent — we might just be able to
+        unf*ck things.
+      </p>
+    </section>
 
-  <footer class="udb-footer">
-    <p>Nothing is sold here. No sponsors. Whoever's behind it pays for the hosting themselves.</p>
-    <p>100% for the Planet.</p>
-  </footer>
-</main>
+    <section class="tight">
+      <p><a href="https://www.lifelinesupport.org" rel="noopener noreferrer">Phone/internet assistance</a></p>
+    </section>
+
+    <section class="tight">
+      <footer>
+        <p>100% for the Planet &amp; Critters.</p>
+        <svg class="mark" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true">
+          <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
+            <path
+              d="M1765 4686 c-159 -37 -308 -118 -416 -225 -122 -122 -175 -246 -185 -434 l-7 -114 -96 -7 c-129 -10 -172 -20 -261 -64 -88 -43 -224 -172 -278 -264 -95 -160 -138 -319 -129 -477 9 -169 68 -302 187 -421 76 -75 148 -121 252 -158 71 -25 80 -26 366 -30 l292 -4 0 146 0 146 -248 0 c-196 0 -260 3 -303 16 -152 44 -259 186 -259 344 0 165 128 386 260 447 75 35 233 39 402 10 76 -13 139 -23 141 -21 1 2 -5 79 -15 171 -38 343 -5 457 160 566 106 70 170 91 282 91 84 0 102 -3 152 -27 75 -37 134 -98 172 -177 l31 -65 3 -257 3 -258 145 0 145 0 -3 278 c-4 270 -4 279 -31 358 -64 193 -212 342 -409 411 -90 32 -257 41 -353 19z M2270 3075 l0 -295 -285 0 -286 0 3 -142 3 -143 283 -3 282 -2 0 -255 0 -255 150 0 150 0 0 255 0 255 265 0 265 0 0 145 0 145 -265 0 -265 0 0 295 0 295 -150 0 -150 0 0 -295z M3310 2637 l0 -144 113 -6 c244 -14 429 -96 587 -258 395 -405 276 -1079 -237 -1337 -147 -74 -364 -102 -534 -68 -256 52 -474 222 -589 461 -55 113 -72 190 -79 345 l-6 135 -143 3 c-127 2 -143 1 -149 -15 -13 -33 15 -305 42 -402 143 -526 645 -877 1188 -830 264 22 494 127 685 313 171 166 266 333 322 566 31 125 33 343 6 470 -115 537 -576 910 -1123 910 l-83 0 0 -143z"
+            ></path>
+          </g>
+        </svg>
+      </footer>
+    </section>
+  </div>
+</div>
 
 <script>
+  function buildTallySvg(days) {
+    const n = Math.max(1, days);
+    const paths = [];
+    for (let i = 0; i < n; i++) {
+      const group = Math.floor(i / 5);
+      const pos = i % 5;
+      const x = group * 20 + pos * 3.4 + 4;
+      const wobble = ((i * 17) % 10) / 10;
+      if (pos === 4) {
+        const x0 = group * 20 + 4;
+        paths.push(`M${x0 + 0.8} 3 L${x + 1.2} 23`);
+      } else {
+        paths.push(
+          `M${x} 3 C ${x - 0.35 + wobble * 0.25} 9, ${x + 0.25 - wobble * 0.15} 17, ${x + (wobble - 0.5) * 0.2} 23`,
+        );
+      }
+    }
+    const width = Math.max(14, Math.ceil(n / 5) * 20 + 6);
+    const pathHtml = paths.map((d) => `<path d="${d}"/>`).join('');
+    return `<svg class="tally-svg" viewBox="0 0 ${width} 26" fill="none" stroke="#2b2318" stroke-width="1.8" stroke-linecap="round">${pathHtml}</svg>`;
+  }
+
+  function renderTally(el, days) {
+    if (!(el instanceof HTMLElement)) return;
+    el.innerHTML = buildTallySvg(days);
+  }
+
+  async function refreshStats() {
+    try {
+      await fetch('/api/impression', { method: 'POST' });
+      const res = await fetch('/api/stats');
+      const data = await res.json().catch(() => ({}));
+      const impressionsEl = document.getElementById('impressionsCount');
+      const peopleEl = document.getElementById('peopleCount');
+      const tallyEl = document.getElementById('dayTally');
+      if (impressionsEl) impressionsEl.textContent = String(data.impressions ?? 1);
+      if (peopleEl) peopleEl.textContent = String(data.people ?? 1);
+      if (tallyEl && data.day) renderTally(tallyEl, data.day);
+    } catch {
+      /* counters stay at defaults */
+    }
+  }
+
   const form = document.getElementById('udb-signup-form');
   const box = document.getElementById('udb-signup');
   const confirm = document.getElementById('udb-signup-confirm');
@@ -94,10 +177,18 @@ const { landing } = Astro.props;
       }
       box.classList.add('is-done');
       confirm.classList.add('is-visible');
+      void refreshStats();
     } catch {
       errorEl.textContent = 'Could not reach the server.';
       errorEl.hidden = false;
       button.disabled = false;
     }
   });
+
+  const boot = () => void refreshStats();
+  if (document.querySelector('[data-udb-content]')?.hasAttribute('aria-hidden')) {
+    window.addEventListener('udb-intro-done', boot, { once: true });
+  } else {
+    boot();
+  }
 </script>

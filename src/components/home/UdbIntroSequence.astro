@@ -61,11 +61,13 @@ const fadeOutMs = 900;
     document.body.classList.remove('udb-intro-active');
     intro?.classList.add('is-out');
     content?.removeAttribute('aria-hidden');
+    window.dispatchEvent(new CustomEvent('udb-intro-done'));
     window.setTimeout(() => intro?.remove(), fadeOutMs);
   };
 
   if (!intro) {
     content?.removeAttribute('aria-hidden');
+    window.dispatchEvent(new CustomEvent('udb-intro-done'));
   } else if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     landOnPage();
   } else {
