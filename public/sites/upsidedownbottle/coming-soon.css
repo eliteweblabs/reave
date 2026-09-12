@@ -46,8 +46,9 @@ a {
 }
 
 .udb-tagline {
-  font-family: 'IM Fell English SC', Georgia, serif;
-  font-size: 0.85rem;
+  font-family: 'Kalam', cursive;
+  font-size: 1.15rem;
+  font-weight: 400;
   color: var(--ink-soft);
   margin-bottom: 2.5rem;
 }
