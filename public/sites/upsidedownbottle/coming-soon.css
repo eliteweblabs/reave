@@ -210,18 +210,24 @@
   .list-plain li:last-child{border-bottom:none;}
 
   .sheet footer.footer-credits{
-    overflow:hidden;
-    line-height:26px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    width:100%;
+    max-width:56ch;
   }
   .sheet footer.footer-credits p{
     font-family:var(--udb-serif);
     font-size:0.85rem;
     color:var(--ink-soft);
     margin:0;
+    max-width:none;
+    flex:1 1 auto;
   }
   .sheet a{font-family:var(--udb-serif);}
   .footer-credits .mark{
-    float:right;
+    flex:0 0 26px;
     width:26px;
     height:26px;
     opacity:0.75;
