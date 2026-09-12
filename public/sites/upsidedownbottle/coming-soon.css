@@ -8,6 +8,7 @@
     --ink-muted:#8a7d6a;
     --rule:#8a7550;
     --udb-serif:'EB Garamond', 'Times New Roman', Times, Georgia, serif;
+    --udb-quote-serif:'Cormorant Garamond', 'EB Garamond', Georgia, serif;
   }
   *{box-sizing:border-box;}
   html{font-size:18px;}
@@ -182,9 +183,12 @@
     max-width:56ch;
   }
   .udb-quote p{
-    font-family:'Kalam', cursive;
-    font-size:1.12rem;
-    line-height:1.58;
+    font-family:var(--udb-quote-serif);
+    font-size:1.28rem;
+    font-weight:500;
+    font-style:italic;
+    line-height:1.62;
+    letter-spacing:0.012em;
   }
   .udb-quote cite{
     display:block;
