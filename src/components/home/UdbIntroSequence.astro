@@ -42,6 +42,13 @@ const frameSrcs = frames.map((frame) => frame.src);
 }
 
 <div class="udb-intro" data-udb-intro aria-hidden="true">
+  <button type="button" class="udb-intro-skip" data-udb-intro-skip aria-label="Next frame">
+    <!-- IOS_ICONS.x — keep in sync with public/admin/admin-ui.js -->
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M18 6 6 18"></path>
+      <path d="m6 6 12 12"></path>
+    </svg>
+  </button>
   <div class="udb-hero" data-udb-hero>
     {
       frames.map((frame, i) => (
@@ -64,6 +71,20 @@ const frameSrcs = frames.map((frame) => frame.src);
   const intro = document.querySelector('[data-udb-intro]');
   const content = document.querySelector('[data-udb-content]');
   let finished = false;
+  let timers = [];
+
+  const clearTimers = () => {
+    timers.forEach((id) => window.clearTimeout(id));
+    timers = [];
+  };
+
+  const schedule = (fn, ms) => {
+    const id = window.setTimeout(fn, ms);
+    timers.push(id);
+    return id;
+  };
+
+  let cycleFrame = () => {};
 
   const landOnPage = () => {
     if (finished) return;
@@ -104,15 +125,31 @@ const frameSrcs = frames.map((frame) => frame.src);
 
     const advance = () => {
       if (index >= frameEls.length - 1) {
-        window.setTimeout(landOnPage, finalHoldMs);
+        schedule(landOnPage, finalHoldMs);
         return;
       }
       index += 1;
       show(index);
-      window.setTimeout(advance, beatMs);
+      schedule(advance, beatMs);
     };
 
-    window.setTimeout(advance, beatMs);
+    cycleFrame = () => {
+      if (finished) return;
+      clearTimers();
+      if (index >= frameEls.length - 1) {
+        landOnPage();
+        return;
+      }
+      index += 1;
+      show(index);
+      if (index >= frameEls.length - 1) {
+        schedule(landOnPage, finalHoldMs);
+      } else {
+        schedule(advance, beatMs);
+      }
+    };
+
+    schedule(advance, beatMs);
   };
 
   if (!intro) {
@@ -131,6 +168,12 @@ const frameSrcs = frames.map((frame) => frame.src);
       },
       { once: true },
     );
+
+    intro.addEventListener('click', () => cycleFrame());
+    intro.querySelector('[data-udb-intro-skip]')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      cycleFrame();
+    });
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', start, { once: true });

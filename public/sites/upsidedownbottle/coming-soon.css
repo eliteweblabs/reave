@@ -267,8 +267,28 @@
   justify-content: center;
   background: var(--paper);
   transition: opacity 0.9s ease;
+  cursor: pointer;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
+}
+
+.udb-intro-skip {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top, 0px));
+  right: max(10px, env(safe-area-inset-right, 0px));
+  z-index: 2;
+  margin: 0;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.udb-intro-skip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .udb-intro.is-out {
