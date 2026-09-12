@@ -95,11 +95,11 @@
     gap:0.45em;
     margin:0.95em 0 0;
     font-family:var(--udb-serif);
-    font-size:0.62rem;
+    font-size:0.31rem;
     font-weight:400;
-    letter-spacing:0.14em;
+    letter-spacing:0.12em;
     line-height:1.35;
-    text-transform:uppercase;
+    text-transform:lowercase;
     color:var(--ink-muted);
   }
   .stage-item{
@@ -112,7 +112,7 @@
   }
   .stage-sep{
     opacity:0.45;
-    font-size:0.58rem;
+    font-size:1em;
     letter-spacing:0;
     line-height:1;
   }
