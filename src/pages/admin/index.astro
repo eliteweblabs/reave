@@ -129,7 +129,7 @@ const bootDashboard = canAccessAdmin && (!requestedTab || requestedTab === "dash
         <AdminPanelMounts bootDashboard={bootDashboard} />
         <AdminSearchOverlay />
         <AdminDialogs />
-        <AdminFooterNav />
+        <AdminFooterNav showTraceLog={isOwner} />
         <AdminBootScripts
           companyBrand={companyBrand}
           staffAvatarUrl={staffAvatarUrl}
