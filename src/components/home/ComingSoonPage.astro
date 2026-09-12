@@ -64,9 +64,6 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
       <p>
         Just turn bottles upside down until the world is right side up.
       </p>
-      <p class="day-stats" id="udb-day-stats" aria-live="polite">
-        This is day <span id="statsDay">1</span>. There are <span id="statsImpressions">1</span> impressions and <span id="statsSignups">1</span> sign-ups.
-      </p>
     </section>
 
     <section class="tight">
@@ -124,16 +121,10 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
     const impressionsEl = document.getElementById('impressionsCount');
     const peopleEl = document.getElementById('peopleCount');
     const tallyEl = document.getElementById('dayTally');
-    const statsDayEl = document.getElementById('statsDay');
-    const statsImpressionsEl = document.getElementById('statsImpressions');
-    const statsSignupsEl = document.getElementById('statsSignups');
 
     if (impressionsEl) impressionsEl.textContent = String(impressions);
     if (peopleEl) peopleEl.textContent = String(people);
     if (tallyEl) renderTally(tallyEl, day);
-    if (statsDayEl) statsDayEl.textContent = String(day);
-    if (statsImpressionsEl) statsImpressionsEl.textContent = String(impressions);
-    if (statsSignupsEl) statsSignupsEl.textContent = String(people);
   }
 
   async function refreshStats() {
