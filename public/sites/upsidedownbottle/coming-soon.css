@@ -49,7 +49,12 @@ a {
   align-items: center;
   justify-content: center;
   background: var(--paper);
-  transition: opacity 0.5s ease;
+  transition: opacity 0.9s ease;
+}
+
+.udb-wrap[data-udb-content] {
+  /* Page sits beneath the intro overlay; revealed when intro fades out. */
+  min-height: 100vh;
 }
 
 .udb-intro.is-out {
@@ -70,7 +75,7 @@ a {
   height: 100%;
   object-fit: contain;
   opacity: 0;
-  transition: opacity 0.35s ease;
+  transition: opacity 0.65s ease;
   pointer-events: none;
 }
 

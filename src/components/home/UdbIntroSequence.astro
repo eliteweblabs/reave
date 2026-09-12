@@ -1,5 +1,8 @@
 ---
-/** Full-page one-time intro crossfade — see hero-sequence-package concept. */
+/**
+ * Full-page intro crossfade — hero-sequence-package concept.
+ * Beats: bottle → inverted → weary → two bottles → confused → investigating → land on page.
+ */
 const frames = [
   {
     src: '/sites/upsidedownbottle/hero-assets/scene1_bottle_upright.jpg',
@@ -8,6 +11,10 @@ const frames = [
   {
     src: '/sites/upsidedownbottle/hero-assets/scene2_bottle_inverted.jpg',
     alt: 'The same bottle, now upside down',
+  },
+  {
+    src: '/sites/upsidedownbottle/hero-assets/person1_weary.jpg',
+    alt: 'A person looking weary',
   },
   {
     src: '/sites/upsidedownbottle/hero-assets/scene3_bottles_two.jpg',
@@ -23,11 +30,11 @@ const frames = [
   },
 ] as const;
 
-/** ms each beat stays visible before crossfading to the next. */
-const beatMs = [700, 700, 700, 700];
-/** Hold on the final frame before revealing the page. */
-const finalHoldMs = 900;
-const fadeOutMs = 500;
+/** ms each beat stays on screen before the next crossfade. */
+const beatMs = 1800;
+/** Hold the final frame, then fade the overlay to the page beneath. */
+const finalHoldMs = 2200;
+const fadeOutMs = 900;
 ---
 
 <div class="udb-intro" data-udb-intro aria-hidden="true">
@@ -53,19 +60,17 @@ const fadeOutMs = 500;
   const intro = document.querySelector('[data-udb-intro]');
   const content = document.querySelector('[data-udb-content]');
 
-  const finishIntro = () => {
+  const landOnPage = () => {
     document.body.classList.remove('udb-intro-active');
     intro?.classList.add('is-out');
-    content?.removeAttribute('hidden');
     content?.removeAttribute('aria-hidden');
     window.setTimeout(() => intro?.remove(), fadeOutMs);
   };
 
   if (!intro) {
-    content?.removeAttribute('hidden');
     content?.removeAttribute('aria-hidden');
   } else if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    finishIntro();
+    landOnPage();
   } else {
     document.body.classList.add('udb-intro-active');
     const frames = [...intro.querySelectorAll('.udb-hero-frame')];
@@ -77,14 +82,14 @@ const fadeOutMs = 500;
 
     const advance = () => {
       if (index >= frames.length - 1) {
-        window.setTimeout(finishIntro, finalHoldMs);
+        window.setTimeout(landOnPage, finalHoldMs);
         return;
       }
       index += 1;
       show(index);
-      window.setTimeout(advance, beatMs[index] ?? 700);
+      window.setTimeout(advance, beatMs);
     };
 
-    window.setTimeout(advance, beatMs[0]);
+    window.setTimeout(advance, beatMs);
   }
 </script>
