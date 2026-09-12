@@ -21,6 +21,7 @@
     "title": "Upside Down Bottle",
     "description": "This is an experiment.",
     "themeColor": "#ddd0ab",
+    "ogImage": "/sites/upsidedownbottle/og.png",
     "tagline": "This is an experiment."
   }
 }

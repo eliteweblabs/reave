@@ -39,21 +39,6 @@
     z-index:1;
     font-family:var(--udb-serif);
   }
-  .sheet::before{
-    content:'';
-    position:absolute;
-    left:50%;
-    top:42%;
-    transform:translate(-50%,-50%);
-    width:min(92%,440px);
-    aspect-ratio:1;
-    background:url('/sites/upsidedownbottle/hero-assets/scene2_bottle_inverted.jpg') center/contain no-repeat;
-    opacity:0.11;
-    pointer-events:none;
-    z-index:0;
-  }
-  .sheet > section{position:relative;z-index:1;}
-
   .lifecycle{
     position:fixed;
     bottom:0;
@@ -142,7 +127,8 @@
     color:var(--ink-soft);
     margin:0 0 0.6em;
   }
-  .sheet h1{
+  /* Beat global `h1 { font-family: var(--font-primary) }` from the index bundle. */
+  html body.udb-page .sheet h1{
     font-family:var(--udb-serif);
     font-size:clamp(1.75rem, 6.2vw, 2.35rem);
     font-weight:600;
@@ -178,8 +164,8 @@
     max-width:none;
   }
   .strike-list{
-    display:block;
-    margin:0.25em 0 0.4em;
+    display:inline;
+    margin:0 0.15em;
     letter-spacing:0.01em;
     font-weight:400;
   }
