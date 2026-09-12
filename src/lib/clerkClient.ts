@@ -404,6 +404,7 @@ export async function clerkCreateUser(opts: {
   last_name?: string;
   password?: string;
   skip_password_checks?: boolean;
+  skip_password_requirement?: boolean;
   public_metadata?: Record<string, unknown>;
 }): Promise<{ ok: boolean; user?: ClerkUser; error?: string }> {
   const r = await backendPost('/users', opts);
