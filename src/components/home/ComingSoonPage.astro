@@ -61,6 +61,9 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
       <p>
         A simple gesture of placing a bottle upside down can hopefully connect people without outside influence.
       </p>
+      <p class="day-stats" id="udb-day-stats" aria-live="polite">
+        This is day <span id="statsDay">1</span>. There are <span id="statsImpressions">1</span> impressions and <span id="statsSignups">1</span> sign-ups.
+      </p>
     </section>
 
     <section class="tight">
@@ -110,17 +113,32 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
     el.innerHTML = buildTallySvg(days);
   }
 
+  function applyStats(data) {
+    const impressions = data.impressions ?? 1;
+    const people = data.people ?? 1;
+    const day = data.day ?? 1;
+
+    const impressionsEl = document.getElementById('impressionsCount');
+    const peopleEl = document.getElementById('peopleCount');
+    const tallyEl = document.getElementById('dayTally');
+    const statsDayEl = document.getElementById('statsDay');
+    const statsImpressionsEl = document.getElementById('statsImpressions');
+    const statsSignupsEl = document.getElementById('statsSignups');
+
+    if (impressionsEl) impressionsEl.textContent = String(impressions);
+    if (peopleEl) peopleEl.textContent = String(people);
+    if (tallyEl) renderTally(tallyEl, day);
+    if (statsDayEl) statsDayEl.textContent = String(day);
+    if (statsImpressionsEl) statsImpressionsEl.textContent = String(impressions);
+    if (statsSignupsEl) statsSignupsEl.textContent = String(people);
+  }
+
   async function refreshStats() {
     try {
       await fetch('/api/impression', { method: 'POST' });
       const res = await fetch('/api/stats');
       const data = await res.json().catch(() => ({}));
-      const impressionsEl = document.getElementById('impressionsCount');
-      const peopleEl = document.getElementById('peopleCount');
-      const tallyEl = document.getElementById('dayTally');
-      if (impressionsEl) impressionsEl.textContent = String(data.impressions ?? 1);
-      if (peopleEl) peopleEl.textContent = String(data.people ?? 1);
-      if (tallyEl && data.day) renderTally(tallyEl, data.day);
+      applyStats(data);
     } catch {
       /* counters stay at defaults */
     }
