@@ -348,36 +348,17 @@ export async function clerkListUsers(opts: {
 
 /** Total users in the current Clerk app (for public counters). */
 export async function clerkGetUserCount(): Promise<{ ok: boolean; count: number }> {
-  const key = secretKey();
-  if (!key) return { ok: false, count: 0 };
+  const r = await backendGet('/users/count');
+  if (!r.ok) return { ok: false, count: 0 };
 
-  const url = `${CLERK_API_BASE}/users?limit=1&offset=0`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) return { ok: false, count: 0 };
-
-  const totalHeader = res.headers.get('clerk-total-count') ?? res.headers.get('x-total-count');
-  if (totalHeader) {
-    const n = parseInt(totalHeader, 10);
-    if (!Number.isNaN(n)) return { ok: true, count: n };
-  }
-
-  let body: unknown;
-  try {
-    body = await res.json();
-  } catch {
-    body = null;
-  }
-
+  const body = r.body;
   if (body && typeof body === 'object' && !Array.isArray(body)) {
     const rec = body as Record<string, unknown>;
-    if (typeof rec.total_count === 'number') return { ok: true, count: rec.total_count };
-    if (Array.isArray(rec.data) && typeof rec.total_count === 'number') {
-      return { ok: true, count: rec.total_count };
+    const total = rec.total_count ?? rec.totalCount;
+    if (typeof total === 'number' && Number.isFinite(total)) {
+      return { ok: true, count: total };
     }
   }
-  if (Array.isArray(body)) return { ok: true, count: body.length };
 
   return { ok: false, count: 0 };
 }
