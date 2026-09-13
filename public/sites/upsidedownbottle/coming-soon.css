@@ -176,6 +176,7 @@
     color:var(--ink);
   }
   .sheet p.goal{
+    margin-top:0.55em;
     font-size:1.05rem;
     line-height:1.68;
     max-width:none;
