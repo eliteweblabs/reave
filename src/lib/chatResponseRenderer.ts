@@ -90,6 +90,30 @@ declare global {
   }
 }
 
+/** Installed admin PWA (Dock / home screen) — no browser back/forward chrome. */
+export function isStandalonePwa(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+/** Open http(s) links outside the admin PWA shell when possible. */
+export function openExternalHref(href: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const safe = sanitizeChatButtonHref(href);
+  if (!safe) return false;
+  try {
+    const opened = window.open(safe, '_blank', 'noopener,noreferrer');
+    return opened !== null;
+  } catch {
+    return false;
+  }
+}
+
 /** Stamp a work deep-link so the project Back button can return to this chat. */
 export function withChatReturnHref(
   href: string,
@@ -147,7 +171,8 @@ export function openChatButtonHref(href: string): boolean {
     return true;
   }
 
-  return false;
+  openExternalHref(url.href);
+  return true;
 }
 
 export function getButtonProps(response: ChatButtonResponse) {

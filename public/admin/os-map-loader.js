@@ -129,7 +129,7 @@ import {
   iosIcon,
 } from './admin-ui.js?v=20260904a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
-import { installPwaNavGuard } from './push-client.js?v=20260811a';
+import { installPwaExternalLinkGuard, installPwaNavGuard } from './push-client.js?v=20260811a';
 import {
   buildAdminNotice,
   appendAdminNoticeAction,
@@ -20932,6 +20932,7 @@ async function boot() {
   syncAdminTabUrl(activeKey);
   window.__reaveOpenDeepLink = handleNotificationOpen;
   installPwaNavGuard();
+  installPwaExternalLinkGuard();
   syncHealthLifecycle();
   if (userId) {
     syncEmailPoll();

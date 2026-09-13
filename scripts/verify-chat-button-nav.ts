@@ -4,6 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import {
+  classifyChatButtonHref,
   parseWorkChatReturn,
   withChatReturnHref,
 } from '../src/lib/chatResponseRenderer.ts';
@@ -45,6 +46,12 @@ test('leaves email and non-work admin links alone', () => {
 test('no-ops without a chat id', () => {
   assert.equal(withChatReturnHref('/admin/?tab=work&slug=acme-site', ''), '/admin/?tab=work&slug=acme-site');
   assert.equal(parseWorkChatReturn('/admin/?tab=work&slug=acme-site'), null);
+});
+
+test('classifies vendor links as external', () => {
+  assert.equal(classifyChatButtonHref('https://porkbun.com/account/login').kind, 'external');
+  assert.equal(classifyChatButtonHref('/admin/?tab=email').kind, 'admin');
+  assert.equal(classifyChatButtonHref('/c/abc-123').kind, 'portal');
 });
 
 for (const line of results) console.log(line);

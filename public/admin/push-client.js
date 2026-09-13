@@ -147,6 +147,53 @@ export function installPwaNavGuard() {
   return pwaNavGuardCleanup;
 }
 
+/** True when href would leave the installed admin PWA scope (/admin). */
+function isOffAdminPwaHref(href) {
+  const trimmed = String(href || '').trim();
+  if (!trimmed || trimmed.startsWith('#') || /^javascript:/i.test(trimmed)) return false;
+  try {
+    const url = new URL(trimmed, location.href);
+    if (url.origin !== location.origin) return true;
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    return path !== '/admin' && !path.startsWith('/admin/');
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * In an installed admin PWA, force external / off-scope links into a real browser
+ * tab via window.open so the app shell (inbox, back nav) is never replaced.
+ */
+export function installPwaExternalLinkGuard() {
+  if (typeof document === 'undefined' || !isStandalonePwa() || !isAdminSpa()) return () => {};
+  if (window.__reavePwaExternalLinkGuard) return window.__reavePwaExternalLinkGuard;
+
+  const onClick = (event) => {
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null;
+    if (!(anchor instanceof HTMLAnchorElement)) return;
+    const href = anchor.getAttribute('href');
+    if (!href || !isOffAdminPwaHref(href)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      window.open(new URL(href, location.href).href, '_blank', 'noopener,noreferrer');
+    } catch {
+      /* ignore malformed href */
+    }
+  };
+
+  document.addEventListener('click', onClick, true);
+  const cleanup = () => {
+    document.removeEventListener('click', onClick, true);
+    delete window.__reavePwaExternalLinkGuard;
+  };
+  window.__reavePwaExternalLinkGuard = cleanup;
+  return cleanup;
+}
+
 function isIos() {
   if (typeof navigator === 'undefined') return false;
   return (

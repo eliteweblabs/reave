@@ -65,7 +65,9 @@ import {
 import {
   classifyChatButtonHref,
   getButtonProps,
+  isStandalonePwa,
   openChatButtonHref,
+  openExternalHref,
   parseAssistantChatButtons,
   withChatReturnHref,
 } from '../../lib/chatResponseRenderer';
@@ -1621,7 +1623,23 @@ function ChatMarkdownLink(props: { href?: string; children?: ReactNode }) {
       </a>
     );
   }
-  return <a {...props} href={href} />;
+  const external = kind === 'external';
+  return (
+    <a
+      {...props}
+      href={href}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
+      onClick={
+        external && isStandalonePwa()
+          ? (event) => {
+              event.preventDefault();
+              openExternalHref(href);
+            }
+          : undefined
+      }
+    />
+  );
 }
 
 function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {

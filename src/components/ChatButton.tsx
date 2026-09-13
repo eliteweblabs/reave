@@ -2,7 +2,9 @@ import type { MouseEvent } from 'react';
 import type { ChatButtonResponse } from '../lib/chatResponseRenderer';
 import {
   classifyChatButtonHref,
+  isStandalonePwa,
   openChatButtonHref,
+  openExternalHref,
   sanitizeChatButtonHref,
 } from '../lib/chatResponseRenderer';
 
@@ -46,9 +48,15 @@ export function ChatButton({
   const showExternalIcon = !internal && resolvedTarget === '_blank';
 
   const onClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (!internal) return;
-    event.preventDefault();
-    openChatButtonHref(safeHref);
+    if (internal) {
+      event.preventDefault();
+      openChatButtonHref(safeHref);
+      return;
+    }
+    if (isStandalonePwa()) {
+      event.preventDefault();
+      openExternalHref(safeHref);
+    }
   };
 
   return (
