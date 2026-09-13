@@ -112,12 +112,16 @@
     font-weight:400;
     letter-spacing:0.12em;
     line-height:1.35;
-    text-transform:lowercase;
     color:var(--ink-muted);
   }
   .stage-item{
     opacity:0.55;
     white-space:nowrap;
+  }
+  .stage-num{
+    margin-right:0.35em;
+    letter-spacing:0.06em;
+    font-weight:500;
   }
   .stage-item.stage-reached{
     opacity:0.85;
