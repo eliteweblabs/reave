@@ -49,6 +49,7 @@ src/knowledge/push-alerts.json
 src/knowledge/push-quiet-hours.json
 src/knowledge/newsletter.json
 src/knowledge/engagement-events.json
+src/knowledge/udb-counters.json
 src/knowledge/tracked-links.json
 src/knowledge/project-outbound-emails.json
 src/knowledge/auto-email-response-drafts.json

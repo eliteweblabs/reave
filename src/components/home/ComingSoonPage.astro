@@ -46,24 +46,24 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
     <section>
       <h1>This is an experiment in communication.</h1>
       <p class="stage" aria-label="Progress">
-        <span class="stage-item stage-reached">seed</span>
+        <span class="stage-item stage-reached"><span class="stage-num">#1</span> Seed</span>
         <span class="stage-sep" aria-hidden="true">&gt;</span>
-        <span class="stage-item">coalesce</span>
+        <span class="stage-item"><span class="stage-num">#2</span> Coalesce</span>
         <span class="stage-sep" aria-hidden="true">&gt;</span>
-        <span class="stage-item">change</span>
+        <span class="stage-item"><span class="stage-num">#3</span> Change</span>
       </p>
-    </section>
-
-    <section>
       <p class="goal">
-        The goal is to connect people with <span class="strike-list"><s>protest</s> <s>hashtag</s> <s>comment</s></span> trash.
+        To connect people with <span class="strike-list"><s>protest</s> <s>hashtag</s> <s>comment</s></span> trash.
       </p>
-      <blockquote class="udb-quote">
-        <p>
-          “History will have to record that the greatest tragedy of this period of social transition was not the strident clamor of the bad people, but the appalling silence of the good people.”
-        </p>
-        <cite>Martin Luther King Jr.</cite>
-      </blockquote>
+      <dl class="udb-dict">
+        <dt>
+          <span class="udb-dict-head">moral licensing</span>
+          <span class="udb-dict-pos">(n.)</span>
+        </dt>
+        <dd>
+          the act of performing a small, low-cost gesture of concern (a comment, a share, a prayer) that satisfies the need to feel responsible, thereby reducing the likelihood of taking further, real action. Documented in behavioral psychology. Look it up yourself.
+        </dd>
+      </dl>
       <p>
         A simple act en masse, to generate unfettered noise, to organize without restraint, to change without regulation.
       </p>
@@ -130,12 +130,20 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
     if (tallyEl) renderTally(tallyEl, day);
   }
 
-  async function refreshStats() {
+  async function fetchStats() {
     try {
-      await fetch('/api/impression', { method: 'POST' });
       const res = await fetch('/api/stats');
       const data = await res.json().catch(() => ({}));
       applyStats(data);
+    } catch {
+      /* counters stay at defaults */
+    }
+  }
+
+  async function recordVisitAndFetchStats() {
+    try {
+      await fetch('/api/impression', { method: 'POST' });
+      await fetchStats();
     } catch {
       /* counters stay at defaults */
     }
@@ -176,7 +184,7 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
       }
       box.classList.add('is-done');
       confirm.classList.add('is-visible');
-      void refreshStats();
+      void fetchStats();
     } catch {
       errorEl.textContent = 'Could not reach the server.';
       errorEl.hidden = false;
@@ -184,10 +192,14 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
     }
   });
 
-  const boot = () => void refreshStats();
-  if (document.querySelector('[data-udb-content]')?.hasAttribute('aria-hidden')) {
-    window.addEventListener('udb-intro-done', boot, { once: true });
-  } else {
-    boot();
-  }
+  let statsBooted = false;
+  const bootStats = () => {
+    if (statsBooted) return;
+    statsBooted = true;
+    void recordVisitAndFetchStats();
+  };
+
+  bootStats();
+  window.addEventListener('udb-intro-done', bootStats, { once: true });
+  window.setTimeout(bootStats, 16_000);
 </script>
