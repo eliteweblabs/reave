@@ -5390,6 +5390,19 @@ function filterPendingDismissNotifications(notifications) {
   });
 }
 
+/** Same filters as buildReviewAlertBanners — badge must match visible dashboard cards. */
+function countVisibleReviewNotifications(notifications) {
+  if (!Array.isArray(notifications) || !notifications.length) return 0;
+  return filterPendingDismissNotifications(notifications).filter(
+    (item) => !(isExpiringMeetingNotice(item) && isMeetingNoticePastHold(item)),
+  ).length;
+}
+
+function syncReviewBadgeFromNotifications(notifications) {
+  if (!Array.isArray(notifications)) return;
+  syncReviewBadge(countVisibleReviewNotifications(notifications));
+}
+
 function removeReviewAlertBannerForItem(item) {
   if (item?.alertId) return removeReviewAlertBanner(null, null, null, item.alertId);
   if (item?.engagementId) return removeReviewAlertBanner(null, null, item.engagementId);
@@ -6747,16 +6760,23 @@ function renderAdminDashboard(data, opts = {}) {
   const stats = data?.stats || {};
   const scheduleLive = data?.schedulingConfigured === true;
   const dashTimeView = readDashTimeView();
-  const automationNotifications = filterPendingDismissNotifications(
-    Array.isArray(data?.automationNotifications) ? data.automationNotifications : [],
+  const rawReviewNotifications = Array.isArray(data?.automationNotifications)
+    ? data.automationNotifications
+    : [];
+  const automationNotifications = filterPendingDismissNotifications(rawReviewNotifications);
+  const visibleReviewNotifications = automationNotifications.filter(
+    (item) => !(isExpiringMeetingNotice(item) && isMeetingNoticePastHold(item)),
   );
 
   if (data?.briefing) {
     mount.appendChild(buildMorningBriefingPanel(data.briefing));
   }
 
-  if (automationNotifications.length) {
+  if (visibleReviewNotifications.length) {
     mount.appendChild(buildReviewAlertBanners(automationNotifications));
+  }
+  if (data?.automationNotifications != null) {
+    syncReviewBadgeFromNotifications(rawReviewNotifications);
   }
   maybeOpenPendingTriageDialog(automationNotifications);
 
@@ -7686,7 +7706,7 @@ async function loadAdminDashboard(opts = {}) {
       );
       const data = await readAdminJson(res, 'dashboard');
       if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      syncDashboardFooterBadges(data.stats);
+      syncDashboardFooterBadges(data.stats, data.automationNotifications);
       const endRender = traceStart('admin:dashboard:render');
       const merged = coalesceDashboardFleetPayload(
         fleetSnapshot || lastDashboardPayload || readDashFleetSnapshot(),
@@ -7727,13 +7747,19 @@ async function refreshDashboardReviewBannersQuiet() {
     const res = await adminFetch('/api/admin/dashboard');
     const data = await readAdminJson(res, 'dashboard');
     if (!data.ok) return;
-    syncDashboardFooterBadges(data.stats);
+    syncDashboardFooterBadgesWithoutReview(data.stats);
 
     scroll.querySelector('.dash-review-alerts')?.remove();
-    const notifications = filterPendingDismissNotifications(
-      Array.isArray(data.automationNotifications) ? data.automationNotifications : [],
+    const rawNotifications = Array.isArray(data.automationNotifications)
+      ? data.automationNotifications
+      : [];
+    lastDashboardPayload = { ...lastDashboardPayload, ...data };
+    syncReviewBadgeFromNotifications(rawNotifications);
+    const notifications = filterPendingDismissNotifications(rawNotifications);
+    const visibleNotifications = notifications.filter(
+      (item) => !(isExpiringMeetingNotice(item) && isMeetingNoticePastHold(item)),
     );
-    if (notifications.length) {
+    if (visibleNotifications.length) {
       scroll.insertBefore(buildReviewAlertBanners(notifications), scroll.firstChild);
     }
     maybeOpenPendingTriageDialog(notifications);
@@ -12239,9 +12265,13 @@ function renderFooterInboxBadge() {
   }
 }
 
-function syncDashboardFooterBadges(stats) {
+function syncDashboardFooterBadges(stats, notifications) {
   if (!stats || typeof stats !== 'object') return;
-  syncReviewBadge(stats.reviewsPending ?? stats.automationPending ?? 0);
+  if (Array.isArray(notifications)) {
+    syncReviewBadgeFromNotifications(notifications);
+  } else {
+    syncReviewBadge(stats.reviewsPending ?? stats.automationPending ?? 0);
+  }
   footerNavCounts.chats = stats.chats ?? 0;
   footerNavCounts.emails = stats.emailsTotal ?? stats.emails ?? 0;
   footerNavCounts.meetings = stats.meetingsTotal ?? null;
@@ -13526,11 +13556,15 @@ async function refreshFooterBadgesQuiet() {
       if (MAP.type === 'email' && emailState.allEvents.length) {
         mergeEmailSeenFromServer(events);
       }
-      const badgeCount =
-        dashStats?.reviewsPending ??
-        dashStats?.automationPending ??
-        inboxData.digest?.reviewsPending;
-      await syncInboxAppBadge(events, badgeCount);
+      if (MAP?.type === 'dashboard' && lastDashboardPayload?.automationNotifications != null) {
+        syncReviewBadgeFromNotifications(lastDashboardPayload.automationNotifications);
+      } else {
+        const badgeCount =
+          dashStats?.reviewsPending ??
+          dashStats?.automationPending ??
+          inboxData.digest?.reviewsPending;
+        await syncInboxAppBadge(events, badgeCount);
+      }
       const unread =
         dashStats?.emailsUnread ??
         inboxData.digest?.unread ??
@@ -13539,10 +13573,13 @@ async function refreshFooterBadgesQuiet() {
       return;
     }
 
-    if (dashStats) {
+    if (MAP?.type === 'dashboard' && lastDashboardPayload?.automationNotifications != null) {
+      syncReviewBadgeFromNotifications(lastDashboardPayload.automationNotifications);
+    } else if (dashStats) {
       syncReviewBadge(dashStats.reviewsPending ?? dashStats.automationPending ?? 0);
-      if (dashStats.emailsUnread != null) syncUnreadEmailBadge(dashStats.emailsUnread);
     } else await setAppIconBadge(reviewsPendingCount);
+
+    if (dashStats?.emailsUnread != null) syncUnreadEmailBadge(dashStats.emailsUnread);
   } catch {}
 }
 

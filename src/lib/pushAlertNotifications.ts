@@ -150,6 +150,16 @@ export async function listPushAlertNotifications(opts?: {
       staleEmailIds.push(emailId);
       continue;
     }
+    // Inbox automation already acknowledged — drop stale triage/email push cards.
+    if (
+      inbox?.automationAckAt &&
+      alert.kind !== 'otp' &&
+      alert.kind !== 'auth_link' &&
+      alert.kind !== 'calendar'
+    ) {
+      staleEmailIds.push(emailId);
+      continue;
+    }
     kept.push(alert);
   }
   if (memoryAlertIds.length) {
