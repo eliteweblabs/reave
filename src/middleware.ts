@@ -130,6 +130,12 @@ const BRANDING_LEGACY_REDIRECTS: Record<string, string> = {
   "/branding/apple-touch-icon-precomposed.png": "/api/branding/icon?size=180",
 };
 
+/** Retired install hostnames → current apex (301, path + query preserved). */
+const LEGACY_DOMAIN_REDIRECTS: Record<string, string> = {
+  "upsidedownbottle.com": "darwinbottles.com",
+  "www.upsidedownbottle.com": "darwinbottles.com",
+};
+
 const appHandler = async (
   context: Parameters<MiddlewareHandler>[0],
   next: Parameters<MiddlewareHandler>[1],
@@ -161,6 +167,19 @@ const appHandler = async (
   if (configuredDomain && host === `www.${configuredDomain}`) {
     const target = new URL(url.href);
     target.host = configuredDomain;
+    target.protocol = "https:";
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: target.toString() },
+      }),
+    );
+  }
+
+  const legacyTarget = LEGACY_DOMAIN_REDIRECTS[host.toLowerCase()];
+  if (legacyTarget) {
+    const target = new URL(url.href);
+    target.hostname = legacyTarget;
     target.protocol = "https:";
     return applySecurityHeaders(
       new Response(null, {

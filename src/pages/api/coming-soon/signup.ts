@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ request }) => {
   const created = await clerkCreateUser({
     email_address: [email],
     skip_password_requirement: true,
-    public_metadata: { source: 'coming-soon', site: 'upsidedownbottle' },
+    public_metadata: { source: 'coming-soon', site: 'darwinbottles' },
   });
 
   if (!created.ok) {

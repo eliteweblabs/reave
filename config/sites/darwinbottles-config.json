@@ -1,0 +1,27 @@
+{
+  "key": "darwinbottles",
+  "pages": ["/"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": false
+  },
+  "homepage": {
+    "template": "landing",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": false
+  },
+  "landing": {
+    "variant": "coming-soon",
+    "title": "Darwin Bottles",
+    "description": "This is an experiment.",
+    "themeColor": "#ddd0ab",
+    "ogImage": "/sites/upsidedownbottle/og.png",
+    "tagline": "This is an experiment."
+  }
+}
