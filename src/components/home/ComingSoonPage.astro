@@ -130,12 +130,20 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
     if (tallyEl) renderTally(tallyEl, day);
   }
 
-  async function refreshStats() {
+  async function fetchStats() {
     try {
-      await fetch('/api/impression', { method: 'POST' });
       const res = await fetch('/api/stats');
       const data = await res.json().catch(() => ({}));
       applyStats(data);
+    } catch {
+      /* counters stay at defaults */
+    }
+  }
+
+  async function recordVisitAndFetchStats() {
+    try {
+      await fetch('/api/impression', { method: 'POST' });
+      await fetchStats();
     } catch {
       /* counters stay at defaults */
     }
@@ -176,7 +184,7 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
       }
       box.classList.add('is-done');
       confirm.classList.add('is-visible');
-      void refreshStats();
+      void fetchStats();
     } catch {
       errorEl.textContent = 'Could not reach the server.';
       errorEl.hidden = false;
@@ -184,10 +192,14 @@ import UdbIntroSequence from './UdbIntroSequence.astro';
     }
   });
 
-  const boot = () => void refreshStats();
-  if (document.querySelector('[data-udb-content]')?.hasAttribute('aria-hidden')) {
-    window.addEventListener('udb-intro-done', boot, { once: true });
-  } else {
-    boot();
-  }
+  let statsBooted = false;
+  const bootStats = () => {
+    if (statsBooted) return;
+    statsBooted = true;
+    void recordVisitAndFetchStats();
+  };
+
+  bootStats();
+  window.addEventListener('udb-intro-done', bootStats, { once: true });
+  window.setTimeout(bootStats, 16_000);
 </script>
