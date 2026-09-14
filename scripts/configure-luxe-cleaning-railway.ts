@@ -39,7 +39,7 @@ if (existsSync(envPath)) {
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
 const REAVE_APP_PROJECT_ID = 'af65eb9a-b11c-4c1c-8030-66b4347dcf71';
-const DOMAIN_NEEDLES = ['maidandmarble.com', 'luxecleaning.com'];
+const DOMAIN_NEEDLES = ['lux.cleaning', 'luxecleaning.com', 'maidandmarble.com'];
 const PROJECT_NAME_NEEDLES = ['maid', 'marble', 'luxe cleaning', 'luxe-cleaning'];
 const INFRA_SERVICE_RE = /postgres|redis|contact-api|inventory|materials|crater|calcom|fleet|booking|wizard|inbound|stats|plausible/i;
 const VAPI_PHONE = process.env.VAPI_PHONE_NUMBER?.trim() || '+15089558850';
@@ -281,7 +281,7 @@ async function discoverTarget(): Promise<DiscoveredTarget | null> {
       environment: environment.name,
       environmentId: environment.id,
       apexDomain:
-        process.env.PUBLIC_SITE_DOMAIN?.trim() || domainMatches(domains) || 'maidandmarble.com',
+        process.env.PUBLIC_SITE_DOMAIN?.trim() || domainMatches(domains) || 'lux.cleaning',
       reason: `explicit LUXE_CLEANING_RAILWAY_PROJECT=${explicitProject}`,
     };
   }
@@ -322,7 +322,7 @@ async function discoverTarget(): Promise<DiscoveredTarget | null> {
         environment: environment.name,
         environmentId: environment.id,
         apexDomain:
-          process.env.PUBLIC_SITE_DOMAIN?.trim() || domainHit || 'maidandmarble.com',
+          process.env.PUBLIC_SITE_DOMAIN?.trim() || domainHit || 'lux.cleaning',
         reason: domainHit
           ? `custom domain ${domainHit}`
           : `project name matches "${project.name}"`,
@@ -341,9 +341,14 @@ async function discoverTarget(): Promise<DiscoveredTarget | null> {
 }
 
 function buildVariablePatch(apexDomain: string, assistantId?: string): Record<string, string> {
+  const apex = apexDomain.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
   const vars: Record<string, string> = {
     INSTALL_CONFIG: 'luxe-cleaning',
-    PUBLIC_SITE_DOMAIN: apexDomain,
+    PUBLIC_SITE_DOMAIN: apex,
+    PUBLIC_SITE_URL: `https://${apex}`,
+    COMPANY_DOMAIN: apex,
+    COMPANY_LOGO_URL: `https://${apex}/sites/luxe-cleaning/logo.png`,
+    EMAIL_FROM_NAME: 'Felicia Tracy · Luxe Cleaning',
     PUBLIC_INSTALL_HOMEPAGE_VOICE: '1',
     COMPANY_NAME: 'Luxe Cleaning',
     COMPANY_DESCRIPTION:

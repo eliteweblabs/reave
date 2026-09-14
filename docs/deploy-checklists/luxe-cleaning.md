@@ -36,7 +36,7 @@ RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --discover
 ```
 
 Matches projects by name (Maid / Marble / Luxe) or custom domain
-`maidandmarble.com` / `luxecleaning.com`. Excludes the official **reave.app**
+`lux.cleaning` / `luxecleaning.com` / `maidandmarble.com`. Excludes the official **reave.app**
 project (`af65eb9a-b11c-4c1c-8030-66b4347dcf71`).
 
 Document the discovered ids here after first run:
@@ -81,7 +81,9 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | Variable | Value |
 |----------|--------|
 | `INSTALL_CONFIG` | `luxe-cleaning` |
-| `PUBLIC_SITE_DOMAIN` | production apex (e.g. `maidandmarble.com` until DNS moves) |
+| `PUBLIC_SITE_DOMAIN` | `lux.cleaning` |
+| `PUBLIC_SITE_URL` | `https://lux.cleaning` |
+| `COMPANY_DOMAIN` | `lux.cleaning` |
 | `PUBLIC_INSTALL_HOMEPAGE_VOICE` | `1` |
 | `COMPANY_NAME` | `Luxe Cleaning` |
 | `COMPANY_DESCRIPTION` | Woman-owned premium house cleaning… |
