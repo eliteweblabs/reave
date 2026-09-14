@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import { invalidateDashboardCache } from './dashboardPayloadCache';
 import { getPgPool } from './pgPool';
 import { workSlugFromAdminUrl } from './notificationFormat';
 import { isReusablePushAlertTag } from './pushNotificationIdentity';
@@ -526,6 +527,7 @@ export async function storeAckPushAlert(
         [trimmed, now],
       );
       if (rows[0]) {
+        invalidateDashboardCache();
         return {
           ok: true,
           id: rows[0].id,
@@ -542,6 +544,7 @@ export async function storeAckPushAlert(
         url: string;
       }>(`SELECT id, tag, kind, url FROM admin_push_alerts WHERE id = $1 LIMIT 1`, [trimmed]);
       if (existing.rows[0]) {
+        invalidateDashboardCache();
         return {
           ok: true,
           id: existing.rows[0].id,
@@ -561,6 +564,7 @@ export async function storeAckPushAlert(
   if (!alerts[idx]!.staffAckAt) alerts[idx]!.staffAckAt = now;
   writeFileAlerts(alerts);
   const alert = alerts[idx]!;
+  invalidateDashboardCache();
   return {
     ok: true,
     id: alert.id,

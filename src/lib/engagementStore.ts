@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import { invalidateDashboardCache } from './dashboardPayloadCache';
 import { getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 
@@ -291,6 +292,7 @@ export async function storeAckEngagementEvent(
       [eventId, now],
     );
     if (!res.rows[0]) return { ok: false, error: 'Not found' };
+    invalidateDashboardCache();
     return { ok: true, id: eventId };
   }
 
@@ -301,5 +303,6 @@ export async function storeAckEngagementEvent(
   if (!row.staffAckAt) row.staffAckAt = now;
   events[idx] = row;
   writeFileEvents(events);
+  invalidateDashboardCache();
   return { ok: true, id: eventId };
 }
