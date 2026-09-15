@@ -489,6 +489,103 @@ export async function clerkUpdateUser(
   return { ok: true, user: r.body as ClerkUser };
 }
 
+function phoneDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function phoneMatches(user: ClerkUser, targetDigits: string): boolean {
+  const want = targetDigits.replace(/\D/g, '');
+  if (!want) return false;
+  for (const row of user.phone_numbers ?? []) {
+    const digits = phoneDigits(row.phone_number ?? '');
+    if (!digits) continue;
+    if (digits === want || digits.endsWith(want.slice(-10))) return true;
+  }
+  return false;
+}
+
+/** Find a Clerk user whose phone matches the given E.164 or national number. */
+export async function clerkFindUserByPhone(
+  phone: string,
+): Promise<{ ok: boolean; user?: ClerkUser; error?: string }> {
+  const targetDigits = phoneDigits(phone);
+  if (!targetDigits) return { ok: false, error: 'phone is required' };
+
+  const queries = [phone.trim(), targetDigits, targetDigits.slice(-10)].filter(Boolean);
+  for (const query of queries) {
+    const r = await clerkListUsers({ limit: 100, query });
+    if (!r.ok) return { ok: false, error: r.error };
+    const hit = (r.users ?? []).find((user) => phoneMatches(user, targetDigits));
+    if (hit) return { ok: true, user: hit };
+  }
+
+  let offset = 0;
+  for (let page = 0; page < 10; page++) {
+    const r = await clerkListUsers({ limit: 100, offset });
+    if (!r.ok) return { ok: false, error: r.error };
+    const hit = (r.users ?? []).find((user) => phoneMatches(user, targetDigits));
+    if (hit) return { ok: true, user: hit };
+    if ((r.users ?? []).length < 100) break;
+    offset += (r.users ?? []).length;
+  }
+
+  return { ok: false, error: `No Clerk user with phone ${phone}` };
+}
+
+/**
+ * Ensure a user has the given primary email (creates + verifies when missing).
+ * Uses the Backend API — no inbox verification required.
+ */
+export async function clerkEnsurePrimaryEmail(
+  userId: string,
+  email: string,
+): Promise<{ ok: boolean; user?: ClerkUser; error?: string; created?: boolean }> {
+  const target = email.trim().toLowerCase();
+  if (!target || !target.includes('@')) {
+    return { ok: false, error: 'email is required' };
+  }
+
+  const current = await clerkGetUser(userId);
+  if (!current.ok || !current.user) {
+    return { ok: false, error: current.error ?? 'User not found' };
+  }
+
+  const existing = (current.user.email_addresses ?? []).find(
+    (row) => row.email_address.trim().toLowerCase() === target,
+  );
+  if (existing) {
+    const r = await backendPatch(`/users/${userId}`, {
+      primary_email_address_id: existing.id,
+    });
+    if (!r.ok) {
+      const msg =
+        (r.body as Record<string, unknown>)?.message ??
+        `Clerk API error ${r.status}`;
+      return { ok: false, error: String(msg) };
+    }
+    return { ok: true, user: r.body as ClerkUser, created: false };
+  }
+
+  const r = await backendPost('/email_addresses', {
+    user_id: userId,
+    email_address: target,
+    verified: true,
+    primary: true,
+  });
+  if (!r.ok) {
+    const errors = (r.body as Record<string, unknown>)?.errors;
+    const msg = Array.isArray(errors)
+      ? (errors[0] as Record<string, unknown>)?.message
+      : (r.body as Record<string, unknown>)?.message ?? `Clerk API error ${r.status}`;
+    return { ok: false, error: String(msg) };
+  }
+  const refreshed = await clerkGetUser(userId);
+  if (!refreshed.ok || !refreshed.user) {
+    return { ok: false, error: refreshed.error ?? 'User refresh failed' };
+  }
+  return { ok: true, user: refreshed.user, created: true };
+}
+
 /** Delete a user from the current Clerk app. */
 export async function clerkDeleteUser(
   userId: string,

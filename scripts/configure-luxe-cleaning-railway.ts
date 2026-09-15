@@ -13,6 +13,7 @@
  *   … --skip-vapi-provision  # do not pre-create assistant locally
  *   … --wire-inbound     # Resend inbound + owner email + Clerk domain (see below)
  *   … --skip-clerk       # with --wire-inbound, skip Clerk domain migration
+ *   … --setup-owner      # 508 phone Clerk user → felicia@lux.cleaning admin
  *
  * --wire-inbound provisions what the deploy wizard Apply does for mail:
  *   inbound.{apex} in Resend, MX/TXT in Cloudflare, email.received webhook,
@@ -28,7 +29,6 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const envPath = join(root, '.env');
 if (existsSync(envPath)) {
@@ -49,10 +49,12 @@ const DOMAIN_NEEDLES = ['lux.cleaning', 'luxecleaning.com', 'maidandmarble.com']
 const PROJECT_NAME_NEEDLES = ['maid', 'marble', 'luxe cleaning', 'luxe-cleaning'];
 const INFRA_SERVICE_RE = /postgres|redis|contact-api|inventory|materials|crater|calcom|fleet|booking|wizard|inbound|stats|plausible/i;
 const VAPI_PHONE = process.env.VAPI_PHONE_NUMBER?.trim() || '+15089558850';
-const OWNER_EMAIL = process.env.OWNER_EMAIL?.trim() || 'felicia@lux.cleaning';
-const OWNER_FIRST_NAME = process.env.OWNER_FIRST_NAME?.trim() || 'Felicia';
-const OWNER_LAST_NAME = process.env.OWNER_LAST_NAME?.trim() || 'Tracy';
-const OWNER_PHONE = process.env.OWNER_PHONE?.trim() || '+17744524319';
+const OWNER_EMAIL = (process.env.OWNER_EMAIL ?? 'felicia@lux.cleaning').trim().toLowerCase();
+const OWNER_FIRST_NAME = (process.env.OWNER_FIRST_NAME ?? 'Felicia').trim();
+const OWNER_LAST_NAME = (process.env.OWNER_LAST_NAME ?? 'Tracy').trim();
+const OWNER_PHONE = (process.env.OWNER_PHONE ?? '+17744524319').trim();
+const ADMIN_USERNAME =
+  process.env.ADMIN_USERNAME?.trim() || `${OWNER_FIRST_NAME} ${OWNER_LAST_NAME}`.trim();
 
 type DiscoveredTarget = {
   projectId: string;
@@ -73,6 +75,7 @@ const skipVapiProvision = args.has('--skip-vapi-provision');
 const skipLogWait = args.has('--skip-log-wait');
 const wireInbound = args.has('--wire-inbound');
 const skipClerk = args.has('--skip-clerk');
+const setupOwnerOnly = args.has('--setup-owner');
 
 function log(msg: string) {
   console.log(msg);
@@ -391,7 +394,9 @@ function buildVariablePatch(apexDomain: string, assistantId?: string): Record<st
     OWNER_FIRST_NAME,
     OWNER_LAST_NAME,
     OWNER_PHONE,
-    ADMIN_USERNAME: `${OWNER_FIRST_NAME} ${OWNER_LAST_NAME}`,
+    ADMIN_USERNAME,
+    VAPID_SUBJECT: `mailto:${OWNER_EMAIL}`,
+    PUBLIC_CLERK_ALLOW_SIGN_UP: 'false',
     PUBLIC_INSTALL_HOMEPAGE_VOICE: '1',
     COMPANY_NAME: 'lux cleaning',
     COMPANY_DESCRIPTION:
@@ -858,6 +863,90 @@ async function verifyVapiAssistant(assistantId?: string): Promise<boolean> {
   return false;
 }
 
+function clerkSecretFromVariables(vars: Record<string, string>): string | undefined {
+  return (
+    vars.CLERK_SECRET_KEY?.trim() ||
+    vars.CLERK_SECRET?.trim() ||
+    vars.CLERK_BACKEND_API_KEY?.trim() ||
+    process.env.CLERK_SECRET_KEY?.trim()
+  );
+}
+
+function summarizeClerkUser(user: {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  email_addresses?: Array<{ email_address?: string }>;
+  phone_numbers?: Array<{ phone_number?: string }>;
+}): string {
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || '(no name)';
+  const email = user.email_addresses?.[0]?.email_address ?? '—';
+  const phone = user.phone_numbers?.[0]?.phone_number ?? '—';
+  return `${name} (${user.id}) email=${email} phone=${phone}`;
+}
+
+async function setupOwnerAccount(target: DiscoveredTarget): Promise<string | undefined> {
+  const vars = await listVariables(target);
+  const clerkSecret = clerkSecretFromVariables(vars);
+  if (!clerkSecret) {
+    fail('CLERK_SECRET_KEY is not set on the Luxe Cleaning Railway service.');
+  }
+
+  process.env.CLERK_SECRET_KEY = clerkSecret;
+
+  const { clerkEnsurePrimaryEmail, clerkFindUserByPhone, clerkUpdateUser } = await import(
+    '../src/lib/clerkClient.ts'
+  );
+
+  log(`[luxe-railway] locating Clerk user for ${OWNER_PHONE}…`);
+  const found = await clerkFindUserByPhone(OWNER_PHONE);
+  if (!found.ok || !found.user) {
+    fail(found.error ?? `No Clerk user for ${OWNER_PHONE}`);
+  }
+
+  const user = found.user;
+  log(`[luxe-railway] found ${summarizeClerkUser(user)}`);
+
+  const namePatch: { first_name?: string; last_name?: string } = {};
+  if (!(user.first_name ?? '').trim() && OWNER_FIRST_NAME) namePatch.first_name = OWNER_FIRST_NAME;
+  if (!(user.last_name ?? '').trim() && OWNER_LAST_NAME) namePatch.last_name = OWNER_LAST_NAME;
+  if (Object.keys(namePatch).length) {
+    const updated = await clerkUpdateUser(user.id, namePatch);
+    if (!updated.ok) fail(updated.error ?? 'Failed to update Clerk name');
+    log(`[luxe-railway] ✓ Clerk name → ${OWNER_FIRST_NAME} ${OWNER_LAST_NAME}`.trim());
+  }
+
+  log(`[luxe-railway] ensuring primary email ${OWNER_EMAIL}…`);
+  const email = await clerkEnsurePrimaryEmail(user.id, OWNER_EMAIL);
+  if (!email.ok) fail(email.error ?? 'Failed to set Clerk email');
+  log(
+    `[luxe-railway] ✓ Clerk email ${email.created ? 'created' : 'confirmed'} → ${OWNER_EMAIL}`,
+  );
+
+  const ownerPatch: Record<string, string> = {
+    ADMIN_USERNAME,
+    AGENT_ALERT_USER_ID: user.id,
+    OWNER_EMAIL,
+    OWNER_FIRST_NAME,
+    OWNER_LAST_NAME,
+    OWNER_PHONE,
+    VAPID_SUBJECT: `mailto:${OWNER_EMAIL}`,
+    PUBLIC_CLERK_ALLOW_SIGN_UP: 'false',
+  };
+
+  if (dryRun) {
+    log('[luxe-railway] dry run — owner Railway vars:');
+    for (const [key, value] of Object.entries(ownerPatch).sort()) {
+      log(`  ${key}=${value}`);
+    }
+    return user.id;
+  }
+
+  const updated = await setVariables(target, ownerPatch);
+  log(`[luxe-railway] ✓ owner admin vars (${updated.join(', ')})`);
+  return user.id;
+}
+
 async function main() {
   const me = await gql<{ me?: { email: string } | null }>(`query { me { email } }`);
   if (me.me?.email) log(`[luxe-railway] Railway account: ${me.me.email}`);
@@ -882,6 +971,18 @@ async function main() {
     log('Document for deploy:');
     log(`  LUXE_CLEANING_RAILWAY_PROJECT=${target.projectId}`);
     log(`  LUXE_CLEANING_RAILWAY_SERVICE=${target.serviceName}`);
+    return;
+  }
+
+  if (setupOwnerOnly) {
+    const userId = await setupOwnerAccount(target);
+    log('');
+    log('Owner setup complete:');
+    log(`  AGENT_ALERT_USER_ID=${userId}`);
+    log(`  ADMIN_USERNAME=${ADMIN_USERNAME}`);
+    log(`  OWNER_EMAIL=${OWNER_EMAIL}`);
+    log('');
+    log('Felicia can sign in at https://lux.cleaning/admin/ with phone or email.');
     return;
   }
 

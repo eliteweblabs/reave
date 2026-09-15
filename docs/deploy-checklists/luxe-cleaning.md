@@ -79,6 +79,17 @@ Dry run:
 RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --dry-run
 ```
 
+### Owner admin (508 phone → felicia@lux.cleaning)
+
+After Felicia signs in once with **508-955-8850**, bind that Clerk user as deployment owner:
+
+```bash
+RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --setup-owner
+```
+
+This finds the Clerk user with phone `+15089558850`, sets primary email
+`felicia@lux.cleaning`, and writes `ADMIN_USERNAME` + `AGENT_ALERT_USER_ID` on Railway.
+
 CLI fallback (local `railway login`):
 
 ```bash
@@ -110,10 +121,16 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | `PUBLIC_VAPI_PUBLIC_KEY` | browser SDK key |
 | `PUBLIC_VAPI_ASSISTANT_ID` | assistant UUID (optional after first build) |
 | `VAPI_CREATE_IF_MISSING` | `1` |
+| `ADMIN_USERNAME` | `Felicia Tracy` |
 | `OWNER_EMAIL` | `felicia@lux.cleaning` |
+| `OWNER_FIRST_NAME` | `Felicia` |
+| `OWNER_LAST_NAME` | `Tracy` |
+| `OWNER_PHONE` | `+17744524319` |
 | `RESEND_FROM` / `EMAIL_FROM` | `noreply@inbound.lux.cleaning` |
 | `RESEND_WEBHOOK_SECRET` | from Resend webhook (Apply / `--wire-inbound`) |
 | `RESEND_API_KEY` | copied from host or set on install |
+| `AGENT_ALERT_USER_ID` | Clerk user id (set via `--setup-owner`) |
+| `PUBLIC_CLERK_ALLOW_SIGN_UP` | `false` (after owner exists) |
 | `DATABASE_URL` | required at **build** time |
 
 Every deploy runs **prebuild** → `scripts/sync-vapi-assistant.ts`. On the first build
@@ -128,6 +145,22 @@ install config slug or `VAPI_API_KEY` is missing on the **build** service.
 1. Allow the production site origin on the public key.
 2. Confirm **508-955-8850** appears under Phone Numbers.
 3. After deploy, verify the number’s assistant matches `PUBLIC_VAPI_ASSISTANT_ID`.
+
+## DNS (Cloudflare) — no Google Workspace on apex
+
+This install receives app mail on **`inbound.lux.cleaning`** (Resend MX), not Google
+Workspace. Do **not** add Google MX / SPF / site-verification on apex `lux.cleaning`.
+
+| Host | Purpose | Keep? |
+|------|---------|-------|
+| `lux.cleaning` / `www` | Railway CNAME + `_railway-verify` TXT | ✓ |
+| `inbound.lux.cleaning` | Resend receiving MX + DKIM/SPF (via `--wire-inbound`) | ✓ |
+| `clerk`, `clkmail`, `clk*._domainkey`, `accounts` | Clerk sign-in | ✓ |
+| `cal`, `book` | Cal.com | ✓ |
+| `@` Google MX / `include:_spf.google.com` | Workspace mail | ✗ remove |
+
+Owner identity is `felicia@lux.cleaning` (Clerk + `OWNER_EMAIL`). App inbox is
+`inbox@inbound.lux.cleaning`. Outbound sender is `noreply@inbound.lux.cleaning`.
 
 ## Verify
 
