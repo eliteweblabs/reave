@@ -75,4 +75,30 @@ assert.equal(BRANDING_LOGO_ALT_PATH, '/api/branding/logo.alt');
   assert.ok((meta.height ?? 0) <= 640);
 }
 
+{
+  const letterOnly = await buildCompanyOgPng({ name: 'Acme' });
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80"><rect width="400" height="80" fill="#111"/><text x="20" y="50" fill="#fff" font-size="32">Acme</text></svg>';
+  const withLogo = await buildCompanyOgPng({ name: 'Acme', logoSvg: svg });
+  assert.notEqual(
+    letterOnly.toString('base64').slice(0, 120),
+    withLogo.toString('base64').slice(0, 120),
+    'expected logo wordmark OG to differ from letter-only fallback',
+  );
+}
+
+{
+  const logoRed = await solidPng(400, 80, { r: 220, g: 20, b: 20 });
+  const iconBlue = await solidPng(512, 512, { r: 20, g: 20, b: 220 });
+  const withBoth = await buildCompanyOgPng({
+    name: 'Acme',
+    logoData: logoRed.toString('base64'),
+    logoMediaType: 'image/png',
+    iconData: iconBlue.toString('base64'),
+    iconMediaType: 'image/png',
+  });
+  const [r, g, b] = await sampleCenter(withBoth);
+  assert.ok(r > 180 && g < 80 && b < 80, `expected logo to win over icon, got rgb(${r},${g},${b})`);
+}
+
 console.log('verify-company-og-image: ok');

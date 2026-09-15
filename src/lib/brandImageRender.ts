@@ -1,14 +1,17 @@
 /**
  * Resolve admin branding (PNG uploads + pasted SVG) into raster PNGs for
- * favicons, PWA icons, OG cards, and avatars. Falls back to the first letter
- * of the company display name when no mark is configured.
+ * favicons, PWA icons, OG cards, and avatars. OG cards prefer the wordmark
+ * logo, then the square icon; the first letter is only used when nothing else
+ * is configured.
  */
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { SITE } from '../config/site';
 import { sanitizeInlineSvg, resolveSvgAssetUrls, withSvgFill } from './brandSvg';
 import { BRAND_ICON_RENDER, rasterizeBrandIcon } from './brandIconRaster';
+import { normalizePublicLogoPath } from './companyLogo';
 import type { StoredCompanyConfig } from './companyConfigStore';
+import { serverEnv } from './serverEnv';
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from './ogImageSize';
 import {
   adaptLogoContrast,
@@ -417,6 +420,98 @@ async function composeSquareOnOgCanvas(markBuf: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
+/** Wide wordmark on the OG canvas — same inset rules as client portal share cards. */
+async function composeWordmarkOnOgCanvas(logoBuf: Buffer): Promise<Buffer | null> {
+  try {
+    const innerW = Math.round(PORTAL_OG_WIDTH * (1 - OG_LOGO_INSET * 2));
+    const innerH = Math.round(PORTAL_OG_HEIGHT * (1 - OG_LOGO_INSET * 2));
+
+    const adapted = await adaptLogoContrast(logoBuf, 'dark');
+    const sourceBuf = adapted.changed ? adapted.buffer : logoBuf;
+
+    const logo = await sharp(sourceBuf)
+      .rotate()
+      .resize(innerW, innerH, {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .png()
+      .toBuffer();
+
+    const { width = innerW, height = innerH } = await sharp(logo).metadata();
+    const left = Math.round((PORTAL_OG_WIDTH - width) / 2);
+    const top = Math.round((PORTAL_OG_HEIGHT - height) / 2);
+
+    return sharp({
+      create: {
+        width: PORTAL_OG_WIDTH,
+        height: PORTAL_OG_HEIGHT,
+        channels: 3,
+        background: OG_BG,
+      },
+    })
+      .composite([{ input: logo, left, top }])
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+const OG_LOGO_FETCH_TIMEOUT_MS = 8_000;
+
+function collectCompanyOgLogoPathFallbacks(stored: StoredCompanyConfig | null): string[] {
+  const out: string[] = [];
+  const storedLogo = stored?.logoPath?.trim();
+  if (storedLogo && storedLogo !== '') {
+    const normalized = normalizePublicLogoPath(storedLogo);
+    if (normalized && !out.includes(normalized)) out.push(normalized);
+  }
+  const envLogo = serverEnv('COMPANY_LOGO_PATH')?.trim();
+  if (envLogo && !out.includes(envLogo)) out.push(normalizePublicLogoPath(envLogo));
+  return out;
+}
+
+async function fetchRemoteLogoBuffer(url: string): Promise<Buffer | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OG_LOGO_FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: { Accept: 'image/*,*/*;q=0.8' },
+    });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    return buf.length > 0 ? buf : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function loadCompanyOgLogoBuffer(source: string): Promise<Buffer | null> {
+  const path = source.trim().split('?')[0] ?? '';
+  if (!path || path.startsWith('/api/branding/')) return null;
+
+  if (path.startsWith('/')) {
+    try {
+      const { readFile } = await import('node:fs/promises');
+      const { join } = await import('node:path');
+      return await readFile(join(process.cwd(), 'public', path));
+    } catch {
+      return null;
+    }
+  }
+
+  if (/^https?:\/\//i.test(source.trim())) {
+    return fetchRemoteLogoBuffer(source.trim());
+  }
+
+  return null;
+}
+
 export async function renderBrandMarkSquarePng(
   sources: BrandMarkSource[],
   letter: string,
@@ -487,15 +582,43 @@ export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Pro
     if (uploaded) return uploaded;
   }
 
-  const letter = brandMarkLetter(stored?.name ?? '');
-  const sources = collectBrandMarkSources(stored);
-  const markSize = 512;
-
-  for (const source of sources) {
-    const png = await rasterizeSource(source, markSize, 'contain');
-    if (png) return composeSquareOnOgCanvas(png);
+  for (const source of collectLogoWordmarkSources(stored)) {
+    const png = await rasterizeWordmark(source, LOGO_WORDMARK_MAX_HEIGHT);
+    if (!png) continue;
+    const composed = await composeWordmarkOnOgCanvas(png);
+    if (composed) return composed;
   }
 
+  const markSize = 512;
+  for (const source of collectCompanyIconSources(stored)) {
+    const png = await rasterizeSource(source, markSize, 'contain');
+    if (!png) continue;
+    return composeSquareOnOgCanvas(png);
+  }
+
+  for (const path of collectCompanyOgLogoPathFallbacks(stored)) {
+    if (path.startsWith('/api/branding/logo')) {
+      const wordmark = await renderCompanyLogoWordmarkPng(stored);
+      if (wordmark) {
+        const composed = await composeWordmarkOnOgCanvas(wordmark);
+        if (composed) return composed;
+      }
+      continue;
+    }
+    const buf = await loadCompanyOgLogoBuffer(path);
+    if (!buf) continue;
+    let composed = await composeWordmarkOnOgCanvas(buf);
+    if (!composed) {
+      try {
+        composed = await composeSquareOnOgCanvas(buf);
+      } catch {
+        composed = null;
+      }
+    }
+    if (composed) return composed;
+  }
+
+  const letter = brandMarkLetter(stored?.name ?? '');
   return sharp(Buffer.from(buildLetterOgSvg(letter, brandMarkInk(stored, 'dark'))))
     .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT)
     .png()

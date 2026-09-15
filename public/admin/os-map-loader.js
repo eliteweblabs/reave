@@ -9869,7 +9869,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                 libraryId: 'company-og-library',
               }) +
             `</div>` +
-            `<span class="prof-hint">1200×630 PNG, JPEG, or WebP. Leave empty to generate a card from the logo or icon. A page that sets its own share image wins.</span></div>`,
+            `<span class="prof-hint">1200×630 PNG, JPEG, or WebP. Leave empty to generate a card from the logo (then the icon). A letter is used only when no branding is configured. A page that sets its own share image wins.</span></div>`,
           ) +
           profSection(
             'SVG Logo And Icon',
