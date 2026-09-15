@@ -213,6 +213,53 @@ export type SiteLandingConfig = {
    * Default keeps the original navy landing.
    */
   variant?: "default" | "editorial" | "service" | "luxury" | "tech" | "pack" | "vet" | "coming-soon";
+  /** `conversion` = single-page booking funnel (Homeaglow-style). Keeps luxury palette tokens. */
+  layoutProfile?: "default" | "conversion";
+  /** Primary booking CTA labels for conversion layout. */
+  bookingCta?: {
+    primaryLabel?: string;
+    headerLabel?: string;
+    stickyLabel?: string;
+  };
+  /** Anchor nav for conversion single-page sites. */
+  conversionNav?: SiteNavLink[];
+  /** Embed the booking form in the hero (#book) instead of link-only CTAs. */
+  heroEmbedForm?: boolean;
+  /** Limited-time promo strip above the header (Homeaglow-style urgency bar). */
+  promoBanner?: {
+    label?: string;
+    message: string;
+    href?: string;
+    ctaLabel?: string;
+  };
+  /** “Why members love …” benefit bullets. */
+  benefits?: {
+    heading: string;
+    intro?: string;
+    items: Array<{ title: string; body?: string }>;
+  };
+  /** Home-size → hours estimator grid. */
+  hoursGuide?: {
+    heading: string;
+    intro?: string;
+    tiers: Array<{ hours: string; rooms: string[] }>;
+  };
+  /** Aggregate rating strip above reviews. */
+  reviewSummary?: {
+    rating: string;
+    count: string;
+    heading?: string;
+    intro?: string;
+  };
+  featuredReview?: { quote: string; cite: string };
+  /** Zip lookup CTA above city list. */
+  serviceAreaZip?: {
+    heading: string;
+    intro?: string;
+    placeholder?: string;
+    buttonLabel?: string;
+    note?: string;
+  };
   photo?: {
     src: string;
     alt: string;
@@ -422,6 +469,14 @@ export type SiteLandingConfig = {
   footerImage?: string;
   /** Static hero logo path — prefers over company branding when set. */
   heroLogo?: string;
+  /** Optional palette override for `luxury` variant (defaults to cream / ink / gold). */
+  brandColors?: {
+    background?: string;
+    ink?: string;
+    muted?: string;
+    accent?: string;
+    accentSoft?: string;
+  };
 };
 
 export type SiteContentConfig = {

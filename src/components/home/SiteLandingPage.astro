@@ -3,6 +3,7 @@ import type { SiteLandingConfig } from "../../lib/siteContent";
 import EditorialLandingPage from "./EditorialLandingPage.astro";
 import PackLandingPage from "./PackLandingPage.astro";
 import LuxuryLandingPage from "./LuxuryLandingPage.astro";
+import LuxuryConversionLandingPage from "./LuxuryConversionLandingPage.astro";
 import ServiceLandingPage from "./ServiceLandingPage.astro";
 import TechLandingPage from "./TechLandingPage.astro";
 import VetLandingPage from "./VetLandingPage.astro";
@@ -37,6 +38,8 @@ const isComingSoon = landing.variant === "coming-soon";
     <PackLandingPage landing={landing} />
   ) : isEditorial ? (
     <EditorialLandingPage landing={landing} />
+  ) : isLuxury && landing.layoutProfile === "conversion" ? (
+    <LuxuryConversionLandingPage landing={landing} />
   ) : isLuxury ? (
     <LuxuryLandingPage landing={landing} />
   ) : isService ? (

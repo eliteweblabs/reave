@@ -1,0 +1,73 @@
+{
+  "title": "Book your cleaning",
+  "description": "Schedule with Felicia — owner-led lux cleaning in Central Massachusetts.",
+  "fields": [
+    {
+      "name": "zip",
+      "type": "text",
+      "required": true,
+      "cf-questions": "Hi! I'm Felicia — let's get your home on the calendar.&&What's your zip code?"
+    },
+    {
+      "name": "service",
+      "type": "select",
+      "required": true,
+      "cf-questions": "What type of cleaning do you need?",
+      "options": [
+        { "value": "maintenance", "label": "Recurring maintenance" },
+        { "value": "deep", "label": "Deep clean" },
+        { "value": "move", "label": "Move-in / move-out" },
+        { "value": "post_reno", "label": "Post-renovation detail" },
+        { "value": "unsure", "label": "Not sure yet" }
+      ]
+    },
+    {
+      "name": "bedrooms",
+      "type": "select",
+      "required": true,
+      "cf-questions": "How many bedrooms?",
+      "options": [
+        { "value": "studio", "label": "Studio / 1 bed" },
+        { "value": "2", "label": "2 bedrooms" },
+        { "value": "3", "label": "3 bedrooms" },
+        { "value": "4plus", "label": "4+ bedrooms" }
+      ]
+    },
+    {
+      "name": "name",
+      "type": "text",
+      "required": true,
+      "cf-questions": "Great — what's your name?"
+    },
+    {
+      "name": "email",
+      "type": "email",
+      "required": true,
+      "cf-questions": "What's the best email for your confirmation?"
+    },
+    {
+      "name": "phone",
+      "type": "tel",
+      "required": false,
+      "cf-questions": "What's a good phone number? (optional — for day-of updates)"
+    },
+    {
+      "name": "sms_opt_in",
+      "type": "sms_consent",
+      "required": false,
+      "cf-show-if": "phone",
+      "cf-questions": "Optional SMS updates about your appointment"
+    },
+    {
+      "name": "start",
+      "type": "availability",
+      "cf-questions": "Let me check the calendar for you..."
+    }
+  ],
+  "submitEndpoint": "/api/booking/create",
+  "submitSubject": "New lux cleaning booking request",
+  "onComplete": {
+    "message": "You're booked! A confirmation will be sent to your email.",
+    "redirect": null
+  }
+}

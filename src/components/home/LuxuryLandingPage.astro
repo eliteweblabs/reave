@@ -98,9 +98,27 @@ const show = (section: Parameters<typeof luxuryShowsSection>[1]) =>
 
 const navLinks = luxuryNavLinks(landing);
 const currentPath = Astro.url.pathname;
+
+const brand = landing.brandColors;
+const luxBrandStyle = brand
+  ? Object.fromEntries(
+      Object.entries({
+        "--lux-cream": brand.background,
+        "--lux-ink": brand.ink,
+        "--lux-muted": brand.muted,
+        "--lux-gold": brand.accent,
+        "--lux-gold-soft": brand.accentSoft,
+      }).filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim() !== ""),
+    )
+  : undefined;
 ---
 
-<div class="lux" data-has-phone={phoneHref ? "1" : "0"} data-has-chat={showFooterChat ? "1" : "0"}>
+<div
+  class="lux"
+  style={luxBrandStyle}
+  data-has-phone={phoneHref ? "1" : "0"}
+  data-has-chat={showFooterChat ? "1" : "0"}
+>
   <header class="lux-header">
     {
       logoSrc ? (
@@ -617,7 +635,7 @@ const currentPath = Astro.url.pathname;
 
   .lux-header__brand img {
     display: block;
-    width: min(10rem, 38vw);
+    width: min(11.5rem, 46vw);
     height: auto;
   }
 
