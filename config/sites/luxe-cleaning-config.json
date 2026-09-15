@@ -1,6 +1,6 @@
 {
   "key": "luxe-cleaning",
-  "pages": ["/", "/services", "/pricing", "/about", "/contact", "/privacy", "/terms", "/cookies"],
+  "pages": ["/", "/privacy", "/terms", "/cookies"],
   "nav": {
     "links": [],
     "groups": [],
@@ -9,7 +9,7 @@
   },
   "homepage": {
     "template": "landing",
-    "heroHeadlineHtml": "Elevated cleaning for the homes you love.",
+    "heroHeadlineHtml": "Book premium home cleaning online.",
     "showHeroDemo": false,
     "showDialogue": false,
     "showIntegrations": false,
@@ -19,25 +19,38 @@
   },
   "landing": {
     "variant": "luxury",
-    "title": "Luxe Cleaning | Premium House Cleaning · Central Massachusetts",
-    "description": "Woman-owned premium house cleaning in Central Massachusetts. Recurring maintenance, deep cleans, move-in/move-out, and post-renovation detail for homes that deserve a polished finish.",
-    "themeColor": "#f7f4ef",
-    "eyebrow": "Woman-owned · Central Massachusetts",
-    "name": "Luxe Cleaning",
+    "layoutProfile": "conversion",
+    "title": "lux cleaning | Pure. Polished. Perfect. · Central Massachusetts",
+    "description": "Book premium house cleaning in Central Massachusetts. Recurring maintenance, deep cleans, move-in/move-out, and post-renovation detail — owner-led by Felicia Tracy.",
+    "themeColor": "#f5faf9",
+    "brandColors": {
+      "background": "#f5faf9",
+      "ink": "#0a3d3d",
+      "muted": "#4a6565",
+      "accent": "#007070",
+      "accentSoft": "rgba(0, 112, 112, 0.12)"
+    },
+    "bookingCta": {
+      "primaryLabel": "Book your cleaning",
+      "headerLabel": "Book now",
+      "stickyLabel": "Book your cleaning"
+    },
+    "conversionNav": [
+      { "href": "#how-it-works", "label": "How it works" },
+      { "href": "#included", "label": "What's included" },
+      { "href": "#pricing", "label": "Pricing" },
+      { "href": "#reviews", "label": "Reviews" },
+      { "href": "#faq", "label": "FAQ" },
+      { "href": "#service-area", "label": "Service area" }
+    ],
+    "eyebrow": "Pure · Polished · Perfect",
+    "name": "lux cleaning",
     "role": "Felicia Tracy, owner",
-    "tagline": "Hotel-level attention for the homes you love — Worcester County, MetroWest, and the I-495 corridor.",
-    "heroHeadline": "Elevated cleaning for the homes you love.",
-    "heroBody": "Luxe Cleaning is premium residential cleaning, owned and led by Felicia Tracy. You get clear communication, consistent standards, and finishes that feel intentional — not a rotating crew or a call center.",
-    "heroImage": "/sites/luxe-cleaning/photos/hero.jpg",
+    "tagline": "Owner-led residential cleaning across Worcester County, MetroWest, and the I-495 corridor.",
+    "heroHeadline": "Book premium home cleaning online.",
+    "heroBody": "Get matched with a top-rated, owner-led cleaning team. Transparent starting prices, flexible scheduling, and finishes that feel intentional — not a franchise call center.",
     "heroLogo": "/sites/luxe-cleaning/logo.png",
     "scheduleUrl": "/form/schedule",
-    "nav": [
-      { "href": "/", "label": "Home" },
-      { "href": "/services", "label": "Services" },
-      { "href": "/pricing", "label": "Pricing" },
-      { "href": "/about", "label": "About" },
-      { "href": "/contact", "label": "Contact" }
-    ],
     "callCta": {
       "label": "Call Felicia",
       "stickyLabel": "Call now"
@@ -47,9 +60,9 @@
       "dockPlaceholder": "Message Felicia…",
       "inputPlaceholder": "Message Felicia…",
       "introPhrases": [],
-      "greeting": "Hi — Felicia here. How can Luxe Cleaning help?",
+      "greeting": "Hi — Felicia here. How can lux cleaning help?",
       "avatarAlt": "Felicia Tracy",
-      "headerTitle": "Luxe Cleaning",
+      "headerTitle": "lux cleaning",
       "headerSubtitle": "Felicia Tracy",
       "footerPrefix": "Questions? Ask Felicia",
       "hideFab": true,
@@ -58,305 +71,54 @@
       "dismissPersist": "session",
       "dismissStorageKey": "lux-footer-chat-intro-dismissed",
       "historyStorageKey": "sa-chat-site",
-      "engagement": {
-        "mode": "none"
-      },
-      "businessNotes": "Felicia Tracy owns Luxe Cleaning, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 508-955-8850. Starting prices are listed on the website — confirm exact quotes after a walk-through. Do not invent availability."
+      "engagement": { "mode": "none" },
+      "businessNotes": "Felicia Tracy owns lux cleaning, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 508-955-8850. Starting prices are on the website — confirm exact quotes after a walk-through. Do not invent availability."
     },
-    "schedule": {
-      "formSlug": "schedule"
-    },
-    "numbers": {
-      "heading": "Why homeowners choose us",
-      "stats": [
-        { "value": "Owner-led", "label": "Felicia on every account" },
-        { "value": "Licensed", "label": "Fully insured in MA" },
-        { "value": "Same team", "label": "Consistent standards" },
-        { "value": "100%", "label": "Satisfaction focus" }
-      ]
-    },
-    "services": {
-      "heading": "Cleaning services",
-      "intro": "From weekly upkeep to move-out turnover — every visit is scoped to your home, your priorities, and the details guests notice.",
+    "schedule": { "formSlug": "schedule" },
+    "benefits": {
+      "heading": "Why homeowners choose lux cleaning",
+      "intro": "Everything you need for reliable, premium home care — without the runaround.",
       "items": [
         {
-          "label": "Recurring maintenance",
-          "kicker": "Most popular",
-          "featured": true,
-          "image": "/sites/luxe-cleaning/photos/living.jpg",
-          "imageAlt": "Bright, tidy living room after a maintenance clean",
-          "description": "Weekly, bi-weekly, or monthly service built around your rhythm. We learn your home, protect surfaces, and keep finishes looking fresh without you managing a checklist.",
-          "prices": ["From $179 · 2 bed", "From $219 · 3 bed", "From $269 · 4+ bed"],
-          "includes": [
-            "Kitchen counters, sinks, and appliance fronts",
-            "Bathrooms — fixtures, mirrors, floors",
-            "Dusting, vacuuming, and mopping throughout",
-            "Beds made, trash emptied, tidy reset"
-          ],
-          "bookHref": "/form/schedule"
+          "title": "Upfront starting prices",
+          "body": "Published rates for planning. Your exact quote follows a quick walk-through — no surprises."
         },
         {
-          "label": "Deep clean & seasonal refresh",
-          "kicker": "Reset visit",
-          "image": "/sites/luxe-cleaning/photos/kitchen.jpg",
-          "imageAlt": "Spotless kitchen after a deep clean",
-          "description": "For first-time clients, spring refresh, or when life gets ahead of you. Baseboards, detail work, and the rooms that need more than a maintenance pass.",
-          "prices": ["From $249 · 2 bed", "From $319 · 3 bed", "From $389 · 4+ bed"],
-          "includes": [
-            "Everything in maintenance, plus detail dusting",
-            "Baseboards and door frames",
-            "Inside microwave and range hood exterior",
-            "Light switches, vents, and high-touch points"
-          ],
-          "bookHref": "/form/schedule"
+          "title": "Owner-led on every account",
+          "body": "Felicia Tracy oversees scope, standards, and communication — not a rotating call center."
         },
         {
-          "label": "Move-in & move-out",
-          "kicker": "Turnover ready",
-          "image": "/sites/luxe-cleaning/photos/bedroom.jpg",
-          "imageAlt": "Empty bedroom prepared for move-in cleaning",
-          "description": "Empty-home detail for buyers, sellers, landlords, and tenants. Handover-ready finishes so the next chapter starts clean.",
-          "prices": ["From $349 · 2 bed", "From $429 · 3 bed", "From $519 · 4+ bed"],
-          "includes": [
-            "Inside cabinets and closets (empty)",
-            "Appliance interiors when requested",
-            "All bathrooms and fixtures detailed",
-            "Floors, walls touch-up, window sills"
-          ],
-          "bookHref": "/form/schedule"
+          "title": "Licensed & insured in Massachusetts",
+          "body": "Certificate available for landlords and property managers on request."
         },
         {
-          "label": "Post-renovation polish",
-          "kicker": "After construction",
-          "image": "/sites/luxe-cleaning/photos/floor.jpg",
-          "imageAlt": "Clean hardwood floors after post-renovation detail",
-          "description": "Fine dust, smudges, and sticker residue after remodel or new build. We protect new finishes and get you move-in ready.",
-          "prices": ["Quoted after walk-through", "Typical range $449–$850"],
-          "includes": [
-            "Construction dust removal",
-            "Cabinet and fixture wipe-down",
-            "Floor care matched to surface type",
-            "Final polish before furniture return"
-          ],
-          "bookHref": "/form/schedule"
+          "title": "Flexible scheduling",
+          "body": "Recurring weekly, bi-weekly, or monthly plans — or one-time deep cleans and move-outs."
         },
         {
-          "label": "One-time refresh",
-          "kicker": "Before guests or events",
-          "image": "/sites/luxe-cleaning/photos/bathroom.jpg",
-          "imageAlt": "Sparkling bathroom vanity",
-          "description": "Hosting, holidays, or a reset between recurring plans. Focused on the rooms that matter most for your timeline.",
-          "prices": ["From $199 · focused visit", "From $279 · whole-home light"],
-          "includes": [
-            "Guest bath and kitchen priority",
-            "Common areas guest-ready",
-            "Quick bed refresh and surfaces",
-            "Flexible scope on request"
-          ],
-          "bookHref": "/form/schedule"
+          "title": "Fair cancellation policy",
+          "body": "Reschedule with 48 hours notice. We keep it clear and communicate upfront."
         },
         {
-          "label": "Airbnb & short-term rental turnover",
-          "kicker": "Optional",
-          "image": "/sites/luxe-cleaning/photos/supplies.jpg",
-          "imageAlt": "Cleaning supplies arranged for turnover service",
-          "description": "Between-guest resets with linen change, restock check, and photo-ready common spaces. Ideal for hosts who want reliable turnaround.",
-          "prices": ["From $149 · studio/1 bed", "From $189 · 2 bed"],
-          "includes": [
-            "Full turnover clean",
-            "Linens change when provided",
-            "Restock checklist on request",
-            "Same-day scheduling when available"
-          ],
-          "bookHref": "/form/schedule"
-        },
-        {
-          "label": "Commercial & office cleaning",
-          "kicker": "Optional",
-          "image": "/sites/luxe-cleaning/photos/team.jpg",
-          "imageAlt": "Professional cleaning team at work",
-          "description": "Small offices, boutique retail, and professional suites. After-hours or low-traffic windows — custom scope and frequency.",
-          "prices": ["Custom quote", "Nightly, weekly, or monthly"],
-          "includes": [
-            "Restrooms and break areas",
-            "Reception and conference rooms",
-            "Trash and recycling",
-            "Floor care per surface type"
-          ],
-          "bookHref": "/form/schedule"
+          "title": "Satisfaction focus",
+          "body": "If something isn't right, tell us within 24 hours and we'll make it right."
         }
       ]
     },
-    "pricing": {
-      "heading": "Starting prices",
-      "intro": "Placeholder rates for planning — exact quotes follow a quick walk-through or virtual tour. Recurring clients receive preferred pricing.",
-      "note": "Prices assume average home condition. Heavy buildup, pets, or add-ons may adjust the quote. No contracts — cancel with 48 hours notice.",
-      "tiers": [
-        {
-          "name": "Studio / 1 bedroom",
-          "price": "$149 – $189",
-          "description": "Maintenance visit",
-          "includes": ["Kitchen & bath", "Living/sleeping area", "Floors throughout"]
-        },
-        {
-          "name": "2 bedrooms",
-          "price": "$179 – $229",
-          "description": "Maintenance visit",
-          "featured": true,
-          "includes": ["Full home reset", "Two baths typical", "Preferred recurring rate available"]
-        },
-        {
-          "name": "3 bedrooms",
-          "price": "$219 – $289",
-          "description": "Maintenance visit",
-          "includes": ["Additional bath/bed", "More square footage", "Deep clean from $319"]
-        },
-        {
-          "name": "4+ bedrooms",
-          "price": "$269 – $349+",
-          "description": "Maintenance visit",
-          "includes": ["Large home scope", "Custom team size", "Quoted individually"]
-        }
-      ],
-      "addOns": [
-        { "name": "Inside refrigerator", "price": "+$35" },
-        { "name": "Inside oven", "price": "+$45" },
-        { "name": "Interior windows (per pane)", "price": "+$5" },
-        { "name": "Laundry — wash & fold (per load)", "price": "+$25" },
-        { "name": "Inside kitchen cabinets (empty)", "price": "+$65" },
-        { "name": "Pet hair detail surcharge", "price": "+$25 – $45" }
-      ]
+    "featuredReview": {
+      "quote": "They notice what other cleaners miss — fixtures, edges, the little things that make a home feel finished.",
+      "cite": "Worcester homeowner"
     },
-    "includes": {
-      "heading": "What's included in a standard visit",
-      "intro": "Every maintenance clean follows a room-by-room checklist. Deep cleans and move-outs add the detail layers listed in each service above.",
-      "rooms": [
-        {
-          "name": "Kitchen",
-          "items": [
-            "Countertops and backsplash wiped",
-            "Sink and faucet polished",
-            "Appliance exteriors (fridge, range, dishwasher)",
-            "Microwave interior (deep clean visits)",
-            "Cabinet fronts and handles",
-            "Floor vacuumed and mopped"
-          ]
-        },
-        {
-          "name": "Bathrooms",
-          "items": [
-            "Toilet, shower/tub, and vanity scrubbed",
-            "Mirrors and fixtures polished",
-            "Counters and sinks detailed",
-            "Floors vacuumed and mopped",
-            "Trash emptied"
-          ]
-        },
-        {
-          "name": "Bedrooms & living areas",
-          "items": [
-            "Dusting — surfaces, shelves, décor",
-            "Beds made (linens changed if left out)",
-            "Vacuum carpets and rugs",
-            "Hard floors mopped",
-            "Light tidy — pillows, blankets straightened"
-          ]
-        },
-        {
-          "name": "Throughout",
-          "items": [
-            "High-touch points — switches, knobs, remotes",
-            "Interior door faces wiped",
-            "Stairs vacuumed",
-            "Trash removed from bins",
-            "Final walk-through quality check"
-          ]
-        }
-      ]
-    },
-    "steps": {
-      "heading": "How it works",
-      "items": [
-        "Call, text, or request a visit — tell us your home size, timing, and priorities.",
-        "Quick walk-through (in person or virtual) so we scope the right service level.",
-        "First clean on your schedule — we note preferences, products, and access details.",
-        "Recurring plan or on-demand booking — same standards, same communication every time."
-      ],
-      "ctaLabel": "Request a visit",
-      "ctaHref": "/form/schedule"
-    },
-    "areas": {
-      "heading": "Service area",
-      "intro": "Central Massachusetts — Worcester County, MetroWest, and communities along I-495. Ask if you're just outside the list.",
-      "cities": [
-        "Worcester",
-        "Shrewsbury",
-        "Westborough",
-        "Northborough",
-        "Southborough",
-        "Marlborough",
-        "Hudson",
-        "Holden",
-        "Auburn",
-        "Grafton",
-        "Milford",
-        "Leominster",
-        "Fitchburg",
-        "Sterling",
-        "Boylston",
-        "Berlin",
-        "Bolton",
-        "Clinton",
-        "Lancaster",
-        "Sturbridge",
-        "Charlton",
-        "Spencer",
-        "Leicester",
-        "Rutland",
-        "Paxton"
-      ],
-      "note": "Travel fee may apply beyond 25 miles from Worcester. Commercial and rental turnover available in the same region."
-    },
-    "gallery": {
-      "heading": "The finish we aim for",
-      "intro": "Clean lines, calm spaces, and the details that make a home feel cared for.",
-      "photos": [
-        {
-          "src": "/sites/luxe-cleaning/photos/living.jpg",
-          "alt": "Sunlit living room after cleaning"
-        },
-        {
-          "src": "/sites/luxe-cleaning/photos/kitchen.jpg",
-          "alt": "Kitchen counters and appliances polished"
-        },
-        {
-          "src": "/sites/luxe-cleaning/photos/bathroom.jpg",
-          "alt": "Bathroom vanity and mirror gleaming"
-        },
-        {
-          "src": "/sites/luxe-cleaning/photos/bedroom.jpg",
-          "alt": "Fresh, made bed in a tidy bedroom"
-        },
-        {
-          "src": "/sites/luxe-cleaning/photos/floor.jpg",
-          "alt": "Hardwood floors cleaned and shining"
-        },
-        {
-          "src": "/sites/luxe-cleaning/photos/supplies.jpg",
-          "alt": "Professional-grade cleaning supplies"
-        }
-      ],
-      "attribution": "Photos via Pexels — stock imagery for illustration; results vary by home."
+    "reviewSummary": {
+      "rating": "5.0",
+      "count": "Verified references",
+      "heading": "Client reviews",
+      "intro": "on request — live Google ratings coming soon."
     },
     "reviews": {
-      "heading": "Client words",
-      "intro": "References available on request — placeholder testimonials until live reviews are collected.",
+      "heading": "Client reviews",
+      "intro": "References available on request.",
       "items": [
-        {
-          "stars": "★★★★★",
-          "quote": "They notice what other cleaners miss — fixtures, edges, the little things that make a home feel finished.",
-          "cite": "Worcester homeowner"
-        },
         {
           "stars": "★★★★★",
           "quote": "Professional, consistent, and easy to work with. Exactly what we wanted for recurring bi-weekly service.",
@@ -374,49 +136,151 @@
         }
       ]
     },
-    "faq": {
-      "heading": "Common questions",
-      "intro": "Quick answers — call or text Felicia for anything specific to your home.",
+    "hoursGuide": {
+      "heading": "How to choose the right visit length",
+      "intro": "Use this chart to estimate how much time to book for your space. Deep cleans and move-outs may need a custom quote.",
+      "tiers": [
+        { "hours": "2 hours", "rooms": ["Kitchen", "1 bath"] },
+        { "hours": "3 hours", "rooms": ["Kitchen", "1 bath", "1 bed"] },
+        { "hours": "4 hours", "rooms": ["Kitchen", "2 baths", "2 beds"] },
+        { "hours": "6+ hours", "rooms": ["Kitchen", "2+ baths", "2+ beds", "Large home / deep clean"] }
+      ]
+    },
+    "steps": {
+      "heading": "How lux cleaning works",
       "items": [
+        "Schedule online or call — tell us your home size, timing, and priorities.",
+        "Quick walk-through (in person or virtual) so we scope the right service level.",
+        "Your first clean on your schedule — we note preferences, products, and access details.",
+        "Recurring plan or on-demand booking — same standards every visit."
+      ],
+      "ctaLabel": "Book your cleaning",
+      "ctaHref": "/form/schedule"
+    },
+    "includes": {
+      "heading": "What's included?",
+      "intro": "Every maintenance visit follows a room-by-room checklist. Deep cleans and move-outs add detail layers.",
+      "rooms": [
         {
-          "q": "Do I need to be home during the clean?",
-          "a": "Not necessarily. Many clients provide a door code or key after the first visit. We'll confirm access and security preferences upfront."
+          "name": "Kitchen",
+          "items": [
+            "Dishes, sink, and appliance exteriors",
+            "Countertops and backsplash",
+            "Microwave interior on deep cleans",
+            "Cabinet fronts and handles",
+            "Floors vacuumed and mopped"
+          ]
         },
         {
-          "q": "Do you bring supplies and equipment?",
-          "a": "Yes — professional-grade products and vacuums. If you prefer green products or have sensitivities, tell us and we'll match your preferences."
+          "name": "Bathroom",
+          "items": [
+            "Toilet, shower/tub, and vanity",
+            "Mirrors and fixtures polished",
+            "Counters and sinks detailed",
+            "Floors vacuumed and mopped",
+            "Towels folded and hung"
+          ]
         },
         {
-          "q": "How long does a typical visit take?",
-          "a": "Maintenance cleans usually run 2–4 hours depending on home size and condition. Deep cleans and move-outs can take a full day — we'll estimate at the walk-through."
+          "name": "Bedroom & living areas",
+          "items": [
+            "Beds made, linens changed if left out",
+            "Dusting — surfaces, shelves, décor",
+            "Vacuum carpets and rugs",
+            "Hard floors mopped",
+            "Light tidy throughout"
+          ]
         },
         {
-          "q": "Are you insured?",
-          "a": "Yes — Luxe Cleaning is licensed and insured in Massachusetts. Certificate available on request for landlords and property managers."
-        },
-        {
-          "q": "What's your cancellation policy?",
-          "a": "48 hours notice to reschedule without fee. Same-day cancellations may incur a trip charge — we keep it fair and communicate clearly."
-        },
-        {
-          "q": "Do you offer a satisfaction guarantee?",
-          "a": "If something isn't right, tell us within 24 hours and we'll make it right on the next visit or return for a targeted fix when scheduling allows."
-        },
-        {
-          "q": "Can I get the same cleaner every time?",
-          "a": "Owner-led service means consistent standards. For recurring plans we prioritize the same team when possible."
-        },
-        {
-          "q": "Do you clean homes with pets?",
-          "a": "Absolutely — we love pets. Let us know about shedding or special areas; a pet-hair detail add-on may apply for heavy buildup."
+          "name": "Every room",
+          "items": [
+            "High-touch points — switches, knobs, remotes",
+            "Interior door faces wiped",
+            "Stairs vacuumed",
+            "Trash emptied",
+            "Final walk-through quality check"
+          ]
         }
       ]
     },
+    "pricing": {
+      "heading": "Starting prices",
+      "intro": "Transparent rates for planning — your exact quote follows a quick walk-through.",
+      "note": "Prices assume average home condition. Heavy buildup, pets, or add-ons may adjust the quote. No long-term contracts.",
+      "tiers": [
+        { "name": "Studio / 1 bed", "price": "From $149", "description": "Maintenance visit" },
+        { "name": "2 bedrooms", "price": "From $179", "description": "Maintenance visit", "featured": true },
+        { "name": "3 bedrooms", "price": "From $219", "description": "Maintenance visit" },
+        { "name": "4+ bedrooms", "price": "From $269", "description": "Maintenance visit" }
+      ],
+      "addOns": [
+        { "name": "Inside refrigerator", "price": "+$35" },
+        { "name": "Inside oven", "price": "+$45" },
+        { "name": "Interior windows (per pane)", "price": "+$5" },
+        { "name": "Laundry — wash & fold (per load)", "price": "+$25" }
+      ]
+    },
+    "faq": {
+      "heading": "lux cleaning FAQs",
+      "intro": "Quick answers — call or text Felicia for anything specific to your home.",
+      "items": [
+        {
+          "q": "Are there any hidden fees?",
+          "a": "No. Starting prices are published on the site. Your exact quote follows a walk-through so scope and condition are clear before we begin."
+        },
+        {
+          "q": "Are cleaners background-checked and trained?",
+          "a": "Yes. lux cleaning is owner-led, licensed, and insured in Massachusetts. Felicia oversees every account and maintains consistent standards."
+        },
+        {
+          "q": "Can I keep the same cleaner each time?",
+          "a": "Owner-led service means consistent standards. For recurring plans we prioritize the same team when possible."
+        },
+        {
+          "q": "What areas do you serve?",
+          "a": "Central Massachusetts — Worcester County, MetroWest, and communities along I-495. Enter your zip below to request a visit."
+        },
+        {
+          "q": "What if I'm not satisfied with my cleaning?",
+          "a": "Tell us within 24 hours and we'll make it right on the next visit or return for a targeted fix when scheduling allows."
+        },
+        {
+          "q": "Do you bring supplies and equipment?",
+          "a": "Yes — professional-grade products and vacuums. Prefer green products or have sensitivities? Tell us and we'll match your preferences."
+        },
+        {
+          "q": "What's your cancellation policy?",
+          "a": "48 hours notice to reschedule without fee. Same-day cancellations may incur a trip charge — we keep it fair."
+        },
+        {
+          "q": "What's not included?",
+          "a": "Moving heavy furniture, outdoor work, carpet shampooing, mold or pest remediation, blind cleaning, and areas outside normal reach."
+        }
+      ]
+    },
+    "serviceAreaZip": {
+      "heading": "Service area",
+      "intro": "Enter your zip code to request a visit. We serve Central Massachusetts and surrounding towns.",
+      "placeholder": "Enter zip code",
+      "buttonLabel": "Check availability",
+      "note": "Travel fee may apply beyond 25 miles from Worcester."
+    },
+    "areas": {
+      "heading": "Service area",
+      "intro": "Central Massachusetts — Worcester County, MetroWest, and communities along I-495.",
+      "cities": [
+        "Worcester", "Shrewsbury", "Westborough", "Northborough", "Southborough",
+        "Marlborough", "Hudson", "Holden", "Auburn", "Grafton", "Milford",
+        "Leominster", "Fitchburg", "Sterling", "Boylston", "Berlin", "Bolton",
+        "Clinton", "Lancaster", "Sturbridge", "Charlton", "Spencer", "Leicester",
+        "Rutland", "Paxton"
+      ]
+    },
     "about": {
-      "heading": "Led by Felicia Tracy",
+      "heading": "About lux cleaning",
       "body": [
-        "Luxe Cleaning was built for homeowners who want more than a quick wipe-down — meticulous care, reliable scheduling, and a team that treats your home with respect.",
-        "Felicia works directly with every client: walk-through, clear scope, and follow-through. Licensed and insured across Central Massachusetts.",
+        "lux cleaning is premium residential cleaning for homeowners who want more than a quick wipe-down — meticulous care, reliable scheduling, and finishes that feel intentional.",
+        "Owner Felicia Tracy works directly with every client: walk-through, clear scope, and follow-through. Licensed and insured across Central Massachusetts.",
         "We serve busy families, professionals working from home, new homeowners, and property managers who need a partner — not a franchise call center."
       ],
       "highlights": [
@@ -428,12 +292,21 @@
         "No long-term contracts"
       ]
     },
+    "numbers": {
+      "heading": "Why lux cleaning",
+      "stats": [
+        { "value": "Owner-led", "label": "Felicia on every account" },
+        { "value": "Licensed", "label": "Fully insured in MA" },
+        { "value": "Same team", "label": "Consistent standards" },
+        { "value": "100%", "label": "Satisfaction focus" }
+      ]
+    },
     "contact": {
-      "heading": "Call or text",
+      "heading": "Ready to book?",
       "phone": "508-955-8850",
       "phoneHref": "tel:+15089558850",
       "email": "felicia@lux.cleaning"
     },
-    "footer": "Luxe Cleaning · Felicia Tracy · Central Massachusetts"
+    "footer": "lux cleaning · Felicia Tracy · Central Massachusetts"
   }
 }
