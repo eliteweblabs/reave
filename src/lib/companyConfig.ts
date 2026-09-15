@@ -13,6 +13,7 @@ import {
 } from './companyLogo';
 import { prepareInlineBrandSvg } from './brandSvg';
 import { BRAND_ICON_RENDER, BRAND_ICON_SIZES } from './brandIconRaster';
+import { getSiteContent, siteLandingOgImage } from './siteContent';
 import {
   getStoredCompanyConfig,
   setStoredCompanyConfig,
@@ -185,6 +186,10 @@ export type CompanyConfig = {
   iconHasRaster: boolean;
   /** True when an admin-uploaded default social-share (OG) image is stored. */
   ogHasRaster: boolean;
+  /** Resolved og:image URL — upload, site logo, company logo, icon, or letter route. */
+  ogImageUrl: string;
+  /** True when og:image is the generated letter tile (nothing else configured). */
+  ogUsesLetterFallback: boolean;
   /** Vapi assistant UUID — admin setting, env fallback. */
   vapiAssistantId: string;
   /** Spoken greeting template (supports {{companyName}}). */
@@ -394,11 +399,87 @@ export function companyFaviconUrls(company: CompanyConfig): CompanyFaviconUrls {
   };
 }
 
-/** Runtime OG / Twitter card — uploaded share image, else generated from logo/icon. */
-export function companyOgImageUrl(company: CompanyConfig): string {
+function brandingVersionQuery(company: CompanyConfig): string {
   const version = companyBrandingVersion(company);
-  if (!version) return BRANDING_OG_PATH;
-  return `${BRANDING_OG_PATH}?v=${encodeURIComponent(version)}`;
+  return version ? `?v=${encodeURIComponent(version)}` : '';
+}
+
+/** Admin-uploaded wordmark or static logo path suitable for og:image. */
+function resolveCompanyLogoShareUrl(company: CompanyConfig): string | null {
+  if (company.logoSource === 'hidden') return null;
+
+  if (trim(company.logoSvg) || company.logoHasRaster) {
+    return companyLogoUrl(company.logoPath, company.logoVersion) || `${BRANDING_LOGO_PATH}${brandingVersionQuery(company)}`;
+  }
+
+  if (company.logoSource === 'admin') {
+    const url = companyLogoUrl(company.logoPath, company.logoVersion);
+    if (url && !url.split('?')[0]?.endsWith(BRANDING_LOGO_PATH)) return url;
+    if (url && (company.logoHasRaster || trim(company.logoSvg))) return url;
+  }
+
+  const legacyPath = trim(company.logoPath);
+  if (
+    legacyPath &&
+    legacyPath !== BRANDING_LOGO_PATH &&
+    !legacyPath.startsWith('/api/branding/')
+  ) {
+    return companyLogoUrl(legacyPath, company.logoVersion);
+  }
+
+  return null;
+}
+
+/** Square icon or logo-derived mark when no wordmark is available. */
+function resolveCompanyIconShareUrl(company: CompanyConfig): string | null {
+  if (hasCompanyIconImage(company) || trim(company.iconSvg)) {
+    return brandIconUrl(512, companyBrandingVersion(company));
+  }
+  if (
+    company.iconSource === 'admin' &&
+    trim(company.iconPath) &&
+    !company.iconPath.includes('/api/branding/icon')
+  ) {
+    return companyLogoUrl(company.iconPath, company.iconVersion);
+  }
+  if (company.iconSource === 'logo' && resolveCompanyLogoShareUrl(company)) {
+    return brandIconUrl(512, companyBrandingVersion(company));
+  }
+  return null;
+}
+
+/** True when og:image should include 1200×630 width/height meta tags. */
+export function companyOgUsesStandardDimensions(ogImageUrl: string, company: CompanyConfig): boolean {
+  if (company.ogHasRaster || company.ogUsesLetterFallback) return true;
+  const path = ogImageUrl.split('?')[0] ?? '';
+  return path.startsWith('/sites/') && path.endsWith('/og.png');
+}
+
+/** Resolve og:image — upload, site logo, company logo, icon, else letter route. */
+export function companyOgImageUrl(company: CompanyConfig): string {
+  if (company.ogHasRaster) {
+    return `${BRANDING_OG_PATH}${brandingVersionQuery(company)}`;
+  }
+
+  const siteOg = siteLandingOgImage(getSiteContent());
+  if (siteOg) return siteOg;
+
+  const logo = resolveCompanyLogoShareUrl(company);
+  if (logo) return logo;
+
+  const icon = resolveCompanyIconShareUrl(company);
+  if (icon) return icon;
+
+  return `${BRANDING_OG_PATH}${brandingVersionQuery(company)}`;
+}
+
+function attachCompanyOgFields(config: Omit<CompanyConfig, 'ogImageUrl' | 'ogUsesLetterFallback'>): CompanyConfig {
+  const ogImageUrl = companyOgImageUrl(config as CompanyConfig);
+  const ogUsesLetterFallback =
+    !config.ogHasRaster &&
+    ogImageUrl.split('?')[0] === BRANDING_OG_PATH &&
+    !siteLandingOgImage(getSiteContent());
+  return { ...config, ogImageUrl, ogUsesLetterFallback };
 }
 
 /** Pasted SVG that sanitizes cleanly enough to inline on the header or hero. */
@@ -570,7 +651,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   };
   _cachedName = name;
   _cachedDomain = domain;
-  return config;
+  return attachCompanyOgFields(config);
 }
 
 /** Full resolved branding for the current deployment. */

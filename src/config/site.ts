@@ -17,7 +17,7 @@ export const SITE = {
   /** Fallback wordmark — same API path on every install. */
   logoPath: "/api/branding/logo",
 
-  /** Default OG / Twitter card — admin share image, else generated from logo/icon. */
+  /** Default OG / Twitter card — admin share image, else logo URL (letter route last). */
   ogImage: BRANDING_OG_PATH,
 
   /** Default og:type. */
