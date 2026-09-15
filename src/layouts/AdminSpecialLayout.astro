@@ -47,11 +47,14 @@ if (requireAuth && !userId) {
   );
 }
 
+const { denyUnlessDeploymentOwner, isDeploymentOwner } = await import("../lib/deploymentOwner");
+
 if (requireOwner) {
-  const { denyUnlessDeploymentOwner } = await import("../lib/deploymentOwner");
   const denied = await denyUnlessDeploymentOwner(Astro);
   if (denied) return denied;
 }
+
+const isOwner = userId ? await isDeploymentOwner(Astro) : false;
 
 const company = await getCompanyConfig(Astro.request);
 const installConfigClient = getInstallConfigClient();
@@ -64,7 +67,11 @@ const installConfigClient = getInstallConfigClient();
   style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
 >
   <AdminHead companyName={company.name} fonts={company.fonts} pageTitle={title} />
-  <body class:list={["admin-special-page", bodyClass]} data-user-id={userId ?? ""}>
+  <body
+    class:list={["admin-special-page", bodyClass]}
+    data-user-id={userId ?? ""}
+    data-is-owner={isOwner ? "1" : ""}
+  >
     <DeployStatusBanner />
     <Header
       adminShell
@@ -73,6 +80,6 @@ const installConfigClient = getInstallConfigClient();
       profileMenu={installConfigClient.profileMenu}
     />
     <slot />
-    {showFooterNav && <AdminFooterNav />}
+    {showFooterNav && <AdminFooterNav showTraceLog={isOwner} />}
   </body>
 </html>
