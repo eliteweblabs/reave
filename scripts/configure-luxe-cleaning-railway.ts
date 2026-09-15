@@ -349,6 +349,7 @@ function buildVariablePatch(apexDomain: string, assistantId?: string): Record<st
     COMPANY_DOMAIN: apex,
     COMPANY_LOGO_URL: `https://${apex}/sites/luxe-cleaning/logo.png`,
     EMAIL_FROM_NAME: 'Felicia Tracy · Luxe Cleaning',
+    OWNER_EMAIL: 'felicia@lux.cleaning',
     PUBLIC_INSTALL_HOMEPAGE_VOICE: '1',
     COMPANY_NAME: 'Luxe Cleaning',
     COMPANY_DESCRIPTION:
