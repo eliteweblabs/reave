@@ -9,6 +9,7 @@ import { contactTelHref } from "../../lib/contactApi";
 import { hasFeature } from "../../lib/features";
 import { isSiteAssistantConfigured } from "../../lib/siteAssistant";
 import { resolveSiteChat } from "../../lib/siteChat";
+import ConversationalForm from "../ConversationalForm.astro";
 import SiteAssistantWidget from "../SiteAssistantWidget.astro";
 
 interface Props {
@@ -27,9 +28,17 @@ const phoneHref = digits ? `tel:${digits}` : "";
 
 const brandName = landing.name || company.name || "Chat";
 const scheduleUrl = landing.scheduleUrl || "/form/schedule";
+const formSlug =
+  landing.schedule?.formSlug === false
+    ? ""
+    : (landing.schedule?.formSlug || "schedule").trim();
+const showHeroForm =
+  landing.heroEmbedForm === true && hasFeature("scheduling") && Boolean(formSlug);
+const bookHref = showHeroForm ? "#book" : scheduleUrl;
 const bookPrimary = landing.bookingCta?.primaryLabel || "Book your cleaning";
 const bookHeader = landing.bookingCta?.headerLabel || bookPrimary;
 const bookSticky = landing.bookingCta?.stickyLabel || bookPrimary;
+const promo = landing.promoBanner;
 
 const logoSrc = (landing.heroLogo || "").trim();
 const navLinks = landing.conversionNav ?? [
@@ -70,7 +79,26 @@ const brandStyle = brand
   : undefined;
 ---
 
-<div class="lc" style={brandStyle} data-has-chat={showFooterChat ? "1" : "0"}>
+<div
+  class="lc"
+  style={brandStyle}
+  data-has-chat={showFooterChat ? "1" : "0"}
+  data-has-promo={promo ? "1" : "0"}
+  data-has-hero-form={showHeroForm ? "1" : "0"}
+>
+  {
+    promo ? (
+      <aside class="lc-promo" aria-label="Limited-time offer">
+        {promo.label ? <span class="lc-promo__label">{promo.label}</span> : null}
+        <p class="lc-promo__message">{promo.message}</p>
+        {
+          promo.href && promo.ctaLabel ? (
+            <a class="lc-promo__cta" href={promo.href}>{promo.ctaLabel}</a>
+          ) : null
+        }
+      </aside>
+    ) : null
+  }
   <header class="lc-header">
     {
       logoSrc ? (
@@ -88,24 +116,52 @@ const brandStyle = brand
     </nav>
     <div class="lc-header__actions">
       {phoneHref ? <a class="lc-header__phone" href={phoneHref}>{phoneDisplay}</a> : null}
-      <a class="lc-btn lc-btn--primary lc-header__book" href={scheduleUrl}>{bookHeader}</a>
+      <a class="lc-btn lc-btn--primary lc-header__book" href={bookHref}>{bookHeader}</a>
     </div>
   </header>
 
   <main class="lc-main">
-    <section class="lc-hero">
-      {landing.eyebrow ? <p class="lc-eyebrow">{landing.eyebrow}</p> : null}
-      <h1>{landing.heroHeadline || landing.tagline}</h1>
-      {landing.heroBody ? <p class="lc-lede">{landing.heroBody}</p> : null}
-      <div class="lc-hero__actions">
-        <a class="lc-btn lc-btn--primary lc-btn--lg" href={scheduleUrl}>{bookPrimary}</a>
-        {phoneHref ? (
-          <a class="lc-btn lc-btn--ghost" href={phoneHref}>Or call {phoneDisplay}</a>
+    <section class="lc-hero" id={showHeroForm ? "book" : undefined}>
+      <div class="lc-hero__copy">
+        {landing.eyebrow ? <p class="lc-eyebrow">{landing.eyebrow}</p> : null}
+        <h1>{landing.heroHeadline || landing.tagline}</h1>
+        {landing.heroBody ? <p class="lc-lede">{landing.heroBody}</p> : null}
+        {
+          showHeroForm ? null : (
+            <div class="lc-hero__actions">
+              <a class="lc-btn lc-btn--primary lc-btn--lg" href={bookHref}>{bookPrimary}</a>
+              {phoneHref ? (
+                <a class="lc-btn lc-btn--ghost" href={phoneHref}>Or call {phoneDisplay}</a>
+              ) : null}
+            </div>
+          )
+        }
+        {
+          showHeroForm && phoneHref ? (
+            <p class="lc-hero__call">
+              Prefer to talk? <a href={phoneHref}>Call {phoneDisplay}</a>
+            </p>
+          ) : null
+        }
+        {landing.tagline && landing.heroHeadline && !showHeroForm ? (
+          <p class="lc-hero__note">{landing.tagline}</p>
         ) : null}
       </div>
-      {landing.tagline && landing.heroHeadline ? (
-        <p class="lc-hero__note">{landing.tagline}</p>
-      ) : null}
+      {
+        showHeroForm ? (
+          <div class="lc-hero__form">
+            <p class="lc-hero__form-title">{bookPrimary}</p>
+            <ConversationalForm
+              slug={formSlug}
+              embedded
+              heroChat
+              eager
+              brandName={brandName}
+              inputPlaceholder="Type your answer…"
+            />
+          </div>
+        ) : null
+      }
     </section>
 
     {
@@ -279,7 +335,7 @@ const brandStyle = brand
           </p>
           {
             landing.serviceAreaZip ? (
-              <form class="lc-zip" action={scheduleUrl} method="get">
+              <form class="lc-zip" action={showHeroForm ? "/" : scheduleUrl} method="get" data-zip-to-book={showHeroForm ? "1" : undefined}>
                 <label class="sr-only" for="lc-zip-input">Zip code</label>
                 <input
                   id="lc-zip-input"
@@ -354,7 +410,7 @@ const brandStyle = brand
         <section class="lc-section lc-contact" id="contact">
           <h2>{landing.contact.heading || "Ready to book?"}</h2>
           <div class="lc-contact__actions">
-            <a class="lc-btn lc-btn--primary lc-btn--lg" href={scheduleUrl}>{bookPrimary}</a>
+            <a class="lc-btn lc-btn--primary lc-btn--lg" href={bookHref}>{bookPrimary}</a>
             {phoneHref ? <a class="lc-btn lc-btn--ghost" href={phoneHref}>{phoneDisplay}</a> : null}
             {landing.contact.email ? (
               <a class="lc-contact__email" href={`mailto:${landing.contact.email}`}>{landing.contact.email}</a>
@@ -369,7 +425,7 @@ const brandStyle = brand
     <p>&copy; {year} {landing.footer || brandName}</p>
   </footer>
 
-  <a class="lc-sticky" href={scheduleUrl} aria-label={bookSticky}>{bookSticky}</a>
+  <a class="lc-sticky" href={bookHref} aria-label={bookSticky}>{bookSticky}</a>
 
   {
     showFooterChat ? (
@@ -421,6 +477,48 @@ const brandStyle = brand
     border: 0;
   }
 
+  .lc-promo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem 0.75rem;
+    padding: 0.55rem 1rem;
+    background: var(--lc-accent);
+    color: #fff;
+    text-align: center;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .lc-promo__label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .lc-promo__message {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  .lc-promo__cta {
+    color: #fff;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .lc-promo__cta:hover {
+    opacity: 0.9;
+  }
+
   .lc-header {
     display: flex;
     flex-wrap: wrap;
@@ -432,6 +530,10 @@ const brandStyle = brand
     position: sticky;
     top: 0;
     z-index: 20;
+  }
+
+  .lc[data-has-promo="1"] .lc-header {
+    top: 0;
   }
 
   .lc-header__brand img {
@@ -519,6 +621,69 @@ const brandStyle = brand
   .lc-hero {
     text-align: center;
     padding: 2rem 0 2.5rem;
+  }
+
+  .lc[data-has-hero-form="1"] .lc-hero {
+    display: grid;
+    gap: 1.75rem;
+    text-align: left;
+    align-items: start;
+  }
+
+  .lc-hero__copy {
+    min-width: 0;
+  }
+
+  .lc[data-has-hero-form="1"] .lc-hero h1 {
+    margin-inline: 0;
+    max-width: none;
+  }
+
+  .lc[data-has-hero-form="1"] .lc-lede {
+    margin-inline: 0;
+  }
+
+  .lc-hero__call {
+    margin: 1rem 0 0;
+    font-size: 0.92rem;
+    color: var(--lc-muted);
+  }
+
+  .lc-hero__call a {
+    color: var(--lc-accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .lc-hero__call a:hover {
+    text-decoration: underline;
+  }
+
+  .lc-hero__form {
+    --site-fg: var(--lc-ink);
+    --site-fg-muted: var(--lc-muted);
+    --site-card: #fff;
+    --site-card-border: var(--lc-line);
+    --site-border: var(--lc-line);
+    --brand-btn-bg: var(--lc-accent);
+    --brand-btn-fg: #fff;
+    --demo-fg: var(--lc-ink);
+    --demo-fg-muted: var(--lc-muted);
+    --demo-line: var(--lc-line);
+    --demo-bubble-fill: #fff;
+    min-width: 0;
+    padding: 1.25rem 1.15rem 1.35rem;
+    border-radius: 1rem;
+    border: 1px solid var(--lc-line);
+    background: var(--lc-card);
+    box-shadow: 0 12px 32px rgba(10, 61, 61, 0.08);
+  }
+
+  .lc-hero__form-title {
+    margin: 0 0 0.85rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--lc-ink);
   }
 
   .lc-eyebrow {
@@ -1048,4 +1213,24 @@ const brandStyle = brand
       grid-template-columns: repeat(4, 1fr);
     }
   }
+
+  @media (min-width: 960px) {
+    .lc[data-has-hero-form="1"] .lc-hero {
+      grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+      gap: 2.5rem;
+      padding: 2.5rem 0 3rem;
+    }
+  }
 </style>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>("form.lc-zip[data-zip-to-book]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const zip = new FormData(form).get("zip");
+      const value = String(zip ?? "").trim();
+      if (!value) return;
+      window.location.assign(`/?zip=${encodeURIComponent(value)}#book`);
+    });
+  });
+</script>

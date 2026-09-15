@@ -223,6 +223,15 @@ export type SiteLandingConfig = {
   };
   /** Anchor nav for conversion single-page sites. */
   conversionNav?: SiteNavLink[];
+  /** Embed the booking form in the hero (#book) instead of link-only CTAs. */
+  heroEmbedForm?: boolean;
+  /** Limited-time promo strip above the header (Homeaglow-style urgency bar). */
+  promoBanner?: {
+    label?: string;
+    message: string;
+    href?: string;
+    ctaLabel?: string;
+  };
   /** “Why members love …” benefit bullets. */
   benefits?: {
     heading: string;

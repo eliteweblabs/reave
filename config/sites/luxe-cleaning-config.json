@@ -30,6 +30,13 @@
       "accent": "#007070",
       "accentSoft": "rgba(0, 112, 112, 0.12)"
     },
+    "heroEmbedForm": true,
+    "promoBanner": {
+      "label": "Limited time only",
+      "message": "$25 off your first deep clean when you book online this month.",
+      "href": "#book",
+      "ctaLabel": "Claim offer"
+    },
     "bookingCta": {
       "primaryLabel": "Book your cleaning",
       "headerLabel": "Book now",
@@ -50,7 +57,7 @@
     "heroHeadline": "Book premium home cleaning online.",
     "heroBody": "Get matched with a top-rated, owner-led cleaning team. Transparent starting prices, flexible scheduling, and finishes that feel intentional — not a franchise call center.",
     "heroLogo": "/sites/luxe-cleaning/logo.png",
-    "scheduleUrl": "/form/schedule",
+    "scheduleUrl": "/form/lux-schedule",
     "callCta": {
       "label": "Call Felicia",
       "stickyLabel": "Call now"
@@ -74,7 +81,7 @@
       "engagement": { "mode": "none" },
       "businessNotes": "Felicia Tracy owns lux cleaning, a woman-owned premium house cleaning company in Central Massachusetts. Call or text 508-955-8850. Starting prices are on the website — confirm exact quotes after a walk-through. Do not invent availability."
     },
-    "schedule": { "formSlug": "schedule" },
+    "schedule": { "formSlug": "lux-schedule" },
     "benefits": {
       "heading": "Why homeowners choose lux cleaning",
       "intro": "Everything you need for reliable, premium home care — without the runaround.",
@@ -155,7 +162,7 @@
         "Recurring plan or on-demand booking — same standards every visit."
       ],
       "ctaLabel": "Book your cleaning",
-      "ctaHref": "/form/schedule"
+      "ctaHref": "#book"
     },
     "includes": {
       "heading": "What's included?",
