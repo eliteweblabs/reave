@@ -1,7 +1,7 @@
 /**
  * Resolve admin branding (PNG uploads + pasted SVG) into raster PNGs for
- * favicons, PWA icons, OG cards, and avatars. Falls back to the first letter
- * of the company display name when no mark is configured.
+ * favicons, PWA icons, OG cards, and avatars. `/api/branding/og.png` serves an
+ * admin upload or a letter tile only — default og:image uses the logo URL.
  */
 import { createHash } from 'node:crypto';
 import sharp from 'sharp';
@@ -22,9 +22,6 @@ export const DEFAULT_ICON_BACKGROUND = '#09090b';
 export type BrandMarkSource =
   | { kind: 'raster'; buffer: Buffer }
   | { kind: 'svg'; svg: string };
-
-const OG_BG = { r: 10, g: 10, b: 10 };
-const OG_LOGO_INSET = 0.15;
 
 function escapeXml(value: string): string {
   return value
@@ -387,36 +384,6 @@ function buildLetterOgSvg(letter: string, ink: BrandMarkInk): string {
 </svg>`;
 }
 
-async function composeSquareOnOgCanvas(markBuf: Buffer): Promise<Buffer> {
-  const innerW = Math.round(PORTAL_OG_WIDTH * (1 - OG_LOGO_INSET * 2));
-  const innerH = Math.round(PORTAL_OG_HEIGHT * (1 - OG_LOGO_INSET * 2));
-
-  const logo = await sharp(markBuf)
-    .rotate()
-    .resize(innerW, innerH, {
-      fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer();
-
-  const { width = innerW, height = innerH } = await sharp(logo).metadata();
-  const left = Math.round((PORTAL_OG_WIDTH - width) / 2);
-  const top = Math.round((PORTAL_OG_HEIGHT - height) / 2);
-
-  return sharp({
-    create: {
-      width: PORTAL_OG_WIDTH,
-      height: PORTAL_OG_HEIGHT,
-      channels: 3,
-      background: OG_BG,
-    },
-  })
-    .composite([{ input: logo, left, top }])
-    .png()
-    .toBuffer();
-}
-
 export async function renderBrandMarkSquarePng(
   sources: BrandMarkSource[],
   letter: string,
@@ -481,6 +448,7 @@ async function renderUploadedOgPng(dataBase64: string): Promise<Buffer | null> {
   }
 }
 
+/** Admin upload or letter tile — default og:image uses the logo URL, not this route. */
 export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Promise<Buffer> {
   if (stored?.ogData) {
     const uploaded = await renderUploadedOgPng(stored.ogData);
@@ -488,14 +456,6 @@ export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Pro
   }
 
   const letter = brandMarkLetter(stored?.name ?? '');
-  const sources = collectBrandMarkSources(stored);
-  const markSize = 512;
-
-  for (const source of sources) {
-    const png = await rasterizeSource(source, markSize, 'contain');
-    if (png) return composeSquareOnOgCanvas(png);
-  }
-
   return sharp(Buffer.from(buildLetterOgSvg(letter, brandMarkInk(stored, 'dark'))))
     .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT)
     .png()

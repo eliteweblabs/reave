@@ -4,7 +4,6 @@
  * on Astro-hosted installs. Match fields to admin → Company.
  */
 import type { CompanyConfig } from '../lib/companyConfig';
-import { BRANDING_OG_PATH } from '../lib/companyLogo';
 import { SOCIAL_PLATFORM_CATALOG } from '../lib/social/platforms';
 
 export interface Props {
@@ -23,7 +22,11 @@ for (const platform of SOCIAL_PLATFORM_CATALOG) {
   if (url) sameAs.push(url);
 }
 
-const logoUrl = canonicalUrl.replace(/\/+$/, '') + BRANDING_OG_PATH;
+const brandMark =
+  company.logoPath && company.logoSource !== 'hidden' ? company.logoPath : company.ogImageUrl;
+const logoUrl = brandMark.startsWith('http')
+  ? brandMark
+  : `${canonicalUrl.replace(/\/+$/, '')}${brandMark.startsWith('/') ? brandMark : `/${brandMark}`}`;
 
 const schema = {
   '@context': 'https://schema.org',

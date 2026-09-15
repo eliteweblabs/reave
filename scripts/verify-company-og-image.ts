@@ -1,8 +1,11 @@
 /**
- * Default social-share image: uploaded raster wins, else generated logo/letter card.
+ * Share image: admin upload or letter tile via /api/branding/og.png;
+ * default og:image uses the logo URL (see companyConfig.companyOgImageUrl).
  * Run: npm run check:company-og
  */
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import sharp from 'sharp';
 import { brandingEtag, buildCompanyOgPng, renderCompanyLogoWordmarkPng } from '../src/lib/brandImageRender.ts';
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from '../src/lib/ogImageSize.ts';
@@ -73,6 +76,14 @@ assert.equal(BRANDING_LOGO_ALT_PATH, '/api/branding/logo.alt');
   const meta = await sharp(png!).metadata();
   assert.equal(meta.format, 'png');
   assert.ok((meta.height ?? 0) <= 640);
+}
+
+{
+  const luxeOg = '/sites/luxe-cleaning/og.png';
+  assert.ok(
+    existsSync(join(process.cwd(), 'public', luxeOg.slice(1))),
+    'luxe-cleaning co-located og.png should exist for site landing share cards',
+  );
 }
 
 console.log('verify-company-og-image: ok');

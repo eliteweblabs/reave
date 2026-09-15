@@ -8174,11 +8174,16 @@ function hasUploadedCompanyOg(company) {
 }
 
 function companyOgPreviewUrl(company) {
-  const version = company?.logoVersion || company?.iconVersion || '';
+  const base = company?.ogImageUrl || '';
   const bust = `_=${Date.now()}`;
-  return version
-    ? `/api/branding/og.png?v=${encodeURIComponent(version)}&${bust}`
-    : `/api/branding/og.png?${bust}`;
+  if (!base) {
+    const version = company?.logoVersion || company?.iconVersion || '';
+    return version
+      ? `/api/branding/og.png?v=${encodeURIComponent(version)}&${bust}`
+      : `/api/branding/og.png?${bust}`;
+  }
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}${bust}`;
 }
 
 function syncSvgFieldPreview(root, fieldId, svg) {
@@ -9869,7 +9874,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                 libraryId: 'company-og-library',
               }) +
             `</div>` +
-            `<span class="prof-hint">1200×630 PNG, JPEG, or WebP. Leave empty to generate a card from the logo or icon. A page that sets its own share image wins.</span></div>`,
+            `<span class="prof-hint">1200×630 PNG, JPEG, or WebP. Leave empty to use the logo (then the icon). A letter is used only when no branding is configured. A page that sets its own share image wins.</span></div>`,
           ) +
           profSection(
             'SVG Logo And Icon',

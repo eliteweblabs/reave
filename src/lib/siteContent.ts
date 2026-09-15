@@ -857,8 +857,22 @@ export function getSiteContent(opts?: { industry?: string | null }): SiteContent
 
 /** Static OG card from site config (client landing installs). */
 export function siteLandingOgImage(site?: SiteContentConfig): string | undefined {
-  const ref = site?.landing?.ogImage?.trim();
-  return ref || undefined;
+  const explicit = site?.landing?.ogImage?.trim();
+  if (explicit) return explicit;
+
+  const heroLogo = site?.landing?.heroLogo?.trim();
+  if (!heroLogo) return undefined;
+
+  if (heroLogo.startsWith('/sites/')) {
+    const dir = heroLogo.slice(0, heroLogo.lastIndexOf('/'));
+    const coLocatedOg = `${dir}/og.png`;
+    if (dir && existsSync(join(projectRoot(), 'public', coLocatedOg.slice(1)))) {
+      return coLocatedOg;
+    }
+    return heroLogo;
+  }
+
+  return siteMediaSrc(heroLogo) || heroLogo;
 }
 
 /** Favicon bundle co-located with `/sites/{slug}/og.png` when present. */

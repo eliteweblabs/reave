@@ -10,7 +10,7 @@ import { SITE } from "../config/site";
 import { BRANDING_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from "../lib/ogImageSize";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
-import { getCompanyConfig, companyOgImageUrl } from "../lib/companyConfig";
+import { companyOgUsesStandardDimensions, getCompanyConfig } from "../lib/companyConfig";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import { shareSafeText } from "../lib/shareSafeText";
 import { isMarketingPagePath, getSiteContent, siteLandingOgImage } from "../lib/siteContent";
@@ -69,7 +69,7 @@ const company = await getCompanyConfig(Astro.request);
 const themeColor = themeColorProp ?? "#ffffff";
 const siteContent = getSiteContent();
 const description = descriptionProp ?? company.description;
-const ogImage = ogImageProp ?? siteLandingOgImage(siteContent) ?? companyOgImageUrl(company);
+const ogImage = ogImageProp ?? company.ogImageUrl;
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 /**
@@ -94,10 +94,13 @@ const ogImageAbsolute = ogImage.startsWith("http")
   ? ogImage
   : `${origin}${ogImage}`;
 /** Animated GIFs are a poor OG preview — fall back to the static logo mark. */
+const logoShareFallback = company.logoPath && company.logoSource !== "hidden"
+  ? `${origin}${company.logoPath.startsWith("/") ? company.logoPath : `/${company.logoPath}`}`
+  : `${origin}${BRANDING_OG_PATH}`;
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
-  ? `${origin}${BRANDING_OG_PATH}`
+  ? logoShareFallback
   : ogImageAbsolute;
-const isCompanyOg = ogImage.split("?")[0] === BRANDING_OG_PATH;
+const usesStandardOgDimensions = companyOgUsesStandardDimensions(ogImage, company);
 const isLandingOg = Boolean(siteLandingOgImage(siteContent));
 const ogImageAlt = shareSafeText(siteContent.landing?.name ?? company.name);
 const fullBleed = fullBleedProp ?? isIndexPage;
@@ -150,8 +153,8 @@ try {
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImageSafe} />
-		{(isCompanyOg || isLandingOg) && <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />}
-		{(isCompanyOg || isLandingOg) && <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />}
+		{(usesStandardOgDimensions || isLandingOg) && <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />}
+		{(usesStandardOgDimensions || isLandingOg) && <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />}
 		{isLandingOg && <meta property="og:image:alt" content={ogImageAlt} />}
 		{shareSiteName && <meta property="og:site_name" content={shareSiteName} />}
 

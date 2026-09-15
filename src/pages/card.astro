@@ -21,7 +21,7 @@ import {
   nativeMapsDirectionsUrl,
 } from '../lib/calendarLinks';
 import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
-import { companyOgImageUrl, getCompanyConfig } from '../lib/companyConfig';
+import { getCompanyConfig } from '../lib/companyConfig';
 import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
 import { contactTelHref } from '../lib/contactApi';
 import { BRANDING_OG_PATH } from '../lib/companyLogo';
@@ -81,10 +81,13 @@ const origin = requestOrigin(Astro.request);
 const canonical = company.domain
   ? `https://${company.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/card`
   : `${origin}/card`;
-const ogImage = companyOgImageUrl(company);
+const ogImage = company.ogImageUrl;
 const ogImageAbsolute = ogImage.startsWith('http') ? ogImage : `${origin}${ogImage}`;
+const logoShareFallback = company.logoPath && company.logoSource !== 'hidden'
+  ? `${origin}${company.logoPath.startsWith('/') ? company.logoPath : `/${company.logoPath}`}`
+  : `${origin}${BRANDING_OG_PATH}`;
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
-  ? `${origin}${BRANDING_OG_PATH}`
+  ? logoShareFallback
   : ogImageAbsolute;
 ---
 
