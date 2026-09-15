@@ -17,6 +17,7 @@ import {
   clerkGetUser,
   clerkCreateUser,
   clerkUpdateUser,
+  clerkEnsurePrimaryEmail,
   clerkDeleteUser,
   clerkBanUser,
   clerkUnbanUser,
@@ -223,13 +224,18 @@ export const clerkAuthModule: AgentToolModule = {
         type: 'function' as const,
         function: {
           name: 'clerk_update_user',
-          description: 'Update a Clerk user\'s name or metadata by user id.',
+          description:
+            'Update a Clerk user\'s name, primary email, or metadata by user id.',
           parameters: {
             type: 'object',
             properties: {
               user_id: { type: 'string', description: 'Clerk user id' },
               first_name: { type: 'string' },
               last_name: { type: 'string' },
+              email_address: {
+                type: 'string',
+                description: 'Set or promote this address to primary (Backend API verified)',
+              },
               public_metadata: {
                 type: 'object',
                 additionalProperties: true,
@@ -457,6 +463,11 @@ export const clerkAuthModule: AgentToolModule = {
     async clerk_update_user(args, _ctx) {
       const userId = String(args.user_id ?? '').trim();
       if (!userId) return JSON.stringify({ error: 'user_id is required' });
+      if (args.email_address) {
+        const email = String(args.email_address).trim();
+        const emailResult = await clerkEnsurePrimaryEmail(userId, email);
+        if (!emailResult.ok) return JSON.stringify({ error: emailResult.error });
+      }
       const r = await clerkUpdateUser(userId, {
         first_name: args.first_name ? String(args.first_name) : undefined,
         last_name: args.last_name ? String(args.last_name) : undefined,

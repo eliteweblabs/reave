@@ -62,6 +62,17 @@ Dry run:
 RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --dry-run
 ```
 
+### Owner admin (508 phone → felicia@lux.cleaning)
+
+After Felicia signs in once with **508-955-8850**, bind that Clerk user as deployment owner:
+
+```bash
+RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --setup-owner
+```
+
+This finds the Clerk user with phone `+15089558850`, sets primary email
+`felicia@lux.cleaning`, and writes `ADMIN_USERNAME` + `AGENT_ALERT_USER_ID` on Railway.
+
 CLI fallback (local `railway login`):
 
 ```bash
@@ -93,6 +104,13 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | `PUBLIC_VAPI_PUBLIC_KEY` | browser SDK key |
 | `PUBLIC_VAPI_ASSISTANT_ID` | assistant UUID (optional after first build) |
 | `VAPI_CREATE_IF_MISSING` | `1` |
+| `ADMIN_USERNAME` | `Felicia,felicia@lux.cleaning` |
+| `OWNER_EMAIL` | `felicia@lux.cleaning` |
+| `OWNER_FIRST_NAME` | `Felicia` |
+| `OWNER_LAST_NAME` | `Tracy` |
+| `OWNER_PHONE` | `+15089558850` |
+| `AGENT_ALERT_USER_ID` | Clerk user id (set via `--setup-owner`) |
+| `PUBLIC_CLERK_ALLOW_SIGN_UP` | `false` (after owner exists) |
 | `DATABASE_URL` | required at **build** time |
 
 Every deploy runs **prebuild** → `scripts/sync-vapi-assistant.ts`. On the first build
