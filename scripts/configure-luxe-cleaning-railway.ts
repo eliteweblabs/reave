@@ -11,6 +11,12 @@
  *   … --dry-run          # print planned changes only
  *   … --skip-redeploy    # set vars without redeploy
  *   … --skip-vapi-provision  # do not pre-create assistant locally
+ *   … --wire-inbound     # Resend inbound + owner email + Clerk domain (see below)
+ *   … --skip-clerk       # with --wire-inbound, skip Clerk domain migration
+ *
+ * --wire-inbound provisions what the deploy wizard Apply does for mail:
+ *   inbound.{apex} in Resend, MX/TXT in Cloudflare, email.received webhook,
+ *   RESEND_FROM / EMAIL_FROM / RESEND_WEBHOOK_SECRET, OWNER_EMAIL, Clerk apex.
  *
  * Env overrides:
  *   LUXE_CLEANING_RAILWAY_PROJECT  — project id or name (skip auto-discovery)
@@ -43,6 +49,10 @@ const DOMAIN_NEEDLES = ['lux.cleaning', 'luxecleaning.com', 'maidandmarble.com']
 const PROJECT_NAME_NEEDLES = ['maid', 'marble', 'luxe cleaning', 'luxe-cleaning'];
 const INFRA_SERVICE_RE = /postgres|redis|contact-api|inventory|materials|crater|calcom|fleet|booking|wizard|inbound|stats|plausible/i;
 const VAPI_PHONE = process.env.VAPI_PHONE_NUMBER?.trim() || '+15089558850';
+const OWNER_EMAIL = process.env.OWNER_EMAIL?.trim() || 'felicia@lux.cleaning';
+const OWNER_FIRST_NAME = process.env.OWNER_FIRST_NAME?.trim() || 'Felicia';
+const OWNER_LAST_NAME = process.env.OWNER_LAST_NAME?.trim() || 'Tracy';
+const OWNER_PHONE = process.env.OWNER_PHONE?.trim() || '+17744524319';
 
 type DiscoveredTarget = {
   projectId: string;
@@ -61,6 +71,8 @@ const discoverOnly = args.has('--discover');
 const skipRedeploy = args.has('--skip-redeploy');
 const skipVapiProvision = args.has('--skip-vapi-provision');
 const skipLogWait = args.has('--skip-log-wait');
+const wireInbound = args.has('--wire-inbound');
+const skipClerk = args.has('--skip-clerk');
 
 function log(msg: string) {
   console.log(msg);
@@ -340,18 +352,48 @@ async function discoverTarget(): Promise<DiscoveredTarget | null> {
   return candidates[0]!;
 }
 
+function normalizeApex(raw: string): string {
+  return raw.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
+}
+
+function inboundMailHost(apex: string): string {
+  return `inbound.${normalizeApex(apex)}`;
+}
+
+function resendFromAddress(apex: string): string {
+  return `noreply@${inboundMailHost(apex)}`;
+}
+
+function seedVendorEnvFromRailway(existing: Record<string, string>): void {
+  if (!process.env.RESEND_API_KEY?.trim() && existing.RESEND_API_KEY?.trim()) {
+    process.env.RESEND_API_KEY = existing.RESEND_API_KEY.trim();
+  }
+  if (!process.env.CLOUDFLARE_API_TOKEN?.trim() && existing.CLOUDFLARE_API_TOKEN?.trim()) {
+    process.env.CLOUDFLARE_API_TOKEN = existing.CLOUDFLARE_API_TOKEN.trim();
+  }
+  if (!process.env.CLERK_SECRET_KEY?.trim() && existing.CLERK_SECRET_KEY?.trim()) {
+    process.env.CLERK_SECRET_KEY = existing.CLERK_SECRET_KEY.trim();
+  }
+}
+
 function buildVariablePatch(apexDomain: string, assistantId?: string): Record<string, string> {
-  const apex = apexDomain.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
+  const apex = normalizeApex(apexDomain);
   const vars: Record<string, string> = {
     INSTALL_CONFIG: 'luxe-cleaning',
     PUBLIC_SITE_DOMAIN: apex,
     PUBLIC_SITE_URL: `https://${apex}`,
     COMPANY_DOMAIN: apex,
     COMPANY_LOGO_URL: `https://${apex}/sites/luxe-cleaning/logo.png`,
-    EMAIL_FROM_NAME: 'Felicia Tracy · Luxe Cleaning',
-    OWNER_EMAIL: 'felicia@lux.cleaning',
+    EMAIL_FROM_NAME: 'Felicia Tracy · lux cleaning',
+    EMAIL_FROM: resendFromAddress(apex),
+    RESEND_FROM: resendFromAddress(apex),
+    OWNER_EMAIL,
+    OWNER_FIRST_NAME,
+    OWNER_LAST_NAME,
+    OWNER_PHONE,
+    ADMIN_USERNAME: `${OWNER_FIRST_NAME} ${OWNER_LAST_NAME}`,
     PUBLIC_INSTALL_HOMEPAGE_VOICE: '1',
-    COMPANY_NAME: 'Luxe Cleaning',
+    COMPANY_NAME: 'lux cleaning',
     COMPANY_DESCRIPTION:
       'Woman-owned premium house cleaning in Central Massachusetts.',
     COMPANY_SUPPORT_PHONE: VAPI_PHONE,
@@ -384,7 +426,7 @@ function provisionAssistantIfNeeded(): string | undefined {
       env: {
         ...process.env,
         INSTALL_CONFIG: 'luxe-cleaning',
-        COMPANY_NAME: 'Luxe Cleaning',
+        COMPANY_NAME: 'lux cleaning',
         COMPANY_DESCRIPTION:
           'Woman-owned premium house cleaning in Central Massachusetts.',
         VAPI_PHONE_NUMBER: VAPI_PHONE,
@@ -528,6 +570,247 @@ async function verifyBuildLogs(deploymentId: string): Promise<boolean> {
   return false;
 }
 
+async function resendEnableReceiving(domainId: string): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) return false;
+  const res = await fetch(`https://api.resend.com/domains/${domainId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      capabilities: { sending: 'enabled', receiving: 'enabled' },
+    }),
+  });
+  return res.ok;
+}
+
+function clerkPublishableKeyForDomain(apex: string): string | undefined {
+  const host = normalizeApex(apex).toLowerCase();
+  if (!host || !/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(host)) return undefined;
+  return `pk_live_${Buffer.from(`clerk.${host}$`).toString('base64')}`;
+}
+
+async function clerkMigratePrimaryDomain(apex: string): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  publishableKey?: string;
+  error?: string;
+}> {
+  const secret = process.env.CLERK_SECRET_KEY?.trim();
+  if (!secret) return { ok: false, skipped: true, error: 'CLERK_SECRET_KEY not configured' };
+
+  const host = normalizeApex(apex).toLowerCase();
+  if (!host) return { ok: false, error: 'invalid apex' };
+
+  const proxyUrl = `https://${host}/__clerk`;
+  const headers = { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' };
+
+  const listed = await fetch('https://api.clerk.com/v1/domains', { headers });
+  if (!listed.ok) {
+    return { ok: false, error: `Clerk domains HTTP ${listed.status}` };
+  }
+  const body = (await listed.json()) as {
+    data?: Array<{ id: string; name: string; is_satellite?: boolean; proxy_url?: string }>;
+  };
+  const rows = body.data ?? [];
+  const primary = rows.find((row) => row.is_satellite === false) ?? rows[0];
+  if (!primary?.id) return { ok: false, error: 'no Clerk domain to migrate' };
+
+  const primaryName = (primary.name ?? '').replace(/^www\./, '').toLowerCase();
+  if (primaryName === host && (primary.proxy_url ?? '').replace(/\/+$/, '') === proxyUrl) {
+    return { ok: true, skipped: true, publishableKey: clerkPublishableKeyForDomain(host) };
+  }
+
+  const patched = await fetch(`https://api.clerk.com/v1/domains/${primary.id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ name: host, proxy_url: proxyUrl }),
+  });
+  if (!patched.ok) {
+    return { ok: false, error: `Clerk domain patch HTTP ${patched.status}` };
+  }
+
+  const changed = await fetch('https://api.clerk.com/v1/instance/change_domain', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ home_url: `https://${host}` }),
+  });
+  if (!changed.ok && changed.status !== 202) {
+    return { ok: false, error: `Clerk change_domain HTTP ${changed.status}` };
+  }
+
+  return { ok: true, publishableKey: clerkPublishableKeyForDomain(host) };
+}
+
+async function clerkEnsureOwnerEmail(userId: string, email: string): Promise<void> {
+  const secret = process.env.CLERK_SECRET_KEY?.trim();
+  if (!secret || !userId || !email) return;
+
+  const userRes = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  if (!userRes.ok) {
+    log(`[luxe-railway] ⚠ Clerk user fetch failed: HTTP ${userRes.status}`);
+    return;
+  }
+  const user = (await userRes.json()) as {
+    email_addresses?: Array<{ id: string; email_address: string }>;
+    primary_email_address_id?: string;
+  };
+  const needle = email.toLowerCase();
+  const existing = (user.email_addresses ?? []).find(
+    (row) => row.email_address?.toLowerCase() === needle,
+  );
+  if (existing) {
+    if (user.primary_email_address_id !== existing.id) {
+      const patch = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ primary_email_address_id: existing.id }),
+      });
+      log(
+        patch.ok
+          ? `[luxe-railway] ✓ Clerk primary email → ${email}`
+          : `[luxe-railway] ⚠ Clerk primary email patch failed: HTTP ${patch.status}`,
+      );
+    } else {
+      log(`[luxe-railway] ✓ Clerk already has ${email} as primary`);
+    }
+    return;
+  }
+
+  const add = await fetch('https://api.clerk.com/v1/email_addresses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ user_id: userId, email_address: email }),
+  });
+  if (!add.ok) {
+    log(`[luxe-railway] ⚠ Clerk add email failed: HTTP ${add.status}`);
+    return;
+  }
+  const created = (await add.json()) as { id?: string };
+  if (created.id) {
+    await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ primary_email_address_id: created.id }),
+    });
+  }
+  log(`[luxe-railway] ✓ Clerk added ${email} to owner user`);
+}
+
+async function wireInboundInstall(
+  target: DiscoveredTarget,
+  existing: Record<string, string>,
+): Promise<Record<string, string>> {
+  const apex = normalizeApex(target.apexDomain);
+  const inbound = inboundMailHost(apex);
+  const from = resendFromAddress(apex);
+  const webhookUrl = `https://${apex}/api/email/inbound`;
+  const patch: Record<string, string> = {
+    OWNER_EMAIL,
+    OWNER_FIRST_NAME,
+    OWNER_LAST_NAME,
+    OWNER_PHONE,
+    ADMIN_USERNAME: `${OWNER_FIRST_NAME} ${OWNER_LAST_NAME}`,
+    RESEND_FROM: from,
+    EMAIL_FROM: from,
+  };
+
+  if (dryRun) {
+    log('[luxe-railway] --wire-inbound (dry run):');
+    log(`  Resend domain: ${inbound}`);
+    log(`  Cloudflare DNS sync for ${inbound}`);
+    log(`  Webhook: POST ${webhookUrl}`);
+    log(`  OWNER_EMAIL=${OWNER_EMAIL}`);
+    log(`  RESEND_FROM=${from}`);
+    if (!skipClerk) log(`  Clerk primary domain → ${apex}`);
+    return patch;
+  }
+
+  const {
+    resendCreateDomain,
+    resendGetDomainByName,
+    syncResendDnsToCloudflare,
+    resendEnsureInboundWebhook,
+    isResendConfigured,
+  } = await import('../src/lib/resendDnsSync.ts');
+
+  if (!isResendConfigured()) {
+    fail(
+      'RESEND_API_KEY is not set (Railway service or local env). Required for --wire-inbound.',
+    );
+  }
+
+  log(`[luxe-railway] Resend inbound domain: ${inbound}`);
+  let domain = await resendGetDomainByName(inbound);
+  if (!domain.ok) {
+    const created = await resendCreateDomain(inbound);
+    if (!created.ok) fail(`Resend create ${inbound}: ${created.error}`);
+    log(`[luxe-railway] ✓ created Resend domain ${inbound} (${created.status})`);
+    domain = await resendGetDomainByName(inbound);
+    if (!domain.ok) fail(`Resend domain missing after create: ${inbound}`);
+  } else {
+    log(`[luxe-railway] ✓ Resend domain ${domain.detail.name} (${domain.detail.status})`);
+  }
+
+  if (domain.detail.capabilities?.receiving !== 'enabled') {
+    const ok = await resendEnableReceiving(domain.detail.id);
+    log(ok ? '[luxe-railway] ✓ enabled Resend receiving' : '[luxe-railway] ⚠ receiving enable failed');
+  }
+
+  const dns = await syncResendDnsToCloudflare(inbound);
+  if (!dns.ok) {
+    log(`[luxe-railway] ⚠ Cloudflare DNS sync: ${dns.error}`);
+  } else {
+    log(`[luxe-railway] ✓ ${dns.summary.split('\n')[0]}`);
+  }
+
+  const hook = await resendEnsureInboundWebhook(webhookUrl);
+  if (!hook.ok) fail(`Resend webhook: ${hook.error}`);
+  patch.RESEND_WEBHOOK_SECRET = hook.signingSecret;
+  log(
+    `[luxe-railway] ✓ Resend webhook ${hook.created ? 'created' : 'reused'} → ${webhookUrl}`,
+  );
+
+  if (!skipClerk && process.env.CLERK_SECRET_KEY?.trim()) {
+    const clerk = await clerkMigratePrimaryDomain(apex);
+    if (!clerk.ok && !clerk.skipped) {
+      log(`[luxe-railway] ⚠ Clerk domain: ${clerk.error}`);
+    } else if (clerk.skipped) {
+      log(`[luxe-railway] ✓ Clerk domain already ${apex}`);
+    } else {
+      log(`[luxe-railway] ✓ Clerk primary domain → ${apex}`);
+    }
+    const pk = clerk.publishableKey;
+    if (pk) {
+      patch.PUBLIC_CLERK_PUBLISHABLE_KEY = pk;
+      patch.PUBLIC_CLERK_PROXY_URL = `https://${apex}/__clerk`;
+    }
+
+    const ownerId = (existing.AGENT_ALERT_USER_ID ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .find(Boolean);
+    if (ownerId) await clerkEnsureOwnerEmail(ownerId, OWNER_EMAIL);
+  } else if (!skipClerk) {
+    log('[luxe-railway] skip Clerk — CLERK_SECRET_KEY not available');
+  }
+
+  return patch;
+}
+
 async function verifyVapiAssistant(assistantId?: string): Promise<boolean> {
   const apiKey = process.env.VAPI_API_KEY?.trim();
   if (!apiKey) {
@@ -603,14 +886,21 @@ async function main() {
   }
 
   const before = await listVariables(target);
+  seedVendorEnvFromRailway(before);
   log(`Current INSTALL_CONFIG: ${before.INSTALL_CONFIG ?? '(unset)'}`);
 
   const assistantId = provisionAssistantIfNeeded();
-  const patch = buildVariablePatch(target.apexDomain, assistantId);
+  let patch = buildVariablePatch(target.apexDomain, assistantId);
+
+  if (wireInbound) {
+    log('');
+    log('Wiring inbound email + owner identity…');
+    patch = { ...patch, ...(await wireInboundInstall(target, before)) };
+  }
 
   log('Variables to apply:');
   for (const key of Object.keys(patch).sort()) {
-    const hidden = key.includes('KEY') || key.includes('TOKEN');
+    const hidden = key.includes('KEY') || key.includes('TOKEN') || key.includes('SECRET');
     log(`  ${key}=${hidden ? '(set)' : patch[key]}`);
   }
   log('');

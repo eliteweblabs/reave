@@ -56,6 +56,23 @@ PUBLIC_VAPI_PUBLIC_KEY=… \
 npm run configure:luxe-cleaning-railway
 ```
 
+### Wire inbound email + Felicia owner identity
+
+Provisions `inbound.lux.cleaning` in Resend, MX/TXT in Cloudflare, the
+`email.received` webhook, `RESEND_FROM` / `EMAIL_FROM` / `RESEND_WEBHOOK_SECRET`,
+`OWNER_EMAIL=felicia@lux.cleaning`, and Clerk apex migration. Requires
+`RESEND_API_KEY` on the install (or in env) and `CLOUDFLARE_API_TOKEN` locally.
+
+```bash
+RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --wire-inbound
+```
+
+Skip Clerk migration if DNS/keys are already correct:
+
+```bash
+RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --wire-inbound --skip-clerk
+```
+
 Dry run:
 
 ```bash
@@ -93,6 +110,10 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | `PUBLIC_VAPI_PUBLIC_KEY` | browser SDK key |
 | `PUBLIC_VAPI_ASSISTANT_ID` | assistant UUID (optional after first build) |
 | `VAPI_CREATE_IF_MISSING` | `1` |
+| `OWNER_EMAIL` | `felicia@lux.cleaning` |
+| `RESEND_FROM` / `EMAIL_FROM` | `noreply@inbound.lux.cleaning` |
+| `RESEND_WEBHOOK_SECRET` | from Resend webhook (Apply / `--wire-inbound`) |
+| `RESEND_API_KEY` | copied from host or set on install |
 | `DATABASE_URL` | required at **build** time |
 
 Every deploy runs **prebuild** → `scripts/sync-vapi-assistant.ts`. On the first build

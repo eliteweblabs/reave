@@ -3,6 +3,8 @@
 #
 # Preferred path (Cloud Agent / no CLI): RAILWAY_API_TOKEN + GraphQL configure script
 #   RAILWAY_API_TOKEN=… VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… npm run configure:luxe-cleaning-railway
+# Inbound mail + felicia@lux.cleaning owner wiring:
+#   RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --wire-inbound
 #
 # CLI fallback (local machine with railway login):
 #   VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… bash scripts/deploy-luxe-cleaning.sh
