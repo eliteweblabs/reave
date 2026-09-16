@@ -57,6 +57,7 @@
     "heroHeadline": "Book premium home cleaning online.",
     "heroBody": "Get matched with a top-rated, owner-led cleaning team. Transparent starting prices, flexible scheduling, and finishes that feel intentional — not a franchise call center.",
     "heroLogo": "/sites/luxe-cleaning/logo.png",
+    "ogImage": "/sites/luxe-cleaning/og.png",
     "scheduleUrl": "/form/lux-schedule",
     "callCta": {
       "label": "Call Felicia",

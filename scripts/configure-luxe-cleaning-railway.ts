@@ -383,6 +383,8 @@ function buildVariablePatch(apexDomain: string, assistantId?: string): Record<st
   const apex = normalizeApex(apexDomain);
   const vars: Record<string, string> = {
     INSTALL_CONFIG: 'luxe-cleaning',
+    INSTALL_BOOTSTRAP: '1',
+    COMPANY_SITE_BRANDING: 'luxe-cleaning',
     PUBLIC_SITE_DOMAIN: apex,
     PUBLIC_SITE_URL: `https://${apex}`,
     COMPANY_DOMAIN: apex,
