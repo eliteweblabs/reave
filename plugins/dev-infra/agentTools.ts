@@ -348,6 +348,7 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
     'create_redirect_rule',
     'create_zone',
     'setup_google_workspace',
+    'disable_email_routing',
   ];
   if (!validActions.includes(actionRaw)) {
     return JSON.stringify({
@@ -367,7 +368,8 @@ async function handle_cloudflare_dns(args: Record<string, unknown>, _ctx: ToolCo
       | 'set_ssl_mode'
       | 'create_redirect_rule'
       | 'create_zone'
-      | 'setup_google_workspace',
+      | 'setup_google_workspace'
+      | 'disable_email_routing',
     domain,
     type: args.type != null ? String(args.type) : undefined,
     name: args.name != null ? String(args.name) : undefined,
@@ -618,7 +620,7 @@ export const devInfraModule: AgentToolModule = {
             function: {
               name: 'cloudflare_dns',
               description:
-                'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. When the user asks to set up Google Workspace / Gmail / Google mail for a domain, call setup_google_workspace in this same turn — do NOT ask if Workspace is purchased or for MX/SPF (those records are standard). Other actions: upsert_record (SPF, DMARC, MX, CNAME — pass proxied:true to enable orange-cloud proxy), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken), create_redirect_rule (Cloudflare Redirect Rules / Rulesets API — use to redirect www → apex or other dynamic 301/302s without touching Railway), create_zone (add a new domain to Cloudflare — returns the assigned nameservers to set at the registrar). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
+                'Manage Cloudflare DNS and SSL/TLS for any zone this token can access (client domains, company domain, etc.). ALWAYS call verify or list_records before telling the user you lack access. When the user asks to set up Google Workspace / Gmail / Google mail for a domain, call setup_google_workspace in this same turn — do NOT ask if Workspace is purchased or for MX/SPF (those records are standard). Other actions: upsert_record (SPF, DMARC, MX, CNAME — pass proxied:true to enable orange-cloud proxy), delete_record (by record_id from list_records, or type+name+content), get_ssl_mode / set_ssl_mode (off, flexible, full, strict — use flexible to fix Error 525 when origin cert is broken), create_redirect_rule (Cloudflare Redirect Rules / Rulesets API — use to redirect www → apex or other dynamic 301/302s without touching Railway), create_zone (add a new domain to Cloudflare — returns the assigned nameservers to set at the registrar), disable_email_routing (disable Cloudflare Email Routing on a zone and replace apex MX + SPF with Resend Inbound — call this before deleting locked Email Routing MX records). When the user approves a Cloudflare fix, call the tool in the same turn — never hand off to the dashboard unless the tool errors. Requires CLOUDFLARE_API_TOKEN with Zone → DNS → Read/Edit and Zone → Zone Settings → Read/Edit. NOT Resend-only — sync_resend_dns is separate.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -634,9 +636,10 @@ export const devInfraModule: AgentToolModule = {
                       'create_redirect_rule',
                       'create_zone',
                       'setup_google_workspace',
+                      'disable_email_routing',
                     ],
                     description:
-                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record (pass proxied:true for orange cloud); delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap); create_redirect_rule = add/update a dynamic redirect rule (www → apex, etc.) via the Rulesets API; create_zone = add a new domain to this Cloudflare account and return the nameservers to set at the registrar; setup_google_workspace = push the 5 standard Google MX records + SPF (and a starter DMARC if missing) in one call — use this instead of asking the user to paste records',
+                      'verify = token + zone reachable; list_records = current Cloudflare DNS (includes record ids); upsert_record = create/update one record (pass proxied:true for orange cloud); delete_record = remove one record; get_ssl_mode / set_ssl_mode = read or change SSL/TLS encryption mode (fixes Error 525 when origin cert is invalid — set flexible as stopgap); create_redirect_rule = add/update a dynamic redirect rule (www → apex, etc.) via the Rulesets API; create_zone = add a new domain to this Cloudflare account and return the nameservers to set at the registrar; setup_google_workspace = push the 5 standard Google MX records + SPF (and a starter DMARC if missing) in one call — use this instead of asking the user to paste records; disable_email_routing = disable Cloudflare Email Routing on the zone, delete locked route*.mx.cloudflare.net MX records, replace Cloudflare SPF with Resend Inbound SPF, and add inbound-smtp.us-east-1.amazonaws.com as apex MX',
                   },
                   domain: {
                     type: 'string',
