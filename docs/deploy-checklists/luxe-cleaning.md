@@ -162,6 +162,13 @@ Workspace. Do **not** add Google MX / SPF / site-verification on apex `lux.clean
 Owner identity is `felicia@lux.cleaning` (Clerk + `OWNER_EMAIL`). App inbox is
 `inbox@inbound.lux.cleaning`. Outbound sender is `noreply@inbound.lux.cleaning`.
 
+To deliver **to `felicia@lux.cleaning`** into the REΛVE inbox (no Apple Mail):
+Cloudflare **Email Routing** on apex `lux.cleaning` forwards to
+`inbox@inbound.lux.cleaning` (Resend receiving). Resend’s domain limit blocks a
+second apex domain — use `npm run wire:lux-felicia-routing` after verifying the
+Cloudflare destination (see script output). Apex MX must be Cloudflare routing
+(`route*.mx.cloudflare.net`), not Google Workspace.
+
 ## Verify
 
 - Homepage shows **Luxe Cleaning** copy and **508-955-8850**.
