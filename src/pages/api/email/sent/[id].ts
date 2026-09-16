@@ -6,6 +6,8 @@ import type { APIContext } from 'astro';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { normalizeEmailBody, normalizeSentEmailHtml, plainTextForDisplay, resolveSentEmailHtmlForDisplay } from '../../../../lib/emailBody';
 import { htmlHasCidImages } from '../../../../lib/emailComposeImages';
+import { parseSenderEmail } from '../../../../lib/emailAddress';
+import { resendSendBelongsToInstall } from '../../../../lib/installOutboundEmail';
 import {
   getOutboundEmail,
   updateOutboundEmailBodies,
@@ -23,11 +25,35 @@ export async function GET(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return jsonResponse({ ok: false, error: 'Missing id' }, 400);
 
-  const event = await getOutboundEmail(id);
-  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+  let event = await getOutboundEmail(id);
+  let bodyText = event?.bodyText ?? '';
+  let bodyHtml = event?.bodyHtml ?? '';
 
-  let bodyText = event.bodyText ?? '';
-  let bodyHtml = event.bodyHtml ?? '';
+  const resendKey = (event?.resendId || id).trim();
+  if (!event && resendKey) {
+    const fetched = await fetchResendSentEmail(resendKey);
+    if (fetched && (await resendSendBelongsToInstall(fetched.from))) {
+      const toEmail = fetched.to ? parseSenderEmail(fetched.to) : '';
+      event = {
+        id: resendKey,
+        jobSlug: '',
+        jobTitle: '',
+        contactUid: null,
+        toEmail: toEmail.includes('@') ? toEmail : '',
+        subject: fetched.subject?.trim() || '',
+        resendId: resendKey,
+        sentAt: fetched.createdAt || new Date().toISOString(),
+        sentBy: null,
+        source: 'resend_sync',
+        bodyText: null,
+        bodyHtml: null,
+      };
+      bodyText = normalizeEmailBody(fetched.text, fetched.html);
+      bodyHtml = normalizeSentEmailHtml(fetched.text, fetched.html);
+    }
+  }
+
+  if (!event) return jsonResponse({ ok: false, error: 'Not found' }, 404);
 
   if (!bodyText.trim() && !bodyHtml.trim() && event.resendId) {
     const fetched = await fetchResendSentEmail(event.resendId);

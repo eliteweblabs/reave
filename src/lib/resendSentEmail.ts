@@ -6,12 +6,25 @@ import {
   rewriteComposeHtmlForPreview,
   type EmailSendAttachment,
 } from './emailComposeImages';
+import { parseSenderEmail } from './emailAddress';
 import { serverEnv } from './serverEnv';
 
 export type ResendSentEmailContent = {
   html?: string;
   text?: string;
   subject?: string;
+  from?: string;
+  to?: string;
+  createdAt?: string;
+};
+
+export type ResendSentListItem = {
+  id: string;
+  toEmail: string;
+  subject: string;
+  from?: string;
+  sentAt: string;
+  status?: string;
 };
 
 type ResendAttachmentMeta = {
@@ -31,6 +44,69 @@ function resendAuthHeaders(): HeadersInit | null {
   return { Authorization: `Bearer ${key}` };
 }
 
+function normalizeResendListTo(raw: unknown): string {
+  if (typeof raw === 'string') return parseSenderEmail(raw);
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (typeof item === 'string' && item.includes('@')) return parseSenderEmail(item);
+      if (item && typeof item === 'object' && 'email' in item) {
+        const e = String((item as { email: unknown }).email || '').trim();
+        if (e.includes('@')) return parseSenderEmail(e);
+      }
+    }
+  }
+  return '';
+}
+
+function parseResendListItem(rec: Record<string, unknown>): ResendSentListItem | null {
+  const id = String(rec.id || '').trim();
+  if (!id) return null;
+  const toEmail = normalizeResendListTo(rec.to);
+  if (!toEmail.includes('@')) return null;
+  const subject = typeof rec.subject === 'string' ? rec.subject : '';
+  const sentAt =
+    typeof rec.created_at === 'string'
+      ? rec.created_at
+      : typeof rec.createdAt === 'string'
+        ? rec.createdAt
+        : new Date().toISOString();
+  const from = typeof rec.from === 'string' ? rec.from : undefined;
+  const status =
+    typeof rec.last_event === 'string'
+      ? rec.last_event
+      : typeof rec.status === 'string'
+        ? rec.status
+        : undefined;
+  return { id, toEmail, subject, from, sentAt, status };
+}
+
+/** Recent transactional sends from the Resend account (shared key — filter per install). */
+export async function listResendSentEmails(limit: number): Promise<ResendSentListItem[]> {
+  const headers = resendAuthHeaders();
+  if (!headers) return [];
+  const capped = Math.min(Math.max(limit, 1), 100);
+  try {
+    const res = await fetch(`https://api.resend.com/emails?limit=${capped}`, { headers });
+    if (!res.ok) return [];
+    const json: unknown = await res.json();
+    const list =
+      json && typeof json === 'object' && Array.isArray((json as { data?: unknown }).data)
+        ? ((json as { data: unknown[] }).data as Record<string, unknown>[])
+        : Array.isArray(json)
+          ? (json as Record<string, unknown>[])
+          : [];
+    const out: ResendSentListItem[] = [];
+    for (const row of list) {
+      if (!row || typeof row !== 'object') continue;
+      const item = parseResendListItem(row);
+      if (item) out.push(item);
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchResendSentEmail(resendId: string): Promise<ResendSentEmailContent | null> {
   const headers = resendAuthHeaders();
   const id = resendId.trim();
@@ -42,10 +118,25 @@ export async function fetchResendSentEmail(resendId: string): Promise<ResendSent
     const json: unknown = await res.json();
     if (!json || typeof json !== 'object') return null;
     const rec = json as Record<string, unknown>;
+    const toRaw = rec.to;
+    let to: string | undefined;
+    if (typeof toRaw === 'string') to = toRaw;
+    else if (Array.isArray(toRaw) && toRaw.length) {
+      to = typeof toRaw[0] === 'string' ? toRaw[0] : String(toRaw[0]);
+    }
+    const created =
+      typeof rec.created_at === 'string'
+        ? rec.created_at
+        : typeof rec.createdAt === 'string'
+          ? rec.createdAt
+          : undefined;
     return {
       html: typeof rec.html === 'string' ? rec.html : undefined,
       text: typeof rec.text === 'string' ? rec.text : undefined,
       subject: typeof rec.subject === 'string' ? rec.subject : undefined,
+      from: typeof rec.from === 'string' ? rec.from : undefined,
+      to,
+      createdAt: created,
     };
   } catch {
     return null;

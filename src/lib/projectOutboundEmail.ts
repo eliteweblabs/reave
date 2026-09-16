@@ -10,6 +10,8 @@ import pg from 'pg';
 import { getPgPool } from './pgPool';
 import { parseSenderEmail } from './emailAddress';
 import { normalizeEmailBody, normalizeSentEmailHtml } from './emailBody';
+import { resendSendBelongsToInstall } from './installOutboundEmail';
+import { listResendSentEmails } from './resendSentEmail';
 import { serverEnv } from './serverEnv';
 
 export type ProjectOutboundEmailRecord = {
@@ -266,6 +268,7 @@ export async function findRecentProjectOutbound(opts: {
 
 export async function listOutboundEmails(limit = 200): Promise<OutboundEmailListRecord[]> {
   const capped = Math.min(Math.max(limit, 1), 500);
+  let dbRows: OutboundEmailListRecord[] | null = null;
 
   try {
     const pool = await ensureSchema();
@@ -288,15 +291,84 @@ export async function listOutboundEmails(limit = 200): Promise<OutboundEmailList
          LIMIT $1`,
         [capped],
       );
-      return rows.map(rowToRecord);
+      dbRows = rows.map(rowToRecord);
     }
   } catch (e) {
     console.warn('[project-outbound-email] pg list failed', e);
   }
 
-  return readFileRows()
+  const stored =
+    dbRows !== null
+      ? dbRows
+      : readFileRows()
+          .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+          .slice(0, capped);
+
+  if (!serverEnv('RESEND_API_KEY')?.trim()) {
+    return stored.slice(0, capped);
+  }
+
+  const knownResend = new Set(
+    stored.map((r) => r.resendId?.trim()).filter((id): id is string => Boolean(id)),
+  );
+  const remote = await listResendSentEmails(Math.min(capped, 100));
+  const extras: OutboundEmailListRecord[] = [];
+  for (const item of remote) {
+    if (knownResend.has(item.id)) continue;
+    if (!(await resendSendBelongsToInstall(item.from))) continue;
+    extras.push({
+      id: item.id,
+      jobSlug: '',
+      jobTitle: '',
+      contactUid: null,
+      toEmail: item.toEmail,
+      subject: item.subject,
+      resendId: item.id,
+      sentAt: item.sentAt,
+      sentBy: null,
+      source: 'resend_sync',
+    });
+  }
+
+  return [...stored, ...extras]
     .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
     .slice(0, capped);
+}
+
+export async function getOutboundEmailByResendId(resendId: string): Promise<ProjectOutboundEmailRecord | null> {
+  const key = resendId.trim();
+  if (!key) return null;
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rows } = await pool.query<{
+        id: string;
+        job_slug: string;
+        job_title: string;
+        contact_uid: string | null;
+        to_email: string;
+        subject: string;
+        resend_id: string | null;
+        sent_at: Date;
+        sent_by: string | null;
+        source: string;
+        body_text: string | null;
+        body_html: string | null;
+      }>(
+        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, body_text, body_html
+         FROM project_outbound_emails
+         WHERE resend_id = $1
+         LIMIT 1`,
+        [key],
+      );
+      return rows[0] ? rowToRecord(rows[0]) : null;
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] pg get by resend id failed', e);
+  }
+
+  return readFileRows().find((r) => r.resendId === key) ?? null;
 }
 
 export async function getOutboundEmail(id: string): Promise<ProjectOutboundEmailRecord | null> {
@@ -326,13 +398,16 @@ export async function getOutboundEmail(id: string): Promise<ProjectOutboundEmail
          LIMIT 1`,
         [key],
       );
-      return rows[0] ? rowToRecord(rows[0]) : null;
+      if (rows[0]) return rowToRecord(rows[0]);
     }
   } catch (e) {
     console.warn('[project-outbound-email] pg get failed', e);
   }
 
-  return readFileRows().find((r) => r.id === key) ?? null;
+  const fileHit = readFileRows().find((r) => r.id === key);
+  if (fileHit) return fileHit;
+
+  return getOutboundEmailByResendId(key);
 }
 
 export async function updateOutboundEmailBodies(

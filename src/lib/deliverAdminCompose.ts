@@ -30,7 +30,7 @@ export async function deliverAdminComposeMail(
   if (!result.ok) return { ok: false, error: result.error };
 
   for (const toEmail of mail.to) {
-    void logOutboundEmailForProject({
+    await logOutboundEmailForProject({
       toEmail,
       subject: mail.subject,
       resendId: result.id,

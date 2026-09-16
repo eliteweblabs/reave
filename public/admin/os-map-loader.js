@@ -13127,6 +13127,7 @@ function formatSentSourceLabel(source) {
     share_sheet: 'Share',
     agent: 'Agent',
     client_portal: 'Portal',
+    resend_sync: 'Resend',
     unknown: 'Sent',
   };
   return labels[key] || key.replace(/_/g, ' ') || 'Sent';
