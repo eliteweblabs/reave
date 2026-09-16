@@ -41,7 +41,8 @@ export type CloudflareDnsAction =
   | 'set_ssl_mode'
   | 'create_redirect_rule'
   | 'create_zone'
-  | 'setup_google_workspace';
+  | 'setup_google_workspace'
+  | 'disable_email_routing';
 
 export type WorkspaceDnsRow = {
   kind: 'mx' | 'spf' | 'dmarc' | 'verification' | 'email_routing';
@@ -86,93 +87,95 @@ function zoneFqdn(zone: string, recordName: string): string {
   return fqdnRecordName(cloudflareZoneName(zone), rel);
 }
 
-export function isCloudflareDnsManageConfigured(): boolean {
-  return isCloudflareConfigured();
-}
+// ── Resend Inbound MX ────────────────────────────────────────────────────────
+const RESEND_INBOUND_MX = 'inbound-smtp.us-east-1.amazonaws.com';
+const RESEND_INBOUND_SPF = 'v=spf1 include:amazonses.com ~all';
 
-/** Call the Cloudflare Rulesets API to upsert a dynamic redirect rule. */
 async function cloudflareUpsertRedirectRule(
   zoneId: string,
-  token: string,
+  apiToken: string,
   opts: {
-    hostname: string;   // e.g. www.thebarbersedge.com
-    redirect_expression: string; // e.g. concat("https://thebarbersedge.com", http.request.uri.path)
-    status_code?: 301 | 302;
-    preserve_query_string?: boolean;
+    hostname: string;
+    redirect_expression: string;
+    status_code: 301 | 302;
+    preserve_query_string: boolean;
     description?: string;
   },
-): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
-  const phase = 'http_request_dynamic_redirect';
+) {
   const baseUrl = 'https://api.cloudflare.com/client/v4';
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-  };
-
-  // 1. Get or create the phase ruleset entry point
-  const getRuleset = await fetch(`${baseUrl}/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`, { headers });
-  let rulesetId: string | null = null;
-  let existingRules: unknown[] = [];
-
-  if (getRuleset.ok) {
-    const body = (await getRuleset.json()) as { result?: { id?: string; rules?: unknown[] } };
-    rulesetId = body.result?.id ?? null;
-    existingRules = body.result?.rules ?? [];
+  // List existing rulesets
+  const listRes = await fetch(`${baseUrl}/zones/${zoneId}/rulesets`, {
+    headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+  });
+  if (!listRes.ok) {
+    const err = await listRes.text();
+    return { ok: false as const, error: `Failed to list rulesets: ${err}` };
   }
+  const listData = (await listRes.json()) as { result: Array<{ id: string; phase: string }> };
+  const existing = listData.result?.find((r) => r.phase === 'http_request_dynamic_redirect');
 
-  const matchExpression = `http.host eq "${opts.hostname}"`;
-  const description = opts.description ?? `Redirect ${opts.hostname} → apex`;
-
-  const newRule = {
+  const rule = {
     action: 'redirect',
-    expression: matchExpression,
-    description,
-    enabled: true,
     action_parameters: {
       from_value: {
-        status_code: opts.status_code ?? 301,
-        target_url: {
-          expression: opts.redirect_expression,
-        },
-        preserve_query_string: opts.preserve_query_string ?? true,
+        status_code: opts.status_code,
+        target_url: { expression: opts.redirect_expression },
+        preserve_query_string: opts.preserve_query_string,
       },
     },
+    expression: `http.host eq "${opts.hostname}"`,
+    description: opts.description ?? `Redirect ${opts.hostname}`,
+    enabled: true,
   };
 
-  // Remove any existing rule matching the same hostname expression to avoid duplicates
-  const filteredRules = (existingRules as Array<{ expression?: string }>).filter(
-    (r) => r.expression !== matchExpression,
-  );
-  const rules = [...filteredRules, newRule];
+  if (existing) {
+    // GET the existing ruleset to preserve other rules
+    const getRes = await fetch(`${baseUrl}/zones/${zoneId}/rulesets/${existing.id}`, {
+      headers: { Authorization: `Bearer ${apiToken}` },
+    });
+    if (!getRes.ok) {
+      const err = await getRes.text();
+      return { ok: false as const, error: `Failed to read existing ruleset: ${err}` };
+    }
+    const getData = (await getRes.json()) as { result: { rules: unknown[] } };
+    const existingRules: unknown[] = getData.result?.rules ?? [];
+    // Replace any rule that matches same hostname expression, or append
+    const idx = existingRules.findIndex(
+      (r) => (r as { expression?: string }).expression === rule.expression,
+    );
+    if (idx >= 0) existingRules[idx] = rule;
+    else existingRules.push(rule);
 
-  let res: Response;
-  if (rulesetId) {
-    // PUT to replace the ruleset rules
-    res = await fetch(`${baseUrl}/zones/${zoneId}/rulesets/${rulesetId}`, {
+    const putRes = await fetch(`${baseUrl}/zones/${zoneId}/rulesets/${existing.id}`, {
       method: 'PUT',
-      headers,
-      body: JSON.stringify({ rules }),
+      headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rules: existingRules }),
     });
-  } else {
-    // POST to create the phase entrypoint
-    res = await fetch(`${baseUrl}/zones/${zoneId}/rulesets`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ kind: 'zone', phase, name: 'default', rules }),
-    });
+    if (!putRes.ok) {
+      const err = await putRes.text();
+      return { ok: false as const, error: `Failed to update ruleset: ${err}` };
+    }
+    const putData = await putRes.json();
+    return { ok: true as const, data: putData };
   }
 
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const j = (await res.json()) as { errors?: Array<{ message: string }> };
-      if (j.errors?.length) msg = j.errors.map((e) => e.message).join('; ');
-    } catch {}
-    return { ok: false, error: `Cloudflare Rulesets API: ${msg}` };
+  // Create new ruleset
+  const createRes = await fetch(`${baseUrl}/zones/${zoneId}/rulesets`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'Dynamic Redirects',
+      kind: 'zone',
+      phase: 'http_request_dynamic_redirect',
+      rules: [rule],
+    }),
+  });
+  if (!createRes.ok) {
+    const err = await createRes.text();
+    return { ok: false as const, error: `Failed to create redirect ruleset: ${err}` };
   }
-
-  const result = await res.json();
-  return { ok: true, data: result };
+  const createData = await createRes.json();
+  return { ok: true as const, data: createData };
 }
 
 export async function cloudflareDnsManage(input: {
@@ -369,6 +372,88 @@ export async function cloudflareDnsManage(input: {
     });
   }
 
+  // ── disable_email_routing — disable Cloudflare Email Routing via API ──────
+  if (input.action === 'disable_email_routing') {
+    const routing = await cloudflareDisableEmailRouting(zone.data.id);
+    if (!routing.ok) {
+      return {
+        ok: false,
+        error: routing.error,
+        hint: 'Token may need Zone → Email Routing → Edit permission.',
+      };
+    }
+    // After disabling, delete any remaining Cloudflare Email Routing MX records
+    const listed = await cloudflareListDnsRecords(zone.data.id, { type: 'MX' });
+    const deletedMx: string[] = [];
+    if (listed.ok) {
+      for (const mx of listed.data) {
+        if (/\.mx\.cloudflare\.net$/i.test(mx.content)) {
+          const del = await cloudflareDeleteDnsRecord(zone.data.id, mx.id);
+          if (del.ok) deletedMx.push(mx.content);
+        }
+      }
+    }
+    // Also remove the Cloudflare Email Routing SPF if present
+    const txtRecords = await cloudflareListDnsRecords(zone.data.id, { type: 'TXT' });
+    let spfReplaced = false;
+    if (txtRecords.ok) {
+      const apex = zone.data.name;
+      const cfSpf = txtRecords.data.find(
+        (r) =>
+          r.name.toLowerCase() === apex &&
+          r.content.includes('_spf.mx.cloudflare.net'),
+      );
+      if (cfSpf) {
+        // Replace with Resend Inbound SPF
+        await cloudflareDeleteDnsRecord(zone.data.id, cfSpf.id);
+        await cloudflareUpsertDnsRecord(zone.data.id, {
+          type: 'TXT',
+          name: apex,
+          content: RESEND_INBOUND_SPF,
+          ttl: 1,
+          proxied: false,
+        });
+        spfReplaced = true;
+      }
+    }
+    // Upsert Resend Inbound MX at apex
+    const apex = zone.data.name;
+    const mxUpsert = await cloudflareUpsertDnsRecord(zone.data.id, {
+      type: 'MX',
+      name: apex,
+      content: RESEND_INBOUND_MX,
+      priority: 10,
+      ttl: 1,
+      proxied: false,
+    });
+
+    const summary = [
+      routing.data.disabled
+        ? `✅ Cloudflare Email Routing disabled on ${zone.data.name}.`
+        : `ℹ️ Cloudflare Email Routing was already off on ${zone.data.name}.`,
+      deletedMx.length
+        ? `Deleted ${deletedMx.length} Cloudflare Email Routing MX record(s): ${deletedMx.join(', ')}.`
+        : '',
+      spfReplaced
+        ? `Replaced Cloudflare Email Routing SPF with Resend Inbound SPF (${RESEND_INBOUND_SPF}).`
+        : '',
+      mxUpsert.ok
+        ? `✅ Apex MX set to ${RESEND_INBOUND_MX} (priority 10) for Resend Inbound.`
+        : `⚠️ Could not set Resend Inbound MX: ${mxUpsert.ok === false ? (mxUpsert as { error: string }).error : 'unknown'}.`,
+      `Next: add lux.cleaning as an inbound domain in Resend dashboard and configure the inbound webhook to https://${zone.data.name}/api/email/inbound.`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    return {
+      ok: true,
+      action: 'disable_email_routing',
+      domain,
+      zone: zone.data,
+      summary,
+    };
+  }
+
   if (input.action === 'delete_record') {
     const recordId = String(input.record_id ?? '').trim();
     if (recordId) {
@@ -513,176 +598,5 @@ export async function cloudflareZoneSettingManage(input: {
     setting: input.setting,
     value: res.data.value,
     summary: `SET zone ${zone.data.name} → ${input.setting} = ${JSON.stringify(res.data.value)}`,
-  };
-}
-
-async function setupGoogleWorkspaceDns(
-  zone: { id: string; name: string },
-  domain: string,
-  opts: { verificationTxt?: string; replaceExistingMx: boolean },
-): Promise<CloudflareDnsActionResult> {
-  const rows: WorkspaceDnsRow[] = [];
-  const apex = zone.name;
-
-  const routing = await cloudflareDisableEmailRouting(zone.id);
-  if (!routing.ok) {
-    rows.push({
-      kind: 'email_routing',
-      action: 'skipped',
-      detail: `Could not check Email Routing (${routing.error}) — continuing with MX.`,
-    });
-  } else {
-    rows.push({
-      kind: 'email_routing',
-      action: routing.data.disabled ? 'disabled' : 'unchanged',
-      detail: routing.data.detail,
-    });
-  }
-
-  const listed = await cloudflareListDnsRecords(zone.id);
-  if (!listed.ok) return { ok: false, error: listed.error };
-  let records = listed.data;
-
-  const existingMx = records.filter(
-    (r) => r.type.toUpperCase() === 'MX' && r.name.toLowerCase() === apex,
-  );
-  if (opts.replaceExistingMx) {
-    for (const mx of existingMx) {
-      if (isGoogleWorkspaceMx(mx.content)) continue;
-      const del = await cloudflareDeleteDnsRecord(zone.id, mx.id);
-      if (!del.ok) {
-        rows.push({
-          kind: 'mx',
-          action: 'error',
-          detail: `Could not remove ${mx.content} (${del.error})`,
-        });
-        continue;
-      }
-      records = records.filter((r) => r.id !== mx.id);
-      rows.push({
-        kind: 'mx',
-        action: 'deleted',
-        detail: `Removed non-Google MX ${mx.content} (pri ${mx.priority ?? '?'})`,
-      });
-    }
-  }
-
-  const haveMx = new Set(
-    records
-      .filter((r) => r.type.toUpperCase() === 'MX' && r.name.toLowerCase() === apex)
-      .map((r) => googleMxKey(r.priority ?? 0, r.content)),
-  );
-  for (const mx of GOOGLE_WORKSPACE_MX) {
-    if (haveMx.has(googleMxKey(mx.priority, mx.content))) {
-      rows.push({
-        kind: 'mx',
-        action: 'unchanged',
-        detail: `${mx.priority} ${mx.content}`,
-      });
-      continue;
-    }
-    const upsert = await cloudflareUpsertDnsRecord(
-      zone.id,
-      { type: 'MX', name: apex, content: mx.content, priority: mx.priority, ttl: 1, proxied: false },
-      records,
-    );
-    if (!upsert.ok) {
-      rows.push({ kind: 'mx', action: 'error', detail: `${mx.priority} ${mx.content}: ${upsert.error}` });
-      continue;
-    }
-    records = [
-      ...records.filter((r) => r.id !== upsert.data.record.id),
-      upsert.data.record,
-    ];
-    haveMx.add(googleMxKey(mx.priority, mx.content));
-    rows.push({
-      kind: 'mx',
-      action: upsert.data.action,
-      detail: `${mx.priority} ${mx.content}`,
-    });
-  }
-
-  const apexTxt = records.filter(
-    (r) => r.type.toUpperCase() === 'TXT' && r.name.toLowerCase() === apex,
-  );
-  const existingSpf = apexTxt.find((r) => txtRecordKind(r.content) === 'spf');
-  const nextSpf = mergeGoogleSpf(existingSpf?.content ?? null);
-  const spfUpsert = await cloudflareUpsertDnsRecord(
-    zone.id,
-    { type: 'TXT', name: apex, content: nextSpf, ttl: 1, proxied: false },
-    apexTxt,
-  );
-  if (!spfUpsert.ok) {
-    rows.push({ kind: 'spf', action: 'error', detail: spfUpsert.error });
-  } else {
-    rows.push({
-      kind: 'spf',
-      action: spfUpsert.data.action,
-      detail: nextSpf,
-    });
-  }
-
-  const dmarcName = `_dmarc.${apex}`;
-  const existingDmarc = records.filter(
-    (r) => r.type.toUpperCase() === 'TXT' && r.name.toLowerCase() === dmarcName,
-  );
-  if (existingDmarc.some((r) => txtRecordKind(r.content) === 'dmarc')) {
-    rows.push({
-      kind: 'dmarc',
-      action: 'unchanged',
-      detail: existingDmarc.find((r) => txtRecordKind(r.content) === 'dmarc')?.content ?? '',
-    });
-  } else {
-    const dmarcUpsert = await cloudflareUpsertDnsRecord(
-      zone.id,
-      { type: 'TXT', name: dmarcName, content: GOOGLE_WORKSPACE_DMARC, ttl: 1, proxied: false },
-      existingDmarc,
-    );
-    if (!dmarcUpsert.ok) {
-      rows.push({ kind: 'dmarc', action: 'error', detail: dmarcUpsert.error });
-    } else {
-      rows.push({
-        kind: 'dmarc',
-        action: dmarcUpsert.data.action,
-        detail: GOOGLE_WORKSPACE_DMARC,
-      });
-    }
-  }
-
-  const verification = normalizeVerificationTxt(opts.verificationTxt ?? '');
-  if (verification) {
-    const verifyUpsert = await cloudflareUpsertDnsRecord(
-      zone.id,
-      { type: 'TXT', name: apex, content: verification, ttl: 3600, proxied: false },
-      records.filter((r) => r.type.toUpperCase() === 'TXT' && r.name.toLowerCase() === apex),
-    );
-    if (!verifyUpsert.ok) {
-      rows.push({ kind: 'verification', action: 'error', detail: verifyUpsert.error });
-    } else {
-      rows.push({
-        kind: 'verification',
-        action: verifyUpsert.data.action,
-        detail: verification,
-      });
-    }
-  }
-
-  const failed = rows.filter((r) => r.action === 'error');
-  if (failed.length && failed.length === rows.length) {
-    return { ok: false, error: failed.map((r) => r.detail).join('; ') };
-  }
-
-  const lines = rows.map((r) => `  • ${r.kind} ${r.action}: ${r.detail}`);
-  const next =
-    'DKIM is account-specific — if gmail_dkim is available, call generate_key → publish_to_cloudflare → enable_dkim next. Do not ask the user to paste MX or SPF.';
-  return {
-    ok: true,
-    action: 'setup_google_workspace',
-    domain,
-    zone,
-    workspace: rows,
-    summary:
-      `Google Workspace mail DNS on ${apex}:\n${lines.join('\n')}\n\n${next}` +
-      (failed.length ? `\n${failed.length} step(s) failed — see rows above.` : ''),
   };
 }
