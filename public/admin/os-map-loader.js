@@ -13629,6 +13629,17 @@ function emailCategoryClass(cat) {
   return known.has(key) ? `em-cat-${key === 'auth_link' ? 'otp' : key}` : 'em-cat-review';
 }
 
+/** List row tint class — category label moves from header chip to row background + stroke. */
+function emailListRowNoticeClass(ev) {
+  if (isProjectReplyEmail(ev)) return '';
+  if (isVerificationCodeEmail(ev) || isAuthLinkEmailRecord(ev)) return 'em-cat-otp';
+  return emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category);
+}
+
+function emailListMetaTrail(dateHtml) {
+  return `<span class="em-item-meta-trail">${dateHtml}</span>`;
+}
+
 function formatEmailCategoryLabel(ev) {
   if (isVerificationCodeEmail(ev)) return 'Verification code';
   if (String(ev.category || '').toLowerCase() === 'auth_link' || ev.actionUrl) {
@@ -16344,8 +16355,10 @@ function createEmailListItem(ev) {
   const threadCount = Number(ev._threadCount) || 0;
   const item = document.createElement('button');
   item.type = 'button';
+  const rowNotice = emailListRowNoticeClass(ev);
   item.className =
     'em-list-item' +
+    (rowNotice ? ` ${rowNotice}` : '') +
     (ev.id === emailState.activeId ||
     (Array.isArray(ev._threadMembers) && ev._threadMembers.some((m) => m.id === emailState.activeId))
       ? ' active'
@@ -16353,17 +16366,20 @@ function createEmailListItem(ev) {
     (threadCount > 1 ? ' em-list-item--thread' : '') +
     (isProjectReplyEmail(ev) ? ' em-list-item-urgent' : '');
   item.dataset.id = ev.id;
+  const categoryLabel = formatEmailCategoryLabel(ev);
+  item.setAttribute(
+    'aria-label',
+    [formatEmailCardFrom(ev), categoryLabel, summary].filter(Boolean).join(' — '),
+  );
   item.innerHTML =
     emailListAuthorIconHtml(ev) +
     `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
+      `<span class="em-item-from em-sender-chip">${escHtml(formatEmailCardFrom(ev))}</span>` +
       (threadCount > 1
         ? `<span class="em-status em-thread-count" title="${threadCount} messages in this thread">${threadCount}</span>`
         : '') +
-      (isProjectReplyEmail(ev)
-        ? '<span class="em-status em-project-reply">Contact reply</span>'
-        : `<span class="em-status ${isVerificationCodeEmail(ev) || isAuthLinkEmailRecord(ev) ? 'em-cat-otp' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
       emailForwardedChipHtml(ev) +
       (!isAutoDeletedEmail(ev) && emailMonetaryAmount(ev) && ev.category !== 'receipt'
         ? `<span class="em-status em-money-hint">${escHtml(formatEmailUsd(emailMonetaryAmount(ev)))}</span>`
@@ -16383,8 +16399,7 @@ function createEmailListItem(ev) {
             ev.attachments.map((a) => a.filename || 'file').join(', '),
           )}">${ev.attachments.length} file${ev.attachments.length === 1 ? '' : 's'}</span>`
         : '') +
-      `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
-      `<span class="em-item-from">${escHtml(formatEmailCardFrom(ev))}</span>` +
+      emailListMetaTrail(`<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>`) +
     `</span>` +
     `<span class="em-item-summary">${escHtml(summary)}</span>` +
     `</span>`;
@@ -17045,18 +17060,19 @@ async function refreshEmailInbox() {
 function createSentListItem(ev) {
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
+  item.className =
+    'em-list-item em-list-item--sent em-row-notice-sent' + (ev.id === emailState.activeId ? ' active' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
     emailListAuthorIconHtml(ev) +
     `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
-      `<span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(ev.source))}</span>` +
-      `<span class="em-item-date">${escHtml(formatChatDate(ev.sentAt))}</span>` +
-      `<span class="em-item-from">${escHtml(ev.toEmail || '(unknown)')}</span>` +
+      `<span class="em-item-from em-sender-chip">${escHtml(ev.toEmail || '(unknown)')}</span>` +
+      emailListMetaTrail(`<span class="em-item-date">${escHtml(formatChatDate(ev.sentAt))}</span>`) +
     `</span>` +
     `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>` +
     `</span>`;
+  item.setAttribute('aria-label', `${ev.toEmail || 'unknown'} — Sent — ${ev.subject || '(no subject)'}`);
   item.addEventListener('click', () => openSentEvent(ev.id));
   return item;
 }
@@ -17131,15 +17147,17 @@ function draftRecipientSummary(ev) {
 function createDraftListItem(ev) {
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
+  item.className =
+    'em-list-item em-list-item--sent em-row-notice-draft' + (ev.id === emailState.activeId ? ' active' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
     emailListAuthorIconHtml(ev) +
     `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
-      `<span class="em-status em-status-sent">Draft</span>` +
-      `<span class="em-item-date">${escHtml(formatChatDate(ev.updatedAt || ev.createdAt))}</span>` +
-      `<span class="em-item-from">${escHtml(draftRecipientSummary(ev))}</span>` +
+      `<span class="em-item-from em-sender-chip">${escHtml(draftRecipientSummary(ev))}</span>` +
+      emailListMetaTrail(
+        `<span class="em-item-date">${escHtml(formatChatDate(ev.updatedAt || ev.createdAt))}</span>`,
+      ) +
     `</span>` +
     `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}${
       normalizeEmailComposeImages(ev.images).length
@@ -17171,17 +17189,20 @@ function createDraftSwipeRow(ev) {
 function createScheduledListItem(ev) {
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
+  const failed = ev.status === 'failed';
+  item.className =
+    'em-list-item em-list-item--sent ' +
+    (failed ? 'em-row-notice-failed' : 'em-row-notice-scheduled') +
+    (ev.id === emailState.activeId ? ' active' : '');
   item.dataset.id = ev.id;
-  const statusLabel = ev.status === 'failed' ? 'Failed' : 'Scheduled';
-  const statusClass = ev.status === 'failed' ? 'em-status-rejected' : 'em-status-scheduled';
   item.innerHTML =
     emailListAuthorIconHtml(ev) +
     `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
-      `<span class="em-status ${statusClass}">${escHtml(statusLabel)}</span>` +
-      `<span class="em-item-date">${escHtml(formatScheduledSendLabel(ev.scheduledAt))}</span>` +
-      `<span class="em-item-from">${escHtml(draftRecipientSummary(ev))}</span>` +
+      `<span class="em-item-from em-sender-chip">${escHtml(draftRecipientSummary(ev))}</span>` +
+      emailListMetaTrail(
+        `<span class="em-item-date">${escHtml(formatScheduledSendLabel(ev.scheduledAt))}</span>`,
+      ) +
     `</span>` +
     `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}${
       ev.error ? ` · ${escHtml(ev.error)}` : ''
