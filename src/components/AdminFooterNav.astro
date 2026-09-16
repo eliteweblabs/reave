@@ -1,5 +1,12 @@
 ---
-import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from "lucide-astro";
+import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users, Timer } from "lucide-astro";
+
+interface Props {
+  /** Deployment owner only — performance trace log in the footer pill. */
+  showTraceLog?: boolean;
+}
+
+const { showTraceLog = false } = Astro.props;
 ---
 
 <nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
@@ -71,6 +78,20 @@ import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Us
     >
       <Users size={20} strokeWidth={1.75} />
     </button>
+    {showTraceLog && (
+      <button
+        type="button"
+        id="footer-nav-trace"
+        class="footer-nav-btn footer-nav-btn--trace"
+        data-nav="trace"
+        aria-label="Performance trace"
+        title="Performance trace — hover for details"
+        aria-expanded="false"
+      >
+        <!-- IOS_ICONS.stopwatch — keep in sync with public/admin/admin-ui.js -->
+        <Timer size={20} strokeWidth={1.75} />
+      </button>
+    )}
   </div>
   </div>
 </nav>
@@ -395,9 +416,52 @@ import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Us
   .footer-nav-schedule-icon svg,
   .footer-nav-work-icon svg,
   .footer-nav-todo-icon svg,
-  .footer-nav-clients-icon svg {
+  .footer-nav-clients-icon svg,
+  .footer-nav-btn--trace svg {
     display: block;
     pointer-events: none;
+  }
+
+  .footer-nav-btn--trace {
+    color: var(--nav-icon);
+  }
+
+  #reave-trace-panel {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 0.45rem);
+    transform: translateX(-50%) translateY(4px);
+    z-index: 9999;
+    max-width: min(24rem, calc(100vw - 1.3rem));
+    max-height: 45vh;
+    overflow: auto;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.96);
+    color: #e2e8f0;
+    font: 500 0.68rem/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  #reave-trace-panel.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+
+  #reave-trace-panel [data-trace-title] {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: #93c5fd;
   }
 
   .footer-nav-btn.footer-nav-btn--create .footer-nav-badge,
