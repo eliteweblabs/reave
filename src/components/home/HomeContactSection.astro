@@ -23,20 +23,15 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
       <h2 id="contact-title">Contact</h2>
     </header>
 
-    <div class="contact-channels" role="group" aria-label="Contact options">
-      <BrandBtn
-        type="button"
-        variant="filled"
-        class="contact-channel-btn"
-        data-contact-chat
-      >
-        <MessageSquare size={26} strokeWidth={1.75} aria-hidden="true" />
-        <span class="contact-channel-label">Chat</span>
-      </BrandBtn>
-
+    <div class="contact-channels" role="group" aria-label="Contact options" data-contact-channels>
       {
         smsHref ? (
-          <BrandBtn href={smsHref} variant="glass" class="contact-channel-btn">
+          <BrandBtn
+            href={smsHref}
+            variant="glass"
+            class="contact-channel-btn"
+            data-contact-channel="sms"
+          >
             <MessageCircle size={26} strokeWidth={1.75} aria-hidden="true" />
             <span class="contact-channel-label">SMS</span>
           </BrandBtn>
@@ -45,6 +40,7 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
             type="button"
             variant="glass"
             class="contact-channel-btn contact-channel-btn--disabled"
+            data-contact-channel="sms"
             disabled
             aria-disabled="true"
             title="SMS is not set up yet"
@@ -55,9 +51,26 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
         )
       }
 
+      <BrandBtn
+        type="button"
+        variant="filled"
+        class="contact-channel-btn contact-channel-btn--center"
+        data-contact-channel="chat"
+        data-contact-chat
+        aria-expanded="false"
+      >
+        <MessageSquare size={26} strokeWidth={1.75} aria-hidden="true" />
+        <span class="contact-channel-label">Chat</span>
+      </BrandBtn>
+
       {
         phoneHref ? (
-          <BrandBtn href={phoneHref} variant="glass" class="contact-channel-btn">
+          <BrandBtn
+            href={phoneHref}
+            variant="glass"
+            class="contact-channel-btn"
+            data-contact-channel="call"
+          >
             <Phone size={26} strokeWidth={1.75} aria-hidden="true" />
             <span class="contact-channel-label">Call</span>
           </BrandBtn>
@@ -66,6 +79,7 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
             type="button"
             variant="glass"
             class="contact-channel-btn contact-channel-btn--disabled"
+            data-contact-channel="call"
             disabled
             aria-disabled="true"
             title="Phone number is not set up yet"
@@ -90,8 +104,25 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
 
 <script is:inline>
   (function () {
-    const chatBtn = document.querySelector("[data-contact-chat]");
-    const panel = document.getElementById("contact-chat-panel");
+    var channels = document.querySelector("[data-contact-channels]");
+    if (channels) {
+      if (typeof IntersectionObserver === "undefined") {
+        channels.classList.add("contact-channels--revealed");
+      } else {
+        var revealObs = new IntersectionObserver(
+          function (entries) {
+            if (!entries.some(function (e) { return e.isIntersecting; })) return;
+            channels.classList.add("contact-channels--revealed");
+            revealObs.disconnect();
+          },
+          { threshold: 0.2, rootMargin: "0px 0px -6% 0px" },
+        );
+        revealObs.observe(channels);
+      }
+    }
+
+    var chatBtn = document.querySelector("[data-contact-chat]");
+    var panel = document.getElementById("contact-chat-panel");
     if (!chatBtn || !panel) return;
 
     chatBtn.addEventListener("click", function () {
@@ -120,6 +151,7 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+    align-items: end;
     width: min(100%, 34rem);
     margin: 8px auto 0;
   }
@@ -130,13 +162,46 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
     align-items: center;
     justify-content: center;
     gap: 10px;
-    min-height: 6.5rem;
+    min-height: 5.85rem;
     padding: 18px 12px;
     width: 100%;
     font-size: 1.05rem;
     font-weight: 600;
     letter-spacing: -0.02em;
     text-align: center;
+    opacity: 0;
+    transform: translateY(clamp(3rem, 14vh, 5.5rem));
+    will-change: transform, opacity;
+  }
+
+  .contact-channels :global(.contact-channel-btn--center) {
+    min-height: 7.35rem;
+  }
+
+  .contact-channels--revealed :global(.contact-channel-btn[data-contact-channel="chat"]) {
+    animation: contact-channel-rise 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 0ms;
+  }
+
+  .contact-channels--revealed :global(.contact-channel-btn[data-contact-channel="sms"]) {
+    animation: contact-channel-rise 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 333ms;
+  }
+
+  .contact-channels--revealed :global(.contact-channel-btn[data-contact-channel="call"]) {
+    animation: contact-channel-rise 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 666ms;
+  }
+
+  @keyframes contact-channel-rise {
+    from {
+      opacity: 0;
+      transform: translateY(clamp(3rem, 14vh, 5.5rem));
+    }
+    to {
+      opacity: var(--contact-channel-opacity, 1);
+      transform: translateY(0);
+    }
   }
 
   .contact-channel-label {
@@ -144,7 +209,7 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
   }
 
   .contact-channels :global(.contact-channel-btn--disabled) {
-    opacity: 0.45;
+    --contact-channel-opacity: 0.45;
     cursor: not-allowed;
     pointer-events: none;
   }
@@ -173,15 +238,31 @@ const smsHref = telDigits ? `sms:${telDigits}` : "";
     }
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .contact-channels :global(.contact-channel-btn) {
+      opacity: 1;
+      transform: none;
+      animation: none !important;
+    }
+
+    .contact-channels :global(.contact-channel-btn--disabled) {
+      opacity: 0.45;
+    }
+  }
+
   @media (max-width: 480px) {
     .contact-channels {
       gap: 8px;
     }
 
     .contact-channels :global(.contact-channel-btn) {
-      min-height: 5.75rem;
+      min-height: 5.25rem;
       padding: 14px 8px;
       font-size: 0.95rem;
+    }
+
+    .contact-channels :global(.contact-channel-btn--center) {
+      min-height: 6.35rem;
     }
 
     .contact-channels :global(.contact-channel-btn svg) {
