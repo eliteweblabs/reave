@@ -22,6 +22,8 @@ import {
 } from '../lib/calendarLinks';
 import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
 import { getCompanyConfig } from '../lib/companyConfig';
+import { getStoredCompanyConfig } from '../lib/companyConfigStore';
+import { qrCodeDataUrl } from '../lib/qrCode';
 import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
 import { contactTelHref } from '../lib/contactApi';
 import { BRANDING_OG_PATH } from '../lib/companyLogo';
@@ -89,6 +91,14 @@ const logoShareFallback = company.logoPath && company.logoSource !== 'hidden'
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? logoShareFallback
   : ogImageAbsolute;
+
+let cardQrSrc = '';
+try {
+  const storedBrand = await getStoredCompanyConfig();
+  cardQrSrc = await qrCodeDataUrl(canonical, 200, storedBrand);
+} catch {
+  cardQrSrc = '';
+}
 ---
 
 <!doctype html>
@@ -202,6 +212,20 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
           }
         />
       </nav>
+
+      {cardQrSrc && (
+        <figure class="nfc-qr" aria-label={`QR code for ${displayName} contact card`}>
+          <img
+            class="nfc-qr-img"
+            src={cardQrSrc}
+            width={200}
+            height={200}
+            alt=""
+            decoding="async"
+          />
+          <figcaption class="nfc-qr-caption">Scan to open this card</figcaption>
+        </figure>
+      )}
     </main>
     {directionsHref && (
       <script is:inline>
@@ -373,5 +397,34 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
 
   .nfc-btn--primary .nfc-btn-meta {
     color: color-mix(in srgb, var(--brand-btn-fg, #fff) 68%, transparent);
+  }
+
+  .nfc-qr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: min(100%, 22rem);
+    margin: 28px 0 0;
+    padding: 0;
+  }
+
+  .nfc-qr-img {
+    display: block;
+    width: min(200px, 52vw);
+    height: auto;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--site-fg, #171717) 8%, transparent),
+      0 8px 28px color-mix(in srgb, var(--site-fg, #171717) 10%, transparent);
+  }
+
+  .nfc-qr-caption {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--site-fg-muted, #525252);
   }
 </style>
