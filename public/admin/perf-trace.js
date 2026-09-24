@@ -7,7 +7,7 @@
  *   localStorage.setItem('reave:trace', '0' | 'chat')
  *
  * Console: filter "[reave trace]". Performance panel: measures prefixed "reave:".
- * HUD: bottom-right stopwatch icon; hover for live span log (resets each page load).
+ * HUD: footer stopwatch (after Contacts) when admin footer is present; else bottom-right.
  * Auto: fetch timing, long tasks, slow resources. window.__reaveTrace.summary() dumps timings.
  */
 
@@ -215,28 +215,43 @@ function installAutoTrace() {
 const TRACE_ICON_SVG =
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></svg>';
 
+function traceHudMount() {
+  return document.getElementById('reave-trace-hud-mount');
+}
+
 function ensureHud() {
   if (document.getElementById(HUD_ID)) return document.getElementById(HUD_ID);
+  const footerMount = traceHudMount();
+  const inFooter = Boolean(footerMount);
+
   const hud = document.createElement('div');
   hud.id = HUD_ID;
+  hud.className = inFooter ? 'reave-trace-hud-in-footer' : '';
   hud.setAttribute('aria-label', 'Performance trace');
-  hud.style.cssText = 'position:fixed;right:0.65rem;bottom:0.65rem;z-index:99998;';
+  if (!inFooter) {
+    hud.style.cssText = 'position:fixed;right:0.65rem;bottom:0.65rem;z-index:99998;';
+  }
 
   const hit = document.createElement('div');
-  hit.style.cssText = 'position:relative;display:inline-flex;';
+  hit.className = inFooter ? 'reave-trace-hud-hit' : '';
+  if (!inFooter) hit.style.cssText = 'position:relative;display:inline-flex;';
 
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
+  panel.className = inFooter ? 'reave-trace-hud-panel' : '';
   panel.setAttribute('aria-hidden', 'true');
-  panel.style.cssText =
-    'position:absolute;right:0;bottom:calc(100% + 0.35rem);max-width:min(24rem,calc(100vw - 1.3rem));max-height:45vh;overflow:auto;padding:0.45rem 0.55rem;border-radius:8px;' +
-    'background:rgba(15,23,42,0.96);color:#e2e8f0;font:500 0.68rem/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;' +
-    'border:1px solid rgba(148,163,184,0.35);box-shadow:0 8px 24px rgba(0,0,0,0.35);' +
-    'opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity 0.15s ease,visibility 0.15s ease,transform 0.15s ease;pointer-events:none;';
+  if (!inFooter) {
+    panel.style.cssText =
+      'position:absolute;right:0;bottom:calc(100% + 0.35rem);max-width:min(24rem,calc(100vw - 1.3rem));max-height:45vh;overflow:auto;padding:0.45rem 0.55rem;border-radius:8px;' +
+      'background:rgba(15,23,42,0.96);color:#e2e8f0;font:500 0.68rem/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;' +
+      'border:1px solid rgba(148,163,184,0.35);box-shadow:0 8px 24px rgba(0,0,0,0.35);' +
+      'opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity 0.15s ease,visibility 0.15s ease,transform 0.15s ease;pointer-events:none;';
+  }
 
   const title = document.createElement('div');
+  title.className = inFooter ? 'reave-trace-hud-panel-title' : '';
   title.textContent = scope === 'chat' ? 'trace · chat' : 'trace · all';
-  title.style.cssText = 'font-weight:700;margin-bottom:0.25rem;color:#93c5fd;';
+  if (!inFooter) title.style.cssText = 'font-weight:700;margin-bottom:0.25rem;color:#93c5fd;';
   panel.appendChild(title);
   const body = document.createElement('div');
   body.dataset.traceBody = '1';
@@ -246,25 +261,36 @@ function ensureHud() {
   btn.type = 'button';
   btn.title = 'Performance trace — hover for details';
   btn.setAttribute('aria-expanded', 'false');
-  btn.style.cssText =
-    'display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;border-radius:999px;' +
-    'border:1px solid rgba(148,163,184,0.35);background:rgba(15,23,42,0.88);color:#93c5fd;cursor:default;' +
-    'box-shadow:0 4px 14px rgba(0,0,0,0.28);';
+  btn.setAttribute('aria-label', 'Performance trace');
+  if (inFooter) {
+    btn.className = 'footer-nav-btn reave-trace-hud-btn';
+  } else {
+    btn.style.cssText =
+      'display:flex;align-items:center;justify-content:center;width:2.25rem;height:2.25rem;padding:0;border-radius:999px;' +
+      'border:1px solid rgba(148,163,184,0.35);background:rgba(15,23,42,0.88);color:#93c5fd;cursor:default;' +
+      'box-shadow:0 4px 14px rgba(0,0,0,0.28);';
+  }
   btn.innerHTML = TRACE_ICON_SVG;
 
   const showPanel = () => {
-    panel.style.opacity = '1';
-    panel.style.visibility = 'visible';
-    panel.style.transform = 'translateY(0)';
-    panel.style.pointerEvents = 'auto';
+    if (inFooter) panel.classList.add('is-open');
+    else {
+      panel.style.opacity = '1';
+      panel.style.visibility = 'visible';
+      panel.style.transform = 'translateY(0)';
+      panel.style.pointerEvents = 'auto';
+    }
     panel.setAttribute('aria-hidden', 'false');
     btn.setAttribute('aria-expanded', 'true');
   };
   const hidePanel = () => {
-    panel.style.opacity = '0';
-    panel.style.visibility = 'hidden';
-    panel.style.transform = 'translateY(4px)';
-    panel.style.pointerEvents = 'none';
+    if (inFooter) panel.classList.remove('is-open');
+    else {
+      panel.style.opacity = '0';
+      panel.style.visibility = 'hidden';
+      panel.style.transform = 'translateY(4px)';
+      panel.style.pointerEvents = 'none';
+    }
     panel.setAttribute('aria-hidden', 'true');
     btn.setAttribute('aria-expanded', 'false');
   };
@@ -279,7 +305,7 @@ function ensureHud() {
   hit.appendChild(panel);
   hit.appendChild(btn);
   hud.appendChild(hit);
-  document.body?.appendChild(hud);
+  (footerMount || document.body)?.appendChild(hud);
   return hud;
 }
 
