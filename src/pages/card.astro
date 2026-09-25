@@ -54,6 +54,23 @@ const hasPasskeys = await storeHasCardPasskeys();
 const address = company.address?.trim() || '';
 const geo = company.geo;
 
+// ?demo= param — a temporary preview/demo URL shown as a top button on the card.
+// Program NFC chips as: /card?client=slug&demo=https://preview.up.railway.app
+// No DB change needed — the param lives only in the URL.
+const rawDemoParam = Astro.url.searchParams.get('demo') || '';
+let demoUrl = '';
+try {
+  if (rawDemoParam) {
+    const parsed = new URL(rawDemoParam);
+    // Only allow http/https URLs to prevent javascript: abuse
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      demoUrl = parsed.href;
+    }
+  }
+} catch {
+  demoUrl = '';
+}
+
 function formatPhoneDisplay(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   const n = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
@@ -142,6 +159,26 @@ try {
       </header>
 
       <nav class="nfc-actions" aria-label={`Contact ${displayName}`}>
+
+        {demoUrl && (
+          <a
+            class="nfc-btn nfc-btn--demo"
+            href={demoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View demo site"
+          >
+            <span class="nfc-btn-ico" aria-hidden="true">
+              <!-- external link icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            </span>
+            <span class="nfc-btn-copy">
+              <span class="nfc-btn-label">View Demo Site</span>
+              <span class="nfc-btn-meta">Preview your new website</span>
+            </span>
+          </a>
+        )}
+
         <a class="nfc-btn nfc-btn--primary" href="/contact.vcf" aria-label={vcardLabel}>
           <span class="nfc-btn-ico" aria-hidden="true">
             <!-- IOS_ICONS.user-plus — keep in sync with public/admin/admin-ui.js -->
@@ -358,6 +395,23 @@ try {
     background: var(--brand-btn-bg, #111);
     border-color: transparent;
     filter: brightness(1.06);
+  }
+
+  /* Demo button — accent color, sits above the primary CTA */
+  .nfc-btn--demo {
+    background: color-mix(in srgb, var(--brand-primary, #7c3aed) 12%, transparent);
+    color: var(--brand-primary, #7c3aed);
+    border-color: color-mix(in srgb, var(--brand-primary, #7c3aed) 30%, transparent);
+  }
+
+  .nfc-btn--demo:hover,
+  .nfc-btn--demo:focus-visible {
+    background: color-mix(in srgb, var(--brand-primary, #7c3aed) 20%, transparent);
+    border-color: color-mix(in srgb, var(--brand-primary, #7c3aed) 50%, transparent);
+  }
+
+  .nfc-btn--demo .nfc-btn-meta {
+    color: color-mix(in srgb, var(--brand-primary, #7c3aed) 70%, transparent);
   }
 
   .nfc-btn-ico {
