@@ -117,9 +117,9 @@ try {
   cardQrSrc = '';
 }
 
-// Demo Sites portfolio — local neighborhood businesses
-// Each entry: { name, category, url, emoji }
-// Use Railway preview URLs for works-in-progress, custom domains for live sites.
+// Demo Sites portfolio — local neighborhood businesses on Railway preview URLs only.
+// Rule: only include sites WITHOUT a custom apex domain yet (works-in-progress / proposals).
+// Once a site goes live on its own domain, remove it from this list.
 const demoSites = [
   {
     name: "Karla Cassidy Designs",
@@ -128,10 +128,10 @@ const demoSites = [
     emoji: "💐",
   },
   {
-    name: "The Barber's Edge",
-    category: "Barbershop · Beverly, MA",
-    url: "https://thebarbersedge.com",
-    emoji: "✂️",
+    name: "Standley Bros. Machine Co.",
+    category: "Machine Shop · Beverly, MA",
+    url: "https://web-production-99fb9c.up.railway.app",
+    emoji: "⚙️",
   },
   {
     name: "Maddy the Barber",
@@ -147,8 +147,8 @@ const demoSites = [
   },
   {
     name: "Lux Cleaning",
-    category: "Cleaning Service",
-    url: "https://lux.cleaning",
+    category: "Cleaning Service · Beverly, MA",
+    url: "https://lux-cleaning-production.up.railway.app",
     emoji: "✨",
   },
 ];
@@ -300,7 +300,7 @@ const demoSites = [
         </figure>
       )}
 
-      <!-- Demo Sites Portfolio -->
+      <!-- Demo Sites Portfolio — Railway preview URLs only (no apex domains) -->
       <section class="demo-section" aria-label="Demo Sites">
         <h2 class="demo-heading">
           <span class="demo-heading-line"></span>
