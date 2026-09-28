@@ -19,6 +19,7 @@
     "deploy:checklist": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/generate-deploy-checklist.ts",
     "seed:bookings": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-bookings.ts",
     "seed:site-media": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-site-media.ts",
+    "seed:company-site-branding": "node --experimental-strip-types scripts/seed-company-site-branding.ts",
     "push:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/send-demo-push.ts",
     "prebuild": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "build": "astro build && node scripts/version-public-assets.mjs",

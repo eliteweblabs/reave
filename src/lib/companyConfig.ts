@@ -13,7 +13,7 @@ import {
 } from './companyLogo';
 import { prepareInlineBrandSvg } from './brandSvg';
 import { BRAND_ICON_RENDER, BRAND_ICON_SIZES } from './brandIconRaster';
-import { getSiteContent, siteLandingOgImage } from './siteContent';
+import { getSiteContent, siteLandingHeroLogoUrl, siteLandingIconUrl, siteLandingOgImage } from './siteContent';
 import {
   getStoredCompanyConfig,
   setStoredCompanyConfig,
@@ -427,6 +427,9 @@ function resolveCompanyLogoShareUrl(company: CompanyConfig): string | null {
     return companyLogoUrl(legacyPath, company.logoVersion);
   }
 
+  const siteWordmark = siteLandingHeroLogoUrl();
+  if (siteWordmark) return siteWordmark;
+
   return null;
 }
 
@@ -445,6 +448,10 @@ function resolveCompanyIconShareUrl(company: CompanyConfig): string | null {
   if (company.iconSource === 'logo' && resolveCompanyLogoShareUrl(company)) {
     return brandIconUrl(512, companyBrandingVersion(company));
   }
+
+  const siteIcon = siteLandingIconUrl();
+  if (siteIcon) return siteIcon;
+
   return null;
 }
 
@@ -476,9 +483,7 @@ export function companyOgImageUrl(company: CompanyConfig): string {
 function attachCompanyOgFields(config: Omit<CompanyConfig, 'ogImageUrl' | 'ogUsesLetterFallback'>): CompanyConfig {
   const ogImageUrl = companyOgImageUrl(config as CompanyConfig);
   const ogUsesLetterFallback =
-    !config.ogHasRaster &&
-    ogImageUrl.split('?')[0] === BRANDING_OG_PATH &&
-    !siteLandingOgImage(getSiteContent());
+    !config.ogHasRaster && (ogImageUrl.split('?')[0] ?? '') === BRANDING_OG_PATH;
   return { ...config, ogImageUrl, ogUsesLetterFallback };
 }
 
@@ -499,20 +504,48 @@ export function hasCompanyHeaderLogoImage(company: CompanyConfig): boolean {
   return company.logoSource === 'admin' && Boolean(trim(company.logoPath));
 }
 
+/** Best wordmark URL — admin upload, static site heroLogo, then empty. */
+export function companyBestWordmarkImageUrl(company: CompanyConfig): string {
+  if (company.logoSource === 'hidden') return '';
+  if (trim(company.logoSvg) || company.logoHasRaster) {
+    return (
+      companyLogoUrl(company.logoPath, company.logoVersion) ||
+      `${BRANDING_LOGO_PATH}${brandingVersionQuery(company)}`
+    );
+  }
+  return resolveCompanyLogoShareUrl(company) || '';
+}
+
 /** Admin-uploaded square icon image (not the built-in default mark). */
 export function hasCompanyIconImage(company: CompanyConfig): boolean {
   return company.iconSource === 'admin' && Boolean(trim(company.iconPath));
 }
 
-/** Raster fallback for the homepage hero when no pasted SVG is usable. */
-export function companyHeroIconImageUrl(company: CompanyConfig): string {
-  if (hasCompanyIconImage(company)) {
+/** Square mark before wordmark — admin icon, co-located site icon, logo-derived icon. */
+export function companyBestSquareMarkImageUrl(company: CompanyConfig): string {
+  if (hasCompanyIconImage(company) || trim(company.iconSvg)) {
     return brandIconUrl(512, companyBrandingVersion(company));
   }
-  if (hasCompanyHeaderLogoImage(company)) {
-    return companyLogoUrl(company.logoPath, company.logoVersion);
+  if (
+    company.iconSource === 'admin' &&
+    trim(company.iconPath) &&
+    !company.iconPath.includes('/api/branding/icon')
+  ) {
+    return companyLogoUrl(company.iconPath, company.iconVersion);
+  }
+  const siteIcon = siteLandingIconUrl();
+  if (siteIcon) return siteIcon;
+  if (company.iconSource === 'logo' && companyBestWordmarkImageUrl(company)) {
+    return brandIconUrl(512, companyBrandingVersion(company));
   }
   return '';
+}
+
+/** Raster fallback for the homepage hero / NFC card when no pasted SVG is usable. */
+export function companyHeroIconImageUrl(company: CompanyConfig): string {
+  const square = companyBestSquareMarkImageUrl(company);
+  if (square) return square;
+  return companyBestWordmarkImageUrl(company);
 }
 
 /** Staff / team avatar — square mark from admin branding API. */

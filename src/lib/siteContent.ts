@@ -855,12 +855,38 @@ export function getSiteContent(opts?: { industry?: string | null }): SiteContent
   return loadSiteContentByKey(resolveSiteContentKey(opts?.industry));
 }
 
+/** Public wordmark from site config (landing heroLogo). */
+export function siteLandingHeroLogoUrl(site?: SiteContentConfig): string | undefined {
+  const config = site ?? getSiteContent();
+  const heroLogo = config.landing?.heroLogo?.trim();
+  if (!heroLogo) return undefined;
+
+  if (heroLogo.startsWith('/sites/')) return heroLogo;
+
+  return siteMediaSrc(heroLogo) || heroLogo;
+}
+
+/** Square mark co-located with `/sites/{slug}/logo.png` when present. */
+export function siteLandingIconUrl(site?: SiteContentConfig): string | undefined {
+  const hero = siteLandingHeroLogoUrl(site);
+  if (!hero?.startsWith('/sites/')) return undefined;
+
+  const dir = hero.slice(0, hero.lastIndexOf('/'));
+  if (!dir) return undefined;
+
+  const iconPath = `${dir}/icon.png`;
+  if (existsSync(join(projectRoot(), 'public', iconPath.slice(1)))) return iconPath;
+
+  return undefined;
+}
+
 /** Static OG card from site config (client landing installs). */
 export function siteLandingOgImage(site?: SiteContentConfig): string | undefined {
-  const explicit = site?.landing?.ogImage?.trim();
+  const config = site ?? getSiteContent();
+  const explicit = config.landing?.ogImage?.trim();
   if (explicit) return explicit;
 
-  const heroLogo = site?.landing?.heroLogo?.trim();
+  const heroLogo = siteLandingHeroLogoUrl(config);
   if (!heroLogo) return undefined;
 
   if (heroLogo.startsWith('/sites/')) {
@@ -872,7 +898,7 @@ export function siteLandingOgImage(site?: SiteContentConfig): string | undefined
     return heroLogo;
   }
 
-  return siteMediaSrc(heroLogo) || heroLogo;
+  return heroLogo;
 }
 
 /** Favicon bundle co-located with `/sites/{slug}/og.png` when present. */

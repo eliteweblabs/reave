@@ -112,6 +112,8 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | `PUBLIC_SITE_DOMAIN` | `lux.cleaning` |
 | `PUBLIC_SITE_URL` | `https://lux.cleaning` |
 | `COMPANY_DOMAIN` | `lux.cleaning` |
+| `INSTALL_BOOTSTRAP` | `1` — first boot copies site PNGs into Admin → Company |
+| `COMPANY_SITE_BRANDING` | `luxe-cleaning` — reads `public/sites/luxe-cleaning/{logo,icon,og}.png` |
 | `PUBLIC_INSTALL_HOMEPAGE_VOICE` | `1` |
 | `COMPANY_NAME` | `Luxe Cleaning` |
 | `COMPANY_DESCRIPTION` | Woman-owned premium house cleaning… |

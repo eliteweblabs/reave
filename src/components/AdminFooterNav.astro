@@ -71,6 +71,7 @@ import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Us
     >
       <Users size={20} strokeWidth={1.75} />
     </button>
+    <div id="reave-trace-hud-mount" class="reave-trace-hud-mount"></div>
   </div>
   </div>
 </nav>
@@ -431,6 +432,82 @@ import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Us
 
   .footer-nav-badge[hidden] {
     display: none !important;
+  }
+
+  .reave-trace-hud-mount {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: stretch;
+    flex-shrink: 0;
+  }
+
+  .reave-trace-hud-mount:empty {
+    display: none;
+  }
+
+  .reave-trace-hud-in-footer .reave-trace-hud-hit {
+    position: relative;
+    display: inline-flex;
+    height: 100%;
+  }
+
+  .reave-trace-hud-in-footer .reave-trace-hud-btn svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+  }
+
+  .reave-trace-hud-in-footer .reave-trace-hud-panel {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.35rem);
+    max-width: min(24rem, calc(100vw - 1.3rem));
+    max-height: 45vh;
+    overflow: auto;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    background: var(--card, rgba(15, 23, 42, 0.96));
+    color: var(--text, #e2e8f0);
+    font:
+      500 0.68rem/1.35 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+    border: 1px solid var(--panel-border, rgba(148, 163, 184, 0.35));
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35));
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease,
+      transform 0.15s ease;
+    pointer-events: none;
+  }
+
+  .reave-trace-hud-in-footer .reave-trace-hud-panel.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .reave-trace-hud-in-footer .reave-trace-hud-panel-title {
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: var(--brand, #93c5fd);
+  }
+
+  @media (max-width: 639px) {
+    .admin-footer-nav.footer-nav-collapsed .reave-trace-hud-mount {
+      width: 0;
+      max-width: 0;
+      opacity: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
   }
 
   @media print {

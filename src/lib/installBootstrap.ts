@@ -6,7 +6,8 @@
 import { normalizeBrandColorHex } from './companyBrandColors';
 import type { CompanyConfigInput } from './companyConfig';
 import { normalizeCompanyInput, resolveCompanyAddressGeo } from './companyConfig';
-import { getStoredCompanyConfig, setStoredCompanyConfig } from './companyConfigStore';
+import { getStoredCompanyConfig, setStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
+import { loadSiteBrandingAssets, resolveSiteBrandingSlug } from './siteBrandingAssets';
 import { serverEnv } from './serverEnv';
 
 function envOn(name: string): boolean {
@@ -30,7 +31,8 @@ export function shouldInstallBootstrap(): boolean {
       envTrim('COMPANY_BRAND_PRIMARY') ||
       envTrim('COMPANY_BRAND_SECONDARY') ||
       envTrim('COMPANY_LOGO_URL') ||
-      envTrim('INSTALL_LOGO_DATA'),
+      envTrim('INSTALL_LOGO_DATA') ||
+      envTrim('COMPANY_SITE_BRANDING'),
   );
 }
 
@@ -83,23 +85,46 @@ export async function ensureInstallBootstrap(): Promise<{ ok: boolean; detail: s
     const brandSecondary = normalizeBrandColorHex(envTrim('COMPANY_BRAND_SECONDARY', 16));
     if (brandSecondary && !existing?.brandSecondary?.trim()) patch.brandSecondary = brandSecondary;
 
+    const storedPatch: StoredCompanyConfig = {};
+
     const logoUrl = envTrim('COMPANY_LOGO_URL', 500);
     if (logoUrl && !existing?.logoPath?.trim() && !existing?.logoData?.trim()) {
-      patch.logoPath = logoUrl;
+      storedPatch.logoPath = logoUrl;
     }
 
     const installLogo = decodeInstallLogo();
     if (installLogo && !existing?.logoData?.trim()) {
-      patch.logoData = installLogo.dataBase64;
-      patch.logoMediaType = installLogo.mediaType;
+      storedPatch.logoData = installLogo.dataBase64;
+      storedPatch.logoMediaType = installLogo.mediaType;
+      storedPatch.logoPath = null;
     }
 
-    const touched = Object.keys(patch).length > 0;
+    const brandingSlug = resolveSiteBrandingSlug();
+    const siteAssets = brandingSlug ? loadSiteBrandingAssets(brandingSlug) : null;
+    if (siteAssets?.logo && !existing?.logoData?.trim()) {
+      storedPatch.logoData = siteAssets.logo.dataBase64;
+      storedPatch.logoMediaType = siteAssets.logo.mediaType;
+      storedPatch.logoPath = null;
+    }
+    if (siteAssets?.icon && !existing?.iconData?.trim()) {
+      storedPatch.iconData = siteAssets.icon.dataBase64;
+      storedPatch.iconMediaType = siteAssets.icon.mediaType;
+      storedPatch.iconPath = null;
+    }
+    if (siteAssets?.og && !existing?.ogData?.trim()) {
+      storedPatch.ogData = siteAssets.og.dataBase64;
+      storedPatch.ogMediaType = siteAssets.og.mediaType;
+    }
+
+    const touched = Object.keys(patch).length > 0 || Object.keys(storedPatch).length > 0;
     if (!touched) {
       return { ok: true, skipped: true, detail: 'Company config already populated' };
     }
 
-    const ok = await setStoredCompanyConfig(normalizeCompanyInput(patch));
+    const ok = await setStoredCompanyConfig({
+      ...normalizeCompanyInput(patch),
+      ...storedPatch,
+    });
     if (!ok) return { ok: false, detail: 'Failed to write company bootstrap' };
     return { ok: true, detail: 'Applied install bootstrap to company config' };
   })();
