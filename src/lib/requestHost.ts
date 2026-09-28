@@ -4,6 +4,10 @@
  * just because INSTALL_CONFIG was copied as `reave`.
  */
 import { AsyncLocalStorage } from 'node:async_hooks';
+import {
+  CANONICAL_PUBLIC_BRAND_DOMAIN,
+  LEGACY_PUBLIC_BRAND_DOMAIN,
+} from './legacyBrandDomain.ts';
 import { serverEnv } from './serverEnv';
 
 const requestHostContext = new AsyncLocalStorage<string>();
@@ -31,8 +35,10 @@ export function stripTrailingFqdnDot(host: string): string {
   return hostnameFromHostHeader(host).replace(/\.+$/, '');
 }
 
+/** Official marketing apex (rekko.studio; legacy reave.app before redirect). */
 export function isReaveMarketingHost(host: string): boolean {
-  return normalizePublicHost(host) === 'reave.app';
+  const h = normalizePublicHost(host);
+  return h === CANONICAL_PUBLIC_BRAND_DOMAIN || h === LEGACY_PUBLIC_BRAND_DOMAIN;
 }
 
 export function publicHostFromRequest(request: Request): string {
