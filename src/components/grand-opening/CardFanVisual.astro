@@ -276,12 +276,14 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
     margin: 0;
     overflow: visible;
     background: transparent;
+    filter: drop-shadow(0 18px 14px rgba(0, 0, 0, 0.14));
     transform-origin: 50% 100%;
     transform: rotate(calc(var(--card-offset, 0) * 5deg))
       translateY(calc(var(--card-i, 0) * -5px))
       scale(calc(1 - max(var(--card-offset, 0), calc(-1 * var(--card-offset, 0))) * 0.028));
     transition:
       transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.35s ease,
       z-index 0s linear 0.21s;
     z-index: calc(var(--card-i, 0) + 1);
   }
@@ -289,9 +291,33 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
   .go-card-fan__card.is-front {
     transform: rotate(0deg) translateY(0) scale(1);
     z-index: 40;
+    filter: drop-shadow(0 28px 22px rgba(0, 0, 0, 0.22));
     transition:
       transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      z-index 0s;
+      z-index 0s,
+      filter 0.35s ease;
+  }
+
+  .go-card-fan__card::after {
+    content: "";
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: -10px;
+    height: 16px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.35) 0%, transparent 72%);
+    filter: blur(6px);
+    transform: scaleY(0.35);
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .go-card-fan__card.is-front::after {
+    opacity: 0.85;
+    bottom: -12px;
+    height: 20px;
   }
 
   .go-card-fan__card img {
@@ -300,15 +326,19 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
     height: auto;
     border-radius: 14px;
     box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.04),
-      0 12px 32px rgba(0, 0, 0, 0.12);
+      0 0 0 1px rgba(0, 0, 0, 0.06),
+      0 1px 2px rgba(255, 255, 255, 0.65) inset,
+      0 16px 28px -6px rgba(0, 0, 0, 0.28),
+      0 32px 48px -16px rgba(0, 0, 0, 0.2);
     transition: box-shadow 0.35s ease;
   }
 
   .go-card-fan__card.is-front img {
     box-shadow:
-      0 4px 8px rgba(0, 0, 0, 0.08),
-      0 20px 48px rgba(0, 0, 0, 0.16);
+      0 0 0 1px rgba(0, 0, 0, 0.08),
+      0 1px 2px rgba(255, 255, 255, 0.7) inset,
+      0 22px 36px -4px rgba(0, 0, 0, 0.32),
+      0 40px 56px -12px rgba(0, 0, 0, 0.22);
   }
 
   .go-card-fan__dots {
@@ -392,10 +422,20 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
       z-index: 50;
     }
 
+    .go-card-fan__stack:hover .go-card-fan__card:hover {
+      filter: drop-shadow(0 32px 26px rgba(0, 0, 0, 0.24));
+    }
+
     .go-card-fan__stack:hover .go-card-fan__card:hover img {
       box-shadow:
-        0 4px 8px rgba(0, 0, 0, 0.08),
-        0 20px 48px rgba(0, 0, 0, 0.18);
+        0 0 0 1px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(255, 255, 255, 0.7) inset,
+        0 22px 36px -4px rgba(0, 0, 0, 0.32),
+        0 40px 56px -12px rgba(0, 0, 0, 0.24);
+    }
+
+    .go-card-fan__stack:hover .go-card-fan__card:hover::after {
+      opacity: 0.9;
     }
   }
 
