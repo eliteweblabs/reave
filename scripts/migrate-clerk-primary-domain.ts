@@ -2,8 +2,10 @@
  * Move the Clerk instance primary domain + /__clerk proxy to a new apex (e.g. rekko.studio).
  * Run on production with CLERK_SECRET_KEY set:
  *
- *   railway run -p reave.app -e production -s reave -- \
- *     npx tsx scripts/migrate-clerk-primary-domain.ts rekko.studio
+ *   railway link -p af65eb9a-b11c-4c1c-8030-66b4347dcf71 -e production -s reave
+ *   railway run -- npx tsx scripts/migrate-clerk-primary-domain.ts rekko.studio
+ *
+ *   (Project display name is "rekko studio"; -p reave.app no longer resolves.)
  *
  * If a new publishable key is returned, set PUBLIC_CLERK_PUBLISHABLE_KEY on the reave service
  * and redeploy. Clear PUBLIC_CLERK_JS_URL unless it matches the new clerk.{apex} host.
