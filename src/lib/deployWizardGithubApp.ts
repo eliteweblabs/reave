@@ -12,7 +12,7 @@ import { GITHUB_WEBSITE_OWNER, defaultWebsiteRepoSlug } from './websiteEditorRep
 
 const GITHUB_API = 'https://api.github.com';
 const PENDING_TTL_MS = 60 * 60 * 1000;
-const CANONICAL_ORIGIN = 'https://reave.app';
+const CANONICAL_ORIGIN = 'https://rekko.studio';
 
 function isPublicHttpOrigin(value: string): boolean {
   try {

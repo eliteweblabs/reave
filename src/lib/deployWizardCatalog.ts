@@ -635,7 +635,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     name: 'REAVE_HUB_URL',
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',
-    value: 'https://reave.app',
+    value: 'https://rekko.studio',
     required: false,
     description: 'Official reave hub for install-owner punch lists / feature requests.',
   }),

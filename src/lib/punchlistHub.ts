@@ -30,7 +30,7 @@ import {
 } from './todoStore';
 import { recordPunchlistItemEngagement } from './engagementNotifications';
 
-export const DEFAULT_REAVE_HUB_URL = 'https://reave.app';
+export const DEFAULT_REAVE_HUB_URL = 'https://rekko.studio';
 
 export type PunchlistHubIdentity = {
   slug: string;

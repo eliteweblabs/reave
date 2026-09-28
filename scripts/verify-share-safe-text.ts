@@ -7,16 +7,18 @@
 import assert from 'node:assert/strict';
 import { shareSafeText } from '../src/lib/shareSafeText.ts';
 
-assert.equal(shareSafeText('reave.app'), 'reave.app');
-assert.equal(shareSafeText('reave'), 'reave.app');
+assert.equal(shareSafeText('rekko.studio'), 'rekko.studio');
+assert.equal(shareSafeText('rekko'), 'rekko.studio');
+assert.equal(shareSafeText('reave.app'), 'rekko.studio');
+assert.equal(shareSafeText('reave'), 'rekko.studio');
 // Legacy stylized spellings (logo era) → canonical ASCII
-assert.equal(shareSafeText('reΛVe.app'), 'reave.app');
-assert.equal(shareSafeText('REΛVE'), 'reave.app');
-assert.equal(shareSafeText('REΛVE.app'), 'reave.app');
-assert.equal(shareSafeText('Features | reΛVe.app'), 'Features | reave.app');
+assert.equal(shareSafeText('reΛVe.app'), 'rekko.studio');
+assert.equal(shareSafeText('REΛVE'), 'rekko.studio');
+assert.equal(shareSafeText('REΛVE.app'), 'rekko.studio');
+assert.equal(shareSafeText('Features | reΛVe.app'), 'Features | rekko.studio');
 assert.equal(shareSafeText('Acme Corp'), 'Acme Corp');
 assert.equal(shareSafeText('Café'), 'Cafe');
-assert.equal(shareSafeText('Features | reave.app'), 'Features | reave.app');
+assert.equal(shareSafeText('Features | reave.app'), 'Features | rekko.studio');
 assert.equal(shareSafeText('reaves'), 'reaves');
 assert.equal(shareSafeText(''), '');
 

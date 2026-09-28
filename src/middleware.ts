@@ -21,6 +21,7 @@ import {
 } from "./lib/clerkFrontendProxy";
 import { isClerkRuntimeConfigured, normalizeClerkRuntimeEnv } from "./lib/clerkClient";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
+import { mapLegacyReaveHostToRekko } from "./lib/legacyBrandDomain";
 import { publicHostFromRequest, runWithRequestHost, stripTrailingFqdnDot } from "./lib/requestHost";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
@@ -150,7 +151,8 @@ const appHandler = async (
   const dottedHost = host.endsWith(".") ? host : forwardedHost.endsWith(".") ? forwardedHost : "";
   if (dottedHost) {
     const target = new URL(url.href);
-    const canonicalHost = stripTrailingFqdnDot(dottedHost);
+    let canonicalHost = stripTrailingFqdnDot(dottedHost);
+    canonicalHost = mapLegacyReaveHostToRekko(canonicalHost) ?? canonicalHost;
     target.hostname = canonicalHost;
     if (canonicalHost.includes(".")) target.protocol = "https:";
     return applySecurityHeaders(
@@ -160,6 +162,20 @@ const appHandler = async (
       }),
     );
   }
+
+  const rekkoHost = mapLegacyReaveHostToRekko(host);
+  if (rekkoHost) {
+    const target = new URL(url.href);
+    target.hostname = rekkoHost;
+    target.protocol = "https:";
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: target.toString() },
+      }),
+    );
+  }
+
   const configuredDomain =
     serverEnv("COMPANY_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||
     serverEnv("PUBLIC_SITE_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||

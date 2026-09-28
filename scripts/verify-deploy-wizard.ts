@@ -591,23 +591,23 @@ assert.equal(lawState.variables.find((v) => v.name === 'COURT_RADIUS_MI'), undef
 assert.equal(githubAppManifestName('TonyBarlettaJr'), 'reave-tonybarlettajr');
 const manifest = buildGithubAppManifest({
   installSlug: 'tonybarlettajr',
-  origin: 'https://reave.app',
+  origin: 'https://rekko.studio',
   siteDomain: 'tony.com',
   state: 'abc',
 });
 assert.equal(manifest.name, 'reave-tonybarlettajr');
 assert.equal((manifest.default_permissions as { contents?: string }).contents, 'write');
-assert.equal(manifest.redirect_url, 'https://reave.app/api/deploy/wizard/github-app');
-assert.equal(manifest.setup_url, 'https://reave.app/api/deploy/wizard/github-app');
+assert.equal(manifest.redirect_url, 'https://rekko.studio/api/deploy/wizard/github-app');
+assert.equal(manifest.setup_url, 'https://rekko.studio/api/deploy/wizard/github-app');
 assert.match(githubAppInstallUrl('reave-barry', { targetId: 123 }), /target_id=123/);
-assert.equal(publicGithubAppOrigin('http://localhost:8080'), 'https://reave.app');
+assert.equal(publicGithubAppOrigin('http://localhost:8080'), 'https://rekko.studio');
 assert.equal(
   buildGithubAppManifest({
     installSlug: 'demo',
     origin: 'http://127.0.0.1:8080',
     state: 'abc',
   }).redirect_url,
-  'https://reave.app/api/deploy/wizard/github-app',
+  'https://rekko.studio/api/deploy/wizard/github-app',
 );
 assert.equal(manifest.public, false);
 assert.match(CSP_FORM_ACTION, /https:\/\/github\.com/);

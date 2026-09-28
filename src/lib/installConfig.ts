@@ -15,6 +15,10 @@ import { expandFeatureRequirements, isPrivateFeature } from './featureCatalog.ts
 import { dashboardCardsForFeatures, type DashboardCard } from './featureDashboard.ts';
 import { projectRoot } from './projectRoot.ts';
 import { parseHomepageTemplate, type HomepageTemplate } from './homepageTemplate.ts';
+import {
+  CANONICAL_PUBLIC_BRAND_DOMAIN,
+  LEGACY_PUBLIC_BRAND_DOMAIN,
+} from './legacyBrandDomain.ts';
 import { serverEnv } from './serverEnv.ts';
 
 export type { HomepageTemplate };
@@ -286,7 +290,7 @@ export function isCanonicalReaveInstall(): boolean {
     .split('/')[0]
     ?.toLowerCase()
     .replace(/^www\./, '') || '';
-  return host === 'reave.app';
+  return host === CANONICAL_PUBLIC_BRAND_DOMAIN || host === LEGACY_PUBLIC_BRAND_DOMAIN;
 }
 
 /** Public hostname for this process is the official marketing site. */
@@ -298,7 +302,7 @@ export function isOfficialReavePublicHost(): boolean {
     .split('/')[0]
     ?.toLowerCase()
     .replace(/^www\./, '') || '';
-  return host === 'reave.app';
+  return host === CANONICAL_PUBLIC_BRAND_DOMAIN || host === LEGACY_PUBLIC_BRAND_DOMAIN;
 }
 
 /**
