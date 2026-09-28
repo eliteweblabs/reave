@@ -24,6 +24,28 @@ const {
 } = await import('../src/lib/companyConfigStore.ts');
 
 const WORDMARK = readFileSync('scripts/fixtures/reave-app-wordmark.svg', 'utf8');
+const ICON = readFileSync('scripts/fixtures/reave-app-icon.svg', 'utf8');
+
+{
+  assert.ok(ICON.length < BRAND_SVG_MAX_CHARS, 'icon mark exceeds the paste cap');
+  assert.ok(sanitizeInlineSvg(ICON), 'icon rejected by sanitizeInlineSvg');
+  assert.ok(prepareInlineBrandSvg(ICON), 'icon rejected for inline render');
+}
+
+{
+  const illustratorIcon = `<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" version="1.1" viewBox="0 0 1080 1080">
+  <!-- Generator: Adobe Illustrator -->
+  ${ICON.replace(/^[\s\S]*?<svg[^>]*>/i, '').replace(/<\/svg>\s*$/, '')}
+</svg>`;
+  const cleaned = sanitizeInlineSvg(illustratorIcon);
+  assert.ok(cleaned, 'illustrator icon export must sanitize');
+  assert.doesNotMatch(cleaned!, /\bid=/i);
+  assert.doesNotMatch(cleaned!, /<!--/);
+  assert.doesNotMatch(cleaned!, /\swidth=/i);
+  assert.match(cleaned!, /1128\.692 153\.833/);
+  assert.match(cleaned!, /<polygon\b/);
+}
 
 {
   assert.ok(WORDMARK.length < BRAND_SVG_MAX_CHARS, 'wordmark exceeds the paste cap');

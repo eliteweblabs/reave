@@ -11,7 +11,7 @@ import {
   FAVICON_SVG_PATH,
   normalizePublicLogoPath,
 } from './companyLogo';
-import { prepareInlineBrandSvg } from './brandSvg';
+import { prepareInlineBrandSvg, sanitizeInlineSvg } from './brandSvg';
 import { BRAND_ICON_RENDER, BRAND_ICON_SIZES } from './brandIconRaster';
 import { getSiteContent, siteLandingHeroLogoUrl, siteLandingIconUrl, siteLandingOgImage } from './siteContent';
 import {
@@ -866,11 +866,11 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   }
   if (input.logoSvg !== undefined) {
     const t = input.logoSvg.trim();
-    out.logoSvg = t || null;
+    out.logoSvg = t ? sanitizeInlineSvg(t) : null;
   }
   if (input.iconSvg !== undefined) {
     const t = input.iconSvg.trim();
-    out.iconSvg = t || null;
+    out.iconSvg = t ? sanitizeInlineSvg(t) : null;
   }
   if (input.businessHours !== undefined) {
     if (input.businessHours == null || input.businessHours === '') {

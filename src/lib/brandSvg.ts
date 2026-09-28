@@ -41,13 +41,28 @@ export function resolveSvgAssetUrls(svg: string): string {
   );
 }
 
+/** Drop Illustrator/XML export noise; keep geometry and viewBox. */
+export function cleanDesignToolSvgExport(raw: string): string {
+  let svg = raw.replace(/<\?xml[^?]*\?>\s*/gi, '');
+  svg = svg.replace(/<!--[\s\S]*?-->/g, '');
+  svg = svg.replace(/<svg\b([^>]*)>/i, (_match, attrs: string) => {
+    const cleaned = attrs
+      .replace(/\sid=(["'])[^"']*\1/gi, '')
+      .replace(/\sversion=(["'])[^"']*\1/gi, '')
+      .replace(/\swidth=(["'])[^"']*\1/gi, '')
+      .replace(/\sheight=(["'])[^"']*\1/gi, '');
+    return `<svg${cleaned}>`;
+  });
+  return svg.trim();
+}
+
 /** Strip dangerous markup from owner-pasted SVG before inline render. */
 export function sanitizeInlineSvg(raw: string): string | null {
-  const trimmed = raw.trim();
+  const trimmed = cleanDesignToolSvgExport(raw.trim());
   if (!trimmed || trimmed.length > BRAND_SVG_MAX_CHARS) return null;
   if (!/<svg[\s>]/i.test(trimmed)) return null;
 
-  let svg = trimmed.replace(/<\?xml[^?]*\?>\s*/i, '');
+  let svg = trimmed;
   svg = svg.replace(UNSAFE_SVG_PATTERN, '');
   svg = svg.replace(EVENT_HANDLER_ATTR, ' data-removed=');
   svg = svg.replace(JS_URL, '');
