@@ -1,6 +1,6 @@
 /**
  * A wordmark pasted into admin → Company → Logo SVG must survive validation and
- * the config store byte for byte. The reave.app wordmark is ~7 KB of path data,
+ * the config store byte for byte. The reave.app wordmark is multi-KB SVG paste
  * which is the shape of paste that people report "not saving".
  * Run: npm run check:brand-svg-paste
  */
@@ -42,7 +42,7 @@ const ICON = readFileSync('scripts/fixtures/reave-app-icon.svg', 'utf8');
   assert.ok(cleaned, 'illustrator icon export must sanitize');
   assert.doesNotMatch(cleaned!, /\bid=/i);
   assert.doesNotMatch(cleaned!, /<!--/);
-  assert.doesNotMatch(cleaned!, /\swidth=/i);
+  assert.doesNotMatch(cleaned!, /<svg\b[^>]*\swidth=/i);
   assert.match(cleaned!, /1128\.692 153\.833/);
   assert.match(cleaned!, /<polygon\b/);
 }
@@ -53,10 +53,26 @@ const ICON = readFileSync('scripts/fixtures/reave-app-icon.svg', 'utf8');
   assert.ok(sanitized, 'wordmark rejected by sanitizeInlineSvg');
   assert.equal(
     (sanitized.match(/<path/g) ?? []).length,
-    9,
-    'sanitizer dropped glyph paths',
+    8,
+    'sanitizer dropped logo paths',
   );
+  assert.equal((sanitized.match(/<rect/g) ?? []).length, 2);
+  assert.ok(sanitizeInlineSvg(WORDMARK)?.includes('1898.6 388.448'));
   assert.ok(prepareInlineBrandSvg(WORDMARK), 'wordmark rejected for inline render');
+}
+
+{
+  const illustratorWordmark = `<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" width="1898.6" height="388.448" version="1.1" viewBox="0 0 1898.6 388.448">
+  <!-- Generator: Adobe Illustrator -->
+  ${WORDMARK.replace(/^[\s\S]*?<svg[^>]*>/i, '').replace(/<\/svg>\s*$/, '')}
+</svg>`;
+  const cleaned = sanitizeInlineSvg(illustratorWordmark);
+  assert.ok(cleaned, 'illustrator wordmark export must sanitize');
+  assert.doesNotMatch(cleaned!, /\bid=/i);
+  assert.doesNotMatch(cleaned!, /<!--/);
+  assert.doesNotMatch(cleaned!, /<svg\b[^>]*\swidth=/i);
+  assert.match(cleaned!, /M741\.604,133\.469/);
 }
 
 {
