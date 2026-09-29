@@ -1,0 +1,502 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const title = 'Beverly Depot Restaurant | Prime Rib & Seafood | Beverly, MA';
+const description = 'Since 1971, The Beverly Depot Restaurant has been serving the finest prime rib, fresh seafood, and classic steakhouse fare in a historic 1890s MBTA train depot. Dinner nightly, Thursday lunch.';
+const ogImage = '/og-beverlydepot.svg';
+
+const restaurant = {
+  name: 'The Beverly Depot Restaurant',
+  phone: '(978) 927-5402',
+  url: 'https://beverlydepot.com',
+  image: 'https://rekko.studio/og-beverlydepot.svg',
+  address: {
+    streetAddress: '10 Park Street',
+    addressLocality: 'Beverly',
+    addressRegion: 'MA',
+    postalCode: '01915',
+    addressCountry: 'US'
+  },
+  hours: [
+    { day: 'Monday', open: '16:00', close: '21:00' },
+    { day: 'Tuesday', open: '16:00', close: '21:00' },
+    { day: 'Wednesday', open: '16:00', close: '21:00' },
+    { day: 'Thursday', open: '11:30', close: '19:00' },
+    { day: 'Friday', open: '16:00', close: '22:00' },
+    { day: 'Saturday', open: '16:00', close: '22:00' },
+    { day: 'Sunday', open: '15:00', close: '21:00' },
+  ]
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Restaurant',
+  name: restaurant.name,
+  description: 'Historic fine dining restaurant in an 1890s train depot. Serving prime rib, seafood, and classic steakhouse fare since 1971.',
+  url: restaurant.url,
+  telephone: restaurant.phone,
+  image: restaurant.image,
+  priceRange: '$$',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: restaurant.address.streetAddress,
+    addressLocality: restaurant.address.addressLocality,
+    addressRegion: restaurant.address.addressRegion,
+    postalCode: restaurant.address.postalCode,
+    addressCountry: restaurant.address.addressCountry,
+  },
+  openingHoursSpecification: restaurant.hours.map(({ day, open, close }) => ({
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: day,
+    opens: open,
+    closes: close,
+  })),
+  servesCuisine: ['Steakhouse', 'Seafood'],
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '4.0',
+    ratingCount: '203'
+  }
+};
+---
+
+<Layout title={title} description={description} ogImage={ogImage}>
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+  <style>
+    :root {
+      --mahogany: #2c1810;
+      --brass: #b8860b;
+      --cream: #f5f1e8;
+      --dark-gray: #3d3d3d;
+      --light-gray: #e8e8e8;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Georgia', 'Garamond', serif;
+      background-color: var(--mahogany);
+      color: var(--cream);
+      line-height: 1.8;
+    }
+
+    /* ============ HEADER ============ */
+    header {
+      background: linear-gradient(135deg, var(--mahogany) 0%, #1a0f08 100%);
+      border-bottom: 3px solid var(--brass);
+      padding: 2rem 2rem;
+      text-align: center;
+      position: relative;
+    }
+
+    header::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--brass), transparent);
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 3.5rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin-bottom: 0.5rem;
+      color: var(--brass);
+      text-transform: uppercase;
+    }
+
+    .tagline {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.3rem;
+      font-weight: 400;
+      letter-spacing: 1px;
+      color: var(--cream);
+      margin-bottom: 1.5rem;
+      font-style: italic;
+    }
+
+    .since {
+      font-size: 0.9rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--brass);
+      margin-top: 1rem;
+    }
+
+    /* ============ HERO ============ */
+    .hero {
+      background: linear-gradient(180deg, rgba(44, 24, 16, 0.95) 0%, rgba(26, 15, 8, 1) 100%),
+                  url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23000" width="100" height="100"/><line x1="10" y1="50" x2="90" y2="50" stroke="%23b8860b" stroke-width="0.5" opacity="0.2"/></svg>');
+      background-size: cover;
+      background-position: center;
+      padding: 5rem 2rem;
+      text-align: center;
+      border-bottom: 1px solid var(--brass);
+    }
+
+    .hero h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      color: var(--brass);
+      margin-bottom: 1.5rem;
+      letter-spacing: 1px;
+    }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--cream);
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      line-height: 1.9;
+    }
+
+    .cta-button {
+      display: inline-block;
+      background-color: var(--brass);
+      color: var(--mahogany);
+      padding: 1rem 2.5rem;
+      font-size: 1rem;
+      text-decoration: none;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: bold;
+      border: 2px solid var(--brass);
+      transition: all 0.3s ease;
+      cursor: pointer;
+      font-family: 'Georgia', serif;
+    }
+
+    .cta-button:hover {
+      background-color: transparent;
+      color: var(--brass);
+    }
+
+    /* ============ CONTENT SECTION ============ */
+    .section {
+      padding: 4rem 2rem;
+      border-bottom: 1px solid rgba(184, 134, 11, 0.3);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.2rem;
+      color: var(--brass);
+      margin-bottom: 2rem;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    /* ============ ABOUT ============ */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .about-text h4 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.8rem;
+      color: var(--brass);
+      margin-bottom: 1.5rem;
+    }
+
+    .about-text p {
+      margin-bottom: 1.5rem;
+      color: var(--cream);
+      line-height: 1.9;
+    }
+
+    .about-features {
+      list-style: none;
+      margin-top: 2rem;
+    }
+
+    .about-features li {
+      padding: 0.8rem 0;
+      padding-left: 2rem;
+      position: relative;
+      color: var(--cream);
+    }
+
+    .about-features li::before {
+      content: '◆';
+      position: absolute;
+      left: 0;
+      color: var(--brass);
+    }
+
+    /* ============ MENU HIGHLIGHTS ============ */
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+
+    .menu-item {
+      border: 1px solid var(--brass);
+      padding: 2rem;
+      background: rgba(44, 24, 16, 0.5);
+      transition: all 0.3s ease;
+    }
+
+    .menu-item:hover {
+      background: rgba(184, 134, 11, 0.1);
+      border-color: var(--cream);
+    }
+
+    .menu-item h5 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      color: var(--brass);
+      margin-bottom: 1rem;
+    }
+
+    .menu-item p {
+      color: var(--cream);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    /* ============ HOURS & CONTACT ============ */
+    .hours-contact {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+    }
+
+    .hours-box, .contact-box {
+      border: 1px solid var(--brass);
+      padding: 2.5rem;
+      background: rgba(44, 24, 16, 0.6);
+    }
+
+    .hours-box h4, .contact-box h4 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      color: var(--brass);
+      margin-bottom: 1.5rem;
+    }
+
+    .hours-table {
+      width: 100%;
+    }
+
+    .hours-table tr {
+      border-bottom: 1px solid rgba(184, 134, 11, 0.2);
+    }
+
+    .hours-table td {
+      padding: 0.7rem 0;
+      color: var(--cream);
+    }
+
+    .hours-table td:first-child {
+      font-weight: bold;
+      color: var(--brass);
+      padding-right: 2rem;
+      text-transform: capitalize;
+    }
+
+    .contact-info {
+      list-style: none;
+    }
+
+    .contact-info li {
+      margin-bottom: 1.5rem;
+      color: var(--cream);
+      font-size: 1rem;
+    }
+
+    .contact-info strong {
+      color: var(--brass);
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+
+    .contact-info a {
+      color: var(--brass);
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .contact-info a:hover {
+      opacity: 0.8;
+    }
+
+    /* ============ FOOTER ============ */
+    footer {
+      background: linear-gradient(135deg, #1a0f08 0%, var(--mahogany) 100%);
+      border-top: 2px solid var(--brass);
+      padding: 3rem 2rem;
+      text-align: center;
+      color: var(--cream);
+    }
+
+    footer p {
+      margin-bottom: 1rem;
+    }
+
+    footer h4 {
+      font-family: 'Playfair Display', serif;
+      color: var(--brass);
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .footer-divider {
+      width: 100px;
+      height: 1px;
+      background: var(--brass);
+      margin: 1.5rem auto;
+    }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2.5rem;
+      }
+
+      .hero {
+        padding: 3rem 1.5rem;
+      }
+
+      .about-grid, .hours-contact {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 2.5rem 1.5rem;
+      }
+    }
+  </style>
+
+  <!-- HEADER -->
+  <header>
+    <h1>Beverly Depot</h1>
+    <p class="tagline">Prime Rib • Seafood • Tradition</p>
+    <p class="since">Since 1971</p>
+  </header>
+
+  <!-- HERO / CTA -->
+  <section class="hero">
+    <h2>Historic Fine Dining in an 1890s Train Depot</h2>
+    <p>Serving the finest prime rib, fresh seafood, and classic steakhouse fare in the heart of Beverly. A New England tradition for over 50 years.</p>
+    <a href="https://www.opentable.com/r/beverly-depot-restaurant-beverly" target="_blank" class="cta-button">Reserve Your Table</a>
+  </section>
+
+  <!-- ABOUT -->
+  <section class="section">
+    <h3>Our Story</h3>
+    <div class="about-grid">
+      <div class="about-text">
+        <h4>A Dining Tradition Since 1971</h4>
+        <p>Nestled in the heart of Beverly, The Beverly Depot Restaurant has been serving exceptional fine dining inside an authentic 1890s MBTA train depot for over five decades. Every detail—from the historic architecture to the candlelit ambiance—speaks to our commitment to timeless elegance.</p>
+        <p>Our guests return year after year for the same reasons: exquisite prime rib, fresh-caught seafood, our celebrated salad bar, and service that honors the traditions of fine dining.</p>
+        <ul class="about-features">
+          <li>Historic 1890s Train Depot Setting</li>
+          <li>50+ Years of Excellence</li>
+          <li>Private Dining Rooms with Fireplaces</li>
+          <li>Premium Prime Rib & Fresh Seafood</li>
+          <li>Celebrated Salad Bar</li>
+        </ul>
+      </div>
+      <div style="text-align: center; color: var(--brass); font-size: 4rem; line-height: 1;">
+        🚂
+      </div>
+    </div>
+  </section>
+
+  <!-- MENU HIGHLIGHTS -->
+  <section class="section">
+    <h3>Signature Offerings</h3>
+    <div class="menu-grid">
+      <div class="menu-item">
+        <h5>Prime Rib</h5>
+        <p>Served up as some of the best tasting prime rib in the New England area. Hand-cut, perfectly seasoned, and cooked to order. The Beverly Depot signature.</p>
+      </div>
+      <div class="menu-item">
+        <h5>Fresh Seafood</h5>
+        <p>From baked scallops to fresh fish of the day, our seafood selections reflect our commitment to quality and sustainability. Prepared simply to let the flavors shine.</p>
+      </div>
+      <div class="menu-item">
+        <h5>The Salad Bar</h5>
+        <p>Legendary among our guests. Crafted fresh daily with garden vegetables, seasonal ingredients, and classic toppings. Included with dinner entrées.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIVATE EVENTS -->
+  <section class="section">
+    <h3>Private Dining & Special Events</h3>
+    <p style="text-align: center; max-width: 800px; margin: 0 auto 2rem;">The Beverly Depot features private function rooms with fireplaces, perfect for intimate celebrations, corporate gatherings, and special occasions. Contact us to reserve your event.</p>
+  </section>
+
+  <!-- HOURS & CONTACT -->
+  <section class="section">
+    <div class="hours-contact">
+      <div class="hours-box">
+        <h4>Hours</h4>
+        <table class="hours-table">
+          <tbody>
+            <tr>
+              <td>Monday – Wednesday</td>
+              <td>4:00 PM – 9:00 PM</td>
+            </tr>
+            <tr>
+              <td>Thursday</td>
+              <td>11:30 AM – 7:00 PM</td>
+            </tr>
+            <tr>
+              <td>Friday – Saturday</td>
+              <td>4:00 PM – 10:00 PM</td>
+            </tr>
+            <tr>
+              <td>Sunday</td>
+              <td>3:00 PM – 9:00 PM</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="contact-box">
+        <h4>Contact & Reservations</h4>
+        <ul class="contact-info">
+          <li>
+            <strong>Phone</strong>
+            <a href="tel:+19789275402">(978) 927-5402</a>
+          </li>
+          <li>
+            <strong>Address</strong>
+            10 Park Street, Beverly, MA 01915
+          </li>
+          <li>
+            <strong>Make a Reservation</strong>
+            <a href="https://www.opentable.com/r/beverly-depot-restaurant-beverly" target="_blank">OpenTable →</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <h4>The Beverly Depot Restaurant</h4>
+    <p>10 Park Street • Beverly, MA 01915</p>
+    <p><strong>(978) 927-5402</strong></p>
+    <div class="footer-divider"></div>
+    <p style="font-size: 0.85rem; margin-top: 2rem;">Since 1971. Some things are worth not changing.</p>
+  </footer>
+</Layout>
