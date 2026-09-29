@@ -87,3 +87,81 @@ import {
       </ul>
     </div>
   </section>
+
+
+  <!-- ABOUT -->
+  <section class="rd-about" id="about" aria-labelledby="about-heading">
+    <div class="rd-container rd-about__inner">
+      <div class="rd-about__text">
+        <p class="rd-eyebrow rd-eyebrow--blue">About Resolve Data</p>
+        <h2 id="about-heading" class="rd-section-title rd-section-title--left">
+          We treat your IT like it's our own business on the line
+        </h2>
+        <p>
+          Resolve Data was built on one frustration: too many IT companies that disappear after the
+          sale. We stay in the room. We know your environment. We answer the phone.
+        </p>
+        <p>
+          Based in Haverhill, MA, we work with small and mid-sized businesses across the Merrimack
+          Valley — manufacturing, construction, professional services, and healthcare adjacent. Our
+          clients don't need a stack of buzzwords. They need things to work, and someone they can
+          call when they don't.
+        </p>
+        <a href="#contact" class="rd-btn rd-btn--primary rd-about__cta">Talk to us</a>
+      </div>
+      <div class="rd-about__stats" aria-label="Key facts">
+        <div class="rd-stat">
+          <span class="rd-stat__num">&lt;1hr</span>
+          <span class="rd-stat__label">Critical response time</span>
+        </div>
+        <div class="rd-stat">
+          <span class="rd-stat__num">5–50</span>
+          <span class="rd-stat__label">Typical client team size</span>
+        </div>
+        <div class="rd-stat">
+          <span class="rd-stat__num">100%</span>
+          <span class="rd-stat__label">Merrimack Valley focused</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section class="rd-testimonials" aria-labelledby="testimonials-heading">
+    <div class="rd-container">
+      <p class="rd-eyebrow">What clients say</p>
+      <h2 id="testimonials-heading" class="rd-section-title">Don't take our word for it</h2>
+      <ul class="rd-testimonials__grid">
+        {RESOLVE_DATA_TESTIMONIALS.map((t) => (
+          <li class="rd-testimonial">
+            <blockquote>
+              <p class="rd-testimonial__quote">"{t.quote}"</p>
+              <footer>
+                <cite class="rd-testimonial__name">— {t.name}</cite>
+              </footer>
+            </blockquote>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="rd-faq" id="faq" aria-labelledby="faq-heading">
+    <div class="rd-container rd-faq__inner">
+      <div class="rd-faq__header">
+        <p class="rd-eyebrow rd-eyebrow--dark">Common questions</p>
+        <h2 id="faq-heading" class="rd-section-title rd-section-title--left">
+          Straight answers to straight questions
+        </h2>
+      </div>
+      <dl class="rd-faq__list">
+        {RESOLVE_DATA_FAQS.map((faq) => (
+          <div class="rd-faq__item">
+            <dt class="rd-faq__q">{faq.question}</dt>
+            <dd class="rd-faq__a">{faq.answer}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </section>
