@@ -1,0 +1,89 @@
+---
+import ResolveDataLayout from "../../layouts/ResolveDataLayout.astro";
+import {
+  RESOLVE_DATA,
+  RESOLVE_DATA_SERVICES,
+  RESOLVE_DATA_TESTIMONIALS,
+  RESOLVE_DATA_FAQS,
+} from "../../lib/resolveData";
+---
+
+<ResolveDataLayout>
+  <!-- NAV -->
+  <header class="rd-nav">
+    <div class="rd-container rd-nav__inner">
+      <a href="/" class="rd-nav__logo" aria-label="Resolve Data home">
+        <span class="rd-nav__logo-mark">RD</span>
+        <span class="rd-nav__logo-text">Resolve Data</span>
+      </a>
+      <nav class="rd-nav__links" aria-label="Main navigation">
+        <a href="#services">Services</a>
+        <a href="#about">About</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact" class="rd-nav__cta">Get a Free Assessment</a>
+      </nav>
+      <a href={RESOLVE_DATA.phoneHref} class="rd-nav__phone" aria-label="Call Resolve Data">
+        {RESOLVE_DATA.phone}
+      </a>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="rd-hero" aria-labelledby="hero-headline">
+    <div class="rd-container rd-hero__inner">
+      <p class="rd-eyebrow">IT Security &amp; Managed IT — Haverhill, MA</p>
+      <h1 id="hero-headline" class="rd-hero__headline">
+        Your IT should protect you.<br />Not slow you down.
+      </h1>
+      <p class="rd-hero__sub">
+        Resolve Data delivers enterprise-grade cybersecurity and managed IT to growing businesses in
+        the Merrimack Valley. Fast response. Plain English. No nonsense.
+      </p>
+      <div class="rd-hero__actions">
+        <a href="#contact" class="rd-btn rd-btn--primary">Get a Free Assessment</a>
+        <a href={RESOLVE_DATA.phoneHref} class="rd-btn rd-btn--ghost">
+          Call {RESOLVE_DATA.phone}
+        </a>
+      </div>
+      <ul class="rd-hero__trust" aria-label="Trust indicators">
+        <li><span class="rd-tick">✓</span> Response within the hour</li>
+        <li><span class="rd-tick">✓</span> No long-term lock-in</li>
+        <li><span class="rd-tick">✓</span> Serving the Merrimack Valley since day one</li>
+      </ul>
+    </div>
+    <div class="rd-hero__grid-bg" aria-hidden="true"></div>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="rd-services" id="services" aria-labelledby="services-heading">
+    <div class="rd-container">
+      <p class="rd-eyebrow rd-eyebrow--dark">What we do</p>
+      <h2 id="services-heading" class="rd-section-title">Built for businesses that can't afford downtime</h2>
+      <p class="rd-section-sub">
+        From endpoint protection to cloud migrations, we cover the full IT stack — so you have one
+        number to call when something goes wrong, and one team making sure it rarely does.
+      </p>
+      <ul class="rd-services__grid">
+        {RESOLVE_DATA_SERVICES.map((service) => (
+          <li class="rd-service-card">
+            <div class="rd-service-card__icon" aria-hidden="true">
+              {service.icon === "shield" && (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              )}
+              {service.icon === "server" && (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              )}
+              {service.icon === "layers" && (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              )}
+              {service.icon === "code" && (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              )}
+            </div>
+            <h3 class="rd-service-card__title">{service.title}</h3>
+            <p class="rd-service-card__desc">{service.description}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
