@@ -307,11 +307,16 @@ const appHandler = async (
       normalizedPath === "/apple-touch-icon-precomposed.png";
     const isSeoPath = normalizedPath === "/sitemap.xml" || normalizedPath === "/robots.txt";
     const isSiteManifest = /^\/sites\/[^/]+\/manifest\.json$/.test(normalizedPath);
+    // Client micro-sites hosted inline in this repo (e.g. /resolvedata, /barbers).
+    const isClientSitePath =
+      normalizedPath.startsWith("/resolvedata") ||
+      normalizedPath.startsWith("/barbers");
     const isMarketingLike =
       normalizedPath !== "/admin" &&
       !isBrowserIconPath &&
       !isSeoPath &&
       !isSiteManifest &&
+      !isClientSitePath &&
       !normalizedPath.startsWith("/admin/") &&
       !normalizedPath.startsWith("/api/") &&
       !normalizedPath.startsWith("/c/") &&
