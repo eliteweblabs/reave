@@ -1,5 +1,6 @@
 import { setDefaultResultOrder } from 'node:dns';
 import { clerkEnsureDomainProxy, clerkFrontendApiHost, clerkFrontendApiOrigin, clerkSecretKey } from './clerkClient';
+import { clerkProxyApexHost } from './legacyBrandDomain';
 import { ADMIN_SCOPED_CLERK_PROXY_PATH, DEFAULT_CLERK_FRONTEND_PROXY_PATH } from './clerkProxyUrl';
 import { publicHostFromEnv, resolvePublicHost } from './requestHost';
 
@@ -44,11 +45,11 @@ export function absoluteClerkProxyUrl(request: Request): string {
   // Clerk registers one proxy_url per instance (COMPANY_DOMAIN / PUBLIC_SITE_*).
   // Railway default domains must not become Clerk-Proxy-Url or FAPI returns host_invalid.
   const host =
-    publicHostFromEnv() ||
-    resolvePublicHost(request) ||
-    request.headers.get('X-Forwarded-Host')?.split(',')[0]?.trim() ||
-    request.headers.get('Host')?.trim() ||
-    incoming.host;
+    clerkProxyApexHost(publicHostFromEnv()) ||
+    clerkProxyApexHost(resolvePublicHost(request)) ||
+    clerkProxyApexHost(request.headers.get('X-Forwarded-Host')?.split(',')[0]?.trim() ?? '') ||
+    clerkProxyApexHost(request.headers.get('Host')?.trim() ?? '') ||
+    clerkProxyApexHost(incoming.host);
   return `${proto}://${host}${DEFAULT_CLERK_FRONTEND_PROXY_PATH}`;
 }
 
@@ -189,9 +190,8 @@ let ensureProxyPromise: Promise<void> | null = null;
  * calling back into this proxy, which would deadlock.
  */
 export function ensureClerkDomainProxy(proxyUrl?: string): void {
-  const fromEnv = publicHostFromEnv()
-    ? `https://${publicHostFromEnv()}${DEFAULT_CLERK_FRONTEND_PROXY_PATH}`
-    : '';
+  const envApex = clerkProxyApexHost(publicHostFromEnv());
+  const fromEnv = envApex ? `https://${envApex}${DEFAULT_CLERK_FRONTEND_PROXY_PATH}` : '';
   const wanted = fromEnv || proxyUrl || '';
   if (!wanted.startsWith('https://')) return;
   if (ensureProxyPromise) return;
