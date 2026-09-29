@@ -11,6 +11,9 @@ import {
   clerkPublishableKey,
   clerkSecretKey,
   clerkDomainRows,
+  alignClerkBrowserAssetUrls,
+  clerkNpmPackageVersionFromUrl,
+  clerkProxiedNpmAssetUrl,
   isClerkFrontendConfigured,
   isClerkRuntimeConfigured,
   normalizeClerkRuntimeEnv,
@@ -237,6 +240,30 @@ normalizeClerkRuntimeEnv();
 assert.equal(process.env.PUBLIC_CLERK_PUBLISHABLE_KEY, 'pk_test_alias');
 assert.equal(process.env.CLERK_SECRET_KEY, 'sk_test_alias');
 assert.equal(isClerkRuntimeConfigured(), true);
+
+assert.equal(
+  clerkNpmPackageVersionFromUrl(
+    'https://clerk.reave.app/npm/@clerk/clerk-js@6.27.0/dist/clerk.browser.js',
+  ),
+  '6.27.0',
+);
+assert.equal(
+  clerkProxiedNpmAssetUrl('clerk-js', 'clerk.browser.js', '6.27.0', '/__clerk'),
+  '/__clerk/npm/@clerk/clerk-js@6.27.0/dist/clerk.browser.js',
+);
+{
+  const env = {
+    PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_Y2xlcmsucmVra28uc3R1ZGlvJA==',
+    PUBLIC_CLERK_JS_URL:
+      'https://clerk.reave.app/npm/@clerk/clerk-js@6.27.0/dist/clerk.browser.js',
+  };
+  alignClerkBrowserAssetUrls(env);
+  assert.equal(
+    env.PUBLIC_CLERK_JS_URL,
+    '/__clerk/npm/@clerk/clerk-js@6.27.0/dist/clerk.browser.js',
+    'stale reave.app clerk-js URL must move to same-origin proxy for client apex keys',
+  );
+}
 if (prevPk === undefined) delete process.env.CLERK_PUBLISHABLE_KEY;
 else process.env.CLERK_PUBLISHABLE_KEY = prevPk;
 if (prevSk === undefined) delete process.env.CLERK_SECRET;

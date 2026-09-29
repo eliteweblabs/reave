@@ -22,12 +22,24 @@ export const CLERK_SECRET_KEY_NAMES = [
   'CLERK_SECRET',
 ] as const;
 
-function firstClerkEnv(names: readonly string[]): string | undefined {
+function clerkEnvValue(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  return env[name]?.trim() || undefined;
+}
+
+function firstClerkEnvFrom(
+  env: NodeJS.ProcessEnv,
+  names: readonly string[],
+): string | undefined {
   for (const name of names) {
-    const value = serverEnv(name)?.trim();
+    const value = clerkEnvValue(env, name);
     if (value) return value;
   }
   return undefined;
+}
+
+function firstClerkEnv(names: readonly string[]): string | undefined {
+  if (typeof process === 'undefined' || !process.env) return undefined;
+  return firstClerkEnvFrom(process.env, names);
 }
 
 export function clerkPublishableKey(): string | undefined {
@@ -60,6 +72,94 @@ export function clerkSecretKey(): string | undefined {
   return firstClerkEnv(CLERK_SECRET_KEY_NAMES);
 }
 
+const CLERK_NPM_VERSION_RE = /@clerk\/[^@]+@([^/]+)\/dist\//;
+
+/** Parse `@6.27.0` from a Clerk FAPI `/npm/@clerk/...` asset URL. */
+export function clerkNpmPackageVersionFromUrl(url: string | undefined): string | undefined {
+  if (!url?.trim()) return undefined;
+  return url.match(CLERK_NPM_VERSION_RE)?.[1];
+}
+
+/**
+ * Same-origin Clerk JS/UI bundle via the Frontend API proxy (`/__clerk`).
+ * Works with CSP `script-src 'self'` when a stale `PUBLIC_CLERK_JS_URL`
+ * still points at another install's `clerk.{apex}` host.
+ */
+export function clerkProxiedNpmAssetUrl(
+  packageName: 'clerk-js' | 'ui',
+  fileName: string,
+  version: string,
+  proxyPath = clerkProxyUrlFromEnv(),
+): string | undefined {
+  if (!proxyPath?.startsWith('/')) return undefined;
+  const base = proxyPath.replace(/\/+$/, '');
+  return `${base}/npm/@clerk/${packageName}@${version}/dist/${fileName}`;
+}
+
+/**
+ * Client installs often inherit `PUBLIC_CLERK_JS_URL=https://clerk.reave.app/...`
+ * from the template while the publishable key encodes `clerk.{client-apex}`.
+ * CSP follows the key; a mismatched JS URL is blocked and the sign-in sheet stays empty.
+ */
+export function alignClerkBrowserAssetUrls(env: NodeJS.ProcessEnv = process.env): void {
+  const publishable = firstClerkEnvFrom(env, CLERK_PUBLISHABLE_KEY_NAMES);
+  const fapiHost = clerkFrontendApiHost(publishable)?.toLowerCase();
+  if (!fapiHost) return;
+
+  const proxyPath = clerkProxyUrlFromEnv(env);
+  const assets = [
+    {
+      urlKey: 'PUBLIC_CLERK_JS_URL',
+      versionKey: 'PUBLIC_CLERK_JS_VERSION',
+      packageName: 'clerk-js' as const,
+      fileName: 'clerk.browser.js',
+    },
+    {
+      urlKey: 'PUBLIC_CLERK_UI_URL',
+      versionKey: 'PUBLIC_CLERK_UI_VERSION',
+      packageName: 'ui' as const,
+      fileName: 'ui.browser.js',
+    },
+  ];
+
+  for (const asset of assets) {
+    const raw = env[asset.urlKey]?.trim();
+    if (!raw) continue;
+
+    if (raw.startsWith('/')) continue;
+
+    let urlHost = '';
+    try {
+      urlHost = new URL(raw).hostname.toLowerCase();
+    } catch {
+      delete env[asset.urlKey];
+      continue;
+    }
+
+    if (urlHost === fapiHost) continue;
+
+    const version =
+      env[asset.versionKey]?.trim() || clerkNpmPackageVersionFromUrl(raw) || undefined;
+    if (!version) {
+      delete env[asset.urlKey];
+      continue;
+    }
+
+    const proxied = clerkProxiedNpmAssetUrl(asset.packageName, asset.fileName, version, proxyPath);
+    if (proxied) {
+      env[asset.urlKey] = proxied;
+      console.warn(
+        `[clerk] ${asset.urlKey} host ${urlHost} mismatched publishable FAPI ${fapiHost}; using ${proxied}`,
+      );
+      continue;
+    }
+
+    env[asset.urlKey] =
+      `https://${fapiHost}/npm/@clerk/${asset.packageName}@${version}/dist/${asset.fileName}`;
+    console.warn(`[clerk] ${asset.urlKey} host ${urlHost} mismatched publishable FAPI ${fapiHost}; rewrote URL`);
+  }
+}
+
 /**
  * Copy alias values onto the names @clerk/astro reads.
  * Uses dynamic `process.env[name]` so Vite cannot inline empty PUBLIC_ keys
@@ -81,6 +181,7 @@ export function normalizeClerkRuntimeEnv(): void {
   } else if (isClerkProxyOptOut(process.env['PUBLIC_CLERK_PROXY_URL'])) {
     delete process.env['PUBLIC_CLERK_PROXY_URL'];
   }
+  alignClerkBrowserAssetUrls();
 }
 
 normalizeClerkRuntimeEnv();
