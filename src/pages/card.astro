@@ -30,6 +30,7 @@ import { BRANDING_OG_PATH } from '../lib/companyLogo';
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
 import { requestOrigin } from '../lib/requestOrigin';
 import { shareSafeText } from '../lib/shareSafeText';
+import { resolveCardDemoSites } from '../lib/cardDemoSites';
 import '../styles/brand.css';
 
 export const prerender = false;
@@ -117,41 +118,8 @@ try {
   cardQrSrc = '';
 }
 
-// Demo Sites portfolio — local neighborhood businesses on Railway preview URLs only.
-// Rule: only include sites WITHOUT a custom apex domain yet (works-in-progress / proposals).
-// Once a site goes live on its own domain, remove it from this list.
-const demoSites = [
-  {
-    name: "Karla Cassidy Designs",
-    category: "Wedding Florist · Beverly, MA",
-    url: "https://karlacassidy-site-production.up.railway.app",
-    emoji: "💐",
-  },
-  {
-    name: "Standley Bros. Machine Co.",
-    category: "Machine Shop · Beverly, MA",
-    url: "https://web-production-99fb9c.up.railway.app",
-    emoji: "⚙️",
-  },
-  {
-    name: "Maddy the Barber",
-    category: "Barber · Beverly, MA",
-    url: "https://maddythebarber-site-production.up.railway.app",
-    emoji: "💈",
-  },
-  {
-    name: "JC Pena",
-    category: "Master Barber",
-    url: "https://jcpena-site-production.up.railway.app",
-    emoji: "🪒",
-  },
-  {
-    name: "Lux Cleaning",
-    category: "Cleaning Service · Beverly, MA",
-    url: "https://lux-cleaning-production.up.railway.app",
-    emoji: "✨",
-  },
-];
+// Demo Sites — Railway *.up.railway.app previews without a live apex (see cardDemoSites.ts).
+const demoSites = await resolveCardDemoSites();
 ---
 
 <!doctype html>

@@ -1,0 +1,19 @@
+/**
+ * Run: npm run check:card-demo-sites
+ */
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { isApexPublicWebsiteHost } from '../src/lib/publicUrl.ts';
+
+assert.equal(isApexPublicWebsiteHost('lux.cleaning'), true);
+assert.equal(isApexPublicWebsiteHost('maddythebarber-site-production.up.railway.app'), false);
+
+const cardPage = readFileSync('src/pages/card.astro', 'utf8');
+assert.match(cardPage, /resolveCardDemoSites/);
+assert.doesNotMatch(cardPage, /karlacassidy-site-production/);
+
+const lib = readFileSync('src/lib/cardDemoSites.ts', 'utf8');
+assert.match(lib, /railwayCollectCardDemoSites/);
+assert.match(lib, /serviceHasLiveApexCustom/);
+
+console.log('verify-card-demo-sites: ok');
