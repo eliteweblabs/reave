@@ -53,7 +53,10 @@ export const POST: APIRoute = async ({ request }) => {
       MAX_NAME_CHARS,
     );
     const email = trimField(formData.email, MAX_EMAIL_CHARS);
-    const company = trimField(formData.company, MAX_COMPANY_CHARS);
+    const company = trimField(
+      formData.company || formData.business_name,
+      MAX_COMPANY_CHARS,
+    );
     const phone = trimField(formData.phone || formData.tel, MAX_PHONE_CHARS);
     const smsRaw = formData.sms_opt_in ?? formData.smsOptIn;
     const smsOptIn =
