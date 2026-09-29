@@ -867,10 +867,20 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.logoSvg !== undefined) {
     const t = input.logoSvg.trim();
     out.logoSvg = t ? sanitizeInlineSvg(t) : null;
+    if (out.logoSvg) {
+      out.logoData = null;
+      out.logoMediaType = null;
+      out.logoPath = null;
+    }
   }
   if (input.iconSvg !== undefined) {
     const t = input.iconSvg.trim();
     out.iconSvg = t ? sanitizeInlineSvg(t) : null;
+    if (out.iconSvg) {
+      out.iconData = null;
+      out.iconMediaType = null;
+      out.iconPath = null;
+    }
   }
   if (input.businessHours !== undefined) {
     if (input.businessHours == null || input.businessHours === '') {

@@ -601,6 +601,89 @@
 .prof-branding-upload-item > .prof-hint {
   margin-top: 0.45rem;
 }
+.prof-brand-theme-previews {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0 0 0.55rem;
+}
+.prof-brand-theme-previews.is-empty .prof-brand-preview-mark {
+  display: none;
+}
+.prof-brand-theme-remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+}
+.prof-brand-theme-preview {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+.prof-brand-theme-label {
+  display: block;
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.prof-brand-theme-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  padding: 0.45rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--fg, #171717) 12%, transparent);
+  box-sizing: border-box;
+}
+.prof-brand-theme-canvas--light {
+  background: #ffffff;
+}
+.prof-brand-theme-canvas--dark {
+  background: #111111;
+}
+.prof-brand-theme-canvas--icon {
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+  min-height: 72px;
+  padding: 0.35rem;
+}
+.prof-brand-theme-canvas--icon.prof-brand-theme-canvas--dark {
+  background: var(--prof-icon-tile, #09090b);
+}
+.prof-brand-preview-mark--invert {
+  filter: invert(1);
+}
+.prof-brand-source-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.55rem;
+}
+.prof-brand-source-tab {
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--fg, #171717) 14%, transparent);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.prof-brand-source-tab[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--fg);
+}
+.prof-brand-source-panel[hidden] {
+  display: none !important;
+}
 .prof-font-picker {
   position: relative;
 }
