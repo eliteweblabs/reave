@@ -39,3 +39,15 @@ export function isOfficialMarketingApexHost(host: string): boolean {
   const h = normalizePublicHost(host).replace(/^www\./, '');
   return h === CANONICAL_PUBLIC_BRAND_DOMAIN || h === LEGACY_PUBLIC_BRAND_DOMAIN;
 }
+
+/**
+ * Apex hostname for Clerk `Clerk-Proxy-Url` / domain `proxy_url`.
+ * Stale `COMPANY_DOMAIN=reave.app` after the hub moved to rekko.studio causes
+ * `host_invalid` on `/__clerk/v1/*` while users browse rekko.studio.
+ */
+export function clerkProxyApexHost(raw: string): string {
+  const h = normalizePublicHost(raw).replace(/^www\./, '');
+  if (!h) return '';
+  if (h === LEGACY_PUBLIC_BRAND_DOMAIN) return CANONICAL_PUBLIC_BRAND_DOMAIN;
+  return h;
+}

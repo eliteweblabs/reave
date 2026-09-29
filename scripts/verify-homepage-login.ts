@@ -315,7 +315,8 @@ assert.equal(
       headers: { 'X-Forwarded-Proto': 'https', 'X-Forwarded-Host': 'reave.app' },
     }),
   ),
-  'https://reave.app/__clerk',
+  'https://rekko.studio/__clerk',
+  'legacy reave.app host must map to rekko.studio for Clerk-Proxy-Url',
 );
 {
   const prevDomain = process.env.COMPANY_DOMAIN;
@@ -328,6 +329,21 @@ assert.equal(
     ),
     'https://life-saving.reave.app/__clerk',
     'Clerk-Proxy-Url must use COMPANY_DOMAIN, not the Railway default host',
+  );
+  if (prevDomain === undefined) delete process.env.COMPANY_DOMAIN;
+  else process.env.COMPANY_DOMAIN = prevDomain;
+}
+{
+  const prevDomain = process.env.COMPANY_DOMAIN;
+  process.env.COMPANY_DOMAIN = 'reave.app';
+  assert.equal(
+    absoluteClerkProxyUrl(
+      new Request('https://rekko.studio/__clerk/v1/client', {
+        headers: { 'X-Forwarded-Proto': 'https', Host: 'rekko.studio' },
+      }),
+    ),
+    'https://rekko.studio/__clerk',
+    'stale COMPANY_DOMAIN=reave.app must not send Clerk-Proxy-Url for reave.app after hub rebrand',
   );
   if (prevDomain === undefined) delete process.env.COMPANY_DOMAIN;
   else process.env.COMPANY_DOMAIN = prevDomain;
