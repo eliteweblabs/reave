@@ -634,12 +634,24 @@ const brandName = company.name || "reave.app";
   }
 
   .go-circle-bg {
+    /*
+     * Bleed into home indicator + Safari toolbar (same vars as .site-bg-atmosphere).
+     * Without this, dots stop at the layout viewport and leave a flat band in the chrome.
+     */
     position: fixed;
-    inset: auto 0 0;
+    left: 0;
+    right: 0;
+    bottom: calc(-1 * (env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)));
     z-index: 0;
     pointer-events: none;
-    opacity: 0.04;
+    --go-circle-bg-opacity: 0.04;
+    opacity: var(--go-circle-bg-opacity);
     line-height: 0;
+  }
+
+  :global(html[data-theme="dark"]) .go-circle-bg {
+    /* Asset is dark halftone ink — invert and lift opacity on #111 canvas. */
+    --go-circle-bg-opacity: 0.09;
   }
 
   .go-circle-bg img {
@@ -648,5 +660,9 @@ const brandName = company.name || "reave.app";
     height: auto;
     object-fit: cover;
     object-position: bottom center;
+  }
+
+  :global(html[data-theme="dark"]) .go-circle-bg img {
+    filter: invert(1);
   }
 </style>
