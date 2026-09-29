@@ -13,6 +13,18 @@ import { companyBrandingVersion, getCompanyConfig, type CompanyConfig } from './
 import { BRANDING_LOGO_ALT_PATH, BRANDING_LOGO_PATH } from './companyLogo';
 import { getStoredCompanyConfig } from './companyConfigStore';
 import { siteBaseUrl } from './contactApi';
+import { resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
+
+export type BrandingApiFonts = Pick<
+  ResolvedBrandFonts,
+  | 'fontPrimaryId'
+  | 'fontSecondaryId'
+  | 'fontContentId'
+  | 'fontPrimary'
+  | 'fontSecondary'
+  | 'fontContent'
+  | 'googleFontsHref'
+>;
 
 export type BrandingApiPayload = {
   ok: true;
@@ -41,6 +53,8 @@ export type BrandingApiPayload = {
     primary: string;
     secondary: string;
   };
+  /** Admin Company typography — same resolution as public site `--font-*`. */
+  fonts: BrandingApiFonts;
 };
 
 function brandingWordmarkAvailable(company: CompanyConfig): boolean {
@@ -84,6 +98,7 @@ export async function buildBrandingApiPayload(context: APIContext): Promise<Bran
   const storedSecondary = normalizeBrandColorHex(stored?.brandSecondary);
   const contactName = company.name?.trim() || null;
   const contactEmail = company.supportEmail?.trim() || company.fromEmail?.trim() || null;
+  const fonts = resolveBrandFonts(stored);
 
   return {
     ok: true,
@@ -107,6 +122,15 @@ export async function buildBrandingApiPayload(context: APIContext): Promise<Bran
     defaults: {
       primary: DEFAULT_SITE_BRAND_PRIMARY,
       secondary: DEFAULT_SITE_BRAND_SECONDARY,
+    },
+    fonts: {
+      fontPrimaryId: fonts.fontPrimaryId,
+      fontSecondaryId: fonts.fontSecondaryId,
+      fontContentId: fonts.fontContentId,
+      fontPrimary: fonts.fontPrimary,
+      fontSecondary: fonts.fontSecondary,
+      fontContent: fonts.fontContent,
+      googleFontsHref: fonts.googleFontsHref,
     },
   };
 }
