@@ -10,6 +10,7 @@ import HomeLoginPage from "../components/home/HomeLoginPage.astro";
 import ReaveMarketingHomePage from "../components/home/ReaveMarketingHomePage.astro";
 import BarbersEdgeLayout from "../layouts/BarbersEdgeLayout.astro";
 import BarbersEdgeProfile from "../components/barbers-edge/BarbersEdgeProfile.astro";
+import BarbersEdgeSuspended from "../components/barbers-edge/BarbersEdgeSuspended.astro";
 import { BARBERS_EDGE, getBarbersEdgeBarber } from "../lib/barbersEdge";
 import { getSiteContent, resolveHomepageTemplate } from "../lib/siteContent";
 import { isReaveMarketingHost, resolvePublicHost } from "../lib/requestHost";
@@ -47,13 +48,8 @@ if (isReaveGrandOpening) {
 {
   isLogin ? (
     <HomeLoginPage />
-  ) : isBarbersEdge && barbersEdgeOwner ? (
-    <BarbersEdgeLayout
-      title={`${barbersEdgeOwner.name} — ${BARBERS_EDGE.name}`}
-      description={`${barbersEdgeOwner.role} at Barber's Edge. ${barbersEdgeOwner.tagline}.`}
-    >
-      <BarbersEdgeProfile barber={barbersEdgeOwner} />
-    </BarbersEdgeLayout>
+  ) : isBarbersEdge ? (
+    <BarbersEdgeSuspended />
   ) : isComingSoon ? (
     <ComingSoonLayout
       title={siteContent.landing?.title}

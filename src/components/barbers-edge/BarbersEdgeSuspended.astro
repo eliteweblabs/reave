@@ -1,0 +1,623 @@
+---
+/**
+ * BarbersEdgeSuspended — Service suspended notice for thebarbersedge.com
+ * Dark rekko.studio aesthetic: atmosphere orbs, infinity grid, glass card.
+ * Shows OG-style share cards for all 6 active barbers (TJ → Maddy → JC → Henry → Abraham → Steven).
+ */
+
+const PAYMENT_LINK = "https://ap.reave.app/invoices/82MORpV4xLVObnGDr7ve";
+const BILLING_EMAIL = "billing@reave.app";
+
+const barbers = [
+  {
+    name: 'TJ "New Money"',
+    role: "Manager",
+    tagline: "Sharp lineups, heavy texture",
+    url: "https://tj-newmoney-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/tj-new-money.jpg",
+    color: "#c9a84c",
+    bg: "#0f0f0f",
+  },
+  {
+    name: "Maddy",
+    role: "Barber",
+    tagline: "Precision with a designer's eye",
+    url: "https://maddythebarber-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/maddy.jpg",
+    color: "#b5ff2b",
+    bg: "#0a0a0a",
+  },
+  {
+    name: "JC Pena",
+    role: "Barber",
+    tagline: "Scissors-first, old school",
+    url: "https://jcpena-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/jc-pena.jpg",
+    color: "#c0392b",
+    bg: "#0a0a0a",
+  },
+  {
+    name: "Henry Whalley",
+    role: "Barber",
+    tagline: "Beards, texture, and the slow finish",
+    url: "https://henrywhalley-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/henry.jpg",
+    color: "#e63946",
+    bg: "#111111",
+  },
+  {
+    name: 'Abraham "Ham"',
+    role: "Barber",
+    tagline: "Skin fades and hard shape",
+    url: "https://abrahamham-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/ham.jpg",
+    color: "#c8a951",
+    bg: "#0d0d0d",
+  },
+  {
+    name: "Steven Diaz",
+    role: "Barber",
+    tagline: "Classic American, family chair",
+    url: "https://stevendiaz-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/steven.jpg",
+    color: "#b5522a",
+    bg: "#0f0d0b",
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Service Suspended — The Barber's Edge</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+
+    <!-- Atmosphere orbs (rekko.studio bg) -->
+    <div class="atm" aria-hidden="true">
+      <div class="atm-orb atm-orb--1"></div>
+      <div class="atm-orb atm-orb--2"></div>
+      <div class="atm-orb atm-orb--3"></div>
+    </div>
+
+    <!-- Infinity grid -->
+    <div class="inf-grid" aria-hidden="true">
+      <div class="inf-grid__plane"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="site-header">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">B</span>
+        <span class="wordmark">The Barber's Edge</span>
+      </div>
+    </header>
+
+    <main class="container">
+
+      <!-- Glass notice card -->
+      <div class="glass-card">
+        <div class="notice-header">
+          <span class="warn-pill">⚠ Service Suspended</span>
+          <h1>Payment Required to Restore Service</h1>
+          <p class="sub">This website has been suspended due to non-payment. Your hosting account is not current.</p>
+        </div>
+
+        <div class="notice-body">
+          <div class="alert-row">
+            <span class="alert-dot"></span>
+            <p><strong>Required Action:</strong> Submit payment immediately to restore service. Continued non-payment may result in permanent account termination and data deletion.</p>
+          </div>
+
+          <div class="terms-block">
+            <h2>Payment Terms Going Forward</h2>
+            <ul>
+              <li>All outstanding invoices must be paid in full</li>
+              <li>Failure to maintain account standing will result in immediate suspension</li>
+            </ul>
+          </div>
+
+          <div class="pay-row">
+            <div class="pay-copy">
+              <p class="pay-label">Make a Payment</p>
+              <p class="pay-hint">Click below to submit payment and restore your service</p>
+            </div>
+            <a href={PAYMENT_LINK} class="pay-btn">Pay Now →</a>
+          </div>
+
+          <div class="contact-row">
+            <span class="contact-icon">✉</span>
+            <div>
+              <p class="contact-label">Questions about this suspension?</p>
+              <a href={`mailto:${BILLING_EMAIL}`} class="contact-email">{BILLING_EMAIL}</a>
+              <p class="contact-hint">Include your account information and invoice numbers.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barber cards -->
+      <section class="team-section">
+        <h2 class="team-heading">Your Barbers Are Still Open</h2>
+        <p class="team-sub">Each team member maintains their own independent website. Book directly below.</p>
+
+        <div class="cards-grid">
+          {barbers.map((b) => (
+            <a
+              href={b.url}
+              class="og-card"
+              target="_blank"
+              rel="noopener"
+              style={`--card-bg: ${b.bg}; --card-accent: ${b.color};`}
+            >
+              <div class="og-image-wrap">
+                <img
+                  src={b.photo}
+                  alt={`${b.name} — ${b.role} at The Barber's Edge`}
+                  class="og-photo"
+                  loading="lazy"
+                  onerror="this.style.display='none'; this.parentElement.classList.add('no-photo');"
+                />
+                <div class="og-overlay"></div>
+                <div class="og-badge">{b.role}</div>
+              </div>
+              <div class="og-meta">
+                <div class="og-site">thebarbersedge.com</div>
+                <div class="og-name">{b.name}</div>
+                <div class="og-desc">{b.tagline}</div>
+                <div class="og-cta">Book now →</div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <footer class="page-footer">
+        <p>Service Suspension Notice · The Barber's Edge · Beverly, MA</p>
+      </footer>
+
+    </main>
+
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        --bg: #07090f;
+        --surface: rgba(255,255,255,0.04);
+        --border: rgba(255,255,255,0.08);
+        --text: #e8eaf0;
+        --muted: rgba(255,255,255,0.45);
+        --accent: #6c63ff;
+        --accent2: #a78bfa;
+        --red: #f04438;
+        --green: #12b76a;
+        --radius: 14px;
+      }
+
+      html, body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: 'Inter', system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+      }
+
+      /* ── Atmosphere ── */
+      .atm {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        overflow: hidden;
+      }
+      .atm-orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.18;
+      }
+      .atm-orb--1 {
+        width: 600px; height: 600px;
+        top: -180px; left: -120px;
+        background: radial-gradient(circle, #6c63ff 0%, transparent 70%);
+        animation: drift1 18s ease-in-out infinite alternate;
+      }
+      .atm-orb--2 {
+        width: 500px; height: 500px;
+        top: 30%; right: -100px;
+        background: radial-gradient(circle, #a78bfa 0%, transparent 70%);
+        animation: drift2 22s ease-in-out infinite alternate;
+      }
+      .atm-orb--3 {
+        width: 400px; height: 400px;
+        bottom: -80px; left: 40%;
+        background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+        animation: drift1 26s ease-in-out infinite alternate-reverse;
+      }
+      @keyframes drift1 {
+        from { transform: translate(0,0) scale(1); }
+        to   { transform: translate(40px, 30px) scale(1.08); }
+      }
+      @keyframes drift2 {
+        from { transform: translate(0,0) scale(1); }
+        to   { transform: translate(-30px, 20px) scale(1.05); }
+      }
+
+      /* ── Infinity grid ── */
+      .inf-grid {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        perspective: 600px;
+        overflow: hidden;
+        opacity: 0.25;
+      }
+      .inf-grid__plane {
+        position: absolute;
+        inset: -50%;
+        background-image:
+          linear-gradient(rgba(108,99,255,0.3) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(108,99,255,0.3) 1px, transparent 1px);
+        background-size: 48px 48px;
+        transform: rotateX(55deg) translateY(-20%);
+        transform-origin: center bottom;
+        animation: grid-scroll 14s linear infinite;
+      }
+      @keyframes grid-scroll {
+        from { background-position: 0 0; }
+        to   { background-position: 0 48px; }
+      }
+
+      /* ── Header ── */
+      .site-header {
+        position: relative;
+        z-index: 10;
+        text-align: center;
+        padding: 1.5rem 1rem 0.75rem;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .mark {
+        width: 2rem; height: 2rem;
+        border: 1.5px solid rgba(255,255,255,0.25);
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: white;
+        background: rgba(255,255,255,0.05);
+      }
+      .wordmark {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.85);
+      }
+
+      /* ── Container ── */
+      .container {
+        position: relative;
+        z-index: 10;
+        max-width: 700px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 4rem;
+      }
+
+      /* ── Glass card ── */
+      .glass-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        overflow: hidden;
+        margin-bottom: 3rem;
+        box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 20px 60px rgba(0,0,0,0.5);
+      }
+
+      .notice-header {
+        padding: 2rem 2rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+        text-align: center;
+      }
+      .warn-pill {
+        display: inline-block;
+        background: rgba(240,68,56,0.15);
+        border: 1px solid rgba(240,68,56,0.3);
+        color: #fda29b;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.3rem 0.85rem;
+        border-radius: 999px;
+        margin-bottom: 1rem;
+      }
+      .notice-header h1 {
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.01em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
+
+      .notice-body {
+        padding: 1.5rem 2rem 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .alert-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+        background: rgba(240,68,56,0.06);
+        border: 1px solid rgba(240,68,56,0.18);
+        border-radius: 8px;
+        padding: 0.9rem 1rem;
+      }
+      .alert-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: var(--red);
+        margin-top: 4px;
+        flex-shrink: 0;
+        box-shadow: 0 0 6px var(--red);
+      }
+      .alert-row p {
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.7);
+        line-height: 1.5;
+      }
+      .alert-row strong { color: #fda29b; }
+
+      .terms-block h2 {
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.6rem;
+      }
+      .terms-block ul {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .terms-block li {
+        font-size: 0.875rem;
+        color: rgba(255,255,255,0.65);
+        padding-left: 1.25rem;
+        position: relative;
+        line-height: 1.5;
+      }
+      .terms-block li::before {
+        content: '—';
+        position: absolute;
+        left: 0;
+        color: var(--accent2);
+        font-size: 0.7rem;
+        top: 3px;
+      }
+      .terms-block strong { color: white; }
+
+      .pay-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        background: rgba(108,99,255,0.08);
+        border: 1px solid rgba(108,99,255,0.2);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        flex-wrap: wrap;
+      }
+      .pay-label {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 0.2rem;
+      }
+      .pay-hint {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .pay-btn {
+        display: inline-block;
+        background: var(--green);
+        color: white;
+        padding: 0.65rem 1.5rem;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: opacity 0.2s, transform 0.15s;
+        box-shadow: 0 0 16px rgba(18,183,106,0.25);
+      }
+      .pay-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+      .contact-row {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.9rem 1rem;
+      }
+      .contact-icon {
+        font-size: 1rem;
+        opacity: 0.5;
+        margin-top: 1px;
+        flex-shrink: 0;
+      }
+      .contact-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 0.2rem;
+      }
+      .contact-email {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--accent2);
+        text-decoration: none;
+        margin-bottom: 0.2rem;
+      }
+      .contact-email:hover { text-decoration: underline; }
+      .contact-hint {
+        font-size: 0.75rem;
+        color: var(--muted);
+      }
+
+      /* ── Team section ── */
+      .team-section { margin-bottom: 2.5rem; }
+      .team-heading {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: white;
+        text-align: center;
+        margin-bottom: 0.35rem;
+        letter-spacing: -0.01em;
+      }
+      .team-sub {
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.875rem;
+        margin-bottom: 1.75rem;
+      }
+
+      /* ── OG cards ── */
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+        gap: 1rem;
+      }
+
+      .og-card {
+        background: var(--card-bg, #111);
+        border-radius: 12px;
+        overflow: hidden;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.07);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .og-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 36px rgba(0,0,0,0.55);
+        border-color: rgba(255,255,255,0.13);
+      }
+
+      .og-image-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1.91 / 1;
+        background: #1a1a1a;
+        overflow: hidden;
+      }
+      .og-photo {
+        width: 100%; height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+      }
+      .og-image-wrap.no-photo {
+        background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+      }
+      .og-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 55%);
+      }
+      .og-badge {
+        position: absolute;
+        top: 0.6rem; left: 0.6rem;
+        background: var(--card-accent, #c9a84c);
+        color: #000;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.55rem;
+        border-radius: 3px;
+      }
+
+      .og-meta {
+        padding: 0.75rem 0.9rem 0.95rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.18rem;
+        flex: 1;
+      }
+      .og-site {
+        font-size: 0.62rem;
+        color: rgba(255,255,255,0.3);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .og-name {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1.2;
+      }
+      .og-desc {
+        font-size: 0.77rem;
+        color: rgba(255,255,255,0.5);
+        line-height: 1.4;
+      }
+      .og-cta {
+        margin-top: 0.45rem;
+        font-size: 0.74rem;
+        font-weight: 600;
+        color: var(--card-accent, #c9a84c);
+        letter-spacing: 0.03em;
+      }
+
+      /* ── Footer ── */
+      .page-footer {
+        text-align: center;
+        font-size: 0.7rem;
+        color: rgba(255,255,255,0.25);
+        padding-top: 1rem;
+      }
+
+      @media (max-width: 500px) {
+        .notice-body { padding: 1.25rem 1.25rem 1.5rem; }
+        .notice-header { padding: 1.5rem 1.25rem 1.25rem; }
+        .pay-row { flex-direction: column; align-items: stretch; text-align: center; }
+        .cards-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </body>
+</html>
