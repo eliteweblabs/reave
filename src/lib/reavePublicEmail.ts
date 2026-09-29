@@ -1,12 +1,16 @@
 /**
- * Official public mailbox for reave.app (reave.app).
+ * Official public mailbox for rekko.studio (legacy reave.app aliases fold here).
  *
  * Retired brand locals (hello@, support@, …) rewrite here so the website,
  * outbound From, VAPID subject, and company config stay on one address.
  * Personal / system mailboxes (thomas@, noreply@, inbound.*, demo.*) are left alone.
  */
-export const REAVE_PUBLIC_EMAIL = 'get@reave.app';
-export const REAVE_PUBLIC_HOST = 'reave.app';
+import { CANONICAL_PUBLIC_BRAND_DOMAIN } from './legacyBrandDomain';
+
+export const REAVE_PUBLIC_EMAIL = `get@${CANONICAL_PUBLIC_BRAND_DOMAIN}`;
+export const REAVE_PUBLIC_HOST = CANONICAL_PUBLIC_BRAND_DOMAIN;
+/** Legacy apex while DNS and stored company rows still mention reave.app. */
+export const LEGACY_REAVE_PUBLIC_HOST = 'reave.app';
 
 const LEGACY_REAVE_PUBLIC_LOCALS = new Set([
   'hello',
@@ -25,7 +29,7 @@ export function isReaveAppHost(host: string): boolean {
       .replace(/^www\./i, '')
       .split('/')[0]
       ?.toLowerCase() || '';
-  return h === REAVE_PUBLIC_HOST;
+  return h === REAVE_PUBLIC_HOST || h === LEGACY_REAVE_PUBLIC_HOST;
 }
 
 /** True when the address is a retired reave.app public mailbox (hello@, support@, …). */
@@ -67,7 +71,11 @@ export function canonicalizeReaveBrandEmail(email: string): string {
   if (at < 0) return trimmed;
   const local = addr.slice(0, at);
   const host = addr.slice(at + 1);
-  if (host !== REAVE_PUBLIC_HOST || !LEGACY_REAVE_PUBLIC_LOCALS.has(local)) {
+  const officialHost = host === REAVE_PUBLIC_HOST || host === LEGACY_REAVE_PUBLIC_HOST;
+  const legacyPublic =
+    officialHost &&
+    (LEGACY_REAVE_PUBLIC_LOCALS.has(local) || (host === LEGACY_REAVE_PUBLIC_HOST && local === 'get'));
+  if (!legacyPublic) {
     return trimmed;
   }
   if (angle) {

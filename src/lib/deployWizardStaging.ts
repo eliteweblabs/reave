@@ -196,8 +196,8 @@ export async function buildDeployWizardPlanResolved(
         variable.value = resolved.plannedSiteDomain;
       }
       if (variable.name === 'RESEND_FROM' || variable.name === 'EMAIL_FROM') {
-        variable.filled = 'noreply@inbound.reave.app';
-        variable.value = 'noreply@inbound.reave.app';
+        variable.filled = 'noreply@inbound.rekko.studio';
+        variable.value = 'noreply@inbound.rekko.studio';
         variable.inheritFromHost = false;
       }
     }
