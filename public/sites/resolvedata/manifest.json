@@ -1,0 +1,16 @@
+{
+  "name": "Resolve Data",
+  "short_name": "Resolve Data",
+  "description": "IT Security & Managed IT — Haverhill, MA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#0a1628",
+  "icons": [
+    {
+      "src": "/sites/resolvedata/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
