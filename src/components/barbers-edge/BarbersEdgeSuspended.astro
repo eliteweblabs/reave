@@ -1,0 +1,428 @@
+---
+/**
+ * BarbersEdgeSuspended — Service suspended notice for thebarbersedge.com
+ * Shows OG-style share cards for all 6 active barbers (TJ → Maddy → JC → Henry → Abraham → Steven).
+ */
+
+const PAYMENT_LINK = "https://ap.reave.app/invoices/82MORpV4xLVObnGDr7ve";
+const BILLING_EMAIL = "billing@reave.app";
+
+const barbers = [
+  {
+    name: 'TJ "New Money"',
+    role: "Manager",
+    tagline: "Sharp lineups, heavy texture",
+    url: "https://tj-newmoney-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/tj-new-money.jpg",
+    color: "#c9a84c",
+    bg: "#0f0f0f",
+  },
+  {
+    name: "Maddy",
+    role: "Barber",
+    tagline: "Precision with a designer's eye",
+    url: "https://maddythebarber-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/maddy.jpg",
+    color: "#b5ff2b",
+    bg: "#0a0a0a",
+  },
+  {
+    name: "JC Pena",
+    role: "Barber",
+    tagline: "Scissors-first, old school",
+    url: "https://jcpena-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/jc-pena.jpg",
+    color: "#c0392b",
+    bg: "#0a0a0a",
+  },
+  {
+    name: "Henry Whalley",
+    role: "Barber",
+    tagline: "Beards, texture, and the slow finish",
+    url: "https://henrywhalley-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/henry.jpg",
+    color: "#e63946",
+    bg: "#111111",
+  },
+  {
+    name: 'Abraham "Ham"',
+    role: "Barber",
+    tagline: "Skin fades and hard shape",
+    url: "https://abrahamham-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/abraham.jpg",
+    color: "#c8a951",
+    bg: "#0d0d0d",
+  },
+  {
+    name: "Steven Diaz",
+    role: "Barber",
+    tagline: "Classic American, family chair",
+    url: "https://stevendiaz-site-production.up.railway.app",
+    photo: "https://thebarbersedge.com/images/barbers/steven.jpg",
+    color: "#b5522a",
+    bg: "#0f0d0b",
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Service Suspended — The Barber's Edge</title>
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="page">
+
+      <!-- Header -->
+      <header class="site-header">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">B</span>
+          <span class="wordmark">The Barber's Edge</span>
+        </div>
+      </header>
+
+      <!-- Notice -->
+      <main class="container">
+        <div class="notice-card">
+          <div class="notice-header">
+            <span class="warn-icon">⚠️</span>
+            <h1>Service Suspended</h1>
+            <p class="sub">Payment Required to Restore Service</p>
+          </div>
+
+          <div class="notice-body">
+            <h2>Account Status</h2>
+            <p>This website has been suspended due to non-payment. Your hosting account is not current, and service cannot continue without payment.</p>
+
+            <div class="alert-box">
+              <strong>Required Action:</strong> Please submit payment immediately to restore your service. Continued non-payment may result in permanent account termination and data deletion.
+            </div>
+
+            <h2>Payment Terms Going Forward</h2>
+            <p>To restore service and maintain hosting, the following terms are now in effect:</p>
+            <ul>
+              <li>All outstanding invoices must be paid in full</li>
+              <li>Future service requires <strong>prepayment of 2 years in advance</strong></li>
+              <li>Failure to maintain prepaid status will result in immediate suspension</li>
+            </ul>
+
+            <div class="pay-section">
+              <h3>Make a Payment</h3>
+              <p>Click below to submit payment and restore your service</p>
+              <a href={PAYMENT_LINK} class="pay-btn">Pay Now</a>
+            </div>
+
+            <div class="contact-box">
+              <p><strong>Questions about this suspension?</strong></p>
+              <p>📧 <a href={`mailto:${BILLING_EMAIL}`}>{BILLING_EMAIL}</a></p>
+              <p>Please include your account information and invoice numbers in any correspondence.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barber Cards -->
+        <section class="team-section">
+          <h3 class="team-heading">Your Barbers Are Still Open</h3>
+          <p class="team-sub">Each team member maintains their own independent website. Book directly below.</p>
+
+          <div class="cards-grid">
+            {barbers.map((b) => (
+              <a href={b.url} class="og-card" target="_blank" rel="noopener" style={`--card-bg: ${b.bg}; --card-accent: ${b.color};`}>
+                <div class="og-image-wrap">
+                  <img
+                    src={b.photo}
+                    alt={`${b.name} — ${b.role} at The Barber's Edge`}
+                    class="og-photo"
+                    loading="lazy"
+                    onerror="this.style.display='none'; this.parentElement.classList.add('no-photo');"
+                  />
+                  <div class="og-overlay"></div>
+                  <div class="og-badge">{b.role}</div>
+                </div>
+                <div class="og-meta">
+                  <div class="og-site">thebarbersedge.com</div>
+                  <div class="og-name">{b.name}</div>
+                  <div class="og-desc">{b.tagline}</div>
+                  <div class="og-cta">Book now →</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <footer class="page-footer">
+          <p>Service Suspension Notice · The Barber's Edge · Beverly, MA</p>
+        </footer>
+      </main>
+    </div>
+
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: Outfit, system-ui, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        color: #333;
+      }
+
+      .page { min-height: 100vh; }
+
+      /* Header */
+      .site-header {
+        text-align: center;
+        padding: 1.25rem 1rem 0.75rem;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+        color: white;
+      }
+      .mark {
+        width: 2rem;
+        height: 2rem;
+        border: 1.5px solid rgba(255,255,255,0.7);
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: white;
+      }
+      .wordmark {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: white;
+      }
+
+      /* Main container */
+      .container {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+      }
+
+      /* Notice card */
+      .notice-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        overflow: hidden;
+        margin-bottom: 2.5rem;
+      }
+      .notice-header {
+        text-align: center;
+        padding: 2rem 2rem 1.25rem;
+        border-bottom: 3px solid #e74c3c;
+      }
+      .warn-icon { font-size: 2rem; display: block; margin-bottom: 0.5rem; }
+      .notice-header h1 {
+        color: #e74c3c;
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 0.4rem;
+      }
+      .sub { color: #666; font-size: 0.95rem; }
+
+      .notice-body { padding: 1.5rem 2rem 2rem; }
+      .notice-body h2 {
+        color: #2c3e50;
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 1.25rem 0 0.5rem;
+      }
+      .notice-body p { color: #555; line-height: 1.6; margin-bottom: 0.75rem; font-size: 0.9rem; }
+
+      .alert-box {
+        background: #fef5e7;
+        border-left: 4px solid #f39c12;
+        padding: 0.85rem 1rem;
+        margin: 1rem 0;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: #555;
+        line-height: 1.5;
+      }
+      .alert-box strong { color: #d68910; }
+
+      .notice-body ul {
+        margin: 0.5rem 0 0.75rem 1.25rem;
+        color: #555;
+        font-size: 0.875rem;
+        line-height: 1.8;
+      }
+
+      .pay-section {
+        background: #f4f6f8;
+        padding: 1.25rem;
+        border-radius: 8px;
+        text-align: center;
+        margin: 1.25rem 0;
+      }
+      .pay-section h3 { color: #2c3e50; font-size: 1rem; margin-bottom: 0.4rem; }
+      .pay-section p { color: #666; font-size: 0.8rem; margin-bottom: 0.75rem; }
+
+      .pay-btn {
+        display: inline-block;
+        background: #27ae60;
+        color: white;
+        padding: 0.75rem 2rem;
+        text-decoration: none;
+        border-radius: 5px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        transition: background 0.2s;
+      }
+      .pay-btn:hover { background: #229954; }
+
+      .contact-box {
+        background: #d5f4e6;
+        border-left: 4px solid #27ae60;
+        padding: 0.85rem 1rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        line-height: 1.7;
+      }
+      .contact-box p { color: #27ae60; margin: 0; }
+      .contact-box a { color: #27ae60; }
+
+      /* Team section */
+      .team-section { margin-bottom: 2rem; }
+      .team-heading {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        text-align: center;
+        margin-bottom: 0.4rem;
+      }
+      .team-sub {
+        text-align: center;
+        color: rgba(255,255,255,0.75);
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+      }
+
+      /* OG-style cards grid */
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
+      }
+
+      .og-card {
+        background: var(--card-bg, #111);
+        border-radius: 12px;
+        overflow: hidden;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid rgba(255,255,255,0.06);
+      }
+      .og-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+      }
+
+      .og-image-wrap {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1.91 / 1;
+        background: #1a1a1a;
+        overflow: hidden;
+      }
+      .og-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+      }
+      .og-image-wrap.no-photo {
+        background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+      }
+      .og-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%);
+      }
+      .og-badge {
+        position: absolute;
+        top: 0.6rem;
+        left: 0.6rem;
+        background: var(--card-accent, #c9a84c);
+        color: #000;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.55rem;
+        border-radius: 3px;
+      }
+
+      .og-meta {
+        padding: 0.75rem 0.9rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        flex: 1;
+      }
+      .og-site {
+        font-size: 0.65rem;
+        color: rgba(255,255,255,0.35);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .og-name {
+        font-family: "Cormorant Garamond", Georgia, serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1.2;
+      }
+      .og-desc {
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.55);
+        line-height: 1.4;
+      }
+      .og-cta {
+        margin-top: 0.4rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--card-accent, #c9a84c);
+        letter-spacing: 0.04em;
+      }
+
+      /* Footer */
+      .page-footer {
+        text-align: center;
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.4);
+        padding-top: 1rem;
+      }
+
+      @media (max-width: 480px) {
+        .notice-body { padding: 1.25rem 1.25rem 1.5rem; }
+        .cards-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </body>
+</html>
