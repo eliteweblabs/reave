@@ -1,27 +1,68 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { Image } from 'astro:assets';
 
 const title = 'Beverly Depot Restaurant | Prime Rib & Seafood | Beverly, MA';
 const description = 'Since 1971, The Beverly Depot Restaurant has been serving the finest prime rib, fresh seafood, and classic steakhouse fare in a historic 1890s MBTA train depot. Dinner nightly, Thursday lunch.';
-const ogImage = 'https://rekko.studio/og-beverlydepot.jpg';
+const ogImage = '/og-beverlydepot.svg';
 
-const hoursData = {
-  "monday": { open: "4:00 PM", close: "9:00 PM" },
-  "tuesday": { open: "4:00 PM", close: "9:00 PM" },
-  "wednesday": { open: "4:00 PM", close: "9:00 PM" },
-  "thursday": { open: "11:30 AM", close: "7:00 PM" },
-  "friday": { open: "4:00 PM", close: "10:00 PM" },
-  "saturday": { open: "4:00 PM", close: "10:00 PM" },
-  "sunday": { open: "3:00 PM", close: "9:00 PM" },
+const restaurant = {
+  name: 'The Beverly Depot Restaurant',
+  phone: '(978) 927-5402',
+  url: 'https://beverlydepot.com',
+  image: 'https://rekko.studio/og-beverlydepot.svg',
+  address: {
+    streetAddress: '10 Park Street',
+    addressLocality: 'Beverly',
+    addressRegion: 'MA',
+    postalCode: '01915',
+    addressCountry: 'US'
+  },
+  hours: [
+    { day: 'Monday', open: '16:00', close: '21:00' },
+    { day: 'Tuesday', open: '16:00', close: '21:00' },
+    { day: 'Wednesday', open: '16:00', close: '21:00' },
+    { day: 'Thursday', open: '11:30', close: '19:00' },
+    { day: 'Friday', open: '16:00', close: '22:00' },
+    { day: 'Saturday', open: '16:00', close: '22:00' },
+    { day: 'Sunday', open: '15:00', close: '21:00' },
+  ]
 };
 
-const phone = "(978) 927-5402";
-const address = "10 Park Street, Beverly, MA 01915";
-const reservationUrl = "https://www.opentable.com/r/beverly-depot-restaurant-beverly";
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Restaurant',
+  name: restaurant.name,
+  description: 'Historic fine dining restaurant in an 1890s train depot. Serving prime rib, seafood, and classic steakhouse fare since 1971.',
+  url: restaurant.url,
+  telephone: restaurant.phone,
+  image: restaurant.image,
+  priceRange: '$$',
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: restaurant.address.streetAddress,
+    addressLocality: restaurant.address.addressLocality,
+    addressRegion: restaurant.address.addressRegion,
+    postalCode: restaurant.address.postalCode,
+    addressCountry: restaurant.address.addressCountry,
+  },
+  openingHoursSpecification: restaurant.hours.map(({ day, open, close }) => ({
+    '@type': 'OpeningHoursSpecification',
+    dayOfWeek: day,
+    opens: open,
+    closes: close,
+  })),
+  servesCuisine: ['Steakhouse', 'Seafood'],
+  aggregateRating: {
+    '@type': 'AggregateRating',
+    ratingValue: '4.0',
+    ratingCount: '203'
+  }
+};
 ---
 
 <Layout title={title} description={description} ogImage={ogImage}>
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
   <style>
     :root {
       --mahogany: #2c1810;
@@ -285,6 +326,16 @@ const reservationUrl = "https://www.opentable.com/r/beverly-depot-restaurant-bev
       margin-bottom: 0.3rem;
     }
 
+    .contact-info a {
+      color: var(--brass);
+      text-decoration: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .contact-info a:hover {
+      opacity: 0.8;
+    }
+
     /* ============ FOOTER ============ */
     footer {
       background: linear-gradient(135deg, #1a0f08 0%, var(--mahogany) 100%);
@@ -296,6 +347,13 @@ const reservationUrl = "https://www.opentable.com/r/beverly-depot-restaurant-bev
 
     footer p {
       margin-bottom: 1rem;
+    }
+
+    footer h4 {
+      font-family: 'Playfair Display', serif;
+      color: var(--brass);
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
     }
 
     .footer-divider {
@@ -336,7 +394,7 @@ const reservationUrl = "https://www.opentable.com/r/beverly-depot-restaurant-bev
   <section class="hero">
     <h2>Historic Fine Dining in an 1890s Train Depot</h2>
     <p>Serving the finest prime rib, fresh seafood, and classic steakhouse fare in the heart of Beverly. A New England tradition for over 50 years.</p>
-    <a href={reservationUrl} target="_blank" class="cta-button">Reserve Your Table</a>
+    <a href="https://www.opentable.com/r/beverly-depot-restaurant-beverly" target="_blank" class="cta-button">Reserve Your Table</a>
   </section>
 
   <!-- ABOUT -->
@@ -418,19 +476,15 @@ const reservationUrl = "https://www.opentable.com/r/beverly-depot-restaurant-bev
         <ul class="contact-info">
           <li>
             <strong>Phone</strong>
-            <a href="tel:+19789275402" style="color: var(--brass); text-decoration: none;">
-              {phone}
-            </a>
+            <a href="tel:+19789275402">(978) 927-5402</a>
           </li>
           <li>
             <strong>Address</strong>
-            {address}
+            10 Park Street, Beverly, MA 01915
           </li>
           <li>
             <strong>Make a Reservation</strong>
-            <a href={reservationUrl} target="_blank" style="color: var(--brass); text-decoration: none;">
-              OpenTable →
-            </a>
+            <a href="https://www.opentable.com/r/beverly-depot-restaurant-beverly" target="_blank">OpenTable →</a>
           </li>
         </ul>
       </div>
@@ -439,9 +493,7 @@ const reservationUrl = "https://www.opentable.com/r/beverly-depot-restaurant-bev
 
   <!-- FOOTER -->
   <footer>
-    <h4 style="font-family: 'Playfair Display', serif; color: var(--brass); margin-bottom: 1rem; font-size: 1.3rem;">
-      The Beverly Depot Restaurant
-    </h4>
+    <h4>The Beverly Depot Restaurant</h4>
     <p>10 Park Street • Beverly, MA 01915</p>
     <p><strong>(978) 927-5402</strong></p>
     <div class="footer-divider"></div>
