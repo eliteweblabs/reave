@@ -1,0 +1,195 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Resolve Data — IT Security & Managed IT | Haverhill, MA",
+  description = "Resolve Data delivers enterprise-grade cybersecurity and managed IT services to businesses in the Haverhill, MA area. Fast response. No jargon. No nonsense.",
+} = Astro.props;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "@id": "https://resolvedata.com/#business",
+  name: "Resolve Data",
+  description,
+  url: "https://resolvedata.com",
+  telephone: "+19782285733",
+  email: "info@resolvedata.com",
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Haverhill",
+    addressRegion: "MA",
+    addressCountry: "US",
+  },
+  geo: {
+    "@type": "GeoCoordinates",
+    latitude: 42.7762,
+    longitude: -71.0773,
+  },
+  openingHoursSpecification: [
+    {
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      opens: "08:00",
+      closes: "18:00",
+    },
+  ],
+  sameAs: [],
+  areaServed: {
+    "@type": "GeoCircle",
+    geoMidpoint: {
+      "@type": "GeoCoordinates",
+      latitude: 42.7762,
+      longitude: -71.0773,
+    },
+    geoRadius: "30000",
+  },
+};
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "What areas do you serve?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "We serve businesses throughout the Merrimack Valley — Haverhill, Lawrence, Andover, Methuen, and surrounding communities. Remote support is available anywhere in New England.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "How fast do you respond to issues?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Critical issues get a response within the hour. Our managed IT clients have direct access to our helpdesk with guaranteed SLAs — no ticket queues, no runaround.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Do you work with small businesses?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Most of our clients are 5–50 person companies that need enterprise-level protection without an enterprise IT budget. We scale our services to fit.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "What does a cybersecurity assessment involve?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "We audit your network, endpoints, user access controls, backup integrity, and software vulnerabilities. You get a plain-English report with a prioritized action plan.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Can you take over from our current IT provider?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Yes — we handle the transition. We document your environment, migrate monitoring and management tools, and coordinate the handoff so there's no gap in coverage.",
+      },
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://resolvedata.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://resolvedata.com/" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="https://resolvedata.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Resolve Data" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content="https://resolvedata.com/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/sites/resolvedata/favicon.svg" />
+    <link rel="apple-touch-icon" href="/sites/resolvedata/apple-touch-icon.png" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/sites/resolvedata/manifest.json" />
+
+    <!-- Security Headers (meta equivalents) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+
+    <!-- Fonts: IBM Plex Sans + IBM Plex Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- JSON-LD: LocalBusiness -->
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <!-- JSON-LD: FAQ -->
+    <script type="application/ld+json" set:html={JSON.stringify(faqJsonLd)} />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0a1628;
+    --blue: #2563eb;
+    --blue-light: #3b82f6;
+    --white: #ffffff;
+    --slate: #64748b;
+    --slate-light: #94a3b8;
+    --bg: #f8fafc;
+    --border: rgba(10, 22, 40, 0.1);
+    --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --font-mono: "IBM Plex Mono", "Courier New", monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--navy);
+    background: var(--white);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img { display: block; max-width: 100%; height: auto; }
+  a { color: inherit; }
+
+  .rd-container {
+    width: 100%;
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .rd-container { padding: 0 2rem; }
+  }
+</style>
