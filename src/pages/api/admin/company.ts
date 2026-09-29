@@ -7,6 +7,7 @@ import {
 } from '../../../lib/companyConfig';
 import { sanitizeInlineSvg } from '../../../lib/brandSvg';
 import { normalizeBrandColorHex } from '../../../lib/companyBrandColors';
+import { isHeaderLogoSizeId } from '../../../lib/headerLogoSize';
 import { emailSafeFontCatalogForAdmin } from '../../../lib/emailSafeFonts';
 import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
@@ -65,6 +66,16 @@ export async function POST(context: APIContext): Promise<Response> {
   }
   if (body.iconBackground !== undefined && body.iconBackground.trim() && !normalizeBrandColorHex(body.iconBackground)) {
     return jsonResponse({ error: 'Icon background must be a valid hex value (e.g. #rrggbb).' }, 400);
+  }
+  if (
+    body.headerLogoSize !== undefined &&
+    body.headerLogoSize.trim() &&
+    !isHeaderLogoSizeId(body.headerLogoSize)
+  ) {
+    return jsonResponse(
+      { error: 'Header logo size must be extra small, small, medium, large, or x-large.' },
+      400,
+    );
   }
 
   delete body.domain;

@@ -43,6 +43,7 @@ import {
 } from './reavePublicEmail';
 import { shareSafeText } from './shareSafeText';
 import { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
+import { normalizeHeaderLogoSize, type HeaderLogoSizeId } from './headerLogoSize';
 
 export { shareSafeText } from './shareSafeText';
 export { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
@@ -239,6 +240,8 @@ export type CompanyConfig = {
   syncHoursToCalcom: boolean;
   /** Push company hours onto Google Business Profile when saving. */
   syncHoursToGbp: boolean;
+  /** Header wordmark width preset (small | medium | large | xlarge). */
+  headerLogoSize: HeaderLogoSizeId;
 };
 
 function trim(s: string | null | undefined): string {
@@ -674,6 +677,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     hoursLines: formatWeekHours(parseStoredBusinessHours(stored?.businessHours)),
     syncHoursToCalcom: stored?.syncHoursToCalcom === true,
     syncHoursToGbp: stored?.syncHoursToGbp === true,
+    headerLogoSize: normalizeHeaderLogoSize(stored?.headerLogoSize),
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
@@ -784,6 +788,8 @@ export type CompanyConfigInput = {
   /** Push company hours onto Cal.com Working Hours when saving. */
   syncHoursToCalcom?: boolean | string | null;
   syncHoursToGbp?: boolean | string | null;
+  /** Header wordmark size preset: xsmall | small | medium | large | xlarge */
+  headerLogoSize?: string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -907,6 +913,10 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
     const raw = input.syncHoursToGbp;
     out.syncHoursToGbp =
       raw === true || raw === 'true' || raw === '1' || raw === 'on';
+  }
+  if (input.headerLogoSize !== undefined) {
+    const t = (input.headerLogoSize ?? '').trim();
+    out.headerLogoSize = t ? normalizeHeaderLogoSize(t) : null;
   }
   return out;
 }

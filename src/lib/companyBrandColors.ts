@@ -7,6 +7,7 @@ import {
   portalBrandCssVars,
   type PortalBrandColors,
 } from './portalBrandColors';
+import { headerLogoSizeCssInline } from './headerLogoSize';
 
 export const DEFAULT_SITE_BRAND_PRIMARY = '#f472b6';
 export const DEFAULT_SITE_BRAND_SECONDARY = '#c026d3';
@@ -66,9 +67,11 @@ export function companyHtmlStyleAttr(
   fonts: ResolvedBrandFonts,
   brandPrimary?: string | null,
   brandSecondary?: string | null,
+  headerLogoSize?: string | null,
 ): string {
   const parts = [brandFontCssVars(fonts)];
   const brand = companyBrandCssVarsInline(brandPrimary, brandSecondary);
   if (brand) parts.push(brand);
+  parts.push(headerLogoSizeCssInline(headerLogoSize));
   return parts.join('; ');
 }

@@ -87,7 +87,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
 const htmlStyle =
   isEditorial || isLuxury || isService || isTech || isPack || isVet
     ? undefined
-    : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary);
+    : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary, company.headerLogoSize);
 
 const structuredData = landing.structuredData;
 const jsonLdData = structuredData

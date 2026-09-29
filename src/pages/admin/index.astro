@@ -102,7 +102,7 @@ const bootDashboard = canAccessAdmin && (!requestedTab || requestedTab === "dash
 <html
   lang="en"
   class:list={[{ "admin-special-page": specialPage }]}
-  style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary)}
+  style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary, company.headerLogoSize)}
 >
   <AdminHead
     companyName={company.name}

@@ -8064,6 +8064,44 @@ function svgPreviewDataUri(svg) {
 
 const COMPANY_SVG_FIELD_IDS = new Set(['company-logoSvg', 'company-iconSvg']);
 
+/** Keep in sync with src/lib/headerLogoSize.ts */
+const HEADER_LOGO_SIZE_OPTIONS = [
+  ['xsmall', 'Extra small'],
+  ['small', 'Small'],
+  ['medium', 'Medium'],
+  ['large', 'Large'],
+  ['xlarge', 'X-Large'],
+];
+const HEADER_LOGO_SIZE_WIDTH = {
+  xsmall: 'clamp(56px, 11vw, 72px)',
+  small: 'clamp(72px, 13vw, 88px)',
+  medium: 'clamp(100px, 16vw, 125px)',
+  large: 'clamp(120px, 20vw, 160px)',
+  xlarge: 'clamp(140px, 24vw, 200px)',
+};
+
+function normalizeHeaderLogoSizeId(raw) {
+  const id = String(raw || '').trim().toLowerCase();
+  if (id === 'x-small' || id === 'extra-small' || id === 'extra_small') return 'xsmall';
+  if (id === 'x-large' || id === 'x_large') return 'xlarge';
+  if (Object.prototype.hasOwnProperty.call(HEADER_LOGO_SIZE_WIDTH, id)) return id;
+  return 'medium';
+}
+
+function renderHeaderLogoSizeOptions(selected) {
+  const cur = normalizeHeaderLogoSizeId(selected);
+  return HEADER_LOGO_SIZE_OPTIONS.map(
+    ([id, label]) =>
+      `<option value="${escHtml(id)}"${id === cur ? ' selected' : ''}>${escHtml(label)}</option>`,
+  ).join('');
+}
+
+function applyHeaderLogoSizePreview(sizeId) {
+  const id = normalizeHeaderLogoSizeId(sizeId);
+  const width = HEADER_LOGO_SIZE_WIDTH[id] || HEADER_LOGO_SIZE_WIDTH.medium;
+  document.documentElement.style.setProperty('--app-header-logo-w', width);
+}
+
 /** Same gate the API applies, so a bad paste fails at the field, not at the top. */
 function isPastedSvgMarkup(value) {
   const v = String(value || '').trim();
@@ -8955,6 +8993,7 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
           iconBranding.refreshPreview(json.company);
           refreshCompanyBrandAssetModes(root, json.company);
           refreshGoogleListingPreview(root);
+          applyHeaderLogoSizePreview(json.company.headerLogoSize);
           companyAutosave.resync?.();
         }
       }
@@ -8966,9 +9005,19 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   bindCompanyFontPreview(root, fontCatalog);
   bindCompanyEmailFontPreview(root, emailFontCatalog);
   bindCompanyBrandColors(root);
+  bindCompanyHeaderLogoSize(root, company?.headerLogoSize);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
   bindCompanyListing(root, { onHoursChange: () => void companyAutosave.flush?.() });
   handleGbpOAuthReturn(root, new URLSearchParams(window.location.search));
+}
+
+function bindCompanyHeaderLogoSize(root, initialSize) {
+  const select = root.querySelector('#company-headerLogoSize');
+  if (!(select instanceof HTMLSelectElement)) return;
+  applyHeaderLogoSizePreview(initialSize);
+  select.addEventListener('change', () => {
+    applyHeaderLogoSizePreview(select.value);
+  });
 }
 
 function bindCompanyBrandColors(root) {
@@ -10038,6 +10087,11 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                   `<span class="prof-hint prof-hint--block">Also used as the avatar on your public booking page.</span>`,
               }) +
             `</div>` +
+            `<div class="prof-field"><label for="company-headerLogoSize">Header logo size</label>` +
+            `<select id="company-headerLogoSize" name="headerLogoSize" aria-describedby="company-headerLogoSize-hint">` +
+              renderHeaderLogoSizeOptions(c.headerLogoSize) +
+            `</select>` +
+            `<span id="company-headerLogoSize-hint" class="prof-hint">How wide the wordmark sits in the top bar. Tall or square logos stay within the header height.</span></div>` +
             `<span class="prof-hint prof-hint--block">Library or Upload accepts PNG, JPEG, WebP, or SVG (max 2 MB image / 200 KB SVG). Clear with × to fall back to the display name.</span>`,
           ) +
           profSection(

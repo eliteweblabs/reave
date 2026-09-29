@@ -666,7 +666,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
     /* Safari overlay chrome is not in safe-area-inset-top — same extra as .site-bg-atmosphere. */
     --app-header-scrim-bleed: 80px;
     --app-header-chrome-scale: 1.333;
-    --app-header-logo-w: clamp(100px, 16vw, 125px);
+    /* Width preset from admin Company (inline on <html> via companyHtmlStyleAttr). */
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-icon-h: calc(16px * var(--app-header-chrome-scale));
     --app-header-signin-h: calc(32px * var(--app-header-chrome-scale));
@@ -1191,9 +1191,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   .app-header-logo-clip {
     display: flex;
     align-items: center;
-    width: var(--app-header-logo-w);
-    min-width: 100px;
-    max-width: 125px;
+    width: var(--app-header-logo-w, clamp(100px, 16vw, 125px));
     height: auto;
     max-height: calc(var(--app-header-h) - 0.5rem);
   }
