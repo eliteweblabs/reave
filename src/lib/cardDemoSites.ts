@@ -9,6 +9,7 @@ import {
   type RailwayServiceNetworking,
 } from './railwayClient';
 import { isActiveRailwayProject } from './railwayProjectList';
+import { decorateCardDemoSite } from './cardDemoSiteMeta';
 
 export type CardDemoSite = {
   name: string;
@@ -53,7 +54,7 @@ function isExcludedCardDemoProject(projectName: string): boolean {
   return false;
 }
 
-function isRailwayPreviewHost(host: string): boolean {
+export function isRailwayPreviewHost(host: string): boolean {
   const h = host.trim().toLowerCase();
   return h.endsWith('.up.railway.app') || h.endsWith('.railway.app');
 }
@@ -134,12 +135,12 @@ async function collectCardDemoSitesFromRailway(): Promise<{ sites: CardDemoSite[
     const url = pickRailwayPreviewUrl(svc);
     if (!url) return null;
 
-    return {
+    return decorateCardDemoSite({
       name: project.name.trim(),
       category: 'Preview · Railway',
       url,
       emoji: '🌐',
-    } satisfies CardDemoSite;
+    });
   });
 
   const sites: CardDemoSite[] = [];
@@ -235,12 +236,12 @@ export function normalizeCardDemoUrl(u: string): string {
 export function synthesizeCardDemoSiteFromUrl(demoUrl: string): CardDemoSite {
   const urlObj = new URL(demoUrl);
   const hostLabel = urlObj.hostname.replace(/\.up\.railway\.app$/i, '').replace(/-/g, ' ');
-  return {
+  return decorateCardDemoSite({
     name: hostLabel || 'Demo Site',
     category: 'Preview · Railway',
     url: demoUrl,
     emoji: '🌐',
-  };
+  });
 }
 
 export function visibleCardDemoSites(
@@ -276,6 +277,6 @@ export async function resolveVisibleCardDemoSites(demoUrl: string): Promise<{
   sites: CardDemoSite[];
   single: boolean;
 }> {
-  const all = await resolveCardDemoSites();
+  const all = (await resolveCardDemoSites()).map(decorateCardDemoSite);
   return visibleCardDemoSites(all, demoUrl);
 }
