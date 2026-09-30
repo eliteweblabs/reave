@@ -129,7 +129,7 @@ import {
   iosIcon,
 } from './admin-ui.js?v=20260904a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
-import { installPwaExternalLinkGuard, installPwaNavGuard } from './push-client.js?v=20260930a';
+import { installPwaExternalLinkGuard, installPwaNavGuard } from './push-client.js?v=20260930b';
 import {
   buildAdminNotice,
   appendAdminNoticeAction,
@@ -267,7 +267,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260930a';
+} from './chat-panel.js?v=20260930b';
 import {
   initCreateDrawer,
   beginCreateDrawer,
@@ -970,7 +970,11 @@ function activateMapPanel(opts = {}) {
     loadModulesTab({ feature: opts.moduleFeature });
   } else if (MAP.type === 'chats') {
     if (opts.chatId) queueChatDeepLink(opts.chatId);
-    loadChatsTab({ keepSession: opts.keepChatSession === true });
+    loadChatsTab({
+      keepSession:
+        opts.keepChatSession === true ||
+        (chatState.activeId != null && (chatState.composeDirty || chatState.sending)),
+    });
   } else if (MAP.type === 'email') {
     if (opts.emailId) pendingEmailDeepLinkId = opts.emailId;
     else if (!pendingEmailDeepLinkId) {

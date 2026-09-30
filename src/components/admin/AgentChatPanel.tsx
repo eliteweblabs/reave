@@ -1524,8 +1524,8 @@ function applyDeployChatLockPayload(
   const message = deploy.chatLockMessage ?? null;
   const deployedShort = deploy.deployedShort?.trim() || '';
 
-  // Railway all-clear: drop the composer banner and reload onto the new build.
-  // Regular users will not refresh on their own — and stale tabs keep old assets.
+  // Railway all-clear: reload onto the new build only after this tab actually
+  // saw chatLocked=true in-session (not from a stale header cache on first paint).
   if (opts.wasLocked && !locked) {
     if (deploy.tone === 'live' || deploy.state === 'live') playDeployDoneTone();
     let alreadyReloaded = false;
@@ -1544,6 +1544,21 @@ function applyDeployChatLockPayload(
       return;
     }
 
+    const drafts = readChatComposeDraftsMap();
+    const hasComposeDraft = Object.values(drafts).some((t) => t.trim());
+    const composerFocused = Boolean(
+      typeof document !== 'undefined' &&
+        document.querySelector('#chat-panel .aui-input:focus'),
+    );
+    if (hasComposeDraft || composerFocused) {
+      opts.setState({
+        locked: false,
+        message: 'New version is live — refresh when you are ready.',
+        ready: true,
+      });
+      return;
+    }
+
     opts.setState({
       locked: true,
       liveReloading: true,
@@ -1551,6 +1566,8 @@ function applyDeployChatLockPayload(
       message: 'New version is live — reloading…',
     });
     window.setTimeout(() => {
+      const pending = Object.values(readChatComposeDraftsMap()).some((t) => t.trim());
+      if (pending || document.querySelector('#chat-panel .aui-input:focus')) return;
       window.location.reload();
     }, 900);
     return;
@@ -1577,7 +1594,8 @@ function readCachedDeployLock(): DeployChatLockState {
 
 function useDeployChatLock(): DeployChatLockState {
   const [state, setState] = useState<DeployChatLockState>(readCachedDeployLock);
-  const wasLockedRef = useRef(state.locked);
+  /** Transition detector only — never seed from cache (stale "deploying" caused reload on open). */
+  const wasLockedRef = useRef(false);
   const lockedRef = useRef(state.locked);
   const reloadScheduledRef = useRef(false);
 
@@ -2368,9 +2386,12 @@ function useSlashHelpers(
   useEffect(() => {
     if (!isRunning) return;
     setHelpersOpen(false);
-    setComposeText('');
-    propsRef.current?.onComposeDirty?.(false);
-  }, [isRunning]);
+    const text = composer.getState().text?.trim() ?? '';
+    if (!text) {
+      setComposeText('');
+      propsRef.current?.onComposeDirty?.(false);
+    }
+  }, [composer, isRunning, propsRef]);
 
   useEffect(() => {
     if (!helpersOpen) return;

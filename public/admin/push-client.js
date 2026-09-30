@@ -21,6 +21,8 @@ let deferredInstallPrompt = null;
 let swRegisterBlockedUntil = 0;
 /** Only reload once when a new SW we requested actually took control. */
 let swUpdatePending = false;
+/** Avoid duplicate register/update listeners (push setup calls register too). */
+let swRegisterPromise = null;
 
 function syncSetupAlertInset() {
   const root = document.getElementById('admin-setup-alerts');
@@ -316,6 +318,8 @@ export async function registerAdminServiceWorker() {
   if (!('serviceWorker' in navigator)) return null;
   if (shouldSkipAdminPoll()) return null;
   if (swRegisterBlockedUntil > Date.now()) return null;
+  if (swRegisterPromise) return swRegisterPromise;
+  swRegisterPromise = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
 
@@ -351,8 +355,11 @@ export async function registerAdminServiceWorker() {
     console.warn('[push] SW register failed', e);
     noteAdminNetworkFailure(e);
     swRegisterBlockedUntil = Date.now() + 60_000;
+    swRegisterPromise = null;
     return null;
   }
+  })();
+  return swRegisterPromise;
 }
 
 async function getExistingPushSubscription() {
@@ -1084,11 +1091,11 @@ if (typeof document !== 'undefined') {
   if (isStandalonePwa()) markAdminPwaInstalled();
   void registerAdminServiceWorker();
 
-  let reloadedForSwUpdate = false;
   navigator.serviceWorker?.addEventListener('controllerchange', () => {
-    if (!swUpdatePending || reloadedForSwUpdate) return;
-    reloadedForSwUpdate = true;
-    window.location.reload();
+    // skipWaiting() activates a new worker on every deploy. Hard-reloading the
+    // admin SPA here caused reload loops and wiped the chat composer mid-type.
+    // Push/badge handlers run on the new worker; JS assets refresh on navigation.
+    swUpdatePending = false;
   });
 
   window.addEventListener('beforeinstallprompt', (event) => {
