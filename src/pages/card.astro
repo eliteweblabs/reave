@@ -144,7 +144,9 @@ try {
     <SiteBackground />
     <main class="nfc-shell">
       <header class="nfc-brand">
-        <BrandIconLockup company={company} variant="hero" idPrefix="nfc-mark" />
+        <a class="nfc-brand-home" href="/" aria-label={`${displayName} homepage`}>
+          <BrandIconLockup company={company} variant="hero" idPrefix="nfc-mark" />
+        </a>
         <h1 class="nfc-sr-only">{displayName}</h1>
       </header>
 
@@ -328,6 +330,19 @@ try {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nfc-brand-home {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 24px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nfc-brand-home:focus-visible {
+    outline: 2px solid var(--site-fg, #171717);
+    outline-offset: 4px;
   }
 
   .nfc-brand {
