@@ -1,31 +1,25 @@
 import type { APIRoute } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
 import { authorizeContactRoute } from '../../../lib/contactRouteAuth';
+import { jsonResponse, readJsonBody } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
 export const POST: APIRoute = async (context) => {
-  const json = (body: object, status = 200) =>
-    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
   const auth = await authorizeContactRoute(context);
   if (auth instanceof Response) return auth;
 
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
-  let body: unknown;
-  try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
-  }
+  const parsed = await readJsonBody(context.request);
+  if (parsed instanceof Response) return parsed;
+  const raw = parsed.body;
 
-  const raw = body as Record<string, unknown>;
   const name = typeof raw.name === 'string' ? raw.name.trim() : '';
   if (!name) {
-    return json({ ok: false, error: 'name is required' }, 400);
+    return jsonResponse({ ok: false, error: 'name is required' }, 400);
   }
 
   const result = await createContact({
@@ -37,7 +31,7 @@ export const POST: APIRoute = async (context) => {
   });
 
   if (!result.ok) {
-    return json({ ok: false, error: result.error }, result.status ?? 502);
+    return jsonResponse({ ok: false, error: result.error }, result.status ?? 502);
   }
 
   // Fire the welcome/follow-up automations (non-blocking).
@@ -48,5 +42,5 @@ export const POST: APIRoute = async (context) => {
     .then((m) => m.triggerContactPortalEnrich(result.data.uid))
     .catch((e) => console.warn('[contactPortalEnrich] trigger failed', e));
 
-  return json({ ok: true, contact: result.data }, 201);
+  return jsonResponse({ ok: true, contact: result.data }, 201);
 };
