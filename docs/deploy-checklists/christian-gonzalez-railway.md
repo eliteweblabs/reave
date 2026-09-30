@@ -42,3 +42,17 @@ Module checklist: `docs/deploy-checklists/christian-gonzalez-scheduling-billing-
 4. `BOOKING_API_URL`, `PUBLIC_BOOKING_API_URL`, `CALCOM_*`, `CRATER_*` reference vars per `plugins/scheduling/DEPLOY.md` and `plugins/billing/DEPLOY.md`.
 5. Christian signs in once → set `AGENT_ALERT_USER_ID` to his Clerk user id.
 6. Custom domain later: point apex at `christian-gonzalez-site`; admin at `app.{apex}` or keep staging.
+
+## Troubleshooting — `contact-api` ETIMEDOUT to Postgres
+
+**Symptom:** `Schema migration failed: connect ETIMEDOUT fd12:…:5432`
+
+**Cause (this project):** Postgres services were provisioned **without volumes** first. Railway’s postgres image then wrote a broken data dir; after volumes were added, logs show `Skipping initialization` and `FATAL: role "postgres" does not exist`. `contact-api` keeps retrying the old private host.
+
+**Fix:**
+
+1. Open [Christian Gonzalez → production](https://railway.com/project/74463066-704a-4656-8260-07d5fdba86c6?environmentId=e018980e-ed14-48e9-804f-61274420b60e).
+2. If the canvas shows **staged changes** (fresh `contact-postgres-volume` + new `POSTGRES_PASSWORD`), click **Review / Deploy** and confirm (2FA) — safe on this new install; no client data yet.
+3. Wait for **contact-postgres** SUCCESS; logs should show fresh init (not “Skipping initialization” with role errors).
+4. **contact-api** should already have `DATABASE_URL=${{ contact-postgres.DATABASE_URL }}`; redeploy it if still crashed.
+5. Confirm all four Postgres services have a volume at `/var/lib/postgresql/data` and `PGDATA=/var/lib/postgresql/data/pgdata`.
