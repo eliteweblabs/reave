@@ -18,8 +18,29 @@ export type CardDemoSite = {
 };
 
 const CARD_DEMO_CACHE_TTL_MS = 5 * 60_000;
+const CARD_DEMO_STALE_MS = 24 * 60 * 60_000;
+const CARD_DEMO_RAILWAY_CONCURRENCY = 8;
 
 let cardDemoCache: { at: number; sites: CardDemoSite[] } | null = null;
+let cardDemoRefresh: Promise<void> | null = null;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  if (!items.length) return [];
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const idx = next++;
+      results[idx] = await fn(items[idx]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 /** Ops / shared infra — not client preview sites on the NFC card. */
 function isExcludedCardDemoProject(projectName: string): boolean {
@@ -85,13 +106,7 @@ function pickDemoService(services: RailwayServiceNetworking[]): RailwayServiceNe
 /**
  * All client installs still on Railway default URLs (no apex custom domain on the public service).
  */
-export async function railwayCollectCardDemoSites(opts: {
-  fresh?: boolean;
-} = {}): Promise<{ sites: CardDemoSite[]; warnings: string[] }> {
-  if (!opts.fresh && cardDemoCache && Date.now() - cardDemoCache.at < CARD_DEMO_CACHE_TTL_MS) {
-    return { sites: cardDemoCache.sites, warnings: [] };
-  }
-
+async function collectCardDemoSitesFromRailway(): Promise<{ sites: CardDemoSite[]; warnings: string[] }> {
   const warnings: string[] = [];
   if (!isRailwayConfigured()) {
     return { sites: [], warnings: ['RAILWAY_API_TOKEN is not set'] };
@@ -102,37 +117,63 @@ export async function railwayCollectCardDemoSites(opts: {
     return { sites: [], warnings: [listed.error] };
   }
 
-  const sites: CardDemoSite[] = [];
-  const seenUrls = new Set<string>();
+  const candidates = listed.projects.filter(
+    (project) => isActiveRailwayProject(project) && !isExcludedCardDemoProject(project.name),
+  );
 
-  for (const project of listed.projects) {
-    if (!isActiveRailwayProject(project)) continue;
-    if (isExcludedCardDemoProject(project.name)) continue;
-
+  const rows = await mapWithConcurrency(candidates, CARD_DEMO_RAILWAY_CONCURRENCY, async (project) => {
     const net = await railwayListProjectNetworking({ project: project.id, environment: 'production' });
     if (!net.ok) {
       warnings.push(`${project.name}: ${net.error}`);
-      continue;
+      return null;
     }
 
     const svc = pickDemoService(net.data.services);
-    if (!svc) continue;
+    if (!svc) return null;
 
     const url = pickRailwayPreviewUrl(svc);
-    if (!url || seenUrls.has(url)) continue;
-    seenUrls.add(url);
+    if (!url) return null;
 
-    sites.push({
+    return {
       name: project.name.trim(),
       category: 'Preview · Railway',
       url,
       emoji: '🌐',
-    });
+    } satisfies CardDemoSite;
+  });
+
+  const sites: CardDemoSite[] = [];
+  const seenUrls = new Set<string>();
+  for (const row of rows) {
+    if (!row || seenUrls.has(row.url)) continue;
+    seenUrls.add(row.url);
+    sites.push(row);
   }
 
   sites.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   cardDemoCache = { at: Date.now(), sites };
   return { sites, warnings };
+}
+
+export async function railwayCollectCardDemoSites(opts: {
+  fresh?: boolean;
+} = {}): Promise<{ sites: CardDemoSite[]; warnings: string[] }> {
+  const now = Date.now();
+  if (!opts.fresh && cardDemoCache && now - cardDemoCache.at < CARD_DEMO_CACHE_TTL_MS) {
+    return { sites: cardDemoCache.sites, warnings: [] };
+  }
+
+  return collectCardDemoSitesFromRailway();
+}
+
+/** Warm cache without blocking the caller (e.g. after serving stale demo sites). */
+export function refreshCardDemoSitesInBackground(): void {
+  if (cardDemoRefresh) return;
+  cardDemoRefresh = collectCardDemoSitesFromRailway()
+    .catch(() => undefined)
+    .finally(() => {
+      cardDemoRefresh = null;
+    });
 }
 
 /** Static fallback when the token is missing (local dev). */
@@ -170,6 +211,71 @@ export const CARD_DEMO_SITES_FALLBACK: CardDemoSite[] = [
 ];
 
 export async function resolveCardDemoSites(): Promise<CardDemoSite[]> {
+  const now = Date.now();
+  const stale =
+    cardDemoCache && now - cardDemoCache.at < CARD_DEMO_STALE_MS ? cardDemoCache.sites : null;
+
+  if (cardDemoCache && now - cardDemoCache.at < CARD_DEMO_CACHE_TTL_MS) {
+    return cardDemoCache.sites.length ? cardDemoCache.sites : CARD_DEMO_SITES_FALLBACK;
+  }
+
+  if (stale?.length) {
+    refreshCardDemoSitesInBackground();
+    return stale;
+  }
+
   const { sites } = await railwayCollectCardDemoSites();
   return sites.length ? sites : CARD_DEMO_SITES_FALLBACK;
+}
+
+export function normalizeCardDemoUrl(u: string): string {
+  return u.trim().toLowerCase().replace(/\/+$/, '');
+}
+
+export function synthesizeCardDemoSiteFromUrl(demoUrl: string): CardDemoSite {
+  const urlObj = new URL(demoUrl);
+  const hostLabel = urlObj.hostname.replace(/\.up\.railway\.app$/i, '').replace(/-/g, ' ');
+  return {
+    name: hostLabel || 'Demo Site',
+    category: 'Preview · Railway',
+    url: demoUrl,
+    emoji: '🌐',
+  };
+}
+
+export function visibleCardDemoSites(
+  allDemoSites: CardDemoSite[],
+  demoUrl: string,
+): { sites: CardDemoSite[]; single: boolean } {
+  if (!demoUrl) {
+    return { sites: allDemoSites, single: false };
+  }
+  const needle = normalizeCardDemoUrl(demoUrl);
+  const matched = allDemoSites.filter((s) => normalizeCardDemoUrl(s.url) === needle);
+  if (matched.length) {
+    return { sites: matched, single: true };
+  }
+  return { sites: [synthesizeCardDemoSiteFromUrl(demoUrl)], single: true };
+}
+
+export function parseCardDemoParam(raw: string | null | undefined): string {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      return parsed.href;
+    }
+  } catch {
+    /* invalid */
+  }
+  return '';
+}
+
+export async function resolveVisibleCardDemoSites(demoUrl: string): Promise<{
+  sites: CardDemoSite[];
+  single: boolean;
+}> {
+  const all = await resolveCardDemoSites();
+  return visibleCardDemoSites(all, demoUrl);
 }
