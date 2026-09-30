@@ -1,0 +1,32 @@
+{
+  "features": [
+    "scheduling",
+    "billing",
+    "content_management"
+  ],
+  "footerNav": [
+    "__system__",
+    "dashboard",
+    "schedule",
+    "finance",
+    "company",
+    "settings"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true,
+  "siteContentKey": "christian-gonzalez",
+  "websiteRepo": "eliteweblabs/christian-gonzalez-site",
+  "moduleStatus": {
+    "scheduling": "request",
+    "billing": "request",
+    "content_management": "request"
+  },
+  "services": {
+    "billing": { "enabled": true, "service": "crater" }
+  }
+}
