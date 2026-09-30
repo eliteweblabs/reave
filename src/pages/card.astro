@@ -101,7 +101,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
 let cardQrSrc = '';
 try {
   const storedBrand = await getStoredCompanyConfig();
-  cardQrSrc = await qrCodeDataUrl(canonical, 200, storedBrand);
+  cardQrSrc = await qrCodeDataUrl(canonical, 400, storedBrand);
 } catch {
   cardQrSrc = '';
 }
@@ -247,8 +247,8 @@ try {
           <img
             class="nfc-qr-img"
             src={cardQrSrc}
-            width={200}
-            height={200}
+            width={400}
+            height={400}
             alt=""
             decoding="async"
           />
@@ -495,7 +495,7 @@ try {
 
   .nfc-qr-img {
     display: block;
-    width: min(200px, 52vw);
+    width: 100%;
     height: auto;
     border-radius: 16px;
     background: #fff;
