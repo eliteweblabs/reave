@@ -1320,12 +1320,15 @@ async function loadChatsTab(opts = {}) {
   // no pending draft/auto-send that needs a fresh mount to deliver.
   const mountedThreadRoot = root.querySelector('#ch-thread-root');
   const pendingDeepLink = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
+  const preserveWhileComposing =
+    mountedThreadRoot && chatState.activeId && chatState.composeDirty;
   const canPreserveMounted =
-    mountedThreadRoot &&
-    chatState.activeId &&
-    !chatState.pendingDraft &&
-    !chatState.pendingAutoSend &&
-    (!pendingDeepLink || pendingDeepLink === chatState.activeId);
+    preserveWhileComposing ||
+    (mountedThreadRoot &&
+      chatState.activeId &&
+      !chatState.pendingDraft &&
+      !chatState.pendingAutoSend &&
+      (!pendingDeepLink || pendingDeepLink === chatState.activeId));
   if (canPreserveMounted) {
     pendingChatDeepLinkId = null;
     root.classList.add('ch-pane-active');
@@ -1904,6 +1907,7 @@ function refreshChatSidebarList() {
   const root = getChatPanel();
   const list = root?.querySelector('.ch-sidebar .ch-list');
   if (!list) {
+    if (chatState.composeDirty) return;
     renderChatPanel();
     return;
   }
@@ -2093,6 +2097,7 @@ function mountChatThreadRoot(threadHost) {
     },
     onRefreshMessages: async () => {
       if (!chatState.activeId) return;
+      if (chatState.composeDirty) return;
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
           cache: 'no-store',
@@ -2173,8 +2178,10 @@ async function mountChatThreadRootAsync(threadHost) {
 function renderChatPane() {
   const root = getChatPanel();
   if (!root) return;
+  if (chatState.composeDirty && root.querySelector('#ch-thread-root')) return;
   let pane = root.querySelector('.ch-pane');
   if (!pane || !root.querySelector('.ch-sidebar')) {
+    if (chatState.composeDirty) return;
     renderChatPanel();
     return;
   }
@@ -2245,6 +2252,11 @@ function renderChatPanel() {
   const root = getChatPanel();
   if (!root) {
     endRender({ skipped: 'no-root' });
+    return;
+  }
+  if (chatState.composeDirty && root.querySelector('#ch-thread-root')) {
+    refreshChatSidebarList();
+    endRender({ skipped: 'compose-dirty' });
     return;
   }
   const savedSidebarScroll = shell.captureSidebarListScroll(root);

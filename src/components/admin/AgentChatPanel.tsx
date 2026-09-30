@@ -93,6 +93,8 @@ const DEPLOY_CHAT_LOCK_POLL_MS_IDLE = 15_000;
 const DEPLOY_CHAT_RELOAD_KEY = 'reave:deploy-reload-sha';
 /** Survive deploy-lock UI swap + the post-deploy hard reload. */
 const DEPLOY_CHAT_DRAFT_KEY = 'reave:deploy-chat-draft';
+/** Unsent composer text — survives panel remounts and unexpected reloads. */
+const CHAT_COMPOSE_DRAFT_KEY = 'reave:chat-compose-draft';
 const PPTX_MEDIA_TYPE =
   'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
@@ -1039,6 +1041,7 @@ function createChatAdapter(
                     content: assistantMsg.content,
                     agent_usage: agentUsage,
                   });
+                  clearChatComposeDraft(threadId);
                 }
                 const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
                 if (assistantText && assistantText !== streamedText) {
@@ -1095,6 +1098,7 @@ function createChatAdapter(
             content: data.assistantMessage.content,
             agent_usage: data.agent_usage ?? data.assistantMessage.agent_usage ?? null,
           });
+          clearChatComposeDraft(threadId);
         }
 
         const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
@@ -1283,6 +1287,65 @@ function clearDeployChatDraft(threadId?: string): void {
   }
 }
 
+function readChatComposeDraftsMap(): Record<string, string> {
+  try {
+    const raw = sessionStorage.getItem(CHAT_COMPOSE_DRAFT_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, string>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: Record<string, string> = {};
+    for (const [id, text] of Object.entries(parsed)) {
+      if (typeof text === 'string' && text.trim()) out[id] = text;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writeChatComposeDraftsMap(map: Record<string, string>): void {
+  try {
+    if (Object.keys(map).length === 0) {
+      sessionStorage.removeItem(CHAT_COMPOSE_DRAFT_KEY);
+      return;
+    }
+    sessionStorage.setItem(CHAT_COMPOSE_DRAFT_KEY, JSON.stringify(map));
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+function saveChatComposeDraft(threadId: string, text: string): void {
+  if (!threadId || !text.trim()) return;
+  try {
+    const all = readChatComposeDraftsMap();
+    all[threadId] = text;
+    writeChatComposeDraftsMap(all);
+  } catch {
+    /* private mode */
+  }
+}
+
+function readChatComposeDraft(threadId: string): string | null {
+  const text = readChatComposeDraftsMap()[threadId];
+  return text?.trim() ? text : null;
+}
+
+function clearChatComposeDraft(threadId?: string): void {
+  try {
+    if (!threadId) {
+      sessionStorage.removeItem(CHAT_COMPOSE_DRAFT_KEY);
+      return;
+    }
+    const all = readChatComposeDraftsMap();
+    if (!(threadId in all)) return;
+    delete all[threadId];
+    writeChatComposeDraftsMap(all);
+  } catch {
+    /* private mode */
+  }
+}
+
 function PendingDraftBoot({
   draft,
   autoSend,
@@ -1307,6 +1370,25 @@ function PendingDraftBoot({
       onQueuedChange?.(true);
     }
   }, [autoSend, composer, draft, onQueuedChange, threadId]);
+  return null;
+}
+
+/** Restore unsent composer text after a remount or hard reload. */
+function ChatComposeDraftBoot({ threadId }: { threadId: string }) {
+  const composer = useComposerRuntime();
+  const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    const saved = readChatComposeDraft(threadId);
+    if (!saved || isSentComposerEcho(saved, lastUserText)) {
+      clearChatComposeDraft(threadId);
+      return;
+    }
+    const current = composer.getState().text ?? '';
+    if (!current.trim()) composer.setText(saved);
+  }, [composer, lastUserText, threadId]);
   return null;
 }
 
@@ -2688,8 +2770,12 @@ function ClaudeComposer({
               typedDraftRef.current = value;
               if (!value.trim()) {
                 clearDeployChatDraft(threadId);
+                clearChatComposeDraft(threadId);
                 onQueuedChange?.(false);
-              } else if (deployChatLocked) saveDeployChatDraft(threadId, value);
+              } else {
+                saveChatComposeDraft(threadId, value);
+                if (deployChatLocked) saveDeployChatDraft(threadId, value);
+              }
               if (showRunning && !deployChatLocked) void releaseIfIdle();
               helpers.onInput(value);
               mentions.onInput(value, caret);
@@ -2847,7 +2933,9 @@ function PersistedMessageImporter({
   propsRef: RefObject<AgentChatPanelProps>;
 }) {
   const runtime = useThreadRuntime();
+  const composer = useComposerRuntime();
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   const applied = useRef(0);
   const lastKey = useRef(storedMessagesKey(propsRef.current?.initialMessages ?? []));
 
@@ -2855,12 +2943,14 @@ function PersistedMessageImporter({
     if (!generation || generation === applied.current) return;
     applied.current = generation;
     if (isRunning) return;
+    const draft = (composer.getState().text ?? '').trim();
+    if (draft && !isSentComposerEcho(draft, lastUserText)) return;
     const messages = propsRef.current?.initialMessages ?? [];
     const key = storedMessagesKey(messages);
     if (key === lastKey.current) return;
     lastKey.current = key;
     runtime.reset(messages.map(storedToThreadMessage));
-  }, [generation, isRunning, propsRef, runtime]);
+  }, [composer, generation, isRunning, lastUserText, propsRef, runtime]);
 
   return null;
 }
@@ -3347,6 +3437,7 @@ function AgentChatThread({
           threadId={threadId}
           onQueuedChange={setQueuedSend}
         />
+        <ChatComposeDraftBoot threadId={threadId} />
         <DeployDraftBoot
           threadId={threadId}
           deployChatLocked={deployChatLock.locked}

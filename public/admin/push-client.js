@@ -318,9 +318,30 @@ export async function registerAdminServiceWorker() {
   if (swRegisterBlockedUntil > Date.now()) return null;
   try {
     const reg = await navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' });
+
+    const markSwUpdatePending = () => {
+      swUpdatePending = true;
+    };
+
+    const trackInstallingWorker = (worker) => {
+      if (!worker) return;
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+          markSwUpdatePending();
+        }
+      });
+    };
+
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      markSwUpdatePending();
+    }
+    trackInstallingWorker(reg.installing);
+    reg.addEventListener('updatefound', () => {
+      trackInstallingWorker(reg.installing);
+    });
+
     try {
       await reg.update();
-      swUpdatePending = true;
     } catch (e) {
       noteAdminNetworkFailure(e);
     }

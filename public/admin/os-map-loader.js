@@ -129,7 +129,7 @@ import {
   iosIcon,
 } from './admin-ui.js?v=20260904a';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
-import { installPwaExternalLinkGuard, installPwaNavGuard } from './push-client.js?v=20260811a';
+import { installPwaExternalLinkGuard, installPwaNavGuard } from './push-client.js?v=20260930a';
 import {
   buildAdminNotice,
   appendAdminNoticeAction,
@@ -267,7 +267,7 @@ import {
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
-} from './chat-panel.js?v=20260903d';
+} from './chat-panel.js?v=20260930a';
 import {
   initCreateDrawer,
   beginCreateDrawer,
