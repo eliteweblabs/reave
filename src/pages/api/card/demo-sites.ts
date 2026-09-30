@@ -8,5 +8,9 @@ export const prerender = false;
 export const GET: APIRoute = async ({ url }) => {
   const demoUrl = parseCardDemoParam(url.searchParams.get('demo'));
   const { sites, single } = await resolveVisibleCardDemoSites(demoUrl);
-  return jsonResponse({ ok: true, sites, single });
+  return jsonResponse(
+    { ok: true, sites, single },
+    200,
+    { cache: 'public, max-age=300, stale-while-revalidate=86400' },
+  );
 };
