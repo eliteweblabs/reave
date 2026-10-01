@@ -2,6 +2,7 @@
  * Outbound client messaging — send email (Resend) and SMS (Telnyx).
  * Used to deliver client portal links to contacts on their own device.
  */
+import { normalizeResendFromHeader } from './emailAddress';
 import { resolveEmailFrom } from './companyConfig';
 import { migrateOfficialOutboundFromEmail } from './reavePublicEmail';
 import { isCanonicalReaveInstall } from './installConfig';
@@ -48,6 +49,7 @@ export async function sendEmail(opts: {
   if (isCanonicalReaveInstall()) {
     from = migrateOfficialOutboundFromEmail(from);
   }
+  from = normalizeResendFromHeader(from);
   if (!from) {
     return { ok: false, error: 'Set RESEND_FROM or configure company outbound email in admin profile' };
   }

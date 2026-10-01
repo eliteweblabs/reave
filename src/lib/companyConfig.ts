@@ -20,6 +20,7 @@ import {
   type StoredCompanyConfig,
 } from './companyConfigStore';
 
+import { formatSenderEmail } from './emailAddress';
 import { DEFAULT_PORTAL_OUTREACH_NOTICE } from './portalOutreachNotice';
 export { DEFAULT_PORTAL_OUTREACH_NOTICE };
 import {
@@ -731,7 +732,7 @@ export async function resolveEmailFrom(): Promise<string> {
   const explicit = canonicalizeReaveBrandEmail(trim(serverEnv('RESEND_FROM')));
   if (explicit) return explicit;
   const company = await getCompanyConfig();
-  if (company.name && company.fromEmail) return `${company.name} <${company.fromEmail}>`;
+  if (company.name && company.fromEmail) return formatSenderEmail(company.name, company.fromEmail);
   if (company.fromEmail) return company.fromEmail;
   return '';
 }

@@ -18142,7 +18142,13 @@ function defaultEmailComposeFrom() {
   const brand = companyBrand();
   const email = String(brand.fromEmail || '').trim();
   const name = String(brand.name || '').trim();
-  if (name && email) return `${name} <${email}>`;
+  if (name && email) {
+    if (/[<>"\\]/.test(name) || /[,;]/.test(name)) {
+      const escaped = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      return `"${escaped}" <${email}>`;
+    }
+    return `${name} <${email}>`;
+  }
   return email;
 }
 
@@ -18797,7 +18803,9 @@ function emailSendPayloadFromSnapshot(snap) {
   payload.ccRecipients = ccRecipients;
   const from = normalizeEmailComposeFrom(snap.compose.from);
   if (from) payload.from = from;
-  if (snap.replyToId) payload.inReplyToEmailId = snap.replyToId;
+  if (snap.replyToId && snap.replyToId !== 'null' && snap.replyToId !== 'undefined') {
+    payload.inReplyToEmailId = snap.replyToId;
+  }
   if (snap.scheduledAt) payload.scheduledAt = snap.scheduledAt;
   payload.useBrandedTemplate = snap.compose.useBrandedTemplate !== false;
   return payload;
