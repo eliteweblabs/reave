@@ -10,6 +10,10 @@ import {
 } from './railwayClient';
 import { isActiveRailwayProject } from './railwayProjectList';
 import { decorateCardDemoSite } from './cardDemoSiteMeta';
+import {
+  loadPersistedCardDemoSites,
+  savePersistedCardDemoSites,
+} from './cardDemoSitesStore';
 
 export type CardDemoSite = {
   name: string;
@@ -19,11 +23,32 @@ export type CardDemoSite = {
 };
 
 const CARD_DEMO_CACHE_TTL_MS = 5 * 60_000;
-const CARD_DEMO_STALE_MS = 24 * 60 * 60_000;
 const CARD_DEMO_RAILWAY_CONCURRENCY = 8;
 
 let cardDemoCache: { at: number; sites: CardDemoSite[] } | null = null;
 let cardDemoRefresh: Promise<void> | null = null;
+let cardDemoHydrate: Promise<void> | null = null;
+
+/** Load Postgres / file snapshot into memory (once per process). */
+export async function hydrateCardDemoCache(): Promise<void> {
+  if (cardDemoCache) return;
+  if (cardDemoHydrate) {
+    await cardDemoHydrate;
+    return;
+  }
+  cardDemoHydrate = (async () => {
+    const snapshot = await loadPersistedCardDemoSites();
+    if (snapshot?.sites.length) {
+      cardDemoCache = {
+        at: snapshot.savedAtMs > 0 ? snapshot.savedAtMs : Date.now(),
+        sites: snapshot.sites,
+      };
+    }
+  })().finally(() => {
+    cardDemoHydrate = null;
+  });
+  await cardDemoHydrate;
+}
 
 async function mapWithConcurrency<T, R>(
   items: T[],
@@ -153,6 +178,9 @@ async function collectCardDemoSitesFromRailway(): Promise<{ sites: CardDemoSite[
 
   sites.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   cardDemoCache = { at: Date.now(), sites };
+  void savePersistedCardDemoSites(sites).catch((e) => {
+    console.warn('[card-demo-sites] persist failed', e);
+  });
   return { sites, warnings };
 }
 
@@ -212,17 +240,16 @@ export const CARD_DEMO_SITES_FALLBACK: CardDemoSite[] = [
 ];
 
 export async function resolveCardDemoSites(): Promise<CardDemoSite[]> {
+  await hydrateCardDemoCache();
   const now = Date.now();
-  const stale =
-    cardDemoCache && now - cardDemoCache.at < CARD_DEMO_STALE_MS ? cardDemoCache.sites : null;
 
   if (cardDemoCache && now - cardDemoCache.at < CARD_DEMO_CACHE_TTL_MS) {
     return cardDemoCache.sites.length ? cardDemoCache.sites : CARD_DEMO_SITES_FALLBACK;
   }
 
-  if (stale?.length) {
+  if (cardDemoCache?.sites.length) {
     refreshCardDemoSitesInBackground();
-    return stale;
+    return cardDemoCache.sites;
   }
 
   const { sites } = await railwayCollectCardDemoSites();

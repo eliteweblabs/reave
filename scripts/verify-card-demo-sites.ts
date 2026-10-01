@@ -15,5 +15,7 @@ assert.doesNotMatch(cardPage, /karlacassidy-site-production/);
 const lib = readFileSync('src/lib/cardDemoSites.ts', 'utf8');
 assert.match(lib, /railwayCollectCardDemoSites/);
 assert.match(lib, /serviceHasLiveApexCustom/);
+assert.match(lib, /hydrateCardDemoCache/);
+assert.match(readFileSync('src/lib/cardDemoSitesStore.ts', 'utf8'), /card_demo_sites_cache/);
 
 console.log('verify-card-demo-sites: ok');

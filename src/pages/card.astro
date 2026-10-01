@@ -101,7 +101,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
 let cardQrSrc = '';
 try {
   const storedBrand = await getStoredCompanyConfig();
-  cardQrSrc = await qrCodeDataUrl(canonical, 200, storedBrand);
+  cardQrSrc = await qrCodeDataUrl(canonical, 400, storedBrand);
 } catch {
   cardQrSrc = '';
 }
@@ -144,7 +144,9 @@ try {
     <SiteBackground />
     <main class="nfc-shell">
       <header class="nfc-brand">
-        <BrandIconLockup company={company} variant="hero" idPrefix="nfc-mark" />
+        <a class="nfc-brand-home" href="/" aria-label={`${displayName} homepage`}>
+          <BrandIconLockup company={company} variant="hero" idPrefix="nfc-mark" />
+        </a>
         <h1 class="nfc-sr-only">{displayName}</h1>
       </header>
 
@@ -245,8 +247,8 @@ try {
           <img
             class="nfc-qr-img"
             src={cardQrSrc}
-            width={200}
-            height={200}
+            width={400}
+            height={400}
             alt=""
             decoding="async"
           />
@@ -295,6 +297,21 @@ try {
   </body>
 </html>
 
+<style is:global>
+  /* Standalone /card shell — mirror Layout full-bleed + safe-area gutters. */
+  html:has(.nfc-body) {
+    min-height: 100%;
+    background-color: var(--site-canvas, #fff);
+  }
+
+  html:has(.nfc-body),
+  html:has(.nfc-body) body {
+    margin: 0;
+    width: 100%;
+    color-scheme: light dark;
+  }
+</style>
+
 <style>
   .nfc-body {
     margin: 0;
@@ -314,20 +331,51 @@ try {
     user-select: text;
   }
 
+  /* No sticky header/CTA on /card — paint canvas through the full safe area. */
+  .nfc-body :global(.site-bg-atmosphere) {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    --site-bg-bleed-top: 0;
+    --site-bg-bleed-bottom: 0;
+  }
+
+  .nfc-body :global(.site-bg-atmosphere::before) {
+    bottom: calc(-1 * (env(safe-area-inset-bottom, 0px) + var(--browser-ui-bottom, 0px)));
+  }
+
   .nfc-shell {
+    --nfc-gutter: max(24px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
     position: relative;
     z-index: 1;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    justify-content: safe center;
+    justify-content: flex-start;
     align-items: center;
     min-height: 100dvh;
     width: 100%;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: calc(32px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding:
+      max(20px, env(safe-area-inset-top, 0px))
+      var(--nfc-gutter)
+      max(20px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .nfc-brand-home {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    border-radius: 24px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nfc-brand-home:focus-visible {
+    outline: 2px solid var(--site-fg, #171717);
+    outline-offset: 4px;
   }
 
   .nfc-brand {
@@ -480,7 +528,7 @@ try {
 
   .nfc-qr-img {
     display: block;
-    width: min(200px, 52vw);
+    width: 100%;
     height: auto;
     border-radius: 16px;
     background: #fff;
