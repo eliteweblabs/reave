@@ -6,6 +6,7 @@
  * webhook. Each install must ignore mail not addressed to its own domain.
  */
 import { parseSenderEmail } from './emailAddress';
+import { CANONICAL_PUBLIC_BRAND_DOMAIN, LEGACY_PUBLIC_BRAND_DOMAIN } from './legacyBrandDomain';
 import { serverEnv } from './serverEnv';
 
 function trim(v: string | null | undefined): string {
@@ -59,7 +60,11 @@ export function installEmailDomains(env?: Record<string, string | undefined>): s
   ].filter((host) => isMailDomainHost(host));
 
   const slug = readEnv('INSTALL_CONFIG', env).toLowerCase();
-  if (slug === 'reave') domains.push('reave.app');
+  if (slug === 'reave') domains.push(LEGACY_PUBLIC_BRAND_DOMAIN);
+  // Official rekko.studio cutover: still ingest Resend mail to @reave.app / @inbound.reave.app.
+  if (domains.includes(CANONICAL_PUBLIC_BRAND_DOMAIN)) {
+    domains.push(LEGACY_PUBLIC_BRAND_DOMAIN);
+  }
 
   return [...new Set(domains)];
 }
