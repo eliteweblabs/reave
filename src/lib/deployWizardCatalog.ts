@@ -203,7 +203,7 @@ export const DEPLOY_WIZARD_DOMAINS: readonly DeployWizardDomain[] = [
     host: 'ap',
     type: 'CNAME',
     target: 'crater',
-    description: 'Crater invoices — production uses ap.reave.app.',
+    description: 'Crater invoices — production uses ap.rekko.studio.',
     features: ['billing'],
   },
   {

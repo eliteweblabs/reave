@@ -86,7 +86,7 @@ interface ImportMetaEnv {
   CARDDAV_PASSWORD?: string;
   /** Optional bearer / header token (also accepts X-CardDAV-Token). Falls back to CONTACT_API_KEY. */
   CARDDAV_TOKEN?: string;
-  /** Crater custom API base URL (e.g. https://ap.reave.app) */
+  /** Crater custom API base URL (e.g. https://ap.rekko.studio) */
   CRATER_API_BASE_URL?: string;
   /** Mirror of Crater's CRATER_API_TOKEN; sent as X-Crater-Api-Token */
   CRATER_API_TOKEN?: string;

@@ -69,10 +69,10 @@ export function resolveDeployTarget(opts: {
     };
   }
 
-  if (svc.includes('crater') || blob.includes('ap.reave.app')) {
+  if (svc.includes('crater') || blob.includes('ap.rekko.studio') || blob.includes('ap.reave.app')) {
     return {
       repo: 'eliteweblabs/crater',
-      healthUrl: 'https://ap.reave.app/',
+      healthUrl: 'https://ap.rekko.studio/',
     };
   }
 

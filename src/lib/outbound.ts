@@ -4,7 +4,7 @@
  */
 import { resolveEmailFrom } from './companyConfig';
 import { migrateOfficialOutboundFromEmail } from './reavePublicEmail';
-import { isCanonicalReaveInstall } from './legacyBrandDomain';
+import { isCanonicalReaveInstall } from './installConfig';
 import type { EmailSendAttachment } from './emailComposeImages';
 import { serverEnv } from './serverEnv';
 import { sendTelnyxSms } from './telnyxClient';

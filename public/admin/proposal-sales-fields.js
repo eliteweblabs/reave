@@ -32,7 +32,7 @@ export async function mountProposalSalesFields(fieldsEl, workSlug) {
     `<p class="wk-proposal-sales__url"><a href="${escHtml(data.publicUrl)}" target="_blank" rel="noopener">${escHtml(data.publicUrl)}</a></p>` +
     '<label class="de-field">' +
     '<span>Crater invoice URL</span>' +
-    `<input class="de-input wk-proposal-invoice" type="url" placeholder="https://ap.reave.app/invoices/…" value="${escHtml(proposal.invoiceUrl || '')}" />` +
+    `<input class="de-input wk-proposal-invoice" type="url" placeholder="https://ap.rekko.studio/invoices/…" value="${escHtml(proposal.invoiceUrl || '')}" />` +
     '</label>' +
     '<label class="de-field">' +
     '<span>Demo URL</span>' +
