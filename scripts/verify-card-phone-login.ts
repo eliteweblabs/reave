@@ -36,15 +36,21 @@ assert.match(login, /Login to the app/);
 assert.match(login, /Text a one-time code/);
 assert.doesNotMatch(login, /Login to CMS/);
 assert.match(login, /id="nfc-login-err"/);
-assert.match(login, /clerk\.client\.signIn\.create/);
-assert.doesNotMatch(login, /\/api\/card\/login\/send/);
+assert.match(login, /data-phone-e164/);
+assert.doesNotMatch(login, /clerk\.client\.signIn\.create/);
+assert.doesNotMatch(login, /from '\.\.\/client\/cardPasskey/);
 assert.match(login, /id="clerk-captcha"/);
-assert.match(login, /registerCardPasskeyAfterLogin/);
-assert.match(login, /initCardPasskeyGate/);
 assert.match(login, /autocomplete="username webauthn"/);
 assert.match(login, /autocomplete="one-time-code"/);
 assert.doesNotMatch(login, /type="password"/);
 assert.doesNotMatch(login, /name="password"/);
+
+assert.match(card, /initCardPhoneLogin/);
+const client = readFileSync('src/client/cardPhoneLogin.ts', 'utf8');
+assert.match(client, /clerk\.client.*signIn\.create/);
+assert.doesNotMatch(client, /\/api\/card\/login\/send/);
+assert.match(client, /registerCardPasskeyAfterLogin/);
+assert.match(client, /initCardPasskeyGate/);
 
 const neverInherit = readFileSync('src/lib/deployWizardCatalog.ts', 'utf8');
 assert.match(neverInherit, /PUBLIC_CLERK_PUBLISHABLE_KEY/);
