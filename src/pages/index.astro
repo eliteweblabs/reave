@@ -14,8 +14,22 @@ import BarbersEdgeSuspended from "../components/barbers-edge/BarbersEdgeSuspende
 import { BARBERS_EDGE, getBarbersEdgeBarber } from "../lib/barbersEdge";
 import { getSiteContent, resolveHomepageTemplate } from "../lib/siteContent";
 import { isReaveMarketingHost, resolvePublicHost } from "../lib/requestHost";
+import { serverEnv } from "../lib/serverEnv";
 
 export const prerender = false;
+
+/** Dedicated barber/marketing site on another Railway service — send `/` there, keep `/admin` on this app. */
+const clientWebsite = serverEnv("PUBLIC_CLIENT_WEBSITE_URL")?.trim();
+if (clientWebsite) {
+  try {
+    const target = new URL(clientWebsite);
+    if (target.protocol === "https:" || target.protocol === "http:") {
+      return Astro.redirect(target.toString(), 302);
+    }
+  } catch {
+    /* invalid URL — fall through to normal homepage */
+  }
+}
 
 const requestHost = resolvePublicHost(Astro.request);
 const siteContent = getSiteContent();
