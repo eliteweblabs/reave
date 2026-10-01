@@ -18919,7 +18919,7 @@ async function revealScheduledEmailAfterQueue(eventId) {
 async function commitQueuedEmailSend(snap) {
   try {
     if (snap.sendNowScheduledId) {
-      const saveRes = await fetch(`/api/email/scheduled/${encodeURIComponent(snap.sendNowScheduledId)}`, {
+      const saveRes = await adminFetch(`/api/email/scheduled/${encodeURIComponent(snap.sendNowScheduledId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -18933,13 +18933,13 @@ async function commitQueuedEmailSend(snap) {
           inReplyToEmailId: snap.replyToId,
         }),
       });
-      const saveData = await readApiJson(saveRes);
-      if (!saveRes.ok) throw new Error(saveData.error || `HTTP ${saveRes.status}`);
-      const res = await fetch(`/api/email/scheduled/${encodeURIComponent(snap.sendNowScheduledId)}`, {
+      const saveData = await readAdminJson(saveRes, 'Scheduled email');
+      if (!saveData.ok) throw new Error(saveData.error || `HTTP ${saveRes.status}`);
+      const res = await adminFetch(`/api/email/scheduled/${encodeURIComponent(snap.sendNowScheduledId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
-      const data = await readApiJson(res);
+      const data = await readAdminJson(res, 'Send scheduled email');
       if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       emailState.scheduledEvents = (emailState.scheduledEvents || []).filter(
         (e) => e.id !== snap.sendNowScheduledId,
@@ -18951,7 +18951,7 @@ async function commitQueuedEmailSend(snap) {
     }
 
     if (snap.rescheduleId && snap.scheduledAt) {
-      const res = await fetch(`/api/email/scheduled/${encodeURIComponent(snap.rescheduleId)}`, {
+      const res = await adminFetch(`/api/email/scheduled/${encodeURIComponent(snap.rescheduleId)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -18966,8 +18966,8 @@ async function commitQueuedEmailSend(snap) {
           scheduledAt: snap.scheduledAt,
         }),
       });
-      const data = await readApiJson(res);
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await readAdminJson(res, 'Reschedule email');
+      if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       upsertScheduledEvent(data.event);
       if (emailState.composing) return;
       showChatToast(`Scheduled for ${formatScheduledSendLabel(data.event.scheduledAt)}`);
@@ -18976,12 +18976,12 @@ async function commitQueuedEmailSend(snap) {
     }
 
     const payload = emailSendPayloadFromSnapshot(snap);
-    const res = await fetch('/api/email/send', {
+    const res = await adminFetch('/api/email/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await readApiJson(res);
+    const data = await readAdminJson(res, 'Send email');
     if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     if (snap.draftId) void deleteEmailDraftById(snap.draftId);
     if (data.scheduled) {

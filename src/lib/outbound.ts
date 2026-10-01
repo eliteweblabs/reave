@@ -92,10 +92,13 @@ export async function sendEmail(opts: {
       json = null;
     }
     if (!res.ok) {
-      const err =
+      let err =
         json && typeof json === 'object' && 'message' in json
           ? String((json as { message: unknown }).message)
           : text.slice(0, 200) || res.statusText;
+      if (res.status === 401 && err.toLowerCase() === 'unauthorized') {
+        err = 'Resend rejected the API key (401). Check RESEND_API_KEY on this Railway service.';
+      }
       return { ok: false, error: err };
     }
     const id = json && typeof json === 'object' && 'id' in json ? String((json as { id: unknown }).id) : undefined;
