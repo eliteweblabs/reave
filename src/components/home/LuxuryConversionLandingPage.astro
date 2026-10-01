@@ -118,16 +118,6 @@ const brandStyle = brand
       ))}
     </nav>
     <div class="lc-header__actions">
-      {
-        showSignIn ? (
-          <a
-            class="lc-header__login"
-            href={`/sign-in?redirect_url=${encodeURIComponent("/admin/")}`}
-          >
-            Login
-          </a>
-        ) : null
-      }
       {phoneHref ? <a class="lc-header__phone" href={phoneHref}>{phoneDisplay}</a> : null}
       <a class="lc-btn lc-btn--primary lc-header__book" href={bookHref}>{bookHeader}</a>
     </div>
@@ -439,7 +429,7 @@ const brandStyle = brand
     {
       showSignIn ? (
         <nav class="lc-foot__links" aria-label="Account">
-          <a href={`/sign-in?redirect_url=${encodeURIComponent("/admin/")}`}>Login</a>
+          <a href="/sign-in">Login</a>
         </nav>
       ) : null
     }
@@ -600,24 +590,6 @@ const brandStyle = brand
     font-weight: 600;
     color: var(--lc-muted);
     text-decoration: none;
-  }
-
-  .lc-header__login {
-    padding: 0.45rem 0.75rem;
-    border-radius: 999px;
-    border: 1px solid var(--lc-line);
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: var(--lc-ink);
-    text-decoration: none;
-    background: rgba(255, 255, 255, 0.45);
-    white-space: nowrap;
-  }
-
-  .lc-header__login:hover {
-    color: var(--lc-accent);
-    border-color: var(--lc-accent-soft, var(--lc-line));
   }
 
   .lc-header__book {

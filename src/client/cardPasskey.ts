@@ -61,13 +61,13 @@ function revealTrustedUi(displayName: string, redirectUrl: string) {
   link.id = 'nfc-passkey-trusted';
   link.className = 'nfc-login-btn';
   link.href = redirectUrl;
-  link.setAttribute('aria-label', `Open dashboard as ${displayName}`);
+  link.setAttribute('aria-label', `Open app as ${displayName}`);
   link.innerHTML = `
     <span class="nfc-login-ico" aria-hidden="true">
       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
     </span>
     <span class="nfc-login-copy">
-      <span class="nfc-login-label">Dashboard</span>
+      <span class="nfc-login-label">Open app</span>
       <span class="nfc-login-meta">Continue as ${displayName.replace(/</g, '&lt;')}</span>
     </span>`;
   loginRoot?.insertAdjacentElement('afterend', link);
