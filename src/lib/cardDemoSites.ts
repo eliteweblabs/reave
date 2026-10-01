@@ -14,6 +14,12 @@ import {
   loadPersistedCardDemoSites,
   savePersistedCardDemoSites,
 } from './cardDemoSitesStore';
+import { isCanonicalReaveInstall } from './installConfig';
+
+/** Railway preview portfolio on /card — official rekko.studio hub only, not client NFC cards. */
+export function isCardDemoPortfolioEnabled(): boolean {
+  return isCanonicalReaveInstall();
+}
 
 export type CardDemoSite = {
   name: string;
@@ -304,6 +310,12 @@ export async function resolveVisibleCardDemoSites(demoUrl: string): Promise<{
   sites: CardDemoSite[];
   single: boolean;
 }> {
+  if (!isCardDemoPortfolioEnabled()) {
+    if (demoUrl) {
+      return { sites: [synthesizeCardDemoSiteFromUrl(demoUrl)], single: true };
+    }
+    return { sites: [], single: false };
+  }
   const all = (await resolveCardDemoSites()).map(decorateCardDemoSite);
   return visibleCardDemoSites(all, demoUrl);
 }

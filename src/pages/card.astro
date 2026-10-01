@@ -30,7 +30,7 @@ import { BRANDING_OG_PATH } from '../lib/companyLogo';
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
 import { requestOrigin } from '../lib/requestOrigin';
 import { shareSafeText } from '../lib/shareSafeText';
-import { parseCardDemoParam } from '../lib/cardDemoSites';
+import { isCardDemoPortfolioEnabled, parseCardDemoParam } from '../lib/cardDemoSites';
 import { serverEnv } from '../lib/serverEnv';
 import '../styles/brand.css';
 
@@ -63,6 +63,7 @@ const geo = company.geo;
 // Program NFC chips as: /card?client=slug&demo=https://preview.up.railway.app
 // No DB change needed — the param lives only in the URL.
 const demoUrl = parseCardDemoParam(Astro.url.searchParams.get('demo'));
+const showDemoPortfolio = isCardDemoPortfolioEnabled();
 /** Optional — WordPress / Webflow / other CMS sign-in for the public site. */
 const cmsLoginUrl =
   serverEnv('PUBLIC_CMS_LOGIN_URL')?.trim() ||
@@ -266,24 +267,29 @@ try {
         </figure>
       )}
 
-      <!-- Demo portfolio loads after paint via /api/card/demo-sites (Railway scan can be slow). -->
-      <section
-        class="demo-section demo-section--pending"
-        id="nfc-demo-section"
-        aria-label="Demo Sites"
-        hidden
-        data-demo-url={demoUrl || undefined}
-      >
-        <h2 class="demo-heading">
-          <span class="demo-heading-line"></span>
-          <span class="demo-heading-text" id="nfc-demo-heading">Local Demo Sites</span>
-          <span class="demo-heading-line"></span>
-        </h2>
-        <p class="demo-subtext" id="nfc-demo-subtext">
-          Tap any business to see what your site could look like.
-        </p>
-        <div class="nfc-demo-grid" id="nfc-demo-grid"></div>
-      </section>
+      {
+        showDemoPortfolio && (
+          <section
+            class="demo-section demo-section--pending"
+            id="nfc-demo-section"
+            aria-label="Demo Sites"
+            hidden
+            data-demo-url={demoUrl || undefined}
+          >
+            <h2 class="demo-heading">
+              <span class="demo-heading-line"></span>
+              <span class="demo-heading-text" id="nfc-demo-heading">
+                Local Demo Sites
+              </span>
+              <span class="demo-heading-line"></span>
+            </h2>
+            <p class="demo-subtext" id="nfc-demo-subtext">
+              Tap any business to see what your site could look like.
+            </p>
+            <div class="nfc-demo-grid" id="nfc-demo-grid"></div>
+          </section>
+        )
+      }
 
     </main>
     {directionsHref && (
@@ -300,10 +306,14 @@ try {
         })();
       </script>
     )}
-    <script type="module">
-      import { initCardDemoPortfolio } from '../client/cardDemoPortfolio.ts';
-      initCardDemoPortfolio();
-    </script>
+    {
+      showDemoPortfolio && (
+        <script type="module">
+          import { initCardDemoPortfolio } from '../client/cardDemoPortfolio.ts';
+          initCardDemoPortfolio();
+        </script>
+      )
+    }
   </body>
 </html>
 
