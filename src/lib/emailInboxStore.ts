@@ -980,7 +980,14 @@ export async function storeClearEmailInboxJobLinks(jobSlug: string): Promise<num
   return writeFileEvents(next) ? cleared : 0;
 }
 
+export function isEmailInboxRecordId(id: string | null | undefined): boolean {
+  const trimmed = (id ?? '').trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed);
+}
+
 async function storeGetEmailInboxRaw(id: string): Promise<EmailInboxRecord | null> {
+  if (!isEmailInboxRecordId(id)) return null;
   if (databaseUrl()) {
     try {
       const pool = await ensureSchema();

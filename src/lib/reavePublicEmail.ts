@@ -44,6 +44,32 @@ export function isLegacyReavePublicEmail(email: string): boolean {
  * Empty or retired public support mail becomes get@reave.app. Outbound From is only
  * rewritten when it is itself a retired public mailbox — noreply@ and personal stay.
  */
+const LEGACY_INBOUND_MAIL_HOST = `inbound.${LEGACY_REAVE_PUBLIC_HOST}`;
+const CANONICAL_INBOUND_MAIL_HOST = `inbound.${REAVE_PUBLIC_HOST}`;
+
+/** Official install: fold legacy reave.app inbound sender hosts to rekko.studio. */
+export function migrateOfficialOutboundFromEmail(email: string): string {
+  const trimmed = email.trim();
+  if (!trimmed) return trimmed;
+  const mailto = /^mailto:/i.test(trimmed);
+  const body = mailto ? trimmed.slice(7) : trimmed;
+  const angle = body.match(/<([^>]+)>/);
+  const addr = (angle ? angle[1] : body).trim();
+  const at = addr.lastIndexOf('@');
+  if (at < 0) return trimmed;
+  const local = addr.slice(0, at);
+  const host = addr.slice(at + 1).toLowerCase();
+  if (host !== LEGACY_INBOUND_MAIL_HOST && host !== LEGACY_REAVE_PUBLIC_HOST) {
+    return trimmed;
+  }
+  const migrated = `${local}@${host === LEGACY_INBOUND_MAIL_HOST ? CANONICAL_INBOUND_MAIL_HOST : REAVE_PUBLIC_HOST}`;
+  if (angle) {
+    const replaced = body.replace(angle[1], migrated);
+    return mailto ? `mailto:${replaced}` : replaced;
+  }
+  return mailto ? `mailto:${migrated}` : migrated;
+}
+
 export function officialReavePublicEmailPatch(
   stored: { supportEmail?: string | null; fromEmail?: string | null } | null,
 ): { supportEmail?: string; fromEmail?: string } | null {
@@ -55,6 +81,9 @@ export function officialReavePublicEmailPatch(
   const from = (stored?.fromEmail || '').trim();
   if (from && isLegacyReavePublicEmail(from)) {
     patch.fromEmail = REAVE_PUBLIC_EMAIL;
+  } else if (from) {
+    const migrated = migrateOfficialOutboundFromEmail(from);
+    if (migrated && migrated !== from) patch.fromEmail = migrated;
   }
   return Object.keys(patch).length ? patch : null;
 }

@@ -9,7 +9,7 @@ import {
   type EmailInlineImage,
   type EmailSendAttachment,
 } from './emailComposeImages';
-import { storeGetEmailInbox } from './emailInboxStore';
+import { isEmailInboxRecordId, storeGetEmailInbox } from './emailInboxStore';
 import {
   buildReplyEmailHeaders,
   formatQuotedReplyHtml,
@@ -117,7 +117,8 @@ export async function buildAdminComposeEmail(
   const from = String(body.from ?? '').trim() || undefined;
   const cc = body.cc;
   const bcc = body.bcc;
-  const inReplyToEmailId = String(body.inReplyToEmailId ?? body.in_reply_to_email_id ?? '').trim() || null;
+  const rawReplyId = String(body.inReplyToEmailId ?? body.in_reply_to_email_id ?? '').trim();
+  const inReplyToEmailId = isEmailInboxRecordId(rawReplyId) ? rawReplyId : null;
 
   let composeImages: Awaited<ReturnType<typeof resolveComposeImagesForSend>>;
   try {

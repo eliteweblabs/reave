@@ -3,6 +3,8 @@
  * Used to deliver client portal links to contacts on their own device.
  */
 import { resolveEmailFrom } from './companyConfig';
+import { migrateOfficialOutboundFromEmail } from './reavePublicEmail';
+import { isCanonicalReaveInstall } from './legacyBrandDomain';
 import type { EmailSendAttachment } from './emailComposeImages';
 import { serverEnv } from './serverEnv';
 import { sendTelnyxSms } from './telnyxClient';
@@ -42,7 +44,10 @@ export async function sendEmail(opts: {
   const to = normalizeList(opts.to);
   if (!to?.length) return { ok: false, error: 'recipient email is required' };
 
-  const from = opts.from?.trim() || (await resolveEmailFrom());
+  let from = opts.from?.trim() || (await resolveEmailFrom());
+  if (isCanonicalReaveInstall()) {
+    from = migrateOfficialOutboundFromEmail(from);
+  }
   if (!from) {
     return { ok: false, error: 'Set RESEND_FROM or configure company outbound email in admin profile' };
   }

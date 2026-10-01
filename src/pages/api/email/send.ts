@@ -74,18 +74,35 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  const built = await buildAdminComposeEmail(body, { userId, context });
-  if (!built.ok) return jsonResponse({ ok: false, success: false, error: built.error }, built.status);
+  try {
+    const built = await buildAdminComposeEmail(body, { userId, context });
+    if (!built.ok) return jsonResponse({ ok: false, success: false, error: built.error }, built.status);
 
-  const result = await deliverAdminComposeMail(built.mail, userId);
-  if (!result.ok) return jsonResponse({ ok: false, success: false, error: result.error }, 502);
+    const result = await deliverAdminComposeMail(built.mail, userId);
+    if (!result.ok) {
+      return jsonResponse(
+        { ok: false, success: false, error: result.error || 'Resend rejected the send' },
+        502,
+      );
+    }
 
-  ensureEmailScheduledScheduler();
-  return jsonResponse({
-    ok: true,
-    success: true,
-    id: result.id,
-    routed: result.routed,
-    inReplyToEmailId: result.inReplyToEmailId,
-  });
+    ensureEmailScheduledScheduler();
+    return jsonResponse({
+      ok: true,
+      success: true,
+      id: result.id,
+      routed: result.routed,
+      inReplyToEmailId: result.inReplyToEmailId,
+    });
+  } catch (e) {
+    console.error('[email/send]', e);
+    return jsonResponse(
+      {
+        ok: false,
+        success: false,
+        error: e instanceof Error ? e.message : 'Send failed unexpectedly',
+      },
+      502,
+    );
+  }
 }

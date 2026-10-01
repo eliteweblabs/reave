@@ -10,6 +10,7 @@ import {
   isLegacyReavePublicEmail,
   isReaveAppHost,
   officialReavePublicEmailPatch,
+  migrateOfficialOutboundFromEmail,
   REAVE_PUBLIC_EMAIL,
 } from '../src/lib/reavePublicEmail.ts';
 
@@ -58,6 +59,7 @@ assert.equal(isLegacyReavePublicEmail(''), false);
 
 assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: 'hello@reave.app', fromEmail: 'noreply@reave.app' }), {
   supportEmail: 'get@rekko.studio',
+  fromEmail: 'noreply@rekko.studio',
 });
 assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: '', fromEmail: 'support@reave.app' }), {
   supportEmail: 'get@rekko.studio',
@@ -65,6 +67,19 @@ assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: '', fromEmail: 's
 });
 assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: 'get@reave.app', fromEmail: 'noreply@reave.app' }), {
   supportEmail: 'get@rekko.studio',
+  fromEmail: 'noreply@rekko.studio',
+});
+
+assert.equal(
+  migrateOfficialOutboundFromEmail('noreply@inbound.reave.app'),
+  'noreply@inbound.rekko.studio',
+);
+assert.equal(
+  migrateOfficialOutboundFromEmail('REΛVE Automation <noreply@inbound.reave.app>'),
+  'REΛVE Automation <noreply@inbound.rekko.studio>',
+);
+assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: 'get@rekko.studio', fromEmail: 'noreply@inbound.reave.app' }), {
+  fromEmail: 'noreply@inbound.rekko.studio',
 });
 
 console.log('verify-reave-public-email: ok');
