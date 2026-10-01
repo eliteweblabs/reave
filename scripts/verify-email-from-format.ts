@@ -2,16 +2,22 @@
  * Run: npm run check:email-from-format
  */
 import assert from 'node:assert/strict';
-import { formatSenderEmail, normalizeResendFromHeader, parseSenderEmail } from '../src/lib/emailAddress.ts';
+import {
+  formatSenderEmail,
+  normalizeResendFromHeader,
+  parseSenderEmail,
+  resendSafeDisplayName,
+} from '../src/lib/emailAddress.ts';
 
+assert.equal(resendSafeDisplayName('re>I<o studio'), 'reΛve studio');
 assert.equal(
   formatSenderEmail('re>I<o studio', 'noreply@inbound.rekko.studio'),
-  '"re>I<o studio" <noreply@inbound.rekko.studio>',
+  'reΛve studio <noreply@inbound.rekko.studio>',
 );
-assert.equal(parseSenderEmail('"re>I<o studio" <noreply@inbound.rekko.studio>'), 'noreply@inbound.rekko.studio');
+assert.equal(parseSenderEmail('reΛve studio <noreply@inbound.rekko.studio>'), 'noreply@inbound.rekko.studio');
 assert.equal(
   normalizeResendFromHeader('re>I<o studio <noreply@inbound.rekko.studio>'),
-  '"re>I<o studio" <noreply@inbound.rekko.studio>',
+  'reΛve studio <noreply@inbound.rekko.studio>',
 );
 assert.equal(normalizeResendFromHeader('Plain Co <hello@example.com>'), 'Plain Co <hello@example.com>');
 

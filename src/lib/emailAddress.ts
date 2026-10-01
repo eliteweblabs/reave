@@ -36,13 +36,25 @@ export function parseSenderName(from: string): string {
   return raw.includes('@') ? '' : raw;
 }
 
-/** Build a Resend-safe RFC 5322 From (quote names that contain &lt; &gt; or commas). */
+/**
+ * Resend rejects display names that contain literal &lt; or &gt; even when RFC-quoted.
+ * Fold the official re&gt;I&lt;o mark to reΛve and strip any remaining angle brackets.
+ */
+export function resendSafeDisplayName(displayName: string): string {
+  let name = displayName.trim();
+  if (!name) return name;
+  name = name.replace(/re\s*>\s*I\s*<\s*o/gi, 'reΛve');
+  name = name.replace(/[<>]/g, '');
+  return name.replace(/\s+/g, ' ').trim();
+}
+
+/** Build a Resend-safe RFC 5322 From (quote names that contain quotes or commas). */
 export function formatSenderEmail(displayName: string, email: string): string {
   const addr = email.trim();
-  const name = displayName.trim();
+  const name = resendSafeDisplayName(displayName);
   if (!addr.includes('@')) return name || addr;
   if (!name) return addr;
-  if (/[<>"\\]/.test(name) || /[,;]/.test(name)) {
+  if (/["\\]/.test(name) || /[,;]/.test(name)) {
     const escaped = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return `"${escaped}" <${addr}>`;
   }

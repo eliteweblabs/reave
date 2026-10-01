@@ -5,6 +5,7 @@
  * outbound From, VAPID subject, and company config stay on one address.
  * Personal / system mailboxes (thomas@, noreply@, inbound.*, demo.*) are left alone.
  */
+import { parseSenderEmail } from './emailAddress';
 import { CANONICAL_PUBLIC_BRAND_DOMAIN } from './legacyBrandDomain';
 
 export const REAVE_PUBLIC_EMAIL = `get@${CANONICAL_PUBLIC_BRAND_DOMAIN}`;
@@ -53,8 +54,7 @@ export function migrateOfficialOutboundFromEmail(email: string): string {
   if (!trimmed) return trimmed;
   const mailto = /^mailto:/i.test(trimmed);
   const body = mailto ? trimmed.slice(7) : trimmed;
-  const angle = body.match(/<([^>]+)>/);
-  const addr = (angle ? angle[1] : body).trim();
+  const addr = parseSenderEmail(body);
   const at = addr.lastIndexOf('@');
   if (at < 0) return trimmed;
   const local = addr.slice(0, at);
@@ -63,9 +63,11 @@ export function migrateOfficialOutboundFromEmail(email: string): string {
     return trimmed;
   }
   const migrated = `${local}@${host === LEGACY_INBOUND_MAIL_HOST ? CANONICAL_INBOUND_MAIL_HOST : REAVE_PUBLIC_HOST}`;
-  if (angle) {
-    const replaced = body.replace(angle[1], migrated);
-    return mailto ? `mailto:${replaced}` : replaced;
+  const trailing = body.match(/\s*<[^>]+>$/);
+  if (trailing) {
+    const prefix = body.slice(0, body.length - trailing[0].length).trim();
+    const next = prefix ? `${prefix} <${migrated}>` : migrated;
+    return mailto ? `mailto:${next}` : next;
   }
   return mailto ? `mailto:${migrated}` : migrated;
 }

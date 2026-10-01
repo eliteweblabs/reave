@@ -135,7 +135,7 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
 import { traceStart, traceAsync, traceSincePage, reportPreBootTiming } from './perf-trace.js';
 import {
   captureFilterTabsScroll,
@@ -18138,12 +18138,20 @@ function buildReplyQuoteClient(ev) {
   return `\n\n---\nOn ${when}, ${from} wrote:\n${quoted}`;
 }
 
+function resendSafeDisplayName(displayName) {
+  let name = String(displayName || '').trim();
+  if (!name) return name;
+  name = name.replace(/re\s*>\s*I\s*<\s*o/gi, 'reΛve');
+  name = name.replace(/[<>]/g, '');
+  return name.replace(/\s+/g, ' ').trim();
+}
+
 function defaultEmailComposeFrom() {
   const brand = companyBrand();
   const email = String(brand.fromEmail || '').trim();
-  const name = String(brand.name || '').trim();
+  const name = resendSafeDisplayName(brand.name);
   if (name && email) {
-    if (/[<>"\\]/.test(name) || /[,;]/.test(name)) {
+    if (/["\\]/.test(name) || /[,;]/.test(name)) {
       const escaped = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       return `"${escaped}" <${email}>`;
     }
@@ -18153,7 +18161,20 @@ function defaultEmailComposeFrom() {
 }
 
 function normalizeEmailComposeFrom(raw) {
-  return String(raw ?? '').trim();
+  const trimmed = String(raw ?? '').trim();
+  if (!trimmed) return '';
+  const angle = trimmed.lastIndexOf('<');
+  const end = trimmed.lastIndexOf('>');
+  if (angle >= 0 && end > angle) {
+    const email = trimmed.slice(angle + 1, end).trim();
+    const prefix = trimmed.slice(0, angle).trim();
+    const safeName = resendSafeDisplayName(prefix.replace(/^["']|["']$/g, ''));
+    if (email.includes('@')) {
+      if (safeName) return `${safeName} <${email}>`;
+      return email;
+    }
+  }
+  return trimmed;
 }
 
 function emptyEmailCompose(overrides = {}) {
@@ -18990,7 +19011,7 @@ async function commitQueuedEmailSend(snap) {
       body: JSON.stringify(payload),
     });
     const data = await readAdminJson(res, 'Send email');
-    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!data.ok) throw new Error(adminApiErrorMessage(data, res.status));
     if (snap.draftId) void deleteEmailDraftById(snap.draftId);
     if (data.scheduled) {
       await loadEmailScheduledEvents(true);

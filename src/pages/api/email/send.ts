@@ -80,10 +80,9 @@ export async function POST(context: APIContext): Promise<Response> {
 
     const result = await deliverAdminComposeMail(built.mail, userId);
     if (!result.ok) {
-      return jsonResponse(
-        { ok: false, success: false, error: result.error || 'Resend rejected the send' },
-        502,
-      );
+      const error = result.error?.trim() || 'Resend rejected the send';
+      console.error('[email/send] deliver failed', { error, to: built.mail.to, subject: built.mail.subject });
+      return jsonResponse({ ok: false, success: false, error }, 502);
     }
 
     ensureEmailScheduledScheduler();

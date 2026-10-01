@@ -132,6 +132,25 @@ export async function adminFetch(url, opts = {}) {
   return res;
 }
 
+/** Best-effort error string from admin API JSON (Resend/Railway sometimes use `message`). */
+export function adminApiErrorMessage(data, status) {
+  if (data && typeof data === 'object') {
+    const err = data.error ?? data.message;
+    if (typeof err === 'string' && err.trim()) return err.trim();
+    if (Array.isArray(err) && err.length) {
+      const parts = err
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object' && 'message' in item) return String(item.message);
+          return '';
+        })
+        .filter(Boolean);
+      if (parts.length) return parts.join('; ');
+    }
+  }
+  return `HTTP ${status}`;
+}
+
 /** Parse admin API JSON without Safari's opaque "expected pattern" failures. */
 export async function readAdminJson(res, label = 'response') {
   const text = await res.text();
