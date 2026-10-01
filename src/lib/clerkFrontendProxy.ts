@@ -2,7 +2,8 @@ import { setDefaultResultOrder } from 'node:dns';
 import { clerkEnsureDomainProxy, clerkFrontendApiHost, clerkFrontendApiOrigin, clerkSecretKey } from './clerkClient';
 import { clerkProxyApexHost } from './legacyBrandDomain';
 import { ADMIN_SCOPED_CLERK_PROXY_PATH, DEFAULT_CLERK_FRONTEND_PROXY_PATH } from './clerkProxyUrl';
-import { publicHostFromEnv, resolvePublicHost } from './requestHost';
+import { resolvePublicHost } from './requestHost';
+import { serverEnv } from './serverEnv';
 
 /** Official Clerk Frontend API — required when using a same-origin proxy. */
 export const CLERK_OFFICIAL_FRONTEND_API_ORIGIN = 'https://frontend-api.clerk.dev';
@@ -32,6 +33,31 @@ function clientIp(request: Request): string {
 }
 
 /**
+ * Clerk `Clerk-Proxy-Url` must match the domain the browser is on. When
+ * `COMPANY_DOMAIN` is the marketing apex (levineslaw.com) but staff sign in on
+ * `PUBLIC_SITE_DOMAIN` (app.levineslaw.com), sending the apex proxy registers a
+ * satellite handshake and Safari hits "more than 20 redirections".
+ */
+function resolveClerkProxyApexHost(request: Request, incomingHost: string): string {
+  const requestHost = clerkProxyApexHost(resolvePublicHost(request));
+  const siteHost = clerkProxyApexHost(serverEnv('PUBLIC_SITE_DOMAIN') ?? '');
+  const companyHost = clerkProxyApexHost(serverEnv('COMPANY_DOMAIN') ?? '');
+
+  if (siteHost && requestHost === siteHost) return siteHost;
+  if (requestHost && companyHost && requestHost !== companyHost) {
+    if (requestHost.endsWith(`.${companyHost}`)) return requestHost;
+  }
+  if (companyHost) return companyHost;
+  if (siteHost) return siteHost;
+  if (requestHost) return requestHost;
+  return (
+    clerkProxyApexHost(request.headers.get('X-Forwarded-Host')?.split(',')[0]?.trim() ?? '') ||
+    clerkProxyApexHost(request.headers.get('Host')?.trim() ?? '') ||
+    clerkProxyApexHost(incomingHost)
+  );
+}
+
+/**
  * Absolute proxy URL Clerk expects in `Clerk-Proxy-Url` (and on the domain
  * record). Relative `/__clerk` is fine for clerk-js; the FAPI proxy header
  * must be a full URL.
@@ -42,14 +68,7 @@ export function absoluteClerkProxyUrl(request: Request): string {
     request.headers.get('X-Forwarded-Proto')?.split(',')[0]?.trim() ||
     incoming.protocol.replace(':', '') ||
     'https';
-  // Clerk registers one proxy_url per instance (COMPANY_DOMAIN / PUBLIC_SITE_*).
-  // Railway default domains must not become Clerk-Proxy-Url or FAPI returns host_invalid.
-  const host =
-    clerkProxyApexHost(publicHostFromEnv()) ||
-    clerkProxyApexHost(resolvePublicHost(request)) ||
-    clerkProxyApexHost(request.headers.get('X-Forwarded-Host')?.split(',')[0]?.trim() ?? '') ||
-    clerkProxyApexHost(request.headers.get('Host')?.trim() ?? '') ||
-    clerkProxyApexHost(incoming.host);
+  const host = resolveClerkProxyApexHost(request, incoming.host);
   return `${proto}://${host}${DEFAULT_CLERK_FRONTEND_PROXY_PATH}`;
 }
 
@@ -218,7 +237,9 @@ let ensureProxyPromise: Promise<void> | null = null;
  * calling back into this proxy, which would deadlock.
  */
 export function ensureClerkDomainProxy(proxyUrl?: string): void {
-  const envApex = clerkProxyApexHost(publicHostFromEnv());
+  const envApex =
+    clerkProxyApexHost(serverEnv('PUBLIC_SITE_DOMAIN') ?? '') ||
+    clerkProxyApexHost(serverEnv('COMPANY_DOMAIN') ?? '');
   const fromEnv = envApex ? `https://${envApex}${DEFAULT_CLERK_FRONTEND_PROXY_PATH}` : '';
   const wanted = fromEnv || proxyUrl || '';
   if (!wanted.startsWith('https://')) return;

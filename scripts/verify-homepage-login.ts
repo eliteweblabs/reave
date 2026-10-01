@@ -349,6 +349,25 @@ assert.equal(
   if (prevDomain === undefined) delete process.env.COMPANY_DOMAIN;
   else process.env.COMPANY_DOMAIN = prevDomain;
 }
+{
+  const prevCompany = process.env.COMPANY_DOMAIN;
+  const prevSite = process.env.PUBLIC_SITE_DOMAIN;
+  process.env.COMPANY_DOMAIN = 'levineslaw.com';
+  process.env.PUBLIC_SITE_DOMAIN = 'app.levineslaw.com';
+  assert.equal(
+    absoluteClerkProxyUrl(
+      new Request('https://app.levineslaw.com/__clerk/v1/client', {
+        headers: { 'X-Forwarded-Proto': 'https', Host: 'app.levineslaw.com' },
+      }),
+    ),
+    'https://app.levineslaw.com/__clerk',
+    'app subdomain install must not send marketing apex as Clerk-Proxy-Url',
+  );
+  if (prevCompany === undefined) delete process.env.COMPANY_DOMAIN;
+  else process.env.COMPANY_DOMAIN = prevCompany;
+  if (prevSite === undefined) delete process.env.PUBLIC_SITE_DOMAIN;
+  else process.env.PUBLIC_SITE_DOMAIN = prevSite;
+}
 assert.equal(isClerkFrontendApiHost('clerk.reave.app'), true);
 assert.equal(isClerkFrontendApiHost('frontend-api.clerk.dev'), true);
 assert.equal(isClerkFrontendApiHost('reave.app'), false);
