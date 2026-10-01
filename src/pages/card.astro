@@ -46,10 +46,13 @@ const phoneHref = telDigits ? `tel:${telDigits}` : '';
 const smsHref = telDigits ? `sms:${telDigits}` : '';
 const phoneE164 = cardPhoneToE164(phoneRaw);
 let signedIn = false;
+let userId: string | null = null;
 try {
-  signedIn = Boolean(Astro.locals.auth?.()?.userId);
+  userId = Astro.locals.auth?.()?.userId ?? null;
+  signedIn = Boolean(userId);
 } catch {
   signedIn = false;
+  userId = null;
 }
 const passkeyTrust = readCardPasskeyTrust(Astro.request);
 const hasPasskeys = await storeHasCardPasskeys();
@@ -146,7 +149,7 @@ try {
     <BrandFontHead fonts={company.fonts} />
     <PlausibleScript />
   </head>
-  <body class="nfc-body">
+  <body class="nfc-body" data-user-id={userId ?? ''}>
     <SiteBackground />
     <main class="nfc-shell">
       <header class="nfc-brand">

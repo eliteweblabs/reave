@@ -97,6 +97,31 @@ function adminScopedClerkProxyPath(pathname: string): string {
   return `${ADMIN_SCOPED_CLERK_PROXY_PATH}${rest}`;
 }
 
+/** NFC `/card` must not be a handshake redirect target — it loops half-sessions. */
+export function normalizeStaffHandshakeRedirect(raw: string, requestUrl: string): string {
+  try {
+    const url = new URL(raw, requestUrl);
+    const path = url.pathname.replace(/\/$/, '') || '/';
+    if (path === '/card' || path === '/nfc') {
+      url.pathname = '/admin/';
+      url.search = '';
+      url.hash = '';
+      return url.toString();
+    }
+  } catch {
+    /* ignore */
+  }
+  return raw;
+}
+
+function rewriteHandshakeRedirectParam(url: URL, requestUrl: string): void {
+  if (!url.pathname.includes('/handshake')) return;
+  const param = url.searchParams.get('redirect_url');
+  if (!param) return;
+  const next = normalizeStaffHandshakeRedirect(param, requestUrl);
+  if (next !== param) url.searchParams.set('redirect_url', next);
+}
+
 /**
  * Keep handshake redirects inside the installed PWA (`scope: /admin`).
  * `/__clerk` and clerk.{apex} / accounts.dev are outside that scope, so iOS
@@ -113,6 +138,7 @@ export function rewriteClerkProxyLocation(
   } catch {
     return location;
   }
+  rewriteHandshakeRedirectParam(url, requestUrl);
   const incoming = new URL(requestUrl);
   if (url.host === incoming.host) {
     if (url.pathname === '/sign-in' || url.pathname.startsWith('/sign-in/')) {
@@ -124,9 +150,11 @@ export function rewriteClerkProxyLocation(
     ) {
       return `${incoming.origin}${adminScopedClerkProxyPath(url.pathname)}${url.search}${url.hash}`;
     }
-    return location;
+    return `${url.origin}${url.pathname}${url.search}${url.hash}`;
   }
-  if (!isClerkFrontendApiHost(url.hostname, extraFapiHosts)) return location;
+  if (!isClerkFrontendApiHost(url.hostname, extraFapiHosts)) {
+    return `${url.origin}${url.pathname}${url.search}${url.hash}`;
+  }
   return `${incoming.origin}${adminScopedClerkProxyPath(url.pathname)}${url.search}${url.hash}`;
 }
 
@@ -222,6 +250,7 @@ export async function proxyClerkFrontendApi(request: Request): Promise<Response>
   }
 
   const incoming = new URL(request.url);
+  rewriteHandshakeRedirectParam(incoming, request.url);
   const rest = incoming.pathname.replace(/^\/admin/, '').replace(/^\/__clerk\/?/, '');
   const proxyUrl = absoluteClerkProxyUrl(request);
   ensureClerkDomainProxy(proxyUrl);

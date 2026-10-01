@@ -24,6 +24,7 @@ import {
   fetchClerkUpstream,
   isClerkFrontendApiHost,
   isClerkFrontendProxyPath,
+  normalizeStaffHandshakeRedirect,
   rewriteClerkProxyLocation,
   rewriteClerkProxySetCookie,
   rewriteClerkRedirectResponse,
@@ -353,6 +354,17 @@ assert.equal(isClerkFrontendApiHost('frontend-api.clerk.dev'), true);
 assert.equal(isClerkFrontendApiHost('reave.app'), false);
 assert.equal(isClerkFrontendProxyPath('/__clerk/v1/client/handshake'), true);
 assert.equal(isClerkFrontendProxyPath('/admin/__clerk/v1/client/handshake'), true);
+assert.equal(
+  normalizeStaffHandshakeRedirect('https://app.levineslaw.com/card', 'https://app.levineslaw.com/card'),
+  'https://app.levineslaw.com/admin/',
+);
+assert.match(
+  rewriteClerkProxyLocation(
+    'https://app.levineslaw.com/admin/__clerk/v1/client/handshake?redirect_url=https%3A%2F%2Fapp.levineslaw.com%2Fcard',
+    'https://app.levineslaw.com/card',
+  ),
+  /redirect_url=https%3A%2F%2Fapp\.levineslaw\.com%2Fadmin%2F/,
+);
 assert.equal(isClerkFrontendProxyPath('/admin/login'), false);
 assert.equal(
   rewriteClerkProxyLocation(

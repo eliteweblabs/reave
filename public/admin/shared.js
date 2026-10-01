@@ -13,8 +13,11 @@ const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
  * `/` or `/sign-in` never runs it — only visiting this URL (or forceRedirectUrl).
  */
 export function clerkHandshakeUrl(redirectPath, origin = window.location.origin) {
-  const redirect = new URL(redirectPath, origin).toString();
-  const proxyBase = redirectPath.startsWith('/admin') ? '/admin/__clerk' : '/__clerk';
+  let path = redirectPath;
+  const normalized = String(path).replace(/\/$/, '') || '/';
+  if (normalized === '/card' || normalized === '/nfc') path = '/admin/';
+  const redirect = new URL(path, origin).toString();
+  const proxyBase = String(path).startsWith('/admin') ? '/admin/__clerk' : '/__clerk';
   return `${proxyBase}/v1/client/handshake?redirect_url=${encodeURIComponent(redirect)}`;
 }
 

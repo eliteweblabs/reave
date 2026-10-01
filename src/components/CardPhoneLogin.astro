@@ -141,6 +141,59 @@ const passkeyGated = showLogin && hasPasskeys;
     if (passkeyGated) {
       initCardPasskeyGate({ gated: true, redirectUrl });
     }
+
+    const SSR_SYNC_KEY = 'reave-clerk-ssr-sync-once';
+    const postLoginTarget =
+      redirectUrl.startsWith('/') && !redirectUrl.startsWith('//') ? redirectUrl : '/admin/';
+
+    function serverHasStaffSession() {
+      return Boolean(document.body?.dataset?.userId?.trim());
+    }
+
+    function ssrSyncAlreadyTried() {
+      try {
+        return sessionStorage.getItem(SSR_SYNC_KEY) === '1';
+      } catch {
+        return false;
+      }
+    }
+
+    function markSsrSyncTried() {
+      try {
+        sessionStorage.setItem(SSR_SYNC_KEY, '1');
+      } catch {
+        /* ignore */
+      }
+    }
+
+    function clearSsrSyncMark() {
+      try {
+        sessionStorage.removeItem(SSR_SYNC_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    /** Half-session on /card loops Clerk handshakes — sync once, then /admin/. */
+    async function syncCardSessionOnce() {
+      if (serverHasStaffSession()) {
+        clearSsrSyncMark();
+        return false;
+      }
+      if (ssrSyncAlreadyTried()) {
+        try {
+          await window.Clerk?.signOut?.();
+        } catch {
+          /* ignore */
+        }
+        clearSsrSyncMark();
+        return false;
+      }
+      markSsrSyncTried();
+      window.location.assign(clerkHandshakeUrl(postLoginTarget));
+      return true;
+    }
+
     function clerkMessage(err) {
       const first = err?.errors?.[0];
       return first?.longMessage || first?.message || err?.message || 'Could not send a code.';
@@ -217,6 +270,16 @@ const passkeyGated = showLogin && hasPasskeys;
       }
       await clerk.setActive({ session: result.createdSessionId });
     }
+
+    void waitForClerk()
+      .then(async (clerk) => {
+        if (clerk.user && !serverHasStaffSession()) {
+          await syncCardSessionOnce();
+        }
+      })
+      .catch(() => {
+        /* Clerk not configured or still loading */
+      });
 
     const sendBtn = document.getElementById('nfc-login-send');
     const sendMeta = document.getElementById('nfc-login-send-meta');
@@ -304,7 +367,8 @@ const passkeyGated = showLogin && hasPasskeys;
         const clerk = await waitForClerk();
         await verifyCode(clerk, mode, code);
         await registerCardPasskeyAfterLogin();
-        window.location.assign(clerkHandshakeUrl(redirectUrl));
+        clearSsrSyncMark();
+        window.location.assign(clerkHandshakeUrl(postLoginTarget));
       } catch (err) {
         showError(clerkMessage(err));
         submitBtn.disabled = false;
