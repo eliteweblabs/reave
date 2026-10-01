@@ -6,8 +6,6 @@ interface Props {
   phoneE164: string;
   signedIn: boolean;
   redirectUrl?: string;
-  /** External CMS editor login (WordPress, Webflow, etc.) — optional second card action. */
-  cmsLoginUrl?: string;
   /** At least one /card passkey registered — hide login from visitors. */
   hasPasskeys?: boolean;
   /** Server-side device trust from a prior passkey auth. */
@@ -18,24 +16,9 @@ const {
   phoneE164,
   signedIn,
   redirectUrl = '/admin/',
-  cmsLoginUrl: cmsLoginUrlProp = '',
   hasPasskeys = false,
   passkeyTrusted = null,
 } = Astro.props;
-
-function normalizeExternalLoginUrl(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
-  try {
-    const url = new URL(trimmed);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
-    return url.toString();
-  } catch {
-    return '';
-  }
-}
-
-const cmsLoginUrl = normalizeExternalLoginUrl(cmsLoginUrlProp);
 
 const clerkReady = isClerkFrontendConfigured();
 const last4 = cardPhoneLast4(phoneE164);
@@ -55,25 +38,6 @@ const passkeyGated = showLogin && hasPasskeys;
     <span class="nfc-login-copy">
       <span class="nfc-login-label">Open app</span>
       <span class="nfc-login-meta">{signedIn ? "You're signed in" : `Continue as ${trustedDisplayName}`}</span>
-    </span>
-  </a>
-)}
-
-{cmsLoginUrl && (
-  <a
-    class="nfc-login-btn nfc-login-btn--cms"
-    href={cmsLoginUrl}
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label="Login to CMS"
-  >
-    <span class="nfc-login-ico" aria-hidden="true">
-      <!-- IOS_ICONS.external-link — keep in sync with public/admin/admin-ui.js -->
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
-    </span>
-    <span class="nfc-login-copy">
-      <span class="nfc-login-label">Login to CMS</span>
-      <span class="nfc-login-meta">Edit your public website</span>
     </span>
   </a>
 )}

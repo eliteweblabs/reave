@@ -34,7 +34,7 @@ assert.doesNotMatch(card, /name="password"/);
 const login = readFileSync('src/components/CardPhoneLogin.astro', 'utf8');
 assert.match(login, /Login to the app/);
 assert.match(login, /Text a one-time code/);
-assert.match(login, /Login to CMS/);
+assert.doesNotMatch(login, /Login to CMS/);
 assert.match(login, /id="nfc-login-err"/);
 assert.match(login, /clerk\.client\.signIn\.create/);
 assert.doesNotMatch(login, /\/api\/card\/login\/send/);

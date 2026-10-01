@@ -31,7 +31,6 @@ import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
 import { requestOrigin } from '../lib/requestOrigin';
 import { shareSafeText } from '../lib/shareSafeText';
 import { isCardDemoPortfolioEnabled, parseCardDemoParam } from '../lib/cardDemoSites';
-import { serverEnv } from '../lib/serverEnv';
 import '../styles/brand.css';
 
 export const prerender = false;
@@ -64,11 +63,6 @@ const geo = company.geo;
 // No DB change needed — the param lives only in the URL.
 const demoUrl = parseCardDemoParam(Astro.url.searchParams.get('demo'));
 const showDemoPortfolio = isCardDemoPortfolioEnabled();
-/** Optional — WordPress / Webflow / other CMS sign-in for the public site. */
-const cmsLoginUrl =
-  serverEnv('PUBLIC_CMS_LOGIN_URL')?.trim() ||
-  serverEnv('CMS_LOGIN_URL')?.trim() ||
-  '';
 
 function formatPhoneDisplay(raw: string): string {
   const digits = raw.replace(/\D/g, '');
@@ -243,7 +237,6 @@ try {
         <CardPhoneLogin
           phoneE164={phoneE164}
           signedIn={signedIn}
-          cmsLoginUrl={cmsLoginUrl}
           hasPasskeys={hasPasskeys}
           passkeyTrusted={
             passkeyTrust
