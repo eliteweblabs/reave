@@ -13,6 +13,17 @@ Solo barber stack: public site + slim reave hub (schedule + Crater) + Cal.com + 
 | **Staging admin host** | `https://christian-gonzalez.reave.app` (wire DNS on reave.app zone when ready) |
 | **Site Railway service** | `christian-gonzalez-site` |
 
+## Which URL is the website?
+
+| URL | What it is |
+|-----|------------|
+| **https://christian-gonzalez-site-production.up.railway.app** | **Public site** — menu + Calendly (this is what clients should open) |
+| https://reave-production-a663.up.railway.app | **Admin / API hub only** — not the marketing site; needs Clerk sign-in |
+
+Christian’s front end is repo **`eliteweblabs/christian-gonzalez-site`**, Railway service **`christian-gonzalez-site`**. Set **`PUBLIC_CALENDLY_URL`** on that service (not on `reave`).
+
+Optional stack (can stay off until needed): Cal.com, Crater, `reave` admin.
+
 ## Live URLs (Railway defaults — custom domain TBD)
 
 | Service | URL |
