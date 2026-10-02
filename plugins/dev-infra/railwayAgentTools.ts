@@ -544,7 +544,6 @@ async function handle_create_railway_postgres(args: Record<string, unknown>, _ct
   if (!result.ok) return JSON.stringify({ error: result.error });
 
   return JSON.stringify({
-    ok: true,
     ...result,
     hint: 'Postgres service created with SSL template image, data volume, and DATABASE_URL reference vars. Link app services via Railway variable references.',
   });
@@ -568,7 +567,6 @@ async function handle_ensure_railway_public_domain(args: Record<string, unknown>
   if (!result.ok) return JSON.stringify({ error: result.error });
 
   return JSON.stringify({
-    ok: true,
     ...result,
     hint: result.domain
       ? result.created
