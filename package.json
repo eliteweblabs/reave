@@ -72,6 +72,7 @@
     "check:brand-svg-paste": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-brand-svg-paste.ts",
     "check:share-safe-text": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-share-safe-text.ts",
     "check:legacy-brand-domain": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-legacy-brand-domain.ts",
+    "check:grand-opening-form": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-grand-opening-form.ts",
     "check:qr-brand": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-qr-brand-mark.ts",
     "check:audit-report": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-report-card.ts",
     "check:audit-notifications": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-audit-notifications.ts",

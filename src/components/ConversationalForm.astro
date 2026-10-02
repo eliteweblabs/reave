@@ -823,8 +823,20 @@ const rootClass = [
     return null;
   }
 
-  function showOptionalSkip(onSkip) {
-    showOptionButtons([{ value: "skip", label: "Skip" }], () => onSkip());
+  function clearOptionUi() {
+    root()?.querySelector("#current-options")?.remove();
+    root()?.querySelector("#current-options-row")?.remove();
+  }
+
+  function optionalSkipLabel(field) {
+    if (field.name === "name") return "Continue without name";
+    if (field.name === "registrar_password") return "Share password later";
+    if (field.name === "phone") return "Continue without phone";
+    return "Skip";
+  }
+
+  function showOptionalSkip(onSkip, label = "Skip") {
+    showOptionButtons([{ value: "skip", label }], () => onSkip());
   }
 
   function applyPrefill() {
@@ -991,7 +1003,7 @@ const rootClass = [
   }
 
   function showOptionButtons(options, onPick) {
-    root()?.querySelector("#current-options")?.remove();
+    clearOptionUi();
 
     const wrapper = document.createElement("div");
     wrapper.className = "options-wrapper";
@@ -1006,7 +1018,7 @@ const rootClass = [
       btn.addEventListener("click", () => {
         wrapper.closest(".cf-msg")?.remove();
         wrapper.remove();
-        onPick(opt.value, opt.label);
+        void Promise.resolve(onPick(opt.value, opt.label));
       });
       wrapper.appendChild(btn);
     });
@@ -1045,15 +1057,34 @@ const rootClass = [
     return blockValue !== undefined && blockValue !== null && String(value) === String(blockValue);
   }
 
-  function handleOptionPick(field, value, label) {
+  async function registrarAccessAck(value) {
+    if (value === "yes") {
+      await showMessages("Great — that helps us launch faster on your domain.");
+      return;
+    }
+    if (value !== "unsure" && value !== "no") return;
+    const registrarLabel = String(formData.registrar || "").trim() || "your domain registrar";
+    const text =
+      value === "no"
+        ? "No problem — we can help you recover access or launch on a staging URL first.&&You're still eligible for this offer.&&Let's finish your application."
+        : `We can walk you through finding your ${registrarLabel} login — or handle it on a quick call.&&You're still eligible for this offer.&&Let's finish your application.`;
+    await showMessages(text);
+  }
+
+  async function handleOptionPick(field, value, label) {
     appendMessage(label, "user");
     formData[field.name] = value;
     currentFieldIndex++;
     if (optionTriggersBlock(field, value)) {
-      setTimeout(() => void showBlocked(field), 500);
+      await delay(500);
+      await showBlocked(field);
       return;
     }
-    setTimeout(showQuestion, 500);
+    await delay(400);
+    if (field.name === "registrar_access") {
+      await registrarAccessAck(value);
+    }
+    await showQuestion();
   }
 
   async function delay(ms) {
@@ -1140,7 +1171,21 @@ const rootClass = [
     scrollToLatest();
   }
 
+  function firstMissingRequiredField() {
+    if (!formDef) return null;
+    for (let i = 0; i < formDef.fields.length; i++) {
+      const candidate = formDef.fields[i];
+      if (!fieldShouldShow(candidate)) continue;
+      if (!candidate.required) continue;
+      if (!String(formData[candidate.name] ?? "").trim()) {
+        return { index: i, field: candidate };
+      }
+    }
+    return null;
+  }
+
   async function showQuestion() {
+    clearOptionUi();
     const field = advanceToNextVisibleField();
     if (!field) {
       await submitForm();
@@ -1207,10 +1252,10 @@ const rootClass = [
       }
       if (field.required === false) {
         showOptionalSkip(() => {
-          appendMessage("Skip", "user");
+          appendMessage(optionalSkipLabel(field), "user");
           currentFieldIndex++;
-          setTimeout(showQuestion, 500);
-        });
+          setTimeout(() => void showQuestion(), 500);
+        }, optionalSkipLabel(field));
       }
     }
   }
@@ -1351,6 +1396,22 @@ const rootClass = [
   }
 
   async function submitForm() {
+    const missing = firstMissingRequiredField();
+    if (missing) {
+      currentFieldIndex = missing.index;
+      const label =
+        missing.field.name === "email"
+          ? "email address"
+          : missing.field.name === "phone"
+            ? "phone number"
+            : missing.field.name.replace(/_/g, " ");
+      await showMessages(
+        `Almost done — we just need your ${label} to complete your application and send next steps.`,
+      );
+      await showQuestion();
+      return;
+    }
+
     activateDock();
     root()?.querySelector("#conversational-form")?.classList.add("hidden");
 
