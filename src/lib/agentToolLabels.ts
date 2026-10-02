@@ -65,6 +65,7 @@ const TOOL_LABELS: Record<string, string> = {
   redeploy_railway_service: 'Redeploying Railway service',
   update_railway_service: 'Updating Railway service',
   create_railway_project: 'Creating Railway project',
+  create_railway_service: 'Creating Railway service',
   railway_whoami: 'Checking Railway account',
   list_railway_workspaces: 'Listing Railway workspaces',
   search_railway_docs: 'Searching Railway docs',

@@ -2,7 +2,19 @@
  * Railway agent tools — MCP-parity for the in-app admin agent (dev_infra).
  */
 import { cachedCompanyBrandName } from '../../src/lib/companyConfig';
-import { createRailwayEmptyProject, formatRailwayNetworkingSummary, isRailwayConfigured, railwayEnsureCustomDomain, railwayListProjectNetworking, railwayListProjects, railwayResolveProject, railwayResolveService, pickRailwayEnvironment } from '../../src/lib/railwayClient';
+import {
+  createRailwayEmptyProject,
+  formatRailwayNetworkingSummary,
+  isRailwayConfigured,
+  railwayConnectServiceSource,
+  railwayCreateService,
+  railwayEnsureCustomDomain,
+  railwayListProjectNetworking,
+  railwayListProjects,
+  railwayResolveProject,
+  railwayResolveService,
+  pickRailwayEnvironment,
+} from '../../src/lib/railwayClient';
 import {
   formatRailwayLogsSummary,
   formatRailwayStatusSummary,
@@ -348,6 +360,71 @@ async function handle_create_railway_project(args: Record<string, unknown>, _ctx
   return JSON.stringify({ ok: true, id: result.id, name: result.name });
 }
 
+async function handle_create_railway_service(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const blocked = railwayGate();
+  if (blocked) return blocked;
+
+  const projectRef = strArg(args, 'project');
+  if (!projectRef) return JSON.stringify({ error: 'project is required (name or id)' });
+
+  const name = strArg(args, 'name');
+  if (!name) return JSON.stringify({ error: 'name is required' });
+
+  const repo = strArg(args, 'repo');
+  const image = strArg(args, 'image');
+  const branch = strArg(args, 'branch') || (repo ? 'main' : undefined);
+
+  const resolved = await railwayResolveProject(projectRef);
+  if (!resolved.ok) return JSON.stringify({ error: resolved.error });
+
+  let created = await railwayCreateService({
+    projectId: resolved.project.id,
+    name,
+    repo,
+    image,
+    branch,
+  });
+
+  let connected = false;
+  let sourceNote = repo ? repo : image ? image : 'empty service';
+
+  if (!created.ok && repo) {
+    const sourceError = created.error;
+    const empty = await railwayCreateService({ projectId: resolved.project.id, name });
+    if (!empty.ok) return JSON.stringify({ error: `${name}: ${sourceError}` });
+    created = empty;
+    const connect = await railwayConnectServiceSource({
+      serviceId: empty.id,
+      repo,
+    });
+    if (!connect.ok) {
+      return JSON.stringify({
+        ok: true,
+        id: empty.id,
+        name: empty.name,
+        project: resolved.project.name,
+        warning: `Service created empty; GitHub connect failed: ${connect.error}`,
+      });
+    }
+    connected = true;
+    sourceNote = `connected ${repo} after serviceCreate with repo failed (${sourceError})`;
+  } else if (!created.ok) {
+    return JSON.stringify({ error: created.error });
+  }
+
+  return JSON.stringify({
+    ok: true,
+    id: created.id,
+    name: created.name,
+    project: resolved.project.name,
+    source: sourceNote,
+    connected,
+    hint: repo || image
+      ? 'Service created — Railway will deploy from the source. Use set_railway_variables and redeploy_railway_service if needed.'
+      : 'Empty service — connect a repo with create_railway_service (repo) or Railway dashboard, then set variables.',
+  });
+}
+
 async function handle_search_railway_docs(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const query = strArg(args, 'query');
   if (!query) return JSON.stringify({ error: 'query is required' });
@@ -632,6 +709,29 @@ export function railwayAgentToolDefinitions(ctx: ToolContext): AgentToolDef[] {
     {
       type: 'function',
       function: {
+        name: 'create_railway_service',
+        description:
+          'Create a Railway service in a project. Pass repo (owner/name) to deploy from GitHub, or image for a container image, or omit both for an empty service. Requires RAILWAY_API_TOKEN.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project: {
+              type: 'string',
+              description: `Railway project name or id (defaults to ${projectDefault} when omitted in other tools — here required)`,
+            },
+            name: { type: 'string', description: 'Service name inside the project' },
+            repo: { type: 'string', description: 'GitHub owner/repo to connect as deploy source' },
+            image: { type: 'string', description: 'Container image URI (alternative to repo)' },
+            branch: { type: 'string', description: 'Git branch when repo is set (default main)' },
+          },
+          required: ['project', 'name'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
         name: 'search_railway_docs',
         description: 'Search Railway documentation (docs.railway.com) for guides and API reference.',
         parameters: {
@@ -664,5 +764,6 @@ export const railwayAgentToolHandlers: Record<string, ToolHandler> = {
   redeploy_railway_service: handle_redeploy_railway_service,
   update_railway_service: handle_update_railway_service,
   create_railway_project: handle_create_railway_project,
+  create_railway_service: handle_create_railway_service,
   search_railway_docs: handle_search_railway_docs,
 };

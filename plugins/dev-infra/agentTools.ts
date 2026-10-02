@@ -143,7 +143,7 @@ import { checkLinks, formatCheckLinksResults } from '../../src/lib/checkLinksCli
 import { dnsCheck, formatDnsCheckResults } from '../../src/lib/dnsCheckClient';
 import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../src/lib/resendDnsSync';
 import { cloudflareDnsManage } from '../../src/lib/cloudflareDnsManage';
-import { hasFeature } from '../../src/lib/features';
+import { hasFeature, hasWebsiteEditor } from '../../src/lib/features';
 import { syncUptimeMonitorsFromApi } from '../../src/lib/uptimeMonitoring';
 import { isUptimeRobotConfigured } from '../../src/lib/uptimerobotClient';
 import { isUptimeDbConfigured } from '../../src/lib/pgUptime';
@@ -716,6 +716,7 @@ export const devInfraModule: AgentToolModule = {
             },
           },
           ...railwayAgentToolDefinitions(ctx),
+          ...(hasWebsiteEditor() ? [] : githubPublishDefinitions(ctx)),
     ];
   },
   handlers: {
