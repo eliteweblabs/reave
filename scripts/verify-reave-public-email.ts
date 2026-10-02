@@ -81,5 +81,13 @@ assert.equal(
 assert.deepEqual(officialReavePublicEmailPatch({ supportEmail: 'get@rekko.studio', fromEmail: 'noreply@inbound.reave.app' }), {
   fromEmail: 'noreply@inbound.rekko.studio',
 });
+assert.deepEqual(
+  officialReavePublicEmailPatch({
+    domain: 'reave.app',
+    supportEmail: 'get@rekko.studio',
+    fromEmail: 'noreply@inbound.rekko.studio',
+  }),
+  { domain: 'rekko.studio' },
+);
 
 console.log('verify-reave-public-email: ok');

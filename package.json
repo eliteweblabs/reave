@@ -48,6 +48,7 @@
     "check:card-demo-sites": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-card-demo-sites.ts",
     "check:email-from-format": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-from-format.ts",
     "backfill:resend-inbound": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/backfill-resend-inbound.ts",
+    "sweep:legacy-domain": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/sweep-legacy-domain-data.ts",
     "check:email-safe-fonts": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-safe-fonts.ts",
     "check:email-original-recipient": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-original-recipient.ts",
     "check:email-compose-images": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-compose-images.ts",

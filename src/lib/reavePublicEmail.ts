@@ -73,9 +73,13 @@ export function migrateOfficialOutboundFromEmail(email: string): string {
 }
 
 export function officialReavePublicEmailPatch(
-  stored: { supportEmail?: string | null; fromEmail?: string | null } | null,
-): { supportEmail?: string; fromEmail?: string } | null {
-  const patch: { supportEmail?: string; fromEmail?: string } = {};
+  stored: {
+    supportEmail?: string | null;
+    fromEmail?: string | null;
+    domain?: string | null;
+  } | null,
+): { supportEmail?: string; fromEmail?: string; domain?: string } | null {
+  const patch: { supportEmail?: string; fromEmail?: string; domain?: string } = {};
   const support = (stored?.supportEmail || '').trim();
   if (!support || isLegacyReavePublicEmail(support)) {
     patch.supportEmail = REAVE_PUBLIC_EMAIL;
@@ -86,6 +90,15 @@ export function officialReavePublicEmailPatch(
   } else if (from) {
     const migrated = migrateOfficialOutboundFromEmail(from);
     if (migrated && migrated !== from) patch.fromEmail = migrated;
+  }
+  const domain = (stored?.domain || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0];
+  if (domain === LEGACY_REAVE_PUBLIC_HOST) {
+    patch.domain = REAVE_PUBLIC_HOST;
   }
   return Object.keys(patch).length ? patch : null;
 }
