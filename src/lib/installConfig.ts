@@ -261,7 +261,15 @@ function slugify(raw: string): string {
 function configSlugFromDomain(): string {
   const domain = trim(serverEnv('COMPANY_DOMAIN')) || trim(serverEnv('PUBLIC_SITE_DOMAIN'));
   if (!domain) return 'default';
-  const host = domain.replace(/^https?:\/\//, '').split('/')[0] ?? '';
+  const host = domain
+    .replace(/^https?:\/\//, '')
+    .split('/')[0]
+    ?.toLowerCase()
+    .replace(/^www\./, '')
+    ?? '';
+  if (host === CANONICAL_PUBLIC_BRAND_DOMAIN || host === LEGACY_PUBLIC_BRAND_DOMAIN) {
+    return 'reave';
+  }
   const parts = host.split('.').filter(Boolean);
   if (parts.length >= 2 && parts[parts.length - 1]!.length <= 3) {
     return slugify(parts[parts.length - 2] ?? host);
