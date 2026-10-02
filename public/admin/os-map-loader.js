@@ -135,7 +135,9 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
+
+installAdminApiFetchGuard();
 import { traceStart, traceAsync, traceSincePage, reportPreBootTiming } from './perf-trace.js';
 import {
   captureFilterTabsScroll,

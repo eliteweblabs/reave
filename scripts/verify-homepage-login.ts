@@ -495,6 +495,14 @@ assert.match(signInSheet, /__PUBLIC_ASSET_VERSION__/, 'SignInSheet shared.js imp
 
 const sharedJs = readFileSync('public/admin/shared.js', 'utf8');
 assert.match(sharedJs, /export function clerkHandshakeUrl/);
+assert.match(sharedJs, /export function recoverAdminSessionOn401/);
+assert.match(sharedJs, /export function installAdminApiFetchGuard/);
+assert.match(sharedJs, /markAdminServerSessionStale/);
+assert.match(
+  sharedJs,
+  /handleAdminUnauthorizedResponse[\s\S]{0,400}recoverAdminSessionOn401/,
+  '401 must handshake before opening sign-in when SSR cookie is stale',
+);
 
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 assert.match(astroConfig, /clerkProxyUrlFromEnv/);

@@ -7,6 +7,8 @@ import { escHtml } from '../shared/htmlEscape.js';
 export { escHtml };
 
 const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
+/** One Clerk handshake navigation per tab when SSR session cookie goes stale. */
+const ADMIN_API_RECOVER_KEY = 'reave-admin-401-recover';
 
 /**
  * Clerk handshake sets the HttpOnly __session cookie SSR needs. A plain reload on
@@ -38,6 +40,103 @@ function serverHasStaffSession() {
   return Boolean(document.body?.dataset?.userId?.trim());
 }
 
+/** SSR userId marker survives after __session expires — drop it on 401. */
+export function markAdminServerSessionStale() {
+  try {
+    if (document.body?.dataset?.userId) delete document.body.dataset.userId;
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearAdminSessionRecoverMark() {
+  try {
+    sessionStorage.removeItem(ADMIN_API_RECOVER_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Clerk JS can still show a user while HttpOnly __session is gone (expired handshake JWT).
+ * Navigate through /admin/__clerk once before opening the sign-in sheet.
+ */
+export function recoverAdminSessionOn401() {
+  markAdminServerSessionStale();
+  let alreadyTried = false;
+  try {
+    alreadyTried = sessionStorage.getItem(ADMIN_API_RECOVER_KEY) === '1';
+  } catch {
+    /* ignore */
+  }
+  if (alreadyTried) return false;
+
+  const hasClerkUser = Boolean(window.Clerk?.user);
+  const onAdmin =
+    window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/');
+  if (!onAdmin && !hasClerkUser) return false;
+
+  try {
+    sessionStorage.setItem(ADMIN_API_RECOVER_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+  const returnTo = cleanAdminReturnUrl(window.location.pathname, window.location.search);
+  window.location.assign(clerkHandshakeUrl(returnTo));
+  return true;
+}
+
+/** Shared 401 handler for adminFetch and the global /api fetch guard. */
+export function handleAdminUnauthorizedResponse() {
+  if (recoverAdminSessionOn401()) {
+    throw new Error('Session expired');
+  }
+  const signInSheet = document.getElementById('sign-in-sheet');
+  if (signInSheet && window.IosSheet?.open) {
+    window.IosSheet.open('sign-in-sheet');
+  } else {
+    window.location.assign(
+      window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in',
+    );
+  }
+  throw new Error('Session expired');
+}
+
+/**
+ * Raw fetch() in os-map-loader bypasses adminFetch — wrap once so 401s recover the same way.
+ */
+export function installAdminApiFetchGuard() {
+  if (typeof window === 'undefined' || window.__reaveAdminFetchGuard) return;
+  window.__reaveAdminFetchGuard = true;
+
+  if (serverHasStaffSession()) clearAdminSessionRecoverMark();
+
+  const native = window.fetch.bind(window);
+  window.fetch = async function reaveAdminFetch(input, init) {
+    const res = await native(input, init);
+    if (res.status !== 401) return res;
+
+    let path = '';
+    try {
+      const raw =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.pathname
+            : input instanceof Request
+              ? input.url
+              : String(input?.url || '');
+      path = raw.startsWith('http') ? new URL(raw).pathname : raw.split('?')[0] || '';
+    } catch {
+      return res;
+    }
+    if (!path.startsWith('/api/') || path.includes('__clerk')) return res;
+
+    handleAdminUnauthorizedResponse();
+    return res;
+  };
+}
+
 /**
  * Never speculative-reload for cookie lag.
  * Combined with SignIn fallbackRedirectUrl="/" that caused refresh loops.
@@ -58,6 +157,7 @@ export function bindClerkSsrSessionSync(opts = {}) {
   const { autoOpenSignIn = false } = opts;
 
   function run() {
+    if (serverHasStaffSession()) clearAdminSessionRecoverMark();
     if (autoOpenSignIn && !serverHasStaffSession()) {
       window.IosSheet?.open('sign-in-sheet');
     }
@@ -117,18 +217,11 @@ export async function adminFetch(url, opts = {}) {
     noteAdminNetworkFailure(e);
     throw e;
   }
-  if (res.ok) noteAdminNetworkSuccess();
-  if (res.status === 401) {
-    const signInSheet = document.getElementById('sign-in-sheet');
-    if (signInSheet && window.IosSheet?.open) {
-      window.IosSheet.open('sign-in-sheet');
-    } else {
-      window.location.assign(
-        window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in',
-      );
-    }
-    throw new Error('Session expired');
+  if (res.ok) {
+    noteAdminNetworkSuccess();
+    clearAdminSessionRecoverMark();
   }
+  if (res.status === 401) handleAdminUnauthorizedResponse();
   return res;
 }
 
