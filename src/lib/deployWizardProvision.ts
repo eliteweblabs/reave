@@ -3,17 +3,18 @@
  * Existing projects / services are reused. GitHub App leftovers stay on the
  * review step — this only stands up the stack the variable plan names.
  */
-import { randomBytes } from 'node:crypto';
 import {
   deployWizardDesiredProjectName,
   isDeployWizardNewProjectRef,
   type DeployWizardPlan,
   type DeployWizardService,
 } from './deployWizardCatalog';
-import { railwaySetVariables } from './railwayAgentApi';
 import {
   RAILWAY_POSTGRES_IMAGE,
   RAILWAY_POSTGRES_VOLUME,
+  railwayEnsurePostgresVariables,
+} from './railwayProvisionHelpers';
+import {
   createRailwayEmptyProject,
   isRailwayUuid,
   pickRailwayEnvironment,
@@ -54,32 +55,6 @@ export type DeployWizardProvisionResult = {
   notes: string[];
 };
 
-async function ensurePostgresVars(opts: {
-  projectId: string;
-  environment: string;
-  serviceName: string;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  const password = randomBytes(24).toString('hex');
-  const result = await railwaySetVariables({
-    project: opts.projectId,
-    environment: opts.environment,
-    service: opts.serviceName,
-    skip_deploys: true,
-    variables: {
-      POSTGRES_USER: 'postgres',
-      POSTGRES_DB: 'railway',
-      POSTGRES_PASSWORD: password,
-      // Volume mount is /var/lib/postgresql/data, which contains lost+found.
-      // initdb refuses a non-empty mount point unless PGDATA is a subdirectory.
-      PGDATA: '/var/lib/postgresql/data/pgdata',
-      DATABASE_URL:
-        'postgresql://${{POSTGRES_USER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{POSTGRES_DB}}',
-    },
-  });
-  if (!result.ok) return { ok: false, error: result.error };
-  return { ok: true };
-}
-
 async function ensureService(opts: {
   service: DeployWizardService;
   projectId: string;
@@ -115,7 +90,7 @@ async function ensureService(opts: {
       }
       connected = true;
       if (service.kind === 'postgres') {
-        const vars = await ensurePostgresVars({
+        const vars = await railwayEnsurePostgresVariables({
           projectId,
           environment: environmentName,
           serviceName: service.id,
@@ -168,7 +143,7 @@ async function ensureService(opts: {
   }
 
   if (service.kind === 'postgres') {
-    const vars = await ensurePostgresVars({
+    const vars = await railwayEnsurePostgresVariables({
       projectId,
       environment: environmentName,
       serviceName: service.id,

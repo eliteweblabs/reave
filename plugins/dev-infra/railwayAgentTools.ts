@@ -8,6 +8,7 @@ import {
   isRailwayConfigured,
   railwayConnectServiceSource,
   railwayCreateService,
+  railwayCreateVolume,
   railwayEnsureCustomDomain,
   railwayListProjectNetworking,
   railwayListProjects,
@@ -33,6 +34,10 @@ import {
   railwayUpdateService,
   railwayWhoami,
 } from '../../src/lib/railwayAgentApi';
+import {
+  railwayEnsureServicePublicDomain,
+  railwayProvisionPostgresService,
+} from '../../src/lib/railwayProvisionHelpers';
 import type { AgentToolDef, ToolContext, ToolHandler } from '../../src/lib/agentTools/types';
 import { getAgentContext } from '../../src/lib/agentContext';
 import {
@@ -412,6 +417,24 @@ async function handle_create_railway_service(args: Record<string, unknown>, _ctx
     return JSON.stringify({ error: created.error });
   }
 
+  let publicDomain: string | undefined;
+  let publicDomainCreated: boolean | undefined;
+  if (args.ensure_public_domain === true && (repo || image)) {
+    const envName = (strArg(args, 'environment') || 'production').toLowerCase();
+    const environment = pickRailwayEnvironment(resolved.environments, envName);
+    if (environment) {
+      const pub = await railwayEnsureServicePublicDomain({
+        projectRef: resolved.project.id,
+        service: created.id,
+        environment: environment.name,
+      });
+      if (pub.ok) {
+        publicDomain = pub.domain;
+        publicDomainCreated = pub.created;
+      }
+    }
+  }
+
   return JSON.stringify({
     ok: true,
     id: created.id,
@@ -419,9 +442,139 @@ async function handle_create_railway_service(args: Record<string, unknown>, _ctx
     project: resolved.project.name,
     source: sourceNote,
     connected,
+    public_domain: publicDomain,
+    public_domain_created: publicDomainCreated,
     hint: repo || image
       ? 'Service created — Railway will deploy from the source. Use set_railway_variables and redeploy_railway_service if needed.'
-      : 'Empty service — connect a repo with create_railway_service (repo) or Railway dashboard, then set variables.',
+      : 'Empty service — use connect_railway_service_source or Railway dashboard, then set variables.',
+  });
+}
+
+async function handle_connect_railway_service_source(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const blocked = railwayGate();
+  if (blocked) return blocked;
+
+  const projectRef = strArg(args, 'project');
+  if (!projectRef) return JSON.stringify({ error: 'project is required (name or id)' });
+
+  const serviceRef = strArg(args, 'service');
+  if (!serviceRef) return JSON.stringify({ error: 'service is required (name or id)' });
+
+  const repo = strArg(args, 'repo');
+  const image = strArg(args, 'image');
+  if (!repo && !image) return JSON.stringify({ error: 'repo or image is required' });
+
+  const resolved = await railwayResolveProject(projectRef);
+  if (!resolved.ok) return JSON.stringify({ error: resolved.error });
+
+  const svcResult = railwayResolveService(resolved.services, serviceRef);
+  if (!svcResult.ok) return JSON.stringify({ error: svcResult.error });
+
+  const result = await railwayConnectServiceSource({
+    serviceId: svcResult.service.id,
+    repo,
+    image,
+  });
+  if (!result.ok) return JSON.stringify({ error: result.error });
+
+  return JSON.stringify({
+    ok: true,
+    project: resolved.project.name,
+    service: svcResult.service.name,
+    source: repo || image,
+    hint: 'Source connected — Railway will deploy. Use redeploy_railway_service if nothing starts.',
+  });
+}
+
+async function handle_create_railway_volume(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const blocked = railwayGate();
+  if (blocked) return blocked;
+
+  const projectRef = strArg(args, 'project');
+  if (!projectRef) return JSON.stringify({ error: 'project is required (name or id)' });
+
+  const serviceRef = strArg(args, 'service');
+  if (!serviceRef) return JSON.stringify({ error: 'service is required (name or id)' });
+
+  const mountPath = strArg(args, 'mount_path');
+  if (!mountPath) return JSON.stringify({ error: 'mount_path is required, e.g. /var/lib/postgresql/data' });
+
+  const envName = (strArg(args, 'environment') || 'production').toLowerCase();
+  const resolved = await railwayResolveProject(projectRef);
+  if (!resolved.ok) return JSON.stringify({ error: resolved.error });
+
+  const environment = pickRailwayEnvironment(resolved.environments, envName);
+  if (!environment) {
+    return JSON.stringify({ error: `Environment "${envName}" not found in project ${resolved.project.name}` });
+  }
+
+  const svcResult = railwayResolveService(resolved.services, serviceRef);
+  if (!svcResult.ok) return JSON.stringify({ error: svcResult.error });
+
+  const volume = await railwayCreateVolume({
+    projectId: resolved.project.id,
+    environmentId: environment.id,
+    serviceId: svcResult.service.id,
+    mountPath,
+  });
+  if (!volume.ok) return JSON.stringify({ error: volume.error });
+
+  return JSON.stringify({
+    ok: true,
+    volume_id: volume.id,
+    project: resolved.project.name,
+    environment: environment.name,
+    service: svcResult.service.name,
+    mount_path: mountPath,
+  });
+}
+
+async function handle_create_railway_postgres(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const blocked = railwayGate();
+  if (blocked) return blocked;
+
+  const projectRef = strArg(args, 'project');
+  if (!projectRef) return JSON.stringify({ error: 'project is required (name or id)' });
+
+  const result = await railwayProvisionPostgresService({
+    projectRef,
+    name: strArg(args, 'name'),
+    environment: strArg(args, 'environment'),
+  });
+  if (!result.ok) return JSON.stringify({ error: result.error });
+
+  return JSON.stringify({
+    ok: true,
+    ...result,
+    hint: 'Postgres service created with SSL template image, data volume, and DATABASE_URL reference vars. Link app services via Railway variable references.',
+  });
+}
+
+async function handle_ensure_railway_public_domain(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const blocked = railwayGate();
+  if (blocked) return blocked;
+
+  const projectRef = strArg(args, 'project');
+  if (!projectRef) return JSON.stringify({ error: 'project is required (name or id)' });
+
+  const serviceRef = strArg(args, 'service');
+  if (!serviceRef) return JSON.stringify({ error: 'service is required (name or id)' });
+
+  const result = await railwayEnsureServicePublicDomain({
+    projectRef,
+    service: serviceRef,
+    environment: strArg(args, 'environment'),
+  });
+  if (!result.ok) return JSON.stringify({ error: result.error });
+
+  return JSON.stringify({
+    ok: true,
+    ...result,
+    hint: result.domain
+      ? result.created
+        ? `Public Railway URL: https://${result.domain}`
+        : `Service already had public domain https://${result.domain}`
+      : 'Public domain ensured (check Railway dashboard if URL missing).',
   });
 }
 
@@ -723,8 +876,87 @@ export function railwayAgentToolDefinitions(ctx: ToolContext): AgentToolDef[] {
             repo: { type: 'string', description: 'GitHub owner/repo to connect as deploy source' },
             image: { type: 'string', description: 'Container image URI (alternative to repo)' },
             branch: { type: 'string', description: 'Git branch when repo is set (default main)' },
+            environment: { type: 'string', description: 'Environment for ensure_public_domain (default production)' },
+            ensure_public_domain: {
+              type: 'boolean',
+              description: 'When true and repo/image is set, generate the default *.up.railway.app URL (deploy wizard parity for app services)',
+            },
           },
           required: ['project', 'name'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'connect_railway_service_source',
+        description:
+          'Connect an existing empty Railway service to a GitHub repo or container image (serviceConnect). Use when create_railway_service had to create an empty service first. Requires RAILWAY_API_TOKEN.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project: { type: 'string', description: 'Project name or id' },
+            service: { type: 'string', description: 'Service name or id' },
+            repo: { type: 'string', description: 'GitHub owner/repo' },
+            image: { type: 'string', description: 'Container image URI' },
+          },
+          required: ['project', 'service'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'create_railway_volume',
+        description:
+          'Attach a persistent volume to a service in an environment (e.g. Postgres data at /var/lib/postgresql/data). Requires RAILWAY_API_TOKEN.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project: { type: 'string' },
+            environment: { type: 'string', description: 'Default production' },
+            service: { type: 'string' },
+            mount_path: { type: 'string', description: 'Mount path inside the container' },
+          },
+          required: ['project', 'service', 'mount_path'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'create_railway_postgres',
+        description:
+          'Provision a Postgres service matching the deploy wizard: SSL template image, data volume, POSTGRES_* and DATABASE_URL reference variables. Requires RAILWAY_API_TOKEN.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project: { type: 'string' },
+            name: { type: 'string', description: 'Service name (default Postgres)' },
+            environment: { type: 'string', description: 'Default production' },
+          },
+          required: ['project'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'ensure_railway_public_domain',
+        description:
+          'Ensure a service has Railway’s default public URL (*.up.railway.app). Custom apex domains use add_railway_domain instead. Requires RAILWAY_API_TOKEN.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project: { type: 'string' },
+            service: { type: 'string' },
+            environment: { type: 'string', description: 'Default production' },
+          },
+          required: ['project', 'service'],
           additionalProperties: false,
         },
       },
@@ -765,5 +997,9 @@ export const railwayAgentToolHandlers: Record<string, ToolHandler> = {
   update_railway_service: handle_update_railway_service,
   create_railway_project: handle_create_railway_project,
   create_railway_service: handle_create_railway_service,
+  connect_railway_service_source: handle_connect_railway_service_source,
+  create_railway_volume: handle_create_railway_volume,
+  create_railway_postgres: handle_create_railway_postgres,
+  ensure_railway_public_domain: handle_ensure_railway_public_domain,
   search_railway_docs: handle_search_railway_docs,
 };
