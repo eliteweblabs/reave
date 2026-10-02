@@ -106,13 +106,19 @@
       "required": false,
       "cf-show-if": "registrar_access",
       "cf-show-if-value": "yes",
-      "cf-questions": "Password? (Optional — skip if you'd rather share it securely later.)"
+      "cf-questions": "Password? (Optional — you can share it securely later.)"
+    },
+    {
+      "name": "email",
+      "type": "email",
+      "required": true,
+      "cf-questions": "What's the best email to reach you?&&We'll send next steps — and help with registrar access if you need it."
     },
     {
       "name": "name",
       "type": "text",
       "required": false,
-      "cf-questions": "Your name? (optional)"
+      "cf-questions": "What's your name? (optional — helps us personalize follow-up)"
     },
     {
       "name": "company",
@@ -121,12 +127,6 @@
       "cf-show-if": "has_website",
       "cf-show-if-value": "yes",
       "cf-questions": "Company or business name? (optional)"
-    },
-    {
-      "name": "email",
-      "type": "email",
-      "required": true,
-      "cf-questions": "Best email to reach you?"
     },
     {
       "name": "phone",

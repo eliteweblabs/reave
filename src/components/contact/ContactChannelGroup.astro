@@ -1,0 +1,287 @@
+---
+import BrandBtn from "../ui/BrandBtn.astro";
+import { MessageCircle, MessageSquare, Phone } from "lucide-astro";
+import { contactTelHref } from "../../lib/contactApi";
+import { getCompanyConfig } from "../../lib/companyConfig";
+
+interface Props {
+  /** Element id for the chat panel toggled by the Chat button. */
+  chatPanelId: string;
+  /** Prefilled SMS body (optional). */
+  smsBody?: string;
+  /** Extra class on the channel row. */
+  class?: string;
+}
+
+const { chatPanelId, smsBody = "", class: className = "" } = Astro.props;
+const company = await getCompanyConfig(Astro.request);
+const phoneRaw = (company.supportPhone || "").trim();
+const telDigits = contactTelHref(phoneRaw);
+const phoneHref = telDigits ? `tel:${telDigits}` : "";
+const smsQuery = smsBody.trim()
+  ? `?&body=${encodeURIComponent(smsBody.trim())}`
+  : "";
+const smsHref = telDigits ? `sms:${telDigits}${smsQuery}` : "";
+const rootClass = ["contact-channels", className].filter(Boolean).join(" ");
+---
+
+<div class={rootClass} role="group" aria-label="Contact options" data-contact-channels>
+  <BrandBtn
+    type="button"
+    variant="filled"
+    class="contact-channel-btn contact-channel-btn--center"
+    data-contact-channel="chat"
+    data-contact-chat
+    data-contact-chat-panel={chatPanelId}
+    aria-expanded="false"
+  >
+    <MessageSquare size={26} strokeWidth={1.75} aria-hidden="true" />
+    <span class="contact-channel-label">Chat</span>
+  </BrandBtn>
+
+  {
+    smsHref ? (
+      <BrandBtn
+        href={smsHref}
+        variant="glass"
+        class="contact-channel-btn"
+        data-contact-channel="sms"
+      >
+        <MessageCircle size={26} strokeWidth={1.75} aria-hidden="true" />
+        <span class="contact-channel-label">SMS</span>
+      </BrandBtn>
+    ) : (
+      <BrandBtn
+        type="button"
+        variant="glass"
+        class="contact-channel-btn contact-channel-btn--disabled"
+        data-contact-channel="sms"
+        disabled
+        aria-disabled="true"
+        title="SMS is not set up yet"
+      >
+        <MessageCircle size={26} strokeWidth={1.75} aria-hidden="true" />
+        <span class="contact-channel-label">SMS</span>
+      </BrandBtn>
+    )
+  }
+
+  {
+    phoneHref ? (
+      <BrandBtn href={phoneHref} variant="glass" class="contact-channel-btn" data-contact-channel="call">
+        <Phone size={26} strokeWidth={1.75} aria-hidden="true" />
+        <span class="contact-channel-label">Call</span>
+      </BrandBtn>
+    ) : (
+      <BrandBtn
+        type="button"
+        variant="glass"
+        class="contact-channel-btn contact-channel-btn--disabled"
+        data-contact-channel="call"
+        disabled
+        aria-disabled="true"
+        title="Phone number is not set up yet"
+      >
+        <Phone size={26} strokeWidth={1.75} aria-hidden="true" />
+        <span class="contact-channel-label">Call</span>
+      </BrandBtn>
+    )
+  }
+</div>
+
+<script is:inline>
+  (function () {
+    if (window.__reaveContactChannelsInit) return;
+    window.__reaveContactChannelsInit = true;
+
+    function revealChannels(channels) {
+      if (!channels || channels.classList.contains("contact-channels--revealed")) return;
+      channels.classList.add("contact-channels--revealed");
+    }
+
+    document.querySelectorAll("[data-contact-channels]").forEach(function (channels) {
+      if (typeof IntersectionObserver === "undefined") {
+        revealChannels(channels);
+        return;
+      }
+      var revealObs = new IntersectionObserver(
+        function (entries) {
+          if (!entries.some(function (e) { return e.isIntersecting; })) return;
+          revealChannels(channels);
+          revealObs.disconnect();
+        },
+        { threshold: 0.2, rootMargin: "0px 0px -6% 0px" },
+      );
+      revealObs.observe(channels);
+    });
+
+    document.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+      var chatBtn = target.closest("[data-contact-chat]");
+      if (!(chatBtn instanceof HTMLElement)) return;
+      var panelId = chatBtn.getAttribute("data-contact-chat-panel");
+      if (!panelId) return;
+      var panel = document.getElementById(panelId);
+      if (!panel) return;
+
+      panel.hidden = false;
+      panel.classList.add("contact-chat-panel--open");
+      chatBtn.setAttribute("aria-expanded", "true");
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+      var attempts = 0;
+      function focusInput() {
+        attempts += 1;
+        var input = panel.querySelector("#user-input");
+        if (input instanceof HTMLInputElement && !input.disabled) {
+          input.focus();
+          return;
+        }
+        if (attempts < 40) window.setTimeout(focusInput, 100);
+      }
+      window.setTimeout(focusInput, 200);
+    });
+  })();
+</script>
+
+<style is:global>
+  .contact-channels {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+    width: min(100%, 34rem);
+    margin: 8px auto 0;
+  }
+
+  .contact-channels :global(.contact-channel-btn[data-contact-channel="chat"]) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .contact-channels :global(.contact-channel-btn[data-contact-channel="sms"]) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .contact-channels :global(.contact-channel-btn[data-contact-channel="call"]) {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .contact-channels :global(.contact-channel-btn) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 5.85rem;
+    padding: 18px 12px;
+    width: 100%;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(clamp(3rem, 14vh, 5.5rem));
+    will-change: transform, opacity;
+  }
+
+  .contact-channels :global(.contact-channel-btn--center) {
+    min-height: 7.35rem;
+  }
+
+  .contact-channels--revealed :global(.contact-channel-btn[data-contact-channel="chat"]) {
+    animation: contact-channel-rise 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 0ms;
+  }
+
+  .contact-channels--revealed :global(.contact-channel-btn[data-contact-channel="sms"]) {
+    animation: contact-channel-rise 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 333ms;
+  }
+
+  .contact-channels--revealed :global(.contact-channel-btn[data-contact-channel="call"]) {
+    animation: contact-channel-rise 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 666ms;
+  }
+
+  @keyframes contact-channel-rise {
+    from {
+      opacity: 0;
+      transform: translateY(clamp(3rem, 14vh, 5.5rem));
+    }
+    to {
+      opacity: var(--contact-channel-opacity, 1);
+      transform: translateY(0);
+    }
+  }
+
+  .contact-channel-label {
+    line-height: 1.15;
+  }
+
+  .contact-channels :global(.contact-channel-btn--disabled) {
+    --contact-channel-opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .contact-chat-panel {
+    width: min(100%, 34rem);
+    margin: 20px auto 0;
+  }
+
+  .contact-chat-panel[hidden] {
+    display: none;
+  }
+
+  .contact-chat-panel--open {
+    animation: contact-chat-in 0.35s ease;
+  }
+
+  @keyframes contact-chat-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .contact-channels :global(.contact-channel-btn) {
+      opacity: 1;
+      transform: none;
+      animation: none !important;
+    }
+
+    .contact-channels :global(.contact-channel-btn--disabled) {
+      opacity: 0.45;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .contact-channels {
+      gap: 8px;
+    }
+
+    .contact-channels :global(.contact-channel-btn) {
+      min-height: 5.25rem;
+      padding: 14px 8px;
+      font-size: 0.95rem;
+    }
+
+    .contact-channels :global(.contact-channel-btn--center) {
+      min-height: 6.35rem;
+    }
+
+    .contact-channels :global(.contact-channel-btn svg) {
+      width: 22px;
+      height: 22px;
+    }
+  }
+</style>

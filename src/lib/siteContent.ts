@@ -725,6 +725,9 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/deploy',
       '/about',
       '/digital-audit',
+      '/grand-opening',
+      '/grand-opening/checkout',
+      '/home',
       '/privacy',
       '/terms',
       '/cookies',
@@ -839,6 +842,12 @@ export function resolveSiteContentKey(industryOverride?: string | null): string 
   const explicit = install.siteContentKey?.trim().toLowerCase();
   const slug = installConfigSlug();
   const host = getRequestPublicHost() || publicHostFromEnv();
+
+  // Visitor on official marketing host always gets reave site chrome (even when
+  // COMPANY_DOMAIN=rekko.studio would otherwise load config-default + siteContentKey default).
+  if (host && isReaveMarketingHost(host)) {
+    return 'reave';
+  }
 
   // Client domain + leaked reave.app site key → unbranded standalone chrome.
   if (host && !isReaveMarketingHost(host) && (explicit === 'reave' || slug === 'reave')) {
