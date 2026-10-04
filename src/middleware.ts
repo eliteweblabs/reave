@@ -22,6 +22,7 @@ import {
 import { isClerkRuntimeConfigured, normalizeClerkRuntimeEnv } from "./lib/clerkClient";
 import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "./lib/siteContent";
 import { mapLegacyReaveHostToRekko } from "./lib/legacyBrandDomain";
+import { permanentRedirectResponse } from "./lib/httpRedirect";
 import { publicHostFromRequest, runWithRequestHost, stripTrailingFqdnDot } from "./lib/requestHost";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
@@ -155,12 +156,7 @@ const appHandler = async (
     canonicalHost = mapLegacyReaveHostToRekko(canonicalHost) ?? canonicalHost;
     target.hostname = canonicalHost;
     if (canonicalHost.includes(".")) target.protocol = "https:";
-    return applySecurityHeaders(
-      new Response(null, {
-        status: 301,
-        headers: { Location: target.toString() },
-      }),
-    );
+    return applySecurityHeaders(permanentRedirectResponse(context.request, target.toString()));
   }
 
   const rekkoHost = mapLegacyReaveHostToRekko(host);
@@ -168,12 +164,7 @@ const appHandler = async (
     const target = new URL(url.href);
     target.hostname = rekkoHost;
     target.protocol = "https:";
-    return applySecurityHeaders(
-      new Response(null, {
-        status: 301,
-        headers: { Location: target.toString() },
-      }),
-    );
+    return applySecurityHeaders(permanentRedirectResponse(context.request, target.toString()));
   }
 
   const configuredDomain =
@@ -184,12 +175,7 @@ const appHandler = async (
     const target = new URL(url.href);
     target.host = configuredDomain;
     target.protocol = "https:";
-    return applySecurityHeaders(
-      new Response(null, {
-        status: 301,
-        headers: { Location: target.toString() },
-      }),
-    );
+    return applySecurityHeaders(permanentRedirectResponse(context.request, target.toString()));
   }
 
   const legacyTarget = LEGACY_DOMAIN_REDIRECTS[host.toLowerCase()];
@@ -197,12 +183,7 @@ const appHandler = async (
     const target = new URL(url.href);
     target.hostname = legacyTarget;
     target.protocol = "https:";
-    return applySecurityHeaders(
-      new Response(null, {
-        status: 301,
-        headers: { Location: target.toString() },
-      }),
-    );
+    return applySecurityHeaders(permanentRedirectResponse(context.request, target.toString()));
   }
 
   const normalizedPath = pathname.replace(/\/$/, "") || "/";

@@ -143,6 +143,26 @@ function siriResultStatus(result: SiriResponse): number {
   return 200;
 }
 
+const SIRI_MISSING_ACTION_TEXT =
+  'Missing action. Add ?action=… to the shortcut URL (for example ?action=status) and point Get Contents of URL at your canonical host (no www). After a domain change, an old hostname redirect can strip the POST JSON body — put action in the URL query or update the host to the new domain.';
+
+function resolveSiriActionKey(body: Record<string, unknown>): string {
+  const direct = String(body.action ?? '').trim();
+  if (direct) return direct;
+  for (const [key, value] of Object.entries(body)) {
+    const normalized = key.toLowerCase().replace(/[\s-]+/g, '_');
+    if (normalized === 'action' || normalized === 'command' || normalized === 'siri_action') {
+      const text = String(value ?? '').trim();
+      if (text) return text;
+    }
+  }
+  return '';
+}
+
+function siriBodyMissingAction(body: Record<string, unknown>): boolean {
+  return !resolveSiriActionKey(body);
+}
+
 async function parseSiriBody(
   request: Request,
 ): Promise<{ ok: true; body: Record<string, unknown> } | { ok: false; text: string }> {
@@ -208,7 +228,11 @@ async function authorizeSiri(context: APIContext): Promise<Response | null> {
 export async function GET(context: APIContext): Promise<Response> {
   const blocked = await authorizeSiri(context);
   if (blocked) return blocked;
-  return dispatchSiri(context, paramsFromUrl(new URL(context.request.url)));
+  const body = paramsFromUrl(new URL(context.request.url));
+  if (siriBodyMissingAction(body)) {
+    return textResponse(SIRI_MISSING_ACTION_TEXT, 200);
+  }
+  return dispatchSiri(context, body);
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -218,21 +242,15 @@ export async function POST(context: APIContext): Promise<Response> {
   const query = paramsFromUrl(new URL(context.request.url));
   const parsedBody = await parseSiriBody(context.request);
   const body = parsedBody.ok ? { ...query, ...parsedBody.body } : query;
-  if (!String(body.action ?? '').trim()) {
-    return textResponse(
-      parsedBody.ok
-        ? 'Missing action.'
-        : parsedBody.text,
-      200,
-    );
+  if (siriBodyMissingAction(body)) {
+    return textResponse(parsedBody.ok ? SIRI_MISSING_ACTION_TEXT : parsedBody.text, 200);
   }
 
   return dispatchSiri(context, body);
 }
 
 async function dispatchSiri(context: APIContext, body: Record<string, unknown>): Promise<Response> {
-  const action = String(body.action ?? '')
-    .trim()
+  const action = resolveSiriActionKey(body)
     .toLowerCase()
     .replace(/[\s-]+/g, '_');
   const format = String(body.format ?? 'json').trim().toLowerCase();
@@ -333,7 +351,12 @@ async function dispatchSiri(context: APIContext, body: Record<string, unknown>):
         break;
       }
       default:
-        return textResponse(`Unknown action: ${action || '(missing)'}`, 200);
+        return textResponse(
+          action
+            ? `Unknown action: ${action}. Check the action name in your shortcut URL or JSON body.`
+            : SIRI_MISSING_ACTION_TEXT,
+          200,
+        );
     }
 
     const status = siriResultStatus(result);

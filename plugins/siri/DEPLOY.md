@@ -19,7 +19,8 @@ stage: 2
 
 - Enable `siri` in install config `features[]`
 - Generate a strong key (`openssl rand -base64 32`) and set `SIRI_API_KEY` on Railway
-- On iPhone: Shortcuts → Get Contents of URL → `POST https://<host>/api/siri` with JSON body + `X-Siri-Key`
+- On iPhone: Shortcuts → Get Contents of URL → `POST https://<canonical-apex-host>/api/siri` with JSON body + `X-Siri-Key`
+- Use the **apex** host (no `www`). After a domain change, put `?action=…` on the URL — host redirects must use **308** for POST so iOS keeps the JSON body (301 can turn POST into GET and drop `action`).
 - Read knowledge slugs `siri-shortcuts`, `siri-quick-reference`, `siri-examples`
 - **Cannot be tested in a demo environment** — needs Apple Shortcuts on a real device plus `SIRI_API_KEY` on a live install
 
