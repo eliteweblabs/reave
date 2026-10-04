@@ -61,6 +61,22 @@ export function exportToolConfigJson(): string {
   return JSON.stringify(buildTools(), null, 2);
 }
 
+/** Ground-truth tool names for admin diagnostics (matches the agent manifest). */
+export function agentToolManifestSummary(): {
+  count: number;
+  names: string[];
+  write_github_file: boolean;
+  github_tools: string[];
+} {
+  const names = buildTools().map((t) => t.function.name);
+  return {
+    count: names.length,
+    names,
+    write_github_file: names.includes('write_github_file'),
+    github_tools: names.filter((n) => n.includes('github')),
+  };
+}
+
 /**
  * Execute one tool call.
  *

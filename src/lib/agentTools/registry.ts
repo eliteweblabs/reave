@@ -16,6 +16,7 @@ import { wpModule } from './core/wp';
 import { deployResumeModule } from './core/deployResume';
 import { railwayModule } from './core/railway';
 import { ideogramModule } from './core/ideogram';
+import { contentManagementModule } from '../../../plugins/content-management/agentTools';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -61,6 +62,12 @@ import type { AgentToolModule } from './types';
  * Ideogram image generation (`generate_image`) lives in `core/ideogram.ts` —
  * enabled when IDEOGRAM_API_KEY is set. Generates AI images from text prompts
  * via the Ideogram REST API.
+ *
+ * Website Git publish (`write_github_file`, `read_github_file`, …) lives in
+ * `plugins/content-management/githubAgentTools.ts` but is registered here as
+ * core — gated by `hasWebsiteEditor()` only. Do not also attach it via the
+ * content-management plugin manifest (that duplicated tools and could drop them
+ * when plugin `isPluginActive` disagreed with the website feature flag).
  */
 const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
@@ -78,6 +85,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   deployResumeModule,
   railwayModule,
   ideogramModule,
+  contentManagementModule,
 ];
 
 /** Lazy — plugin manifests import localKnowledge, which imports pluginRegistry (TDZ if eager). */
