@@ -6,8 +6,18 @@
  * Official / ops installs keep the existing app + sibling-repo tools.
  */
 import { normalizeRepoSlug, type GithubResult } from './githubClient';
+import { hasWebsiteEditor } from './features';
 import { getInstallConfigSync, isOpsInstall } from './installConfig';
 import { serverEnv } from './serverEnv';
+
+/** Admin agent GitHub publish tools (write_github_file, …). */
+export function hasWebsiteGithubAgentTools(): boolean {
+  if (hasWebsiteEditor()) return true;
+  if (isOpsInstall()) return true;
+  if (githubWebsiteRepoSlug()) return true;
+  if (getInstallConfigSync().websiteRepo?.trim()) return true;
+  return false;
+}
 
 function appRepoSlug(): string {
   const explicit = serverEnv('GITHUB_REPO')?.trim();
