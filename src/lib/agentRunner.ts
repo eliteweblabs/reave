@@ -106,20 +106,11 @@ function buildAnthropicTools(brand: Awaited<ReturnType<typeof getCompanyBrandCon
   description: string;
   input_schema: Record<string, unknown>;
 }> {
-  return buildTools(brand).flatMap((t) => {
-    const fn = t?.function;
-    if (!fn?.name) {
-      console.error('[agentRunner] skipping malformed tool definition', t);
-      return [];
-    }
-    return [
-      {
-        name: fn.name,
-        description: fn.description,
-        input_schema: fn.parameters,
-      },
-    ];
-  });
+  return buildTools(brand).map((t) => ({
+    name: t.function.name,
+    description: t.function.description,
+    input_schema: t.function.parameters,
+  }));
 }
 
 async function buildUserContentBlocks(

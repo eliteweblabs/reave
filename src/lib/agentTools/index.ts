@@ -1,14 +1,60 @@
 /** Admin agent tools — core + feature-gated plugins. */
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../companyConfig';
 import { agentToolTimeoutMs, guardToolCall } from '../agentWatchdog';
+import { hasFeature, hasWebsiteEditor } from '../features';
+import { createLogger } from '../logger';
 import { getAgentToolModules } from './registry';
-import type { AgentToolDef, ToolContext } from './types';
+import type { AgentToolDef, AgentToolModule, ToolContext } from './types';
 
 export type { AgentToolDef } from './types';
 
+const log = createLogger('agentTools');
+
+function collectModuleToolDefs(module: AgentToolModule, ctx: ToolContext): AgentToolDef[] {
+  let raw: AgentToolDef[];
+  try {
+    raw = module.definitions(ctx);
+  } catch (err) {
+    log.error(`${module.id} definitions() threw — tools from this module omitted`, err);
+    return [];
+  }
+  if (!Array.isArray(raw)) {
+    log.error(`${module.id} definitions() did not return an array`, { type: typeof raw });
+    return [];
+  }
+
+  const out: AgentToolDef[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const t = raw[i];
+    const name = t?.function?.name;
+    if (!name) {
+      log.error('skipping malformed tool definition', { module: module.id, index: i, tool: t });
+      continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
+/** Installs with website editor or dev_infra (without editor) must expose GitHub write tools. */
+function shouldExposeWriteGithubFile(): boolean {
+  if (hasWebsiteEditor()) return true;
+  return hasFeature('dev_infra');
+}
+
 export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): AgentToolDef[] {
   const ctx: ToolContext = { brand };
-  return getAgentToolModules().filter((m) => m.enabled(ctx)).flatMap((m) => m.definitions(ctx));
+  const tools: AgentToolDef[] = [];
+  for (const mod of getAgentToolModules()) {
+    if (!mod.enabled(ctx)) continue;
+    tools.push(...collectModuleToolDefs(mod, ctx));
+  }
+
+  if (shouldExposeWriteGithubFile() && !tools.some((t) => t.function.name === 'write_github_file')) {
+    log.error('write_github_file missing from buildTools() — GitHub publish module failed to register');
+  }
+
+  return tools;
 }
 
 export function exportToolConfigJson(): string {
