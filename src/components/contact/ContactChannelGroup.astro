@@ -115,32 +115,113 @@ const rootClass = ["contact-channels", className].filter(Boolean).join(" ");
       revealObs.observe(channels);
     });
 
+    function stylesheetAlreadyLoaded(href) {
+      try {
+        var abs = new URL(href, location.href).href;
+        return Array.prototype.some.call(
+          document.querySelectorAll('link[rel="stylesheet"]'),
+          function (link) {
+            return link.href === abs;
+          },
+        );
+      } catch (_e) {
+        return false;
+      }
+    }
+
+    function activateScripts(container) {
+      container.querySelectorAll("script").forEach(function (oldScript) {
+        var script = document.createElement("script");
+        Array.prototype.forEach.call(oldScript.attributes, function (attr) {
+          script.setAttribute(attr.name, attr.value);
+        });
+        script.textContent = oldScript.textContent;
+        oldScript.replaceWith(script);
+      });
+    }
+
+    function loadLazyChatPanel(panel) {
+      var href = panel.getAttribute("data-lazy-chat-href");
+      if (!href || panel.getAttribute("data-lazy-chat-loaded") === "1") {
+        return Promise.resolve();
+      }
+      if (panel.getAttribute("data-lazy-chat-loading") === "1") {
+        return panel.__reaveLazyChatPromise || Promise.resolve();
+      }
+      panel.setAttribute("data-lazy-chat-loading", "1");
+      panel.setAttribute("aria-busy", "true");
+      panel.hidden = false;
+      panel.classList.add("contact-chat-panel--loading");
+
+      var promise = fetch(href, { credentials: "same-origin" })
+        .then(function (res) {
+          if (!res.ok) throw new Error("Chat failed to load");
+          return res.text();
+        })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, "text/html");
+          doc.querySelectorAll('link[rel="stylesheet"]').forEach(function (link) {
+            var linkHref = link.getAttribute("href");
+            if (!linkHref || stylesheetAlreadyLoaded(linkHref)) return;
+            document.head.appendChild(link.cloneNode(true));
+          });
+          panel.innerHTML = doc.body.innerHTML;
+          activateScripts(panel);
+          panel.setAttribute("data-lazy-chat-loaded", "1");
+          document.dispatchEvent(new Event("astro:page-load"));
+        })
+        .finally(function () {
+          panel.removeAttribute("data-lazy-chat-loading");
+          panel.removeAttribute("aria-busy");
+          panel.classList.remove("contact-chat-panel--loading");
+          panel.__reaveLazyChatPromise = null;
+        });
+
+      panel.__reaveLazyChatPromise = promise;
+      return promise;
+    }
+
     document.addEventListener("click", function (event) {
       var target = event.target;
       if (!(target instanceof Element)) return;
       var chatBtn = target.closest("[data-contact-chat]");
       if (!(chatBtn instanceof HTMLElement)) return;
+      if (chatBtn.getAttribute("aria-disabled") === "true") return;
       var panelId = chatBtn.getAttribute("data-contact-chat-panel");
       if (!panelId) return;
       var panel = document.getElementById(panelId);
       if (!panel) return;
 
-      panel.hidden = false;
-      panel.classList.add("contact-chat-panel--open");
-      chatBtn.setAttribute("aria-expanded", "true");
-      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      chatBtn.setAttribute("aria-disabled", "true");
 
-      var attempts = 0;
-      function focusInput() {
-        attempts += 1;
-        var input = panel.querySelector("#user-input");
-        if (input instanceof HTMLInputElement && !input.disabled) {
-          input.focus();
-          return;
-        }
-        if (attempts < 40) window.setTimeout(focusInput, 100);
-      }
-      window.setTimeout(focusInput, 200);
+      loadLazyChatPanel(panel)
+        .then(function () {
+          panel.hidden = false;
+          panel.classList.add("contact-chat-panel--open");
+          chatBtn.setAttribute("aria-expanded", "true");
+          panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+          var attempts = 0;
+          function focusInput() {
+            attempts += 1;
+            var input = panel.querySelector("#user-input");
+            if (input instanceof HTMLInputElement && !input.disabled) {
+              input.focus();
+              return;
+            }
+            if (attempts < 40) window.setTimeout(focusInput, 100);
+          }
+          window.setTimeout(focusInput, 200);
+        })
+        .catch(function () {
+          panel.hidden = false;
+          panel.classList.add("contact-chat-panel--open", "contact-chat-panel--error");
+          panel.textContent =
+            "Chat could not load. Please refresh the page or contact us by SMS or phone.";
+        })
+        .finally(function () {
+          chatBtn.removeAttribute("aria-disabled");
+        });
     });
   })();
 </script>
@@ -239,6 +320,31 @@ const rootClass = ["contact-channels", className].filter(Boolean).join(" ");
 
   .contact-chat-panel--open {
     animation: contact-chat-in 0.35s ease;
+  }
+
+  .contact-chat-panel--loading {
+    min-height: 5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-content);
+    font-size: 0.92rem;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  .contact-chat-panel--loading::after {
+    content: "Loading chat…";
+  }
+
+  .contact-chat-panel--error {
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1.5px solid var(--site-card-border, rgba(23, 23, 23, 0.18));
+    font-family: var(--font-content);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    text-align: center;
+    color: var(--site-fg-muted, #525252);
   }
 
   @keyframes contact-chat-in {

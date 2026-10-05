@@ -1,7 +1,6 @@
 ---
 import Layout from "../layouts/MarketingLayout.astro";
 import BrandBtn from "../components/ui/BrandBtn.astro";
-import ConversationalForm from "../components/ConversationalForm.astro";
 import ContactChannelGroup from "../components/contact/ContactChannelGroup.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import InfinityGrid from "../components/ui/InfinityGrid.astro";
@@ -236,9 +235,12 @@ const goApplySmsBody =
           smsBody={goApplySmsBody}
           class="go-apply__channels"
         />
-        <div id={goApplyChatPanelId} class="contact-chat-panel go-apply__chat-panel" hidden>
-          <ConversationalForm slug="grand-opening" embedded heroChat brandName={brandName} />
-        </div>
+        <div
+          id={goApplyChatPanelId}
+          class="contact-chat-panel go-apply__chat-panel"
+          hidden
+          data-lazy-chat-href="/partials/grand-opening-chat"
+        />
         <p class="go-apply__fine-print">
           Offer subject to approval. One year of managed hosting required ($500 total or $50/month).
           Design scope covers a standard business site; complex builds may be quoted separately.

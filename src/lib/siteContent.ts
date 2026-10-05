@@ -727,6 +727,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/digital-audit',
       '/grand-opening',
       '/grand-opening/checkout',
+      '/partials/grand-opening-chat',
       '/home',
       '/privacy',
       '/terms',
