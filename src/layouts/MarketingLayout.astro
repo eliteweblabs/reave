@@ -6,7 +6,6 @@
  */
 import Layout from "./Layout.astro";
 import type { Props as LayoutProps } from "./Layout.astro";
-import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
 import { isSiteAssistantConfigured } from "../lib/siteAssistant";
@@ -23,12 +22,18 @@ const showSiteAssistant =
   showSiteAssistantProp !== false &&
   hasFeature("portal_assistant") &&
   isSiteAssistantConfigured();
+
+/** Avoid pulling AssistantWidget CSS/JS on pages that hide the chat (e.g. /grand-opening). */
+const SiteAssistantWidget = showSiteAssistant
+  ? (await import("../components/SiteAssistantWidget.astro")).default
+  : null;
 ---
 
 <Layout {...layoutProps}>
+  <slot slot="head" name="head" />
   <slot />
   {
-    showSiteAssistant && (
+    SiteAssistantWidget && (
       <SiteAssistantWidget
         slot="end"
         brandTitle={company.name}

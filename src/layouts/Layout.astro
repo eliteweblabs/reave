@@ -171,6 +171,7 @@ try {
 				description={description}
 			/>
 		)}
+		<slot name="head" />
 	</head>
 	<body data-user-id={userId ?? ""}>
 		<BrowserUiBottomInsetInit />

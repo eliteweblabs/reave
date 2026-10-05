@@ -5,6 +5,7 @@ import ConversationalForm from "../components/ConversationalForm.astro";
 import ContactChannelGroup from "../components/contact/ContactChannelGroup.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import InfinityGrid from "../components/ui/InfinityGrid.astro";
+import { GRAND_OPENING_LCP_IMAGE } from "../lib/grandOpeningHeroImages";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { SIMPLE_ICONS_CDN } from "../lib/platformStack";
 import { ArrowRight, Layers } from "lucide-astro";
@@ -97,6 +98,14 @@ const goApplySmsBody =
   description={`${brandName} grand opening: free custom website design when you purchase one year of managed hosting ($500/year or $50/month).`}
   showSiteAssistant={false}
 >
+  <link
+    slot="head"
+    rel="preload"
+    as="image"
+    href={GRAND_OPENING_LCP_IMAGE}
+    type="image/webp"
+    fetchpriority="high"
+  />
   <div class="go-page">
     <section class="go-hero" aria-labelledby="go-title">
       <InfinityGrid />
@@ -239,14 +248,17 @@ const goApplySmsBody =
   </div>
 
   <div class="go-circle-bg" aria-hidden="true">
-    <img
-      src="/grand-opening/circle-bg.png"
-      alt=""
-      width="1024"
-      height="521"
-      loading="lazy"
-      decoding="async"
-    />
+    <picture>
+      <source srcset="/grand-opening/circle-bg.webp" type="image/webp" />
+      <img
+        src="/grand-opening/circle-bg.png"
+        alt=""
+        width="1024"
+        height="521"
+        loading="lazy"
+        decoding="async"
+      />
+    </picture>
   </div>
   <script
     slot="end"

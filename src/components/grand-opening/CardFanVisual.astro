@@ -2,6 +2,7 @@
 /**
  * Grand opening hero — fanned playing-card stack. Swipe (or dots) brings one card flat into focus.
  */
+import { grandOpeningCardWebpSrc } from "../../lib/grandOpeningHeroImages";
 
 type FanCard = {
   image: string;
@@ -41,6 +42,7 @@ const HERO_CARDS: FanCard[] = [
 
 const cards = HERO_CARDS.map((card, index) => ({
   ...card,
+  webp: grandOpeningCardWebpSrc(card.image),
   index,
 }));
 
@@ -71,17 +73,6 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
   <div class="go-card-fan__stage">
     <div class="go-card-fan__stack" tabindex="0">
       {
-        cards[0] && (
-          <img
-            class="go-card-fan__sizer"
-            src={cards[0].image}
-            alt=""
-            aria-hidden="true"
-            decoding="async"
-          />
-        )
-      }
-      {
         cards.map((card) => (
           <figure
             class:list={[
@@ -92,13 +83,19 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
             data-alt={card.alt}
             style={`--card-i: ${stackCardIndex(card.index, initialActive, fanCount)}; --card-n: ${fanCount}; --card-offset: ${cardSpreadOffset(card.index, initialActive, fanCount)};`}
           >
-            <img
-              src={card.image}
-              alt={card.index === initialActive ? card.alt : ""}
-              aria-hidden={card.index !== initialActive ? "true" : undefined}
-              loading={card.index >= fanCount - 2 ? "eager" : "lazy"}
-              decoding="async"
-            />
+            <picture>
+              <source srcset={card.webp} type="image/webp" />
+              <img
+                src={card.image}
+                alt={card.index === initialActive ? card.alt : ""}
+                aria-hidden={card.index !== initialActive ? "true" : undefined}
+                width="504"
+                height="1092"
+                loading={card.index === initialActive ? "eager" : "lazy"}
+                fetchpriority={card.index === initialActive ? "high" : undefined}
+                decoding={card.index === initialActive ? "sync" : "async"}
+              />
+            </picture>
           </figure>
         ))
       }
@@ -255,17 +252,10 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
   .go-card-fan__stack {
     position: relative;
     width: min(100%, 252px);
+    aspect-ratio: 459 / 994;
     margin-inline: auto;
     touch-action: pan-y;
     outline: none;
-  }
-
-  .go-card-fan__sizer {
-    display: block;
-    width: 100%;
-    height: auto;
-    visibility: hidden;
-    pointer-events: none;
   }
 
   .go-card-fan__card {
@@ -320,6 +310,7 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
     height: 20px;
   }
 
+  .go-card-fan__card picture,
   .go-card-fan__card img {
     display: block;
     width: 100%;
