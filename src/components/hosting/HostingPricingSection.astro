@@ -16,7 +16,7 @@ const company = await getCompanyConfig(Astro.request);
 const supportMail = companyPublicEmail(company);
 const quoteHref = supportMail
   ? `mailto:${supportMail}?subject=${encodeURIComponent("Managed hosting — Core OS plan")}`
-  : "/schedule";
+  : "#contact";
 
 const featureGroups = [
   CARE_SERVICES_FEATURES,
@@ -108,8 +108,7 @@ const featureGroups = [
 
   <div class="hx-cta-row">
     <a class="hx-btn hx-btn--primary" href={quoteHref}>Get a quote for your site</a>
-    <a class="hx-btn hx-btn--ghost brand-btn-glass" href="/schedule">Book a call</a>
-    <a class="hx-btn hx-btn--ghost brand-btn-glass" href="/#contact">Contact us</a>
+    <a class="hx-btn hx-btn--ghost brand-btn-glass" href="#contact">Book a call</a>
   </div>
 </section>
 

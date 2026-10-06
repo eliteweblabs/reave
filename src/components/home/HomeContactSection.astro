@@ -1,32 +1,5 @@
 ---
-import ConversationalForm from "../ConversationalForm.astro";
-import ContactChannelGroup from "../contact/ContactChannelGroup.astro";
-import { getCompanyConfig } from "../../lib/companyConfig";
-
-const company = await getCompanyConfig(Astro.request);
-const chatPanelId = "contact-chat-panel";
+import MarketingContactSection from "../marketing/MarketingContactSection.astro";
 ---
 
-<section
-  id="contact"
-  class="home-section"
-  data-home-section="contact"
-  aria-labelledby="contact-title"
->
-  <div class="home-section-inner">
-    <header class="home-section-hero">
-      <h2 id="contact-title">Contact</h2>
-    </header>
-
-    <ContactChannelGroup chatPanelId={chatPanelId} />
-
-    <div id={chatPanelId} class="contact-chat-panel" hidden>
-      <ConversationalForm
-        slug="contact"
-        embedded
-        heroChat
-        brandName={company.name || "reave.app"}
-      />
-    </div>
-  </div>
-</section>
+<MarketingContactSection heading="Contact" />

@@ -5,6 +5,7 @@
  * online-presence diagnostic fill in.
  */
 import Layout from '../layouts/MarketingLayout.astro';
+import MarketingContactSection from '../components/marketing/MarketingContactSection.astro';
 import PortalAuditReportCard from '../components/PortalAuditReportCard.astro';
 import { getCompanyConfig } from '../lib/companyConfig';
 import { hasFeature } from '../lib/features';
@@ -186,6 +187,8 @@ const openOptionalDetails = Boolean(prefillUrl);
       </div>
     )}
   </div>
+
+  <MarketingContactSection />
 
   <script>
     const page = document.querySelector('[data-da-page]');

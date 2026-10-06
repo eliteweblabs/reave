@@ -3,6 +3,7 @@ import Layout from "../layouts/MarketingLayout.astro";
 import LandingLayout from "../layouts/LandingLayout.astro";
 import LuxuryLandingPage from "../components/home/LuxuryLandingPage.astro";
 import FeaturesPricingSection from "../components/features/FeaturesPricingSection.astro";
+import MarketingContactSection from "../components/marketing/MarketingContactSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { getLuxurySitePage, luxuryPageTitle } from "../lib/luxurySitePage";
 import { ArrowRight } from "lucide-astro";
@@ -48,6 +49,8 @@ const company = luxury ? null : await getCompanyConfig(Astro.request);
     </section>
 
     <FeaturesPricingSection variant="standalone" />
+
+    <MarketingContactSection />
   </div>
 </Layout>
   )

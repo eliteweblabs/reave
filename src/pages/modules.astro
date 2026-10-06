@@ -3,6 +3,7 @@
  * /modules — browse the module catalog (same UI as /demo-loader, no toggles).
  */
 import Layout from "../layouts/MarketingLayout.astro";
+import MarketingContactSection from "../components/marketing/MarketingContactSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import "../styles/demo-loader.css";
 
@@ -32,6 +33,8 @@ const company = await getCompanyConfig(Astro.request);
     >
       <p class="dl-loading">Loading modules…</p>
     </div>
+
+    <MarketingContactSection />
   </div>
 
   <script is:inline src={`/module-loader-shared.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>

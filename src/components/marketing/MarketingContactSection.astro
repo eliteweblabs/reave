@@ -1,0 +1,82 @@
+---
+import ConversationalForm from "../ConversationalForm.astro";
+import ContactChannelGroup from "../contact/ContactChannelGroup.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+import "../../styles/marketing-sections.css";
+
+interface Props {
+  heading?: string;
+  hideHeader?: boolean;
+  /** Channels + chat panel only (no outer `<section>`). */
+  bare?: boolean;
+  formSlug?: string;
+  class?: string;
+}
+
+const {
+  heading = "Contact",
+  hideHeader = false,
+  bare = false,
+  formSlug = "contact",
+  class: className = "",
+} = Astro.props;
+
+const company = await getCompanyConfig(Astro.request);
+const chatPanelId = "contact-chat-panel";
+const brandName = company.name || "reave.app";
+---
+
+{
+  bare ? (
+    <div class:list={["marketing-contact-bare", className]} data-marketing-contact>
+      <ContactChannelGroup chatPanelId={chatPanelId} />
+      <div id={chatPanelId} class="contact-chat-panel" hidden>
+        <ConversationalForm
+          slug={formSlug}
+          embedded
+          heroChat
+          brandName={brandName}
+        />
+      </div>
+    </div>
+  ) : (
+    <section
+      id="contact"
+      class:list={["home-section", "marketing-contact-section", className]}
+      data-home-section="contact"
+      data-marketing-contact
+      aria-labelledby={hideHeader ? undefined : "marketing-contact-title"}
+    >
+      <div class="home-section-inner">
+        {
+          !hideHeader && (
+            <header class="home-section-hero">
+              <h2 id="marketing-contact-title">{heading}</h2>
+            </header>
+          )
+        }
+        <ContactChannelGroup chatPanelId={chatPanelId} />
+        <div id={chatPanelId} class="contact-chat-panel" hidden>
+          <ConversationalForm
+            slug={formSlug}
+            embedded
+            heroChat
+            brandName={brandName}
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  .marketing-contact-bare {
+    width: 100%;
+  }
+
+  .marketing-contact-section {
+    scroll-margin-top: calc(
+      var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 8px
+    );
+  }
+</style>

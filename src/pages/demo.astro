@@ -4,8 +4,8 @@
  * PUBLIC_DEMO_URL is configured on the marketing install.
  */
 import Layout from "../layouts/MarketingLayout.astro";
+import MarketingContactSection from "../components/marketing/MarketingContactSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { companyPublicEmail } from "../lib/reavePublicEmail";
 import { getPublicDemoOptions } from "../lib/publicDemo";
 import {
   ArrowRight,
@@ -18,8 +18,7 @@ import {
 
 const company = await getCompanyConfig(Astro.request);
 const demo = getPublicDemoOptions();
-const supportMail = companyPublicEmail(company);
-const quoteHref = supportMail ? `mailto:${supportMail}` : demo.scheduleHref;
+const quoteHref = "#contact";
 
 type DemoCard = {
   icon: typeof Video;
@@ -73,7 +72,7 @@ if (!demo.adminUrl) {
   cards.push({
     icon: Monitor,
     title: "Live admin sandbox",
-    body: "We run a full seeded install for hands-on demos. Book a call and we'll send credentials, or email us for early access.",
+    body: "We run a full seeded install for hands-on demos. Chat with us here and we'll send credentials, or reach out by SMS or phone.",
     href: quoteHref,
     cta: "Request access",
   });
@@ -129,6 +128,8 @@ if (!demo.adminUrl) {
         })
       }
     </div>
+
+    <MarketingContactSection />
   </div>
 </Layout>
 

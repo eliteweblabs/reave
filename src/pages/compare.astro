@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/MarketingLayout.astro";
 import ComparePageContent from "../components/compare/ComparePageContent.astro";
+import MarketingContactSection from "../components/marketing/MarketingContactSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
@@ -11,4 +12,5 @@ const company = await getCompanyConfig(Astro.request);
   description={`Interactive graph visualizations — SaaS waste, stack topology, feature radar, and cumulative TCO for ${company.name} vs box-stock SaaS vs bespoke development.`}
 >
   <ComparePageContent />
+  <MarketingContactSection />
 </Layout>

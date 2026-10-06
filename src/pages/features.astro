@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/MarketingLayout.astro";
 import FeaturesPageContent from "../components/features/FeaturesPageContent.astro";
+import MarketingContactSection from "../components/marketing/MarketingContactSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
@@ -11,4 +12,5 @@ const company = await getCompanyConfig(Astro.request);
   description={`${company.name} replaces the SaaS stack most businesses pay for separately — Gmail, QuickBooks, ChatGPT, Calendly, HubSpot, Mailchimp, and more — with one platform: contacts, portal, billing, AI, newsletters, social metrics, analytics, and plugins.`}
 >
   <FeaturesPageContent showLogoStack={false} hideIntro />
+  <MarketingContactSection />
 </Layout>

@@ -17,7 +17,7 @@ const { featureHrefPrefix = "", variant = "features" } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
 const supportMail = companyPublicEmail(company);
-const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
+const quoteHref = supportMail ? `mailto:${supportMail}` : "#contact";
 
 const heading =
   variant === "standalone"
