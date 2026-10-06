@@ -96,6 +96,7 @@ const aboutImage = luxury ? "" : siteContent!.aboutImage || "";
             you're paying for separately? Tell us what you're running today and we'll map
             the shortest path.
           </p>
+          <p class="about-contact-lead">Chat here, or reach us by SMS or phone.</p>
           <MarketingContactSection bare class="about-contact-channels" />
         </div>
       </div>
@@ -257,8 +258,20 @@ const aboutImage = luxury ? "" : siteContent!.aboutImage || "";
     padding-top: 8px;
   }
 
+  .about-contact-lead {
+    margin: 0 0 8px;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  html[data-theme="dark"] .about-finale .about-contact-lead {
+    color: rgba(255, 255, 255, 0.68);
+  }
+
   .about-closing :global(.about-contact-channels) {
-    margin-top: 24px;
+    margin-top: 16px;
   }
 
   .about-page :global(.about-portfolio) {

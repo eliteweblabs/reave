@@ -1,43 +1,58 @@
 ---
-import ConversationalForm from "../ConversationalForm.astro";
+/**
+ * Shared Chat / SMS / Call block (ContactChannelGroup + lazy chat panel) — same
+ * module as rekko.studio `/` grand-opening apply section.
+ */
 import ContactChannelGroup from "../contact/ContactChannelGroup.astro";
-import { getCompanyConfig } from "../../lib/companyConfig";
 import "../../styles/marketing-sections.css";
 
 interface Props {
   heading?: string;
+  lead?: string;
   hideHeader?: boolean;
   /** Channels + chat panel only (no outer `<section>`). */
   bare?: boolean;
-  formSlug?: string;
+  /** Element id for the chat panel (must be unique per page). */
+  chatPanelId?: string;
+  /** Prefilled SMS body (optional). */
+  smsBody?: string;
+  /** Lazy-loaded chat partial (same pattern as grand-opening). */
+  lazyChatHref?: string;
   class?: string;
+  channelsClass?: string;
+  panelClass?: string;
 }
 
 const {
   heading = "Contact",
+  lead = "Chat here, or reach us by SMS or phone.",
   hideHeader = false,
   bare = false,
-  formSlug = "contact",
+  chatPanelId = "contact-chat-panel",
+  smsBody = "",
+  lazyChatHref = "/partials/marketing-contact-chat",
   class: className = "",
+  channelsClass = "",
+  panelClass = "",
 } = Astro.props;
 
-const company = await getCompanyConfig(Astro.request);
-const chatPanelId = "contact-chat-panel";
-const brandName = company.name || "reave.app";
+const panelClasses = ["contact-chat-panel", panelClass].filter(Boolean).join(" ");
 ---
 
 {
   bare ? (
     <div class:list={["marketing-contact-bare", className]} data-marketing-contact>
-      <ContactChannelGroup chatPanelId={chatPanelId} />
-      <div id={chatPanelId} class="contact-chat-panel" hidden>
-        <ConversationalForm
-          slug={formSlug}
-          embedded
-          heroChat
-          brandName={brandName}
-        />
-      </div>
+      <ContactChannelGroup
+        chatPanelId={chatPanelId}
+        smsBody={smsBody}
+        class={channelsClass}
+      />
+      <div
+        id={chatPanelId}
+        class={panelClasses}
+        hidden
+        data-lazy-chat-href={lazyChatHref}
+      />
     </div>
   ) : (
     <section
@@ -52,18 +67,21 @@ const brandName = company.name || "reave.app";
           !hideHeader && (
             <header class="home-section-hero">
               <h2 id="marketing-contact-title">{heading}</h2>
+              {lead ? <p class="marketing-contact-lead">{lead}</p> : null}
             </header>
           )
         }
-        <ContactChannelGroup chatPanelId={chatPanelId} />
-        <div id={chatPanelId} class="contact-chat-panel" hidden>
-          <ConversationalForm
-            slug={formSlug}
-            embedded
-            heroChat
-            brandName={brandName}
-          />
-        </div>
+        <ContactChannelGroup
+          chatPanelId={chatPanelId}
+          smsBody={smsBody}
+          class={channelsClass}
+        />
+        <div
+          id={chatPanelId}
+          class={panelClasses}
+          hidden
+          data-lazy-chat-href={lazyChatHref}
+        />
       </div>
     </section>
   )
@@ -78,5 +96,14 @@ const brandName = company.name || "reave.app";
     scroll-margin-top: calc(
       var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 8px
     );
+  }
+
+  .marketing-contact-lead {
+    margin: 0 auto;
+    max-width: 34rem;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--site-fg-muted, #525252);
   }
 </style>

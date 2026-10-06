@@ -1,7 +1,7 @@
 ---
 import Layout from "../layouts/MarketingLayout.astro";
 import BrandBtn from "../components/ui/BrandBtn.astro";
-import ContactChannelGroup from "../components/contact/ContactChannelGroup.astro";
+import MarketingContactSection from "../components/marketing/MarketingContactSection.astro";
 import CardFanVisual from "../components/grand-opening/CardFanVisual.astro";
 import InfinityGrid from "../components/ui/InfinityGrid.astro";
 import { GRAND_OPENING_LCP_IMAGE } from "../lib/grandOpeningHeroImages";
@@ -230,16 +230,13 @@ const goApplySmsBody =
           <h2 id="go-apply-title">Let's get started!</h2>
           <p class="go-apply__lead">Chat to apply here, or reach us by SMS or phone.</p>
         </header>
-        <ContactChannelGroup
+        <MarketingContactSection
+          bare
           chatPanelId={goApplyChatPanelId}
           smsBody={goApplySmsBody}
-          class="go-apply__channels"
-        />
-        <div
-          id={goApplyChatPanelId}
-          class="contact-chat-panel go-apply__chat-panel"
-          hidden
-          data-lazy-chat-href="/partials/grand-opening-chat"
+          lazyChatHref="/partials/grand-opening-chat"
+          channelsClass="go-apply__channels"
+          panelClass="go-apply__chat-panel"
         />
         <p class="go-apply__fine-print">
           Offer subject to approval. One year of managed hosting required ($500 total or $50/month).
