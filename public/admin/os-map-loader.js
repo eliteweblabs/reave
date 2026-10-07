@@ -653,10 +653,12 @@ function captureSidebarListScroll(root) {
   return root?.querySelector('.ch-sidebar .ch-list')?.scrollTop ?? 0;
 }
 
-function finishSidebarListScroll(root, savedScrollTop = 0) {
+function finishSidebarListScroll(root, savedScrollTop = 0, opts = {}) {
+  const autoScrollActive = opts.autoScrollActive !== false;
   const list = root?.querySelector('.ch-sidebar .ch-list');
   if (!list) return;
   if (savedScrollTop > 0) list.scrollTop = savedScrollTop;
+  if (!autoScrollActive) return;
   requestAnimationFrame(() => {
     if (isListInSelectionMode(list)) return;
     const activeEl = list.querySelector('.ch-list-item.active, .em-list-item.active');
@@ -822,7 +824,10 @@ function setActiveMap(key, opts = {}) {
   syncCanvasVisibility();
   syncModelSelectorVisibility();
   if (key !== 'search') closeSearchOverlay();
-  if (prevType === 'email' && MAP.type !== 'email') clearInboxSessionDots();
+  if (prevType === 'email' && MAP.type !== 'email') {
+    clearInboxSessionDots();
+    lastEmailQuietPollFingerprint = '';
+  }
   if (prevType === 'fleet' && MAP.type !== 'fleet') {
     teardownFleetMap();
   }
@@ -12731,6 +12736,8 @@ let pendingEmailDeepLinkId = null;
 /** Compose opened from another tab (project email button) — applied after inbox load. */
 let pendingComposeRecipients = null;
 let emailPollTimer = null;
+/** Skip quiet-poll DOM work when list + chrome fingerprint is unchanged. */
+let lastEmailQuietPollFingerprint = '';
 let inboxBadgeTimer = null;
 
 const BADGE_CACHE = 'reave-badge-v1';
@@ -16949,20 +16956,33 @@ async function loadEmailTab(quiet) {
     getEmailPanel()?.classList.remove('em-pane-active');
   }
   if (quiet && root.querySelector('.ch-sidebar .ch-list')) {
-    refreshEmailSidebarList();
+    const fp = emailQuietPollFingerprint();
+    const paneOpen = Boolean(emailState.activeId || emailState.composing);
+    const paneDomOpen = Boolean(root.querySelector('.ch-pane'));
+    const paneOutOfSync = paneOpen !== paneDomOpen;
+
+    if (fp === lastEmailQuietPollFingerprint && !paneOutOfSync) {
+      syncEmailTabBadges();
+      ensureEmailMobilePaneOpen();
+      return;
+    }
+    lastEmailQuietPollFingerprint = fp;
+
+    refreshEmailSidebarList({ preserveScroll: true });
     if (emailState.composing) {
       ensureEmailMobilePaneOpen();
       syncEmailTabBadges();
       return;
     }
-    renderEmailPanel({
-      preserveSidebar: true,
-      preservePane: isActiveEmailInCurrentFilter(),
-    });
+    if (!emailState.activeId && root.querySelector('.ch-pane')) {
+      renderEmailPane();
+    }
   } else if (emailState.composing && quiet) {
-    refreshEmailSidebarList();
+    refreshEmailSidebarList({ preserveScroll: true });
+    lastEmailQuietPollFingerprint = emailQuietPollFingerprint();
   } else {
     renderEmailPanel();
+    lastEmailQuietPollFingerprint = emailQuietPollFingerprint();
   }
   ensureEmailMobilePaneOpen();
   syncEmailTabBadges();
@@ -17175,13 +17195,56 @@ function updateEmailFilterTabCounts(root) {
   });
 }
 
-function refreshEmailSidebarList() {
+function fingerprintEmailListRow(ev) {
+  if (!ev?.id) return '';
+  const attachments = Array.isArray(ev.attachments) ? ev.attachments.length : 0;
+  return [
+    ev.id,
+    ev.receivedAt || ev.sentAt || ev.scheduledAt || ev.updatedAt || '',
+    ev.seenAt || '',
+    ev.category || '',
+    ev.status || '',
+    ev.subject || '',
+    ev.summary || ev.bodySnippet || '',
+    ev.from || '',
+    ev.contactName || '',
+    ev.jobSlug || '',
+    ev.jobTitle || '',
+    ev.verificationCode ? 'otp' : ev.actionUrl ? 'auth' : '',
+    isEmailBooked(ev) ? 'booked' : isEmailBookable(ev) ? 'book' : '',
+    attachments,
+    Number(ev._threadCount) || 0,
+    (ev._threadMembers || []).map((m) => m.id).join(','),
+    showEmailNewDot(ev) ? 'new' : '',
+    emailListRowNoticeClass(ev) || '',
+  ].join('\x1f');
+}
+
+function emailQuietPollFingerprint() {
+  const events = eventsForEmailFilter();
+  const rows = events.map(fingerprintEmailListRow).join('\n');
+  const counts = inboxTabCounts();
+  return [
+    emailState.inboxFilter,
+    emailState.search,
+    emailState.threading ? '1' : '0',
+    emailState.senderFilter || '',
+    emailState.activeId || '',
+    emailState.activeDraftId || '',
+    emailState.composing ? '1' : '0',
+    rows,
+    JSON.stringify(counts),
+  ].join('\x1e');
+}
+
+function refreshEmailSidebarList(opts = {}) {
   const root = getEmailPanel();
   const list = root?.querySelector('.ch-sidebar .ch-list');
   if (!list) {
     renderEmailPanel();
     return;
   }
+  const savedScroll = opts.preserveScroll ? list.scrollTop : 0;
   const countForTab = emailCountForActiveTab();
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput instanceof HTMLInputElement) {
@@ -17190,6 +17253,8 @@ function refreshEmailSidebarList() {
   syncEmailListOptionsBar(root);
   fillEmailSidebarList(list);
   updateEmailFilterTabCounts(root);
+  syncEmailSidebarActiveState({ scroll: false });
+  if (opts.preserveScroll) list.scrollTop = savedScroll;
 }
 
 function renderEmailSidebar(savedFilterScroll = 0) {
@@ -19912,6 +19977,7 @@ function openEmailEvent(id) {
   renderEmailPane();
   ensureEmailMobilePaneOpen();
   if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: id });
+  lastEmailQuietPollFingerprint = emailQuietPollFingerprint();
 }
 
 function syncEmailSidebarActiveState(opts = {}) {
@@ -21111,12 +21177,16 @@ function renderEmailPanel(opts = {}) {
   }
 
   if (opts.preservePane) {
-    finishSidebarListScroll(root, savedSidebarScroll);
+    finishSidebarListScroll(root, savedSidebarScroll, {
+      autoScrollActive: opts.autoScrollActive === true,
+    });
     return;
   }
 
   renderEmailPane();
-  finishSidebarListScroll(root, savedSidebarScroll);
+  finishSidebarListScroll(root, savedSidebarScroll, {
+    autoScrollActive: opts.autoScrollActive !== false,
+  });
 }
 
 // ---- persistence ----
