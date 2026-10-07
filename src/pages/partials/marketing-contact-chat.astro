@@ -1,0 +1,14 @@
+---
+import HtmlShell from "../../layouts/HtmlShell.astro";
+import ConversationalForm from "../../components/ConversationalForm.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+
+export const prerender = false;
+
+const company = await getCompanyConfig(Astro.request);
+const brandName = company.name || "reave.app";
+---
+
+<HtmlShell title="Contact chat">
+  <ConversationalForm slug="contact" embedded heroChat brandName={brandName} />
+</HtmlShell>

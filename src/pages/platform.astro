@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/MarketingLayout.astro';
 import FeaturesBuiltWithSection from '../components/features/FeaturesBuiltWithSection.astro';
+import MarketingContactSection from '../components/marketing/MarketingContactSection.astro';
 import { getCompanyConfig } from '../lib/companyConfig';
 import { ArrowRight } from 'lucide-astro';
 
@@ -32,6 +33,8 @@ const company = await getCompanyConfig(Astro.request);
     </section>
 
     <FeaturesBuiltWithSection />
+
+    <MarketingContactSection />
   </div>
 </Layout>
 

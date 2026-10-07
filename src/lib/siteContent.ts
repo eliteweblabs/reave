@@ -728,6 +728,7 @@ function fallbackReaveConfig(): SiteContentConfig {
       '/grand-opening',
       '/grand-opening/checkout',
       '/partials/grand-opening-chat',
+      '/partials/marketing-contact-chat',
       '/home',
       '/privacy',
       '/terms',

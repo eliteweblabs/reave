@@ -6,7 +6,7 @@ import ClientLogos from "../components/ClientLogos.astro";
 import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
 import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
-import { companyPublicEmail } from "../lib/reavePublicEmail";
+import MarketingContactSection from "../components/marketing/MarketingContactSection.astro";
 import { getLuxurySitePage, luxuryPageTitle } from "../lib/luxurySitePage";
 import { getSiteContent } from "../lib/siteContent";
 import "../styles/marketing-sections.css";
@@ -17,8 +17,6 @@ const luxury = getLuxurySitePage(Astro.request, "about");
 const company = luxury ? null : await getCompanyConfig(Astro.request);
 const siteContent = luxury ? null : getSiteContent();
 const aboutImage = luxury ? "" : siteContent!.aboutImage || "";
-const supportMail = luxury ? "" : companyPublicEmail(company!);
-const contactHref = luxury ? "/" : supportMail ? `mailto:${supportMail}` : "/#contact";
 ---
 
 {
@@ -98,10 +96,8 @@ const contactHref = luxury ? "/" : supportMail ? `mailto:${supportMail}` : "/#co
             you're paying for separately? Tell us what you're running today and we'll map
             the shortest path.
           </p>
-          <div class="about-cta-row">
-            <a class="about-btn about-btn--primary" href="/schedule">Book a call</a>
-            <a class="about-btn about-btn--ghost brand-btn-glass" href={contactHref}>Get in touch</a>
-          </div>
+          <p class="about-contact-lead">Chat here, or reach us by SMS or phone.</p>
+          <MarketingContactSection bare class="about-contact-channels" />
         </div>
       </div>
     </section>
@@ -257,50 +253,25 @@ const contactHref = luxury ? "/" : supportMail ? `mailto:${supportMail}` : "/#co
     color: rgba(255, 255, 255, 0.68);
   }
 
-  .about-cta-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 24px;
-  }
-
-  .about-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0.75rem 1.35rem;
-    border-radius: 999px;
-    font-family: var(--font-primary);
-    font-size: 0.92rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease;
-  }
-
-  .about-btn--primary {
-    color: #fff;
-    -webkit-text-fill-color: #fff;
-    background: var(--brand-gradient);
-    box-shadow: var(--brand-gradient-shadow);
-  }
-
-  .about-btn--primary:hover {
-    filter: brightness(1.06);
-    transform: translateY(-1px);
-    text-decoration: none;
-  }
-
-  .about-btn--ghost:hover {
-    transform: translateY(-1px);
-  }
-
   .about-closing {
     text-align: center;
     padding-top: 8px;
   }
 
-  .about-closing .about-cta-row {
-    justify-content: center;
+  .about-contact-lead {
+    margin: 0 0 8px;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--site-fg-muted, #525252);
+  }
+
+  html[data-theme="dark"] .about-finale .about-contact-lead {
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .about-closing :global(.about-contact-channels) {
+    margin-top: 16px;
   }
 
   .about-page :global(.about-portfolio) {

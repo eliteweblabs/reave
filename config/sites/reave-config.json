@@ -21,6 +21,7 @@
     "/grand-opening",
     "/grand-opening/checkout",
     "/partials/grand-opening-chat",
+    "/partials/marketing-contact-chat",
     "/privacy",
     "/terms",
     "/cookies",
@@ -435,30 +436,6 @@
       "imageOrientation": "horizontal"
     },
     {
-      "title": "The Barber's Edge",
-      "description": "Downtown Beverly barbershop at 324 Rantoul — traditional cuts, hot-towel shaves, and a nine-chair shop that still runs like a trade. reave.app built TheBarbersEdge.com.",
-      "tags": [
-        "Managed Hosting",
-        "App Development",
-        "Agentic Support"
-      ],
-      "image": "portfolio-barbers-edge-featured",
-      "imageAlt": "A barber at The Barber's Edge working a beard under the ring light",
-      "alternateImages": [
-        {
-          "image": "https://thebarbersedge.com/images/barbers/horell-cruz.jpg",
-          "imageAlt": "Horell Cruz in the shop at The Barber's Edge, B mark on his shirt"
-        },
-        {
-          "image": "https://thebarbersedge.com/images/barbers/henry.jpg",
-          "imageAlt": "Henry Whalley on the shop floor at The Barber's Edge"
-        }
-      ],
-      "size": "2x2",
-      "featured": true,
-      "imageOrientation": "vertical"
-    },
-    {
       "title": "PDX Paws",
       "description": "Portland dog grooming, sitting, walks, and pack adventures — a neighborhood shop with a decade in canine care. reave.app built the site. Logo tile until project photography is ready.",
       "tags": [
@@ -484,6 +461,32 @@
       "imageAlt": "Aerial view of a Rothco Built federal construction site from the projects portfolio",
       "size": "2x1",
       "imageOrientation": "horizontal"
+    }
+  ],
+  "portfolioCommentedOut": [
+    {
+      "title": "The Barber's Edge",
+      "description": "Downtown Beverly barbershop at 324 Rantoul — traditional cuts, hot-towel shaves, and a nine-chair shop that still runs like a trade. reave.app built TheBarbersEdge.com.",
+      "tags": [
+        "Managed Hosting",
+        "App Development",
+        "Agentic Support"
+      ],
+      "image": "portfolio-barbers-edge-featured",
+      "imageAlt": "A barber at The Barber's Edge working a beard under the ring light",
+      "alternateImages": [
+        {
+          "image": "https://thebarbersedge.com/images/barbers/horell-cruz.jpg",
+          "imageAlt": "Horell Cruz in the shop at The Barber's Edge, B mark on his shirt"
+        },
+        {
+          "image": "https://thebarbersedge.com/images/barbers/henry.jpg",
+          "imageAlt": "Henry Whalley on the shop floor at The Barber's Edge"
+        }
+      ],
+      "size": "2x2",
+      "featured": true,
+      "imageOrientation": "vertical"
     }
   ]
 }
