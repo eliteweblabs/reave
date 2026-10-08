@@ -7,6 +7,10 @@
   flex-direction: row;
   background: var(--bg);
   z-index: 10;
+  /* Match email list — zebra swipe rows need a tinted active row, not flat gray */
+  --em-list-active-bg: var(--list-item-active-bg);
+  --em-list-active-border: var(--list-item-active-border);
+  --em-list-active-accent: var(--list-item-active-accent);
 }
 #chat-panel.ch-opening {
   cursor: wait;
@@ -94,8 +98,9 @@ body.sidebar-resize-active * {
 .ch-list-item.active {
   color: var(--fg);
   background: var(--list-item-active-bg);
-  /* Keep border transparent — accent is inset only, so selection does not reflow/jump. */
-  box-shadow: inset 3px 0 0 var(--list-item-active-border);
+  border-color: var(--list-item-active-border);
+  /* Keep side borders transparent — accent is inset only, so selection does not reflow/jump. */
+  box-shadow: inset 4px 0 0 var(--list-item-active-accent, var(--list-item-active-border));
 }
 .ch-list-item.active .ch-item-title { color: var(--fg); }
 .ch-list-item--archived {

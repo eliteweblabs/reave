@@ -444,6 +444,9 @@
   --swipe-row-bg: var(--list-row-even);
   background: var(--swipe-row-bg);
 }
+.ch-list .swipe-row:has(.ch-list-item.active) {
+  --swipe-row-bg: var(--em-list-active-bg, var(--list-item-active-bg));
+}
 .ch-list .swipe-row:nth-child(odd),
 .em-list .swipe-row:nth-child(odd) {
   --swipe-row-bg: var(--list-row-odd);
@@ -629,7 +632,12 @@
   background: var(--em-list-active-bg, var(--list-item-active-bg));
 }
 .swipe-content .ch-list-item.active {
-  box-shadow: inset 3px 0 0 var(--list-item-active-border);
+  border-color: var(--em-list-active-border, var(--list-item-active-border));
+  box-shadow: inset 4px 0 0 var(--em-list-active-accent, var(--list-item-active-accent, var(--list-item-active-border)));
+}
+.swipe-content .ch-list-item.active:hover {
+  color: var(--fg);
+  background: var(--em-list-active-bg, var(--list-item-active-bg));
 }
 .em-item-row {
   display: flex;

@@ -20,8 +20,9 @@
   --border-strong-hover: rgba(0, 0, 0, 0.18);
   --tab-active-bg: #f4f4f5;
   --mode-tab-active-bg: #e5e5e5;
-  --list-item-active-bg: #f4f4f5;
-  --list-item-active-border: #d4d4d8;
+  --list-item-active-bg: color-mix(in srgb, var(--brand-indigo) 16%, var(--card));
+  --list-item-active-border: color-mix(in srgb, var(--brand-indigo) 38%, var(--card-border));
+  --list-item-active-accent: var(--brand-indigo);
   --accent: #111111;
   --dropdown-bg: #ffffff;
   --dropdown-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
@@ -286,8 +287,9 @@ html[data-theme="dark"] {
     --border-strong-hover: rgba(255, 255, 255, 0.22);
     --tab-active-bg: #242424;
     --mode-tab-active-bg: #2a2a2a;
-    --list-item-active-bg: #242424;
-    --list-item-active-border: #4a4a4a;
+    --list-item-active-bg: color-mix(in srgb, var(--brand-indigo) 24%, var(--card));
+    --list-item-active-border: color-mix(in srgb, var(--brand-indigo) 42%, var(--card-border));
+    --list-item-active-accent: var(--brand-indigo);
     --accent: #e5e5e5;
     --dropdown-bg: rgba(17, 17, 17, 0.98);
     --dropdown-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
