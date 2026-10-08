@@ -2083,6 +2083,11 @@ function mountChatThreadRoot(threadHost) {
     },
     onComposeDirty: (dirty) => {
       chatState.composeDirty = dirty;
+      try {
+        window.__reaveChatComposeDirty = Boolean(dirty);
+      } catch {
+        /* ignore */
+      }
       if (dirty && chatState.activeId === chatState.disposableChatId) {
         chatState.disposableChatId = null;
       }
@@ -2098,6 +2103,8 @@ function mountChatThreadRoot(threadHost) {
     onRefreshMessages: async () => {
       if (!chatState.activeId) return;
       if (chatState.composeDirty) return;
+      if (document.querySelector('#chat-panel .aui-input:focus')) return;
+      if (window.__reaveChatComposing) return;
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
           cache: 'no-store',

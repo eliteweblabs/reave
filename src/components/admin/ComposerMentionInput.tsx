@@ -121,9 +121,19 @@ export function ComposerMentionInput({
       onBlur={onBlur}
       onCompositionStart={() => {
         composingRef.current = true;
+        try {
+          (window as Window & { __reaveChatComposing?: boolean }).__reaveChatComposing = true;
+        } catch {
+          /* ignore */
+        }
       }}
       onCompositionEnd={(e) => {
         composingRef.current = false;
+        try {
+          (window as Window & { __reaveChatComposing?: boolean }).__reaveChatComposing = false;
+        } catch {
+          /* ignore */
+        }
         commit(e.currentTarget);
       }}
       onInput={(e) => {

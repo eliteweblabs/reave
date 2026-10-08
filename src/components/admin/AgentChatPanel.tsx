@@ -1172,6 +1172,8 @@ type DeployIndicatorPayload = {
 type ReaveDeployWindow = Window & {
   __reaveLastDeployIndicator?: DeployIndicatorPayload | null;
   __reaveLastDeployIndicatorReady?: boolean;
+  __reaveChatComposeDirty?: boolean;
+  __reaveChatComposing?: boolean;
 };
 
 function messagePlainText(
@@ -1524,52 +1526,24 @@ function applyDeployChatLockPayload(
   const message = deploy.chatLockMessage ?? null;
   const deployedShort = deploy.deployedShort?.trim() || '';
 
-  // Railway all-clear: reload onto the new build only after this tab actually
-  // saw chatLocked=true in-session (not from a stale header cache on first paint).
+  // Railway all-clear: never hard-reload the admin SPA from chat. Dictation and
+  // IME often leave the composer without :focus or saved draft text for seconds
+  // — an automatic reload wiped mid-sentence work. Pick up the new build on the
+  // next manual refresh or navigation instead.
   if (opts.wasLocked && !locked) {
     if (deploy.tone === 'live' || deploy.state === 'live') playDeployDoneTone();
-    let alreadyReloaded = false;
     try {
-      alreadyReloaded = Boolean(
-        deployedShort && sessionStorage.getItem(DEPLOY_CHAT_RELOAD_KEY) === deployedShort,
-      );
       if (deployedShort) sessionStorage.setItem(DEPLOY_CHAT_RELOAD_KEY, deployedShort);
     } catch {
       /* private mode */
     }
 
     opts.setWasLocked(false);
-    if (alreadyReloaded) {
-      opts.setState({ locked: false, message: null, ready: true });
-      return;
-    }
-
-    const drafts = readChatComposeDraftsMap();
-    const hasComposeDraft = Object.values(drafts).some((t) => t.trim());
-    const composerFocused = Boolean(
-      typeof document !== 'undefined' &&
-        document.querySelector('#chat-panel .aui-input:focus'),
-    );
-    if (hasComposeDraft || composerFocused) {
-      opts.setState({
-        locked: false,
-        message: 'New version is live — refresh when you are ready.',
-        ready: true,
-      });
-      return;
-    }
-
     opts.setState({
-      locked: true,
-      liveReloading: true,
+      locked: false,
+      message: 'New version is live — refresh when you are ready.',
       ready: true,
-      message: 'New version is live — reloading…',
     });
-    window.setTimeout(() => {
-      const pending = Object.values(readChatComposeDraftsMap()).some((t) => t.trim());
-      if (pending || document.querySelector('#chat-panel .aui-input:focus')) return;
-      window.location.reload();
-    }, 900);
     return;
   }
 
@@ -2354,6 +2328,8 @@ function useSlashHelpers(
       blurTimer.current = null;
       if (isComposerFocusTarget(document.activeElement)) return;
       setHelpersOpen(false);
+      const text = composer.getState().text?.trim() ?? '';
+      if (!text) propsRef.current?.onComposeDirty?.(false);
       propsRef.current?.onComposeFocus?.(false);
     }, 120);
   };
@@ -2408,6 +2384,7 @@ function useSlashHelpers(
   const onFocus = () => {
     clearBlurTimer();
     if (composeText.startsWith('/')) openHelpers();
+    propsRef.current?.onComposeDirty?.(true);
     propsRef.current?.onComposeFocus?.(true);
   };
 
@@ -2966,6 +2943,16 @@ function PersistedMessageImporter({
     if (isRunning) return;
     const draft = (composer.getState().text ?? '').trim();
     if (draft && !isSentComposerEcho(draft, lastUserText)) return;
+    if (typeof document !== 'undefined') {
+      if (document.querySelector('#chat-panel .aui-input:focus, .aui-root--focus .aui-input:focus'))
+        return;
+      try {
+        const w = window as ReaveDeployWindow;
+        if (w.__reaveChatComposeDirty || w.__reaveChatComposing) return;
+      } catch {
+        /* ignore */
+      }
+    }
     const messages = propsRef.current?.initialMessages ?? [];
     const key = storedMessagesKey(messages);
     if (key === lastKey.current) return;
