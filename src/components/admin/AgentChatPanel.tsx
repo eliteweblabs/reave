@@ -1174,6 +1174,7 @@ type ReaveDeployWindow = Window & {
   __reaveLastDeployIndicatorReady?: boolean;
   __reaveChatComposeDirty?: boolean;
   __reaveChatComposing?: boolean;
+  __reaveChatComposeSession?: boolean;
 };
 
 function messagePlainText(
@@ -2327,11 +2328,16 @@ function useSlashHelpers(
     blurTimer.current = setTimeout(() => {
       blurTimer.current = null;
       if (isComposerFocusTarget(document.activeElement)) return;
+      const w = window as ReaveDeployWindow;
+      if (w.__reaveChatComposing) {
+        scheduleBlurSideEffects();
+        return;
+      }
       setHelpersOpen(false);
       const text = composer.getState().text?.trim() ?? '';
-      if (!text) propsRef.current?.onComposeDirty?.(false);
+      if (!text && !w.__reaveChatComposeSession) propsRef.current?.onComposeDirty?.(false);
       propsRef.current?.onComposeFocus?.(false);
-    }, 120);
+    }, 320);
   };
 
   const focusInput = useCallback(() => {
@@ -2395,7 +2401,10 @@ function useSlashHelpers(
 
   const onInput = (value: string) => {
     setComposeText(value);
-    propsRef.current?.onComposeDirty?.(value.trim().length > 0);
+    const w = window as ReaveDeployWindow;
+    propsRef.current?.onComposeDirty?.(
+      value.trim().length > 0 || Boolean(w.__reaveChatComposeSession),
+    );
     if (value.startsWith('/')) {
       openHelpers();
       return;
@@ -2948,7 +2957,7 @@ function PersistedMessageImporter({
         return;
       try {
         const w = window as ReaveDeployWindow;
-        if (w.__reaveChatComposeDirty || w.__reaveChatComposing) return;
+        if (w.__reaveChatComposeDirty || w.__reaveChatComposing || w.__reaveChatComposeSession) return;
       } catch {
         /* ignore */
       }

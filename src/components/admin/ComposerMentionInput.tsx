@@ -87,12 +87,20 @@ export function ComposerMentionInput({
     const el = editorRef.current;
     if (!el || composingRef.current) return;
     const current = serializeMentionEditor(el);
+    const hadFocus = document.activeElement === el;
+    // Dictation / IME often updates the DOM before assistant-ui composer state —
+    // pushing empty state down would wipe the in-progress utterance.
+    if (hadFocus && current.trim() && current !== composerText) {
+      if ((composer.getState().text ?? '') !== current) composer.setText(current);
+      lastSerializedRef.current = current;
+      syncMentionEditorEmpty(el, current);
+      return;
+    }
     if (current === composerText && !mentionEditorHasRawTokens(el)) {
       lastSerializedRef.current = composerText;
       syncMentionEditorEmpty(el, composerText);
       return;
     }
-    const hadFocus = document.activeElement === el;
     const caret = hadFocus
       ? current === composerText
         ? getMentionEditorCaret(el)
@@ -102,7 +110,7 @@ export function ComposerMentionInput({
     lastSerializedRef.current = composerText;
     syncMentionEditorEmpty(el, composerText);
     if (hadFocus) setMentionEditorCaret(el, Math.min(caret, composerText.length));
-  }, [composerText]);
+  }, [composer, composerText]);
 
   return (
     <div
@@ -117,12 +125,31 @@ export function ComposerMentionInput({
       suppressContentEditableWarning
       spellCheck={false}
       {...(enterKeyHint ? { enterKeyHint } : {})}
-      onFocus={onFocus}
+      onFocus={() => {
+        try {
+          window.dispatchEvent(new CustomEvent('reave:chat-compose-active', { detail: true }));
+        } catch {
+          /* ignore */
+        }
+        onFocus();
+      }}
       onBlur={onBlur}
+      onBeforeInput={(e) => {
+        const type = e.nativeEvent.inputType || '';
+        if (/dictation|voice|speech/i.test(type)) {
+          try {
+            (window as Window & { __reaveChatComposing?: boolean }).__reaveChatComposing = true;
+            window.dispatchEvent(new CustomEvent('reave:chat-compose-active', { detail: true }));
+          } catch {
+            /* ignore */
+          }
+        }
+      }}
       onCompositionStart={() => {
         composingRef.current = true;
         try {
           (window as Window & { __reaveChatComposing?: boolean }).__reaveChatComposing = true;
+          window.dispatchEvent(new CustomEvent('reave:chat-compose-active', { detail: true }));
         } catch {
           /* ignore */
         }

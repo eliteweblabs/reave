@@ -266,6 +266,7 @@ import {
   shareChatText,
   archiveChat,
   openChat,
+  isChatComposeProtected,
   isDefaultSessionTitle,
   displaySessionTitle,
   DEFAULT_SESSION_TITLE,
@@ -980,7 +981,7 @@ function activateMapPanel(opts = {}) {
     loadChatsTab({
       keepSession:
         opts.keepChatSession === true ||
-        (chatState.activeId != null && (chatState.composeDirty || chatState.sending)),
+        (chatState.activeId != null && (isChatComposeProtected() || chatState.sending)),
     });
   } else if (MAP.type === 'email') {
     if (opts.emailId) pendingEmailDeepLinkId = opts.emailId;
