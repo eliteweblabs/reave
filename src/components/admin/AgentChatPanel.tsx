@@ -2390,7 +2390,6 @@ function useSlashHelpers(
   const onFocus = () => {
     clearBlurTimer();
     if (composeText.startsWith('/')) openHelpers();
-    propsRef.current?.onComposeDirty?.(true);
     propsRef.current?.onComposeFocus?.(true);
   };
 
@@ -2401,10 +2400,7 @@ function useSlashHelpers(
 
   const onInput = (value: string) => {
     setComposeText(value);
-    const w = window as ReaveDeployWindow;
-    propsRef.current?.onComposeDirty?.(
-      value.trim().length > 0 || Boolean(w.__reaveChatComposeSession),
-    );
+    propsRef.current?.onComposeDirty?.(value.trim().length > 0);
     if (value.startsWith('/')) {
       openHelpers();
       return;
