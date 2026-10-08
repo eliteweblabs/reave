@@ -87,7 +87,8 @@ import {
   sendSms,
 } from '../../src/lib/outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from '../../src/lib/devTaskRunner';
-import { railwayAgentToolDefinitions, railwayAgentToolHandlers } from './railwayAgentTools';
+// Railway tools are now owned by railwayProvisionModule (core/railwayProvision.ts)
+// and are always registered when RAILWAY_API_TOKEN is set — no longer spread here.
 import {
   formatKinstaSitesSummary,
   isKinstaConfigured,
@@ -417,7 +418,7 @@ export const devInfraModule: AgentToolModule = {
                     type: 'string',
                     enum: [...DEV_TASK_NAMES],
                     description:
-                      'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_* tools = Railway projects/services/variables/domains/deployments/logs; list_kinsta_sites = Kinsta WordPress sites/environments. Kinsta site management: list_kinsta_sites, create_kinsta_site, delete_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, get_kinsta_operation.',
+                      'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_kinsta_sites = Kinsta WordPress sites/environments. Kinsta site management: list_kinsta_sites, create_kinsta_site, delete_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, get_kinsta_operation.',
                   },
                 },
                 required: ['task'],
@@ -715,13 +716,16 @@ export const devInfraModule: AgentToolModule = {
               },
             },
           },
-          ...railwayAgentToolDefinitions(ctx),
+          // Railway tools are now owned by railwayProvisionModule (core).
+          // Do NOT spread railwayAgentToolDefinitions here — duplicate tool names
+          // cause the entire manifest to fail validation.
           ...(hasWebsiteEditor() ? [] : githubPublishDefinitions(ctx)),
     ];
   },
   handlers: {
     'run_dev_task': handle_run_dev_task,
-    ...railwayAgentToolHandlers,
+    // Railway handlers are in railwayProvisionModule (core/railwayProvision.ts).
+    // Removed to prevent duplicate handler registration.
     'list_kinsta_sites': handle_list_kinsta_sites,
     'clear_kinsta_cache': handle_clear_kinsta_cache,
     'get_kinsta_operation': handle_get_kinsta_operation,
