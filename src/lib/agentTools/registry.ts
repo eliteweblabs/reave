@@ -15,6 +15,7 @@ import { sshModule } from './core/ssh';
 import { wpModule } from './core/wp';
 import { deployResumeModule } from './core/deployResume';
 import { railwayModule } from './core/railway';
+import { railwayProvisionModule } from './core/railwayProvision';
 import { ideogramModule } from './core/ideogram';
 import { contentManagementModule } from '../../../plugins/content-management/agentTools';
 import { activeAgentToolModules } from '../pluginRegistry';
@@ -31,7 +32,7 @@ import type { AgentToolModule } from './types';
  * JS errors, overflow, tap targets, CTAs, forms, and screenshots.
  *
  * Pexels stock photo search lives in `plugins/stock-photos/` (feature-gated
- * `stock_photos` + `PEXELS_API_KEY`).
+ * `stock_photos` + `PEXELS_API_KEY`).\
  *
  * Chat management tools (list, get, archive, unarchive, rename, delete, search)
  * live in `core/chats.ts` — always-on when DATABASE_URL is configured.
@@ -59,6 +60,13 @@ import type { AgentToolModule } from './types';
  * Railway tools (`list_railway_registered_domains`) live in `core/railway.ts` —
  * always-on when RAILWAY_API_TOKEN is set. Allows querying Railway-purchased domains.
  *
+ * Railway provisioning (`create_railway_project`, `create_railway_service`,
+ * `add_railway_domain`, `set_railway_variables`, etc.) lives in
+ * `core/railwayProvision.ts` — delegates to plugins/dev-infra/railwayAgentTools.ts
+ * but is registered as a CORE module so it always surfaces in the agent manifest
+ * when RAILWAY_API_TOKEN is set, regardless of the dev_infra feature flag or
+ * plugin load order.
+ *
  * Ideogram image generation (`generate_image`) lives in `core/ideogram.ts` —
  * enabled when IDEOGRAM_API_KEY is set. Generates AI images from text prompts
  * via the Ideogram REST API.
@@ -84,6 +92,7 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   wpModule,
   deployResumeModule,
   railwayModule,
+  railwayProvisionModule,
   ideogramModule,
   contentManagementModule,
 ];
