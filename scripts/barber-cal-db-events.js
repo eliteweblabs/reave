@@ -3,6 +3,7 @@
  * Self-hosted cal.com Docker gates API keys as a commercial feature.
  */
 import pg from 'pg';
+import { barberConfigPriceToCents } from '../src/lib/calcomBarberPaymentMetadata.ts';
 import { upsertCalcomEventTypes } from '../src/lib/calcomOwnerProvision.ts';
 import { RAILWAY_GRAPHQL, railwayGql, resolveBarberCalService } from './barber-cal-railway.js';
 
@@ -67,7 +68,7 @@ export async function syncBarberEventTypesToDatabase(databaseUrl, cfg, timezone 
       title: s.name,
       length: s.duration,
       description: `${cfg.name} — ${s.duration} min`,
-      price: s.price,
+      price: barberConfigPriceToCents(s.price),
     }));
 
     return await upsertCalcomEventTypes(query, userId, timezone, seeds);

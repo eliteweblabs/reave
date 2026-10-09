@@ -2,7 +2,10 @@
  * Enable Stripe "pay on booking" on barber Cal.com event types (Postgres metadata).
  */
 import pg from 'pg';
-import { calcomStripeEventMetadata } from '../src/lib/calcomBarberPaymentMetadata.ts';
+import {
+  barberConfigPriceToCents,
+  calcomStripeEventMetadata,
+} from '../src/lib/calcomBarberPaymentMetadata.ts';
 import { resolveBarberDatabaseUrl } from './barber-cal-db-events.js';
 
 const { Pool } = pg;
@@ -35,12 +38,13 @@ export async function syncBarberCalPayments(databaseUrl, cfg) {
     for (const row of existing.rows) {
       const svc = bySlug.get(row.slug);
       if (!svc || !(svc.price > 0)) continue;
-      const metadata = calcomStripeEventMetadata(svc.price, 'usd', 'ON_BOOKING');
+      const cents = barberConfigPriceToCents(svc.price);
+      const metadata = calcomStripeEventMetadata(cents, 'usd', 'ON_BOOKING');
       await pool.query(
         `UPDATE "EventType"
          SET price = $1, currency = 'usd', metadata = $2::jsonb, "updatedAt" = NOW()
          WHERE id = $3`,
-        [svc.price, JSON.stringify(metadata), row.id],
+        [cents, JSON.stringify(metadata), row.id],
       );
       updated += 1;
     }

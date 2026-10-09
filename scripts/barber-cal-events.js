@@ -1,6 +1,7 @@
 /**
  * Cal.com v1 event types for barber install configs.
  */
+import { barberConfigPriceToCents } from '../src/lib/calcomBarberPaymentMetadata.ts';
 
 export function defaultCalWebappUrl(slug) {
   return `https://${slug}-cal-production.up.railway.app`;
@@ -56,7 +57,7 @@ export async function syncBarberCalEventTypes(webappUrl, apiKey, barberName, ser
       title: svc.name,
       slug: svc.slug,
       length: svc.duration,
-      price: svc.price,
+      price: barberConfigPriceToCents(svc.price),
       currency: 'usd',
       description: `${barberName} — ${svc.duration} min`,
     };
