@@ -7798,6 +7798,7 @@ async function loadAdminDashboard(opts = {}) {
         quiet: false,
         contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
       });
+    }
     try {
       const res = await traceAsync('admin:dashboard:fetch', () =>
         adminFetch('/api/admin/dashboard' + (opts.force ? '?fresh=1' : '')),
