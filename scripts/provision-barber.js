@@ -324,18 +324,22 @@ async function main() {
   const nextAuthSecret = randomBytes(32).toString('hex');
   const encryptionKey = randomBytes(32).toString('hex');
 
+  const calPublic = `https://\${{ ${calName}.RAILWAY_PUBLIC_DOMAIN }}`;
+  const sitePublic = `https://\${{ ${siteName}.RAILWAY_PUBLIC_DOMAIN }}`;
   await upsertVariables(project.id, environmentId, calSvc.id, {
     DATABASE_URL: dbRef,
     DATABASE_DIRECT_URL: '',
     NEXTAUTH_SECRET: nextAuthSecret,
     CALENDSO_ENCRYPTION_KEY: encryptionKey,
-    NEXTAUTH_URL: calBase,
-    NEXT_PUBLIC_WEBAPP_URL: calBase,
+    NEXTAUTH_URL: calPublic,
+    NEXT_PUBLIC_WEBAPP_URL: calPublic,
+    WEBAPP_URL: calPublic,
+    NEXT_PUBLIC_WEBSITE_URL: sitePublic,
     NEXT_PUBLIC_APP_NAME: `${cfg.name} Bookings`,
     NEXT_PUBLIC_LICENSE_CONSENT: 'agree',
     LICENSE: 'agree',
     PRISMA_GENERATE_DATAPROXY: 'false',
-    ALLOWED_HOSTNAMES: `"${calDomain}"`,
+    ALLOWED_HOSTNAMES: `["\${{ ${calName}.RAILWAY_PUBLIC_DOMAIN }}"]`,
     PORT: '3000',
   });
   await updateStartCommand(calSvc.id, environmentId, CALCOM_START);
@@ -349,7 +353,7 @@ async function main() {
   const siteDomain = await ensurePublicDomain(project.id, environmentId, siteSvc.id);
   const siteBase = `https://${siteDomain}`;
   await upsertVariables(project.id, environmentId, siteSvc.id, {
-    PUBLIC_CALCOM_BASE: `${calBase}/${cfg.slug}`,
+    PUBLIC_CALCOM_BASE: `${calPublic}/${cfg.slug}`,
     PUBLIC_CALCOM_USERNAME: cfg.slug,
     PORT: '3000',
   });
