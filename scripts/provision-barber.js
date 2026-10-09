@@ -15,6 +15,10 @@ import { syncBarberCalEventTypes } from './barber-cal-events.js';
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
 const POSTGRES_IMAGE = 'ghcr.io/railwayapp-templates/postgres-ssl:edge';
 const POSTGRES_VOLUME = '/var/lib/postgresql/data';
+/** Same pinned digest as deploy wizard calcom-web-app — not :latest. */
+const CALCOM_IMAGE =
+  'calcom/cal.com@sha256:ace3bb1219fb7306585ab9f4d94d41af7ee064c343db0498173436bbe857bd49';
+const CALCOM_START = '/calcom/scripts/start.sh';
 const ENV_NAME = 'production';
 
 function log(step, msg) {
@@ -317,7 +321,7 @@ async function main() {
   log('STEP 2', `✓ Postgres service ${dbSvc.id}; DATABASE_URL ref ${dbRef}`);
 
   log('STEP 3', `Creating Cal.com "${calName}"…`);
-  const calSvc = await createService(project.id, calName, { image: 'calcom/cal.com:latest' });
+  const calSvc = await createService(project.id, calName, { image: CALCOM_IMAGE });
   let calDomain = await ensurePublicDomain(project.id, environmentId, calSvc.id);
   const calBase = `https://${calDomain}`;
   const nextAuthSecret = randomBytes(32).toString('hex');
@@ -337,8 +341,8 @@ async function main() {
     ALLOWED_HOSTNAMES: `"${calDomain}"`,
     PORT: '3000',
   });
-  await updateStartCommand(calSvc.id, environmentId, 'npx prisma migrate deploy && yarn start');
-  log('STEP 3', `✓ Cal.com at ${calBase}`);
+  await updateStartCommand(calSvc.id, environmentId, CALCOM_START);
+  log('STEP 3', `✓ Cal.com at ${calBase} (start: ${CALCOM_START})`);
 
   log('STEP 4', `Creating site "${siteName}" from ${cfg.github_site_repo}…`);
   const siteSvc = await createService(project.id, siteName, {
