@@ -14609,6 +14609,60 @@ function inboxToAddresses(ev) {
   return [];
 }
 
+function emailAttachmentOpensInline(att) {
+  const type = String(att?.contentType || '').trim().toLowerCase();
+  const name = String(att?.filename || '').trim().toLowerCase();
+  if (type === 'image/svg+xml') return false;
+  if (type.startsWith('image/')) return true;
+  if (type === 'application/pdf') return true;
+  return /\.(jpe?g|png|gif|webp|heic|pdf)$/i.test(name);
+}
+
+function emailAttachmentHref(ev, att) {
+  const base = `/api/email/inbox/${encodeURIComponent(ev.id)}/attachments/${encodeURIComponent(att.id)}`;
+  return emailAttachmentOpensInline(att) ? base : `${base}?download=1`;
+}
+
+function bindEmailAttachmentLinks(root) {
+  if (!root) return;
+  root.querySelectorAll('.em-detail-attachment-link').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const href = link.getAttribute('href');
+      if (!href) return;
+      const downloadName = link.getAttribute('download') || 'attachment';
+      void (async () => {
+        try {
+          const res = await adminFetch(href);
+          if (!res.ok) {
+            const msg = await adminApiErrorMessage(res);
+            window.alert(msg || 'Attachment unavailable');
+            return;
+          }
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const forceDownload = href.includes('download=1') || link.hasAttribute('download');
+          if (forceDownload) {
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = downloadName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(objectUrl);
+            return;
+          }
+          const tab = window.open(objectUrl, '_blank', 'noopener,noreferrer');
+          if (!tab) window.location.assign(objectUrl);
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
+        } catch {
+          window.alert('Could not open attachment');
+        }
+      })();
+    });
+  });
+}
+
 async function openClassificationRule(ruleId, ev, opts = {}) {
   const id = String(ruleId || '').trim();
   const full = ev?._fullLoaded ? ev : ev?.id ? await fetchFullEmailRecord(ev) : ev;
@@ -21145,10 +21199,13 @@ function renderEmailPane() {
                     ? `${(a.size / 1024).toFixed(a.size < 10240 ? 1 : 0)} KB`
                     : `${(a.size / (1024 * 1024)).toFixed(1)} MB`
                 : '';
-            const href = `/api/email/inbox/${encodeURIComponent(ev.id)}/attachments/${encodeURIComponent(a.id)}`;
+            const href = emailAttachmentHref(ev, a);
+            const inline = emailAttachmentOpensInline(a);
             return (
               `<li class="em-detail-attachment">` +
-                `<a class="em-detail-attachment-link" href="${escHtml(href)}" download="${escHtml(name)}">` +
+                `<a class="em-detail-attachment-link" href="${escHtml(href)}"${
+                  inline ? '' : ` download="${escHtml(name)}"`
+                }>` +
                   `<span class="em-detail-attachment-name">${escHtml(name)}</span>` +
                   (size || a.contentType
                     ? `<span class="em-detail-attachment-meta">${escHtml(
@@ -21183,6 +21240,7 @@ function renderEmailPane() {
     detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
   }
   detail.innerHTML = detailHtml;
+  bindEmailAttachmentLinks(detail);
   mountEmailThreadNav(detail);
   if (isEmailLabModeFor(ev)) detail.prepend(renderEmailLabBar());
   const bodyFrame = detail.querySelector('.em-detail-body-frame');
