@@ -9,12 +9,20 @@ import { storeGetEmailInbox } from '../../../../../../lib/emailInboxStore';
 import { serverEnv } from '../../../../../../lib/serverEnv';
 import { requireDashboardUser } from '../../../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../../../lib/apiResponse';
+import {
+  loadResendInboundAttachmentBytes,
+  resendInboundAttachmentContentType,
+  resendInboundAttachmentFilename,
+  unwrapResendInboundAttachmentRecord,
+} from '../../../../../../lib/emailAttachments';
+import { projectFileResponseHeaders } from '../../../../../../lib/projectFiles';
+import { sanitizeContentDispositionFilename } from '../../../../../../lib/sanitizeFilename';
 
 export const prerender = false;
 
-
-function safeContentDisposition(filename: string): string {
-  const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '') || 'attachment';
+function forcedDownloadDisposition(filename: string): string {
+  const ascii =
+    filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '') || 'attachment';
   const encoded = encodeURIComponent(filename).replace(/['()]/g, escape);
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
@@ -22,7 +30,6 @@ function safeContentDisposition(filename: string): string {
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   const emailId = context.params.id?.trim();
   const attachmentId = context.params.attachmentId?.trim();
@@ -50,45 +57,31 @@ export async function GET(context: APIContext): Promise<Response> {
     return jsonResponse({ ok: false, error: 'Attachment not available' }, 404);
   }
 
-  const downloadUrl = String(
-    (data as { download_url?: string; downloadUrl?: string }).download_url ??
-      (data as { downloadUrl?: string }).downloadUrl ??
-      '',
-  ).trim();
-  if (!downloadUrl) return jsonResponse({ ok: false, error: 'No download URL' }, 404);
-
-  let upstream: Response;
-  try {
-    upstream = await fetch(downloadUrl);
-  } catch (e) {
-    console.warn('[email] attachment fetch failed', e);
-    return jsonResponse({ ok: false, error: 'Download failed' }, 502);
+  const record = unwrapResendInboundAttachmentRecord(data);
+  if (!record) {
+    return jsonResponse({ ok: false, error: 'Attachment not available' }, 404);
   }
-  if (!upstream.ok || !upstream.body) {
-    return jsonResponse({ ok: false, error: `Download failed (${upstream.status})` }, 502);
+
+  const buffer = await loadResendInboundAttachmentBytes(record);
+  if (!buffer) {
+    return jsonResponse({ ok: false, error: 'Attachment content unavailable' }, 502);
   }
 
   const filename =
     meta?.filename ||
-    String((data as { filename?: string }).filename ?? '').trim() ||
-    `attachment-${attachmentId}`;
+    resendInboundAttachmentFilename(record, attachmentId);
   const contentType =
     meta?.contentType ||
-    String(
-      (data as { content_type?: string; contentType?: string }).content_type ??
-        (data as { contentType?: string }).contentType ??
-        '',
-    ).trim() ||
-    upstream.headers.get('content-type') ||
+    resendInboundAttachmentContentType(record) ||
     'application/octet-stream';
 
-  const headers = new Headers({
-    'Content-Type': contentType,
-    'Content-Disposition': safeContentDisposition(filename),
-    'Cache-Control': 'private, no-store',
-  });
-  const len = upstream.headers.get('content-length');
-  if (len) headers.set('Content-Length', len);
+  const forceDownload = context.url.searchParams.get('download') === '1';
+  const headers = projectFileResponseHeaders(contentType, filename, buffer.length);
+  if (forceDownload) {
+    headers['Content-Disposition'] = forcedDownloadDisposition(
+      sanitizeContentDispositionFilename(filename),
+    );
+  }
 
-  return new Response(upstream.body, { status: 200, headers });
+  return new Response(buffer, { status: 200, headers });
 }
