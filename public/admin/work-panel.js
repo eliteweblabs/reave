@@ -2355,7 +2355,50 @@ async function loadWorkTab(opts = {}) {
     prevActiveSlug !== '__new__' &&
     deepSlug === prevActiveSlug &&
     !!root.querySelector('.wk-detail-chrome');
-  if (!preserveNew && !keepDetailOpen) {
+  const keepSidebarMounted =
+    !preserveNew &&
+    !deepSlug &&
+    !opts.force &&
+    root.querySelector('.ch-sidebar .ch-list') &&
+    workState.jobs.length > 0 &&
+    !workState.dirty;
+
+  if (keepSidebarMounted) {
+    try {
+      const [res, settingsRes, timerRes] = await Promise.all([
+        adminFetch('/api/work'),
+        adminFetch('/api/admin/settings').catch(() => null),
+        hasInstallFeature('time_tracking')
+          ? adminFetch('/api/work/timer').catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      const data = await readAdminJson(res, postTitle(2));
+      if (res.ok) {
+        workState.jobs = sortWorkJobsForDisplay(data.jobs || []);
+        workState.statuses = data.statuses || workState.statuses;
+        workState.priorities = data.priorities || workState.priorities;
+      }
+      if (timerRes?.ok) {
+        try {
+          const timerData = await timerRes.json();
+          if (timerData?.ok) publishWorkTimerView(timerData);
+        } catch {
+          /* keep previous */
+        }
+      }
+    } catch (e) {
+      if (e.message === 'Session expired') {
+        root.innerHTML = `<div class="de-loading de-error">Session expired — sign in again to continue.</div>`;
+        return;
+      }
+      console.warn('[work] list refresh failed', e);
+    }
+    refreshWorkSidebarList();
+    applyWorkAuditingIndicators();
+    if (keepDetailOpen || !workState.activeSlug) return;
+  }
+
+  if (!preserveNew && !keepDetailOpen && !keepSidebarMounted) {
     mountPanelSkeleton(root, 'list', 'Loading work…', { contentSelector: '.ch-sidebar' });
   }
   try {

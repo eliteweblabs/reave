@@ -463,7 +463,34 @@ async function loadRulesTab(opts = {}) {
   const requested = String(opts.ruleId || ruleState.activeId || '').trim();
   if (requested) ruleState.activeId = requested;
   const gen = ++rulesLoadGen;
-  mountPanelSkeleton(root, 'list', 'Loading rules…', { contentSelector: '.ch-sidebar' });
+  const quiet = opts.quiet === true;
+  const canPreserveMounted =
+    quiet &&
+    !requested &&
+    root.querySelector('.ch-sidebar .ch-list') &&
+    ruleState.activeId &&
+    !ruleState.dirty;
+
+  if (canPreserveMounted) {
+    try {
+      const res = await fetch('/api/email/rules', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      ruleState.rules = data.rules || [];
+      ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
+      ruleState.storage = data.storage || 'files';
+    } catch (e) {
+      console.warn('[rules] list refresh failed', e);
+      return;
+    }
+    refreshRulesSidebarList();
+    renderRulesPane();
+    return;
+  }
+
+  if (!quiet) {
+    mountPanelSkeleton(root, 'list', 'Loading rules…', { contentSelector: '.ch-sidebar' });
+  }
   try {
     const res = await fetch('/api/email/rules', { cache: 'no-store' });
     const data = await res.json();
@@ -1034,7 +1061,7 @@ function renderRulesEditor() {
   bindSwipeListScroll(list);
   bindListMultiSelect(list, { onBulkDelete: bulkDeleteRules });
   fillRulesSidebarList(list);
-  attachIosPullToRefresh(list, () => loadRulesTab());
+  attachIosPullToRefresh(list, () => loadRulesTab({ quiet: true }));
   sidebar.appendChild(list);
   root.appendChild(sidebar);
 

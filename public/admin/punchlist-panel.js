@@ -114,6 +114,35 @@ export async function loadPunchlistTab(opts = {}) {
   const root = getPunchlistEditor();
   if (!root) return;
   const preserveNew = punchlistState.activeId === '__new__' && punchlistState.draft;
+  const pendingDeepLink = opts.itemId ?? pendingPunchlistDeepLinkId;
+  const canPreserveMounted =
+    !preserveNew &&
+    !opts.force &&
+    !pendingDeepLink &&
+    root.querySelector('.ch-sidebar .ch-list') &&
+    punchlistState.activeId &&
+    punchlistState.activeId !== '__new__' &&
+    !punchlistState.dirty;
+
+  if (canPreserveMounted) {
+    try {
+      const res = await adminFetch('/api/admin/punchlist');
+      const data = await readAdminJson(res, 'Punch list');
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      punchlistState.configured = data.configured !== false;
+      punchlistState.host = data.host === true || isCanonicalReave();
+      punchlistState.error = '';
+      punchlistState.company = data.company || '';
+      punchlistState.items = (data.items || []).map(normalizeItem);
+    } catch (e) {
+      if (e.message === 'Session expired') return;
+      console.warn('[punchlist] list refresh failed', e);
+    }
+    refreshPunchlistSidebarList?.();
+    syncPunchlistSidebarActiveState?.();
+    return;
+  }
+
   if (!preserveNew) {
     mountPanelSkeleton(root, 'list', 'Loading punch list…', { contentSelector: '.ch-sidebar' });
   }

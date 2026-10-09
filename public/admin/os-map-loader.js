@@ -6753,89 +6753,16 @@ function buildMorningBriefingPanel(briefing) {
   return section;
 }
 
-function renderAdminDashboard(data, opts = {}) {
-  lastDashboardPayload = data;
-  const root = document.getElementById('dashboard-panel');
-  if (!root) return;
-
-  let scroll = root.querySelector(':scope > .home-dashboard-scroll');
-  if (!scroll) {
-    root.replaceChildren();
-    scroll = document.createElement('div');
-    scroll.className = 'home-dashboard-scroll';
-    root.appendChild(scroll);
-  }
-  const mount = pullRefreshContentRoot(scroll);
-  mount.replaceChildren();
-  hideDashFleetPopover();
-
-  const stats = data?.stats || {};
-  const scheduleLive = data?.schedulingConfigured === true;
-  const dashTimeView = readDashTimeView();
-  const rawReviewNotifications = Array.isArray(data?.automationNotifications)
-    ? data.automationNotifications
-    : [];
-  const automationNotifications = filterPendingDismissNotifications(rawReviewNotifications);
-  const visibleReviewNotifications = automationNotifications.filter(
-    (item) => !(isExpiringMeetingNotice(item) && isMeetingNoticePastHold(item)),
+function dashboardMountHasShell(mount) {
+  return Boolean(
+    mount?.querySelector('.dash-today-lists') &&
+      mount.querySelector('.dash-stats') &&
+      mount.querySelector('.home-dashboard-grid'),
   );
+}
 
-  if (data?.briefing) {
-    mount.appendChild(buildMorningBriefingPanel(data.briefing));
-  }
-
-  if (visibleReviewNotifications.length) {
-    mount.appendChild(buildReviewAlertBanners(automationNotifications));
-  }
-  if (data?.automationNotifications != null) {
-    syncReviewBadgeFromNotifications(rawReviewNotifications);
-  }
-  maybeOpenPendingTriageDialog(automationNotifications);
-
-  const todaySection = document.createElement('section');
-  todaySection.className = 'dash-today';
-
-  const todayHead = document.createElement('div');
-  todayHead.className = 'dash-today-head';
-
-  const todayHeadLeft = document.createElement('div');
-  todayHeadLeft.className = 'dash-today-head-left';
-
-  const viewPickerWrap = document.createElement('div');
-  viewPickerWrap.className = 'dash-today-view-picker';
-  const viewPicker = createSlidingPillSelect({
-    value: dashTimeView,
-    options: DASH_TIME_VIEWS,
-    ariaLabel: 'Schedule window',
-    onChange: (next) => {
-      writeDashTimeView(next);
-      renderDashTodayLists(todayLists, data, next);
-    },
-  });
-  viewPickerWrap.appendChild(viewPicker.el);
-  todayHeadLeft.appendChild(viewPickerWrap);
-  todayHead.appendChild(todayHeadLeft);
-
-  if (scheduleLive) {
-    const scheduleBtn = createBrandBtn({
-      label: 'View Schedule',
-      className: 'dash-panel-btn',
-      onClick: () => {
-        openScheduleTab({ view: 'day', date: scheduleTodayKey() });
-      },
-    });
-    scheduleBtn.dataset.scheduleAll = '';
-    todayHead.appendChild(scheduleBtn);
-  }
-
-  todaySection.appendChild(todayHead);
-
-  const todayLists = document.createElement('div');
-  todayLists.className = 'dash-today-lists';
-  renderDashTodayLists(todayLists, data, dashTimeView);
-  todaySection.appendChild(todayLists);
-  mount.appendChild(todaySection);
-
+function createDashboardStatsEl(data) {
+  const stats = data?.stats || {};
   const statsEl = document.createElement('div');
   statsEl.className = 'dash-stats';
 
@@ -6994,100 +6921,111 @@ function renderAdminDashboard(data, opts = {}) {
     }));
   }
 
-  mount.appendChild(statsEl);
+  return statsEl;
+}
 
+function createDashboardFleetListEl(data) {
+  const stats = data?.stats || {};
+  const analyticsLive = data?.analyticsConfigured === true;
+  const analyticsPreview = data?.analytics;
+  const analyticsError = typeof data?.analyticsError === 'string' ? data.analyticsError : '';
+  const siteHealth = data?.siteHealth || null;
+  const siteCards = dashboardSiteCardsFromPayload(data);
   const fleetDiscoveryLive = data?.fleetDiscoveryConfigured === true;
+  const uptimeConfigured = data?.uptime?.configured === true;
   const showFleetGrid =
     siteCards.length > 0 &&
     (uptimeConfigured || analyticsLive || analyticsPreview || fleetDiscoveryLive);
-  if (showFleetGrid) {
-    const list = document.createElement('ul');
-    list.className = 'dash-uptime-grid dash-fleet-grid';
-    const analyticsLoading = analyticsLive && !analyticsPreview && !analyticsError;
+  if (!showFleetGrid) return null;
 
-    const scanHint = formatDashFleetScanMeta(
-      siteHealth,
-      siteCards,
-      siteHealth?.checkedAt ?? stats.siteHealthCheckedAt ?? null,
-    );
-    const scanBtn = document.createElement('button');
-    scanBtn.type = 'button';
-    scanBtn.id = 'dash-site-scan-btn';
-    scanBtn.className = 'dash-uptime-tile dash-fleet-tile dash-fleet-scan-tile';
-    scanBtn.title = 'Check schema, speed, Search Console, sitemap, links — auto-wire Plausible & GSC where possible';
-    scanBtn.setAttribute('aria-label', `Scan sites — ${scanHint}`);
-    scanBtn.innerHTML =
-      `<div class="dash-uptime-name-row">` +
-        `<span class="dash-fleet-scan-icon" aria-hidden="true">${iosIcon('refresh', 14)}</span>` +
-        `<div class="dash-uptime-name dash-fleet-scan-label">Scan sites</div>` +
-      `</div>` +
-      `<div class="dash-uptime-meta dash-fleet-scan-meta">${escHtml(scanHint)}</div>`;
-    scanBtn.addEventListener('click', () => void refreshDashboardSiteHealth({ force: true, fix: true }));
-    const scanLi = document.createElement('li');
-    scanLi.appendChild(scanBtn);
-    list.appendChild(scanLi);
+  const list = document.createElement('ul');
+  list.className = 'dash-uptime-grid dash-fleet-grid';
+  const analyticsLoading = analyticsLive && !analyticsPreview && !analyticsError;
 
-    for (const card of siteCards) {
-      const { offline, paused } = dashboardSiteCardTone(card);
-      const health = siteHealthForCard(card, siteHealth);
-      const ignored = isDashboardSiteIgnored(card, health, data);
-      const meta = dashboardSiteCardMeta(card, {
-        analyticsLive,
-        analyticsLoading,
-        health,
-      });
-      const grade =
-        ignored || !health?.grade ? '' : String(health.grade).toUpperCase();
-      const gradeClass = grade
-        ? `dash-site-grade dash-site-grade--${grade.toLowerCase()}`
-        : '';
-      const signalsHtml = ignored
-        ? `<div class="dash-site-signals dash-site-signals--ignored" aria-hidden="false"><span class="dash-site-ignored-label">Ignored</span></div>`
-        : dashboardSiteHealthSignalsHtml(health, card, siteHealth, {
-            analyticsLive,
-            analyticsLoading,
-          });
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className =
-        `dash-uptime-tile dash-fleet-tile${offline && !ignored ? ' dash-uptime-tile--down' : ''}${paused && !ignored ? ' dash-uptime-tile--paused' : ''}` +
-        (ignored ? ' dash-uptime-tile--ignored' : '') +
-        (health?.criticalCount > 0 && !ignored ? ' dash-uptime-tile--health-warn' : '') +
-        (siteNeedsReaveConnect(health) && !ignored ? ' dash-uptime-tile--connect-missing' : '');
-      const issueHint = ignored
-        ? dashboardSiteIgnoredReason(card, health, data) || 'Ignored — do not touch'
-        : health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
-      btn.setAttribute('data-site-id', card.siteId);
-      btn.setAttribute(
-        'aria-label',
-        [card.label || card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — '),
-      );
-      btn.innerHTML =
-        `<div class="dash-uptime-name-row">` +
-          `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
-          `<div class="dash-uptime-name">${escHtml(card.label || card.siteId)}</div>` +
-          (grade ? `<span class="${gradeClass}" aria-label="Grade ${escHtml(grade)}">${escHtml(grade)}</span>` : '') +
-        `</div>` +
-        `<div class="dash-uptime-meta">${escHtml(meta)}</div>` +
-        signalsHtml;
-      attachDashboardFleetTilePopover(
-        btn,
-        buildDashboardSiteCardPopoverHtml(card, health, siteHealth, {
+  const scanHint = formatDashFleetScanMeta(
+    siteHealth,
+    siteCards,
+    siteHealth?.checkedAt ?? stats.siteHealthCheckedAt ?? null,
+  );
+  const scanBtn = document.createElement('button');
+  scanBtn.type = 'button';
+  scanBtn.id = 'dash-site-scan-btn';
+  scanBtn.className = 'dash-uptime-tile dash-fleet-tile dash-fleet-scan-tile';
+  scanBtn.title = 'Check schema, speed, Search Console, sitemap, links — auto-wire Plausible & GSC where possible';
+  scanBtn.setAttribute('aria-label', `Scan sites — ${scanHint}`);
+  scanBtn.innerHTML =
+    `<div class="dash-uptime-name-row">` +
+      `<span class="dash-fleet-scan-icon" aria-hidden="true">${iosIcon('refresh', 14)}</span>` +
+      `<div class="dash-uptime-name dash-fleet-scan-label">Scan sites</div>` +
+    `</div>` +
+    `<div class="dash-uptime-meta dash-fleet-scan-meta">${escHtml(scanHint)}</div>`;
+  scanBtn.addEventListener('click', () => void refreshDashboardSiteHealth({ force: true, fix: true }));
+  const scanLi = document.createElement('li');
+  scanLi.appendChild(scanBtn);
+  list.appendChild(scanLi);
+
+  for (const card of siteCards) {
+    const { offline, paused } = dashboardSiteCardTone(card);
+    const health = siteHealthForCard(card, siteHealth);
+    const ignored = isDashboardSiteIgnored(card, health, data);
+    const meta = dashboardSiteCardMeta(card, {
+      analyticsLive,
+      analyticsLoading,
+      health,
+    });
+    const grade =
+      ignored || !health?.grade ? '' : String(health.grade).toUpperCase();
+    const gradeClass = grade
+      ? `dash-site-grade dash-site-grade--${grade.toLowerCase()}`
+      : '';
+    const signalsHtml = ignored
+      ? `<div class="dash-site-signals dash-site-signals--ignored" aria-hidden="false"><span class="dash-site-ignored-label">Ignored</span></div>`
+      : dashboardSiteHealthSignalsHtml(health, card, siteHealth, {
           analyticsLive,
           analyticsLoading,
-          dashboardData: data,
-        }),
-      );
-      btn.addEventListener('click', () => {
-        setActiveMap('analytics', { force: true, analyticsSiteId: card.siteId });
-      });
-      const li = document.createElement('li');
-      li.appendChild(btn);
-      list.appendChild(li);
-    }
-    mount.appendChild(list);
+        });
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className =
+      `dash-uptime-tile dash-fleet-tile${offline && !ignored ? ' dash-uptime-tile--down' : ''}${paused && !ignored ? ' dash-uptime-tile--paused' : ''}` +
+      (ignored ? ' dash-uptime-tile--ignored' : '') +
+      (health?.criticalCount > 0 && !ignored ? ' dash-uptime-tile--health-warn' : '') +
+      (siteNeedsReaveConnect(health) && !ignored ? ' dash-uptime-tile--connect-missing' : '');
+    const issueHint = ignored
+      ? dashboardSiteIgnoredReason(card, health, data) || 'Ignored — do not touch'
+      : health?.issues?.map((i) => i.label).filter(Boolean).join(' · ') || '';
+    btn.setAttribute('data-site-id', card.siteId);
+    btn.setAttribute(
+      'aria-label',
+      [card.label || card.siteId, grade ? `Grade ${grade}` : '', issueHint].filter(Boolean).join(' — '),
+    );
+    btn.innerHTML =
+      `<div class="dash-uptime-name-row">` +
+        `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
+        `<div class="dash-uptime-name">${escHtml(card.label || card.siteId)}</div>` +
+        (grade ? `<span class="${gradeClass}" aria-label="Grade ${escHtml(grade)}">${escHtml(grade)}</span>` : '') +
+      `</div>` +
+      `<div class="dash-uptime-meta">${escHtml(meta)}</div>` +
+      signalsHtml;
+    attachDashboardFleetTilePopover(
+      btn,
+      buildDashboardSiteCardPopoverHtml(card, health, siteHealth, {
+        analyticsLive,
+        analyticsLoading,
+        dashboardData: data,
+      }),
+    );
+    btn.addEventListener('click', () => {
+      setActiveMap('analytics', { force: true, analyticsSiteId: card.siteId });
+    });
+    const li = document.createElement('li');
+    li.appendChild(btn);
+    list.appendChild(li);
   }
+  return list;
+}
 
+function createDashboardInboxSection(data) {
   const inboxRecent = Array.isArray(data?.recentEmails) ? data.recentEmails : [];
   const inboxPanel = document.createElement('section');
   inboxPanel.className =
@@ -7121,7 +7059,182 @@ function renderAdminDashboard(data, opts = {}) {
     inboxBody.appendChild(list);
   }
   inboxPanel.appendChild(inboxBody);
-  mount.appendChild(inboxPanel);
+  return inboxPanel;
+}
+
+function finishAdminDashboardHydration(data, opts, scroll) {
+  const analyticsError = typeof data?.analyticsError === 'string' ? data.analyticsError : '';
+  const siteHealth = data?.siteHealth || null;
+  const siteCards = dashboardSiteCardsFromPayload(data);
+
+  attachIosPullToRefresh(scroll, () => {
+    if (MAP.type !== 'dashboard') return;
+    return loadAdminDashboard({ quiet: true, force: true });
+  });
+
+  if (
+    !opts.skipHydrate &&
+    !analyticsError &&
+    dashboardAnalyticsNeedsHydrate(data)
+  ) {
+    void hydrateDashboardFleet();
+  }
+  if (!opts.skipHydrate && siteCards.length) {
+    if (!siteHealth) void hydrateDashboardSiteHealth();
+    else if (dashboardFleetExpectedCount(data) > siteCards.length) void hydrateDashboardFleet();
+    scheduleDashboardSiteHealthIdleRefresh(
+      siteHealth?.checkedAt ?? data?.stats?.siteHealthCheckedAt ?? null,
+    );
+  }
+
+  if (siteCards.length) writeDashFleetSnapshot(data);
+}
+
+function patchAdminDashboardMount(mount, data, opts, scroll) {
+  hideDashFleetPopover();
+  const dashTimeView = readDashTimeView();
+  const rawReviewNotifications = Array.isArray(data?.automationNotifications)
+    ? data.automationNotifications
+    : [];
+  const automationNotifications = filterPendingDismissNotifications(rawReviewNotifications);
+  const visibleReviewNotifications = automationNotifications.filter(
+    (item) => !(isExpiringMeetingNotice(item) && isMeetingNoticePastHold(item)),
+  );
+
+  const existingBrief = mount.querySelector('.dash-briefing');
+  if (data?.briefing) {
+    const briefEl = buildMorningBriefingPanel(data.briefing);
+    if (existingBrief) existingBrief.replaceWith(briefEl);
+    else mount.prepend(briefEl);
+  } else {
+    existingBrief?.remove();
+  }
+
+  mount.querySelector('.dash-review-alerts')?.remove();
+  if (visibleReviewNotifications.length) {
+    mount.insertBefore(buildReviewAlertBanners(automationNotifications), mount.firstChild);
+  }
+  if (data?.automationNotifications != null) {
+    syncReviewBadgeFromNotifications(rawReviewNotifications);
+  }
+  maybeOpenPendingTriageDialog(automationNotifications);
+
+  const todayLists = mount.querySelector('.dash-today-lists');
+  if (todayLists) renderDashTodayLists(todayLists, data, dashTimeView);
+
+  const newStats = createDashboardStatsEl(data);
+  mount.querySelector('.dash-stats')?.replaceWith(newStats);
+
+  const oldFleet = mount.querySelector('ul.dash-fleet-grid');
+  const newFleet = createDashboardFleetListEl(data);
+  if (newFleet) {
+    if (oldFleet) oldFleet.replaceWith(newFleet);
+    else newStats.after(newFleet);
+  } else {
+    oldFleet?.remove();
+  }
+
+  const oldInbox = mount.querySelector('.dash-panel-inbox');
+  const newInbox = createDashboardInboxSection(data);
+  if (oldInbox) oldInbox.replaceWith(newInbox);
+  else mount.querySelector('.home-dashboard-grid')?.before(newInbox);
+
+  finishAdminDashboardHydration(data, opts, scroll);
+}
+
+function renderAdminDashboard(data, opts = {}) {
+  lastDashboardPayload = data;
+  const root = document.getElementById('dashboard-panel');
+  if (!root) return;
+
+  let scroll = root.querySelector(':scope > .home-dashboard-scroll');
+  if (!scroll) {
+    root.replaceChildren();
+    scroll = document.createElement('div');
+    scroll.className = 'home-dashboard-scroll';
+    root.appendChild(scroll);
+  }
+  const mount = pullRefreshContentRoot(scroll);
+  if (dashboardMountHasShell(mount) && opts.fullRebuild !== true) {
+    patchAdminDashboardMount(mount, data, opts, scroll);
+    return;
+  }
+  mount.replaceChildren();
+  hideDashFleetPopover();
+
+  const stats = data?.stats || {};
+  const scheduleLive = data?.schedulingConfigured === true;
+  const dashTimeView = readDashTimeView();
+  const rawReviewNotifications = Array.isArray(data?.automationNotifications)
+    ? data.automationNotifications
+    : [];
+  const automationNotifications = filterPendingDismissNotifications(rawReviewNotifications);
+  const visibleReviewNotifications = automationNotifications.filter(
+    (item) => !(isExpiringMeetingNotice(item) && isMeetingNoticePastHold(item)),
+  );
+
+  if (data?.briefing) {
+    mount.appendChild(buildMorningBriefingPanel(data.briefing));
+  }
+
+  if (visibleReviewNotifications.length) {
+    mount.appendChild(buildReviewAlertBanners(automationNotifications));
+  }
+  if (data?.automationNotifications != null) {
+    syncReviewBadgeFromNotifications(rawReviewNotifications);
+  }
+  maybeOpenPendingTriageDialog(automationNotifications);
+
+  const todaySection = document.createElement('section');
+  todaySection.className = 'dash-today';
+
+  const todayHead = document.createElement('div');
+  todayHead.className = 'dash-today-head';
+
+  const todayHeadLeft = document.createElement('div');
+  todayHeadLeft.className = 'dash-today-head-left';
+
+  const viewPickerWrap = document.createElement('div');
+  viewPickerWrap.className = 'dash-today-view-picker';
+  const viewPicker = createSlidingPillSelect({
+    value: dashTimeView,
+    options: DASH_TIME_VIEWS,
+    ariaLabel: 'Schedule window',
+    onChange: (next) => {
+      writeDashTimeView(next);
+      renderDashTodayLists(todayLists, data, next);
+    },
+  });
+  viewPickerWrap.appendChild(viewPicker.el);
+  todayHeadLeft.appendChild(viewPickerWrap);
+  todayHead.appendChild(todayHeadLeft);
+
+  if (scheduleLive) {
+    const scheduleBtn = createBrandBtn({
+      label: 'View Schedule',
+      className: 'dash-panel-btn',
+      onClick: () => {
+        openScheduleTab({ view: 'day', date: scheduleTodayKey() });
+      },
+    });
+    scheduleBtn.dataset.scheduleAll = '';
+    todayHead.appendChild(scheduleBtn);
+  }
+
+  todaySection.appendChild(todayHead);
+
+  const todayLists = document.createElement('div');
+  todayLists.className = 'dash-today-lists';
+  renderDashTodayLists(todayLists, data, dashTimeView);
+  todaySection.appendChild(todayLists);
+  mount.appendChild(todaySection);
+
+  mount.appendChild(createDashboardStatsEl(data));
+
+  const fleetList = createDashboardFleetListEl(data);
+  if (fleetList) mount.appendChild(fleetList);
+
+  mount.appendChild(createDashboardInboxSection(data));
 
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
@@ -7140,27 +7253,7 @@ function renderAdminDashboard(data, opts = {}) {
   }
   mount.appendChild(grid);
 
-  attachIosPullToRefresh(scroll, () => {
-    if (MAP.type !== 'dashboard') return;
-    return loadAdminDashboard({ quiet: true, force: true });
-  });
-
-  if (
-    !opts.skipHydrate &&
-    !analyticsError &&
-    dashboardAnalyticsNeedsHydrate(data)
-  ) {
-    void hydrateDashboardFleet();
-  }
-  if (!opts.skipHydrate && siteCards.length) {
-    if (!siteHealth) void hydrateDashboardSiteHealth();
-    else if (dashboardFleetExpectedCount(data) > siteCards.length) void hydrateDashboardFleet();
-    scheduleDashboardSiteHealthIdleRefresh(
-      siteHealth?.checkedAt ?? stats.siteHealthCheckedAt ?? null,
-    );
-  }
-
-  if (siteCards.length) writeDashFleetSnapshot(data);
+  finishAdminDashboardHydration(data, opts, scroll);
 }
 
 let dashboardSiteHealthHydrateGen = 0;
@@ -7705,13 +7798,6 @@ async function loadAdminDashboard(opts = {}) {
         quiet: false,
         contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
       });
-    } else if (!quiet && !fleetSnapshot) {
-      mountPanelSkeleton(root, 'dashboard-home', 'Loading dashboard…', {
-        quiet: true,
-        contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
-      });
-    }
-
     try {
       const res = await traceAsync('admin:dashboard:fetch', () =>
         adminFetch('/api/admin/dashboard' + (opts.force ? '?fresh=1' : '')),
@@ -7724,7 +7810,7 @@ async function loadAdminDashboard(opts = {}) {
         fleetSnapshot || lastDashboardPayload || readDashFleetSnapshot(),
         data,
       );
-      renderAdminDashboard(merged);
+      renderAdminDashboard(merged, { skipHydrate: quiet, fullRebuild: !hasContent });
       endRender();
       traceSincePage('admin:dashboard:ready', { tab: 'dashboard' });
       homeDashboardLastLoadAt = Date.now();
