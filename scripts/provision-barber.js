@@ -8,8 +8,9 @@
  * Optional: CALCOM_API_KEY — create event types after Cal.com deploy (Step 8).
  */
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { loadBarberConfig, fail } from './barber-config.js';
+import { syncBarberCalEventTypes } from './barber-cal-events.js';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
 const POSTGRES_IMAGE = 'ghcr.io/railwayapp-templates/postgres-ssl:edge';
@@ -18,11 +19,6 @@ const ENV_NAME = 'production';
 
 function log(step, msg) {
   console.log(`[${step}] ${msg}`);
-}
-
-function fail(msg) {
-  console.error(`\n✗ ${msg}`);
-  process.exit(1);
 }
 
 function sleep(ms) {
@@ -60,38 +56,6 @@ async function gql(query, variables) {
   }
   if (body.data === undefined) fail('No data in Railway response');
   return body.data;
-}
-
-function loadConfig(path) {
-  let raw;
-  try {
-    raw = readFileSync(path, 'utf8');
-  } catch (e) {
-    fail(`Cannot read config: ${path} (${e.message})`);
-  }
-  let cfg;
-  try {
-    cfg = JSON.parse(raw);
-  } catch {
-    fail(`Invalid JSON in ${path}`);
-  }
-  for (const key of [
-    'name',
-    'slug',
-    'email',
-    'github_site_repo',
-    'github_api_repo',
-    'railway_workspace_id',
-    'services',
-  ]) {
-    if (cfg[key] === undefined || cfg[key] === null || cfg[key] === '') {
-      fail(`Config missing required field: ${key}`);
-    }
-  }
-  if (!Array.isArray(cfg.services) || !cfg.services.length) {
-    fail('Config.services must be a non-empty array');
-  }
-  return cfg;
 }
 
 async function verifyGithubRepo(repo, label) {
@@ -314,57 +278,11 @@ function encodePgPassword(password) {
   return encodeURIComponent(password);
 }
 
-async function createCalEventTypes(webappUrl, apiKey, name, services) {
-  const base = webappUrl.replace(/\/$/, '');
-  const q = `apiKey=${encodeURIComponent(apiKey)}`;
-  const headers = { 'Content-Type': 'application/json' };
-
-  const listRes = await fetch(`${base}/api/v1/event-types?${q}`, { headers });
-  if (listRes.status === 401) {
-    log(
-      'STEP 8',
-      'Cal.com API returned 401 — skip event types. After onboarding: Cal.com → Settings → Developer → API Keys, then export CALCOM_API_KEY and run scripts/add-barber-events.js',
-    );
-    return [];
-  }
-  if (!listRes.ok) {
-    log('STEP 8', `GET event-types failed (${listRes.status}) — skipping event type creation`);
-    return [];
-  }
-
-  const created = [];
-  for (const svc of services) {
-    const body = {
-      title: svc.name,
-      slug: svc.slug,
-      length: svc.duration,
-      price: svc.price,
-      currency: 'usd',
-      description: `${name} — ${svc.duration} min`,
-    };
-    const res = await fetch(`${base}/api/v1/event-types?${q}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      log('STEP 8', `⚠ POST ${svc.slug} failed (${res.status}): ${t.slice(0, 120)}`);
-      continue;
-    }
-    const json = await res.json();
-    const id = json.event_type?.id ?? json.id ?? json.data?.id;
-    created.push({ slug: svc.slug, id: id ?? '?' });
-    log('STEP 8', `✓ event type ${svc.slug} → id ${id ?? '?'}`);
-  }
-  return created;
-}
-
 async function main() {
   const configPath = process.argv[2];
   if (!configPath) fail('Usage: node scripts/provision-barber.js <config.json>');
 
-  const cfg = loadConfig(configPath);
+  const cfg = loadBarberConfig(configPath);
   const dbName = `${cfg.slug}-db`;
   const calName = `${cfg.slug}-cal`;
   const siteName = `${cfg.slug}-site`;
@@ -479,14 +397,21 @@ async function main() {
   await sleep(10_000);
   const apiKey = process.env.CALCOM_API_KEY?.trim();
   if (apiKey) {
-    const ids = await createCalEventTypes(calBase, apiKey, cfg.name, cfg.services);
-    if (ids.length) {
-      log('STEP 8', `Created ${ids.length} event type(s): ${ids.map((x) => `${x.slug}=${x.id}`).join(', ')}`);
+    const sync = await syncBarberCalEventTypes(calBase, apiKey, cfg.name, cfg.services);
+    if (!sync.ok) {
+      log('STEP 8', sync.unauthorized ? sync.message : `⚠ ${sync.message}`);
+    } else {
+      for (const row of sync.created ?? []) {
+        log('STEP 8', `✓ event type ${row.slug} → id ${row.id}`);
+      }
+      for (const slug of sync.skipped ?? []) {
+        log('STEP 8', `skip (exists): ${slug}`);
+      }
     }
   } else {
     log(
       'STEP 8',
-      'CALCOM_API_KEY not set — skip event types. Set it after Cal.com onboarding to POST /api/v1/event-types, or run scripts/add-barber-events.js',
+      'CALCOM_API_KEY not set — skip event types. After onboarding: npm run add:barber-events -- <config.json>',
     );
   }
 
@@ -495,7 +420,6 @@ async function main() {
   await redeployService(siteSvc.id, environmentId);
   log('STEP 9', '✓ redeploy triggered');
 
-  const configFile = configPath.replace(/^.*\//, '');
   console.log(`
 ══════════════════════════════════════════════════
   Project:     ${cfg.name}
@@ -504,7 +428,7 @@ async function main() {
   API:         private (${apiName})
   DB:          private (${dbName})
   Next step:   Complete Cal.com onboarding at the Calendar URL
-               then run: node scripts/add-barber-events.js configs/${configFile}
+               then run: npm run add:barber-events -- ${configPath}
 ══════════════════════════════════════════════════`);
 }
 
