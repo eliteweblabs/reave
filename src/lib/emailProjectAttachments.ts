@@ -4,6 +4,13 @@
 
 import { Resend } from 'resend';
 import {
+  loadResendInboundAttachmentBytes,
+  resendInboundAttachmentContentType,
+  resendInboundAttachmentFilename,
+  unwrapResendInboundAttachmentRecord,
+  type ResendInboundAttachmentRecord,
+} from './emailAttachments';
+import {
   isAllowedProjectFileMediaType,
   normalizeEmailAttachmentMediaType,
   type ProjectFileSummary,
@@ -29,28 +36,10 @@ function getResendClient(): Resend | null {
   return new Resend(apiKey);
 }
 
-type ResendInboundAttachment = {
-  id?: string;
-  filename?: string;
-  content_type?: string;
-  contentType?: string;
-  download_url?: string;
-  downloadUrl?: string;
-  size?: number;
-};
-
-function attachmentDownloadUrl(att: ResendInboundAttachment): string {
-  return String(att.download_url ?? att.downloadUrl ?? '').trim();
-}
-
-function attachmentContentType(att: ResendInboundAttachment): string {
-  return String(att.content_type ?? att.contentType ?? '').trim();
-}
-
 async function listResendAttachments(
   resend: Resend,
   resendEmailId: string,
-): Promise<ResendInboundAttachment[]> {
+): Promise<ResendInboundAttachmentRecord[]> {
   const { data, error } = await resend.emails.receiving.attachments.list({
     emailId: resendEmailId,
   });
@@ -61,20 +50,27 @@ async function listResendAttachments(
   return data?.data ?? [];
 }
 
-async function getResendAttachmentDownloadUrl(
+async function loadAttachmentBytes(
   resend: Resend,
   resendEmailId: string,
   attachmentId: string,
-): Promise<string> {
+  fromList: ResendInboundAttachmentRecord,
+): Promise<Buffer | null> {
+  let buffer = await loadResendInboundAttachmentBytes(fromList);
+  if (buffer) return buffer;
+
   const { data, error } = await resend.emails.receiving.attachments.get({
     emailId: resendEmailId,
     id: attachmentId,
   });
   if (error) {
     console.warn('[email-attachments] get failed', { resendEmailId, attachmentId, error: error.message });
-    return '';
+    return null;
   }
-  return attachmentDownloadUrl(data ?? {});
+  const record = unwrapResendInboundAttachmentRecord(data);
+  if (!record) return null;
+  buffer = await loadResendInboundAttachmentBytes(record);
+  return buffer;
 }
 
 /**
@@ -123,36 +119,15 @@ export async function importEmailAttachmentsToProject(input: {
       continue;
     }
 
-    let downloadUrl = attachmentDownloadUrl(att);
-    if (!downloadUrl) {
-      downloadUrl = await getResendAttachmentDownloadUrl(resend, resendEmailId, attachmentId);
-    }
-    if (!downloadUrl) {
-      result.errors.push(`No download URL for attachment ${attachmentId}`);
+    const buffer = await loadAttachmentBytes(resend, resendEmailId, attachmentId, att);
+    if (!buffer?.length) {
+      result.errors.push(`Could not load attachment ${attachmentId}`);
       continue;
     }
 
-    let buffer: Buffer;
-    try {
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        result.errors.push(`Download failed for ${attachmentId} (${response.status})`);
-        continue;
-      }
-      buffer = Buffer.from(await response.arrayBuffer());
-    } catch (e) {
-      result.errors.push(`Download failed for ${attachmentId}: ${e instanceof Error ? e.message : String(e)}`);
-      continue;
-    }
-
-    if (!buffer.length) {
-      result.errors.push(`Empty attachment ${attachmentId}`);
-      continue;
-    }
-
-    const filename = String(att.filename ?? '').trim() || `attachment-${attachmentId}`;
+    const filename = resendInboundAttachmentFilename(att, attachmentId);
     const mediaType = normalizeEmailAttachmentMediaType(
-      attachmentContentType(att),
+      resendInboundAttachmentContentType(att),
       filename,
     );
     if (!isAllowedProjectFileMediaType(mediaType, 'email')) {

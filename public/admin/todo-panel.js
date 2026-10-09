@@ -242,6 +242,34 @@ async function loadTodoTab(opts = {}) {
     todoState.activeId === '__new__' &&
     todoState.draft &&
     (opts.todoId === '__new__' || pendingTodoDeepLinkId === '__new__');
+  const pendingDeepLink = opts.todoId ?? pendingTodoDeepLinkId;
+  const canPreserveMounted =
+    !preserveNew &&
+    !opts.force &&
+    !pendingDeepLink &&
+    root.querySelector('.ch-sidebar .ch-list') &&
+    todoState.activeId &&
+    todoState.activeId !== '__new__' &&
+    !todoState.dirty;
+
+  if (canPreserveMounted) {
+    try {
+      const todoRes = await adminFetch('/api/todos');
+      const todoData = await readAdminJson(todoRes, 'To-dos');
+      if (!todoRes.ok) throw new Error(todoData.error || `HTTP ${todoRes.status}`);
+      todoState.todos = (todoData.todos || []).map(normalizeTodoItemDates);
+      todoState.priorities = todoData.priorities || todoState.priorities;
+      todoState.statuses = todoData.statuses || todoState.statuses;
+    } catch (e) {
+      if (e.message === 'Session expired') return;
+      console.warn('[todo] list refresh failed', e);
+    }
+    refreshTodoSidebarList();
+    syncTodoSidebarActiveState();
+    ensureTodoMobilePaneOpen?.();
+    return;
+  }
+
   if (!preserveNew) {
     mountPanelSkeleton(root, 'list', 'Loading to‑dos…', { contentSelector: '.ch-sidebar' });
   }
