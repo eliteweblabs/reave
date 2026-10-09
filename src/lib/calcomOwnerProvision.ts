@@ -201,6 +201,67 @@ async function linkEventTypeToUser(
   });
 }
 
+export type CalcomEventTypeSeed = {
+  slug: string;
+  title: string;
+  length: number;
+  description?: string;
+  price?: number;
+};
+
+/** Insert event types by slug when missing (works without Cal.com API keys). */
+export async function upsertCalcomEventTypes(
+  query: SqlQuery,
+  userId: number,
+  timezone: string,
+  types: readonly CalcomEventTypeSeed[],
+  scheduleId?: number,
+): Promise<{ created: number; skipped: string[] }> {
+  const eventTable = await findPublicTable(query, ['EventType', 'eventType', 'event_type']);
+  if (!eventTable) return { created: 0, skipped: types.map((t) => t.slug) };
+  const tableSql = quoteIdent(eventTable);
+  const cols = await listColumns(query, eventTable);
+  const userCol = cols.has('userId') ? 'userId' : cols.has('user_id') ? 'user_id' : null;
+  if (!userCol) return { created: 0, skipped: types.map((t) => t.slug) };
+
+  const existingRows = await query<{ slug: string }>(
+    `SELECT slug FROM ${tableSql} WHERE ${quoteIdent(userCol)} = $1`,
+    [userId],
+  ).catch(() => ({ rows: [] as Array<{ slug: string }> }));
+  const existingSlugs = new Set(existingRows.rows.map((r) => r.slug));
+
+  let created = 0;
+  const skipped: string[] = [];
+  for (const type of types) {
+    if (existingSlugs.has(type.slug)) {
+      skipped.push(type.slug);
+      continue;
+    }
+    const id = await insertRow(query, tableSql, cols, {
+      title: type.title,
+      slug: type.slug,
+      description: type.description ?? type.title,
+      length: type.length,
+      userId,
+      hidden: false,
+      locations: JSON.stringify([{ type: 'inPerson' }]),
+      timeZone: timezone,
+      scheduleId,
+      minimumBookingNotice: 0,
+      periodType: 'unlimited',
+      price: type.price,
+      currency: type.price != null ? 'usd' : undefined,
+      metadata: type.price != null ? JSON.stringify({ price: type.price, currency: 'usd' }) : undefined,
+    });
+    if (id != null) {
+      created += 1;
+      existingSlugs.add(type.slug);
+      await linkEventTypeToUser(query, id, userId);
+    }
+  }
+  return { created, skipped };
+}
+
 export async function ensureCalcomOwnerEventTypes(
   query: SqlQuery,
   userId: number,
@@ -218,26 +279,13 @@ export async function ensureCalcomOwnerEventTypes(
   ).catch(() => ({ rows: [] as Array<{ id: number }> }));
   if (existing.rows.length) return 0;
 
-  let created = 0;
-  for (const type of DEFAULT_CALCOM_EVENT_TYPES) {
-    const id = await insertRow(query, tableSql, cols, {
-      title: type.title,
-      slug: type.slug,
-      description: type.title,
-      length: type.length,
-      userId,
-      hidden: false,
-      locations: JSON.stringify([{ type: 'inPerson' }]),
-      timeZone: timezone,
-      scheduleId,
-      minimumBookingNotice: 0,
-      periodType: 'unlimited',
-    });
-    if (id != null) {
-      created += 1;
-      await linkEventTypeToUser(query, id, userId);
-    }
-  }
+  const { created } = await upsertCalcomEventTypes(
+    query,
+    userId,
+    timezone,
+    DEFAULT_CALCOM_EVENT_TYPES,
+    scheduleId,
+  );
   return created;
 }
 

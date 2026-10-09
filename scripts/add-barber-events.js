@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 /**
- * Create Cal.com event types from a barber config (after Cal.com onboarding).
+ * Create Cal.com event types from configs/*.json (after Cal.com onboarding).
+ *
+ * Self-hosted cal.com Docker shows API keys as a commercial feature — default path
+ * writes directly to Postgres (same approach as reave calcomOwnerProvision).
  *
  * Usage:
- *   CALCOM_API_KEY=cal_… npm run add:barber-events -- configs/stevendiaz.json
+ *   RAILWAY_API_TOKEN=… npm run add:barber-events -- configs/stevendiaz.json
+ *   CALCOM_DATABASE_URL=postgresql://… npm run add:barber-events -- configs/stevendiaz.json
  *
- * Calendar URL (first match wins):
- *   CALCOM_WEBAPP_URL, config.cal_webapp_url, Railway NEXT_PUBLIC_WEBAPP_URL (if RAILWAY_API_TOKEN),
- *   or https://{slug}-cal-production.up.railway.app
+ * Optional API path (requires Cal commercial / license):
+ *   CALCOM_API_KEY=cal_… npm run add:barber-events -- configs/stevendiaz.json
  */
 import { loadBarberConfig, fail } from './barber-config.js';
 import {
@@ -15,6 +18,7 @@ import {
   resolveCalWebappUrl,
   syncBarberCalEventTypes,
 } from './barber-cal-events.js';
+import { resolveBarberDatabaseUrl, syncBarberEventTypesToDatabase } from './barber-cal-db-events.js';
 
 function log(msg) {
   console.log(msg);
@@ -26,47 +30,39 @@ async function main() {
     fail('Usage: node scripts/add-barber-events.js <config.json>');
   }
 
+  const cfg = loadBarberConfig(configPath, { strict: false });
   const apiKey = process.env.CALCOM_API_KEY?.trim();
-  if (!apiKey) {
-    fail(
-      'CALCOM_API_KEY is not set. In Cal.com: Settings → Developer → API Keys, then export CALCOM_API_KEY and re-run.',
-    );
+  const dbUrl = await resolveBarberDatabaseUrl(cfg);
+
+  if (dbUrl && !process.env.CALCOM_FORCE_API?.trim()) {
+    log(`[cal-db] Syncing ${cfg.services.length} event type(s) for @${cfg.slug}…`);
+    const result = await syncBarberEventTypesToDatabase(dbUrl, cfg);
+    for (const slug of result.skipped) log(`  skip (exists): ${slug}`);
+    log(`Done. ${result.created} created, ${result.skipped.length} skipped.`);
+    log(`Refresh Event types in Cal — hide/delete the default 15/30 min if you want only the menu.`);
+    return;
   }
 
-  const cfg = loadBarberConfig(configPath, { strict: false });
+  if (!apiKey) {
+    fail(
+      'Could not resolve Cal Postgres URL (set CALCOM_DATABASE_URL or RAILWAY_API_TOKEN). ' +
+        'Cal.com API keys are a commercial feature on self-hosted cal.com — DB seed is the default path.',
+    );
+  }
 
   let webappUrl = resolveCalWebappUrl(cfg);
   const fromRailway = await resolveCalWebappFromRailway(cfg);
   if (fromRailway && !process.env.CALCOM_WEBAPP_URL?.trim() && !cfg.cal_webapp_url?.trim()) {
     webappUrl = fromRailway;
-    log(`[cal] Using Railway NEXT_PUBLIC_WEBAPP_URL → ${webappUrl}`);
-  } else {
-    log(`[cal] Webapp URL → ${webappUrl}`);
+    log(`[cal-api] Using Railway NEXT_PUBLIC_WEBAPP_URL → ${webappUrl}`);
   }
 
-  log(`[cal] Syncing ${cfg.services.length} service(s) for ${cfg.name}…`);
+  log(`[cal-api] Syncing via API (requires commercial license)…`);
   const result = await syncBarberCalEventTypes(webappUrl, apiKey, cfg.name, cfg.services);
+  if (!result.ok) fail(result.message);
 
-  if (!result.ok) {
-    if (result.unauthorized) fail(result.message);
-    if (result.created?.length) {
-      log(`Partial: created ${result.created.map((c) => c.slug).join(', ')} before error`);
-    }
-    fail(result.message);
-  }
-
-  for (const slug of result.skipped ?? []) {
-    log(`  skip (exists): ${slug}`);
-  }
-  for (const row of result.created ?? []) {
-    log(`  ✓ ${row.slug} → id ${row.id}`);
-  }
-
-  if (!result.created?.length && (result.skipped?.length ?? 0) > 0) {
-    log('All event types already exist — nothing to add.');
-  } else {
-    log(`Done. ${result.created?.length ?? 0} created, ${result.skipped?.length ?? 0} skipped.`);
-  }
+  for (const slug of result.skipped ?? []) log(`  skip (exists): ${slug}`);
+  for (const row of result.created ?? []) log(`  ✓ ${row.slug} → id ${row.id}`);
   log(`Book: ${result.webappUrl}/${cfg.slug}`);
 }
 

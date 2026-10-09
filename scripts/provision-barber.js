@@ -5,12 +5,14 @@
  * Usage:
  *   RAILWAY_API_TOKEN=… GITHUB_TOKEN=… npm run provision:barber -- configs/stevendiaz.json
  *
- * Optional: CALCOM_API_KEY — create event types after Cal.com deploy (Step 8).
+ * Step 8 seeds event types via Postgres when RAILWAY_API_TOKEN or CALCOM_DATABASE_URL is set
+ * (Cal.com API keys are commercial on self-hosted cal.com). Optional CALCOM_API_KEY for API path.
  */
 import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { loadBarberConfig, fail } from './barber-config.js';
 import { syncBarberCalEventTypes } from './barber-cal-events.js';
+import { syncBarberEventTypesToDatabase } from './barber-cal-db-events.js';
 import { CALCOM_IMAGE, CALCOM_START } from './barber-cal-railway.js';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
@@ -401,7 +403,17 @@ async function main() {
   log('STEP 8', 'Waiting 10s for Cal.com first deploy…');
   await sleep(10_000);
   const apiKey = process.env.CALCOM_API_KEY?.trim();
-  if (apiKey) {
+  let seeded = false;
+  if (!process.env.CALCOM_FORCE_API?.trim()) {
+    try {
+      const dbSeed = await syncBarberEventTypesToDatabase(directUrl, cfg);
+      seeded = true;
+      log('STEP 8', `✓ DB seed: ${dbSeed.created} event type(s), ${dbSeed.skipped.length} skipped`);
+    } catch (e) {
+      log('STEP 8', `DB seed skipped (${e.message}) — run add:barber-events after Cal signup`);
+    }
+  }
+  if (!seeded && apiKey) {
     const sync = await syncBarberCalEventTypes(calBase, apiKey, cfg.name, cfg.services);
     if (!sync.ok) {
       log('STEP 8', sync.unauthorized ? sync.message : `⚠ ${sync.message}`);
@@ -413,10 +425,10 @@ async function main() {
         log('STEP 8', `skip (exists): ${slug}`);
       }
     }
-  } else {
+  } else if (!seeded) {
     log(
       'STEP 8',
-      'CALCOM_API_KEY not set — skip event types. After onboarding: npm run add:barber-events -- <config.json>',
+      'After Cal onboarding: RAILWAY_API_TOKEN=… npm run add:barber-events -- <config.json>',
     );
   }
 
