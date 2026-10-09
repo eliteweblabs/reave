@@ -42,6 +42,10 @@ import {
 } from './admin-ui.js?v=20260829a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput, shouldSkipAdminPoll, noteAdminNetworkFailure, noteAdminNetworkSuccess } from './shared.js?v=20260903a';
 import { traceStart, traceAsync, traceSummary } from './perf-trace.js';
+import {
+  composeTrace,
+  registerComposeTraceShellState,
+} from './chat-compose-trace.js';
 import { postTitle, postLower } from './post-alias.js?v=20260805a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
 import { queueUndoableDelete, filterHiddenUntilCommit } from './shake-undo.js?v=20260824a';
@@ -55,6 +59,14 @@ let shell = {};
 
 export function initChatPanel(deps) {
   shell = deps;
+  registerComposeTraceShellState(() => ({
+    activeId: chatState.activeId,
+    composeDirty: chatState.composeDirty,
+    composeSession: chatState.composeSession,
+    sending: chatState.sending,
+    paneLoading: chatState.paneLoading,
+    messageCount: chatState.messages?.length ?? 0,
+  }));
 }
 
 export const DEFAULT_SESSION_TITLE = 'New session';
@@ -1086,7 +1098,11 @@ function readSessionComposeDraftForThread(threadId) {
 }
 
 function setChatComposeSession(active) {
-  chatState.composeSession = Boolean(active);
+  const next = Boolean(active);
+  if (chatState.composeSession !== next) {
+    composeTrace('shell.compose-session', { active: next }, next ? 'info' : 'warn');
+  }
+  chatState.composeSession = next;
   try {
     window.__reaveChatComposeSession = chatState.composeSession;
   } catch {
@@ -1112,6 +1128,7 @@ function scheduleClearChatComposeSession(delayMs = 3400) {
     }
     if (chatState.composeDirty) return;
     if (chatState.activeId && readSessionComposeDraftForThread(chatState.activeId)) return;
+    composeTrace('shell.compose-session-expire', {}, 'warn', { snap: true });
     setChatComposeSession(false);
     const deepId = pendingChatDeepLinkId;
     if (deepId && deepId !== chatState.activeId) {
@@ -1150,6 +1167,7 @@ function isChatComposeProtected() {
 }
 
 function clearChatComposeLiveState() {
+  composeTrace('shell.clear-compose-live', {}, 'warn', { snap: true });
   chatState.composeDirty = false;
   setChatComposeSession(false);
   try {
@@ -2154,9 +2172,15 @@ async function refreshChatLinkedJobs() {
 }
 
 function unmountChatThreadRoot(root) {
-  if (isChatComposeLiveEngaged()) return;
+  if (isChatComposeLiveEngaged()) {
+    composeTrace('shell.unmount-blocked', { reason: 'compose-live' }, 'info');
+    return;
+  }
   const host = root?.querySelector('#ch-thread-root');
-  if (host) window.__reaveAgentChat?.unmount(host);
+  if (host) {
+    composeTrace('shell.react-unmount', { threadId: chatState.activeId }, 'warn', { snap: true });
+    window.__reaveAgentChat?.unmount(host);
+  }
 }
 
 function mountChatThreadRoot(threadHost) {
@@ -2217,7 +2241,11 @@ function mountChatThreadRoot(threadHost) {
     },
     onRefreshMessages: async () => {
       if (!chatState.activeId) return;
-      if (isChatComposeProtected()) return;
+      if (isChatComposeProtected()) {
+        composeTrace('shell.refresh-messages-skipped', { reason: 'compose-protected' }, 'info');
+        return;
+      }
+      composeTrace('shell.refresh-messages', { threadId: chatState.activeId }, 'warn', { snap: true });
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
           cache: 'no-store',
@@ -2228,9 +2256,11 @@ function mountChatThreadRoot(threadHost) {
     if (chatState.messages.length) chatState.refetchAttemptedId = null;
         const host = getChatPanel()?.querySelector('#ch-thread-root');
         if (host && window.__reaveAgentChat?.syncMessages) {
+          composeTrace('shell.sync-messages', { count: chatState.messages.length }, 'warn', { snap: true });
           window.__reaveAgentChat.syncMessages(host, chatState.messages);
           return;
         }
+        composeTrace('shell.refresh-messages-render-pane', {}, 'error', { snap: true });
         renderChatPane();
       } catch {
         /* keep current messages on refresh failure */
@@ -2298,14 +2328,21 @@ async function mountChatThreadRootAsync(threadHost) {
 function renderChatPane() {
   const root = getChatPanel();
   if (!root) return;
-  if (isChatComposeLiveEngaged() && root.querySelector('#ch-thread-root')) return;
+  if (isChatComposeLiveEngaged() && root.querySelector('#ch-thread-root')) {
+    composeTrace('shell.render-pane-skipped', { reason: 'compose-live' }, 'info');
+    return;
+  }
   let pane = root.querySelector('.ch-pane');
   if (!pane || !root.querySelector('.ch-sidebar')) {
     if (isChatComposeLiveEngaged()) return;
     renderChatPanel();
     return;
   }
-  if (isChatComposeLiveEngaged()) return;
+  if (isChatComposeLiveEngaged()) {
+    composeTrace('shell.render-pane-abort', { reason: 'compose-live' }, 'info');
+    return;
+  }
+  composeTrace('shell.render-pane', { threadId: chatState.activeId }, 'warn', { snap: true });
   unmountChatThreadRoot(root);
   pane.innerHTML = '';
 
@@ -2376,10 +2413,12 @@ function renderChatPanel() {
     return;
   }
   if (isChatComposeLiveEngaged() && root.querySelector('#ch-thread-root')) {
+    composeTrace('shell.render-panel-sidebar-only', {}, 'info');
     refreshChatSidebarList();
     endRender({ skipped: 'compose-live' });
     return;
   }
+  composeTrace('shell.render-panel-full', { threadId: chatState.activeId }, 'error', { snap: true });
   const savedSidebarScroll = shell.captureSidebarListScroll(root);
   const savedFilterScroll = shell.captureFilterTabsScroll?.(root) ?? 0;
   unmountChatThreadRoot(root);

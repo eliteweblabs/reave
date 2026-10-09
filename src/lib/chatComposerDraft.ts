@@ -1,3 +1,5 @@
+import { composeTrace } from './chatComposeTrace';
+
 /** Keep in sync with public/admin/chat-panel.js CHAT_COMPOSE_DRAFT_KEY. */
 export const CHAT_COMPOSE_DRAFT_KEY = 'reave:chat-compose-draft';
 
@@ -33,7 +35,9 @@ export function readChatComposeDraftForThread(threadId: string): string {
 export function armReaveChatComposing(ms = CHAT_COMPOSING_ARM_MS): void {
   if (typeof window === 'undefined') return;
   const w = window as ReaveComposeWindow;
+  const was = Boolean(w.__reaveChatComposing);
   w.__reaveChatComposing = true;
+  if (!was) composeTrace('compose.arm', { ms }, 'info');
   try {
     window.dispatchEvent(new CustomEvent('reave:chat-compose-active', { detail: true }));
   } catch {

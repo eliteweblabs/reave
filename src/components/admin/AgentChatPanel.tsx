@@ -76,6 +76,7 @@ import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsa
 import { armAgentTones, playChatDoneTone, playDeployDoneTone, resumeAgentTones } from '../../lib/agentTones';
 import { isChatRunActive, sameAgentProgressUi, type AgentProgress } from '../../lib/agentProgress';
 import { isSentComposerEcho, readChatComposeDraftForThread } from '../../lib/chatComposerDraft';
+import { composeTrace } from '../../lib/chatComposeTrace';
 import {
   renderMentionEditor,
   syncMentionEditorEmpty,
@@ -2652,6 +2653,7 @@ function ClaudeComposer({
   /** Last typed value — survives a post-deploy reload if runtime text is briefly empty. */
   const typedDraftRef = useRef('');
   const sendNow = useCallback(() => {
+    composeTrace('react.send', { threadId }, 'info', { snap: true });
     clearChatComposeDraft(threadId);
     typedDraftRef.current = '';
     if (composer.getState().canSend) void composer.send();
@@ -2671,6 +2673,7 @@ function ClaudeComposer({
   useLayoutEffect(() => {
     const current = composer.getState().text ?? '';
     if (!current.trim() || !isSentComposerEcho(current, lastUserText)) return;
+    composeTrace('react.clear-sent-echo', { len: current.length }, 'info', { snap: true });
     composer.setText('');
     typedDraftRef.current = '';
     clearChatComposeDraft(threadId);
@@ -2969,17 +2972,36 @@ function PersistedMessageImporter({
   useEffect(() => {
     if (!generation || generation === applied.current) return;
     applied.current = generation;
-    if (isRunning) return;
+    if (isRunning) {
+      composeTrace('react.import-skipped', { reason: 'isRunning', generation }, 'info');
+      return;
+    }
     const draft = (composer.getState().text ?? '').trim();
-    if (draft && !isSentComposerEcho(draft, lastUserText)) return;
+    if (draft && !isSentComposerEcho(draft, lastUserText)) {
+      composeTrace('react.import-skipped', { reason: 'composer-draft', draftLen: draft.length }, 'info');
+      return;
+    }
     const threadId = propsRef.current?.threadId;
-    if (threadId && readChatComposeDraftForThread(threadId)) return;
+    if (threadId && readChatComposeDraftForThread(threadId)) {
+      composeTrace('react.import-skipped', { reason: 'session-draft' }, 'info');
+      return;
+    }
     if (typeof document !== 'undefined') {
-      if (document.querySelector('#chat-panel .aui-input:focus, .aui-root--focus .aui-input:focus'))
+      if (document.querySelector('#chat-panel .aui-input:focus, .aui-root--focus .aui-input:focus')) {
+        composeTrace('react.import-skipped', { reason: 'input-focused' }, 'info');
         return;
+      }
       try {
         const w = window as ReaveDeployWindow;
-        if (w.__reaveChatComposeDirty || w.__reaveChatComposing || w.__reaveChatComposeSession) return;
+        if (w.__reaveChatComposeDirty || w.__reaveChatComposing || w.__reaveChatComposeSession) {
+          composeTrace('react.import-skipped', {
+            reason: 'compose-flags',
+            dirty: w.__reaveChatComposeDirty,
+            composing: w.__reaveChatComposing,
+            session: w.__reaveChatComposeSession,
+          }, 'info');
+          return;
+        }
       } catch {
         /* ignore */
       }
@@ -2988,6 +3010,12 @@ function PersistedMessageImporter({
     const key = storedMessagesKey(messages);
     if (key === lastKey.current) return;
     lastKey.current = key;
+    composeTrace(
+      'react.thread-reset',
+      { generation, messageCount: messages.length, key },
+      'warn',
+      { snap: true },
+    );
     runtime.reset(messages.map(storedToThreadMessage));
   }, [composer, generation, isRunning, lastUserText, propsRef, runtime]);
 
@@ -3429,6 +3457,31 @@ function AgentChatThreadBody({
   );
 }
 
+/** Keeps compose trace snapshots in sync with live composer runtime state. */
+function ComposeTraceReactRegistrar({
+  threadId,
+}: {
+  threadId: string;
+}) {
+  const composerText = useAuiState((s) => s.composer.text ?? '');
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  useEffect(() => {
+    const reg = (
+      window as Window & {
+        __reaveChatComposeTrace?: { registerReactState?: (fn: () => Record<string, unknown>) => void };
+      }
+    ).__reaveChatComposeTrace?.registerReactState;
+    if (!reg) return;
+    reg(() => ({
+      threadId,
+      composerLen: composerText.length,
+      composerPreview: composerText.slice(0, 64),
+      isRunning,
+    }));
+  }, [composerText, isRunning, threadId]);
+  return null;
+}
+
 function AgentChatThread({
   threadId,
   propsRef,
@@ -3469,6 +3522,7 @@ function AgentChatThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatLightboxProvider>
+        <ComposeTraceReactRegistrar threadId={threadId} />
         <PersistedMessageImporter generation={importMessagesGeneration} propsRef={propsRef} />
         <PendingDraftBoot
           draft={pendingDraft}

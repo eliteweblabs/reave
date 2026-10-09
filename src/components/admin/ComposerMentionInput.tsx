@@ -6,6 +6,7 @@ import {
   isSentComposerEcho,
   isVoiceOrDictationInputType,
 } from '../../lib/chatComposerDraft';
+import { composeTrace } from '../../lib/chatComposeTrace';
 import {
   getMentionEditorCaret,
   mentionEditorHasRawTokens,
@@ -118,10 +119,24 @@ export function ComposerMentionInput({
     // pushing empty state down would wipe the in-progress utterance.
     if (hadFocus && current.trim() && current !== composerText) {
       if (!composerText.trim() && isSentComposerEcho(current, lastUserText)) {
+        composeTrace('sync.sent-echo-clear', { domLen: current.length }, 'info');
         renderMentionEditor(el, '');
         lastSerializedRef.current = '';
         syncMentionEditorEmpty(el, '');
         return;
+      }
+      const domAhead = current.length > composerText.length + 2;
+      if (!composerText.trim() || domAhead) {
+        composeTrace(
+          'sync.dom-to-composer',
+          {
+            composerLen: composerText.length,
+            domLen: current.length,
+            domPreview: current.slice(0, 64),
+          },
+          domAhead ? 'warn' : 'info',
+          { snap: domAhead },
+        );
       }
       if ((composer.getState().text ?? '') !== current) composer.setText(current);
       lastSerializedRef.current = current;
@@ -140,6 +155,21 @@ export function ComposerMentionInput({
         ? getMentionEditorCaret(el)
         : caretRef.current
       : composerText.length;
+    const domLost = current.length > composerText.length + 2;
+    if (current !== composerText) {
+      composeTrace(
+        'sync.render-from-state',
+        {
+          hadFocus,
+          composerLen: composerText.length,
+          domLen: current.length,
+          composerPreview: composerText.slice(0, 64),
+          domPreview: current.slice(0, 64),
+        },
+        domLost ? 'warn' : 'info',
+        { snap: domLost },
+      );
+    }
     renderMentionEditor(el, composerText);
     lastSerializedRef.current = composerText;
     syncMentionEditorEmpty(el, composerText);
@@ -171,14 +201,19 @@ export function ComposerMentionInput({
       onBlur={onBlur}
       onBeforeInput={(e) => {
         const type = e.nativeEvent.inputType || '';
-        if (isVoiceOrDictationInputType(type)) armReaveChatComposing();
+        if (isVoiceOrDictationInputType(type)) {
+          composeTrace('input.before-voice', { inputType: type }, 'info');
+          armReaveChatComposing();
+        }
       }}
       onCompositionStart={() => {
         composingRef.current = true;
+        composeTrace('input.composition-start', {}, 'info');
         armReaveChatComposing();
       }}
       onCompositionEnd={(e) => {
         composingRef.current = false;
+        composeTrace('input.composition-end', {}, 'info');
         armReaveChatComposing();
         commit(e.currentTarget);
       }}

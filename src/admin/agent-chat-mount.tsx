@@ -1,6 +1,7 @@
 import '@vitejs/plugin-react/preamble';
 import { createRoot, type Root } from 'react-dom/client';
 import { AgentChatPanel, type AgentChatPanelProps } from '../components/admin/AgentChatPanel';
+import { composeTrace } from '../lib/chatComposeTrace';
 
 type MountRecord = {
   root: Root;
@@ -45,16 +46,24 @@ export function syncAgentChatMessages(
 ) {
   const record = mounts.get(el);
   if (!record) return;
+  const nextGen = (record.props.importMessagesGeneration ?? 0) + 1;
+  composeTrace(
+    'react.sync-messages-mount',
+    { messageCount: messages?.length ?? 0, generation: nextGen },
+    'warn',
+    { snap: true },
+  );
   renderMount(el, {
     ...record.props,
     initialMessages: messages,
-    importMessagesGeneration: (record.props.importMessagesGeneration ?? 0) + 1,
+    importMessagesGeneration: nextGen,
   });
 }
 
 export function unmountAgentChat(el: HTMLElement) {
   const record = mounts.get(el);
   if (!record) return;
+  composeTrace('react.unmount', { threadId: record.props.threadId }, 'error', { snap: true });
   record.root.unmount();
   mounts.delete(el);
 }
