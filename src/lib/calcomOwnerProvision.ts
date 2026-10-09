@@ -10,6 +10,7 @@
  * schema drift (users vs "User", avatar vs avatarUrl, …).
  */
 import { randomUUID } from 'node:crypto';
+import { calcomStripeEventMetadata } from './calcomBarberPaymentMetadata';
 import {
   hasAnyHours,
   MINUTES_PER_DAY,
@@ -251,7 +252,12 @@ export async function upsertCalcomEventTypes(
       periodType: 'unlimited',
       price: type.price,
       currency: type.price != null ? 'usd' : undefined,
-      metadata: type.price != null ? JSON.stringify({ price: type.price, currency: 'usd' }) : undefined,
+      metadata:
+        type.price != null && type.price > 0
+          ? JSON.stringify(calcomStripeEventMetadata(type.price, 'usd'))
+          : type.price != null
+            ? JSON.stringify({ price: type.price, currency: 'usd' })
+            : undefined,
     });
     if (id != null) {
       created += 1;

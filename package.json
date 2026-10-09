@@ -16,6 +16,8 @@
     "configure:luxe-cleaning-railway": "node --experimental-strip-types scripts/configure-luxe-cleaning-railway.ts",
     "provision:barber": "node scripts/provision-barber.js",
     "add:barber-events": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/add-barber-events.js",
+    "enable:barber-payments": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/enable-barber-cal-payments.js",
+    "wire:barber-stripe": "node scripts/wire-barber-cal-stripe-env.js",
     "fix:barber-cal": "node scripts/fix-barber-cal.js",
     "copy:mapbox:north-shore-mortgage": "node --experimental-strip-types scripts/copy-mapbox-north-shore-mortgage.ts",
     "wire:lux-felicia-routing": "node --experimental-strip-types scripts/wire-lux-felicia-email-routing.ts",
