@@ -215,19 +215,44 @@ export async function railwayCreateService(opts: {
   return { ok: true, id: row.id, name: row.name };
 }
 
+export async function railwayDisconnectServiceSource(
+  serviceId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const id = serviceId.trim();
+  if (!id) return { ok: false, error: 'service id is required' };
+  const result = await railwayGraphql<{ serviceDisconnect?: { id: string } | null }>({
+    query: `mutation serviceDisconnect($id: String!) {
+      serviceDisconnect(id: $id) { id }
+    }`,
+    variables: { id },
+  });
+  if (!result.ok) return { ok: false, error: railwayGqlError(result) };
+  return { ok: true };
+}
+
+/** @see ServiceConnectInput on Railway Public API (not ServiceSourceInput). */
 export async function railwayConnectServiceSource(opts: {
   serviceId: string;
   repo?: string;
   image?: string;
+  branch?: string;
+  /** When connecting a repo, call serviceDisconnect first (e.g. swap off Docker image). */
+  disconnectFirst?: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const input: Record<string, string> = {};
   if (opts.repo?.trim()) input.repo = opts.repo.trim();
   if (opts.image?.trim()) input.image = opts.image.trim();
+  if (opts.branch?.trim()) input.branch = opts.branch.trim();
   if (!Object.keys(input).length) return { ok: false, error: 'repo or image is required' };
 
-  const result = await railwayGraphql<{ serviceConnect?: { id: string } | null }>({
-    query: `mutation serviceConnect($id: String!, $input: ServiceSourceInput!) {
-      serviceConnect(id: $id, input: $input) { id }
+  if (opts.disconnectFirst && input.repo) {
+    const disconnected = await railwayDisconnectServiceSource(opts.serviceId);
+    if (!disconnected.ok) return disconnected;
+  }
+
+  const result = await railwayGraphql<{ serviceConnect?: { id: string; name?: string } | null }>({
+    query: `mutation serviceConnect($id: String!, $input: ServiceConnectInput!) {
+      serviceConnect(id: $id, input: $input) { id name }
     }`,
     variables: { id: opts.serviceId, input },
   });

@@ -166,10 +166,10 @@ async function createService(projectId, name, { repo, image, branch = 'main' } =
     const empty = await serviceCreateRaw({ projectId, name });
     if (!empty.ok) fail(`${name}: ${created.error}; empty: ${empty.error}`);
     await gql(
-      `mutation($id: String!, $input: ServiceSourceInput!) {
-        serviceConnect(id: $id, input: $input) { id }
+      `mutation($id: String!, $input: ServiceConnectInput!) {
+        serviceConnect(id: $id, input: $input) { id name }
       }`,
-      { id: empty.row.id, input: { repo } },
+      { id: empty.row.id, input: { repo, branch: 'main' } },
     );
     return empty.row;
   }

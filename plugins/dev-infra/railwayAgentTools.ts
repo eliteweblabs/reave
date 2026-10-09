@@ -462,6 +462,7 @@ async function handle_connect_railway_service_source(args: Record<string, unknow
 
   const repo = strArg(args, 'repo');
   const image = strArg(args, 'image');
+  const branch = strArg(args, 'branch') || (repo ? 'main' : undefined);
   if (!repo && !image) return JSON.stringify({ error: 'repo or image is required' });
 
   const resolved = await railwayResolveProject(projectRef);
@@ -474,6 +475,8 @@ async function handle_connect_railway_service_source(args: Record<string, unknow
     serviceId: svcResult.service.id,
     repo,
     image,
+    branch,
+    disconnectFirst: args.disconnect_image_first === true,
   });
   if (!result.ok) return JSON.stringify({ error: result.error });
 
@@ -890,7 +893,7 @@ export function railwayAgentToolDefinitions(ctx: ToolContext): AgentToolDef[] {
       function: {
         name: 'connect_railway_service_source',
         description:
-          'Connect an existing empty Railway service to a GitHub repo or container image (serviceConnect). Use when create_railway_service had to create an empty service first. Requires RAILWAY_API_TOKEN.',
+          'Connect an existing Railway service to a GitHub repo or container image (serviceConnect + ServiceConnectInput). Use when create_railway_service created an empty service first, or to attach a repo after disconnect_image_first. Requires RAILWAY_API_TOKEN.',
         parameters: {
           type: 'object',
           properties: {
@@ -898,6 +901,11 @@ export function railwayAgentToolDefinitions(ctx: ToolContext): AgentToolDef[] {
             service: { type: 'string', description: 'Service name or id' },
             repo: { type: 'string', description: 'GitHub owner/repo' },
             image: { type: 'string', description: 'Container image URI' },
+            branch: { type: 'string', description: 'Git branch when repo is set (default main)' },
+            disconnect_image_first: {
+              type: 'boolean',
+              description: 'Call serviceDisconnect before connecting a repo (swap Docker image → GitHub)',
+            },
           },
           required: ['project', 'service'],
           additionalProperties: false,
