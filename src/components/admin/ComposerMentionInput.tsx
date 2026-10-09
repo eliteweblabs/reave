@@ -2,6 +2,11 @@ import type { FocusEvent, KeyboardEvent, RefObject } from 'react';
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useAuiState, useComposerRuntime } from '@assistant-ui/react';
 import {
+  armReaveChatComposing,
+  isSentComposerEcho,
+  isVoiceOrDictationInputType,
+} from '../../lib/chatComposerDraft';
+import {
   getMentionEditorCaret,
   mentionEditorHasRawTokens,
   renderMentionEditor,
@@ -10,6 +15,19 @@ import {
   syncMentionEditorEmpty,
   type ComposerFieldHandle,
 } from '../../lib/composerMentionEditor';
+
+function lastUserMessagePlainText(
+  messages: ReadonlyArray<{ role: string; content?: ReadonlyArray<{ type: string; text?: string }> }>,
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role !== 'user') continue;
+    return (messages[i]?.content ?? [])
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text ?? '')
+      .join('');
+  }
+  return '';
+}
 
 export type { ComposerFieldHandle };
 
@@ -40,6 +58,7 @@ export function ComposerMentionInput({
   const caretRef = useRef(0);
   const composingRef = useRef(false);
   const composerText = useAuiState((s) => s.composer.text ?? '');
+  const lastUserText = useAuiState((s) => lastUserMessagePlainText(s.thread.messages));
 
   const applyHandle = useCallback(
     (el: HTMLDivElement | null) => {
@@ -91,6 +110,12 @@ export function ComposerMentionInput({
     // Dictation / IME often updates the DOM before assistant-ui composer state —
     // pushing empty state down would wipe the in-progress utterance.
     if (hadFocus && current.trim() && current !== composerText) {
+      if (!composerText.trim() && isSentComposerEcho(current, lastUserText)) {
+        renderMentionEditor(el, '');
+        lastSerializedRef.current = '';
+        syncMentionEditorEmpty(el, '');
+        return;
+      }
       if ((composer.getState().text ?? '') !== current) composer.setText(current);
       lastSerializedRef.current = current;
       syncMentionEditorEmpty(el, current);
@@ -110,7 +135,7 @@ export function ComposerMentionInput({
     lastSerializedRef.current = composerText;
     syncMentionEditorEmpty(el, composerText);
     if (hadFocus) setMentionEditorCaret(el, Math.min(caret, composerText.length));
-  }, [composer, composerText]);
+  }, [composer, composerText, lastUserText]);
 
   return (
     <div
@@ -136,34 +161,19 @@ export function ComposerMentionInput({
       onBlur={onBlur}
       onBeforeInput={(e) => {
         const type = e.nativeEvent.inputType || '';
-        if (/dictation|voice|speech/i.test(type)) {
-          try {
-            (window as Window & { __reaveChatComposing?: boolean }).__reaveChatComposing = true;
-            window.dispatchEvent(new CustomEvent('reave:chat-compose-active', { detail: true }));
-          } catch {
-            /* ignore */
-          }
-        }
+        if (isVoiceOrDictationInputType(type)) armReaveChatComposing();
       }}
       onCompositionStart={() => {
         composingRef.current = true;
-        try {
-          (window as Window & { __reaveChatComposing?: boolean }).__reaveChatComposing = true;
-          window.dispatchEvent(new CustomEvent('reave:chat-compose-active', { detail: true }));
-        } catch {
-          /* ignore */
-        }
+        armReaveChatComposing();
       }}
       onCompositionEnd={(e) => {
         composingRef.current = false;
-        try {
-          (window as Window & { __reaveChatComposing?: boolean }).__reaveChatComposing = false;
-        } catch {
-          /* ignore */
-        }
+        armReaveChatComposing();
         commit(e.currentTarget);
       }}
       onInput={(e) => {
+        armReaveChatComposing();
         if (composingRef.current) return;
         commit(e.currentTarget);
       }}

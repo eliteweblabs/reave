@@ -75,6 +75,11 @@ import { combineAbortSignals, isSseStalledError, readSseStream } from '../../lib
 import { formatAgentUsageLine, type AgentUsageSummary } from '../../lib/agentUsage';
 import { armAgentTones, playChatDoneTone, playDeployDoneTone, resumeAgentTones } from '../../lib/agentTones';
 import { isChatRunActive, sameAgentProgressUi, type AgentProgress } from '../../lib/agentProgress';
+import { isSentComposerEcho, readChatComposeDraftForThread } from '../../lib/chatComposerDraft';
+import {
+  renderMentionEditor,
+  syncMentionEditorEmpty,
+} from '../../lib/composerMentionEditor';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -1199,12 +1204,6 @@ function lastUserMessageText(
   return '';
 }
 
-/** True when `text` is just the last already-sent user bubble — not an unsent draft. */
-function isSentComposerEcho(text: string, lastUserText: string): boolean {
-  const a = text.trim();
-  return Boolean(a) && a === lastUserText.trim();
-}
-
 function readDeployChatDraftsMap(): Record<string, DeployChatDraftEntry> {
   try {
     const raw = sessionStorage.getItem(DEPLOY_CHAT_DRAFT_KEY);
@@ -2296,6 +2295,7 @@ function useSlashHelpers(
   commands: AgentHelperCommand[],
   fieldRef: RefObject<ComposerFieldHandle | null>,
   sendBlocked = false,
+  sendNow?: () => void,
 ) {
   const composer = useComposerRuntime();
   const [composeText, setComposeText] = useState('');
@@ -2303,6 +2303,9 @@ function useSlashHelpers(
   const [activeIdx, setActiveIdx] = useState(-1);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const fireSend = sendNow ?? (() => {
+    if (composer.getState().canSend) void composer.send();
+  });
 
   const filtered = filterHelperCommands(composeText, commands);
   const showHelpers = helpersOpen && filtered.length > 0;
@@ -2426,7 +2429,7 @@ function useSlashHelpers(
     }
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (!sendBlocked && composer.getState().canSend) void composer.send();
+      if (!sendBlocked) fireSend();
       return;
     }
     if (e.key !== 'Enter' || e.shiftKey) return;
@@ -2439,10 +2442,10 @@ function useSlashHelpers(
     const matched = matchHelperCommand(composeText, commands);
     if (matched && composeText.trim().toLowerCase() === matched.slash) {
       composer.setText(matched.template);
-      if (!sendBlocked) void composer.send();
+      if (!sendBlocked) fireSend();
       return;
     }
-    if (!sendBlocked && composer.getState().canSend) void composer.send();
+    if (!sendBlocked) fireSend();
   };
 
   return {
@@ -2644,21 +2647,42 @@ function ClaudeComposer({
     replyOnScreen,
     onStopExternal,
   );
+  const sendBtnRef = useRef<HTMLButtonElement | null>(null);
+  const sentByTouchRef = useRef(false);
+  /** Last typed value — survives a post-deploy reload if runtime text is briefly empty. */
+  const typedDraftRef = useRef('');
+  const sendNow = useCallback(() => {
+    clearChatComposeDraft(threadId);
+    typedDraftRef.current = '';
+    if (composer.getState().canSend) void composer.send();
+  }, [composer, threadId]);
   const interruptAndSend = useCallback(() => {
     dropLocalRun();
     void fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, { method: 'POST' }).catch(
       () => {},
     );
-    if (composer.getState().canSend) void composer.send();
-  }, [composer, dropLocalRun, threadId]);
-  const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked);
+    sendNow();
+  }, [dropLocalRun, sendNow, threadId]);
+  const helpers = useSlashHelpers(propsRef, commands, fieldRef, sendBlocked, sendNow);
   const mentions = useMentions(pendingMentionsRef, fieldRef);
-  const sendBtnRef = useRef<HTMLButtonElement | null>(null);
-  const sentByTouchRef = useRef(false);
-  /** Last typed value — survives a post-deploy reload if runtime text is briefly empty. */
-  const typedDraftRef = useRef('');
   const lastUserText = useAuiState((s) => lastUserMessageText(s.thread.messages));
   useCapComposerAttachments();
+
+  useLayoutEffect(() => {
+    const current = composer.getState().text ?? '';
+    if (!current.trim() || !isSentComposerEcho(current, lastUserText)) return;
+    composer.setText('');
+    typedDraftRef.current = '';
+    clearChatComposeDraft(threadId);
+    clearDeployChatDraft(threadId);
+    onQueuedChange?.(false);
+    propsRef.current?.onComposeDirty?.(false);
+    const el = fieldRef.current?.getElement();
+    if (el instanceof HTMLElement) {
+      renderMentionEditor(el, '');
+      syncMentionEditorEmpty(el, '');
+    }
+  }, [composer, lastUserText, onQueuedChange, propsRef, threadId]);
 
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
@@ -2696,11 +2720,11 @@ function ClaudeComposer({
       if (!composer.getState().canSend) return;
       sentByTouchRef.current = true;
       if (canInterruptSend) interruptAndSend();
-      else void composer.send();
+      else sendNow();
     };
     btn.addEventListener('touchstart', onTouchStart, { passive: false });
     return () => btn.removeEventListener('touchstart', onTouchStart);
-  }, [canInterruptSend, composer, interruptAndSend, sendBlocked]);
+  }, [canInterruptSend, interruptAndSend, sendBlocked, sendNow]);
 
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
@@ -2948,6 +2972,8 @@ function PersistedMessageImporter({
     if (isRunning) return;
     const draft = (composer.getState().text ?? '').trim();
     if (draft && !isSentComposerEcho(draft, lastUserText)) return;
+    const threadId = propsRef.current?.threadId;
+    if (threadId && readChatComposeDraftForThread(threadId)) return;
     if (typeof document !== 'undefined') {
       if (document.querySelector('#chat-panel .aui-input:focus, .aui-root--focus .aui-input:focus'))
         return;

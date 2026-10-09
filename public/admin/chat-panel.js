@@ -1098,7 +1098,7 @@ function setChatComposeSession(active) {
   }
 }
 
-function scheduleClearChatComposeSession(delayMs = 2800) {
+function scheduleClearChatComposeSession(delayMs = 3400) {
   if (composeSessionClearTimer) clearTimeout(composeSessionClearTimer);
   composeSessionClearTimer = setTimeout(() => {
     composeSessionClearTimer = null;
