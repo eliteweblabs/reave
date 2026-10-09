@@ -11,14 +11,11 @@ import { randomBytes } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { loadBarberConfig, fail } from './barber-config.js';
 import { syncBarberCalEventTypes } from './barber-cal-events.js';
+import { CALCOM_IMAGE, CALCOM_START } from './barber-cal-railway.js';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
 const POSTGRES_IMAGE = 'ghcr.io/railwayapp-templates/postgres-ssl:edge';
 const POSTGRES_VOLUME = '/var/lib/postgresql/data';
-/** Same pinned digest as deploy wizard calcom-web-app — not :latest. */
-const CALCOM_IMAGE =
-  'calcom/cal.com@sha256:ace3bb1219fb7306585ab9f4d94d41af7ee064c343db0498173436bbe857bd49';
-const CALCOM_START = '/calcom/scripts/start.sh';
 const ENV_NAME = 'production';
 
 function log(step, msg) {
