@@ -1,0 +1,514 @@
+#!/usr/bin/env node
+/**
+ * Provision a solo barber stack on Railway (Postgres + Cal.com + site + contact API).
+ *
+ * Usage:
+ *   RAILWAY_API_TOKEN=… GITHUB_TOKEN=… npm run provision:barber -- configs/steven-diaz.json
+ *
+ * Optional: CALCOM_API_KEY — create event types after Cal.com deploy (Step 8).
+ */
+import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
+
+const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
+const POSTGRES_IMAGE = 'ghcr.io/railwayapp-templates/postgres-ssl:edge';
+const POSTGRES_VOLUME = '/var/lib/postgresql/data';
+const ENV_NAME = 'production';
+
+function log(step, msg) {
+  console.log(`[${step}] ${msg}`);
+}
+
+function fail(msg) {
+  console.error(`\n✗ ${msg}`);
+  process.exit(1);
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function railwayRef(service, variable) {
+  return `\${{ ${service}.${variable} }}`;
+}
+
+function token(name) {
+  const t = process.env[name]?.trim();
+  if (!t) fail(`${name} is not set`);
+  return t;
+}
+
+async function gql(query, variables) {
+  const res = await fetch(RAILWAY_GRAPHQL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token('RAILWAY_API_TOKEN')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, variables: variables ?? {} }),
+  });
+  const raw = await res.text();
+  let body;
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    fail(`Invalid JSON from Railway: ${raw.slice(0, 200)}`);
+  }
+  if (!res.ok || body.errors?.length) {
+    fail(body.errors?.map((e) => e.message).join('; ') || `Railway HTTP ${res.status}`);
+  }
+  if (body.data === undefined) fail('No data in Railway response');
+  return body.data;
+}
+
+function loadConfig(path) {
+  let raw;
+  try {
+    raw = readFileSync(path, 'utf8');
+  } catch (e) {
+    fail(`Cannot read config: ${path} (${e.message})`);
+  }
+  let cfg;
+  try {
+    cfg = JSON.parse(raw);
+  } catch {
+    fail(`Invalid JSON in ${path}`);
+  }
+  for (const key of [
+    'name',
+    'slug',
+    'email',
+    'github_site_repo',
+    'github_api_repo',
+    'railway_workspace_id',
+    'services',
+  ]) {
+    if (cfg[key] === undefined || cfg[key] === null || cfg[key] === '') {
+      fail(`Config missing required field: ${key}`);
+    }
+  }
+  if (!Array.isArray(cfg.services) || !cfg.services.length) {
+    fail('Config.services must be a non-empty array');
+  }
+  return cfg;
+}
+
+async function verifyGithubRepo(repo, label) {
+  const gh = process.env.GITHUB_TOKEN?.trim();
+  if (!gh) fail('GITHUB_TOKEN is not set (needed to verify GitHub repos)');
+  const [owner, repoName] = repo.split('/');
+  if (!owner || !repoName) fail(`Invalid github repo "${repo}" for ${label}`);
+
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repoName}/contents/`, {
+    headers: {
+      Authorization: `Bearer ${gh}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+  if (res.status === 404) fail(`GitHub repo not found: ${repo} (${label})`);
+  if (!res.ok) {
+    const t = await res.text();
+    fail(`GitHub Contents API ${res.status} for ${repo}: ${t.slice(0, 200)}`);
+  }
+  log('preflight', `✓ GitHub repo ${repo} (${label})`);
+}
+
+async function createProject(name, workspaceId) {
+  const data = await gql(
+    `mutation($input: ProjectCreateInput!) {
+      projectCreate(input: $input) { id name }
+    }`,
+    { input: { name, workspaceId } },
+  );
+  const row = data.projectCreate;
+  if (!row?.id) fail('projectCreate returned no id');
+  return row;
+}
+
+async function resolveProject(projectId) {
+  const data = await gql(
+    `query($id: String!) {
+      project(id: $id) {
+        id name
+        environments { edges { node { id name } } }
+        services { edges { node { id name } } }
+      }
+    }`,
+    { id: projectId },
+  );
+  if (!data.project) fail(`Project not found: ${projectId}`);
+  return {
+    project: { id: data.project.id, name: data.project.name },
+    environments: (data.project.environments?.edges ?? []).map((e) => e.node),
+    services: (data.project.services?.edges ?? []).map((e) => e.node),
+  };
+}
+
+function pickEnvironment(environments) {
+  const needle = ENV_NAME.toLowerCase();
+  return (
+    environments.find((e) => e.name.toLowerCase() === needle) ??
+    environments.find((e) => e.name.toLowerCase().includes(needle)) ??
+    environments[0] ??
+    null
+  );
+}
+
+async function serviceCreateRaw(input) {
+  const res = await fetch(RAILWAY_GRAPHQL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token('RAILWAY_API_TOKEN')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: `mutation($input: ServiceCreateInput!) {
+        serviceCreate(input: $input) { id name }
+      }`,
+      variables: { input },
+    }),
+  });
+  const raw = await res.text();
+  let body;
+  try {
+    body = raw ? JSON.parse(raw) : {};
+  } catch {
+    return { ok: false, error: `Invalid JSON: ${raw.slice(0, 200)}` };
+  }
+  if (!res.ok || body.errors?.length) {
+    return {
+      ok: false,
+      error: body.errors?.map((e) => e.message).join('; ') || `HTTP ${res.status}`,
+    };
+  }
+  const row = body.data?.serviceCreate;
+  if (!row?.id) return { ok: false, error: 'serviceCreate returned no id' };
+  return { ok: true, row };
+}
+
+async function createService(projectId, name, { repo, image, branch = 'main' } = {}) {
+  const source = {};
+  if (repo) source.repo = repo;
+  if (image) source.image = image;
+  const input = { projectId, name };
+  if (Object.keys(source).length) input.source = source;
+  if (repo && branch) input.branch = branch;
+
+  let created = await serviceCreateRaw(input);
+  if (!created.ok && repo) {
+    log('railway', `serviceCreate with repo failed (${created.error}) — empty service + serviceConnect`);
+    const empty = await serviceCreateRaw({ projectId, name });
+    if (!empty.ok) fail(`${name}: ${created.error}; empty: ${empty.error}`);
+    await gql(
+      `mutation($id: String!, $input: ServiceSourceInput!) {
+        serviceConnect(id: $id, input: $input) { id }
+      }`,
+      { id: empty.row.id, input: { repo } },
+    );
+    return empty.row;
+  }
+  if (!created.ok) fail(`${name}: ${created.error}`);
+  return created.row;
+}
+
+async function createVolume(projectId, environmentId, serviceId, mountPath) {
+  const data = await gql(
+    `mutation($input: VolumeCreateInput!) {
+      volumeCreate(input: $input) { id }
+    }`,
+    {
+      input: { projectId, environmentId, serviceId, mountPath },
+    },
+  );
+  const id = data.volumeCreate?.id;
+  if (!id) fail('volumeCreate returned no id');
+  return id;
+}
+
+async function upsertVariables(projectId, environmentId, serviceId, variables, skipDeploys = false) {
+  for (const [name, value] of Object.entries(variables)) {
+    await gql(
+      `mutation($input: VariableUpsertInput!) {
+        variableUpsert(input: $input)
+      }`,
+      {
+        input: {
+          projectId,
+          environmentId,
+          serviceId,
+          name,
+          value: String(value),
+        },
+      },
+    );
+  }
+  if (!skipDeploys) {
+    // Railway redeploys on variable upsert by default — no extra call.
+  }
+}
+
+async function ensurePublicDomain(projectId, environmentId, serviceId) {
+  const existing = await gql(
+    `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+      domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) {
+        serviceDomains { domain }
+      }
+    }`,
+    { projectId, environmentId, serviceId },
+  );
+  const domains = existing.domains?.serviceDomains ?? [];
+  if (domains[0]?.domain) return domains[0].domain;
+
+  const created = await gql(
+    `mutation($input: ServiceDomainCreateInput!) {
+      serviceDomainCreate(input: $input) { domain }
+    }`,
+    { input: { serviceId, environmentId } },
+  );
+  const domain = created.serviceDomainCreate?.domain;
+  if (!domain) fail('serviceDomainCreate returned no domain');
+  return domain;
+}
+
+async function updateStartCommand(serviceId, environmentId, startCommand) {
+  await gql(
+    `mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+      serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+    }`,
+    { serviceId, environmentId, input: { startCommand } },
+  );
+}
+
+async function listRenderedVariables(projectId, environmentId, serviceId) {
+  const data = await gql(
+    `query($projectId: String!, $environmentId: String!, $serviceId: String!) {
+      variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+    }`,
+    { projectId, environmentId, serviceId },
+  );
+  return data.variables ?? {};
+}
+
+async function redeployService(serviceId, environmentId) {
+  await gql(
+    `mutation($serviceId: String!, $environmentId: String!) {
+      serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+    }`,
+    { serviceId, environmentId },
+  );
+}
+
+function waitForEnter() {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question('', () => {
+      rl.close();
+      resolve();
+    });
+  });
+}
+
+function encodePgPassword(password) {
+  return encodeURIComponent(password);
+}
+
+async function createCalEventTypes(webappUrl, apiKey, name, services) {
+  const base = webappUrl.replace(/\/$/, '');
+  const q = `apiKey=${encodeURIComponent(apiKey)}`;
+  const headers = { 'Content-Type': 'application/json' };
+
+  const listRes = await fetch(`${base}/api/v1/event-types?${q}`, { headers });
+  if (listRes.status === 401) {
+    log(
+      'STEP 8',
+      'Cal.com API returned 401 — skip event types. After onboarding: Cal.com → Settings → Developer → API Keys, then export CALCOM_API_KEY and run scripts/add-barber-events.js',
+    );
+    return [];
+  }
+  if (!listRes.ok) {
+    log('STEP 8', `GET event-types failed (${listRes.status}) — skipping event type creation`);
+    return [];
+  }
+
+  const created = [];
+  for (const svc of services) {
+    const body = {
+      title: svc.name,
+      slug: svc.slug,
+      length: svc.duration,
+      price: svc.price,
+      currency: 'usd',
+      description: `${name} — ${svc.duration} min`,
+    };
+    const res = await fetch(`${base}/api/v1/event-types?${q}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      log('STEP 8', `⚠ POST ${svc.slug} failed (${res.status}): ${t.slice(0, 120)}`);
+      continue;
+    }
+    const json = await res.json();
+    const id = json.event_type?.id ?? json.id ?? json.data?.id;
+    created.push({ slug: svc.slug, id: id ?? '?' });
+    log('STEP 8', `✓ event type ${svc.slug} → id ${id ?? '?'}`);
+  }
+  return created;
+}
+
+async function main() {
+  const configPath = process.argv[2];
+  if (!configPath) fail('Usage: node scripts/provision-barber.js <config.json>');
+
+  const cfg = loadConfig(configPath);
+  const dbName = `${cfg.slug}-db`;
+  const calName = `${cfg.slug}-cal`;
+  const siteName = `${cfg.slug}-site`;
+  const apiName = `${cfg.slug}-api`;
+
+  log('preflight', `Barber: ${cfg.name} (${cfg.slug})`);
+  await verifyGithubRepo(cfg.github_site_repo, 'site');
+  await verifyGithubRepo(cfg.github_api_repo, 'api');
+
+  log('STEP 1', `Creating Railway project "${cfg.name}"…`);
+  const project = await createProject(cfg.name, cfg.railway_workspace_id);
+  log('STEP 1', `✓ project id ${project.id}`);
+
+  const resolved = await resolveProject(project.id);
+  const environment = pickEnvironment(resolved.environments);
+  if (!environment) fail('No environment found on new project');
+  const { id: environmentId } = environment;
+
+  log('STEP 2', `Provisioning Postgres "${dbName}"…`);
+  const dbSvc = await createService(project.id, dbName, { image: POSTGRES_IMAGE });
+  await createVolume(project.id, environmentId, dbSvc.id, POSTGRES_VOLUME);
+  const pgPassword = randomBytes(24).toString('hex');
+  await upsertVariables(project.id, environmentId, dbSvc.id, {
+    POSTGRES_USER: 'postgres',
+    POSTGRES_DB: 'railway',
+    POSTGRES_PASSWORD: pgPassword,
+    PGDATA: '/var/lib/postgresql/data/pgdata',
+    DATABASE_URL:
+      'postgresql://${{POSTGRES_USER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{POSTGRES_DB}}',
+  });
+  const dbRef = railwayRef(dbName, 'DATABASE_URL');
+  log('STEP 2', `✓ Postgres service ${dbSvc.id}; DATABASE_URL ref ${dbRef}`);
+
+  log('STEP 3', `Creating Cal.com "${calName}"…`);
+  const calSvc = await createService(project.id, calName, { image: 'calcom/cal.com:latest' });
+  let calDomain = await ensurePublicDomain(project.id, environmentId, calSvc.id);
+  const calBase = `https://${calDomain}`;
+  const nextAuthSecret = randomBytes(32).toString('hex');
+  const encryptionKey = randomBytes(32).toString('hex');
+
+  await upsertVariables(project.id, environmentId, calSvc.id, {
+    DATABASE_URL: dbRef,
+    DATABASE_DIRECT_URL: '',
+    NEXTAUTH_SECRET: nextAuthSecret,
+    CALENDSO_ENCRYPTION_KEY: encryptionKey,
+    NEXTAUTH_URL: calBase,
+    NEXT_PUBLIC_WEBAPP_URL: calBase,
+    NEXT_PUBLIC_APP_NAME: `${cfg.name} Bookings`,
+    NEXT_PUBLIC_LICENSE_CONSENT: 'agree',
+    LICENSE: 'agree',
+    PRISMA_GENERATE_DATAPROXY: 'false',
+    ALLOWED_HOSTNAMES: `"${calDomain}"`,
+    PORT: '3000',
+  });
+  await updateStartCommand(calSvc.id, environmentId, 'npx prisma migrate deploy && yarn start');
+  log('STEP 3', `✓ Cal.com at ${calBase}`);
+
+  log('STEP 4', `Creating site "${siteName}" from ${cfg.github_site_repo}…`);
+  const siteSvc = await createService(project.id, siteName, {
+    repo: cfg.github_site_repo,
+    branch: 'main',
+  });
+  const siteDomain = await ensurePublicDomain(project.id, environmentId, siteSvc.id);
+  const siteBase = `https://${siteDomain}`;
+  await upsertVariables(project.id, environmentId, siteSvc.id, {
+    PUBLIC_CALCOM_BASE: `${calBase}/${cfg.slug}`,
+    PUBLIC_CALCOM_USERNAME: cfg.slug,
+    PORT: '3000',
+  });
+  log('STEP 4', `✓ Site at ${siteBase}`);
+
+  log('STEP 5', `Creating contact API "${apiName}" from ${cfg.github_api_repo}…`);
+  const apiSvc = await createService(project.id, apiName, {
+    repo: cfg.github_api_repo,
+    branch: 'main',
+  });
+  await upsertVariables(project.id, environmentId, apiSvc.id, {
+    DATABASE_URL: dbRef,
+    PORT: '3000',
+  });
+  log('STEP 5', `✓ API service ${apiSvc.id} (no public domain)`);
+
+  console.log(`
+╔══════════════════════════════════════════════════╗
+║  MANUAL STEP REQUIRED — 30 seconds               ║
+║                                                  ║
+║  1. Open Railway dashboard                       ║
+║  2. Project: ${cfg.name.padEnd(33)}║
+║  3. Service: ${dbName.padEnd(33)}║
+║  4. Settings → Networking → Create TCP Proxy     ║
+║  5. Press ENTER here when done                   ║
+╚══════════════════════════════════════════════════╝`);
+  await waitForEnter();
+
+  log('STEP 7', `Reading TCP proxy variables on ${dbName}…`);
+  const dbVars = await listRenderedVariables(project.id, environmentId, dbSvc.id);
+  const tcpDomain = dbVars.RAILWAY_TCP_PROXY_DOMAIN?.trim();
+  const tcpPort = dbVars.RAILWAY_TCP_PROXY_PORT?.trim();
+  const password = (dbVars.PGPASSWORD || dbVars.POSTGRES_PASSWORD || '').trim();
+  if (!tcpDomain || !tcpPort || !password) {
+    fail(
+      `Missing TCP proxy vars on ${dbName}. Need RAILWAY_TCP_PROXY_DOMAIN, RAILWAY_TCP_PROXY_PORT, and PGPASSWORD/POSTGRES_PASSWORD. Found keys: ${Object.keys(dbVars).join(', ')}`,
+    );
+  }
+  const directUrl = `postgresql://postgres:${encodePgPassword(password)}@${tcpDomain}:${tcpPort}/railway`;
+  await upsertVariables(project.id, environmentId, calSvc.id, {
+    DATABASE_DIRECT_URL: directUrl,
+  });
+  log('STEP 7', `✓ DATABASE_DIRECT_URL set on ${calName}`);
+
+  log('STEP 8', 'Waiting 10s for Cal.com first deploy…');
+  await sleep(10_000);
+  const apiKey = process.env.CALCOM_API_KEY?.trim();
+  if (apiKey) {
+    const ids = await createCalEventTypes(calBase, apiKey, cfg.name, cfg.services);
+    if (ids.length) {
+      log('STEP 8', `Created ${ids.length} event type(s): ${ids.map((x) => `${x.slug}=${x.id}`).join(', ')}`);
+    }
+  } else {
+    log(
+      'STEP 8',
+      'CALCOM_API_KEY not set — skip event types. Set it after Cal.com onboarding to POST /api/v1/event-types, or run scripts/add-barber-events.js',
+    );
+  }
+
+  log('STEP 9', `Redeploying ${calName} and ${siteName}…`);
+  await redeployService(calSvc.id, environmentId);
+  await redeployService(siteSvc.id, environmentId);
+  log('STEP 9', '✓ redeploy triggered');
+
+  const configFile = configPath.replace(/^.*\//, '');
+  console.log(`
+══════════════════════════════════════════════════
+  Project:     ${cfg.name}
+  Website:     ${siteBase}
+  Calendar:    ${calBase}
+  API:         private (${apiName})
+  DB:          private (${dbName})
+  Next step:   Complete Cal.com onboarding at the Calendar URL
+               then run: node scripts/add-barber-events.js configs/${configFile}
+══════════════════════════════════════════════════`);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

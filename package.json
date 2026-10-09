@@ -14,6 +14,7 @@
     "provision:vapi": "node --experimental-strip-types scripts/provision-vapi-assistant.ts",
     "deploy:luxe-cleaning": "bash scripts/deploy-luxe-cleaning.sh",
     "configure:luxe-cleaning-railway": "node --experimental-strip-types scripts/configure-luxe-cleaning-railway.ts",
+    "provision:barber": "node scripts/provision-barber.js",
     "copy:mapbox:north-shore-mortgage": "node --experimental-strip-types scripts/copy-mapbox-north-shore-mortgage.ts",
     "wire:lux-felicia-routing": "node --experimental-strip-types scripts/wire-lux-felicia-email-routing.ts",
     "seed:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-demo.ts",
