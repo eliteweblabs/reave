@@ -3,7 +3,7 @@
  * Provision a solo barber stack on Railway (Postgres + Cal.com + site + contact API).
  *
  * Usage:
- *   RAILWAY_API_TOKEN=… GITHUB_TOKEN=… npm run provision:barber -- configs/steven-diaz.json
+ *   RAILWAY_API_TOKEN=… GITHUB_TOKEN=… npm run provision:barber -- configs/stevendiaz.json
  *
  * Optional: CALCOM_API_KEY — create event types after Cal.com deploy (Step 8).
  */
