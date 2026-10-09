@@ -198,3 +198,14 @@ export function mentionEditorHasRawTokens(el: HTMLElement): boolean {
 export function syncMentionEditorEmpty(el: HTMLElement, text: string): void {
   el.dataset.empty = text.trim() ? '0' : '1';
 }
+
+/** Grow/shrink the composer field to fit wrapped lines (respects CSS min/max-height). */
+export function syncComposerFieldHeight(el: HTMLElement): void {
+  el.style.height = 'auto';
+  const styles = getComputedStyle(el);
+  const maxPx = parseFloat(styles.maxHeight);
+  let height = el.scrollHeight;
+  if (Number.isFinite(maxPx) && maxPx > 0) height = Math.min(height, maxPx);
+  el.style.height = `${height}px`;
+  if (el.dataset.empty === '1') el.style.height = '';
+}

@@ -7,6 +7,7 @@ import {
   renderMentionEditor,
   serializeMentionEditor,
   setMentionEditorCaret,
+  syncComposerFieldHeight,
   syncMentionEditorEmpty,
   type ComposerFieldHandle,
 } from '../../lib/composerMentionEditor';
@@ -77,11 +78,17 @@ export function ComposerMentionInput({
       }
       lastSerializedRef.current = text;
       syncMentionEditorEmpty(el, text);
+      syncComposerFieldHeight(el);
       if ((composer.getState().text ?? '') !== text) composer.setText(text);
       onInput(text, caret);
     },
     [composer, onInput],
   );
+
+  useLayoutEffect(() => {
+    const el = editorRef.current;
+    if (el) syncComposerFieldHeight(el);
+  }, []);
 
   useLayoutEffect(() => {
     const el = editorRef.current;
@@ -94,11 +101,13 @@ export function ComposerMentionInput({
       if ((composer.getState().text ?? '') !== current) composer.setText(current);
       lastSerializedRef.current = current;
       syncMentionEditorEmpty(el, current);
+      syncComposerFieldHeight(el);
       return;
     }
     if (current === composerText && !mentionEditorHasRawTokens(el)) {
       lastSerializedRef.current = composerText;
       syncMentionEditorEmpty(el, composerText);
+      syncComposerFieldHeight(el);
       return;
     }
     const caret = hadFocus
@@ -109,6 +118,7 @@ export function ComposerMentionInput({
     renderMentionEditor(el, composerText);
     lastSerializedRef.current = composerText;
     syncMentionEditorEmpty(el, composerText);
+    syncComposerFieldHeight(el);
     if (hadFocus) setMentionEditorCaret(el, Math.min(caret, composerText.length));
   }, [composer, composerText]);
 
