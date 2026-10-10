@@ -3,6 +3,8 @@
   "slug": "stevendiaz",
   "domain": null,
   "email": "steven@thebarbersedge.com",
+  "phone": "",
+  "staff_app": { "enabled": true },
   "github_site_repo": "eliteweblabs/stevendiaz-site",
   "github_api_repo": "eliteweblabs/stevendiaz-api",
   "railway_workspace_id": "c8d49e41-05f3-42ee-bf1d-3fc946a00a1a",

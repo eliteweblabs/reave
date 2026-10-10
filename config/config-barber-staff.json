@@ -1,0 +1,9 @@
+{
+  "features": ["scheduling"],
+  "footerNav": ["__system__", "dashboard", "todo", "schedule", "clients"],
+  "profileMenu": ["profile", "company", "settings"],
+  "homepageTemplate": "login",
+  "moduleStatus": {
+    "scheduling": "deployed"
+  }
+}

@@ -3,6 +3,8 @@
   "slug": "stevendiaz",
   "domain": null,
   "email": "steven@example.com",
+  "phone": "+15551234567",
+  "staff_app": { "enabled": true },
   "github_site_repo": "eliteweblabs/stevendiaz-site",
   "github_api_repo": "eliteweblabs/stevendiaz-api",
   "railway_workspace_id": "YOUR_WORKSPACE_ID",

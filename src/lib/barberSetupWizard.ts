@@ -6,6 +6,7 @@ export type BarberSetupStepId =
   | 'payments'
   | 'sync'
   | 'test'
+  | 'nfc'
   | 'done';
 
 export type BarberSetupStep = {
@@ -20,8 +21,24 @@ export const BARBER_SETUP_STEPS: readonly BarberSetupStep[] = [
   { id: 'payments', title: 'How clients pay' },
   { id: 'sync', title: 'Apply & sync' },
   { id: 'test', title: 'Test booking' },
+  { id: 'nfc', title: 'NFC staff card' },
   { id: 'done', title: 'Go live' },
 ];
+
+/** URL to program on NFC chips (same pattern as Barry Levine / LevinesLaw). */
+export function barberNfcCardUrl(opts: {
+  siteOrigin: string;
+  staffAppOrigin?: string | null;
+  preferSitePath?: boolean;
+}): string {
+  const site = opts.siteOrigin.replace(/\/$/, '');
+  if (opts.preferSitePath !== false) {
+    return `${site}/card`;
+  }
+  const staff = opts.staffAppOrigin?.trim().replace(/\/$/, '');
+  if (staff) return `${staff}/card`;
+  return `${site}/card`;
+}
 
 export type BarberSetupWizardState = {
   steps: Record<BarberSetupStepId, boolean>;

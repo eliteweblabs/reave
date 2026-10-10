@@ -9,7 +9,7 @@
  * (Cal.com API keys are commercial on self-hosted cal.com). Optional CALCOM_API_KEY for API path.
  */
 import { randomBytes } from 'node:crypto';
-import { barberSetupWizardUrl } from '../src/lib/barberSetupWizard.ts';
+import { barberNfcCardUrl, barberSetupWizardUrl } from '../src/lib/barberSetupWizard.ts';
 import { createInterface } from 'node:readline';
 import { loadBarberConfig, fail } from './barber-config.js';
 import { syncBarberCalEventTypes } from './barber-cal-events.js';
@@ -383,6 +383,45 @@ async function main() {
   });
   log('STEP 5', `✓ API service ${apiSvc.id} (no public domain)`);
 
+  let staffAppBase = '';
+  const staffEnabled = cfg.staff_app?.enabled !== false;
+  if (staffEnabled) {
+    const osDbName = `${cfg.slug}-os-db`;
+    const appName = `${cfg.slug}-app`;
+    log('STEP 5b', `Staff app (NFC /card passkey) — ${osDbName} + ${appName}…`);
+    const osDbSvc = await createService(project.id, osDbName, { image: POSTGRES_IMAGE });
+    await createVolume(project.id, environmentId, osDbSvc.id, POSTGRES_VOLUME);
+    const osPgPassword = randomBytes(24).toString('hex');
+    const osDbRef = railwayRef(osDbName, 'DATABASE_URL');
+    await upsertVariables(project.id, environmentId, osDbSvc.id, {
+      POSTGRES_USER: 'postgres',
+      POSTGRES_DB: 'railway',
+      POSTGRES_PASSWORD: osPgPassword,
+      PGDATA: '/var/lib/postgresql/data/pgdata',
+      DATABASE_URL:
+        'postgresql://${{POSTGRES_USER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{POSTGRES_DB}}',
+    });
+    const appSvc = await createService(project.id, appName, {
+      repo: 'eliteweblabs/reave',
+      branch: 'main',
+    });
+    const appDomain = await ensurePublicDomain(project.id, environmentId, appSvc.id);
+    staffAppBase = `https://${appDomain}`;
+    const appPublicRef = `https://\${{ ${appName}.RAILWAY_PUBLIC_DOMAIN }}`;
+    await upsertVariables(project.id, environmentId, appSvc.id, {
+      INSTALL_CONFIG: 'barber-staff',
+      DATABASE_URL: osDbRef,
+      PUBLIC_SITE_DOMAIN: `\${{ ${appName}.RAILWAY_PUBLIC_DOMAIN }}`,
+      COMPANY_NAME: cfg.name,
+      COMPANY_SUPPORT_PHONE: cfg.phone?.trim() || '',
+      PORT: '4321',
+    });
+    await upsertVariables(project.id, environmentId, siteSvc.id, {
+      PUBLIC_STAFF_APP_URL: appPublicRef,
+    });
+    log('STEP 5b', `✓ Staff app ${staffAppBase}/card (set Clerk keys on ${appName})`);
+  }
+
   console.log(`
 ╔══════════════════════════════════════════════════╗
 ║  MANUAL STEP REQUIRED — 30 seconds               ║
@@ -462,7 +501,8 @@ async function main() {
   API:         private (${apiName})
   DB:          private (${dbName})
   Setup:       ${barberSetupWizardUrl(siteBase, setupWizardSecret)}
-  Next:        Finish the setup wizard, then hide default Cal 15/30 min types
+  NFC /card:   ${barberNfcCardUrl({ siteOrigin: siteBase, staffAppOrigin: staffAppBase || null })}
+  Next:        Finish setup wizard; program NFC; first /card visit registers passkey (Barry Levine flow)
 ══════════════════════════════════════════════════`);
 }
 

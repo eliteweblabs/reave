@@ -20,6 +20,7 @@
     "wire:barber-stripe": "node scripts/wire-barber-cal-stripe-env.js",
     "apply:barber-setup": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/apply-barber-setup.js",
     "barber:setup-url": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/print-barber-setup-url.js",
+    "add:barber-staff-app": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/add-barber-staff-app.js",
     "fix:barber-cal": "node scripts/fix-barber-cal.js",
     "copy:mapbox:north-shore-mortgage": "node --experimental-strip-types scripts/copy-mapbox-north-shore-mortgage.ts",
     "wire:lux-felicia-routing": "node --experimental-strip-types scripts/wire-lux-felicia-email-routing.ts",
