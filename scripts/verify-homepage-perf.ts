@@ -17,6 +17,13 @@ assert.doesNotMatch(
 
 assert.match(index, /GrandOpeningPage/, 'index / should import GrandOpeningPage');
 
+const grandOpening = readFileSync('src/components/grand-opening/GrandOpeningPage.astro', 'utf8');
+assert.match(
+  grandOpening,
+  /fullBleed=\{false\}/,
+  'GrandOpeningPage must opt out of homepage fullBleed so / gets header clearance (site-page pad)',
+);
+
 const header = readFileSync('src/components/Header.astro', 'utf8');
 assert.match(
   header,
