@@ -1,16 +1,19 @@
 ---
 /** Vapi voice assistant for public pages — floating center-bottom control. */
-import VoiceChatButton from './VoiceChatButton.astro';
-import Transcript from './Transcript.astro';
 import { getCompanyConfig } from '../lib/companyConfig';
 import { isHomepageVoiceWidgetEnabled } from '../lib/vapiPlugin';
 
 const company = await getCompanyConfig(Astro.request);
 const voice = isHomepageVoiceWidgetEnabled(company);
+
+const VoiceChatButton = voice
+  ? (await import('./VoiceChatButton.astro')).default
+  : null;
+const Transcript = voice ? (await import('./Transcript.astro')).default : null;
 ---
 
 {
-  voice && (
+  voice && VoiceChatButton && Transcript && (
     <>
       <VoiceChatButton
         position="center-bottom"

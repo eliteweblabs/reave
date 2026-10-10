@@ -10,4 +10,13 @@ const { fonts } = Astro.props;
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href={fonts.googleFontsHref} rel="stylesheet" />
+<link rel="preload" as="style" href={fonts.googleFontsHref} />
+<link
+  href={fonts.googleFontsHref}
+  rel="stylesheet"
+  media="print"
+  onload="this.media='all'"
+/>
+<noscript>
+  <link href={fonts.googleFontsHref} rel="stylesheet" />
+</noscript>

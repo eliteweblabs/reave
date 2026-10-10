@@ -86,13 +86,9 @@ const showOverlayFooter =
     }
     {
       !signedIn && showSignIn ? (
-        <button
-          type="button"
-          class="marketing-nav-signin"
-          data-ios-sheet-open="sign-in-sheet"
-        >
+        <a class="marketing-nav-signin" href="/sign-in">
           Sign in
-        </button>
+        </a>
       ) : showAccountNav ? (
         <nav class="marketing-nav-inline marketing-nav-inline--signed-in" aria-label="Account">
           <a href="/admin/?tab=dashboard" class="marketing-nav-link">
@@ -181,14 +177,13 @@ const showOverlayFooter =
           }
           {
             showOverlaySignIn && (
-              <button
-                type="button"
+              <a
+                href="/sign-in"
                 class="brand-btn brand-btn-glass overlay-menu-footer-cta overlay-menu-signin"
-                data-ios-sheet-open="sign-in-sheet"
                 data-marketing-menu-link
               >
                 Sign in
-              </button>
+              </a>
             )
           }
           {
@@ -305,9 +300,12 @@ const showOverlayFooter =
   }
 
   .marketing-nav-signin {
+    display: inline-flex;
+    align-items: center;
     padding: 0.35rem 0.75rem;
     border: none;
     border-radius: 999px;
+    text-decoration: none;
     font-family: var(--font-secondary);
     font-size: 0.82rem;
     font-weight: 500;
