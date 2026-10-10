@@ -1,4 +1,5 @@
 import type {
+  ComponentPropsWithoutRef,
   CSSProperties,
   FocusEvent,
   KeyboardEvent,
@@ -28,7 +29,11 @@ import {
   type ThreadMessage,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
-import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
+import {
+  MarkdownTextPrimitive,
+  unstable_memoizeMarkdownComponents,
+  type CodeHeaderProps,
+} from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -551,7 +556,15 @@ function CheckIcon() {
   );
 }
 
-function ChatMessageCopyButton({ text }: { text: string }) {
+function ChatIconCopyButton({
+  text,
+  className,
+  label,
+}: {
+  text: string;
+  className: string;
+  label: string;
+}) {
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -566,6 +579,7 @@ function ChatMessageCopyButton({ text }: { text: string }) {
 
   const onCopy = useCallback(
     async (e: MouseEvent<HTMLButtonElement>) => {
+      e.preventDefault();
       e.stopPropagation();
       if (!text.trim()) return;
       try {
@@ -583,14 +597,50 @@ function ChatMessageCopyButton({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className={`aui-msg-copy${copied ? ' is-copy-success' : ''}`}
-      aria-label={copied ? 'Copied' : 'Copy message'}
-      title={copied ? 'Copied' : 'Copy'}
+      className={`${className}${copied ? ' is-copy-success' : ''}`}
+      aria-label={copied ? 'Copied' : label}
+      title={copied ? 'Copied' : label}
       disabled={disabled}
       onClick={onCopy}
     >
       {copied ? <CheckIcon /> : <CopyIcon />}
     </button>
+  );
+}
+
+function ChatMessageCopyButton({ text }: { text: string }) {
+  return (
+    <ChatIconCopyButton text={text} className="aui-msg-copy" label="Copy message" />
+  );
+}
+
+function ChatMarkdownPre({
+  children,
+  ...rest
+}: ComponentPropsWithoutRef<'pre'> & { node?: unknown }) {
+  return (
+    <pre
+      {...rest}
+      onContextMenu={(e) => {
+        e.stopPropagation();
+      }}
+    >
+      {children}
+    </pre>
+  );
+}
+
+function ChatMarkdownCodeHeader({ code, language }: CodeHeaderProps) {
+  const lang =
+    language && language !== 'unknown' ? language : null;
+  return (
+    <div
+      className="aui-md-code-header"
+      onContextMenu={(e) => e.stopPropagation()}
+    >
+      <span className="aui-md-code-lang">{lang ?? ''}</span>
+      <ChatIconCopyButton text={code} className="aui-md-code-copy" label="Copy code" />
+    </div>
   );
 }
 
@@ -1717,6 +1767,12 @@ function ChatMarkdownLink(props: { href?: string; children?: ReactNode }) {
   );
 }
 
+const chatMarkdownComponents = unstable_memoizeMarkdownComponents({
+  a: ChatMarkdownLink,
+  CodeHeader: ChatMarkdownCodeHeader,
+  pre: ChatMarkdownPre,
+});
+
 function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
   const isStreaming = props.status?.type === 'running';
   const { text, buttons } = useChatRenderer(props.text ?? '', { skipStructured: isStreaming });
@@ -1733,7 +1789,7 @@ function AssistantTextPart(props: { text?: string; status?: { type?: string } })
           remarkPlugins={[remarkGfm]}
           className="aui-md"
           preprocess={(raw) => parseAssistantChatButtons(raw).text}
-          components={{ a: ChatMarkdownLink }}
+          components={chatMarkdownComponents}
         />
       ) : null}
       {buttons.length > 0 ? (

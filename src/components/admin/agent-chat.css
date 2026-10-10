@@ -350,6 +350,23 @@
 .aui-md {
   white-space: normal;
   word-break: break-word;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Fenced code — native selection + context menu; copy control avoids fighting the host webview. */
+.aui-md pre,
+.aui-md code,
+.aui-md-code-header {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.aui-md pre,
+.aui-md code {
+  cursor: text;
 }
 
 .aui-md p {
@@ -358,6 +375,63 @@
 
 .aui-md p:last-child {
   margin-bottom: 0;
+}
+
+.aui-md-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.85rem;
+  border: 1px solid var(--code-border);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: var(--code-bg);
+}
+
+.aui-md-code-lang {
+  min-width: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.aui-md-code-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.aui-md-code-copy:hover:not(:disabled) {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+
+.aui-md-code-copy:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.aui-md-code-copy.is-copy-success {
+  color: var(--fg);
+}
+
+.aui-md-code-header + pre {
+  margin-top: 0;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
 }
 
 .aui-md pre {
