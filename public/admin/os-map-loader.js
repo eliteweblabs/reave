@@ -285,11 +285,12 @@ import {
   initInsightsPanels,
   loadSocialTab,
   loadAnalyticsTab,
+  openAnalyticsSite,
   loadFleetTab,
   initFleetLocationReporter,
   teardownFleetMap,
   syncAnalyticsAccountMenu,
-} from './insights-panels.js?v=20260911b';
+} from './insights-panels.js?v=20261010a';
 import {
   initRulesPanel,
   ruleState,
@@ -965,9 +966,13 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'media') {
     loadMediaTab();
   } else if (MAP.type === 'analytics') {
-    loadAnalyticsTab(
-      opts.analyticsSiteId !== undefined ? { siteId: opts.analyticsSiteId } : {},
-    );
+    if (opts.analyticsSiteId !== undefined) {
+      const siteId = String(opts.analyticsSiteId || '').trim();
+      if (siteId) openAnalyticsSite(siteId);
+      else void loadAnalyticsTab({ siteId: '' });
+    } else {
+      void loadAnalyticsTab({});
+    }
   } else if (MAP.type === 'fleet') {
     loadFleetTab();
   } else if (MAP.type === 'dscr') {

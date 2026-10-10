@@ -5,16 +5,19 @@ import PwaDocumentTitle from "../PwaDocumentTitle.astro";
 import ViewportMeta from "../ViewportMeta.astro";
 import ThemeInit from "../ThemeInit.astro";
 import type { ResolvedBrandFonts } from "../../lib/brandFonts";
+import type { CompanyConfig } from "../../lib/companyConfig";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../../lib/pageTitle";
+import BrandLcpPreload from "../BrandLcpPreload.astro";
 
 interface Props {
   companyName: string;
   fonts: ResolvedBrandFonts;
   /** Browser-tab title. Standalone PWA / push "from" stays `companyName`. */
   pageTitle?: string;
+  company?: CompanyConfig;
 }
 
-const { companyName, fonts, pageTitle } = Astro.props;
+const { companyName, fonts, pageTitle, company } = Astro.props;
 const appName = formatPwaAppTitle(companyName);
 const docTitle = formatHtmlPageTitle({ page: pageTitle, siteName: appName });
 ---
@@ -37,6 +40,7 @@ const docTitle = formatHtmlPageTitle({ page: pageTitle, siteName: appName });
   <title>{docTitle}</title>
   <PwaDocumentTitle pwaTitle={appName} />
   <Favicon />
+  {company ? <BrandLcpPreload company={company} /> : null}
   <BrandFontHead fonts={fonts} />
   <link rel="stylesheet" href={`/ios-sheet.css?v=${__PUBLIC_ASSET_VERSION__}`} />
 </head>

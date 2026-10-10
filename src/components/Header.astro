@@ -219,7 +219,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
                     src={profileIconSrc}
                     alt=""
                     class="topbar-profile-icon-img"
-                    loading="eager"
+                    loading="lazy"
+                    fetchpriority="low"
                     decoding="async"
                   />
                 </span>
@@ -285,7 +286,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
                   src={profileIconSrc}
                   alt=""
                   class="topbar-profile-icon-img"
-                  loading="eager"
+                  loading="lazy"
+                  fetchpriority="low"
                   decoding="async"
                 />
               )}
@@ -396,10 +398,10 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   </OverlayMenu>
 )}
 
-{!userId && (
+{!userId && !showMarketingNav && (
   <SignInSheet
     fallbackRedirectUrl={signInRedirect}
-    autoOpen={signInAutoOpen && !showMarketingNav}
+    autoOpen={signInAutoOpen}
     authPath={authPath}
     dismissible={true}
     closeHref={path === '/sign-in' || inAdminRoute ? '/' : ''}

@@ -3,8 +3,7 @@ import {
   BRAND_ICON_SIZES,
   isBrandIconSize,
 } from '../../../lib/brandIconRaster';
-import { brandingEtag, renderCompanyBrandIconPng } from '../../../lib/brandImageRender';
-import { getStoredCompanyConfig } from '../../../lib/companyConfigStore';
+import { brandIconPngResponse } from '../../../lib/brandIconResponse';
 
 export const prerender = false;
 
@@ -17,19 +16,5 @@ function parseSize(raw: string | null): number {
 export const GET: APIRoute = async ({ request, url }) => {
   const size = parseSize(url.searchParams.get('size'));
   const transparent = url.searchParams.get('transparent') === '1';
-  const stored = await getStoredCompanyConfig();
-  const body = await renderCompanyBrandIconPng(stored, size, { transparent });
-  const etag = `"${brandingEtag(stored, size, 'icon', { transparent })}"`;
-
-  if (request.headers.get('if-none-match') === etag) {
-    return new Response(null, { status: 304 });
-  }
-
-  return new Response(new Uint8Array(body), {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600',
-      ETag: etag,
-    },
-  });
+  return brandIconPngResponse(request, size, { transparent, requestUrl: url });
 };

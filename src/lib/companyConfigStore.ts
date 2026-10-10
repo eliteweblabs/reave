@@ -11,6 +11,7 @@ import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 import { parseStoredBusinessHours, type BusinessHours } from './businessHours';
 import { projectRoot } from './projectRoot';
+import { clearBrandingPngCache } from './brandingPngCache';
 
 export type StoredCompanyLogo = {
   dataBase64: string;
@@ -690,6 +691,7 @@ export async function setStoredCompanyConfig(patch: StoredCompanyConfig): Promis
         : writeFileConfig(merged);
     if (ok) {
       _cached = merged;
+      clearBrandingPngCache();
       const fresh = await readStoredFresh();
       if (fresh) _cached = fresh;
     }

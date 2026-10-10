@@ -1,6 +1,6 @@
 ---
 /**
- * Official marketing `/` (rekko.studio; reave.app redirects here) rewrites to /grand-opening.
+ * Official marketing `/` (rekko.studio; reave.app redirects here) renders GrandOpeningPage directly.
  * Previous marketing homepage preserved at /home and src/pages/_backup/index.marketing-home.astro.
  */
 import LandingLayout from "../layouts/LandingLayout.astro";
@@ -8,6 +8,7 @@ import ComingSoonLayout from "../layouts/ComingSoonLayout.astro";
 import SiteLandingPage from "../components/home/SiteLandingPage.astro";
 import HomeLoginPage from "../components/home/HomeLoginPage.astro";
 import ReaveMarketingHomePage from "../components/home/ReaveMarketingHomePage.astro";
+import GrandOpeningPage from "../components/grand-opening/GrandOpeningPage.astro";
 import BarbersEdgeLayout from "../layouts/BarbersEdgeLayout.astro";
 import BarbersEdgeProfile from "../components/barbers-edge/BarbersEdgeProfile.astro";
 import BarbersEdgeSuspended from "../components/barbers-edge/BarbersEdgeSuspended.astro";
@@ -53,14 +54,12 @@ const isLanding = !isBarbersEdge && homepageTemplate === "landing" && siteConten
 const isComingSoon = isLanding && siteContent.landing?.variant === "coming-soon";
 const isReaveGrandOpening =
   isReaveMarketingHost(requestHost) && homepageTemplate === "default" && !isBarbersEdge;
-
-if (isReaveGrandOpening) {
-  return Astro.rewrite("/grand-opening");
-}
 ---
 
 {
-  isLogin ? (
+  isReaveGrandOpening ? (
+    <GrandOpeningPage />
+  ) : isLogin ? (
     <HomeLoginPage />
   ) : isBarbersEdge ? (
     <BarbersEdgeSuspended />

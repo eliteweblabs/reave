@@ -63,7 +63,7 @@ const installConfigClient = getInstallConfigClient();
   class="admin-special-page"
   style={companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary, company.headerLogoSize)}
 >
-  <AdminHead companyName={company.name} fonts={company.fonts} pageTitle={title} />
+  <AdminHead companyName={company.name} fonts={company.fonts} company={company} pageTitle={title} />
   <body class:list={["admin-special-page", bodyClass]} data-user-id={userId ?? ""}>
     <DeployStatusBanner />
     <Header

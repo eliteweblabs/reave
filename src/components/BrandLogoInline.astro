@@ -26,7 +26,8 @@ const displayName = company.name?.trim() || 'Business OS';
       src={logoImageUrl}
       alt={displayName}
       class="app-header-logo-img"
-      decoding="async"
+      fetchpriority="high"
+      decoding="sync"
     />
   ) : (
     <span class="app-header-logo-name">{displayName}</span>

@@ -107,6 +107,7 @@ const bootDashboard = canAccessAdmin && (!requestedTab || requestedTab === "dash
   <AdminHead
     companyName={company.name}
     fonts={company.fonts}
+    company={company}
     pageTitle={canAccessAdmin ? undefined : `Access pending — ${company.name}`}
   />
   <body

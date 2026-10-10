@@ -1,0 +1,18 @@
+---
+import type { CompanyConfig } from '../lib/companyConfig';
+import { companyBestWordmarkImageUrl, companyUsableInlineSvg } from '../lib/companyConfig';
+
+interface Props {
+  company: CompanyConfig;
+}
+
+const { company } = Astro.props;
+const inlineLogoSvg = companyUsableInlineSvg(company.logoSvg);
+const wordmarkUrl = inlineLogoSvg ? '' : companyBestWordmarkImageUrl(company);
+---
+
+{
+  wordmarkUrl ? (
+    <link rel="preload" as="image" href={wordmarkUrl} fetchpriority="high" />
+  ) : null
+}
