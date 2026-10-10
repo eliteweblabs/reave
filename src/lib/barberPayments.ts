@@ -98,6 +98,15 @@ export function barberP2PPayLinks(
   return out;
 }
 
+/** Marketing homepage — always show all methods (Simple Icons slugs). */
+export const BARBER_PAY_WAY_DISPLAY = [
+  { label: 'Venmo', simpleIcon: 'venmo' },
+  { label: 'Cash App', simpleIcon: 'cashapp' },
+  { label: 'Zelle', simpleIcon: 'zelle' },
+  { label: 'Apple Cash', simpleIcon: 'applepay' },
+  { label: 'Cash in chair', kind: 'banknote' as const },
+];
+
 /** Railway / Astro public env keys for barber site repos. */
 export function barberPaymentsToSiteEnv(payments: BarberPaymentsConfig | undefined): Record<string, string> {
   const mode = barberPaymentMode({ payments });
