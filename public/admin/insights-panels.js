@@ -1390,7 +1390,7 @@ async function loadAnalyticsTab(opts = {}) {
   syncAnalyticsSiteUrl(analyticsSiteId);
 
   const loadGen = ++analyticsLoadGen;
-  if (analyticsSiteId && preserveSidebar) {
+  if (analyticsSiteId) {
     showAnalyticsDetailLoading(analyticsSiteId);
   }
 
