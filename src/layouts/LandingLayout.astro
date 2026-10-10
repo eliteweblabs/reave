@@ -9,6 +9,7 @@ import { requestOrigin } from "../lib/requestOrigin";
 import { BRANDING_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from "../lib/ogImageSize";
 import CookieNotice from "../components/CookieNotice.astro";
+import BrandLcpPreload from "../components/BrandLcpPreload.astro";
 import PwaDocumentTitle from "../components/PwaDocumentTitle.astro";
 import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
@@ -126,6 +127,7 @@ const manifest = landing.manifest;
     <meta name="application-name" content={pwaTitle} />
     <meta name="generator" content={Astro.generator} />
     <Favicon />
+    <BrandLcpPreload company={company} />
     <title>{docTitle}</title>
     <PwaDocumentTitle pwaTitle={pwaTitle} />
     <meta name="description" content={description} />

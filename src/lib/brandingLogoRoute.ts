@@ -5,6 +5,10 @@
 import type { APIContext } from 'astro';
 import { analyzeLogoContrast, adaptLogoContrast } from './logoContrastAdapt';
 import { brandingEtag, renderCompanyLogoWordmarkPng } from './brandImageRender';
+import {
+  brandingPngHttpResponse,
+  resolveCachedBrandingPng,
+} from './brandingPngResponse';
 import { getStoredCompanyConfig } from './companyConfigStore';
 
 /** Light email / admin canvas — flip a mostly-white wordmark to dark ink. */
@@ -24,52 +28,39 @@ async function wordmarkForDarkBackground(png: Buffer): Promise<Buffer> {
 export async function brandingLogoPngGet(context: APIContext): Promise<Response> {
   const { request, url } = context;
   const stored = await getStoredCompanyConfig();
-  let body = await renderCompanyLogoWordmarkPng(stored);
+  const forEmail =
+    url.searchParams.get('email') === '1' || url.searchParams.get('bg') === 'light';
+  const etagInner = brandingEtag(stored, 640, forEmail ? 'logo-email' : 'logo');
+
+  let body = await resolveCachedBrandingPng(etagInner, async () => {
+    let png = await renderCompanyLogoWordmarkPng(stored);
+    if (!png) return null;
+    if (forEmail) {
+      png = await wordmarkForLightBackground(png);
+    }
+    return png;
+  });
   if (!body) {
     return new Response('Not found', { status: 404 });
   }
 
-  const forEmail =
-    url.searchParams.get('email') === '1' || url.searchParams.get('bg') === 'light';
-  if (forEmail) {
-    body = await wordmarkForLightBackground(body);
-  }
-
-  const etag = `"${brandingEtag(stored, 640, forEmail ? 'logo-email' : 'logo')}"`;
-  if (request.headers.get('if-none-match') === etag) {
-    return new Response(null, { status: 304 });
-  }
-
-  return new Response(new Uint8Array(body), {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600',
-      ETag: etag,
-    },
-  });
+  return brandingPngHttpResponse(request, url, etagInner, body);
 }
 
 /** Wordmark for dark backgrounds — /api/branding/logo.alt */
 export async function brandingLogoAltPngGet(context: APIContext): Promise<Response> {
-  const { request } = context;
+  const { request, url } = context;
   const stored = await getStoredCompanyConfig();
-  let body = await renderCompanyLogoWordmarkPng(stored);
+  const etagInner = brandingEtag(stored, 640, 'logo-alt');
+
+  const body = await resolveCachedBrandingPng(etagInner, async () => {
+    let png = await renderCompanyLogoWordmarkPng(stored);
+    if (!png) return null;
+    return wordmarkForDarkBackground(png);
+  });
   if (!body) {
     return new Response('Not found', { status: 404 });
   }
 
-  body = await wordmarkForDarkBackground(body);
-
-  const etag = `"${brandingEtag(stored, 640, 'logo-alt')}"`;
-  if (request.headers.get('if-none-match') === etag) {
-    return new Response(null, { status: 304 });
-  }
-
-  return new Response(new Uint8Array(body), {
-    headers: {
-      'Content-Type': 'image/png',
-      'Cache-Control': 'public, max-age=3600',
-      ETag: etag,
-    },
-  });
+  return brandingPngHttpResponse(request, url, etagInner, body);
 }

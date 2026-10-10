@@ -219,7 +219,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
                     src={profileIconSrc}
                     alt=""
                     class="topbar-profile-icon-img"
-                    loading="eager"
+                    loading="lazy"
+                    fetchpriority="low"
                     decoding="async"
                   />
                 </span>
@@ -285,7 +286,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
                   src={profileIconSrc}
                   alt=""
                   class="topbar-profile-icon-img"
-                  loading="eager"
+                  loading="lazy"
+                  fetchpriority="low"
                   decoding="async"
                 />
               )}

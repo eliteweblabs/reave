@@ -22,6 +22,7 @@ import ThemeInit from "../components/ThemeInit.astro";
 import BrowserUiBottomInsetInit from "../components/BrowserUiBottomInsetInit.astro";
 import PlausibleScript from "../components/PlausibleScript.astro";
 import OrganizationJsonLd from "../components/OrganizationJsonLd.astro";
+import BrandLcpPreload from "../components/BrandLcpPreload.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import "../styles/brand.css";
 
@@ -138,6 +139,7 @@ try {
 
 		<!-- Favicons -->
 		<Favicon />
+		<BrandLcpPreload company={company} />
 
 		<BrandFontHead fonts={company.fonts} />
 
