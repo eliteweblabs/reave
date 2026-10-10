@@ -1,0 +1,21 @@
+# CMSpeak sibling repo
+
+CMSpeak is **not** inside the Reave git tree. It lives at **`../cmspeak`** (sibling of this repo root) — [eliteweblabs/cmspeak](https://github.com/eliteweblabs/cmspeak).
+
+## When the task touches CMSpeak
+
+- Site registry, content JSON, overlay script, edit API → edit **`../cmspeak`** (or the **cmspeak** root if the workspace is `reave.code-workspace`).
+- Reave admin Git website edits → **`plugins/content-management/`** — do not conflate with CMSpeak.
+
+## Quick map
+
+| Concern | Where |
+|--------|--------|
+| `content/registry.json`, `content/sites/*.json` | cmspeak |
+| `public/cmspeak.js`, `/api/sites/…/content` | cmspeak |
+| Deploy / env (`PUBLIC_CMSPEAK_URL`, `CMS_DATA_DIR`) | cmspeak Railway service |
+| Agent `write_github_file` on `{slug}-site` | reave `content_management` |
+
+Dev: Reave `4321`, CMSpeak `4322` (`npm run dev` in each repo).
+
+See [docs/cmspeak.md](../docs/cmspeak.md).

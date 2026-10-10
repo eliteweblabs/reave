@@ -1,0 +1,19 @@
+{
+  "folders": [
+    {
+      "name": "reave",
+      "path": "."
+    },
+    {
+      "name": "cmspeak",
+      "path": "../cmspeak"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.astro": true,
+      "**/dist": true
+    }
+  }
+}

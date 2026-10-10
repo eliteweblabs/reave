@@ -34,3 +34,7 @@ Do not commit secrets (`.env`, credentials, etc.).
 - Do not create feature branches unless specifically requested.
 
 See also `.cursor/rules/git-workflow.mdc` for the full policy.
+
+## Sibling repos
+
+**CMSpeak** ([eliteweblabs/cmspeak](https://github.com/eliteweblabs/cmspeak)) lives beside this repo at `../cmspeak`. Open **`reave.code-workspace`** in Cursor for Reave + CMSpeak in one window. See [docs/cmspeak.md](docs/cmspeak.md) and `.cursor/rules/cmspeak-sibling.mdc`.
