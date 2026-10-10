@@ -9,6 +9,7 @@
  * (Cal.com API keys are commercial on self-hosted cal.com). Optional CALCOM_API_KEY for API path.
  */
 import { randomBytes } from 'node:crypto';
+import { barberSetupWizardUrl } from '../src/lib/barberSetupWizard.ts';
 import { createInterface } from 'node:readline';
 import { loadBarberConfig, fail } from './barber-config.js';
 import { syncBarberCalEventTypes } from './barber-cal-events.js';
@@ -327,6 +328,7 @@ async function main() {
   const calBase = `https://${calDomain}`;
   const nextAuthSecret = randomBytes(32).toString('hex');
   const encryptionKey = randomBytes(32).toString('hex');
+  const setupWizardSecret = randomBytes(24).toString('hex');
 
   const calPublic = `https://\${{ ${calName}.RAILWAY_PUBLIC_DOMAIN }}`;
   const sitePublic = `https://\${{ ${siteName}.RAILWAY_PUBLIC_DOMAIN }}`;
@@ -361,6 +363,12 @@ async function main() {
     PUBLIC_CALCOM_USERNAME: cfg.slug,
     PORT: '3000',
     ...barberPaymentsToSiteEnv(cfg.payments),
+    SETUP_WIZARD_SECRET: setupWizardSecret,
+    PUBLIC_SHOW_SETUP_BANNER: 'true',
+    PUBLIC_BARBER_NAME: cfg.name,
+    PUBLIC_CAL_WEBAPP_URL: calPublic,
+    BARBER_SETUP_PROJECT_NAME: cfg.name,
+    BARBER_SETUP_SITE_SERVICE: siteName,
   });
   log('STEP 4', `✓ Site at ${siteBase}`);
 
@@ -453,8 +461,8 @@ async function main() {
   Calendar:    ${calBase}
   API:         private (${apiName})
   DB:          private (${dbName})
-  Next step:   Complete Cal.com onboarding at the Calendar URL
-               then run: npm run add:barber-events -- ${configPath}
+  Setup:       ${barberSetupWizardUrl(siteBase, setupWizardSecret)}
+  Next:        Finish the setup wizard, then hide default Cal 15/30 min types
 ══════════════════════════════════════════════════`);
 }
 
