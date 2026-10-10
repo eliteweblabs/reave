@@ -36,6 +36,49 @@ export async function resolveBarberDatabaseUrl(cfg) {
   );
 }
 
+/**
+ * Remove/hide Cal defaults and any event type not in configs/*.json services[].
+ * Deletes when no bookings reference the row; otherwise hides.
+ */
+export async function pruneNonBarberEventTypes(query, userId, allowedSlugs) {
+  const allowed = [...allowedSlugs];
+  if (!allowed.length) return { deleted: 0, hidden: 0 };
+
+  const del = await query(
+    `DELETE FROM "EventType" et
+     WHERE et."userId" = $1
+       AND NOT (et.slug = ANY($2::text[]))
+       AND NOT EXISTS (SELECT 1 FROM "Booking" b WHERE b."eventTypeId" = et.id)`,
+    [userId, allowed],
+  );
+
+  const hid = await query(
+    `UPDATE "EventType"
+     SET hidden = true, "updatedAt" = NOW()
+     WHERE "userId" = $1
+       AND NOT (slug = ANY($2::text[]))
+       AND (hidden IS NOT TRUE OR hidden IS NULL)`,
+    [userId, allowed],
+  );
+
+  return { deleted: del.rowCount ?? 0, hidden: hid.rowCount ?? 0 };
+}
+
+async function refreshBarberEventTypesFromSeeds(query, userId, seeds) {
+  let updated = 0;
+  for (const s of seeds) {
+    const r = await query(
+      `UPDATE "EventType"
+       SET title = $1, length = $2, description = $3, price = $4, currency = 'usd',
+           hidden = false, "updatedAt" = NOW()
+       WHERE "userId" = $5 AND slug = $6`,
+      [s.title, s.length, s.description, s.price ?? 0, userId, s.slug],
+    );
+    updated += r.rowCount ?? 0;
+  }
+  return updated;
+}
+
 export async function syncBarberEventTypesToDatabase(databaseUrl, cfg, timezone = 'America/New_York') {
   const url = databaseUrl.trim();
   if (!url) throw new Error('database URL is required');
@@ -70,8 +113,19 @@ export async function syncBarberEventTypesToDatabase(databaseUrl, cfg, timezone 
       description: `${cfg.name} — ${s.duration} min`,
       price: barberConfigPriceToCents(s.price),
     }));
+    const allowedSlugs = seeds.map((s) => s.slug);
 
-    return await upsertCalcomEventTypes(query, userId, timezone, seeds);
+    const pruned = await pruneNonBarberEventTypes(query, userId, allowedSlugs);
+    const upsert = await upsertCalcomEventTypes(query, userId, timezone, seeds);
+    const updated = await refreshBarberEventTypesFromSeeds(query, userId, seeds);
+
+    return {
+      ...upsert,
+      prunedDeleted: pruned.deleted,
+      prunedHidden: pruned.hidden,
+      updated,
+      allowedSlugs,
+    };
   } finally {
     await pool.end();
   }

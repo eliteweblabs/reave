@@ -35,10 +35,17 @@ async function main() {
   const dbUrl = await resolveBarberDatabaseUrl(cfg);
 
   if (dbUrl && !process.env.CALCOM_FORCE_API?.trim()) {
-    log(`[cal-db] Syncing ${cfg.services.length} event type(s) for @${cfg.slug}…`);
+    log(`[cal-db] Syncing ${cfg.services.length} barber event type(s) for @${cfg.slug}…`);
     const result = await syncBarberEventTypesToDatabase(dbUrl, cfg);
+    if (result.prunedDeleted || result.prunedHidden) {
+      log(
+        `[cal-db] Removed Cal defaults / extras: ${result.prunedDeleted} deleted, ${result.prunedHidden} hidden.`,
+      );
+    }
     for (const slug of result.skipped) log(`  skip (exists): ${slug}`);
-    log(`Done. ${result.created} created, ${result.skipped.length} skipped.`);
+    log(
+      `Done. ${result.created} created, ${result.updated} updated, ${result.skipped.length} already present.`,
+    );
     const pay = await syncBarberCalPaymentMode(dbUrl, cfg);
     if (pay.mode === 'stripe') {
       log(`[payments] Stripe pay-on-booking metadata on ${pay.updated} event type(s).`);
@@ -46,7 +53,6 @@ async function main() {
     } else {
       log(`[payments] P2P mode — confirm-only Cal booking on ${pay.updated} event type(s) (no Stripe).`);
     }
-    log(`Refresh Event types in Cal — hide/delete the default 15/30 min if you want only the menu.`);
     return;
   }
 

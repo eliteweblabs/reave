@@ -460,7 +460,13 @@ async function main() {
     try {
       const dbSeed = await syncBarberEventTypesToDatabase(directUrl, cfg);
       seeded = true;
-      log('STEP 8', `✓ DB seed: ${dbSeed.created} event type(s), ${dbSeed.skipped.length} skipped`);
+      log(
+        'STEP 8',
+        `✓ DB seed: ${dbSeed.created} created, ${dbSeed.updated ?? 0} updated, ${dbSeed.skipped.length} skipped` +
+          (dbSeed.prunedDeleted || dbSeed.prunedHidden
+            ? `; pruned ${dbSeed.prunedDeleted} default/extra, hid ${dbSeed.prunedHidden}`
+            : ''),
+      );
       try {
         const pay = await syncBarberCalPaymentMode(directUrl, cfg);
         log('STEP 8', `✓ payments: ${pay.mode} on ${pay.updated} event type(s)`);
