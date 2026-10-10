@@ -19,8 +19,7 @@ import {
   syncBarberCalEventTypes,
 } from './barber-cal-events.js';
 import { resolveBarberDatabaseUrl, syncBarberEventTypesToDatabase } from './barber-cal-db-events.js';
-import { syncBarberCalPayments } from './barber-cal-payments.js';
-
+import { syncBarberCalPaymentMode } from './barber-cal-payments.js';
 function log(msg) {
   console.log(msg);
 }
@@ -40,10 +39,14 @@ async function main() {
     const result = await syncBarberEventTypesToDatabase(dbUrl, cfg);
     for (const slug of result.skipped) log(`  skip (exists): ${slug}`);
     log(`Done. ${result.created} created, ${result.skipped.length} skipped.`);
-    const pay = await syncBarberCalPayments(dbUrl, cfg);
-    log(`[payments] Stripe pay-on-booking metadata on ${pay.updated} event type(s).`);
+    const pay = await syncBarberCalPaymentMode(dbUrl, cfg);
+    if (pay.mode === 'stripe') {
+      log(`[payments] Stripe pay-on-booking metadata on ${pay.updated} event type(s).`);
+      log(`Then: npm run wire:barber-stripe -- ${configPath} (after Stripe keys are ready).`);
+    } else {
+      log(`[payments] P2P mode — confirm-only Cal booking on ${pay.updated} event type(s) (no Stripe).`);
+    }
     log(`Refresh Event types in Cal — hide/delete the default 15/30 min if you want only the menu.`);
-    log(`Then: npm run wire:barber-stripe -- ${configPath} (after Stripe keys are ready).`);
     return;
   }
 

@@ -13,6 +13,8 @@ import { createInterface } from 'node:readline';
 import { loadBarberConfig, fail } from './barber-config.js';
 import { syncBarberCalEventTypes } from './barber-cal-events.js';
 import { syncBarberEventTypesToDatabase } from './barber-cal-db-events.js';
+import { syncBarberCalPaymentMode } from './barber-cal-payments.js';
+import { barberPaymentsToSiteEnv } from '../src/lib/barberPayments.ts';
 import { CALCOM_IMAGE, CALCOM_START } from './barber-cal-railway.js';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
@@ -358,6 +360,7 @@ async function main() {
     PUBLIC_CALCOM_BASE: `${calPublic}/${cfg.slug}`,
     PUBLIC_CALCOM_USERNAME: cfg.slug,
     PORT: '3000',
+    ...barberPaymentsToSiteEnv(cfg.payments),
   });
   log('STEP 4', `✓ Site at ${siteBase}`);
 
@@ -409,6 +412,12 @@ async function main() {
       const dbSeed = await syncBarberEventTypesToDatabase(directUrl, cfg);
       seeded = true;
       log('STEP 8', `✓ DB seed: ${dbSeed.created} event type(s), ${dbSeed.skipped.length} skipped`);
+      try {
+        const pay = await syncBarberCalPaymentMode(directUrl, cfg);
+        log('STEP 8', `✓ payments: ${pay.mode} on ${pay.updated} event type(s)`);
+      } catch (e) {
+        log('STEP 8', `payment metadata skipped (${e.message})`);
+      }
     } catch (e) {
       log('STEP 8', `DB seed skipped (${e.message}) — run add:barber-events after Cal signup`);
     }

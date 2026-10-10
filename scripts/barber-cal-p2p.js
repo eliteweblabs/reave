@@ -1,18 +1,21 @@
 /**
- * Enable Stripe "pay on booking" on barber Cal.com event types (Postgres metadata).
+ * Free booking on Cal.com — list prices for display, no Stripe pay-on-booking.
  */
 import pg from 'pg';
-import {
-  barberConfigPriceToCents,
-  calcomStripeEventMetadata,
-} from '../src/lib/calcomBarberPaymentMetadata.ts';
-import { barberPaymentMode } from '../src/lib/barberPayments.ts';
+import { barberConfigPriceToCents } from '../src/lib/calcomBarberPaymentMetadata.ts';
 import { resolveBarberDatabaseUrl } from './barber-cal-db-events.js';
-import { syncBarberCalP2P } from './barber-cal-p2p.js';
 
 const { Pool } = pg;
 
-export async function syncBarberCalPayments(databaseUrl, cfg) {
+/** Metadata without Stripe app (confirm-only bookings). */
+export function calcomP2PEventMetadata(priceCents) {
+  return {
+    price: priceCents,
+    currency: 'usd',
+  };
+}
+
+export async function syncBarberCalP2P(databaseUrl, cfg) {
   const url = databaseUrl.trim();
   if (!url) throw new Error('database URL is required');
 
@@ -39,9 +42,9 @@ export async function syncBarberCalPayments(databaseUrl, cfg) {
     let updated = 0;
     for (const row of existing.rows) {
       const svc = bySlug.get(row.slug);
-      if (!svc || !(svc.price > 0)) continue;
-      const cents = barberConfigPriceToCents(svc.price);
-      const metadata = calcomStripeEventMetadata(cents, 'usd', 'ON_BOOKING');
+      if (!svc) continue;
+      const cents = svc.price > 0 ? barberConfigPriceToCents(svc.price) : 0;
+      const metadata = calcomP2PEventMetadata(cents);
       await pool.query(
         `UPDATE "EventType"
          SET price = $1, currency = 'usd', metadata = $2::jsonb, "updatedAt" = NOW()
@@ -57,10 +60,8 @@ export async function syncBarberCalPayments(databaseUrl, cfg) {
   }
 }
 
-/** Stripe metadata or P2P (no card) depending on config.payments.mode. */
-export async function syncBarberCalPaymentMode(databaseUrl, cfg) {
-  if (barberPaymentMode(cfg) === 'stripe') {
-    return { mode: 'stripe', ...(await syncBarberCalPayments(databaseUrl, cfg)) };
-  }
-  return { mode: 'p2p', ...(await syncBarberCalP2P(databaseUrl, cfg)) };
+export async function runBarberCalP2PFromConfig(cfg) {
+  const dbUrl = await resolveBarberDatabaseUrl(cfg);
+  if (!dbUrl) throw new Error('Set CALCOM_DATABASE_URL or RAILWAY_API_TOKEN to reach Cal Postgres.');
+  return syncBarberCalP2P(dbUrl, cfg);
 }

@@ -7,6 +7,15 @@
   "github_api_repo": "eliteweblabs/stevendiaz-api",
   "railway_workspace_id": "YOUR_WORKSPACE_ID",
   "cal_webapp_url": null,
+  "payments": {
+    "mode": "p2p",
+    "venmo": "YourVenmoHandle",
+    "cashapp": "$YourCashTag",
+    "zelle": "5551234567",
+    "apple_cash": "5551234567",
+    "cash_in_chair": true,
+    "note": "Pay after you book — tap a button below or pay in the chair."
+  },
   "services": [
     { "name": "Haircut", "slug": "haircut", "duration": 30, "price": 40 },
     { "name": "Fade", "slug": "fade", "duration": 30, "price": 45 },
