@@ -124,116 +124,7 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
   <p class="go-card-fan__hint">Swipe to browse</p>
 </div>
 
-<script>
-  function stackCardIndex(originalIndex: number, activeIndex: number, n: number): number {
-    const relative = (originalIndex - activeIndex + n) % n;
-    return n - 1 - relative;
-  }
-
-  function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number): number {
-    let relative = (originalIndex - activeIndex + n) % n;
-    if (relative > n / 2) relative -= n;
-    return relative;
-  }
-
-  function initGrandOpeningCardFans() {
-    document.querySelectorAll<HTMLElement>(".go-card-fan").forEach((fan) => {
-      if (fan.dataset.ready === "1") return;
-      fan.dataset.ready = "1";
-
-      const stack = fan.querySelector<HTMLElement>(".go-card-fan__stack");
-      const cardEls = [...fan.querySelectorAll<HTMLElement>(".go-card-fan__card")];
-      const dots = [...fan.querySelectorAll<HTMLButtonElement>(".go-card-fan__dot")];
-      const count = Number(fan.dataset.cardCount || cardEls.length) || cardEls.length;
-      if (!stack || !cardEls.length) return;
-
-      let activeIndex = 0;
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let touchActive = false;
-
-      function applyActive(nextIndex: number) {
-        activeIndex = ((nextIndex % count) + count) % count;
-
-        cardEls.forEach((card) => {
-          const index = Number(card.dataset.cardIndex ?? 0);
-          const isFront = index === activeIndex;
-          card.classList.toggle("is-front", isFront);
-          card.style.setProperty("--card-i", String(stackCardIndex(index, activeIndex, count)));
-          card.style.setProperty("--card-offset", String(cardSpreadOffset(index, activeIndex, count)));
-
-          const img = card.querySelector("img");
-          const alt = card.dataset.alt || "";
-          if (img) {
-            if (isFront) {
-              img.removeAttribute("aria-hidden");
-              img.alt = alt;
-            } else {
-              img.setAttribute("aria-hidden", "true");
-              img.alt = "";
-            }
-          }
-        });
-
-        dots.forEach((dot, i) => {
-          const on = i === activeIndex;
-          dot.setAttribute("aria-selected", on ? "true" : "false");
-          dot.classList.toggle("is-active", on);
-        });
-
-        fan.dataset.activeIndex = String(activeIndex);
-      }
-
-      applyActive(0);
-
-      stack.addEventListener(
-        "touchstart",
-        (event) => {
-          if (event.touches.length !== 1) return;
-          touchActive = true;
-          touchStartX = event.touches[0].clientX;
-          touchStartY = event.touches[0].clientY;
-        },
-        { passive: true },
-      );
-
-      stack.addEventListener(
-        "touchend",
-        (event) => {
-          if (!touchActive) return;
-          touchActive = false;
-          const touch = event.changedTouches[0];
-          const dx = touch.clientX - touchStartX;
-          const dy = touch.clientY - touchStartY;
-          if (Math.abs(dx) < 44 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-          applyActive(activeIndex + (dx < 0 ? 1 : -1));
-        },
-        { passive: true },
-      );
-
-      stack.addEventListener("keydown", (event) => {
-        if (event.key === "ArrowRight") {
-          event.preventDefault();
-          applyActive(activeIndex + 1);
-        } else if (event.key === "ArrowLeft") {
-          event.preventDefault();
-          applyActive(activeIndex - 1);
-        }
-      });
-
-      dots.forEach((dot) => {
-        dot.addEventListener("click", () => {
-          applyActive(Number(dot.dataset.slideTo ?? 0));
-        });
-      });
-
-      applyActive(0);
-    });
-  }
-
-  initGrandOpeningCardFans();
-  document.addEventListener("astro:page-load", initGrandOpeningCardFans);
-</script>
+<script is:inline src={`/grand-opening-card-fan.js?v=${__PUBLIC_ASSET_VERSION__}`}></script>
 
 <style>
   .go-card-fan {
@@ -258,7 +149,7 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
     width: min(100%, 252px);
     aspect-ratio: 459 / 994;
     margin-inline: auto;
-    touch-action: pan-y;
+    touch-action: pan-y pinch-zoom;
     outline: none;
   }
 
@@ -276,9 +167,9 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
       translateY(calc(var(--card-i, 0) * -5px))
       scale(calc(1 - max(var(--card-offset, 0), calc(-1 * var(--card-offset, 0))) * 0.028));
     transition:
-      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-      filter 0.35s ease,
-      z-index 0s linear 0.21s;
+      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 0.28s ease,
+      z-index 0s linear 0.16s;
     z-index: calc(var(--card-i, 0) + 1);
   }
 
@@ -287,9 +178,9 @@ function cardSpreadOffset(originalIndex: number, activeIndex: number, n: number)
     z-index: 40;
     filter: drop-shadow(0 28px 22px rgba(0, 0, 0, 0.22));
     transition:
-      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
       z-index 0s,
-      filter 0.35s ease;
+      filter 0.28s ease;
   }
 
   .go-card-fan__card::after {

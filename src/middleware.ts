@@ -26,6 +26,7 @@ import { permanentRedirectResponse } from "./lib/httpRedirect";
 import { publicHostFromRequest, runWithRequestHost, stripTrailingFqdnDot } from "./lib/requestHost";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
+import { applyPublicHtmlEdgeCache } from "./lib/edgeCacheHeaders";
 // Arm SIGTERM drain as soon as the server handles any request (incl. health).
 import "./lib/processDrain";
 // Start calendar reminder polling on boot — do not rely on dashboard traffic alone.
@@ -325,6 +326,8 @@ const appHandler = async (
     response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
     response.headers.set("Pragma", "no-cache");
     response.headers.set("Expires", "0");
+  } else {
+    applyPublicHtmlEdgeCache(response, pathname, context.request.method);
   }
   return applySecurityHeaders(response);
 };
