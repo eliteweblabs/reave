@@ -8,20 +8,26 @@ Reave’s **`content_management`** plugin is different: Git publish to the websi
 
 ## Local layout
 
-Clone CMSpeak next to Reave (same parent folder):
+CMSpeak is a **git submodule** in this repo:
 
 ```sh
-cd ~/Astro   # or your dev root
-git clone git@github.com:eliteweblabs/cmspeak.git
-git clone git@github.com:eliteweblabs/reave.git reave-1
+git clone https://github.com/eliteweblabs/reave.git
+cd reave
+git submodule update --init --recursive
 ```
 
-Expected paths:
+Or after pulling Reave when the submodule was added:
 
-| Repo     | Typical path              | Dev port |
-|----------|---------------------------|----------|
-| Reave    | `…/reave-1`               | 4321     |
-| CMSpeak  | `…/cmspeak`               | 4322     |
+```sh
+git submodule update --init cmspeak
+```
+
+| Repo     | Path in checkout | Dev port |
+|----------|------------------|----------|
+| Reave    | repo root        | 4321     |
+| CMSpeak  | `cmspeak/`       | 4322     |
+
+Upstream only: [https://github.com/eliteweblabs/cmspeak](https://github.com/eliteweblabs/cmspeak)
 
 Open **`reave.code-workspace`** in Cursor so both roots are in one window (Reave + CMSpeak).
 

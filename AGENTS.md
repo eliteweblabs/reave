@@ -37,4 +37,4 @@ See also `.cursor/rules/git-workflow.mdc` for the full policy.
 
 ## Sibling repos
 
-**CMSpeak** ([eliteweblabs/cmspeak](https://github.com/eliteweblabs/cmspeak)) lives beside this repo at `../cmspeak`. Open **`reave.code-workspace`** in Cursor for Reave + CMSpeak in one window. See [docs/cmspeak.md](docs/cmspeak.md) and `.cursor/rules/cmspeak-sibling.mdc`.
+**CMSpeak** ([eliteweblabs/cmspeak](https://github.com/eliteweblabs/cmspeak)) is the **`cmspeak/`** git submodule. Open **`reave.code-workspace`** in Cursor for Reave + CMSpeak in one window. See [docs/cmspeak.md](docs/cmspeak.md) and `.cursor/rules/cmspeak-sibling.mdc`.

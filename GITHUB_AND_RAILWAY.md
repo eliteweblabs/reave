@@ -23,6 +23,7 @@
 ```sh
 git clone https://github.com/eliteweblabs/reave.git
 cd reave
+git submodule update --init cmspeak   # optional: agent CMS — see docs/cmspeak.md
 npm ci
 ```
 

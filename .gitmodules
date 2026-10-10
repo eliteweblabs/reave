@@ -1,0 +1,3 @@
+[submodule "cmspeak"]
+	path = cmspeak
+	url = https://github.com/eliteweblabs/cmspeak.git

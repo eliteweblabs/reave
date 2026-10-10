@@ -6,7 +6,7 @@
     },
     {
       "name": "cmspeak",
-      "path": "../cmspeak"
+      "path": "cmspeak"
     }
   ],
   "settings": {
