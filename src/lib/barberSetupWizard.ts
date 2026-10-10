@@ -53,6 +53,11 @@ export function emptyBarberSetupState(): BarberSetupWizardState {
   return { steps, finished: false };
 }
 
+export function barberAdminUrl(siteOrigin: string, secret: string): string {
+  const base = siteOrigin.replace(/\/$/, '');
+  return `${base}/admin?key=${encodeURIComponent(secret)}`;
+}
+
 export function barberSetupWizardUrl(siteOrigin: string, secret: string): string {
   const base = siteOrigin.replace(/\/$/, '');
   return `${base}/setup?key=${encodeURIComponent(secret)}`;

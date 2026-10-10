@@ -369,6 +369,8 @@ async function main() {
     PUBLIC_CAL_WEBAPP_URL: calPublic,
     BARBER_SETUP_PROJECT_NAME: cfg.name,
     BARBER_SETUP_SITE_SERVICE: siteName,
+    /** Owner /admin — list bookings & edit Cal event prices (self-hosted Cal has no API keys). */
+    CALCOM_DATABASE_URL: dbRef,
   });
   log('STEP 4', `✓ Site at ${siteBase}`);
 

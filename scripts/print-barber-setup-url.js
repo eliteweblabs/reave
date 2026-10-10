@@ -5,7 +5,7 @@
  *   npm run barber:setup-url -- configs/stevendiaz.json
  */
 import { loadBarberConfig, fail } from './barber-config.js';
-import { barberSetupWizardUrl } from '../src/lib/barberSetupWizard.ts';
+import { barberAdminUrl, barberSetupWizardUrl } from '../src/lib/barberSetupWizard.ts';
 import { railwayGql, resolveBarberCalService } from './barber-cal-railway.js';
 
 async function readSiteSecret(cfg) {
@@ -37,7 +37,8 @@ async function main() {
   const site =
     cfg.site_webapp_url?.trim() ||
     `https://${cfg.slug}-site-production.up.railway.app`;
-  console.log(barberSetupWizardUrl(site, secret));
+  console.log('Setup wizard:', barberSetupWizardUrl(site, secret));
+  console.log('Owner admin: ', barberAdminUrl(site, secret));
 }
 
 main().catch((err) => {
