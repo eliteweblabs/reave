@@ -110,7 +110,7 @@ export async function syncBarberEventTypesToDatabase(databaseUrl, cfg, timezone 
       slug: s.slug,
       title: s.name,
       length: s.duration,
-      description: `${cfg.name} — ${s.duration} min`,
+      description: '',
       price: barberConfigPriceToCents(s.price),
     }));
     const allowedSlugs = seeds.map((s) => s.slug);

@@ -59,7 +59,7 @@ export async function syncBarberCalEventTypes(webappUrl, apiKey, barberName, ser
       length: svc.duration,
       price: barberConfigPriceToCents(svc.price),
       currency: 'usd',
-      description: `${barberName} — ${svc.duration} min`,
+      description: '',
     };
     const res = await fetch(`${base}/api/v1/event-types?${q}`, {
       method: 'POST',
