@@ -42,4 +42,4 @@ See the CMSpeak repo **README** for env vars and markup (`data-edit-path`, lists
 
 ## First connected install
 
-**The Barber's Edge** (`barbers-edge`) is registered in CMSpeak today; their site reads `CMSPEAK_URL` from Railway.
+**The Barber's Edge** (`barbers-edge`) and **Levine's Law** (`levines-law`, [levineslaw.com](https://levineslaw.com)) are registered in CMSpeak. Set `PUBLIC_CMSPEAK_URL` on the public site service (Levine's Law: Railway `levineslaw` in the Levines Law project).
