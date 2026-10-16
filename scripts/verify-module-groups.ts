@@ -388,6 +388,18 @@ assert.match(
 );
 const addonsApi = readFileSync('src/pages/api/admin/addons.ts', 'utf8');
 assert.match(addonsApi, /purgePluginKnowledgeForFeature/, 'Add-ons toggle-off must purge knowledge');
+const addonsToggleBlock = addonsApi.match(/if \(action === 'toggle'\)[\s\S]*?(?=if \(action === 'request'\))/);
+assert.ok(addonsToggleBlock?.[0], 'Add-ons toggle handler must exist');
+assert.doesNotMatch(
+  addonsToggleBlock![0],
+  /postToSystemAlertsThread/,
+  'Add-ons runtime toggle must not open System alerts chat',
+);
+assert.doesNotMatch(
+  addonsToggleBlock![0],
+  /sendPushNotification/,
+  'Add-ons runtime toggle must not send push (switch UI is enough)',
+);
 
 assert.equal(existsSync('src/knowledge/clerk-auth.md'), false, 'clerk-auth must not ship in core knowledge');
 assert.ok(

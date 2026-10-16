@@ -25,7 +25,6 @@ import { isOpsInstall } from '../../../lib/installConfig';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { FEATURE_LABELS, isPrivateFeature, isServiceFeature, type FeatureId } from '../../../lib/featureCatalog';
 import { postToSystemAlertsThread } from '../../../lib/adminAgentAlert';
-import { sendPushNotification } from '../../../lib/webPush';
 import {
   catalogDependents,
   catalogLabel,
@@ -111,18 +110,8 @@ export async function POST(context: APIContext): Promise<Response> {
     refreshFeatureCache();
     if (!enabled) await purgePluginKnowledgeForFeature(feature);
 
-    const label = catalogLabel(feature, FEATURE_LABELS[feature]);
-    // Completion ping only — no System alerts Session and no dashboard row.
-    // Unique tag so macOS Notification Center does not keep yesterday's time
-    // when the same add-on is toggled again.
-    await sendPushNotification({
-      title: `${enabled ? 'On' : 'Off'}: ${label}`,
-      body: 'Takes effect immediately.',
-      tag: `addon-toggle-${feature}-${Date.now()}`,
-      url: '/admin/?tab=addons',
-      skipDashboardAlert: true,
-      bypassQuietHours: true,
-    }).catch(() => undefined);
+    // Runtime toggle only — no System alerts chat, dashboard alert, or push.
+    // The Add-ons switch + panel refresh is the feedback.
 
     return jsonResponse({
       ok: true,
