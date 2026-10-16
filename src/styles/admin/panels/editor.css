@@ -4023,16 +4023,21 @@ button.de-placeholder-action:active {
   border-color: #ef4444;
 }
 .cl-website-open-btn,
-.cl-email-open-btn {
+.cl-email-open-btn,
+.control-field > .input-copy-btn.ios-icon-btn {
   width: calc(var(--control-h) - var(--control-inset) * 2);
   height: calc(var(--control-h) - var(--control-inset) * 2);
   min-width: calc(var(--control-h) - var(--control-inset) * 2);
   padding: 0;
 }
 .cl-website-open-btn[disabled],
-.cl-email-open-btn[disabled] {
+.cl-email-open-btn[disabled],
+.control-field > .input-copy-btn.ios-icon-btn[disabled] {
   opacity: 0.35;
   cursor: default;
+}
+.control-field > .input-copy-btn.ios-icon-btn[hidden] {
+  display: none;
 }
 .cl-portal-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
 
@@ -4414,10 +4419,10 @@ button.de-placeholder-action:active {
 #clients-editor .cl-portal-fields-add {
   align-self: flex-start;
 }
-#clients-editor .de-fields .de-input,
 #clients-editor .de-fields .cl-website-field,
 #clients-editor .de-fields .cl-email-field,
-#clients-editor .de-fields .cl-address-field {
+#clients-editor .de-fields .cl-address-field,
+#clients-editor .de-fields .cl-input-field {
   max-width: none;
   width: 100%;
 }

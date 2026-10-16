@@ -1381,6 +1381,42 @@ export function createInputClearAdornment(input, onClear, label = 'Clear') {
   return btn;
 }
 
+/** Hide copy adornment when the field is empty. */
+export function syncInputCopyAdornment(input, btn, getText) {
+  if (!input || !btn) return;
+  const resolve = typeof getText === 'function' ? getText : () => input.value;
+  let str = '';
+  try {
+    str = String(resolve() ?? '').trim();
+  } catch {
+    str = '';
+  }
+  const show = Boolean(str);
+  btn.hidden = !show;
+  btn.disabled = !show;
+}
+
+/**
+ * Copy control for `.control-field` inputs (contact profile, etc.).
+ * @param {HTMLInputElement} input
+ * @param {{ getText?: () => string }} [opts]
+ */
+export function createInputCopyAdornment(input, opts = {}) {
+  const { getText } = opts;
+  const resolveText =
+    typeof getText === 'function' ? getText : () => String(input.value ?? '').trim();
+  const btn = createCopyIconBtn({
+    label: 'Copy',
+    className: 'ios-icon-btn input-copy-btn',
+    size: 'sm',
+    getText: resolveText,
+  });
+  const sync = () => syncInputCopyAdornment(input, btn, resolveText);
+  input.addEventListener('input', sync);
+  sync();
+  return btn;
+}
+
 const LIST_EMPTY_ICON = () => iosIcon('ban', 36);
 
 /** Centered list empty state — icon + message, flex-filled in scroll lists. */
