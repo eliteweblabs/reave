@@ -79,7 +79,7 @@ function isExcludedCardDemoProject(projectName: string): boolean {
   const n = projectName.trim().toLowerCase();
   if (!n) return true;
   if (n === 'rekko studio' || n === 'reave.app') return true;
-  if (n === 'plausible analytics' || n === 'meet.reave.app') return true;
+  if (n === 'plausible analytics' || n === 'meet.rekko.studio' || n === 'meet.reave.app') return true;
   if (n === 'omniroute' || n === 'pascal editor' || n === 'm-dot') return true;
   if (n === 'health' || n === 'icfp' || n === 'loveandever') return true;
   return false;

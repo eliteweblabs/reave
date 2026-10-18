@@ -211,7 +211,7 @@ export const DEPLOY_WIZARD_DOMAINS: readonly DeployWizardDomain[] = [
     host: 'meet',
     type: 'CNAME',
     target: 'galene',
-    description: 'Galene video meetings — production uses meet.reave.app.',
+    description: 'Galene video meetings — production uses meet.rekko.studio.',
     features: ['video_meet'],
   },
   {

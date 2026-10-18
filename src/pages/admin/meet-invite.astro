@@ -8,7 +8,7 @@ import { companyHtmlStyleAttr } from "../../lib/companyBrandColors";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import { resolveStaffMember } from "../../lib/staffAuth";
-import { hasFeature } from "../../lib/features";
+import { ensureFeatureOverridesLoaded, hasFeature } from "../../lib/features";
 import { galeneCreateInvite, isGaleneConfigured } from "../../lib/galeneClient";
 
 export const prerender = false;
@@ -35,6 +35,8 @@ const group = groupParam.replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") |
 let inviteUrl = "";
 let inviteExpires = "";
 let error = "";
+
+await ensureFeatureOverridesLoaded();
 
 if (!hasFeature("video_meet")) {
   error = "Video meet is not enabled on this install.";
