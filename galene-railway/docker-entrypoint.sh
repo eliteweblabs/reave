@@ -152,7 +152,11 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
     fi
     # OG share card — admin Company wordmark on 1200×630 (not the optional OG upload slot).
     LOGO_V="$(jq -r '.stored.primary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
-    if curl -fsSL "${REAVE_ORIGIN}/api/branding/share-logo.png" -o "${BRAND_OG}" 2>/dev/null; then
+    SHARE_OG_URL="${REAVE_ORIGIN}/api/branding/share-logo.png"
+    if [ -n "${LOGO_V}" ]; then
+      SHARE_OG_URL="${SHARE_OG_URL}?v=$(printf '%s' "${LOGO_V}" | sed 's/ /+/g')"
+    fi
+    if curl -fsSL "${SHARE_OG_URL}" -o "${BRAND_OG}" 2>/dev/null; then
       OG_PUBLIC="${PUBLIC_URL%/}/reave-og.png"
       if [ -n "${LOGO_V}" ]; then
         OG_PUBLIC="${OG_PUBLIC}?v=$(printf '%s' "${LOGO_V}" | sed 's/ /+/g')"
