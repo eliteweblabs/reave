@@ -237,21 +237,32 @@ export function slugsLinkedFromHtml(html: string, pageUrl?: string): Set<Directo
   return found;
 }
 
-export function nameSearchStems(businessName: string, websiteHost = ''): string[] {
+export function nameSearchStems(
+  businessName: string,
+  websiteHost = '',
+  extraTerms: string[] = [],
+): string[] {
   const stems = new Set<string>();
   const host = websiteHost.replace(/^www\./i, '').split('.')[0] || '';
   if (host.length >= 3) stems.add(host.toLowerCase());
-  const words = businessName
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .filter((w) => w.length > 1 && !/^(the|and|of|for|llc|inc|co)$/.test(w));
-  if (words.length) {
-    stems.add(words.join(''));
-    stems.add(words.join('-'));
-    if (words[0].length >= 4) stems.add(words[0]);
+  const addPhrase = (phrase: string) => {
+    const words = phrase
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 1 && !/^(the|and|of|for|llc|inc|co)$/.test(w));
+    if (words.length) {
+      stems.add(words.join(''));
+      stems.add(words.join('-'));
+      if (words[0].length >= 4) stems.add(words[0]);
+    }
+  };
+  addPhrase(businessName);
+  for (const term of extraTerms) {
+    const t = term.trim();
+    if (t) addPhrase(t);
   }
   return [...stems];
 }

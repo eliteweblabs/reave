@@ -10163,6 +10163,13 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             `<span class="prof-hint">Also appears as the bio on your booking page when scheduling is enabled.</span></div>`,
           ) +
           profSection(
+            'Search &amp; discovery',
+            'Alternate spellings and service terms people actually search for. These are prepended to each public page\u2019s keyword list (meta tags and structured data), and feed audit directory / competitor search when no category override is set.',
+            `<div class="prof-field"><label for="company-searchKeywords">Search keywords</label>` +
+            `<textarea id="company-searchKeywords" name="searchKeywords" class="prof-input prof-textarea" rows="4" placeholder="house cleaning&#10;maid service&#10;maid and marble">${escHtml(Array.isArray(c.searchKeywords) ? c.searchKeywords.join('\n') : '')}</textarea>` +
+            `<span class="prof-hint prof-hint--block">One term per line. Use plain words people type into Google \u2014 not stylized brand spellings. Page-specific terms from your site copy are added automatically after these.</span></div>`,
+          ) +
+          profSection(
             'Location',
             'Office location for the map, driving directions, and address autocomplete defaults.',
             `<div class="prof-field"><label for="company-address">Business address</label>` +

@@ -45,6 +45,7 @@ import {
 import { shareSafeText } from './shareSafeText';
 import { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
 import { normalizeHeaderLogoSize, type HeaderLogoSizeId } from './headerLogoSize';
+import { parseSearchKeywordLines } from './searchKeywords';
 
 export { shareSafeText } from './shareSafeText';
 export { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
@@ -243,6 +244,8 @@ export type CompanyConfig = {
   syncHoursToGbp: boolean;
   /** Header wordmark width preset (small | medium | large | xlarge). */
   headerLogoSize: HeaderLogoSizeId;
+  /** Alternate search spellings / service terms (prepended to per-page keyword lists). */
+  searchKeywords: string[];
 };
 
 function trim(s: string | null | undefined): string {
@@ -679,6 +682,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     syncHoursToCalcom: stored?.syncHoursToCalcom === true,
     syncHoursToGbp: stored?.syncHoursToGbp === true,
     headerLogoSize: normalizeHeaderLogoSize(stored?.headerLogoSize),
+    searchKeywords: parseSearchKeywordLines(stored?.searchKeywords),
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
@@ -791,6 +795,8 @@ export type CompanyConfigInput = {
   syncHoursToGbp?: boolean | string | null;
   /** Header wordmark size preset: xsmall | small | medium | large | xlarge */
   headerLogoSize?: string;
+  /** Alternate search spellings / service terms (one per line or string[]). */
+  searchKeywords?: string[] | string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -918,6 +924,10 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.headerLogoSize !== undefined) {
     const t = (input.headerLogoSize ?? '').trim();
     out.headerLogoSize = t ? normalizeHeaderLogoSize(t) : null;
+  }
+  if (input.searchKeywords !== undefined) {
+    const parsed = parseSearchKeywordLines(input.searchKeywords);
+    out.searchKeywords = parsed.length ? parsed : [];
   }
   return out;
 }

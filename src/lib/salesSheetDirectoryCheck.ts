@@ -30,6 +30,8 @@ export async function checkDirectoryCoverage(opts: {
   html?: string;
   pageUrl?: string;
   iconGroup?: string | null;
+  /** Company search aliases — extra name-search queries beyond the display name. */
+  searchAliases?: string[];
   search?: (query: string) => Promise<BraveSearchResult[]>;
 }): Promise<DirectoryCheck[]> {
   const name = (opts.businessName || '').trim();
@@ -61,7 +63,7 @@ export async function checkDirectoryCoverage(opts: {
       return '';
     }
   })();
-  const stems = nameSearchStems(name, host);
+  const stems = nameSearchStems(name, host, opts.searchAliases ?? []);
 
   if (name && (opts.search || isBraveConfigured())) {
     const run = opts.search
@@ -71,6 +73,11 @@ export async function checkDirectoryCoverage(opts: {
           return res.ok ? res.results : [];
         };
     const queries = [`"${name}" (${SOCIAL_SITES})`, `"${name}" (${DIRECTORY_SITES})`];
+    for (const alias of opts.searchAliases ?? []) {
+      const a = alias.trim();
+      if (!a || a.toLowerCase() === name.toLowerCase()) continue;
+      queries.push(`"${a}" (${SOCIAL_SITES})`, `"${a}" (${DIRECTORY_SITES})`);
+    }
     if (ownerName && ownerName.toLowerCase() !== name.toLowerCase()) {
       queries.unshift(`"${ownerName}" (${SOCIAL_SITES})`);
     }

@@ -15,6 +15,7 @@ import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import PlausibleScript from "../components/PlausibleScript.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
+import { formatSearchKeywordsMeta, resolvePageSearchKeywords } from "../lib/searchKeywords";
 import "../styles/scroll-fade.css";
 
 export interface Props {
@@ -90,6 +91,13 @@ const htmlStyle =
     ? undefined
     : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary, company.headerLogoSize);
 
+const pageSearchKeywords = resolvePageSearchKeywords({
+  company,
+  landing,
+  pathname: Astro.url.pathname,
+});
+const pageSearchKeywordsMeta = formatSearchKeywordsMeta(pageSearchKeywords);
+
 const structuredData = landing.structuredData;
 const jsonLdData = structuredData
   ? {
@@ -112,6 +120,7 @@ const jsonLdData = structuredData
           ratingCount: structuredData.ratingCount,
         },
       }),
+      ...(pageSearchKeywordsMeta ? { keywords: pageSearchKeywordsMeta } : {}),
     }
   : null;
 const manifest = landing.manifest;
@@ -131,6 +140,7 @@ const manifest = landing.manifest;
     <title>{docTitle}</title>
     <PwaDocumentTitle pwaTitle={pwaTitle} />
     <meta name="description" content={description} />
+    {pageSearchKeywordsMeta && <meta name="keywords" content={pageSearchKeywordsMeta} />}
     {noIndex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="canonical" href={canonical} />
     <meta property="og:title" content={shareTitle} />

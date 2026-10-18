@@ -43,6 +43,8 @@ export type SiteNavLink = {
   primary?: boolean;
   external?: boolean;
   hideBelow?: number;
+  /** Optional search terms for this route (merged after company-wide aliases). */
+  searchKeywords?: string[];
 };
 
 export type SiteNavGroup = {
@@ -200,6 +202,8 @@ export type SiteLandingPackConfig = {
 export type SiteLandingConfig = {
   title?: string;
   description?: string;
+  /** Homepage / site-wide search terms (merged after company aliases). */
+  searchKeywords?: string[];
   /** Per-page share image. Overrides admin → Company → Social sharing. */
   ogImage?: string;
   themeColor?: string;

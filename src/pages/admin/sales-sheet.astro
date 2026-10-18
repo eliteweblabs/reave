@@ -176,7 +176,8 @@ const contactPortal = extractPortal(input.contact);
 const near =
   (params.get('near') || '').trim() ||
   shortPlaceFromAddress(contactPortal?.address || '');
-const category = (params.get('category') || '').trim();
+const category =
+  (params.get('category') || '').trim() || (company.searchKeywords?.[0] ?? '').trim();
 const placesQuery = (input.contact.company || input.contact.name || '').trim();
 const businessName = (input.contact.company || input.contact.name || '').trim();
 const ownerName =

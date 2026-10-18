@@ -10,6 +10,7 @@ import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 import { parseStoredBusinessHours, type BusinessHours } from './businessHours';
+import { parseSearchKeywordLines } from './searchKeywords';
 import { projectRoot } from './projectRoot';
 import { clearBrandingPngCache } from './brandingPngCache';
 
@@ -100,6 +101,8 @@ export type StoredCompanyConfig = {
   syncHoursToGbp?: boolean | null;
   /** Header wordmark size preset: xsmall | small | medium | large | xlarge */
   headerLogoSize?: string | null;
+  /** Alternate search spellings / service terms (prepended to per-page keyword lists). */
+  searchKeywords?: string[] | null;
   updatedAt?: string | null;
 };
 
@@ -174,6 +177,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS business_hours TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_calcom BOOLEAN;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_gbp BOOLEAN;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS header_logo_size TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS search_keywords JSONB NOT NULL DEFAULT '[]'::jsonb;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -342,6 +346,7 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
           ? false
           : null,
     headerLogoSize: str('headerLogoSize') || str('header_logo_size') || null,
+    searchKeywords: parseSearchKeywordLines(o.searchKeywords ?? o.search_keywords),
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -433,6 +438,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     sync_hours_to_calcom: boolean | null;
     sync_hours_to_gbp: boolean | null;
     header_logo_size: string | null;
+    search_keywords: unknown;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -447,7 +453,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
             brand_primary, brand_secondary, icon_background, portal_outreach_notice,
             og_data, og_media_type, email_font, business_hours, sync_hours_to_calcom, sync_hours_to_gbp,
-            header_logo_size, updated_at
+            header_logo_size, search_keywords, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -516,6 +522,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     syncHoursToCalcom: row.sync_hours_to_calcom,
     syncHoursToGbp: row.sync_hours_to_gbp,
     headerLogoSize: row.header_logo_size,
+    searchKeywords: parseSearchKeywordLines(row.search_keywords),
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -585,6 +592,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        sync_hours_to_calcom = $58,
        sync_hours_to_gbp = $59,
        header_logo_size = $60,
+       search_keywords = $61::jsonb,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -650,6 +658,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.syncHoursToCalcom === true,
       config.syncHoursToGbp === true,
       config.headerLogoSize ?? null,
+      JSON.stringify(parseSearchKeywordLines(config.searchKeywords)),
     ],
   );
   if ((result.rowCount ?? 0) > 0) return true;
