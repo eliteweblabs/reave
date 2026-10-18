@@ -448,6 +448,49 @@ async function renderUploadedOgPng(dataBase64: string): Promise<Buffer | null> {
   }
 }
 
+const OG_SHARE_CANVAS = '#0a0a0a';
+
+async function wordmarkForDarkShareCanvas(png: Buffer): Promise<Buffer> {
+  const analysis = await analyzeLogoContrast(png);
+  if (analysis.mostlyBlack) {
+    return (await adaptLogoContrast(png, 'dark')).buffer;
+  }
+  return png;
+}
+
+/**
+ * 1200×630 Open Graph card — centered admin wordmark on a dark canvas (Galene / meet.*).
+ * Falls back to {@link buildCompanyOgPng} when no wordmark is configured.
+ */
+export async function buildCompanyShareLogoOgPng(stored: StoredCompanyConfig | null): Promise<Buffer> {
+  let logo = await renderCompanyLogoWordmarkPng(stored);
+  if (logo) {
+    logo = await wordmarkForDarkShareCanvas(logo);
+    const maxW = 920;
+    const maxH = 400;
+    const resized = await sharp(logo)
+      .resize({ width: maxW, height: maxH, fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toBuffer();
+    const { width: lw = maxW, height: lh = maxH } = await sharp(resized).metadata();
+    const left = Math.max(0, Math.round((PORTAL_OG_WIDTH - lw) / 2));
+    const top = Math.max(0, Math.round((PORTAL_OG_HEIGHT - lh) / 2));
+    const bg = hexToRgb(OG_SHARE_CANVAS);
+    return sharp({
+      create: {
+        width: PORTAL_OG_WIDTH,
+        height: PORTAL_OG_HEIGHT,
+        channels: 4,
+        background: { r: bg.r, g: bg.g, b: bg.b, alpha: 1 },
+      },
+    })
+      .composite([{ input: resized, left, top }])
+      .png()
+      .toBuffer();
+  }
+  return buildCompanyOgPng(stored);
+}
+
 /** Admin upload or letter tile — default og:image uses the logo URL, not this route. */
 export async function buildCompanyOgPng(stored: StoredCompanyConfig | null): Promise<Buffer> {
   if (stored?.ogData) {
@@ -470,7 +513,7 @@ function brandingNameTag(name: string): string {
 export function brandingEtag(
   stored: StoredCompanyConfig | null,
   size: number,
-  kind: 'icon' | 'og' | 'logo' | 'logo-alt' | 'logo-email' = 'icon',
+  kind: 'icon' | 'og' | 'share-logo' | 'logo' | 'logo-alt' | 'logo-email' = 'icon',
   opts?: { transparent?: boolean },
 ): string {
   const updated = stored?.updatedAt ?? '0';

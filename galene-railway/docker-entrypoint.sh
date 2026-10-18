@@ -150,9 +150,13 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
         LOGO_URL="${REAVE_ORIGIN}/api/branding/logo.alt"
       fi
     fi
-    # OG share card — same PNG as Crater invoice previews (/api/branding/og.png).
-    if curl -fsSL "${REAVE_ORIGIN}/api/branding/og.png" -o "${BRAND_OG}" 2>/dev/null; then
+    # OG share card — admin Company wordmark on 1200×630 (not the optional OG upload slot).
+    LOGO_V="$(jq -r '.stored.primary // empty' "${BRAND_JSON}" 2>/dev/null || true)"
+    if curl -fsSL "${REAVE_ORIGIN}/api/branding/share-logo.png" -o "${BRAND_OG}" 2>/dev/null; then
       OG_PUBLIC="${PUBLIC_URL%/}/reave-og.png"
+      if [ -n "${LOGO_V}" ]; then
+        OG_PUBLIC="${OG_PUBLIC}?v=$(printf '%s' "${LOGO_V}" | sed 's/ /+/g')"
+      fi
       OG_TITLE="${COMPANY_NAME:-Video meeting}"
       case "${OG_TITLE}" in
         *" — Video meeting"*) ;;
@@ -161,11 +165,17 @@ if [ -n "${REAVE_APP_URL}" ] && command -v curl >/dev/null 2>&1 && command -v jq
       OG_TITLE_ESC="$(printf '%s' "${OG_TITLE}" | sed 's/[&/\]/\\&/g')"
       for html in galene.html index.html; do
         target="${GALENE_STATIC}/${html}"
-        if [ -f "${target}" ] && ! grep -q 'property="og:image"' "${target}" 2>/dev/null; then
+        if [ ! -f "${target}" ]; then
+          continue
+        fi
+        if grep -q 'property="og:image"' "${target}" 2>/dev/null; then
+          sed -i "s#<meta property=\"og:image\" content=\"[^\"]*\"#<meta property=\"og:image\" content=\"${OG_PUBLIC}\"#" "${target}" 2>/dev/null || true
+          sed -i "s#<meta name=\"twitter:image\" content=\"[^\"]*\"#<meta name=\"twitter:image\" content=\"${OG_PUBLIC}\"#" "${target}" 2>/dev/null || true
+        else
           sed -i "s#</head>#    <meta property=\"og:type\" content=\"website\"/>\n    <meta property=\"og:title\" content=\"${OG_TITLE_ESC}\"/>\n    <meta property=\"og:description\" content=\"Join a secure video meeting.\"/>\n    <meta property=\"og:image\" content=\"${OG_PUBLIC}\"/>\n    <meta property=\"og:image:width\" content=\"1200\"/>\n    <meta property=\"og:image:height\" content=\"630\"/>\n    <meta name=\"twitter:card\" content=\"summary_large_image\"/>\n    <meta name=\"twitter:image\" content=\"${OG_PUBLIC}\"/>\n  </head>#" "${target}" 2>/dev/null || true
         fi
       done
-      echo "reave.app OG card applied (${OG_PUBLIC})"
+      echo "Meet OG card applied from admin wordmark (${OG_PUBLIC})"
     fi
     if [ -n "${PRIMARY}" ]; then
       cat > "${BRAND_CSS}" <<EOF
