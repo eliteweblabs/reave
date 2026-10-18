@@ -12835,6 +12835,8 @@ let emailState = {
 let pendingEmailDeepLinkId = null;
 /** Compose opened from another tab (project email button) — applied after inbox load. */
 let pendingComposeRecipients = null;
+/** mailto: protocol handler (?handler=…) — applied after inbox load. */
+let pendingMailtoCompose = null;
 let emailPollTimer = null;
 /** Skip quiet-poll DOM work when list + chrome fingerprint is unchanged. */
 let lastEmailQuietPollFingerprint = '';
@@ -12931,6 +12933,65 @@ function getEmailPanel() { return document.getElementById('email-panel'); }
 function parseEmailDeepLinkFromUrl() {
   try {
     return new URLSearchParams(window.location.search).get('email')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Split mailto path / cc / bcc lists (comma-separated, optional display names). */
+function parseMailtoAddressList(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return [];
+  return text
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const angle = part.match(/^(.+?)<\s*([^>\s]+)\s*>$/);
+      if (angle) {
+        return normalizeEmailRecipient({ name: angle[1].trim(), email: angle[2].trim() });
+      }
+      return normalizeEmailRecipient(part);
+    })
+    .filter(Boolean);
+}
+
+/** Parse mailto:… (or bare address) into compose fields for startNewEmail. */
+function parseMailtoHref(href) {
+  let raw = String(href || '').trim();
+  if (!raw) return null;
+  if (!/^mailto:/i.test(raw)) {
+    if (raw.includes('@')) raw = `mailto:${raw}`;
+    else return null;
+  }
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'mailto:') return null;
+  const to = parseMailtoAddressList(decodeURIComponent(url.pathname || ''));
+  const cc = [
+    ...parseMailtoAddressList(url.searchParams.get('cc') || ''),
+    ...parseMailtoAddressList(url.searchParams.get('bcc') || ''),
+  ];
+  const subject = url.searchParams.get('subject') || '';
+  const body = url.searchParams.get('body') || '';
+  if (!to.length && !cc.length && !subject && !body) return null;
+  return {
+    to,
+    cc,
+    subject,
+    body,
+  };
+}
+
+function takeMailtoHandlerFromUrl() {
+  try {
+    const raw = new URLSearchParams(window.location.search).get('handler')?.trim();
+    if (!raw) return null;
+    return parseMailtoHref(raw);
   } catch {
     return null;
   }
@@ -13179,6 +13240,7 @@ function syncAdminTabUrl(key, opts = {}) {
     }
 
     url.searchParams.delete('copy');
+    url.searchParams.delete('handler');
     if (/^#c=/i.test(url.hash)) url.hash = '';
 
     const next = url.pathname + url.search + url.hash;
@@ -13282,6 +13344,14 @@ function handleNotificationOpen(url) {
       const code = otpCodeFromHash(u.hash);
       if (code) void handleOtpCopyFromPush({ code });
       else void consumePendingOtpCopy();
+      return;
+    }
+    const handlerRaw = u.searchParams.get('handler')?.trim();
+    const mailtoCompose = handlerRaw ? parseMailtoHref(handlerRaw) : null;
+    if (mailtoCompose) {
+      pendingMailtoCompose = mailtoCompose;
+      pendingEmailDeepLinkId = null;
+      setActiveMap('email', { force: true });
       return;
     }
     const tab = resolveMapKey(u.searchParams.get('tab'));
@@ -17082,6 +17152,20 @@ async function loadEmailTab(quiet) {
   }
   if (!quiet) inboxSessionDotIds.clear();
   seedInboxSessionDots();
+  if (!quiet && !pendingMailtoCompose) {
+    pendingMailtoCompose = takeMailtoHandlerFromUrl();
+  }
+  if (pendingMailtoCompose) {
+    const opts = pendingMailtoCompose;
+    pendingMailtoCompose = null;
+    pendingComposeRecipients = null;
+    pendingEmailDeepLinkId = null;
+    await startNewEmail(opts);
+    ensureEmailMobilePaneOpen();
+    syncEmailTabBadges();
+    if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
+    return;
+  }
   if (pendingComposeRecipients) {
     const to = pendingComposeRecipients;
     pendingComposeRecipients = null;
@@ -18907,13 +18991,21 @@ async function startNewEmail(opts = {}) {
   const to = (Array.isArray(opts.to) ? opts.to : [])
     .map(normalizeEmailRecipient)
     .filter(Boolean);
+  const cc = (Array.isArray(opts.cc) ? opts.cc : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean);
   emailState.activeId = null;
   emailState.composing = true;
   clearEmailReplyContext();
   emailState.activeDraftId = null;
   emailState.activeScheduledId = null;
   emailState.scheduledAt = null;
-  emailState.compose = emptyEmailCompose({ to });
+  emailState.compose = emptyEmailCompose({
+    to,
+    cc,
+    subject: String(opts.subject || ''),
+    body: String(opts.body || ''),
+  });
   emailState.sending = false;
   rememberOpenEmailDraft(null);
   getEmailPanel()?.classList.add('em-pane-active');
@@ -21382,6 +21474,7 @@ function resolveMapKey(key) {
 function loadActiveKey() {
   try {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('handler')?.trim()) return 'email';
     if (params.get('email')?.trim() || rememberedOpenEmailDraft()) return 'email';
     if (params.get('client')?.trim()) return 'clients';
     if (params.get('chat')?.trim()) return 'chats';

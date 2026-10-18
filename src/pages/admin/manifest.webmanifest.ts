@@ -39,6 +39,14 @@ export const GET: APIRoute = async ({ request }) => {
         id: '/admin',
       },
     ],
+    // Installed PWA can register as the system mailto handler (Chrome/Edge desktop, some Android).
+    // %s = full mailto:… href; admin opens compose via ?handler= (see os-map-loader.js).
+    protocol_handlers: [
+      {
+        protocol: 'mailto',
+        url: '/admin/?tab=email&handler=%s',
+      },
+    ],
   };
 
   return new Response(JSON.stringify(manifest), {
