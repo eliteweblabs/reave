@@ -4,6 +4,7 @@
 import {
   detectPlausibleScriptOnSite,
   isPlausibleConfigured,
+  isPlausibleSiteMissingError,
   plausibleAggregate,
   plausibleBreakdown,
   plausibleDashboardUrl,
@@ -153,13 +154,31 @@ export async function resolveAnalyticsSource(opts: {
   return { source: 'plausible', available };
 }
 
+function inferPlausibleRegistered(
+  configured: boolean,
+  failed: boolean | undefined,
+  error: string | undefined,
+  aggregateOk: boolean | undefined,
+): boolean {
+  if (!configured) return false;
+  if (aggregateOk) return true;
+  if (error && isPlausibleSiteMissingError(error)) return false;
+  if (failed && error && /timeout|aborted/i.test(error)) return true;
+  return Boolean(configured && !failed);
+}
+
 async function attachPlausibleWired(
   dashboard: AnalyticsDashboard,
   websiteUrl?: string,
-  opts: { probeScript?: boolean } = {},
+  opts: { probeScript?: boolean; aggregateOk?: boolean } = {},
 ): Promise<AnalyticsDashboard> {
   const siteId = dashboard.siteId;
-  const registered = Boolean(dashboard.configured && !dashboard.failed);
+  const registered = inferPlausibleRegistered(
+    dashboard.configured,
+    dashboard.failed,
+    dashboard.error,
+    opts.aggregateOk,
+  );
   const scriptInstalled =
     opts.probeScript === true && siteId
       ? await detectPlausibleScriptOnSite(websiteUrl || `https://${siteId}`, siteId)
@@ -228,46 +247,52 @@ async function buildPlausibleDashboard(
     }, websiteUrl);
   }
 
-  const [aggregate, timeseries, pages, sources, countries, devices, browsers, realtime] =
-    await Promise.all([
-      plausibleAggregate(siteId, period, [
-        'visitors',
-        'pageviews',
-        'bounce_rate',
-        'visit_duration',
-      ]),
-      plausibleTimeseries(siteId, period, ['visitors', 'pageviews']),
-      plausibleBreakdown(siteId, period, 'event:page', 8),
-      plausibleBreakdown(siteId, period, 'visit:source', 8),
-      plausibleBreakdown(siteId, period, 'visit:country', 8),
-      plausibleBreakdown(siteId, period, 'visit:device', 6),
-      plausibleBreakdown(siteId, period, 'visit:browser', 6),
-      plausibleRealtimeVisitors(siteId),
-    ]);
+  const [aggregate, timeseries, realtime] = await Promise.all([
+    plausibleAggregate(siteId, period, [
+      'visitors',
+      'pageviews',
+      'bounce_rate',
+      'visit_duration',
+    ]),
+    plausibleTimeseries(siteId, period, ['visitors', 'pageviews']),
+    plausibleRealtimeVisitors(siteId),
+  ]);
 
-  const failed = [aggregate, timeseries, pages, sources].find((r) => !r.ok);
-  if (failed && !failed.ok) {
-    return attachPlausibleWired({
-      configured: true,
-      source: 'plausible',
-      siteId,
-      rangeDays,
-      period,
-      dashboardUrl,
-      error: failed.error,
-      failed: true,
-      realtimeVisitors: realtime.ok ? Number(realtime.data.visitors) || 0 : null,
-      metrics: emptyMetrics(),
-      series: [],
-      topPages: [],
-      topSources: [],
-      topCountries: [],
-      topDevices: [],
-      topBrowsers: [],
-      googleConnected,
-      availableSources: available,
-    }, websiteUrl);
+  const coreFailed = !aggregate.ok ? aggregate : !timeseries.ok ? timeseries : null;
+  if (coreFailed) {
+    return attachPlausibleWired(
+      {
+        configured: true,
+        source: 'plausible',
+        siteId,
+        rangeDays,
+        period,
+        dashboardUrl,
+        error: coreFailed.error,
+        failed: true,
+        realtimeVisitors: realtime.ok ? Number(realtime.data.visitors) || 0 : null,
+        metrics: emptyMetrics(),
+        series: [],
+        topPages: [],
+        topSources: [],
+        topCountries: [],
+        topDevices: [],
+        topBrowsers: [],
+        googleConnected,
+        availableSources: available,
+      },
+      websiteUrl,
+      { aggregateOk: aggregate.ok },
+    );
   }
+
+  const [pages, sources, countries, devices, browsers] = await Promise.all([
+    plausibleBreakdown(siteId, period, 'event:page', 8),
+    plausibleBreakdown(siteId, period, 'visit:source', 8),
+    plausibleBreakdown(siteId, period, 'visit:country', 8),
+    plausibleBreakdown(siteId, period, 'visit:device', 6),
+    plausibleBreakdown(siteId, period, 'visit:browser', 6),
+  ]);
 
   const agg = aggregate.ok ? aggregate.data.results : undefined;
   const series = dropIncompleteTodayFromSeries(
@@ -281,29 +306,33 @@ async function buildPlausibleDashboard(
     plausibleTimezone(),
   );
 
-  return attachPlausibleWired({
-    configured: true,
-    source: 'plausible',
-    siteId,
-    rangeDays,
-    period,
-    dashboardUrl,
-    realtimeVisitors: realtime.ok ? Number(realtime.data.visitors) || 0 : null,
-    metrics: {
-      visitors: metricFromResults(agg, 'visitors'),
-      pageviews: metricFromResults(agg, 'pageviews'),
-      bounceRate: metricFromResults(agg, 'bounce_rate'),
-      visitDuration: metricFromResults(agg, 'visit_duration'),
+  return attachPlausibleWired(
+    {
+      configured: true,
+      source: 'plausible',
+      siteId,
+      rangeDays,
+      period,
+      dashboardUrl,
+      realtimeVisitors: realtime.ok ? Number(realtime.data.visitors) || 0 : null,
+      metrics: {
+        visitors: metricFromResults(agg, 'visitors'),
+        pageviews: metricFromResults(agg, 'pageviews'),
+        bounceRate: metricFromResults(agg, 'bounce_rate'),
+        visitDuration: metricFromResults(agg, 'visit_duration'),
+      },
+      series,
+      topPages: parseBreakdown(pages.ok ? pages.data.results : undefined, 'page'),
+      topSources: parseBreakdown(sources.ok ? sources.data.results : undefined, 'source'),
+      topCountries: parseBreakdown(countries.ok ? countries.data.results : undefined, 'country'),
+      topDevices: parseBreakdown(devices.ok ? devices.data.results : undefined, 'device'),
+      topBrowsers: parseBreakdown(browsers.ok ? browsers.data.results : undefined, 'browser'),
+      googleConnected,
+      availableSources: available,
     },
-    series,
-    topPages: parseBreakdown(pages.ok ? pages.data.results : undefined, 'page'),
-    topSources: parseBreakdown(sources.ok ? sources.data.results : undefined, 'source'),
-    topCountries: parseBreakdown(countries.ok ? countries.data.results : undefined, 'country'),
-    topDevices: parseBreakdown(devices.ok ? devices.data.results : undefined, 'device'),
-    topBrowsers: parseBreakdown(browsers.ok ? browsers.data.results : undefined, 'browser'),
-    googleConnected,
-    availableSources: available,
-  }, websiteUrl);
+    websiteUrl,
+    { aggregateOk: true },
+  );
 }
 
 async function buildGa4Dashboard(args: {

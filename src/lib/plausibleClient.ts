@@ -31,6 +31,17 @@ function apiKey(): string | null {
   return trim(serverEnv('PLAUSIBLE_API_KEY')) || null;
 }
 
+function fetchTimeoutMs(): number {
+  const raw = Number(trim(serverEnv('PLAUSIBLE_FETCH_TIMEOUT_MS')));
+  if (Number.isFinite(raw) && raw >= 3_000 && raw <= 120_000) return raw;
+  return 20_000;
+}
+
+function isPlausibleTransientError(error: string | undefined): boolean {
+  const msg = (error || '').toLowerCase();
+  return /timeout|aborted|econnreset|fetch failed|network|socket hang up/.test(msg);
+}
+
 export function isPlausibleConfigured(): boolean {
   return Boolean(apiBase() && apiKey());
 }
@@ -125,26 +136,36 @@ async function plausibleGet<T>(
   const url = new URL(path.startsWith('/') ? path : `/${path}`, `${base}/`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 
-  try {
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
-      signal: AbortSignal.timeout(8_000),
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: `Plausible ${res.status}${text ? `: ${text.slice(0, 240)}` : ''}`,
-      };
-    }
+  const timeoutMs = fetchTimeoutMs();
+
+  const attempt = async (): Promise<PlausibleFetchResult<T>> => {
     try {
-      return { ok: true, data: JSON.parse(text) as T };
-    } catch {
-      return { ok: false, error: 'Plausible returned invalid JSON' };
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: `Plausible ${res.status}${text ? `: ${text.slice(0, 240)}` : ''}`,
+        };
+      }
+      try {
+        return { ok: true, data: JSON.parse(text) as T };
+      } catch {
+        return { ok: false, error: 'Plausible returned invalid JSON' };
+      }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : 'Plausible request failed' };
     }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Plausible request failed' };
+  };
+
+  let result = await attempt();
+  if (!result.ok && isPlausibleTransientError(result.error)) {
+    result = await attempt();
   }
+  return result;
 }
 
 export type PlausibleAggregateResult = {

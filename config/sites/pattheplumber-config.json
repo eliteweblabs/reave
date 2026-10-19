@@ -143,6 +143,17 @@
       "heading": "Call"
     },
     "footer": "Pat the Plumber · Licensed Massachusetts",
-    "footerImage": "/sites/pattheplumber/footer.svg"
+    "footerImage": "/sites/pattheplumber/footer.svg",
+    "structuredData": {
+      "type": "HomeAndConstructionBusiness",
+      "name": "Pat the Plumber",
+      "description": "Licensed Massachusetts plumber for emergencies and everyday repairs across Essex County and the Boston area.",
+      "image": "https://pat-the-plumber.com/sites/pattheplumber/face.png",
+      "url": "https://pat-the-plumber.com",
+      "areaServed": ["Essex County", "Boston", "Winthrop", "East Boston"],
+      "priceRange": "$$",
+      "ratingValue": "5",
+      "ratingCount": "3"
+    }
   }
 }

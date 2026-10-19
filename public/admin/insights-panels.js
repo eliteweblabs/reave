@@ -131,6 +131,17 @@ function analyticsWiredFromAccount(siteId) {
   };
 }
 
+/** Keep wired badge honest when Plausible times out but the site is registered. */
+function analyticsDetailWired(siteId, detailWired) {
+  const fromAccount = analyticsWiredFromAccount(siteId);
+  if (!detailWired) return fromAccount;
+  if (detailWired.registered) return detailWired;
+  if (fromAccount?.registered) {
+    return { ...detailWired, registered: true };
+  }
+  return detailWired;
+}
+
 function analyticsDetailLoadingHtml(siteId) {
   const rangeLabel = ANALYTICS_RANGE_LABEL[analyticsRangeDays] || `last ${analyticsRangeDays} days`;
   const wired = analyticsWiredFromAccount(siteId);
@@ -1079,7 +1090,7 @@ function buildAnalyticsDetailHtml(d, status, readiness, readinessLoading) {
         `<span class="ana-share-mount"></span>` +
         analyticsPaneActionsHtml(status, {
           showBack: true,
-          wired: d?.wired,
+          wired: analyticsDetailWired(siteId, d?.wired),
           showSource: true,
           availableSources: d?.availableSources,
           openLink,
