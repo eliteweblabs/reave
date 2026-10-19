@@ -2,7 +2,7 @@
  * Admin → Pages — per-path title, description, keywords, OG image overrides.
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260810a';
-import { createBrandBtn } from './brand-button.js?v=20260810a';
+import { createBrandBtn } from './admin-ui.js?v=20260903a';
 
 function fieldRow(path, label, id, value, placeholder, multiline = false) {
   const common = `id="${escHtml(id)}" data-page-field="${escHtml(path)}" data-field="${escHtml(label)}" placeholder="${escHtml(placeholder)}"`;
