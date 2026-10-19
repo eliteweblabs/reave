@@ -13,11 +13,18 @@
   --pack-font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
   --pack-font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
   --pack-font-hand: "Caveat", ui-cursive, cursive;
+  --pack-speed-dial-h: 4.25rem;
   color: var(--pack-bark);
   font-family: var(--pack-font-sans);
   background: var(--pack-cream);
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
-  padding-bottom: 5.5rem;
+  min-height: 100svh;
+}
+
+.pack > main {
+  flex: 1 1 auto;
 }
 
 .pack ::selection {
@@ -36,12 +43,12 @@
 }
 
 .pack-header {
-  position: fixed;
-  inset: 0 0 auto;
+  position: relative;
   z-index: 40;
+  flex: 0 0 auto;
   border-bottom: 1px solid rgb(28 20 16 / 0.1);
-  background: rgb(251 244 230 / 0.85);
-  backdrop-filter: blur(12px);
+  background: var(--pack-cream);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .pack-header__inner {
@@ -114,7 +121,6 @@
   overflow: hidden;
   background: var(--pack-bark);
   color: var(--pack-cream);
-  padding-top: 5rem;
 }
 
 .pack-hero__glow-a,
@@ -660,9 +666,11 @@
 }
 
 .pack-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
   background: var(--pack-bark);
   color: var(--pack-cream);
-  padding: 3rem 1rem 7rem;
+  padding: 3rem 1rem calc(var(--pack-speed-dial-h) + env(safe-area-inset-bottom, 0px) + 1.25rem);
 }
 
 .pack-footer__inner {
