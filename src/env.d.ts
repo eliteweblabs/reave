@@ -60,6 +60,8 @@ interface ImportMetaEnv {
   PLAUSIBLE_SITE_ID?: string;
   /** IANA timezone used when creating Plausible sites (default America/New_York). */
   PLAUSIBLE_TIMEZONE?: string;
+  /** Plausible Stats API fetch ceiling (ms). Default 20000. */
+  PLAUSIBLE_FETCH_TIMEOUT_MS?: string;
   /** IndexNow key for owned-site URL pings (not Google). */
   INDEXNOW_KEY?: string;
   /** Optional override path for integration OAuth tokens (GSC/GA4). */
