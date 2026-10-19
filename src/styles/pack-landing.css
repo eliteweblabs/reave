@@ -95,24 +95,9 @@
   color: var(--pack-ember);
 }
 
-.pack-header__book {
-  border-radius: 999px;
-  background: var(--pack-bark);
-  color: var(--pack-gold);
-  padding: 0.5rem 0.875rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
 @media (min-width: 640px) {
   .pack-header__nav {
     display: flex;
-  }
-  .pack-header__book {
-    font-size: 0.875rem;
-    padding: 0.5rem 0.875rem;
   }
 }
 
@@ -745,11 +730,15 @@
 }
 
 .pack-speed-dial__grid {
-  max-width: 28rem;
+  max-width: 40rem;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.375rem;
+}
+
+.pack-speed-dial__grid:not(:has(.pack-speed-dial__directions)) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .pack-speed-dial__grid a {
@@ -773,7 +762,12 @@
   margin-top: 0.125rem;
 }
 
-.pack-speed-dial__maps {
+.pack-speed-dial__book {
+  background: var(--pack-bark);
+  color: var(--pack-gold);
+}
+
+.pack-speed-dial__directions {
   background: var(--pack-gold);
   color: var(--pack-bark);
 }

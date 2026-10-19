@@ -5,6 +5,7 @@
 import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
+import { nativeMapsDirectionsUrl } from "../../lib/calendarLinks";
 import "../../styles/pack-landing.css";
 
 interface Props {
@@ -86,6 +87,11 @@ const hashtag = social.hashtag || "DrPawsCalls";
 const instagram = social.instagram || "";
 const instagramUrl = social.instagramUrl || (instagram ? `https://instagram.com/${instagram}` : "");
 const mapsUrl = social.mapsUrl || "";
+const directionsHref =
+  mapsUrl ||
+  (company.address?.trim()
+    ? nativeMapsDirectionsUrl(company.address.trim(), Astro.request.headers.get("user-agent"))
+    : "");
 const city = social.city || contact.officeLines?.join(", ") || "";
 const wallId = wall.id || "wall";
 const smsIntro =
@@ -115,7 +121,6 @@ const smsHref = phoneDigits
           <a href={link.href}>{link.label}</a>
         ))}
       </nav>
-      <a class="pack-header__book" href={scheduleUrl}>Book</a>
     </div>
   </header>
 
@@ -426,47 +431,54 @@ const smsHref = phoneDigits
     {landing.footer && <p class="pack-footer__note">{landing.footer}</p>}
   </footer>
 
-  {
-    phoneHref ? (
-      <nav class="pack-speed-dial" aria-label="Speed dial">
-        <div class="pack-speed-dial__grid">
-          {
-            mapsUrl ? (
-              <a class="pack-speed-dial__maps" href={mapsUrl} target="_blank" rel="noreferrer">
-                <!-- IOS_ICONS.map-pin — keep in sync with public/admin/admin-ui.js -->
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"></path>
-                  <circle cx="12" cy="10" r="2.25"></circle>
-                </svg>
-                <span>Area</span>
-              </a>
-            ) : (
-              <a class="pack-speed-dial__maps" href={scheduleUrl}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="18" rx="2"></rect>
-                  <path d="M16 2v4M8 2v4M3 10h18"></path>
-                </svg>
-                <span>Book</span>
-              </a>
-            )
-          }
-          <a class="pack-speed-dial__call" href={phoneHref}>
-            <!-- IOS_ICONS.phone -->
+  <nav class="pack-speed-dial" aria-label="Quick actions">
+    <div class="pack-speed-dial__grid">
+      <a class="pack-speed-dial__book" href={scheduleUrl}>
+        <!-- IOS_ICONS.calendar — keep in sync with public/admin/admin-ui.js -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+          <path d="M16 2v4M8 2v4M3 10h18"></path>
+        </svg>
+        <span>Book</span>
+      </a>
+      {
+        directionsHref ? (
+          <a
+            class="pack-speed-dial__directions"
+            href={directionsHref}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <!-- IOS_ICONS.map-pin — keep in sync with public/admin/admin-ui.js -->
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-              <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path>
+              <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11z"></path>
+              <circle cx="12" cy="10" r="2.25"></circle>
             </svg>
-            <span>Call</span>
+            <span>Directions</span>
           </a>
-          <a class="pack-speed-dial__sms" href={smsHref}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-              <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <span>Text</span>
-          </a>
-        </div>
-      </nav>
-    ) : null
-  }
+        ) : null
+      }
+      {
+        phoneHref ? (
+          <>
+            <a class="pack-speed-dial__sms" href={smsHref}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <span>SMS</span>
+            </a>
+            <a class="pack-speed-dial__call" href={phoneHref}>
+              <!-- IOS_ICONS.phone -->
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"></path>
+              </svg>
+              <span>Call</span>
+            </a>
+          </>
+        ) : null
+      }
+    </div>
+  </nav>
 
   {
     serviceItems.length && phoneDigits ? (
