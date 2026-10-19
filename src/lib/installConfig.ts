@@ -79,6 +79,7 @@ export const PROFILE_MENU_KEYS = [
   'profile',
   'team',
   'company',
+  'pages',
   'settings',
   'socials',
   'addons',
@@ -115,6 +116,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'meet',
   'profile',
   'company',
+  'pages',
   'settings',
   'socials',
   'addons',
@@ -225,6 +227,7 @@ export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   profile: 'Profile',
   team: 'Team',
   company: 'Company',
+  pages: 'Pages',
   settings: 'Settings',
   socials: 'Socials',
   addons: 'Add-ons',
@@ -579,6 +582,16 @@ function ensureProfileMenuAddons(menu: ProfileMenuKey[]): ProfileMenuKey[] {
   return [...menu, 'addons'];
 }
 
+/** Per-path SEO editor — after Company on every install. */
+function ensureProfileMenuPages(menu: ProfileMenuKey[]): ProfileMenuKey[] {
+  if (menu.includes('pages')) return menu;
+  const companyAt = menu.indexOf('company');
+  if (companyAt >= 0) {
+    return [...menu.slice(0, companyAt + 1), 'pages', ...menu.slice(companyAt + 1)];
+  }
+  return ['pages', ...menu];
+}
+
 /** Inject AI Services for every install — after Add-ons when present. */
 function ensureProfileMenuAiServices(menu: ProfileMenuKey[]): ProfileMenuKey[] {
   if (menu.includes('ai-services')) return menu;
@@ -605,6 +618,7 @@ function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   menu = ensureProfileMenuTeam(menu);
   // End users buy/request modules from account → Add-ons. Always show it.
   menu = ensureProfileMenuAddons(menu);
+  menu = ensureProfileMenuPages(menu);
   // AI inventory + model defaults — available on every install.
   return ensureProfileMenuAiServices(menu);
 }

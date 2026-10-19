@@ -26,6 +26,7 @@ export const ADMIN_SETTINGS_PAGE_KEYS = [
   'profile',
   'team',
   'company',
+  'pages',
   'settings',
   'socials',
   'addons',

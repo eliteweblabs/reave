@@ -15,6 +15,7 @@ import ScrollFadeIn from "../components/ScrollFadeIn.astro";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import PlausibleScript from "../components/PlausibleScript.astro";
 import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
+import { getPageSeoOverride, mergePageKeywords } from "../lib/pageSeo";
 import { formatSearchKeywordsMeta, resolvePageSearchKeywords } from "../lib/searchKeywords";
 import "../styles/scroll-fade.css";
 
@@ -65,10 +66,13 @@ if (pageName) {
   docTitle = formatHtmlPageTitle({ siteName });
 }
 if (!docTitle.trim()) docTitle = siteName || "Home";
+const pageSeo = getPageSeoOverride(company.pageSeoOverrides, Astro.url.pathname);
+if (pageSeo?.title?.trim()) docTitle = pageSeo.title.trim();
 const pwaTitle = formatPwaAppTitle(company.name);
-const description = descriptionProp ?? landing.description ?? company.description;
+const description =
+  pageSeo?.description?.trim() ?? descriptionProp ?? landing.description ?? company.description;
 const shareTitle = shareSafeText(docTitle);
-const ogImage = ogImageProp ?? company.ogImageUrl;
+const ogImage = pageSeo?.ogImage?.trim() || ogImageProp || company.ogImageUrl;
 const usesStandardOgDimensions = companyOgUsesStandardDimensions(ogImage, company);
 const isLandingOg = Boolean(siteLandingOgImage(siteContent) || landing.ogImage);
 const ogImageAlt = shareSafeText(landing.name ?? company.name);
@@ -91,11 +95,14 @@ const htmlStyle =
     ? undefined
     : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary, company.headerLogoSize);
 
-const pageSearchKeywords = resolvePageSearchKeywords({
-  company,
-  landing,
-  pathname: Astro.url.pathname,
-});
+const pageSearchKeywords = mergePageKeywords(
+  resolvePageSearchKeywords({
+    company,
+    landing,
+    pathname: Astro.url.pathname,
+  }),
+  pageSeo,
+);
 const pageSearchKeywordsMeta = formatSearchKeywordsMeta(pageSearchKeywords);
 
 const structuredData = landing.structuredData;

@@ -211,6 +211,7 @@ import {
   openScheduleCreateDialog,
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260831a';
+import { loadPagesTab } from './pages-panel.js?v=20261019a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';
@@ -404,6 +405,7 @@ const MAP_ICON_KEYS = {
   profile: 'user',
   team: 'users',
   company: 'building-2',
+  pages: 'file-text',
   settings: 'settings',
   socials: 'link-2',
   addons: 'puzzle',
@@ -422,6 +424,7 @@ const SETTINGS_MAP_TYPES = new Set([
   'profile',
   'team',
   'company',
+  'pages',
   'settings',
   'socials',
   'addons',
@@ -920,6 +923,11 @@ function activateMapPanel(opts = {}) {
     loadTeamTab();
   } else if (MAP.type === 'company') {
     loadCompanyTab();
+  } else if (MAP.type === 'pages') {
+    loadPagesTab({
+      settingsPanelRoot,
+      prependSettingsBackHeader,
+    });
   } else if (MAP.type === 'settings') {
     loadAppSettingsTab();
   } else if (MAP.type === 'socials') {

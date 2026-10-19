@@ -21,7 +21,8 @@ import {
   nativeMapsDirectionsUrl,
 } from '../lib/calendarLinks';
 import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
-import { getCompanyConfig } from '../lib/companyConfig';
+import { companyBrandingOgUrl, getCompanyConfig } from '../lib/companyConfig';
+import { getPageSeoOverride } from '../lib/pageSeo';
 import { getStoredCompanyConfig } from '../lib/companyConfigStore';
 import { getDeploymentOwnerProfile } from '../lib/deploymentOwner';
 import { qrCodeDataUrl } from '../lib/qrCode';
@@ -90,16 +91,22 @@ const appleDirectionsHref = directionsDest ? appleMapsDirectionsUrl(directionsDe
 const googleDirectionsHref = directionsDest ? mapsDirectionsUrl(directionsDest) : '';
 
 const vcardLabel = `Add ${ownerContactName}`;
+const pageSeo = getPageSeoOverride(company.pageSeoOverrides, '/card');
 const pwaTitle = formatPwaAppTitle(displayName);
-const pageTitle = formatHtmlPageTitle({ siteName: displayName, tagline });
-const shareTitle = shareSafeText(displayName);
+const pageTitle = pageSeo?.title?.trim()
+  ? formatHtmlPageTitle({ siteName: pageSeo.title.trim(), tagline: pageSeo.description?.trim() || tagline })
+  : formatHtmlPageTitle({ siteName: displayName, tagline });
+const shareTitle = shareSafeText(pageSeo?.title?.trim() || displayName);
 const description =
-  tagline || `Call, text, save ${displayName} to contacts, or get directions.`;
+  pageSeo?.description?.trim() ||
+  tagline ||
+  `Call, text, save ${displayName} to contacts, or get directions.`;
 const origin = requestOrigin(Astro.request);
 const canonical = company.domain
   ? `https://${company.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/card`
   : `${origin}/card`;
-const ogImage = company.ogImageUrl;
+/** NFC share previews use the standard branding OG card, not the site marketing image. */
+const ogImage = pageSeo?.ogImage?.trim() || companyBrandingOgUrl(company);
 const ogImageAbsolute = ogImage.startsWith('http') ? ogImage : `${origin}${ogImage}`;
 const logoShareFallback = company.logoPath && company.logoSource !== 'hidden'
   ? `${origin}${company.logoPath.startsWith('/') ? company.logoPath : `/${company.logoPath}`}`

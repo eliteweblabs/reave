@@ -103,6 +103,7 @@ export type StoredCompanyConfig = {
   headerLogoSize?: string | null;
   /** Alternate search spellings / service terms (prepended to per-page keyword lists). */
   searchKeywords?: string[] | null;
+  pageSeoOverrides?: Record<string, unknown> | null;
   updatedAt?: string | null;
 };
 
@@ -178,6 +179,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_calcom BOOLEAN
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_gbp BOOLEAN;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS header_logo_size TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS search_keywords JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS page_seo_overrides JSONB NOT NULL DEFAULT '{}'::jsonb;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -347,6 +349,12 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
           : null,
     headerLogoSize: str('headerLogoSize') || str('header_logo_size') || null,
     searchKeywords: parseSearchKeywordLines(o.searchKeywords ?? o.search_keywords),
+    pageSeoOverrides:
+      o.pageSeoOverrides && typeof o.pageSeoOverrides === 'object' && !Array.isArray(o.pageSeoOverrides)
+        ? (o.pageSeoOverrides as Record<string, unknown>)
+        : o.page_seo_overrides && typeof o.page_seo_overrides === 'object' && !Array.isArray(o.page_seo_overrides)
+          ? (o.page_seo_overrides as Record<string, unknown>)
+          : null,
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -439,6 +447,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     sync_hours_to_gbp: boolean | null;
     header_logo_size: string | null;
     search_keywords: unknown;
+    page_seo_overrides: unknown;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -453,7 +462,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
             brand_primary, brand_secondary, icon_background, portal_outreach_notice,
             og_data, og_media_type, email_font, business_hours, sync_hours_to_calcom, sync_hours_to_gbp,
-            header_logo_size, search_keywords, updated_at
+            header_logo_size, search_keywords, page_seo_overrides, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -523,6 +532,10 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     syncHoursToGbp: row.sync_hours_to_gbp,
     headerLogoSize: row.header_logo_size,
     searchKeywords: parseSearchKeywordLines(row.search_keywords),
+    pageSeoOverrides:
+      row.page_seo_overrides && typeof row.page_seo_overrides === 'object' && !Array.isArray(row.page_seo_overrides)
+        ? (row.page_seo_overrides as Record<string, unknown>)
+        : null,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -593,6 +606,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        sync_hours_to_gbp = $59,
        header_logo_size = $60,
        search_keywords = $61::jsonb,
+       page_seo_overrides = $62::jsonb,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -659,6 +673,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.syncHoursToGbp === true,
       config.headerLogoSize ?? null,
       JSON.stringify(parseSearchKeywordLines(config.searchKeywords)),
+      JSON.stringify(config.pageSeoOverrides && typeof config.pageSeoOverrides === 'object' ? config.pageSeoOverrides : {}),
     ],
   );
   if ((result.rowCount ?? 0) > 0) return true;

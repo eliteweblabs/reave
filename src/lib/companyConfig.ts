@@ -45,6 +45,7 @@ import {
 import { shareSafeText } from './shareSafeText';
 import { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
 import { normalizeHeaderLogoSize, type HeaderLogoSizeId } from './headerLogoSize';
+import { parsePageSeoOverrides, type PageSeoOverrides } from './pageSeo';
 import { parseSearchKeywordLines } from './searchKeywords';
 
 export { shareSafeText } from './shareSafeText';
@@ -246,6 +247,8 @@ export type CompanyConfig = {
   headerLogoSize: HeaderLogoSizeId;
   /** Alternate search spellings / service terms (prepended to per-page keyword lists). */
   searchKeywords: string[];
+  /** Admin → Pages overrides keyed by normalized path (e.g. /card, /). */
+  pageSeoOverrides: PageSeoOverrides;
 };
 
 function trim(s: string | null | undefined): string {
@@ -409,6 +412,11 @@ export function companyFaviconUrls(company: CompanyConfig): CompanyFaviconUrls {
 function brandingVersionQuery(company: CompanyConfig): string {
   const version = companyBrandingVersion(company);
   return version ? `?v=${encodeURIComponent(version)}` : '';
+}
+
+/** Standard 1200×630 share card — admin upload or generated letter tile (not the wordmark URL). */
+export function companyBrandingOgUrl(company: CompanyConfig): string {
+  return `${BRANDING_OG_PATH}${brandingVersionQuery(company)}`;
 }
 
 /** Admin-uploaded wordmark or static logo path suitable for og:image. */
@@ -683,6 +691,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     syncHoursToGbp: stored?.syncHoursToGbp === true,
     headerLogoSize: normalizeHeaderLogoSize(stored?.headerLogoSize),
     searchKeywords: parseSearchKeywordLines(stored?.searchKeywords),
+    pageSeoOverrides: parsePageSeoOverrides(stored?.pageSeoOverrides),
     logoSvg: trim(stored?.logoSvg),
     iconSvg: trim(stored?.iconSvg),
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
