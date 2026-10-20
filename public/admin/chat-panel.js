@@ -1050,6 +1050,20 @@ function bindChatMessageContextMenu(row, message, composeInput, onEdit) {
   });
 }
 
+function chatHistoryTruncationFromApi(data) {
+  if (!data?.messages_truncated || typeof data.messages_total !== 'number') return null;
+  const shown = data.thread?.messages?.length ?? 0;
+  if (data.messages_total <= shown) return null;
+  return { messagesTotal: data.messages_total, messagesShown: shown };
+}
+
+function applyChatThreadPayload(data) {
+  chatState.messages = data.thread?.messages || [];
+  chatState.title = data.thread?.title ?? '';
+  chatState.linkedJobs = data.thread?.linked_jobs || [];
+  chatState.historyTruncation = chatHistoryTruncationFromApi(data);
+}
+
 let chatState = {
   threads: [],
   search: '',
@@ -1059,6 +1073,7 @@ let chatState = {
   messages: [],
   title: '',
   linkedJobs: [],
+  historyTruncation: null,
   sending: false,
   sendAbort: null,
   pendingDraft: null,
@@ -2207,6 +2222,7 @@ function mountChatThreadRoot(threadHost) {
     threadId: chatState.activeId,
     companyName: window.__companyBrand?.name || 'Assistant',
     initialMessages: chatState.messages,
+    historyTruncation: chatState.historyTruncation,
     pendingDraft,
     pendingAutoSend,
     autoFocusComposer,
@@ -2251,12 +2267,12 @@ function mountChatThreadRoot(threadHost) {
           cache: 'no-store',
         });
         const data = await readApiJson(res);
-    chatState.messages = data.thread.messages || [];
-    chatState.title = data.thread.title;
-    if (chatState.messages.length) chatState.refetchAttemptedId = null;
+        applyChatThreadPayload(data);
+        if (chatState.messages.length) chatState.refetchAttemptedId = null;
         const host = getChatPanel()?.querySelector('#ch-thread-root');
         if (host && window.__reaveAgentChat?.syncMessages) {
           composeTrace('shell.sync-messages', { count: chatState.messages.length }, 'warn', { snap: true });
+          window.__reaveAgentChat.update?.(host, { historyTruncation: chatState.historyTruncation });
           window.__reaveAgentChat.syncMessages(host, chatState.messages);
           return;
         }
@@ -2484,10 +2500,9 @@ async function openChat(id, opts = {}) {
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { cache: 'no-store' });
         const data = await readApiJson(res);
-        chatState.messages = data.thread.messages || [];
-        chatState.title = data.thread.title;
-        chatState.linkedJobs = data.thread.linked_jobs || [];
+        applyChatThreadPayload(data);
         chatState.paneLoading = false;
+        window.__reaveAgentChat.update?.(host, { historyTruncation: chatState.historyTruncation });
         window.__reaveAgentChat.syncMessages(host, chatState.messages);
         syncChatSidebarActiveState({ scroll: true });
       } catch {
@@ -2516,10 +2531,8 @@ async function openChat(id, opts = {}) {
     );
     chatState.paneLoading = false;
     chatState.activeId = id;
-    chatState.title = data.thread.title;
-    chatState.messages = data.thread.messages || [];
+    applyChatThreadPayload(data);
     if (chatState.messages.length) chatState.refetchAttemptedId = null;
-    chatState.linkedJobs = data.thread.linked_jobs || [];
     chatState.composeDirty = false;
     chatState.disposableChatId = null;
     chatState.sending = false;

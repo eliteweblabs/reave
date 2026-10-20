@@ -701,10 +701,22 @@ function ChatMessageShell({
   );
 }
 
+export type ChatHistoryTruncation = {
+  messagesTotal: number;
+  messagesShown: number;
+};
+
+export type ChatTurnNotice = {
+  tone: 'info' | 'warn' | 'error';
+  message: string;
+};
+
 export type AgentChatPanelProps = {
   threadId: string;
   companyName?: string;
   initialMessages: StoredChatMessage[];
+  /** Set when GET /api/chats/:id capped messages for the UI. */
+  historyTruncation?: ChatHistoryTruncation | null;
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
   /** Focus the composer once after mount (e.g. newly created empty session). */
@@ -966,6 +978,7 @@ function createChatAdapter(
   propsRef: RefObject<AgentChatPanelProps>,
   onStreamedProgress: (progress: AgentProgress | null) => void,
   pendingMentionsRef: RefObject<ChatMention[]>,
+  onTurnNoticeRef: RefObject<(notice: ChatTurnNotice | null) => void>,
 ): ChatModelAdapter {
   return {
     async *run(options) {
@@ -999,6 +1012,7 @@ function createChatAdapter(
         propsRef.current?.onAgentProgress?.(progress);
       };
 
+      onTurnNoticeRef.current?.(null);
       propsRef.current?.onAgentRunChange?.(true);
       resumeAgentTones();
       emitProgress({ phase: 'thinking', round: 1 });
@@ -1021,18 +1035,31 @@ function createChatAdapter(
         });
 
         if (!res.ok) {
-          let errData: { deploy_locked?: boolean; error?: string } = {};
+          let errData: {
+            deploy_locked?: boolean;
+            run_in_progress?: boolean;
+            draining?: boolean;
+            error?: string;
+          } = {};
           try {
             errData = (await res.json()) as typeof errData;
           } catch {
             /* ignore */
           }
-          throw new Error(
-            errData.error ||
-              (errData.deploy_locked
+          const fallback =
+            errData.run_in_progress
+              ? 'A reply is still in progress for this chat — wait or stop the current turn.'
+              : errData.deploy_locked
                 ? 'Deploy in progress — try again when live.'
-                : `Request failed (${res.status})`),
-          );
+                : errData.draining
+                  ? 'Server is restarting for deploy — send again in a moment.'
+                  : `Request failed (${res.status})`;
+          const message = errData.error || fallback;
+          onTurnNoticeRef.current?.({
+            tone: errData.run_in_progress ? 'info' : 'warn',
+            message,
+          });
+          throw new Error(message);
         }
 
         const contentType = res.headers.get('Content-Type') ?? '';
@@ -1093,6 +1120,21 @@ function createChatAdapter(
                   (data.agent_usage as AgentUsageSummary | null | undefined) ??
                   assistantMsg?.agent_usage ??
                   null;
+                const doneError = typeof data.error === 'string' ? data.error.trim() : '';
+                const interrupted = data.interrupted === true;
+                if (doneError) {
+                  onTurnNoticeRef.current?.({
+                    tone: 'error',
+                    message: `${doneError} Refresh the thread if the reply does not appear in history.`,
+                  });
+                  void propsRef.current?.onRefreshMessages?.();
+                } else if (interrupted) {
+                  onTurnNoticeRef.current?.({
+                    tone: 'warn',
+                    message:
+                      'This turn ended early. The note in the thread may be incomplete — send again if you need a full answer.',
+                  });
+                }
                 if (userMsg?.content && assistantMsg?.content) {
                   propsRef.current?.onMessagesPersist?.(userMsg.content, {
                     content: assistantMsg.content,
@@ -2648,6 +2690,38 @@ function useReleaseStuckRun(
   return { releaseIfIdle, dropLocalRun };
 }
 
+function ChatHistoryTruncationBanner({ info }: { info: ChatHistoryTruncation | null | undefined }) {
+  if (!info || info.messagesTotal <= info.messagesShown) return null;
+  return (
+    <div className="aui-chat-notice aui-chat-notice--info" role="status">
+      <p>
+        Showing the latest {info.messagesShown} of {info.messagesTotal} messages. Earlier turns remain
+        stored and the agent still sees them on new sends.
+      </p>
+    </div>
+  );
+}
+
+function ChatTurnNoticeBanner({
+  notice,
+  onDismiss,
+}: {
+  notice: ChatTurnNotice | null;
+  onDismiss?: () => void;
+}) {
+  if (!notice) return null;
+  return (
+    <div className={`aui-chat-notice aui-chat-notice--${notice.tone}`} role="status">
+      <p>{notice.message}</p>
+      {onDismiss ? (
+        <button type="button" className="aui-chat-notice-dismiss" aria-label="Dismiss" onClick={onDismiss}>
+          ×
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function ClaudeComposer({
   propsRef,
   commands,
@@ -2664,6 +2738,8 @@ function ClaudeComposer({
   deployLiveReloading = false,
   queuedSend = false,
   onQueuedChange,
+  turnNotice = null,
+  onDismissTurnNotice,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
@@ -2680,6 +2756,8 @@ function ClaudeComposer({
   deployLiveReloading?: boolean;
   queuedSend?: boolean;
   onQueuedChange?: (queued: boolean) => void;
+  turnNotice?: ChatTurnNotice | null;
+  onDismissTurnNotice?: () => void;
 }) {
   const fieldRef = useRef<ComposerFieldHandle | null>(null);
   const composer = useComposerRuntime();
@@ -2788,6 +2866,7 @@ function ClaudeComposer({
 
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+      <ChatTurnNoticeBanner notice={turnNotice} onDismiss={onDismissTurnNotice} />
       {deployChatLocked ? (
         <div
           className={`aui-composer-deploy-lock${deployLiveReloading ? ' aui-composer-deploy-lock--live' : ''}`}
@@ -3354,6 +3433,9 @@ function AgentChatThreadBody({
   pendingMentionsRef,
   queuedSend,
   onQueuedChange,
+  turnNotice,
+  onDismissTurnNotice,
+  historyTruncation,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   threadId: string;
@@ -3362,6 +3444,9 @@ function AgentChatThreadBody({
   pendingMentionsRef: RefObject<ChatMention[]>;
   queuedSend: boolean;
   onQueuedChange: (queued: boolean) => void;
+  turnNotice: ChatTurnNotice | null;
+  onDismissTurnNotice: () => void;
+  historyTruncation?: ChatHistoryTruncation | null;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const [welcomeGreeting] = useState(() => pickChatWelcomeGreeting());
@@ -3459,6 +3544,8 @@ function AgentChatThreadBody({
             queuedSend={queuedSend}
             onQueuedChange={onQueuedChange}
             onFocusInputReady={onFocusInputReady}
+            turnNotice={turnNotice}
+            onDismissTurnNotice={onDismissTurnNotice}
           />
         </div>
       </AuiIf>
@@ -3471,6 +3558,7 @@ function AgentChatThreadBody({
             scrollToBottomOnRunStart={!lightboxOpen}
           >
             <div className="aui-thread-column">
+              <ChatHistoryTruncationBanner info={historyTruncation} />
               <ChatMessages />
               {showInThreadStatus ? (
                 <InThreadRunStatus
@@ -3503,6 +3591,8 @@ function AgentChatThreadBody({
                 queuedSend={queuedSend}
                 onQueuedChange={onQueuedChange}
                 onFocusInputReady={onFocusInputReady}
+                turnNotice={turnNotice}
+                onDismissTurnNotice={onDismissTurnNotice}
               />
               <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check results.</p>
             </div>
@@ -3544,12 +3634,14 @@ function AgentChatThread({
   pendingDraft,
   pendingAutoSend,
   importMessagesGeneration = 0,
+  historyTruncation = null,
 }: {
   threadId: string;
   propsRef: RefObject<AgentChatPanelProps>;
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
   importMessagesGeneration?: number;
+  historyTruncation?: ChatHistoryTruncation | null;
 }) {
   const deployChatLock = useDeployChatLock();
   const [queuedSend, setQueuedSend] = useState(
@@ -3560,8 +3652,11 @@ function AgentChatThread({
     setStreamedProgressState((prev) => (sameAgentProgressUi(prev, progress) ? prev : progress));
   }, []);
   const pendingMentionsRef = useRef<ChatMention[]>([]);
+  const [turnNotice, setTurnNotice] = useState<ChatTurnNotice | null>(null);
+  const onTurnNoticeRef = useRef<(notice: ChatTurnNotice | null) => void>(() => {});
+  onTurnNoticeRef.current = setTurnNotice;
   const adapter = useMemo(
-    () => createChatAdapter(threadId, propsRef, setStreamedProgress, pendingMentionsRef),
+    () => createChatAdapter(threadId, propsRef, setStreamedProgress, pendingMentionsRef, onTurnNoticeRef),
     [threadId, propsRef, setStreamedProgress],
   );
 
@@ -3602,6 +3697,9 @@ function AgentChatThread({
           pendingMentionsRef={pendingMentionsRef}
           queuedSend={queuedSend}
           onQueuedChange={setQueuedSend}
+          turnNotice={turnNotice}
+          onDismissTurnNotice={() => setTurnNotice(null)}
+          historyTruncation={historyTruncation}
         />
       </ChatLightboxProvider>
     </AssistantRuntimeProvider>
@@ -3637,6 +3735,7 @@ export function AgentChatPanel(props: AgentChatPanelProps) {
           pendingDraft={props.pendingDraft}
           pendingAutoSend={props.pendingAutoSend}
           importMessagesGeneration={props.importMessagesGeneration}
+          historyTruncation={props.historyTruncation}
         />
       </div>
     </ChatNavContext.Provider>

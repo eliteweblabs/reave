@@ -563,6 +563,56 @@
   color: var(--fg);
 }
 
+.aui-chat-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-hover);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--fg-muted);
+}
+
+.aui-chat-notice p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.aui-chat-notice--warn {
+  border-color: color-mix(in srgb, #c9870a 35%, var(--card-border));
+  background: color-mix(in srgb, #c9870a 8%, var(--card));
+  color: var(--fg);
+}
+
+.aui-chat-notice--error {
+  border-color: color-mix(in srgb, #c0392b 35%, var(--card-border));
+  background: color-mix(in srgb, #c0392b 8%, var(--card));
+  color: var(--fg);
+}
+
+.aui-chat-notice--info {
+  color: var(--fg-muted);
+}
+
+.aui-chat-notice-dismiss {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 1.125rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  cursor: pointer;
+}
+
+.aui-chat-notice-dismiss:hover {
+  color: var(--fg);
+}
+
 .aui-composer-shell {
   display: flex;
   flex-direction: column;

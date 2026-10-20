@@ -16,7 +16,7 @@
  * always ends with an assistant turn the user (and the model, next turn) can see.
  */
 import type { APIContext } from 'astro';
-import { getAgentProgress } from '../../../../lib/agentProgress';
+import { clearAgentProgress } from '../../../../lib/agentProgress';
 import { isAgentRunActive } from '../../../../lib/agentRunControl';
 import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
 import { storeAppendChatMessages, storeGetChatThread } from '../../../../lib/chatStore';
@@ -44,12 +44,14 @@ export async function POST(context: APIContext): Promise<Response> {
   // A live run will write its own reply (the chat endpoint guarantees it), so
   // never insert a note underneath one that is still working — locally or on a
   // draining replica that still holds a fresh lease.
-  if (isAgentRunActive(userId, id) || getAgentProgress(userId, id)) {
+  if (isAgentRunActive(userId, id)) {
     return jsonResponse({ ok: true, reconciled: false, reason: 'run_active' });
   }
   if (await getAliveAgentRunLease(userId, id)) {
     return jsonResponse({ ok: true, reconciled: false, reason: 'run_lease_active' });
   }
+
+  clearAgentProgress(userId, id);
 
   const ownerUserId = await resolveChatThreadOwnerUserId(userId, id);
   if (!ownerUserId) return jsonResponse({ ok: false, error: 'Session not found' }, 404);

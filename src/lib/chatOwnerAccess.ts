@@ -14,9 +14,12 @@ import {
 
 export async function storeListChatThreadsForOwner(
   signedInUserId: string,
-  opts?: { archivedOnly?: boolean },
+  opts?: { archivedOnly?: boolean; consolidateOrphans?: boolean },
 ): Promise<{ threads: ChatThreadSummary[]; consolidated: number }> {
-  const consolidated = await storeConsolidateOrphanedChatThreads(signedInUserId);
+  let consolidated = 0;
+  if (opts?.consolidateOrphans) {
+    consolidated = await storeConsolidateOrphanedChatThreads(signedInUserId);
+  }
   const threads = await storeListChatThreads(signedInUserId, opts);
   return { threads, consolidated };
 }
@@ -24,8 +27,11 @@ export async function storeListChatThreadsForOwner(
 export async function storeGetChatThreadForOwner(
   signedInUserId: string,
   threadId: string,
+  opts?: { consolidateOrphans?: boolean },
 ): Promise<ChatThreadDetail | null> {
-  await storeConsolidateOrphanedChatThreads(signedInUserId);
+  if (opts?.consolidateOrphans) {
+    await storeConsolidateOrphanedChatThreads(signedInUserId);
+  }
   const ownerUserId = await resolveChatThreadOwnerUserId(signedInUserId, threadId);
   if (!ownerUserId) return null;
   return storeGetChatThread(ownerUserId, threadId);

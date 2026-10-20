@@ -12,6 +12,7 @@ import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOr
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
 import { storeGetEmailInbox } from '../../../lib/emailInboxStore';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { isDeploymentOwner } from '../../../lib/deploymentOwner';
 import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
@@ -36,7 +37,11 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const archivedOnly = context.url.searchParams.get('archived') === '1';
-  const { threads, consolidated } = await storeListChatThreadsForOwner(userId, { archivedOnly });
+  const consolidateOrphans = await isDeploymentOwner(context);
+  const { threads, consolidated } = await storeListChatThreadsForOwner(userId, {
+    archivedOnly,
+    consolidateOrphans,
+  });
   const orderMap = await storeGetSidebarOrder('chats');
   const sorted = sortBySidebarOrder(
     threads,

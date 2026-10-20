@@ -169,7 +169,7 @@ export async function storeGetChatThreadOwnerUserId(threadId: string): Promise<s
 
 /**
  * Move chat threads orphaned under previous Clerk user ids onto the current
- * deployment owner. Safe on every list — no-ops when everything already matches.
+ * deployment owner. Call from owner recovery flows only — not on every chat list.
  */
 export async function storeConsolidateOrphanedChatThreads(toUserId: string): Promise<number> {
   const to = toUserId.trim();

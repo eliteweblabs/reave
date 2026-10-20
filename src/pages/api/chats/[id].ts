@@ -23,6 +23,7 @@ import {
   resolveChatThreadOwnerUserId,
   storeGetChatThreadForOwner,
 } from '../../../lib/chatOwnerAccess';
+import { isDeploymentOwner } from '../../../lib/deploymentOwner';
 import {
   storeAppendChatMessages,
   storeDeleteChatThread,
@@ -275,7 +276,8 @@ export async function GET(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
-  const thread = await storeGetChatThreadForOwner(userId, id);
+  const consolidateOrphans = await isDeploymentOwner(context);
+  const thread = await storeGetChatThreadForOwner(userId, id, { consolidateOrphans });
   if (!thread) return jsonResponse({ ok: false, error: 'Session not found' }, 404);
   const linked_jobs = await listJobsForItem('chat', id);
   let messages = thread.messages;
@@ -356,9 +358,21 @@ export async function POST(context: APIContext): Promise<Response> {
     );
   }
 
+  if (isAgentRunActive(userId, id)) {
+    return jsonResponse(
+      {
+        ok: false,
+        run_in_progress: true,
+        error:
+          'A reply is still in progress for this chat. Wait for it to finish or stop the current turn before sending again.',
+      },
+      409,
+    );
+  }
+
   // A draining replica may still own this turn — don't start a second run on
   // the new container while the first is finishing and writing its reply.
-  if (!isAgentRunActive(userId, id) && (await getAliveAgentRunLease(userId, id))) {
+  if (await getAliveAgentRunLease(userId, id)) {
     return jsonResponse(
       {
         ok: false,
