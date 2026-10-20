@@ -19,13 +19,24 @@ import { cloudflareFindZone, cloudflareZoneName } from './cloudflareClient';
 import { resolveNamecomCredentials } from './namecomClient';
 import { resolveGoDaddyCredentials } from './godaddyClient';
 import { railwaySetVariables } from './railwayAgentApi';
+import {
+  CANONICAL_PUBLIC_BRAND_DOMAIN,
+  LEGACY_PUBLIC_BRAND_DOMAIN,
+} from './legacyBrandDomain';
 
-export const REAVE_STAGING_PARENT = 'reave.app';
+/** Official zone used for wizard staging subdomains (canonical). */
+export const REAVE_STAGING_PARENT = CANONICAL_PUBLIC_BRAND_DOMAIN;
 
 export function isDeployWizardReaveStagingHost(raw: string | undefined): boolean {
   const host = normalizeSiteDomain(raw);
-  if (!host || host === REAVE_STAGING_PARENT) return false;
-  return host.endsWith(`.${REAVE_STAGING_PARENT}`);
+  if (!host) return false;
+  if (host === CANONICAL_PUBLIC_BRAND_DOMAIN || host === LEGACY_PUBLIC_BRAND_DOMAIN) {
+    return false;
+  }
+  return (
+    host.endsWith(`.${CANONICAL_PUBLIC_BRAND_DOMAIN}`) ||
+    host.endsWith(`.${LEGACY_PUBLIC_BRAND_DOMAIN}`)
+  );
 }
 
 export type DeployWizardSiteResolution = {
@@ -79,7 +90,7 @@ export async function resolveDeployWizardSiteDomain(opts: {
       stagingHost: true,
       provisionOnApply: false,
       dnsAccess: 'skip',
-      note: `Using reave.app staging host ${planned}.`,
+      note: `Using official staging host ${planned}.`,
     };
   }
 

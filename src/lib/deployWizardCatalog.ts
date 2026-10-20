@@ -351,7 +351,7 @@ export function deployWizardFqdn(host: string, apex: string): string {
   return label ? `${label}.${apex}` : apex;
 }
 
-/** Demo / no-DNS staging host on the official zone, e.g. life-saving.reave.app */
+/** Demo / no-DNS staging host on the official zone, e.g. life-saving.rekko.studio */
 export function deployWizardStagingHost(installSlug: string): string {
   const slug = (installSlug ?? '')
     .trim()
@@ -359,7 +359,7 @@ export function deployWizardStagingHost(installSlug: string): string {
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
-  return `${slug || 'demo'}.reave.app`;
+  return `${slug || 'demo'}.rekko.studio`;
 }
 
 /** INSTALL_CONFIG slug derived from the company / install title (not typed separately). */
@@ -388,7 +388,11 @@ export function resolveDeployWizardInstallSlug(input: {
   if (fromCompany) return fromCompany;
   const domain = normalizeSiteDomain(input.siteDomain);
   const label = domain.split('.')[0]?.replace(/^www\./, '') ?? '';
-  if (label && !domain.endsWith('.reave.app')) {
+  if (
+    label &&
+    !domain.endsWith('.reave.app') &&
+    !domain.endsWith('.rekko.studio')
+  ) {
     return deriveInstallSlugFromCompanyName(label.replace(/-/g, ' '), 'demo');
   }
   return 'demo';
@@ -813,7 +817,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',
     value: '',
-    description: 'Client-owned apex for go-live when staging on {slug}.reave.app.',
+    description: 'Client-owned apex for go-live when staging on {slug}.rekko.studio.',
     required: false,
   }),
   v({
@@ -1903,7 +1907,7 @@ export type DeployWizardPlanInput = {
   /** Override the Astro service name if this install is not `reave`. */
   appService?: string;
   installSlug?: string;
-  /** Client-owned apex (e.g. acme.com). Staging uses {slug}.reave.app when DNS is not ready. */
+  /** Client-owned apex (e.g. acme.com). Staging uses {slug}.rekko.studio when DNS is not ready. */
   siteDomain?: string;
   /** How Apply handles DNS when the apex is not in Cloudflare yet. */
   dnsAccess?: DeployWizardDnsAccess;
@@ -2200,9 +2204,9 @@ export type DeployWizardPlan = {
   appService: string;
   installSlug: string;
   siteDomain: string;
-  /** Client apex when staging on {slug}.reave.app — filled at go-live. */
+  /** Client apex when staging on {slug}.rekko.studio — filled at go-live. */
   plannedSiteDomain: string;
-  /** True when the public host is {slug}.reave.app (demo / no Cloudflare yet). */
+  /** True when the public host is {slug}.rekko.studio (demo / no client DNS yet). */
   stagingHost: boolean;
   /** Create Cloudflare zone (+ Name.com NS) on Apply before DNS. */
   provisionOnApply: boolean;

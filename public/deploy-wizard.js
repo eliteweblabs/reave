@@ -524,7 +524,7 @@
 
   function stagingPreviewHost() {
     const slug = derivedInstallSlug();
-    return `${slug}.reave.app`;
+    return `${slug}.rekko.studio`;
   }
 
   function renderApplySummary() {
