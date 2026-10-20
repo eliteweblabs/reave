@@ -8,6 +8,7 @@
  *
  * Body columns are split on a `:::column` line.
  */
+import { escapeHtml } from './htmlEscape';
 import { parseKnowledgeMarkdown } from './localKnowledge';
 import { renderDocumentMarkdown } from './renderDocumentMarkdown';
 import { brandIconUrl, companyLogoUrl, type CompanyConfig } from './companyConfig';
@@ -90,18 +91,14 @@ function splitColumns(body: string): string[] {
   return parts.slice(0, 3);
 }
 
-function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function escPrintText(s: string): string {
+  return escapeHtml(s).replace(/@/g, '&#64;');
 }
 
 export function companyLogoHtml(company?: PrintCompany): string {
   const name = (company?.name || SITE.name || 'Logo').trim();
   if (!company) {
-    return `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+    return `<span class="doc-onepager-logo-name">${escapeHtml(name)}</span>`;
   }
 
   const svg = company.logoSvg?.trim();
@@ -116,18 +113,18 @@ export function companyLogoHtml(company?: PrintCompany): string {
   if (company.logoSource === 'admin' && company.logoPath) {
     const src = companyLogoUrl(company.logoPath, company.logoVersion);
     if (src) {
-      return `<img class="doc-onepager-logo-img" src="${esc(src)}" alt="${esc(name)}" />`;
+      return `<img class="doc-onepager-logo-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}" />`;
     }
   }
 
   if (company.logoSource !== 'hidden') {
     const src = companyLogoUrl(company.logoPath, company.logoVersion) || SITE.logoPath;
     if (src) {
-      return `<img class="doc-onepager-logo-img" src="${esc(src)}" alt="${esc(name)}" />`;
+      return `<img class="doc-onepager-logo-img" src="${escapeHtml(src)}" alt="${escapeHtml(name)}" />`;
     }
   }
 
-  return `<span class="doc-onepager-logo-name">${esc(name)}</span>`;
+  return `<span class="doc-onepager-logo-name">${escapeHtml(name)}</span>`;
 }
 
 const BRAND_SIZE_PRESETS: Record<string, string> = {
@@ -199,7 +196,7 @@ function inlineBrandSvg(raw: string | undefined, className: string, idPrefix: st
 
 function brandMarkImg(src: string, alt: string): string {
   if (!src) return '';
-  return `<img class="doc-brand-img" src="${esc(src)}" alt="${esc(alt)}" />`;
+  return `<img class="doc-brand-img" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" />`;
 }
 
 function logoImgSrc(company?: PrintCompany): string {
@@ -250,8 +247,8 @@ function brandMarkWrapper(
   const { sizeClass, style } = parseBrandSize(opts?.size, kind);
   const kindClass = kind === 'icon' ? 'doc-brand--icon' : 'doc-brand--logo';
   const classes = ['doc-brand', kindClass, sizeClass].filter(Boolean).join(' ');
-  const styleAttr = style ? ` style="${esc(style)}"` : '';
-  return `<span class="${classes}"${styleAttr} role="img" aria-label="${esc(alt)}">${inner}</span>`;
+  const styleAttr = style ? ` style="${escapeHtml(style)}"` : '';
+  return `<span class="${classes}"${styleAttr} role="img" aria-label="${escapeHtml(alt)}">${inner}</span>`;
 }
 
 /** Inline, scalable company logo or icon for `{company.logo}` / `{company.icon}`. */
@@ -467,7 +464,7 @@ export function wrapPrintOnePager(opts: {
     .map((html) => `<div class="doc-onepager-col">${html || '<p></p>'}</div>`)
     .join('');
   const kicker = (opts.kicker || '').trim();
-  const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${esc(kicker)}</p>` : '';
+  const kickerHtml = kicker ? `<p class="doc-onepager-kicker">${escapeHtml(kicker)}</p>` : '';
 
   return `
 <style>${printPageCss(opts.orientation, columnHtml.length)}</style>
@@ -476,7 +473,7 @@ export function wrapPrintOnePager(opts: {
     <header class="doc-onepager-header">
       <div class="doc-onepager-logo">${opts.logoHtml}</div>
       <div class="doc-onepager-mast">
-        <h1 class="doc-onepager-title">${esc(opts.title)}</h1>
+        <h1 class="doc-onepager-title">${escapeHtml(opts.title)}</h1>
         ${kickerHtml}
       </div>
     </header>
