@@ -7,6 +7,7 @@ import {
   isVoiceOrDictationInputType,
 } from '../../lib/chatComposerDraft';
 import { composeTrace } from '../../lib/chatComposeTrace';
+import { queueComposerAttachments } from '../../lib/chatComposerAttachments';
 import {
   getMentionEditorCaret,
   mentionEditorHasRawTokens,
@@ -230,7 +231,7 @@ export function ComposerMentionInput({
         const text = data.getData('text/plain');
         if (!files.length && !text) return;
         e.preventDefault();
-        for (const file of files) void composer.addAttachment(file);
+        void queueComposerAttachments((file) => composer.addAttachment(file), files);
         if (text) document.execCommand('insertText', false, text);
       }}
     />

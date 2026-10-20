@@ -88,13 +88,14 @@ import {
 } from '../../lib/composerMentionEditor';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
+import { ChatComposerAddAttachment } from './ChatComposerAddAttachment';
+import { ChatComposerAttachmentDropzone } from './ChatComposerAttachmentDropzone';
 import './agent-chat.css';
 
 /** Match API limits in `src/pages/api/chats/[id].ts`. */
 const MAX_CHAT_IMAGES = 5;
 const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
-const CHAT_IMAGE_ACCEPT =
-  'image/jpeg,image/png,image/gif,image/webp,image/svg+xml,.jpg,.jpeg,.png,.gif,.webp,.svg';
+const CHAT_IMAGE_ACCEPT = 'image/*,.svg';
 
 const MAX_CHAT_DOCS = 3;
 const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
@@ -2830,7 +2831,7 @@ function ClaudeComposer({
           activeIdx={helpers.activeIdx}
         />
       ) : null}
-      <ComposerPrimitive.AttachmentDropzone className="aui-composer-dropzone">
+      <ChatComposerAttachmentDropzone className="aui-composer-dropzone">
         <ComposerPrimitive.Root className="aui-composer-card">
           <AuiIf condition={(s) => s.composer.attachments.length > 0}>
             <div className="aui-composer-attachments">
@@ -2872,13 +2873,12 @@ function ClaudeComposer({
             }}
           />
           <div className="aui-composer-toolbar">
-            <ComposerPrimitive.AddAttachment
+            <ChatComposerAddAttachment
               className="aui-composer-attach"
               aria-label="Attach images, SVGs, PDFs, or PowerPoint files"
-              multiple
             >
               <AttachIcon />
-            </ComposerPrimitive.AddAttachment>
+            </ChatComposerAddAttachment>
             <span className="aui-composer-hint">
               {queuedSend
                 ? 'Queued — this will send when the new version is live'
@@ -2955,7 +2955,7 @@ function ClaudeComposer({
             </span>
           </div>
         </ComposerPrimitive.Root>
-      </ComposerPrimitive.AttachmentDropzone>
+      </ChatComposerAttachmentDropzone>
     </div>
   );
 }
