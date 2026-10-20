@@ -74,6 +74,7 @@ import {
   craterAddInvoiceItems,
   craterUpdateInvoiceItem,
   craterSearchLineItems,
+  craterCreateItem,
   craterRecordPayment,
   craterUpdatePayment,
   craterDeletePayment,
@@ -263,6 +264,21 @@ async function handle_search_line_items(args: Record<string, unknown>, _ctx: Too
   const result = await craterSearchLineItems(args.q as string | undefined);
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
   return JSON.stringify({ count: result.data.count, line_items: result.data.line_items?.slice(0, 25) ?? [] });
+}
+
+async function handle_create_line_item(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const name = String(args.name ?? '').trim();
+  if (!name) return JSON.stringify({ error: 'name is required' });
+  const price = args.price !== undefined ? Number(args.price) : undefined;
+  if (price === undefined || isNaN(price)) return JSON.stringify({ error: 'price is required (whole dollars)' });
+  const result = await craterCreateItem({
+    name,
+    description: args.description as string | undefined,
+    price,
+    unit_name: args.unit_name as string | undefined,
+  });
+  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  return JSON.stringify(result.data);
 }
 
 async function handle_record_payment(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -510,6 +526,25 @@ export const billingModule: AgentToolModule = {
             {
               type: 'function',
               function: {
+                name: 'create_line_item',
+                description:
+                  'Create a new saved line-item template (catalog item) in Crater. Use when the user wants to add items to the Saved Items catalog. Prices are whole dollars. Returns 409 if an item with the same name already exists.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', description: 'Line item name' },
+                    description: { type: 'string', description: 'Optional description' },
+                    price: { type: 'number', description: 'Unit price in whole dollars' },
+                    unit_name: { type: 'string', description: 'Optional unit label, e.g. "hr" or "visit"' },
+                  },
+                  required: ['name', 'price'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
                 name: 'record_payment',
                 description:
                   'Record an offline payment in Crater for a customer. May return needs_selection if customer, invoice, or payment_mode is ambiguous — re-call with specifics.',
@@ -650,7 +685,7 @@ export const billingModule: AgentToolModule = {
                   additionalProperties: false,
                 },
               },
-            }
+            },
     ];
   },
   handlers: {
@@ -663,6 +698,7 @@ export const billingModule: AgentToolModule = {
     'add_invoice_items': handle_add_invoice_items,
     'update_invoice_item': handle_update_invoice_item,
     'search_line_items': handle_search_line_items,
+    'create_line_item': handle_create_line_item,
     'record_payment': handle_record_payment,
     'update_payment': handle_update_payment,
     'delete_payment': handle_delete_payment,

@@ -1340,3 +1340,47 @@ export async function craterDeletePayment(
     method: 'DELETE',
   });
 }
+
+
+// ---------------------------------------------------------------------------
+// Catalog item creation (custom route from crater-create-item.route.php)
+// ---------------------------------------------------------------------------
+
+export type CreateItemInput = {
+  name: string;
+  description?: string;
+  /** Whole dollars — converted to cents by the PHP route */
+  price: number;
+  unitName?: string;
+};
+
+export type CreatedItem = {
+  success: boolean;
+  item_id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  unit_name?: string | null;
+};
+
+export async function craterCreateItem(
+  input: CreateItemInput,
+): Promise<CraterResult<CreatedItem>> {
+  const name = input.name?.trim();
+  if (!name) return { ok: false, error: 'name is required' };
+  if (!Number.isFinite(input.price) || input.price < 0) {
+    return { ok: false, error: 'price must be a non-negative number' };
+  }
+
+  const body: Record<string, unknown> = {
+    name,
+    price: input.price,
+  };
+  if (input.description?.trim()) body.description = input.description.trim();
+  if (input.unitName?.trim()) body.unit_name = input.unitName.trim();
+
+  return craterFetch<CreatedItem>('/api/custom/create-item', {
+    method: 'POST',
+    body,
+  });
+}
