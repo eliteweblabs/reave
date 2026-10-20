@@ -24,6 +24,18 @@ assert.match(
   'GrandOpeningPage must opt out of homepage fullBleed so / gets header clearance (site-page pad)',
 );
 
+const cardFan = readFileSync('src/components/grand-opening/CardFanVisual.astro', 'utf8');
+assert.match(
+  cardFan,
+  /grand-opening-card-fan\.js/,
+  'CardFanVisual must load grand-opening-card-fan.js',
+);
+assert.doesNotMatch(
+  cardFan,
+  /grand-opening-card-fan\.js[^"\n]*\sdefer/,
+  'card-fan script must not use defer — it runs after Astro module bundles and blocks swipe for seconds',
+);
+
 const header = readFileSync('src/components/Header.astro', 'utf8');
 assert.match(
   header,

@@ -104,6 +104,12 @@ const goApplySmsBody =
     type="image/webp"
     fetchpriority="high"
   />
+  <link
+    slot="head"
+    rel="preload"
+    as="script"
+    href={`/grand-opening-card-fan.js?v=${__PUBLIC_ASSET_VERSION__}`}
+  />
   <div class="go-page">
     <section class="go-hero" aria-labelledby="go-title">
       <InfinityGrid />
