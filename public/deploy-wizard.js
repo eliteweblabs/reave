@@ -161,6 +161,7 @@
   let placesTimer = 0;
   let placesSeq = 0;
   let placesHighlight = -1;
+  let livePreviewTimer = 0;
 
   const root = document.getElementById('deploy-wizard-app');
   if (!root) return;
@@ -478,6 +479,49 @@
     installSlug = derivedInstallSlug();
   }
 
+  function scheduleLivePreview() {
+    clearTimeout(livePreviewTimer);
+    livePreviewTimer = setTimeout(() => {
+      patchLivePreview();
+    }, 180);
+  }
+
+  /** Update slug / staging copy without re-rendering inputs (keeps focus while typing). */
+  function patchLivePreview() {
+    syncInstallSlug();
+    const slug = derivedInstallSlug();
+    const stagingHost = stagingPreviewHost();
+    const nameHint = (projectName || companyName || slug || 'new-install').trim() || 'new-install';
+
+    const applySummary = root.querySelector('.dw-apply-summary');
+    if (applySummary) {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = renderApplySummary();
+      const next = wrap.firstElementChild;
+      if (next) applySummary.replaceWith(next);
+    }
+
+    root.querySelectorAll('[data-dw-slug]').forEach((node) => {
+      node.textContent = slug;
+    });
+    root.querySelectorAll('[data-dw-staging-host]').forEach((node) => {
+      node.textContent = stagingHost;
+    });
+    const configName = root.querySelector('[data-dw-config-name]');
+    if (configName) configName.textContent = `config-${slug}.json`;
+
+    const dnsSel = root.querySelector('#dw-dns-access');
+    if (dnsSel instanceof HTMLSelectElement) {
+      const skipOpt = dnsSel.querySelector('option[value="skip"]');
+      if (skipOpt) skipOpt.textContent = `Not yet — stage on ${stagingHost}`;
+    }
+
+    const projectNameEl = root.querySelector('#dw-project-name');
+    if (projectNameEl instanceof HTMLInputElement && !projectName.trim()) {
+      projectNameEl.placeholder = nameHint;
+    }
+  }
+
   function stagingPreviewHost() {
     const slug = derivedInstallSlug();
     return `${slug}.reave.app`;
@@ -520,7 +564,7 @@
     return (
       `<div class="dw-identity-block dw-dns-block">` +
       `<h2 class="dl-section-title">Client domain &amp; DNS</h2>` +
-      `<p class="dl-callout">Enter the client&apos;s real domain — you never pick <code>reave.app</code> from a menu. Without registrar access, Apply automatically stages on <code>${esc(stagingHost)}</code>.</p>` +
+      `<p class="dl-callout">Enter the client&apos;s real domain — you never pick <code>reave.app</code> from a menu. Without registrar access, Apply automatically stages on <code data-dw-staging-host>${esc(stagingHost)}</code>.</p>` +
       `<label class="dl-field dw-field--wide">` +
       `<span class="dl-field-label">Client apex</span>` +
       `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
@@ -553,7 +597,7 @@
             `<p class="dl-meta">Create a Personal Access Token at developer.godaddy.com with <code>domains.nameserver:update</code> (and <code>domains.domain:read</code> to verify).</p>`
           : dnsAccess === 'cloudflare'
             ? `<p class="dl-meta">Zone must already exist in this Cloudflare account. If it does not, pick Name.com or GoDaddy for one-shot.</p>`
-            : `<p class="dl-meta">Without registrar credentials, Apply stages on <code>${esc(stagingHost)}</code>. Cut over later on <a href="/go-live">Go live</a>.</p>`) +
+            : `<p class="dl-meta">Without registrar credentials, Apply stages on <code data-dw-staging-host>${esc(stagingHost)}</code>. Cut over later on <a href="/go-live">Go live</a>.</p>`) +
       renderApplySummary() +
       `</div>`
     );
@@ -574,7 +618,7 @@
       `<div class="dw-identity-block">` +
       `<h2 class="dl-section-title">Install</h2>` +
       `<div class="dl-toolbar dw-identity">` +
-      `<p class="dl-meta">Company name is on the Client step. Slug <code>${esc(slug)}</code> · config <code>config-${esc(slug)}.json</code>.</p>` +
+      `<p class="dl-meta">Company name is on the Client step. Slug <code data-dw-slug>${esc(slug)}</code> · config <code data-dw-config-name>config-${esc(slug)}.json</code>.</p>` +
       `<label class="dl-field">` +
       `<span class="dl-field-label">Post name</span>` +
       `<input id="dw-post" class="dl-input" type="text" maxlength="32" placeholder="project" value="${esc(postAlias)}" />` +
@@ -639,9 +683,10 @@
     const toggleCount = toggleableModules().length;
     const selectedCount = [...selectedIds].length;
     const slug = derivedInstallSlug();
+    const stagingHost = stagingPreviewHost();
     return (
       renderIdentity() +
-      `<p class="dl-meta">Install slug <code>${esc(slug)}</code> · staging <code>${esc(slug)}.reave.app</code></p>` +
+      `<p class="dl-meta">Install slug <code data-dw-slug>${esc(slug)}</code> · staging <code data-dw-staging-host>${esc(stagingHost)}</code></p>` +
       `<div class="dl-toolbar-actions dw-module-actions">` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-select-all"${selectedCount === toggleCount ? ' disabled' : ''}>Select all</button>` +
       `<button type="button" class="dl-btn dl-btn--ghost" id="dw-clear"${selectedCount ? '' : ' disabled'}>Clear</button>` +
@@ -1504,41 +1549,25 @@
     });
     root.querySelector('#dw-godaddy-token')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 1) {
-        render();
-        bind();
-      }
+      if (step === 1) scheduleLivePreview();
     });
     root.querySelector('#dw-namecom-user')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 1) {
-        render();
-        bind();
-      }
+      if (step === 1) scheduleLivePreview();
     });
     root.querySelector('#dw-namecom-token')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 1) {
-        render();
-        bind();
-      }
+      if (step === 1) scheduleLivePreview();
     });
     root.querySelector('#dw-company')?.addEventListener('input', () => {
       readIdentity();
       if ((project === '__new__' || !project) && companyName && !projectName) {
         projectName = companyName;
       }
-      if (step === 0) {
-        render();
-        bind();
-      }
     });
     root.querySelector('#dw-domain')?.addEventListener('input', () => {
       readIdentity();
-      if (step === 1) {
-        render();
-        bind();
-      }
+      if (step === 1) scheduleLivePreview();
     });
     root.querySelector('#dw-domain')?.addEventListener('change', () => {
       readIdentity();
