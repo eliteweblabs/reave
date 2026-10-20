@@ -1,14 +1,15 @@
 /**
- * Lightweight admin performance tracing (always on in admin).
+ * Lightweight admin performance tracing (off by default).
  *
- * Scope overrides:
- *   ?trace=0 | ?trace=off  — disable for this session
- *   ?trace=chat            — chat + admin boot + dashboard load (admin API fetches only)
- *   localStorage.setItem('reave:trace', '0' | 'chat')
+ * Enable:
+ *   ?trace=1 | ?trace=all   — full fetch / resource / long-task trace
+ *   ?trace=chat             — chat + admin boot (+ scoped admin API fetches)
+ *   localStorage.setItem('reave:trace', '1' | 'chat')
  *
- * Console: filter "[reave trace]". Performance panel: measures prefixed "reave:".
- * HUD: footer stopwatch (after Contacts) when admin footer is present; else bottom-right.
- * Auto: fetch timing, long tasks, slow resources. window.__reaveTrace.summary() dumps timings.
+ * Disable: ?trace=0 or localStorage.setItem('reave:trace', '0')
+ *
+ * Output: footer stopwatch HUD only (no console). Measures prefixed "reave:" in Performance panel.
+ * window.__reaveTrace.summary() refreshes the HUD summary.
  */
 
 const LS_KEY = 'reave:trace';
@@ -36,7 +37,7 @@ function readScope() {
   } catch {
     /* ignore */
   }
-  return 'all';
+  return null;
 }
 
 function persistScopeFromUrl() {
@@ -63,11 +64,7 @@ function autoTraceEnabled() {
 }
 
 function log(line, meta) {
-  if (meta != null && typeof meta === 'object' && Object.keys(meta).length) {
-    console.info(`[reave trace] ${line}`, meta);
-  } else {
-    console.info(`[reave trace] ${line}`);
-  }
+  hudLine(line, meta);
 }
 
 /** @param {string} line @param {Record<string, unknown>} [meta] */
@@ -108,14 +105,12 @@ function installFetchTrace() {
         const ms = Math.round(performance.now() - t0);
         const meta = { ms, method, path, status: res.status, ok: res.ok };
         log(`fetch ${method} ${path} ${ms}ms`, meta);
-        hudLine(`fetch ${path}`, meta);
         return res;
       },
       (err) => {
         const ms = Math.round(performance.now() - t0);
         const meta = { ms, method, path, ok: false, err: err?.message || String(err) };
         log(`fetch ${method} ${path} FAILED ${ms}ms`, meta);
-        hudLine(`fetch ${path}`, meta);
         throw err;
       },
     );
@@ -131,7 +126,6 @@ function installLongTaskObserver() {
         if (ms < LONG_TASK_MS) continue;
         const meta = { ms, type: 'longtask' };
         log(`long task ${ms}ms`, meta);
-        hudLine('long task (main thread blocked)', meta);
       }
     });
     po.observe({ type: 'longtask', buffered: true });
@@ -154,7 +148,6 @@ function installResourceObserver() {
           name: short.slice(0, 160),
         };
         log(`resource ${entry.initiatorType} ${ms}ms`, meta);
-        hudLine(`resource ${entry.initiatorType}`, meta);
       }
     });
     po.observe({ type: 'resource', buffered: true });
@@ -363,7 +356,6 @@ export function traceStart(name, meta) {
     }
     const merged = { ...(meta || {}), ...(endMeta || {}), ms: Math.round(ms) };
     log(`${name} ${ms.toFixed(1)}ms`, merged);
-    hudLine(name, merged);
     return ms;
   };
 }
@@ -388,9 +380,6 @@ export function traceSummary() {
     .filter((e) => e.name.startsWith('reave:'))
     .map((e) => ({ name: e.name.replace(/^reave:/, ''), ms: e.duration }))
     .sort((a, b) => b.ms - a.ms);
-  console.groupCollapsed('[reave trace] summary (slowest first)');
-  for (const row of entries) console.info(`${row.name}: ${row.ms.toFixed(1)}ms`);
-  console.groupEnd();
   if (entries.length) {
     const top = entries.slice(0, 8).map((e) => `${e.name} ${Math.round(e.ms)}ms`).join(' · ');
     hudLine('summary (slowest)', { ms: Math.round(entries[0].ms), detail: top });
@@ -452,10 +441,7 @@ export function initPerfTrace() {
   scope = readScope();
   if (!scope) return false;
   performance.mark('reave:trace:start');
-  log('enabled', {
-    scope,
-    hint: 'window.__reaveTrace.summary() · disable: localStorage.setItem("reave:trace","0")',
-  });
+  hudLine('trace enabled', { detail: scope === 'chat' ? 'chat scope' : 'all' });
   installAutoTrace();
   if (document.body) ensureHud();
   else document.addEventListener('DOMContentLoaded', ensureHud, { once: true });
