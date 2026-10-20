@@ -31,7 +31,8 @@ import {
   deployWizardDnsKind,
   deployWizardInboundWebhookUrl,
   deployWizardResendFrom,
-  deployWizardStagingHost,
+  DEPLOY_WIZARD_RAILWAY_STAGING_HINT,
+  isDeployWizardRailwayPublicHost,
 } from '../src/lib/deployWizardCatalog.ts';
 import { isDeployWizardReaveStagingHost } from '../src/lib/deployWizardStaging.ts';
 import { isActiveRailwayProject } from '../src/lib/railwayProjectList.ts';
@@ -650,9 +651,12 @@ const ownUrl = ownPlausible.variables.find((v) => v.name === 'PLAUSIBLE_API_BASE
 assert.equal(ownUrl?.kind, 'reference');
 assert.ok(!ownPlausible.variables.some((v) => v.name === 'PLAUSIBLE_API_BASE_URL' && v.kind === 'literal'));
 
-assert.equal(deployWizardStagingHost('pdx-paws'), 'pdx-paws.rekko.studio');
+assert.equal(DEPLOY_WIZARD_RAILWAY_STAGING_HINT.includes('Railway'), true);
+assert.equal(isDeployWizardRailwayPublicHost('pups-production.up.railway.app'), true);
+assert.equal(isDeployWizardReaveStagingHost('pups-production.up.railway.app'), true);
 assert.equal(isDeployWizardReaveStagingHost('pdx-paws.rekko.studio'), true);
 assert.equal(isDeployWizardReaveStagingHost('pdx-paws.reave.app'), true);
 assert.equal(isDeployWizardReaveStagingHost('rekko.studio'), false);
+assert.equal(isDeployWizardReaveStagingHost('client.com'), false);
 
 console.log('verify-deploy-wizard: ok');

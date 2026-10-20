@@ -1,14 +1,13 @@
 /**
- * Staging hosts on reave.app when the client apex is not in Cloudflare yet.
+ * Staging on the Railway *.up.railway.app URL when the client apex is not ready.
  * Go-live later moves DNS + PUBLIC_SITE_URL to PLANNED_SITE_DOMAIN.
  */
 import {
   buildDeployWizardPlan,
   deployWizardCalAllowedHostnames,
   deployWizardSchedulingPublicUrl,
-  deployWizardStagingHost,
-  DEPLOY_APP_SERVICE,
   isDeployWizardPublicHost,
+  isDeployWizardRailwayPublicHost,
   normalizeSiteDomain,
   type DeployWizardDnsAccess,
   type DeployWizardPlan,
@@ -18,6 +17,12 @@ import {
 import { cloudflareFindZone, cloudflareZoneName } from './cloudflareClient';
 import { resolveNamecomCredentials } from './namecomClient';
 import { resolveGoDaddyCredentials } from './godaddyClient';
+import {
+  pickRailwayEnvironment,
+  railwayEnsurePublicDomain,
+  railwayResolveProject,
+  railwayResolveService,
+} from './railwayClient';
 import { railwaySetVariables } from './railwayAgentApi';
 import {
   CANONICAL_PUBLIC_BRAND_DOMAIN,
@@ -30,6 +35,7 @@ export const REAVE_STAGING_PARENT = CANONICAL_PUBLIC_BRAND_DOMAIN;
 export function isDeployWizardReaveStagingHost(raw: string | undefined): boolean {
   const host = normalizeSiteDomain(raw);
   if (!host) return false;
+  if (isDeployWizardRailwayPublicHost(host)) return true;
   if (host === CANONICAL_PUBLIC_BRAND_DOMAIN || host === LEGACY_PUBLIC_BRAND_DOMAIN) {
     return false;
   }
@@ -37,6 +43,70 @@ export function isDeployWizardReaveStagingHost(raw: string | undefined): boolean
     host.endsWith(`.${CANONICAL_PUBLIC_BRAND_DOMAIN}`) ||
     host.endsWith(`.${LEGACY_PUBLIC_BRAND_DOMAIN}`)
   );
+}
+
+const RAILWAY_STAGING_NOTE =
+  'Preview on the Railway service URL after Apply — no rekko.studio subdomain DNS.';
+
+function railwayStagingNote(planned: string): string {
+  return `Saved ${planned} for Go live — ${RAILWAY_STAGING_NOTE}`;
+}
+
+/** Read (or create) the app service public *.up.railway.app hostname. */
+export async function resolveDeployWizardAppRailwayPublicHost(opts: {
+  project: string;
+  environment?: string;
+  appService: string;
+}): Promise<{ ok: true; host: string } | { ok: false; error: string }> {
+  const resolved = await railwayResolveProject(opts.project.trim());
+  if (!resolved.ok) return resolved;
+
+  const environment = pickRailwayEnvironment(resolved.environments, opts.environment || 'production');
+  if (!environment) return { ok: false, error: 'No Railway environment found.' };
+
+  const service = railwayResolveService(resolved.services, opts.appService);
+  if (!service.ok) return { ok: false, error: service.error };
+
+  const pub = await railwayEnsurePublicDomain({
+    projectId: resolved.project.id,
+    environmentId: environment.id,
+    serviceId: service.service.id,
+  });
+  if (!pub.ok) return pub;
+
+  const host = normalizeSiteDomain(pub.domain);
+  if (!host) {
+    return { ok: false, error: 'Railway did not return a public service domain yet — retry Apply.' };
+  }
+  return { ok: true, host };
+}
+
+/** After the stack exists, set plan.siteDomain to the Railway preview hostname. */
+export async function ensureDeployWizardStagingRailwayPlan(opts: {
+  plan: DeployWizardPlan;
+  project: string;
+  environment?: string;
+  onProgress?: (message: string) => void;
+}): Promise<{ ok: true; plan: DeployWizardPlan } | { ok: false; error: string }> {
+  if (!opts.plan.stagingHost) return { ok: true, plan: opts.plan };
+
+  const current = normalizeSiteDomain(opts.plan.siteDomain);
+  if (current && isDeployWizardRailwayPublicHost(current)) {
+    return { ok: true, plan: opts.plan };
+  }
+  if (current && !isDeployWizardReaveStagingHost(current)) {
+    return { ok: true, plan: opts.plan };
+  }
+
+  const railway = await resolveDeployWizardAppRailwayPublicHost({
+    project: opts.project,
+    environment: opts.environment,
+    appService: opts.plan.appService,
+  });
+  if (!railway.ok) return railway;
+
+  opts.onProgress?.(`Staging URL: https://${railway.host}`);
+  return { ok: true, plan: { ...opts.plan, siteDomain: railway.host } };
 }
 
 export type DeployWizardSiteResolution = {
@@ -67,30 +137,28 @@ export async function resolveDeployWizardSiteDomain(opts: {
   namecomToken?: string;
   godaddyToken?: string;
 }): Promise<DeployWizardSiteResolution> {
-  const slug = (opts.installSlug ?? '').trim() || 'demo';
   const planned = normalizeSiteDomain(opts.plannedSiteDomain);
-  const stagingDefault = deployWizardStagingHost(slug);
   const dnsAccess: DeployWizardDnsAccess = opts.dnsAccess ?? 'skip';
 
   if (!planned) {
     return {
-      siteDomain: stagingDefault,
+      siteDomain: '',
       plannedSiteDomain: '',
       stagingHost: true,
       provisionOnApply: false,
       dnsAccess: 'skip',
-      note: `No client domain yet — staging at ${stagingDefault}.`,
+      note: RAILWAY_STAGING_NOTE,
     };
   }
 
   if (isDeployWizardReaveStagingHost(planned)) {
     return {
-      siteDomain: planned,
+      siteDomain: '',
       plannedSiteDomain: '',
       stagingHost: true,
       provisionOnApply: false,
       dnsAccess: 'skip',
-      note: `Using official staging host ${planned}.`,
+      note: RAILWAY_STAGING_NOTE,
     };
   }
 
@@ -131,44 +199,44 @@ export async function resolveDeployWizardSiteDomain(opts: {
 
   if (dnsAccess === 'namecom') {
     return {
-      siteDomain: stagingDefault,
+      siteDomain: '',
       plannedSiteDomain: planned,
       stagingHost: true,
       provisionOnApply: false,
       dnsAccess: 'namecom',
-      note: `Enter Name.com credentials to wire ${planned} on Apply — otherwise staging at ${stagingDefault}.`,
+      note: `Enter Name.com credentials to wire ${planned} on Apply — otherwise ${RAILWAY_STAGING_NOTE}`,
     };
   }
 
   if (dnsAccess === 'godaddy') {
     return {
-      siteDomain: stagingDefault,
+      siteDomain: '',
       plannedSiteDomain: planned,
       stagingHost: true,
       provisionOnApply: false,
       dnsAccess: 'godaddy',
-      note: `Enter a GoDaddy PAT (domains.nameserver:update) to wire ${planned} on Apply — otherwise staging at ${stagingDefault}.`,
+      note: `Enter a GoDaddy PAT (domains.nameserver:update) to wire ${planned} on Apply — otherwise ${RAILWAY_STAGING_NOTE}`,
     };
   }
 
   if (dnsAccess === 'cloudflare') {
     return {
-      siteDomain: stagingDefault,
+      siteDomain: '',
       plannedSiteDomain: planned,
       stagingHost: true,
       provisionOnApply: false,
       dnsAccess: 'cloudflare',
-      note: `${planned} is not in Cloudflare yet — staging at ${stagingDefault}. Add the zone or use Name.com credentials.`,
+      note: `${planned} is not in Cloudflare yet — ${RAILWAY_STAGING_NOTE} Add the zone or use Name.com credentials.`,
     };
   }
 
   return {
-    siteDomain: stagingDefault,
+    siteDomain: '',
     plannedSiteDomain: planned,
     stagingHost: true,
     provisionOnApply: false,
     dnsAccess: 'skip',
-    note: `No registrar access yet — staging at ${stagingDefault}. Cut over on Go live when DNS is ready.`,
+    note: railwayStagingNote(planned),
   };
 }
 
@@ -217,12 +285,10 @@ export async function buildDeployWizardPlanResolved(
   return patched;
 }
 
-/** Staging demos only need the app host on Railway — skip ap/cal/inbound until go-live. */
+/** Railway staging — no Cloudflare rows until Go live wires the client apex. */
 export function deployWizardDnsDomainsForApply(plan: DeployWizardPlan): DeployWizardPlanDomain[] {
-  if (!plan.stagingHost) return plan.domains;
-  return plan.domains.filter(
-    (d) => d.host === '@' && (d.target === plan.appService || d.target === DEPLOY_APP_SERVICE),
-  );
+  if (plan.stagingHost) return [];
+  return plan.domains;
 }
 
 export async function provisionDeployWizardClientDomain(opts: {

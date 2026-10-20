@@ -12,6 +12,8 @@
     { id: 'review', label: 'Review' },
   ];
 
+  const RAILWAY_STAGING_HINT = 'Railway service URL (assigned on Apply)';
+
   const KIND_LABEL = {
     reference: 'Reference',
     shared: 'Shared ref',
@@ -468,7 +470,7 @@
       .split('/')[0]
       .replace(/^www\./, '');
     const label = apex.split('.')[0] || '';
-    if (label && !apex.endsWith('.reave.app')) {
+    if (label && !apex.endsWith('.reave.app') && !apex.endsWith('.rekko.studio')) {
       const fromDomain = label.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
       if (fromDomain) return fromDomain;
     }
@@ -523,8 +525,7 @@
   }
 
   function stagingPreviewHost() {
-    const slug = derivedInstallSlug();
-    return `${slug}.rekko.studio`;
+    return RAILWAY_STAGING_HINT;
   }
 
   function renderApplySummary() {
@@ -564,7 +565,7 @@
     return (
       `<div class="dw-identity-block dw-dns-block">` +
       `<h2 class="dl-section-title">Client domain &amp; DNS</h2>` +
-      `<p class="dl-callout">Enter the client&apos;s real domain — you never pick <code>reave.app</code> from a menu. Without registrar access, Apply automatically stages on <code data-dw-staging-host>${esc(stagingHost)}</code>.</p>` +
+      `<p class="dl-callout">Enter the client&apos;s real domain. Without registrar access, Apply uses the Railway <code>*.up.railway.app</code> URL for preview — no <code>rekko.studio</code> subdomain DNS.</p>` +
       `<label class="dl-field dw-field--wide">` +
       `<span class="dl-field-label">Client apex</span>` +
       `<input id="dw-domain" class="dl-input" type="text" maxlength="120" placeholder="acme.com" value="${esc(siteDomain)}" />` +
@@ -765,7 +766,7 @@
           ? plan.provisionOnApply
             ? `Apply creates the client zone, updates Name.com, attaches Railway hosts, and writes full DNS on the apex.`
             : plan.stagingHost
-              ? `Apply attaches Railway and writes DNS on reave.app for the staging host only. Full apex DNS runs on Go live.`
+              ? `Apply skips Cloudflare DNS while staging — preview on the Railway service URL. Go live wires the client apex.`
               : `Apply attaches Railway hosts and writes these on Cloudflare${siteDomain ? ` (${esc(siteDomain)})` : ''}. <code>book</code> is skipped (Railway’s public domain is enough). Clerk CNAMEs still come from Clerk → Domains.`
           : `Set <code>CLOUDFLARE_API_TOKEN</code> on this host to auto-write DNS. Until then, add these on the apex${siteDomain ? ` (${esc(siteDomain)})` : ''} and attach each CNAME on the named Railway service.`
       }</p>` +
@@ -1690,6 +1691,9 @@
 
   function isReaveStagingHost(host) {
     const h = (host || '').trim().toLowerCase();
+    if (!h) return false;
+    if (h.endsWith('.up.railway.app') || h.endsWith('.railway.app')) return true;
+    if (h.endsWith('.rekko.studio') && h !== 'rekko.studio') return true;
     return h.endsWith('.reave.app') && h !== 'reave.app';
   }
 

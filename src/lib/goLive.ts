@@ -1,5 +1,5 @@
 /**
- * Go-live — move a staged install ({slug}.rekko.studio) to the client apex.
+ * Go-live — move a staged install (Railway URL or legacy official subdomain) to the client apex.
  * Creates the Cloudflare zone, updates registrar nameservers when Name.com creds
  * are supplied, wires Railway + DNS, and flips PUBLIC_SITE_URL to the apex.
  */

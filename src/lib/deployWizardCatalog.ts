@@ -351,15 +351,14 @@ export function deployWizardFqdn(host: string, apex: string): string {
   return label ? `${label}.${apex}` : apex;
 }
 
-/** Demo / no-DNS staging host on the official zone, e.g. life-saving.rekko.studio */
-export function deployWizardStagingHost(installSlug: string): string {
-  const slug = (installSlug ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-  return `${slug || 'demo'}.rekko.studio`;
+/** UI copy before Apply — the hostname is read from Railway after the stack exists. */
+export const DEPLOY_WIZARD_RAILWAY_STAGING_HINT = 'Railway service URL (assigned on Apply)';
+
+/** Railway-generated public hostname (`*.up.railway.app`). */
+export function isDeployWizardRailwayPublicHost(raw: string | undefined): boolean {
+  const host = normalizeSiteDomain(raw);
+  if (!host) return false;
+  return host.endsWith('.up.railway.app') || host.endsWith('.railway.app');
 }
 
 /** INSTALL_CONFIG slug derived from the company / install title (not typed separately). */
@@ -817,7 +816,7 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',
     value: '',
-    description: 'Client-owned apex for go-live when staging on {slug}.rekko.studio.',
+    description: 'Client-owned apex for go-live when staging on the Railway service URL.',
     required: false,
   }),
   v({
@@ -1907,7 +1906,7 @@ export type DeployWizardPlanInput = {
   /** Override the Astro service name if this install is not `reave`. */
   appService?: string;
   installSlug?: string;
-  /** Client-owned apex (e.g. acme.com). Staging uses {slug}.rekko.studio when DNS is not ready. */
+  /** Client-owned apex (e.g. acme.com). Staging uses the Railway service URL when DNS is not ready. */
   siteDomain?: string;
   /** How Apply handles DNS when the apex is not in Cloudflare yet. */
   dnsAccess?: DeployWizardDnsAccess;
@@ -2204,9 +2203,9 @@ export type DeployWizardPlan = {
   appService: string;
   installSlug: string;
   siteDomain: string;
-  /** Client apex when staging on {slug}.rekko.studio — filled at go-live. */
+  /** Client apex saved while staging on Railway — filled at go-live. */
   plannedSiteDomain: string;
-  /** True when the public host is {slug}.rekko.studio (demo / no client DNS yet). */
+  /** True when preview uses Railway (no client DNS wired yet). */
   stagingHost: boolean;
   /** Create Cloudflare zone (+ Name.com NS) on Apply before DNS. */
   provisionOnApply: boolean;

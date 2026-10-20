@@ -16,6 +16,7 @@ import { applyDeployWizardDns } from './deployWizardDns';
 import {
   applyDeployWizardPublicOrigin,
   applyDeployWizardSchedulingOrigin,
+  ensureDeployWizardStagingRailwayPlan,
   provisionDeployWizardClientDomain,
 } from './deployWizardStaging';
 import { isDeployWizardNeedGithubApp, resolveDeployWizardApply } from './deployWizardResolve';
@@ -117,8 +118,19 @@ export async function executeDeployWizardApply(opts: {
   }
   const project = stack.projectId;
 
+  const railwayPlan = await ensureDeployWizardStagingRailwayPlan({
+    plan: opts.plan,
+    project,
+    environment: opts.environment,
+    onProgress: say,
+  });
+  if (!railwayPlan.ok) {
+    return { ok: false, error: railwayPlan.error, plan: opts.plan, cli };
+  }
+  const applyPlan = railwayPlan.plan;
+
   say('Resolving variables and the website repo…');
-  const resolved = await resolveDeployWizardApply(opts.plan, opts.values, {
+  const resolved = await resolveDeployWizardApply(applyPlan, opts.values, {
     githubApp: opts.githubApp,
   });
 
@@ -128,7 +140,7 @@ export async function executeDeployWizardApply(opts: {
     return {
       ok: false,
       needsGithubApp: true,
-      plan: opts.plan,
+      plan: applyPlan,
       cli,
       notes: [...stack.notes, ...resolved.notes],
       projectId: project,
@@ -136,7 +148,7 @@ export async function executeDeployWizardApply(opts: {
     };
   }
   if (!resolved.ok) {
-    return { ok: false, error: resolved.error, plan: opts.plan, cli };
+    return { ok: false, error: resolved.error, plan: applyPlan, cli };
   }
   for (const note of resolved.notes) say(note);
 
@@ -152,7 +164,7 @@ export async function executeDeployWizardApply(opts: {
       skip_deploys: true,
     });
     if (!result.ok) {
-      return { ok: false, error: `${service}: ${result.error}`, plan: opts.plan, cli, applied };
+      return { ok: false, error: `${service}: ${result.error}`, plan: applyPlan, cli, applied };
     }
     applied.push({ service, updated: result.updated });
     say(`Saved ${result.updated.length} on ${service}.`);
@@ -173,23 +185,23 @@ export async function executeDeployWizardApply(opts: {
     : undefined;
 
   say('Applying DNS (Resend inbound and Cloudflare when configured)…');
-  if (opts.plan.provisionOnApply) {
-    const apex = opts.plan.plannedSiteDomain || opts.plan.siteDomain;
+  if (applyPlan.provisionOnApply) {
+    const apex = applyPlan.plannedSiteDomain || applyPlan.siteDomain;
     say(`Provisioning ${apex} in Cloudflare before DNS…`);
     const provision = await provisionDeployWizardClientDomain({
       apex,
-      dnsAccess: opts.plan.dnsAccess,
+      dnsAccess: applyPlan.dnsAccess,
       namecomUsername: opts.namecomUsername,
       namecomToken: opts.namecomToken,
       godaddyToken: opts.godaddyToken,
       onProgress: say,
     });
     if (!provision.ok) {
-      return { ok: false, error: provision.error, plan: opts.plan, cli, applied };
+      return { ok: false, error: provision.error, plan: applyPlan, cli, applied };
     }
   }
   const dns = await applyDeployWizardDns({
-    plan: opts.plan,
+    plan: applyPlan,
     project,
     environment: opts.environment,
   }).catch((e) => ({
@@ -201,12 +213,12 @@ export async function executeDeployWizardApply(opts: {
   }));
   if (dns.summary) say(dns.summary);
 
-  if (opts.plan.siteDomain && isDeployWizardPublicHost(opts.plan.siteDomain)) {
-    say(`Setting public URL to https://${opts.plan.siteDomain}…`);
+  if (applyPlan.siteDomain && isDeployWizardPublicHost(applyPlan.siteDomain)) {
+    say(`Setting public URL to https://${applyPlan.siteDomain}…`);
     const origin = await applyDeployWizardPublicOrigin({
       project,
       environment: opts.environment,
-      plan: opts.plan,
+      plan: applyPlan,
     });
     if (!origin.ok) {
       say(`Public URL: ${origin.error}`);
@@ -214,12 +226,12 @@ export async function executeDeployWizardApply(opts: {
       say(`Public URL updated (${origin.updated.join(', ')}).`);
     }
 
-    if (opts.plan.features.includes('scheduling') && !opts.plan.stagingHost) {
-      say(`Setting Cal.com public URL to ${deployWizardSchedulingPublicUrl(opts.plan.siteDomain)}…`);
+    if (applyPlan.features.includes('scheduling') && !applyPlan.stagingHost) {
+      say(`Setting Cal.com public URL to ${deployWizardSchedulingPublicUrl(applyPlan.siteDomain)}…`);
       const cal = await applyDeployWizardSchedulingOrigin({
         project,
         environment: opts.environment,
-        plan: opts.plan,
+        plan: applyPlan,
       });
       if (!cal.ok) {
         say(`Cal.com URL: ${cal.error}`);
@@ -229,14 +241,14 @@ export async function executeDeployWizardApply(opts: {
     }
   }
 
-  const plausibleDomain = !opts.plan.stagingHost
-    ? opts.plan.plannedSiteDomain || opts.plan.siteDomain
+  const plausibleDomain = !applyPlan.stagingHost
+    ? applyPlan.plannedSiteDomain || applyPlan.siteDomain
     : '';
   if (plausibleDomain) {
     say(`Registering ${plausibleDomain} in Plausible…`);
     const plausible = await registerDeployWizardPlausibleSite({
       domain: plausibleDomain,
-      timezone: opts.plan.timezone,
+      timezone: applyPlan.timezone,
     });
     const plausibleNote = formatDeployWizardPlausibleNote(plausible);
     if (plausibleNote) say(plausibleNote);
@@ -246,7 +258,7 @@ export async function executeDeployWizardApply(opts: {
   say('Apply finished. Redeploy each service when you are ready.');
   return {
     ok: true,
-    plan: opts.plan,
+    plan: applyPlan,
     cli,
     applied,
     identity,

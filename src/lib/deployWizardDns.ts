@@ -238,6 +238,17 @@ export async function applyDeployWizardDns(opts: {
 }): Promise<DeployWizardDnsResult> {
   const leftover: string[] = [];
   const rows: DeployWizardDnsRow[] = [];
+  if (opts.plan.stagingHost) {
+    const planned = opts.plan.plannedSiteDomain.trim();
+    return {
+      ok: true,
+      configured: isCloudflareConfigured(),
+      rows: [],
+      leftover: planned ? [`Go live wires ${planned} when registrar DNS is ready.`] : [],
+      summary: 'DNS skipped — staging uses the Railway service URL until Go live.',
+    };
+  }
+
   const apex = opts.plan.siteDomain.trim();
 
   if (!apex) {
