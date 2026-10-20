@@ -42,7 +42,10 @@ function checkFile(filePath: string): void {
   const rel = relative(root, filePath);
   const source = readFileSync(filePath, 'utf8');
 
-  if (/function json\([^)]*\): Response/.test(source)) {
+  if (
+    /function json\([^)]*\): Response/.test(source) ||
+    /const json = \(body[^)]*\)\s*=>/.test(source)
+  ) {
     errors.push(`${rel}: local json() helper — use jsonResponse from src/lib/apiResponse.ts`);
   }
 

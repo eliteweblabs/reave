@@ -2,28 +2,29 @@ import type { APIContext } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
 import { parseVCard } from '../../../lib/carddav/vcard';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { isRequestBodyTooLarge, jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
 
-/**
- * Parse CSV format: name,email,phone,company,notes
- * First line can be header (skipped if it contains "name" or "email").
- */
-function parseCSV(content: string): Array<{
+/** Cap import uploads — keeps memory bounded on large vCard exports. */
+const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024; // 2 MiB
+const MAX_IMPORT_ROWS = 500;
+
+type ImportContactRow = {
   name?: string;
   email?: string;
   phone?: string;
   company?: string;
   notes?: string;
-}> {
+};
+
+/**
+ * Parse CSV format: name,email,phone,company,notes
+ * First line can be header (skipped if it contains "name" or "email").
+ */
+function parseCSV(content: string): ImportContactRow[] {
   const lines = content.trim().split(/\r?\n/);
-  const contacts: Array<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    notes?: string;
-  }> = [];
+  const contacts: ImportContactRow[] = [];
 
   let startIdx = 0;
   if (lines.length > 0) {
@@ -37,7 +38,7 @@ function parseCSV(content: string): Array<{
     const line = lines[i].trim();
     if (!line) continue;
 
-    const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+    const parts = line.split(',').map((p) => p.trim().replace(/^["']|["']$/g, ''));
     const [name, email, phone, company, notes] = parts;
 
     if (!name && !email && !phone) continue;
@@ -57,21 +58,8 @@ function parseCSV(content: string): Array<{
 /**
  * Parse vCard file(s). Multiple vCards can be concatenated in a single file.
  */
-function parseVCards(content: string): Array<{
-  name?: string;
-  email?: string;
-  phone?: string;
-  company?: string;
-  notes?: string;
-}> {
-  const contacts: Array<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    notes?: string;
-  }> = [];
-
+function parseVCards(content: string): ImportContactRow[] {
+  const contacts: ImportContactRow[] = [];
   const vcards = content.split(/BEGIN:VCARD/i).slice(1);
 
   for (const vcard of vcards) {
@@ -92,27 +80,31 @@ function parseVCards(content: string): Array<{
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const json = (body: object, status = 200) =>
-    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+    return jsonResponse({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+  }
+
+  if (isRequestBodyTooLarge(context.request, MAX_IMPORT_FILE_BYTES)) {
+    return jsonResponse({ ok: false, error: 'Import file too large (max 2 MiB)' }, 413);
   }
 
   let formData: FormData;
   try {
     formData = await context.request.formData();
   } catch {
-    return json({ ok: false, error: 'Invalid form data' }, 400);
+    return jsonResponse({ ok: false, error: 'Invalid form data' }, 400);
   }
 
   const file = formData.get('file');
   if (!file || !(file instanceof File)) {
-    return json({ ok: false, error: 'file is required' }, 400);
+    return jsonResponse({ ok: false, error: 'file is required' }, 400);
+  }
+
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    return jsonResponse({ ok: false, error: 'Import file too large (max 2 MiB)' }, 413);
   }
 
   const updateExisting = formData.get('updateExisting') === 'true';
@@ -121,16 +113,14 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     content = await file.text();
   } catch {
-    return json({ ok: false, error: 'Failed to read file' }, 400);
+    return jsonResponse({ ok: false, error: 'Failed to read file' }, 400);
   }
 
-  let parsedContacts: Array<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    notes?: string;
-  }>;
+  if (content.length > MAX_IMPORT_FILE_BYTES) {
+    return jsonResponse({ ok: false, error: 'Import file too large (max 2 MiB)' }, 413);
+  }
+
+  let parsedContacts: ImportContactRow[];
 
   const fileName = file.name.toLowerCase();
   if (fileName.endsWith('.vcf') || fileName.endsWith('.vcard')) {
@@ -138,11 +128,18 @@ export async function POST(context: APIContext): Promise<Response> {
   } else if (fileName.endsWith('.csv')) {
     parsedContacts = parseCSV(content);
   } else {
-    return json({ ok: false, error: 'Unsupported file type. Use .vcf or .csv files.' }, 400);
+    return jsonResponse({ ok: false, error: 'Unsupported file type. Use .vcf or .csv files.' }, 400);
   }
 
   if (parsedContacts.length === 0) {
-    return json({ ok: false, error: 'No valid contacts found in file' }, 400);
+    return jsonResponse({ ok: false, error: 'No valid contacts found in file' }, 400);
+  }
+
+  if (parsedContacts.length > MAX_IMPORT_ROWS) {
+    return jsonResponse(
+      { ok: false, error: `Too many contacts in file (max ${MAX_IMPORT_ROWS})` },
+      400,
+    );
   }
 
   const results = {
@@ -163,43 +160,23 @@ export async function POST(context: APIContext): Promise<Response> {
     const displayName = name || contact.email || contact.phone || 'Unknown';
 
     try {
-      // Try to find existing contact by email or phone if update mode is enabled
-      if (updateExisting && (contact.email || contact.phone)) {
-        // Check if contact exists
-        // For now, we'll just create new contacts, but this can be enhanced
-        // to search for existing contacts and update them
-        const createResult = await createContact({
-          name: displayName,
-          email: contact.email,
-          phone: contact.phone,
-          company: contact.company,
-          notes: contact.notes,
-        });
+      const createResult = await createContact({
+        name: displayName,
+        email: contact.email,
+        phone: contact.phone,
+        company: contact.company,
+        notes: contact.notes,
+      });
 
-        if (createResult.ok) {
-          results.created++;
-        } else {
-          results.errors.push(`${displayName}: ${createResult.error}`);
-        }
+      if (createResult.ok) {
+        results.created++;
       } else {
-        const createResult = await createContact({
-          name: displayName,
-          email: contact.email,
-          phone: contact.phone,
-          company: contact.company,
-          notes: contact.notes,
-        });
-
-        if (createResult.ok) {
-          results.created++;
-        } else {
-          results.errors.push(`${displayName}: ${createResult.error}`);
-        }
+        results.errors.push(`${displayName}: ${createResult.error}`);
       }
     } catch (e) {
       results.errors.push(`${displayName}: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
-  return json({ ok: true, results }, 200);
-};
+  return jsonResponse({ ok: true, results }, 200);
+}
