@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20260827 — collapse duplicate OTP/email pushes by tag, collapseId, and code. */
+   v20261020 — same-origin fetch only (do not intercept Clerk CDN). */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -519,8 +519,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   if (event.request.mode === 'navigate' || event.request.destination === 'document') return;
-  const { pathname } = new URL(event.request.url);
-  if (pathname.startsWith('/api/')) return;
+  const url = new URL(event.request.url);
+  /* Never proxy third-party assets (Clerk CDN, fonts, etc.) — a blip becomes
+     FetchEvent.respondWith "Network error" and can brick auth scripts in the PWA. */
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
   event.respondWith(
     fetch(event.request).catch(async () => {
       const cached = await caches.match(event.request);
