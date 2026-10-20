@@ -13,6 +13,7 @@ import {
 import { buildDeployWizardPlanResolved } from './deployWizardStaging';
 import type { DeployWizardGithubAppApplyBody, DeployWizardGithubAppCredentials } from './deployWizardGithubApp';
 import { applyDeployWizardDns } from './deployWizardDns';
+import { provisionDeployWizardClerkKeys } from './deployWizardClerk';
 import {
   applyDeployWizardPublicOrigin,
   applyDeployWizardSchedulingOrigin,
@@ -129,8 +130,18 @@ export async function executeDeployWizardApply(opts: {
   }
   const applyPlan = railwayPlan.plan;
 
+  say('Ensuring install-scoped Clerk keys…');
+  const clerkKeys = await provisionDeployWizardClerkKeys({
+    plan: applyPlan,
+    values: opts.values,
+  });
+  if (!clerkKeys.ok) {
+    return { ok: false, error: clerkKeys.error, plan: applyPlan, cli };
+  }
+  for (const note of clerkKeys.notes) say(note);
+
   say('Resolving variables and the website repo…');
-  const resolved = await resolveDeployWizardApply(applyPlan, opts.values, {
+  const resolved = await resolveDeployWizardApply(applyPlan, clerkKeys.values, {
     githubApp: opts.githubApp,
   });
 

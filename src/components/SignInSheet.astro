@@ -197,6 +197,7 @@ const clerkAppearance = {
   }
 </style>
 
+{clerkReady ? (
 <script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref, assetVersion }}>
   const { bindClerkSsrSessionSync, clerkHandshakeUrl } = await import(`/admin/shared.js?v=${assetVersion}`);
 
@@ -453,3 +454,4 @@ const clerkAppearance = {
     }, 50);
   }
 </script>
+) : null}
