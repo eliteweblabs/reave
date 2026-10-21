@@ -7,311 +7,323 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: 'Space Grotesk', sans-serif;
-    background: #f0f0f0;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    background: #0f172a;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 100vh;
     gap: 32px;
     padding: 40px 20px;
   }
 
-  .label {
+  .print-note {
+    color: #94a3b8;
+    font-size: 13px;
+    text-align: center;
+    max-width: 400px;
+    line-height: 1.6;
+  }
+
+  .card-pair {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .card-label {
+    color: #64748b;
     font-size: 11px;
-    text-transform: uppercase;
+    font-weight: 600;
     letter-spacing: 0.12em;
-    color: #888;
+    text-transform: uppercase;
+    text-align: center;
     margin-bottom: 6px;
   }
 
-  /* Card = 3.5in × 2in at 96dpi = 336px × 192px */
+  /* Business card = 3.5in × 2in at 96dpi = 336px × 192px */
   .card {
     width: 336px;
     height: 192px;
     border-radius: 8px;
     overflow: hidden;
     position: relative;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4);
   }
 
-  /* ── FRONT ── */
-  .front {
-    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #0ea5e9 100%);
-    display: flex;
-    align-items: stretch;
+  /* ─── FRONT ─── */
+  .card--front {
+    background: linear-gradient(135deg, #1e3a6e 0%, #1d4ed8 55%, #0ea5e9 100%);
   }
 
-  .front-left {
-    width: 120px;
-    flex-shrink: 0;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .front-left img {
+  .card--front .card-bg-circle {
     position: absolute;
-    bottom: -10px;
-    left: -12px;
-    width: 140px;
-    height: auto;
+    border-radius: 50%;
+    opacity: 0.08;
+    background: #fff;
+  }
+  .card--front .card-bg-circle--1 { width: 160px; height: 160px; top: -60px; right: -40px; }
+  .card--front .card-bg-circle--2 { width: 100px; height: 100px; bottom: -30px; right: 60px; }
+
+  .card--front .card-character {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 110px;
+    height: 110px;
     object-fit: contain;
-    filter: drop-shadow(2px 0 8px rgba(0,0,0,0.25));
+    object-position: bottom left;
+    filter: drop-shadow(2px 0 8px rgba(0,0,0,0.3));
   }
 
-  .front-right {
-    flex: 1;
-    padding: 18px 16px 14px 8px;
+  .card--front .card-content {
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    left: 90px;
+    padding: 16px 16px 14px 12px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
   }
 
-  .front-right .name {
-    font-size: 22px;
+  .card--front .card-name {
+    font-size: 18px;
     font-weight: 700;
     color: #ffffff;
-    line-height: 1.1;
     letter-spacing: -0.02em;
+    line-height: 1.1;
   }
 
-  .front-right .tagline {
-    font-size: 9.5px;
+  .card--front .card-title {
+    font-size: 9px;
     font-weight: 500;
-    color: #bae6fd;
-    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     margin-top: 3px;
   }
 
-  .front-right .divider {
-    width: 32px;
-    height: 2px;
-    background: #38bdf8;
-    border-radius: 2px;
-    margin: 8px 0;
-  }
-
-  .front-right .contact-block {
+  .card--front .card-contact {
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
 
-  .front-right .contact-row {
+  .card--front .card-contact-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    font-size: 10px;
+    color: #ffffff;
+    font-weight: 500;
   }
 
-  .front-right .contact-row .icon {
-    width: 14px;
-    height: 14px;
-    opacity: 0.75;
+  .card--front .card-contact-row svg {
+    width: 10px;
+    height: 10px;
+    opacity: 0.8;
     flex-shrink: 0;
   }
 
-  .front-right .contact-row span {
-    font-size: 11px;
-    font-weight: 500;
-    color: #e0f2fe;
-  }
-
-  .front-badges {
+  .card--front .card-badges {
     display: flex;
-    gap: 4px;
     flex-wrap: wrap;
+    gap: 3px;
   }
 
-  .front-badge {
+  .card--front .badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.9);
     font-size: 7.5px;
     font-weight: 600;
-    color: #93c5fd;
-    border: 1px solid rgba(147,197,253,0.35);
-    border-radius: 3px;
     padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
   }
 
-  /* ── BACK ── */
-  .back {
-    background: linear-gradient(160deg, #0f172a 0%, #1e2d4a 100%);
+  /* ─── BACK ─── */
+  .card--back {
+    background: linear-gradient(160deg, #0c1a3a 0%, #0f172a 60%, #0a1628 100%);
+  }
+
+  .card--back .back-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(30px);
+    pointer-events: none;
+  }
+  .card--back .back-glow--1 {
+    width: 120px; height: 120px;
+    top: -20px; left: -20px;
+    background: rgba(37, 99, 235, 0.25);
+  }
+  .card--back .back-glow--2 {
+    width: 100px; height: 100px;
+    bottom: -20px; right: -10px;
+    background: rgba(14, 165, 233, 0.2);
+  }
+
+  .card--back .back-content {
+    position: relative;
+    z-index: 1;
+    height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 18px 20px;
-    position: relative;
-    overflow: hidden;
+    padding: 14px 20px;
+    gap: 8px;
   }
 
-  .back::before {
-    content: '';
-    position: absolute;
-    top: -40px;
-    right: -40px;
-    width: 130px;
-    height: 130px;
-    background: radial-gradient(circle, rgba(14,165,233,0.15) 0%, transparent 70%);
-    border-radius: 50%;
-  }
-
-  .back::after {
-    content: '';
-    position: absolute;
-    bottom: -30px;
-    left: -30px;
-    width: 100px;
-    height: 100px;
-    background: radial-gradient(circle, rgba(37,99,235,0.2) 0%, transparent 70%);
-    border-radius: 50%;
-  }
-
-  .back-logo {
-    width: 44px;
-    height: 44px;
+  .card--back .back-logo {
+    width: 38px;
+    height: 38px;
     object-fit: contain;
-    filter: brightness(1.1);
-    margin-bottom: 6px;
-    position: relative;
-    z-index: 1;
+    filter: drop-shadow(0 2px 8px rgba(14, 165, 233, 0.5));
   }
 
-  .back-name {
-    font-size: 14px;
+  .card--back .back-name {
+    font-size: 13px;
     font-weight: 700;
     color: #ffffff;
     letter-spacing: -0.01em;
-    position: relative;
-    z-index: 1;
   }
 
-  .back-tagline {
-    font-size: 8px;
-    font-weight: 500;
-    color: #7dd3fc;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-top: 2px;
-    margin-bottom: 8px;
-    position: relative;
-    z-index: 1;
+  .card--back .back-tagline {
+    font-size: 8.5px;
+    color: rgba(255,255,255,0.5);
+    font-style: italic;
+    letter-spacing: 0.03em;
   }
 
   .back-divider {
-    width: 40px;
+    width: 32px;
     height: 1px;
-    background: linear-gradient(90deg, transparent, #38bdf8, transparent);
-    margin-bottom: 8px;
-    position: relative;
-    z-index: 1;
+    background: linear-gradient(90deg, transparent, rgba(14,165,233,0.6), transparent);
   }
 
-  .back-services {
+  .card--back .back-services {
     display: flex;
     flex-wrap: wrap;
-    gap: 3px;
     justify-content: center;
-    max-width: 280px;
-    position: relative;
-    z-index: 1;
+    gap: 3px;
+    max-width: 260px;
   }
 
-  .back-service {
+  .card--back .svc-pill {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.75);
     font-size: 7px;
-    font-weight: 600;
-    color: #93c5fd;
-    background: rgba(37,99,235,0.2);
-    border: 1px solid rgba(56,189,248,0.2);
+    font-weight: 500;
+    padding: 2px 5px;
     border-radius: 3px;
-    padding: 2px 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.03em;
   }
 
-  .back-footer {
+  .card--back .back-footer {
     font-size: 7.5px;
-    color: #475569;
-    margin-top: 8px;
-    letter-spacing: 0.04em;
-    position: relative;
-    z-index: 1;
-  }
-
-  .print-hint {
-    font-size: 11px;
-    color: #999;
+    color: rgba(255,255,255,0.35);
     text-align: center;
+    letter-spacing: 0.04em;
   }
 
+  /* ─── PRINT ─── */
   @media print {
-    body { background: white; gap: 0; padding: 0; }
-    .label, .print-hint { display: none; }
-    .card { box-shadow: none; page-break-after: always; }
+    body {
+      background: white;
+      padding: 0;
+      gap: 0;
+    }
+    .print-note, .card-label { display: none; }
+    .card-pair { gap: 0; }
+    .card {
+      box-shadow: none;
+      border: 0.5pt solid #ccc;
+      page-break-after: always;
+      width: 3.5in;
+      height: 2in;
+      border-radius: 0;
+    }
   }
 </style>
 </head>
 <body>
 
-<div class="label">Front</div>
-<div class="card front">
-  <div class="front-left">
-    <img src="https://pat-the-plumber.com/sites/pattheplumber/face.png" alt="Pat the Plumber character">
-  </div>
-  <div class="front-right">
-    <div>
-      <div class="name">Pat the<br>Plumber</div>
-      <div class="tagline">Licensed · Massachusetts</div>
-      <div class="divider"></div>
-    </div>
-    <div class="contact-block">
-      <div class="contact-row">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.27 2 2 0 0 1 3.6 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l.77-.77a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-        </svg>
-        <span>(508) 887-0344</span>
-      </div>
-      <div class="contact-row">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-        </svg>
-        <span>pat-the-plumber.com</span>
-      </div>
-    </div>
-    <div class="front-badges">
-      <span class="front-badge">Essex County</span>
-      <span class="front-badge">Boston Area</span>
-      <span class="front-badge">16 Years</span>
-      <span class="front-badge">Emergency</span>
-    </div>
-  </div>
-</div>
+<p class="print-note">Print at 100% scale · No margins · Cardstock recommended<br>File → Print → Scale 100% → No margins</p>
 
-<div class="label">Back</div>
-<div class="card back">
-  <img class="back-logo" src="https://pat-the-plumber.com/sites/pattheplumber/logo.png" alt="Pat the Plumber logo">
-  <div class="back-name">Pat the Plumber</div>
-  <div class="back-tagline">Straight answers. No runaround.</div>
-  <div class="back-divider"></div>
-  <div class="back-services">
-    <span class="back-service">Burst Pipes</span>
-    <span class="back-service">Active Leaks</span>
-    <span class="back-service">Clogs</span>
-    <span class="back-service">Fixture Repairs</span>
-    <span class="back-service">Emergency</span>
-    <span class="back-service">Same-Day</span>
-    <span class="back-service">Clear Pricing</span>
-    <span class="back-service">Side Work</span>
-  </div>
-  <div class="back-footer">Winthrop, MA · Mobile Only · Apple Pay · Venmo · Cash · Credit</div>
-</div>
+<div class="card-pair">
 
-<div class="print-hint">File → Print · No margins · 100% scale · Cardstock · 3.5 × 2"</div>
+  <!-- FRONT -->
+  <div>
+    <p class="card-label">Front</p>
+    <div class="card card--front">
+      <div class="card-bg-circle card-bg-circle--1"></div>
+      <div class="card-bg-circle card-bg-circle--2"></div>
+      <img class="card-character" src="https://pat-the-plumber.com/sites/pattheplumber/face.png" alt="">
+      <div class="card-content">
+        <div>
+          <div class="card-name">Pat the Plumber</div>
+          <div class="card-title">Licensed Massachusetts · 16 Years</div>
+        </div>
+        <div class="card-contact">
+          <div class="card-contact-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+            (508) 887-0344
+          </div>
+          <div class="card-contact-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+            pat-the-plumber.com
+          </div>
+          <div class="card-contact-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            pat@pat-the-plumber.com
+          </div>
+        </div>
+        <div class="card-badges">
+          <span class="badge">Essex County</span>
+          <span class="badge">Boston Area</span>
+          <span class="badge">Emergency</span>
+          <span class="badge">Same-Day</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BACK -->
+  <div>
+    <p class="card-label">Back</p>
+    <div class="card card--back">
+      <div class="back-glow back-glow--1"></div>
+      <div class="back-glow back-glow--2"></div>
+      <div class="back-content">
+        <img class="back-logo" src="https://pat-the-plumber.com/sites/pattheplumber/logo.png" alt="Pat the Plumber">
+        <div class="back-name">Pat the Plumber</div>
+        <div class="back-tagline">Straight answers. No runaround.</div>
+        <div class="back-divider"></div>
+        <div class="back-services">
+          <span class="svc-pill">Burst Pipes</span>
+          <span class="svc-pill">Active Leaks</span>
+          <span class="svc-pill">Clogs</span>
+          <span class="svc-pill">Fixture Repairs</span>
+          <span class="svc-pill">Emergency Shutoffs</span>
+          <span class="svc-pill">Clear Pricing</span>
+          <span class="svc-pill">Side Work</span>
+          <span class="svc-pill">Same-Day</span>
+        </div>
+        <div class="back-footer">Apple Pay · Venmo · Cash · Credit Card · Winthrop, MA</div>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 </body>
 </html>
