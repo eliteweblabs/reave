@@ -1,308 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pat the Plumber — Business Card</title>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pat the Plumber — Business Card</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  body {
+    background: #e5e7eb;
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 40px;
+    padding: 40px;
+  }
+
+  .label {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  /* Card base: 3.5in × 2in at 96dpi = 336px × 192px
+     At 2x for crispness: 672px × 384px */
+  .card {
+    width: 3.5in;
+    height: 2in;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    position: relative;
+  }
+
+  /* ── FRONT ── */
+  .front {
+    background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 40%, #0369a1 100%);
+    display: flex;
+    align-items: stretch;
+  }
+
+  .front-art {
+    width: 1.1in;
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+    padding-top: 0.1in;
+  }
+
+  .front-art img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    object-position: bottom center;
+  }
+
+  .front-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.2in 0.2in 0.2in 0.1in;
+    gap: 0.08in;
+  }
+
+  .front-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  .front-trade {
+    font-size: 9px;
+    font-weight: 500;
+    color: #93c5fd;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  .front-divider {
+    width: 32px;
+    height: 2px;
+    background: #38bdf8;
+    border-radius: 2px;
+    margin: 2px 0;
+  }
+
+  .front-phone {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: 0.01em;
+  }
+
+  .front-website {
+    font-size: 9px;
+    color: #bfdbfe;
+    font-weight: 400;
+  }
+
+  .front-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .badge {
+    font-size: 7.5px;
+    font-weight: 600;
+    color: #1e40af;
+    background: rgba(255,255,255,0.92);
+    padding: 2px 6px;
+    border-radius: 20px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ── BACK ── */
+  .back {
+    background: #0f172a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.18in 0.25in;
+    position: relative;
+    overflow: hidden;
+    gap: 0.06in;
+  }
+
+  /* decorative glow circles */
+  .back::before {
+    content: '';
+    position: absolute;
+    width: 1.2in;
+    height: 1.2in;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(37,99,235,0.25) 0%, transparent 70%);
+    top: -0.3in;
+    right: -0.2in;
+  }
+  .back::after {
+    content: '';
+    position: absolute;
+    width: 0.9in;
+    height: 0.9in;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(14,165,233,0.2) 0%, transparent 70%);
+    bottom: -0.2in;
+    left: -0.15in;
+  }
+
+  .back-logo {
+    width: 0.45in;
+    height: 0.45in;
+    object-fit: contain;
+    position: relative;
+    z-index: 1;
+  }
+
+  .back-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.01em;
+    position: relative;
+    z-index: 1;
+  }
+
+  .back-tagline {
+    font-size: 8px;
+    color: #38bdf8;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    position: relative;
+    z-index: 1;
+  }
+
+  .back-divider {
+    width: 40px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #2563eb, transparent);
+    position: relative;
+    z-index: 1;
+  }
+
+  .back-services {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    position: relative;
+    z-index: 1;
+    max-width: 2.8in;
+  }
+
+  .svc {
+    font-size: 7px;
+    color: #94a3b8;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+
+  .back-footer {
+    font-size: 7px;
+    color: #475569;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  /* ── PRINT ── */
+  @media print {
     body {
-      font-family: 'Space Grotesk', sans-serif;
-      background: #f0f4f8;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      gap: 32px;
-      padding: 40px 20px;
+      background: white;
+      gap: 0;
+      padding: 0;
+      justify-content: flex-start;
     }
-
-    h2 {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #64748b;
-      margin-bottom: 8px;
-    }
-
-    .card-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* 3.5 × 2 inches at 96dpi = 336 × 192px; scale ×2.5 for screen */
+    .label { display: none; }
     .card {
-      width: 840px;
-      height: 480px;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
-      position: relative;
-      flex-shrink: 0;
+      box-shadow: none;
+      page-break-after: always;
+      margin: 0.25in auto;
     }
-
-    /* ── FRONT ── */
-    .front {
-      background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 60%, #0ea5e9 100%);
-      display: flex;
-      align-items: stretch;
-    }
-
-    .front-art {
-      width: 320px;
-      flex-shrink: 0;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .front-art img {
-      position: absolute;
-      bottom: -10px;
-      left: -20px;
-      height: 110%;
-      width: auto;
-      object-fit: contain;
-      object-position: bottom left;
-      filter: drop-shadow(4px 0 24px rgba(0,0,0,0.35));
-    }
-
-    .front-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 40px 48px 40px 32px;
-      position: relative;
-    }
-
-    .front-content::before {
-      content: '';
-      position: absolute;
-      left: 0; top: 15%; bottom: 15%;
-      width: 2px;
-      background: rgba(255,255,255,0.25);
-      border-radius: 2px;
-    }
-
-    .front-name {
-      font-size: 42px;
-      font-weight: 700;
-      color: #fff;
-      line-height: 1.05;
-      letter-spacing: -0.5px;
-      margin-bottom: 6px;
-    }
-
-    .front-title {
-      font-size: 14px;
-      font-weight: 500;
-      color: #93c5fd;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 28px;
-    }
-
-    .front-phone {
-      font-size: 26px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: 0.02em;
-      margin-bottom: 8px;
-    }
-
-    .front-web {
-      font-size: 14px;
-      font-weight: 500;
-      color: #bfdbfe;
-      margin-bottom: 24px;
-    }
-
-    .front-badges {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .badge {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 6px;
-      padding: 5px 12px;
-      font-size: 11px;
-      font-weight: 600;
-      color: #e0f2fe;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    /* ── BACK ── */
-    .back {
-      background: #0f172a;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 44px 60px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .back::before {
-      content: '';
-      position: absolute;
-      top: -120px; right: -120px;
-      width: 340px; height: 340px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(37,99,235,0.28) 0%, transparent 70%);
-    }
-
-    .back::after {
-      content: '';
-      position: absolute;
-      bottom: -100px; left: -80px;
-      width: 280px; height: 280px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(14,165,233,0.22) 0%, transparent 70%);
-    }
-
-    .back-logo {
-      width: 80px;
-      height: 80px;
-      object-fit: contain;
-      margin-bottom: 16px;
-      filter: drop-shadow(0 0 16px rgba(96,165,250,0.5));
-      position: relative;
-      z-index: 1;
-    }
-
-    .back-name {
-      font-size: 28px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.3px;
-      margin-bottom: 4px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .back-tagline {
-      font-size: 12px;
-      font-weight: 500;
-      color: #60a5fa;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 28px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .back-divider {
-      width: 60px;
-      height: 2px;
-      background: linear-gradient(90deg, #2563eb, #0ea5e9);
-      border-radius: 2px;
-      margin-bottom: 24px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .back-services {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-      max-width: 680px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .service-pill {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 6px 16px;
-      font-size: 12px;
-      font-weight: 500;
-      color: #cbd5e1;
-    }
-
-    .back-footer {
-      margin-top: 28px;
-      font-size: 12px;
-      color: #475569;
-      letter-spacing: 0.05em;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* Print */
-    @media print {
-      body { background: white; gap: 0; padding: 0; }
-      h2, .print-note { display: none; }
-      .card-wrap { page-break-after: always; }
-      .card { width: 3.5in; height: 2in; border-radius: 0; box-shadow: none; }
-      .front-name { font-size: 22px; }
-      .front-phone { font-size: 15px; }
-      .back-name { font-size: 16px; }
-    }
-
-    .print-note {
-      font-size: 12px;
-      color: #94a3b8;
-      text-align: center;
-      max-width: 600px;
-    }
-  </style>
+  }
+</style>
 </head>
 <body>
 
-  <div class="card-wrap">
-    <h2>Front</h2>
-    <div class="card front">
-      <div class="front-art">
-        <img src="https://pat-the-plumber.com/api/branding/icon?size=512" alt="Pat the Plumber character" />
-      </div>
-      <div class="front-content">
-        <div class="front-name">Pat the<br>Plumber</div>
-        <div class="front-title">Licensed Massachusetts</div>
-        <div class="front-phone">(508) 887-0344</div>
-        <div class="front-web">pat-the-plumber.com</div>
-        <div class="front-badges">
-          <span class="badge">Essex County</span>
-          <span class="badge">Boston Area</span>
-          <span class="badge">16 Years</span>
-          <span class="badge">Emergency</span>
-        </div>
+<div>
+  <p class="label">Front</p>
+  <div class="card front">
+    <div class="front-art">
+      <img src="https://pat-the-plumber.com/api/branding/icon?size=512" alt="Pat the Plumber character" />
+    </div>
+    <div class="front-content">
+      <div class="front-trade">Licensed Plumber · Massachusetts</div>
+      <div class="front-name">Pat the<br>Plumber</div>
+      <div class="front-divider"></div>
+      <div class="front-phone">(508) 887-0344</div>
+      <div class="front-website">pat-the-plumber.com</div>
+      <div class="front-badges">
+        <span class="badge">Essex County</span>
+        <span class="badge">Boston Area</span>
+        <span class="badge">16 Years</span>
+        <span class="badge">Emergency</span>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="card-wrap">
-    <h2>Back</h2>
-    <div class="card back">
-      <img class="back-logo" src="https://pat-the-plumber.com/api/branding/icon?size=192" alt="Pat the Plumber logo" />
-      <div class="back-name">Pat the Plumber</div>
-      <div class="back-tagline">One Plumber · Straight Answers · You Talk to the Owner</div>
-      <div class="back-divider"></div>
-      <div class="back-services">
-        <span class="service-pill">Burst Pipes &amp; Active Leaks</span>
-        <span class="service-pill">Clogs &amp; Fixture Repairs</span>
-        <span class="service-pill">Emergency &amp; Same-Day</span>
-        <span class="service-pill">Clear Pricing</span>
-        <span class="service-pill">Apple Pay · Venmo · Cash · Card</span>
-        <span class="service-pill">Side Work Welcome</span>
-      </div>
-      <div class="back-footer">Based in Winthrop · Mobile Only · No Shop Visit Required</div>
+<div>
+  <p class="label">Back</p>
+  <div class="card back">
+    <img class="back-logo" src="https://pat-the-plumber.com/api/branding/icon?size=192" alt="Pat the Plumber logo" />
+    <div class="back-name">Pat the Plumber</div>
+    <div class="back-tagline">Straight answers. No runaround.</div>
+    <div class="back-divider"></div>
+    <div class="back-services">
+      <span class="svc">Burst Pipes</span>
+      <span class="svc">Active Leaks</span>
+      <span class="svc">Clogs &amp; Drains</span>
+      <span class="svc">Fixture Repairs</span>
+      <span class="svc">Emergency Calls</span>
+      <span class="svc">Same-Day Available</span>
+      <span class="svc">Clear Pricing</span>
+      <span class="svc">Side Work Welcome</span>
     </div>
+    <div class="back-footer">Apple Pay · Venmo · Cash · Credit Card · Winthrop, MA · Mobile Only</div>
   </div>
-
-  <p class="print-note">Print at 100% scale on cardstock (3.5 × 2 in). File → Print → Scale: 100% · No margins.</p>
+</div>
 
 </body>
 </html>
