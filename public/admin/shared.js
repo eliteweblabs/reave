@@ -110,15 +110,20 @@ export function flushDeferredAdminHandshake() {
  * Refresh Clerk client token and probe an authenticated API — often restores __session
  * without a full-page handshake (common when the HttpOnly cookie lagged behind Clerk JS).
  */
+function nativeAdminFetch() {
+  return window.__reaveNativeFetch || window.fetch.bind(window);
+}
+
 export async function trySilentAdminSessionRefresh() {
   try {
     const session = window.Clerk?.session;
     if (!session?.getToken) return false;
     await session.getToken({ skipCache: true });
-    const probe = await fetch('/api/admin/badges', {
+    const probe = await nativeAdminFetch()('/api/admin/badges', {
       credentials: 'same-origin',
       cache: 'no-store',
       headers: { Accept: 'application/json' },
+      __reaveAuthProbe: true,
     });
     if (!probe.ok) return false;
     noteAdminNetworkSuccess();
@@ -200,9 +205,11 @@ export function installAdminApiFetchGuard() {
   if (serverHasStaffSession()) clearAdminSessionRecoverMark();
 
   const native = window.fetch.bind(window);
+  window.__reaveNativeFetch = native;
   window.fetch = async function reaveAdminFetch(input, init) {
     const retried = init?.__reaveRetried401 === true;
     const res = await native(input, init);
+    if (init?.__reaveAuthProbe) return res;
     if (res.status !== 401) return res;
 
     let path = '';
@@ -236,26 +243,26 @@ function installAdminSessionKeepalive() {
   window.__reaveAdminSessionKeepalive = true;
 
   let timer = null;
-  const tick = async () => {
-    if (document.hidden) return;
-    flushDeferredAdminHandshake();
-    if (window.Clerk?.user) await trySilentAdminSessionRefresh();
-  };
-  const schedule = () => {
-    if (timer) clearInterval(timer);
-    timer = setInterval(() => {
-      void tick();
-    }, ADMIN_SESSION_KEEPALIVE_MS);
+  let wasHidden = document.hidden;
+
+  /** Background cookie refresh only — must never navigate (see trySilentAdminSessionRefresh). */
+  const refreshQuietly = async () => {
+    if (document.hidden || !window.Clerk?.user) return;
+    await trySilentAdminSessionRefresh();
   };
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) void tick();
+    const hidden = document.hidden;
+    if (wasHidden && !hidden) {
+      // Only run a deferred handshake if a 401 was caught while backgrounded.
+      flushDeferredAdminHandshake();
+    }
+    wasHidden = hidden;
   });
-  window.addEventListener('pageshow', () => {
-    void tick();
-  });
-  schedule();
-  void tick();
+
+  timer = setInterval(() => {
+    void refreshQuietly();
+  }, ADMIN_SESSION_KEEPALIVE_MS);
 }
 
 /**

@@ -605,7 +605,7 @@ export function showAdminConfirmBanner(opts = {}) {
   });
 }
 
-export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
+export async function syncAdminPushButton(buttonId = 'push-enable-btn', opts = {}) {
   const btn = document.getElementById(buttonId);
   if (!btn) return;
 
@@ -617,7 +617,9 @@ export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
     return;
   }
 
-  await registerAdminServiceWorker();
+  if (opts.skipServiceWorker !== true) {
+    await registerAdminServiceWorker();
+  }
 
   await syncAdminSetupAlerts();
 
@@ -1129,12 +1131,12 @@ if (typeof document !== 'undefined') {
   });
   window.addEventListener('pageshow', () => {
     void syncPushSubscriptionWithServer().catch(() => undefined);
-    void syncAdminPushButton();
+    void syncAdminPushButton('push-enable-btn', { skipServiceWorker: true });
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     void syncPushSubscriptionWithServer().catch(() => undefined);
-    void syncAdminPushButton();
+    void syncAdminPushButton('push-enable-btn', { skipServiceWorker: true });
   });
   try {
     void navigator.permissions?.query({ name: 'notifications' })?.then((status) => {
