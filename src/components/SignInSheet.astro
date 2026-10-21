@@ -199,7 +199,9 @@ const clerkAppearance = {
 
 {clerkReady ? (
 <script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref, assetVersion }}>
-  const { bindClerkSsrSessionSync, clerkHandshakeUrl } = await import(`/admin/shared.js?v=${assetVersion}`);
+  const { bindClerkSsrSessionSync, clerkHandshakeUrl, adminHandshakeInCooldown } = await import(
+    `/admin/shared.js?v=${assetVersion}`,
+  );
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
   /** One handshake navigation after client sign-in — never a loop. */
@@ -258,9 +260,9 @@ const clerkAppearance = {
       return false;
     }
     if (ssrSyncAlreadyTried()) return false;
+    if (adminHandshakeInCooldown()) return false;
     markSsrSyncTried();
     const target = postSignInTarget();
-    console.info('[reave] syncing Clerk session via handshake →', target);
     window.location.assign(clerkHandshakeUrl(target));
     return true;
   }

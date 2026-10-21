@@ -23,6 +23,9 @@ let swRegisterBlockedUntil = 0;
 let swUpdatePending = false;
 /** Avoid duplicate register/update listeners (push setup calls register too). */
 let swRegisterPromise = null;
+/** Avoid checking for a new SW on every tab focus (deploy + skipWaiting churn). */
+let lastSwUpdateCheckAt = 0;
+const SW_UPDATE_CHECK_MIN_MS = 30 * 60_000;
 
 function syncSetupAlertInset() {
   const root = document.getElementById('admin-setup-alerts');
@@ -345,7 +348,11 @@ export async function registerAdminServiceWorker() {
     });
 
     try {
-      await reg.update();
+      const now = Date.now();
+      if (now - lastSwUpdateCheckAt >= SW_UPDATE_CHECK_MIN_MS) {
+        lastSwUpdateCheckAt = now;
+        await reg.update();
+      }
     } catch (e) {
       noteAdminNetworkFailure(e);
     }

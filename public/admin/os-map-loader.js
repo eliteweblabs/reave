@@ -833,6 +833,9 @@ function setActiveMap(key, opts = {}) {
     clearInboxSessionDots();
     lastEmailQuietPollFingerprint = '';
   }
+  if (prevType === 'dashboard' && MAP.type !== 'dashboard') {
+    dashboardAnalyticsHydrateGen += 1;
+  }
   if (prevType === 'fleet' && MAP.type !== 'fleet') {
     teardownFleetMap();
   }
@@ -7480,10 +7483,29 @@ function applyDashboardAnalyticsPreview(preview) {
   renderAdminDashboard(lastDashboardPayload, { skipHydrate: true });
 }
 
+async function fetchDashboardAnalyticsView(view, gen) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25_000);
+  try {
+    const res = await adminFetch(`/api/admin/analytics?view=${encodeURIComponent(view)}`, {
+      signal: ctrl.signal,
+    });
+    if (gen !== dashboardAnalyticsHydrateGen) return null;
+    return res;
+  } catch (e) {
+    if (gen !== dashboardAnalyticsHydrateGen) return null;
+    if (e?.name === 'AbortError') throw new Error('Analytics timed out');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function hydrateDashboardFleet() {
   const gen = ++dashboardAnalyticsHydrateGen;
   try {
-    const hostedRes = await adminFetch('/api/admin/analytics?view=hosted');
+    const hostedRes = await fetchDashboardAnalyticsView('hosted', gen);
+    if (!hostedRes) return;
     const hostedPayload = await readAdminJson(hostedRes, 'analytics hosted');
     if (gen !== dashboardAnalyticsHydrateGen) return;
     if (MAP?.type !== 'dashboard') return;
@@ -7494,7 +7516,8 @@ async function hydrateDashboardFleet() {
 
     if (!lastDashboardPayload?.analyticsConfigured) return;
 
-    const metricsRes = await adminFetch('/api/admin/analytics?view=preview');
+    const metricsRes = await fetchDashboardAnalyticsView('preview', gen);
+    if (!metricsRes) return;
     const metricsPayload = await readAdminJson(metricsRes, 'analytics preview');
     if (gen !== dashboardAnalyticsHydrateGen) return;
     if (MAP?.type !== 'dashboard') return;

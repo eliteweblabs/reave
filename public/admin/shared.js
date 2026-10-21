@@ -9,6 +9,11 @@ export { escHtml };
 const AUTH_SYNC_KEY = 'reave-clerk-ssr-sync';
 /** One Clerk handshake navigation per tab when SSR session cookie goes stale. */
 const ADMIN_API_RECOVER_KEY = 'reave-admin-401-recover';
+/** Min gap between full-page handshake navigations (avoids refresh storms). */
+const ADMIN_HANDSHAKE_AT_KEY = 'reave-admin-handshake-at';
+const ADMIN_HANDSHAKE_PENDING_KEY = 'reave-admin-handshake-pending';
+const ADMIN_HANDSHAKE_COOLDOWN_MS = 120_000;
+const ADMIN_SESSION_KEEPALIVE_MS = 4 * 60_000;
 
 /**
  * Clerk handshake sets the HttpOnly __session cookie SSR needs. A plain reload on
@@ -57,37 +62,120 @@ function clearAdminSessionRecoverMark() {
   }
 }
 
+function recordHandshakeNavigation() {
+  try {
+    sessionStorage.setItem(ADMIN_HANDSHAKE_AT_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** True when a full-page Clerk handshake ran recently — blocks duplicate navigations. */
+export function adminHandshakeInCooldown() {
+  try {
+    const at = Number(sessionStorage.getItem(ADMIN_HANDSHAKE_AT_KEY) || 0);
+    return Number.isFinite(at) && Date.now() - at < ADMIN_HANDSHAKE_COOLDOWN_MS;
+  } catch {
+    return false;
+  }
+}
+
+function scheduleDeferredHandshake(returnTo) {
+  try {
+    sessionStorage.setItem(ADMIN_HANDSHAKE_PENDING_KEY, returnTo);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Run a deferred handshake after the app returns to the foreground. */
+export function flushDeferredAdminHandshake() {
+  if (adminHandshakeInCooldown()) return false;
+  let pending = '';
+  try {
+    pending = sessionStorage.getItem(ADMIN_HANDSHAKE_PENDING_KEY) || '';
+  } catch {
+    /* ignore */
+  }
+  if (!pending) return false;
+  try {
+    sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
+  } catch {
+    /* ignore */
+  }
+  return recoverAdminSessionOn401({ returnTo: pending, force: true });
+}
+
+/**
+ * Refresh Clerk client token and probe an authenticated API — often restores __session
+ * without a full-page handshake (common when the HttpOnly cookie lagged behind Clerk JS).
+ */
+export async function trySilentAdminSessionRefresh() {
+  try {
+    const session = window.Clerk?.session;
+    if (!session?.getToken) return false;
+    await session.getToken({ skipCache: true });
+    const probe = await fetch('/api/admin/badges', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!probe.ok) return false;
+    noteAdminNetworkSuccess();
+    clearAdminSessionRecoverMark();
+    try {
+      sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
+    } catch {
+      /* ignore */
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Clerk JS can still show a user while HttpOnly __session is gone (expired handshake JWT).
  * Navigate through /admin/__clerk once before opening the sign-in sheet.
  */
-export function recoverAdminSessionOn401() {
-  markAdminServerSessionStale();
+export function recoverAdminSessionOn401(opts = {}) {
+  const force = opts.force === true;
+  if (!force && adminHandshakeInCooldown()) return false;
+
   let alreadyTried = false;
   try {
     alreadyTried = sessionStorage.getItem(ADMIN_API_RECOVER_KEY) === '1';
   } catch {
     /* ignore */
   }
-  if (alreadyTried) return false;
+  if (alreadyTried && !force) return false;
 
   const hasClerkUser = Boolean(window.Clerk?.user);
   const onAdmin =
     window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/');
   if (!onAdmin && !hasClerkUser) return false;
 
+  const returnTo =
+    opts.returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
+
+  if (!force && document.hidden) {
+    scheduleDeferredHandshake(returnTo);
+    return false;
+  }
+
+  markAdminServerSessionStale();
   try {
     sessionStorage.setItem(ADMIN_API_RECOVER_KEY, '1');
   } catch {
     /* ignore */
   }
-  const returnTo = cleanAdminReturnUrl(window.location.pathname, window.location.search);
+  recordHandshakeNavigation();
   window.location.assign(clerkHandshakeUrl(returnTo));
   return true;
 }
 
 /** Shared 401 handler for adminFetch and the global /api fetch guard. */
-export function handleAdminUnauthorizedResponse() {
+export async function handleAdminUnauthorizedResponse() {
   if (recoverAdminSessionOn401()) {
     throw new Error('Session expired');
   }
@@ -113,6 +201,7 @@ export function installAdminApiFetchGuard() {
 
   const native = window.fetch.bind(window);
   window.fetch = async function reaveAdminFetch(input, init) {
+    const retried = init?.__reaveRetried401 === true;
     const res = await native(input, init);
     if (res.status !== 401) return res;
 
@@ -132,9 +221,41 @@ export function installAdminApiFetchGuard() {
     }
     if (!path.startsWith('/api/') || path.includes('__clerk')) return res;
 
-    handleAdminUnauthorizedResponse();
+    if (!retried && (await trySilentAdminSessionRefresh())) {
+      const retryInit = { ...(init || {}), __reaveRetried401: true };
+      return native(input, retryInit);
+    }
+
+    await handleAdminUnauthorizedResponse();
     return res;
   };
+}
+
+function installAdminSessionKeepalive() {
+  if (typeof window === 'undefined' || window.__reaveAdminSessionKeepalive) return;
+  window.__reaveAdminSessionKeepalive = true;
+
+  let timer = null;
+  const tick = async () => {
+    if (document.hidden) return;
+    flushDeferredAdminHandshake();
+    if (window.Clerk?.user) await trySilentAdminSessionRefresh();
+  };
+  const schedule = () => {
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => {
+      void tick();
+    }, ADMIN_SESSION_KEEPALIVE_MS);
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void tick();
+  });
+  window.addEventListener('pageshow', () => {
+    void tick();
+  });
+  schedule();
+  void tick();
 }
 
 /**
@@ -196,12 +317,15 @@ if (typeof window !== 'undefined') {
   window.__reaveShouldSkipAdminPoll = shouldSkipAdminPoll;
   window.__reaveNoteAdminNetworkFailure = noteAdminNetworkFailure;
   window.__reaveNoteAdminNetworkSuccess = noteAdminNetworkSuccess;
+  installAdminApiFetchGuard();
+  installAdminSessionKeepalive();
 }
 
 export async function adminFetch(url, opts = {}) {
   if (shouldSkipAdminPoll()) {
     throw new Error('Admin offline — retrying shortly');
   }
+  const retried = opts._retried401 === true;
   let res;
   try {
     res = await fetch(url, {
@@ -221,7 +345,12 @@ export async function adminFetch(url, opts = {}) {
     noteAdminNetworkSuccess();
     clearAdminSessionRecoverMark();
   }
-  if (res.status === 401) handleAdminUnauthorizedResponse();
+  if (res.status === 401) {
+    if (!retried && (await trySilentAdminSessionRefresh())) {
+      return adminFetch(url, { ...opts, _retried401: true });
+    }
+    await handleAdminUnauthorizedResponse();
+  }
   return res;
 }
 

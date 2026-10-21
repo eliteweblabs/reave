@@ -13,7 +13,10 @@ self.addEventListener('fetch', (event) => {
   /* Leave document navigations to the browser — intercepting them caused reload
      loops in installed PWAs when auth or query params changed. */
   if (event.request.mode === 'navigate' || event.request.destination === 'document') return;
-  if (new URL(event.request.url).origin !== self.location.origin) return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  const dest = event.request.destination;
+  if (dest === 'script' || dest === 'worker' || dest === 'style' || dest === 'font') return;
   event.respondWith(
     fetch(event.request).catch(async () => {
       const cached = await caches.match(event.request);
@@ -25,7 +28,7 @@ self.addEventListener('fetch', (event) => {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
       }
-      throw new Error('Network error');
+      return Response.error();
     }),
   );
 });

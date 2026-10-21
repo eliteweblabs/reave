@@ -1,5 +1,5 @@
 /* Admin PWA service worker — Web Push for inbox summaries + app icon badge.
-   v20261020 — same-origin fetch only (do not intercept Clerk CDN). */
+   v20261021 — same-origin fetch; passthrough script/style (no respondWith throw). */
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
@@ -524,6 +524,8 @@ self.addEventListener('fetch', (event) => {
      FetchEvent.respondWith "Network error" and can brick auth scripts in the PWA. */
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
+  const dest = event.request.destination;
+  if (dest === 'script' || dest === 'worker' || dest === 'style' || dest === 'font') return;
   event.respondWith(
     fetch(event.request).catch(async () => {
       const cached = await caches.match(event.request);
@@ -535,7 +537,7 @@ self.addEventListener('fetch', (event) => {
           headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
       }
-      throw new Error('Network error');
+      return Response.error();
     }),
   );
 });
