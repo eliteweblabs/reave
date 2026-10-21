@@ -1,0 +1,225 @@
+---
+// Pat the Plumber — Two-sided print-ready business card
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pat the Plumber — Business Card</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: #111;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 32px;
+    padding: 40px 20px;
+  }
+
+  .label {
+    color: #666;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .print-hint {
+    color: #444;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  .card {
+    width: 672px;
+    height: 384px;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+
+  /* FRONT */
+  .front {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1d4ed8 55%, #0ea5e9 100%);
+  }
+  .front .accent-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+  }
+  .front .accent-circle.c1 { width: 320px; height: 320px; top: -80px; right: -80px; }
+  .front .accent-circle.c2 { width: 180px; height: 180px; bottom: -60px; right: 160px; }
+  .front .character {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 340px; width: auto;
+    opacity: 0.92;
+    filter: drop-shadow(4px 0 24px rgba(0,0,0,0.4));
+  }
+  .front .content {
+    position: absolute;
+    right: 0; top: 0;
+    width: 380px; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 36px 40px 36px 20px;
+  }
+  .front .name {
+    font-size: 38px; font-weight: 800; color: #fff;
+    line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 4px;
+  }
+  .front .tagline {
+    font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.65);
+    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 20px;
+  }
+  .front .phone {
+    font-size: 22px; font-weight: 700; color: #fff;
+    margin-bottom: 6px; letter-spacing: 0.01em;
+  }
+  .front .email {
+    font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.7); margin-bottom: 6px;
+  }
+  .front .website {
+    font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85);
+    margin-bottom: 20px; letter-spacing: 0.02em;
+  }
+  .front .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .front .badge {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px; padding: 4px 10px;
+    font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.85);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+
+  /* BACK */
+  .back {
+    background: linear-gradient(160deg, #0a1628 0%, #0f1f3d 60%, #0c2340 100%);
+  }
+  .back .glow1 {
+    position: absolute; width: 300px; height: 300px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(37,99,235,0.18) 0%, transparent 70%);
+    top: -80px; left: -80px;
+  }
+  .back .glow2 {
+    position: absolute; width: 250px; height: 250px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%);
+    bottom: -60px; right: -60px;
+  }
+  .back .content {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; padding: 32px 48px; text-align: center;
+  }
+  .back .logo {
+    width: 52px; height: 52px; object-fit: contain; margin-bottom: 10px;
+    filter: drop-shadow(0 0 12px rgba(14,165,233,0.4));
+  }
+  .back .name {
+    font-size: 24px; font-weight: 800; color: #fff;
+    letter-spacing: -0.01em; margin-bottom: 4px;
+  }
+  .back .tagline {
+    font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.45);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 16px;
+  }
+  .back .divider {
+    width: 40px; height: 2px;
+    background: linear-gradient(90deg, #2563eb, #0ea5e9);
+    border-radius: 2px; margin-bottom: 16px;
+  }
+  .back .services {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    justify-content: center; margin-bottom: 16px;
+  }
+  .back .service-pill {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px; padding: 4px 10px;
+    font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.7);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .back .footer {
+    font-size: 10px; color: rgba(255,255,255,0.3);
+    letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.6;
+  }
+
+  @media print {
+    body { background: white; padding: 0; gap: 0; }
+    .label, .print-hint { display: none; }
+    .card {
+      width: 3.5in; height: 2in;
+      border-radius: 0; box-shadow: none;
+      page-break-after: always;
+    }
+    .front .name { font-size: 20pt; }
+    .front .phone { font-size: 13pt; }
+  }
+</style>
+</head>
+<body>
+
+<div class="label">Front</div>
+<div class="card front">
+  <div class="accent-circle c1"></div>
+  <div class="accent-circle c2"></div>
+  <img class="character" src="https://pat-the-plumber.com/sites/pattheplumber/face.png" alt="Pat">
+  <div class="content">
+    <div class="name">Pat the<br>Plumber</div>
+    <div class="tagline">Licensed Massachusetts</div>
+    <div class="phone">(508) 887-0344</div>
+    <div class="email">pat@pat-the-plumber.com</div>
+    <div class="website">pat-the-plumber.com</div>
+    <div class="badges">
+      <span class="badge">Essex County</span>
+      <span class="badge">Boston Area</span>
+      <span class="badge">Emergency</span>
+      <span class="badge">Same-Day</span>
+      <span class="badge">16 Years</span>
+    </div>
+  </div>
+</div>
+
+<div class="label">Back</div>
+<div class="card back">
+  <div class="glow1"></div>
+  <div class="glow2"></div>
+  <div class="content">
+    <img class="logo" src="https://pat-the-plumber.com/sites/pattheplumber/face.png" alt="Pat the Plumber">
+    <div class="name">Pat the Plumber</div>
+    <div class="tagline">Straight answers. No runaround.</div>
+    <div class="divider"></div>
+    <div class="services">
+      <span class="service-pill">Burst Pipes</span>
+      <span class="service-pill">Active Leaks</span>
+      <span class="service-pill">Clogs</span>
+      <span class="service-pill">Fixture Repairs</span>
+      <span class="service-pill">Emergency Shutoffs</span>
+      <span class="service-pill">Clear Pricing</span>
+      <span class="service-pill">Side Work</span>
+      <span class="service-pill">Same-Day</span>
+    </div>
+    <div class="footer">
+      Apple Pay · Venmo · Cash · Credit Card<br>
+      Winthrop, MA · Mobile Only · Licensed MA
+    </div>
+  </div>
+</div>
+
+<div class="print-hint">File → Print → Scale 100% → No margins → Cardstock · 3.5 × 2 in</div>
+
+</body>
+</html>
