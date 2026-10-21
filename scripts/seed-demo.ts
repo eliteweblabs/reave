@@ -482,7 +482,7 @@ async function seedCompanyConfig(pool: pg.Pool): Promise<void> {
       FIXTURES.company.description,
       env('PUBLIC_SITE_DOMAIN') ?? 'demo.reave.app',
       FIXTURES.company.supportEmail ?? env('DEMO_REAL_CONTACT_EMAIL') ?? 'hello@demo.reave.app',
-      '+1 (617) 555-0100',
+      env('COMPANY_PHONE') ?? FIXTURES.company.supportPhone ?? null,
       '177 Huntington Ave, Boston, MA 02115',
       FIXTURES.company.brandPrimary ?? null,
       FIXTURES.company.brandSecondary ?? null,
