@@ -29,6 +29,62 @@ export type AnthropicMessagesResponse = {
 
 const LOW_CREDIT_BALANCE_RE = /credit balance is too low/i;
 const INVALID_API_KEY_RE = /invalid api key|authentication_error|AUTH_002|invalid x-api-key/i;
+const OPENROUTER_INSUFFICIENT_CREDITS_RE =
+  /insufficient credits|payment required|billing_error|error_type["']?\s*:\s*["']payment/i;
+
+export type ParsedLlmErrorPayload = {
+  message: string | null;
+  type: string | null;
+  errorType: string | null;
+};
+
+/** Best-effort parse of Anthropic Messages or OpenRouter-native error JSON. */
+export function parseLlmErrorPayload(text: string): ParsedLlmErrorPayload {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{')) {
+    return { message: trimmed.slice(0, 240) || null, type: null, errorType: null };
+  }
+  try {
+    const j = JSON.parse(trimmed) as {
+      error?: {
+        message?: unknown;
+        type?: unknown;
+        error_type?: unknown;
+        code?: unknown;
+      };
+    };
+    const err = j.error;
+    if (!err || typeof err !== 'object') {
+      return { message: trimmed.slice(0, 240), type: null, errorType: null };
+    }
+    const message =
+      typeof err.message === 'string'
+        ? err.message
+        : typeof err.code === 'string'
+          ? err.code
+          : null;
+    return {
+      message,
+      type: typeof err.type === 'string' ? err.type : null,
+      errorType: typeof err.error_type === 'string' ? err.error_type : null,
+    };
+  } catch {
+    return { message: trimmed.slice(0, 240), type: null, errorType: null };
+  }
+}
+
+function openRouterAuthFailureDetail(parsed: ParsedLlmErrorPayload): string {
+  const detail = parsed.message?.trim();
+  const lines = [
+    detail
+      ? `OpenRouter auth failed (401): ${detail}`
+      : 'OpenRouter auth failed (401).',
+    '',
+    'This is a live rejection from OpenRouter — not a Reave routing guess. An unchanged Railway key can stop working when OpenRouter disables it, the key hits its per-key credit limit, or the key expires (some onboarding keys expire after 180 days).',
+    'Re-paste OPENROUTER_API_KEY from openrouter.ai/settings/keys if the key was rotated, or raise/remove the key credit limit there.',
+  ];
+  return lines.join('\n');
+}
 
 /**
  * True when the agent could not call Claude — invalid key, billing, or missing
@@ -40,6 +96,8 @@ export function isAgentLlmBlockedReply(content: string): boolean {
   if (LOW_CREDIT_BALANCE_RE.test(text)) return true;
   if (/^ANTHROPIC_API_KEY not set/i.test(text)) return true;
   if (/OpenRouter rejected the API key/i.test(text)) return true;
+  if (/OpenRouter auth failed \(401\)/i.test(text)) return true;
+  if (/OpenRouter credits/i.test(text)) return true;
   if (/Claude is misconfigured: OPENROUTER_API_KEY/i.test(text)) return true;
   if (/^Anthropic error/i.test(text) && INVALID_API_KEY_RE.test(text)) return true;
   return false;
@@ -52,18 +110,28 @@ export function isAgentLlmBlockedReply(content: string): boolean {
  * billing page instead of the generic `Anthropic error (400): {...}` dump.
  */
 export function formatAnthropicApiError(status: number, text: string): string {
+  const parsed = parseLlmErrorPayload(text);
   if (LOW_CREDIT_BALANCE_RE.test(text)) {
     return [
       "Your Anthropic API credit balance is too low, so the agent can't respond right now.",
       renderButton('Add Anthropic credits', 'https://console.anthropic.com/settings/billing'),
     ].join('\n\n');
   }
+  const endpoint = resolveAnthropicEndpoint();
+  if (endpoint?.gatewayKind === 'openrouter' && (status === 402 || OPENROUTER_INSUFFICIENT_CREDITS_RE.test(text))) {
+    const detail = parsed.message?.trim();
+    return [
+      detail
+        ? `OpenRouter credits are too low (${status || 402}): ${detail}`
+        : 'OpenRouter credits are too low, so the agent cannot call Claude right now.',
+      renderButton('OpenRouter credits', 'https://openrouter.ai/settings/credits'),
+    ].join('\n\n');
+  }
   if (status === 401 && INVALID_API_KEY_RE.test(text)) {
-    const endpoint = resolveAnthropicEndpoint();
     if (endpoint?.gatewayKind === 'openrouter') {
       return [
-        'OpenRouter rejected the API key (401). Check OPENROUTER_API_KEY on Railway — it must start with sk-or- and be active at openrouter.ai/keys.',
-        renderButton('OpenRouter keys', 'https://openrouter.ai/keys'),
+        openRouterAuthFailureDetail(parsed),
+        renderButton('OpenRouter keys', 'https://openrouter.ai/settings/keys'),
       ].join('\n\n');
     }
     if (serverEnv('OPENROUTER_API_KEY')?.trim() && endpoint && isDirectAnthropicBaseUrl(endpoint.baseUrl)) {
@@ -127,7 +195,12 @@ function learnOutputCapFromError(
 }
 
 /** Internals exercised by scripts/verify-chat-resilience.ts. */
-export const __testables = { learnOutputCapFromError, withLearnedOutputCap };
+export const __testables = {
+  learnOutputCapFromError,
+  withLearnedOutputCap,
+  parseLlmErrorPayload,
+  openRouterAuthFailureDetail,
+};
 
 export function anthropicApiHeaders(apiKey: string): Record<string, string> {
   return anthropicRequestHeaders(apiKey, false);

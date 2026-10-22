@@ -53,7 +53,11 @@ assert.ok(
     'Anthropic error (401): {"error":{"code":"AUTH_002","message":"Invalid API key"}}',
   ),
 );
-assert.ok(lastAssistantIsAgentBlocked('OpenRouter rejected the API key (401).'));
+assert.ok(
+  lastAssistantIsAgentBlocked(
+    'OpenRouter auth failed (401): User not found.\n\nThis is a live rejection from OpenRouter',
+  ),
+);
 assert.equal(lastAssistantIsResolved('✅ RESOLVED — rollout teardown'), true);
 
 const now = Date.parse('2026-08-21T16:00:00.000Z');
