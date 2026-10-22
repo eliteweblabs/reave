@@ -332,9 +332,10 @@ import {
   brandingMediaFilter,
   brandingRasterMediaFilter,
   imageMediaFilter,
-  validateImageUploadFile,
+  emailComposeAttachmentMediaFilter,
+  validateEmailComposeAttachmentUpload,
   applyMediaToTarget,
-} from './media-picker.js?v=20261022a';
+} from './media-picker.js?v=20261022b';
 import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260826a';
 
 if (typeof performance !== 'undefined') {
@@ -18586,6 +18587,7 @@ function emptyEmailCompose(overrides = {}) {
 }
 
 const EMAIL_COMPOSE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+const EMAIL_COMPOSE_ZIP_TYPES = ['application/zip', 'application/x-zip-compressed'];
 const EMAIL_COMPOSE_MAX_IMAGES = 8;
 const EMAIL_COMPOSE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 let emailComposeUploading = 0;
@@ -18620,6 +18622,14 @@ function emailComposeImageSrc(image) {
   return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
+function isEmailComposeZipRow(row) {
+  const type = String(row?.contentType || '')
+    .trim()
+    .toLowerCase();
+  if (EMAIL_COMPOSE_ZIP_TYPES.includes(type)) return true;
+  return /\.zip$/i.test(String(row?.filename || ''));
+}
+
 function resolveEmailComposeImageFile(file, fallbackType) {
   if (!file || !file.size || file.size > EMAIL_COMPOSE_IMAGE_MAX_BYTES) return null;
   const type = String(file.type || fallbackType || '')
@@ -18629,6 +18639,13 @@ function resolveEmailComposeImageFile(file, fallbackType) {
     if (file.type === type) return file;
     const ext = type === 'image/jpeg' ? 'jpg' : type.split('/')[1] || 'png';
     return new File([file], file.name || `image.${ext}`, { type, lastModified: file.lastModified });
+  }
+  if (EMAIL_COMPOSE_ZIP_TYPES.includes(type) || /\.zip$/i.test(file.name || '')) {
+    const zipType = EMAIL_COMPOSE_ZIP_TYPES.includes(type) ? type : 'application/zip';
+    return new File([file], file.name || 'attachment.zip', {
+      type: zipType,
+      lastModified: file.lastModified,
+    });
   }
   const m = /\.(jpe?g|png|gif|webp)$/i.exec(file.name || '');
   if (!m) return null;
@@ -18657,7 +18674,8 @@ function collectEmailComposeImageFiles(dt) {
       if (
         item.type.startsWith('image/') ||
         file.type.startsWith('image/') ||
-        /\.(jpe?g|png|gif|webp)$/i.test(file.name || '')
+        /\.(jpe?g|png|gif|webp|zip)$/i.test(file.name || '') ||
+        EMAIL_COMPOSE_ZIP_TYPES.includes(String(file.type || item.type || '').toLowerCase())
       ) {
         add(file, item.type || file.type);
       }
@@ -18749,7 +18767,7 @@ function attachMediaItemToEmailCompose(item, imageStrip) {
   const current = normalizeEmailComposeImages(emailState.compose.images);
   if (current.some((row) => row.mediaId === next.mediaId)) return false;
   if (current.length >= EMAIL_COMPOSE_MAX_IMAGES) {
-    osAlert({ title: 'Too many images', bodyHtml: '<p>You can attach up to 8 images to one email.</p>' });
+    osAlert({ title: 'Too many attachments', bodyHtml: '<p>You can attach up to 8 files to one email.</p>' });
     return false;
   }
   emailState.compose.images = [...current, next];
@@ -18761,13 +18779,13 @@ function attachMediaItemToEmailCompose(item, imageStrip) {
 function openEmailComposeAttachPicker(imageStrip) {
   if (emailState.sending) return;
   void openMediaPicker({
-    title: 'Attach image',
-    hint: 'Upload a new image or pick one from the library below.',
+    title: 'Attach file',
+    hint: 'Upload a new file or pick one from the library below.',
     allowUpload: true,
-    uploadAccept: 'image/jpeg,image/png,image/gif,image/webp',
-    uploadHint: 'JPEG, PNG, GIF, or WebP — max 10 MB each',
-    validateUpload: validateImageUploadFile,
-    filter: imageMediaFilter,
+    uploadAccept: 'image/jpeg,image/png,image/gif,image/webp,application/zip,.zip',
+    uploadHint: 'JPEG, PNG, GIF, WebP, or ZIP — max 10 MB each',
+    validateUpload: validateEmailComposeAttachmentUpload,
+    filter: emailComposeAttachmentMediaFilter,
     onPick: (item) => attachMediaItemToEmailCompose(item, imageStrip),
   });
 }
@@ -18784,13 +18802,21 @@ function renderEmailComposeImageStrip(host) {
   for (const image of images) {
     const card = document.createElement('div');
     card.className = 'em-compose-image';
-    const img = document.createElement('img');
-    img.alt = image.filename || 'Attached image';
-    img.src = emailComposeImageSrc(image) || image.url;
-    card.appendChild(img);
+    if (isEmailComposeZipRow(image)) {
+      card.classList.add('em-compose-image--file');
+      const fileLabel = document.createElement('div');
+      fileLabel.className = 'em-compose-file';
+      fileLabel.innerHTML = `${iosIcon('archive', 28)}<span>${escHtml(image.filename || 'archive.zip')}</span>`;
+      card.appendChild(fileLabel);
+    } else {
+      const img = document.createElement('img');
+      img.alt = image.filename || 'Attached image';
+      img.src = emailComposeImageSrc(image) || image.url;
+      card.appendChild(img);
+    }
     const remove = createIosIconBtn({
       iconKey: 'x',
-      label: 'Remove image',
+      label: 'Remove attachment',
       size: 'sm',
       className: 'em-compose-image-remove',
       onClick: () => {
@@ -18807,7 +18833,7 @@ function renderEmailComposeImageStrip(host) {
   for (let i = 0; i < emailComposeUploading; i++) {
     const pending = document.createElement('div');
     pending.className = 'em-compose-image em-compose-image--pending';
-    pending.setAttribute('aria-label', 'Uploading image');
+    pending.setAttribute('aria-label', 'Uploading attachment');
     host.appendChild(pending);
   }
 }
@@ -18817,13 +18843,16 @@ async function addEmailComposeImages(files, host) {
     .map((f) => resolveEmailComposeImageFile(f, f?.type))
     .filter(Boolean);
   if (!accepted.length) {
-    osAlert({ title: 'Could not add image', bodyHtml: '<p>Use a JPEG, PNG, GIF, or WebP under 10 MB.</p>' });
+    osAlert({
+      title: 'Could not add file',
+      bodyHtml: '<p>Use a JPEG, PNG, GIF, WebP, or ZIP under 10 MB.</p>',
+    });
     return;
   }
   const current = normalizeEmailComposeImages(emailState.compose.images);
   for (const file of accepted) {
     if (current.length >= EMAIL_COMPOSE_MAX_IMAGES) {
-      osAlert({ title: 'Too many images', bodyHtml: '<p>You can attach up to 8 images to one email.</p>' });
+      osAlert({ title: 'Too many attachments', bodyHtml: '<p>You can attach up to 8 files to one email.</p>' });
       break;
     }
     emailComposeUploading += 1;
@@ -19850,7 +19879,7 @@ function renderEmailComposePane(pane) {
   writeBtn.addEventListener('click', () => void writeEmailComposeWithAgent(writeBtn));
   const attachBtn = createIosIconBtn({
     iconKey: 'paperclip',
-    label: 'Attach image',
+    label: 'Attach file',
     size: 'sm',
     className: 'em-compose-image-btn',
     onClick: () => openEmailComposeAttachPicker(imageStrip),
@@ -19887,7 +19916,7 @@ function renderEmailComposePane(pane) {
   });
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
-  fileInput.accept = 'image/jpeg,image/png,image/gif,image/webp';
+  fileInput.accept = 'image/jpeg,image/png,image/gif,image/webp,application/zip,.zip';
   fileInput.multiple = true;
   fileInput.hidden = true;
   const imageStrip = document.createElement('div');

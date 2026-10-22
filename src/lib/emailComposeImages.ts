@@ -13,6 +13,16 @@ export const EMAIL_COMPOSE_IMAGE_TYPES = new Set([
   'image/webp',
 ]);
 
+export const EMAIL_COMPOSE_ZIP_TYPES = new Set([
+  'application/zip',
+  'application/x-zip-compressed',
+]);
+
+export const EMAIL_COMPOSE_ATTACHMENT_TYPES = new Set([
+  ...EMAIL_COMPOSE_IMAGE_TYPES,
+  ...EMAIL_COMPOSE_ZIP_TYPES,
+]);
+
 export const EMAIL_COMPOSE_MAX_IMAGES = 8;
 
 export type EmailComposeImage = {
@@ -57,7 +67,7 @@ export function normalizeEmailComposeImages(raw: unknown): EmailComposeImage[] {
     }
     if (!mediaId || !MEDIA_ID_RE.test(mediaId) || seen.has(mediaId)) continue;
     seen.add(mediaId);
-    if (contentType && !EMAIL_COMPOSE_IMAGE_TYPES.has(contentType)) continue;
+    if (contentType && !EMAIL_COMPOSE_ATTACHMENT_TYPES.has(contentType)) continue;
     out.push({
       mediaId,
       ...(url ? { url } : {}),
@@ -84,8 +94,16 @@ export async function resolveComposeImagesForSend(raw: unknown): Promise<{
       throw new Error(`Image ${image.filename || image.mediaId} is no longer in the library`);
     }
     const contentType = media.mediaType.trim().toLowerCase();
+    if (EMAIL_COMPOSE_ZIP_TYPES.has(contentType)) {
+      attachments.push({
+        filename: media.filename || 'attachment.zip',
+        content: media.dataBase64,
+        contentType,
+      });
+      continue;
+    }
     if (!EMAIL_COMPOSE_IMAGE_TYPES.has(contentType)) {
-      throw new Error(`${media.filename || 'File'} is not a JPEG, PNG, GIF, or WebP image`);
+      throw new Error(`${media.filename || 'File'} is not a supported compose attachment`);
     }
     const cid = `compose-img-${index}`;
     attachments.push({

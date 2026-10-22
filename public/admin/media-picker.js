@@ -8,7 +8,7 @@ const MEDIA_API = '/api/admin/media';
 const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
 
 const DEFAULT_UPLOAD_ACCEPT =
-  'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf';
+  'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf,application/zip,.zip';
 
 /** POST a file into the media library. */
 export async function uploadMediaLibraryFile(file) {
@@ -52,7 +52,7 @@ export function openMediaPicker(opts) {
   const allowUpload = opts.allowUpload === true;
   const uploadAccept = opts.uploadAccept || DEFAULT_UPLOAD_ACCEPT;
   const uploadHint =
-    opts.uploadHint || 'JPEG, PNG, GIF, WebP, SVG, or PDF — max 10 MB each';
+    opts.uploadHint || 'JPEG, PNG, GIF, WebP, SVG, PDF, or ZIP — max 10 MB each';
   const validateUpload =
     typeof opts.validateUpload === 'function' ? opts.validateUpload : () => null;
   const hint =
@@ -328,6 +328,32 @@ export function imageMediaFilter(item) {
   if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type)) return false;
   const size = Number(item.sizeBytes) || 0;
   return size > 0 && size <= MEDIA_MAX_BYTES;
+}
+
+/** Email compose attachments — images plus ZIP up to 10 MB. */
+export function emailComposeAttachmentMediaFilter(item) {
+  return imageMediaFilter(item) || zipMediaFilter(item);
+}
+
+export function zipMediaFilter(item) {
+  const type = String(item.mediaType || '').trim().toLowerCase();
+  if (!['application/zip', 'application/x-zip-compressed'].includes(type)) return false;
+  const size = Number(item.sizeBytes) || 0;
+  return size > 0 && size <= MEDIA_MAX_BYTES;
+}
+
+/** @returns {string|null} */
+export function validateEmailComposeAttachmentUpload(file) {
+  if (validateImageUploadFile(file) === null) return null;
+  const type = String(file?.type || '').trim().toLowerCase();
+  const name = String(file?.name || '');
+  const okZip =
+    ['application/zip', 'application/x-zip-compressed'].includes(type) || /\.zip$/i.test(name);
+  if (!okZip) return 'Use a JPEG, PNG, GIF, WebP, or ZIP file.';
+  const size = Number(file?.size) || 0;
+  if (size <= 0) return 'File is empty.';
+  if (size > MEDIA_MAX_BYTES) return 'Max size is 10 MB.';
+  return null;
 }
 
 /** Project file repository — images + PDF up to 10 MB. */

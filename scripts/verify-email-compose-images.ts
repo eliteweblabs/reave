@@ -27,6 +27,11 @@ assert.deepEqual(
       mediaId: '22222222-2222-4222-8222-222222222222',
       contentType: 'application/pdf',
     },
+    {
+      mediaId: '44444444-4444-4444-8444-444444444444',
+      filename: 'bundle.zip',
+      contentType: 'application/zip',
+    },
     '33333333-3333-4333-8333-333333333333',
   ]),
   [
@@ -34,6 +39,11 @@ assert.deepEqual(
       mediaId: '11111111-1111-4111-8111-111111111111',
       filename: 'shot.png',
       contentType: 'image/png',
+    },
+    {
+      mediaId: '44444444-4444-4444-8444-444444444444',
+      filename: 'bundle.zip',
+      contentType: 'application/zip',
     },
     { mediaId: '33333333-3333-4333-8333-333333333333' },
   ],

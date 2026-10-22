@@ -55,6 +55,8 @@ export const MEDIA_LIBRARY_MEDIA_TYPES = new Set([
   'image/webp',
   'image/svg+xml',
   'application/pdf',
+  'application/zip',
+  'application/x-zip-compressed',
 ]);
 
 const IMAGE_MEDIA_TYPES = new Set([
@@ -97,6 +99,7 @@ export function inferMediaLibraryType(file: { type?: string; name: string }): st
   if (name.endsWith('.png')) return 'image/png';
   if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
   if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.zip')) return 'application/zip';
   return null;
 }
 

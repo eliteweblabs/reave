@@ -876,7 +876,7 @@ async function runKnowledgeAgentInner(
   }
   if (isMediaWebdavConfigured()) {
     sysParts.push(
-      `Media drop folder (WebDAV): The media library mounts as a folder at ${brand.siteUrl}webdav — drag JPEG/PNG/GIF/WebP/SVG/PDF (max 10 MB) from a Mac or iPhone and they appear in Admin → Media. Mac: Finder → Go → Connect to Server (⌘K) → https://${brand.domain || 'your-host'}/webdav as Registered User. iPhone: Files → Browse → ••• → Connect to Server → same URL. Credentials = MEDIA_WEBDAV_USERNAME / MEDIA_WEBDAV_PASSWORD, or CardDAV username/password if media vars are unset — never paste values in chat. Troubleshooting: ${brand.siteUrl}webdav should return 401 (not 404). For the playbook call read_knowledge slug "media-drop-folder".`,
+      `Media drop folder (WebDAV): The media library mounts as a folder at ${brand.siteUrl}webdav — drag JPEG/PNG/GIF/WebP/SVG/PDF/ZIP (max 10 MB) from a Mac or iPhone and they appear in Admin → Media. Mac: Finder → Go → Connect to Server (⌘K) → https://${brand.domain || 'your-host'}/webdav as Registered User. iPhone: Files → Browse → ••• → Connect to Server → same URL. Credentials = MEDIA_WEBDAV_USERNAME / MEDIA_WEBDAV_PASSWORD, or CardDAV username/password if media vars are unset — never paste values in chat. Troubleshooting: ${brand.siteUrl}webdav should return 401 (not 404). For the playbook call read_knowledge slug "media-drop-folder".`,
     );
   } else {
     sysParts.push(

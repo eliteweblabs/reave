@@ -13,7 +13,7 @@ import {
 
 const MEDIA_API = '/api/admin/media';
 const ACCEPT =
-  'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf';
+  'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf,application/zip,.zip';
 
 /** @type {{ items: any[], search: string, filter: 'all'|'images'|'documents', collection: 'library'|'brand-icons', loading: boolean, uploading: boolean, selectedId: string|null, detailOpen: boolean, dropFolder: { configured?: boolean, url?: string, host?: string, path?: string, username?: string|null, authSource?: string|null } | null }} */
 let state = {
@@ -165,7 +165,7 @@ function renderEmptyState(isFiltered) {
     `<p class="ml-dropzone-title">${state.uploading ? 'Uploading…' : 'Drop files to upload'}</p>` +
     `<p class="ml-dropzone-sub">${state.uploading ? 'Please wait while files are added to the library.' : 'or click to select images and PDFs'}</p>` +
     `<span class="de-btn de-btn-with-icon ml-dropzone-cta">${uploadBtnHtml(state.uploading ? 'Uploading…' : 'Select Files')}</span>` +
-    `<p class="ml-dropzone-hint">PNG, JPEG, WebP, GIF, SVG, or PDF — max 10 MB each</p>` +
+    `<p class="ml-dropzone-hint">PNG, JPEG, WebP, GIF, SVG, PDF, or ZIP — max 10 MB each</p>` +
     `</div>`
   );
 }

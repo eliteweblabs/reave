@@ -137,7 +137,8 @@ export async function buildAdminComposeEmail(
   if (requireSubject && !subject) {
     return { ok: false, status: 400, error: 'Subject is required' };
   }
-  if (!text && !html && !composeImages.inline.length) {
+  const hasFileAttachments = composeImages.attachments.some((a) => !a.contentId?.trim());
+  if (!text && !html && !composeImages.inline.length && !hasFileAttachments) {
     return { ok: false, status: 400, error: 'Message body is required' };
   }
 
