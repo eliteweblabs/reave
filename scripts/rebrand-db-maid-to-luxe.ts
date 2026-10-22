@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * One-off: find and replace Maid & Marble branding in reave-postgres text columns.
+ * One-off: find and replace pre-lux.cleaning branding strings in reave-postgres text columns.
  * Usage: DATABASE_URL=postgresql://... npx tsx scripts/rebrand-db-maid-to-luxe.ts [--dry-run]
  */
 import pg from 'pg';

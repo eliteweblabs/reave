@@ -1,6 +1,6 @@
 # Luxe Cleaning deploy checklist
 
-Formerly **Maid & Marble** — install slug `luxe-cleaning`.
+Install slug `luxe-cleaning` (apex **lux.cleaning**).
 
 ## Railway access (Cloud Agent — no MCP required)
 
@@ -35,15 +35,15 @@ shared copy — it 401s. reave.app only has the public keys.
 RAILWAY_API_TOKEN=… npm run configure:luxe-cleaning-railway -- --discover
 ```
 
-Matches projects by name (Maid / Marble / Luxe) or custom domain
-`lux.cleaning` / `luxecleaning.com` / `maidandmarble.com`. Excludes the official **reave.app**
+Matches projects by name (Luxe Cleaning / `luxe-cleaning`) or custom domain
+`lux.cleaning` / `luxecleaning.com`. Excludes the official **reave.app**
 project (`af65eb9a-b11c-4c1c-8030-66b4347dcf71`).
 
 Document the discovered ids here after first run:
 
 | Setting | Value |
 |---------|--------|
-| `LUXE_CLEANING_RAILWAY_PROJECT` | `1df6001c-be5a-4340-8a2a-097d22c7ebb2` (Maid & Marble) |
+| `LUXE_CLEANING_RAILWAY_PROJECT` | `1df6001c-be5a-4340-8a2a-097d22c7ebb2` |
 | `LUXE_CLEANING_RAILWAY_SERVICE` | `reave` (`f2f2bd9b-ae28-4b27-8fee-f2126450ffd4`) |
 | `LUXE_CLEANING_RAILWAY_ENV` | `production` (`7c36f17d-f049-4cf4-b8cc-db6764f34ea8`) |
 
@@ -176,4 +176,4 @@ Cloudflare destination (see script output). Apex MX must be Cloudflare routing
 - Homepage shows **Luxe Cleaning** copy and **508-955-8850**.
 - **Touch to speak** widget works on the deployed URL (not localhost).
 - Inbound call to **508-955-8850** reaches the same assistant.
-- Admin → Company shows Luxe Cleaning (update manually if DB still has Maid & Marble).
+- Admin → Company shows Luxe Cleaning (run `rebrand-db-maid-to-luxe` if legacy strings remain in Postgres).

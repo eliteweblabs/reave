@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy Luxe Cleaning (formerly Maid & Marble) on Railway + wire Vapi voice.
+# Deploy Luxe Cleaning (lux.cleaning) on Railway + wire Vapi voice.
 #
 # Preferred path (Cloud Agent / no CLI): RAILWAY_API_TOKEN + GraphQL configure script
 #   RAILWAY_API_TOKEN=… VAPI_API_KEY=… PUBLIC_VAPI_PUBLIC_KEY=… npm run configure:luxe-cleaning-railway

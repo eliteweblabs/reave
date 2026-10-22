@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Find the Luxe Cleaning (formerly Maid & Marble) Railway project, apply install
+ * Find the Luxe Cleaning Railway project, apply install
  * + Vapi vars, redeploy, and optionally verify build logs / Vapi assistant.
  *
  * Uses RAILWAY_API_TOKEN (GraphQL) — no Railway CLI or MCP required.
@@ -23,7 +23,7 @@
  *   LUXE_CLEANING_RAILWAY_PROJECT  — project id or name (skip auto-discovery)
  *   LUXE_CLEANING_RAILWAY_SERVICE  — service name (default: auto)
  *   LUXE_CLEANING_RAILWAY_ENV      — environment (default: production)
- *   PUBLIC_SITE_DOMAIN             — apex domain (default: detected or maidandmarble.com)
+ *   PUBLIC_SITE_DOMAIN             — apex domain (default: detected or lux.cleaning)
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -45,8 +45,8 @@ if (existsSync(envPath)) {
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
 const REAVE_APP_PROJECT_ID = 'af65eb9a-b11c-4c1c-8030-66b4347dcf71';
-const DOMAIN_NEEDLES = ['lux.cleaning', 'luxecleaning.com', 'maidandmarble.com'];
-const PROJECT_NAME_NEEDLES = ['maid', 'marble', 'luxe cleaning', 'luxe-cleaning'];
+const DOMAIN_NEEDLES = ['lux.cleaning', 'luxecleaning.com'];
+const PROJECT_NAME_NEEDLES = ['luxe cleaning', 'luxe-cleaning'];
 const INFRA_SERVICE_RE = /postgres|redis|contact-api|inventory|materials|crater|calcom|fleet|booking|wizard|inbound|stats|plausible/i;
 const VAPI_PHONE = process.env.VAPI_PHONE_NUMBER?.trim() || '+15089558850';
 const OWNER_EMAIL = (process.env.OWNER_EMAIL ?? 'felicia@lux.cleaning').trim().toLowerCase();
@@ -956,7 +956,7 @@ async function main() {
   const target = await discoverTarget();
   if (!target) {
     fail(
-      'Could not find Maid & Marble / Luxe Cleaning Railway project. Set LUXE_CLEANING_RAILWAY_PROJECT.',
+      'Could not find Luxe Cleaning Railway project. Set LUXE_CLEANING_RAILWAY_PROJECT.',
     );
   }
 
