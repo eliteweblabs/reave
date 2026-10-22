@@ -120,6 +120,15 @@ export function hasDigitalSignature(): boolean {
   return hasFeature('documents') && hasFeature('digital_signature');
 }
 
+/** Admin Inbox tab, inbound triage, and in-app compose from contacts. */
+export function hasEmailInbox(): boolean {
+  return hasFeature('email_inbox');
+}
+
+export function hasSchedulingModule(): boolean {
+  return hasFeature('scheduling');
+}
+
 /** Reset parse cache (tests / hot reload). */
 export function clearFeatureCache(): void {
   _baseCached = null;

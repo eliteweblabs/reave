@@ -20,6 +20,7 @@
     "content_management",
     "website",
     "email_marketing",
+    "email_inbox",
     "dealership_wizard",
     "namecom_dns",
     "time_tracking",
@@ -81,9 +82,21 @@
     "social_lead_scanner": "deployed"
   },
   "siteFleetIgnoreSeeds": [
-    { "siteId": "mavsafe.com", "reason": "Legal hold — do not touch" },
-    { "siteId": "allautofinancial.com", "reason": "Legal hold — do not touch" },
-    { "siteId": "creedlounge.com", "reason": "Legal hold — do not touch" },
-    { "siteId": "firepumptestingco.com", "reason": "Legal hold — do not touch" }
+    {
+      "siteId": "mavsafe.com",
+      "reason": "Legal hold \u2014 do not touch"
+    },
+    {
+      "siteId": "allautofinancial.com",
+      "reason": "Legal hold \u2014 do not touch"
+    },
+    {
+      "siteId": "creedlounge.com",
+      "reason": "Legal hold \u2014 do not touch"
+    },
+    {
+      "siteId": "firepumptestingco.com",
+      "reason": "Legal hold \u2014 do not touch"
+    }
   ]
 }

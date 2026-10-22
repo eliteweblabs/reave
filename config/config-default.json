@@ -1,5 +1,7 @@
 {
-  "features": [],
+  "features": [
+    "email_inbox"
+  ],
   "footerNav": [
     "__system__",
     "modules",

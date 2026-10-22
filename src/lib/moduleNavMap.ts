@@ -1,9 +1,22 @@
 /**
  * Maps optional feature modules to admin footer / settings tabs.
- * Core platform (chats, email, work, …) is always on — not listed in FEATURE_IDS.
  */
 import type { FeatureId } from './featureCatalog';
 import type { FooterNavKey } from './installConfig';
+
+/** Footer keys always shown when listed in install config (not gated by add-ons). */
+export const FOOTER_NAV_ALWAYS_ON: ReadonlySet<FooterNavKey> = new Set([
+  '__system__',
+  '__chat__',
+  'dashboard',
+  'todo',
+  'punchlist',
+  'knowledge',
+  'chats',
+  'modules',
+]);
+
+const FOOTER_NAV_SLOT_KEYS = new Set<FooterNavKey>(['__system__', '__chat__']);
 
 /** Primary admin navigation tabs tied to each optional module. */
 export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
@@ -20,14 +33,15 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   digital_signature: ['documents'],
   voice: ['__system__'],
   vapi: ['vapi'],
-  sms: ['clients', 'chats'],
+  sms: ['clients'],
+  email_inbox: ['email'],
   siri: ['__system__'],
   carddav: ['profile'],
   scheduling: ['schedule'],
   dev_infra: ['__system__'],
   code_dev: ['__system__'],
   email_marketing: ['newsletter'],
-  auto_email_response: ['rules', 'email'],
+  auto_email_response: ['rules'],
   fleet_tracking: ['fleet'],
   dealership_wizard: ['__system__'],
   namecom_dns: ['company'],
@@ -108,4 +122,36 @@ export function isFeatureInFooterNav(feature: FeatureId, footerNav: readonly Foo
 
 export function footerNavKeyLabels(keys: FooterNavKey[]): string[] {
   return keys.map((k) => FOOTER_NAV_LABELS[k] ?? k);
+}
+
+const FOOTER_NAV_PROVIDERS: Map<FooterNavKey, FeatureId[]> = (() => {
+  const map = new Map<FooterNavKey, FeatureId[]>();
+  for (const feature of Object.keys(FEATURE_FOOTER_NAV) as FeatureId[]) {
+    for (const key of FEATURE_FOOTER_NAV[feature] ?? []) {
+      if (FOOTER_NAV_SLOT_KEYS.has(key)) continue;
+      const list = map.get(key) ?? [];
+      if (!list.includes(feature)) list.push(feature);
+      map.set(key, list);
+    }
+  }
+  return map;
+})();
+
+/** Whether a footer tab may show for the enabled feature set on this install. */
+export function footerNavKeyAllowedForFeatures(
+  key: FooterNavKey,
+  enabledFeatures: ReadonlySet<string>,
+): boolean {
+  if (FOOTER_NAV_ALWAYS_ON.has(key)) return true;
+  const providers = FOOTER_NAV_PROVIDERS.get(key);
+  if (!providers?.length) return true;
+  return providers.some((feature) => enabledFeatures.has(feature));
+}
+
+export function filterFooterNavByEnabledFeatures(
+  nav: readonly FooterNavKey[],
+  enabledFeatures: readonly string[],
+): FooterNavKey[] {
+  const enabled = new Set(enabledFeatures);
+  return nav.filter((key) => footerNavKeyAllowedForFeatures(key, enabled));
 }

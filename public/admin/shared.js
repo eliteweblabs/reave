@@ -1024,3 +1024,18 @@ export function showIndustries() {
 export function showModuleCatalog() {
   return window.__installConfig?.showModuleCatalog === true;
 }
+
+export function hasInstallFeature(id) {
+  const features = window.__installConfig?.features;
+  return typeof id === 'string' && Array.isArray(features) && features.includes(id);
+}
+
+/** Inbox tab, inbound triage, and in-app compose from contacts. */
+export function emailInboxEnabled() {
+  return hasInstallFeature('email_inbox');
+}
+
+/** Cal.com schedule tab and footer schedule icon. */
+export function schedulingEnabled() {
+  return hasInstallFeature('scheduling');
+}

@@ -36,7 +36,7 @@ import {
   contactAvatarHtml,
   mountContactAvatars,
 } from './admin-ui.js?v=20261016a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml, formatPhoneInput, phoneToStorage, isValidPhone, attachPhoneFormatter, showPersonal } from './shared.js?v=20260811d';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton, skeletonHtml, formatPhoneInput, phoneToStorage, isValidPhone, attachPhoneFormatter, showPersonal, emailInboxEnabled } from './shared.js?v=20260811d';
 import { osConfirm } from './os-dialog.js?v=20260826a';
 import { queueUndoableDelete } from './shake-undo.js?v=20260824a';
 import {
@@ -1213,6 +1213,7 @@ function mountClientEmailField(parent, value, opts = {}) {
   openBtn.innerHTML = shell.navIcon('mail', 18);
   openBtn.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (!emailInboxEnabled()) return;
     const addr = normalizeMailtoAddress(input.value);
     if (!addr) return;
     const extra = getContact() || {};
@@ -1228,6 +1229,11 @@ function mountClientEmailField(parent, value, opts = {}) {
   });
 
   function syncOpenBtn() {
+    if (!emailInboxEnabled()) {
+      openBtn.hidden = true;
+      openBtn.disabled = true;
+      return;
+    }
     const addr = normalizeMailtoAddress(input.value);
     const ok = !!addr;
     openBtn.disabled = !ok;
@@ -2402,7 +2408,7 @@ function setClientReturnTargets(opts = {}) {
     clientState.returnToEmailId = null;
     return true;
   }
-  if (opts.fromEmailId) {
+  if (opts.fromEmailId && emailInboxEnabled()) {
     clientState.returnToEmailId = opts.fromEmailId;
     clientState.returnToWorkSlug = null;
     clientState.returnToScheduleUid = null;

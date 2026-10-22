@@ -172,11 +172,6 @@ export const CORE_OS_CARDS: readonly { id: string; label: string; blurb: string 
     blurb: 'Dynamic alerts for personal or work — create, update, & clear with the agent or Siri.',
   },
   {
-    id: 'email_inbox',
-    label: 'Inbox Triage',
-    blurb: 'Triage client mail, draft replies, & file threads onto the right project.',
-  },
-  {
     id: 'handoff_vault',
     label: 'Handoff Vault',
     blurb: 'Bidirectionally share secure credentials & other data in the portal Data tab.',
@@ -444,6 +439,7 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   sms: ALL_INDUSTRIES,
   siri: ALL_INDUSTRIES,
   email_marketing: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'real-estate-agents', 'entrepreneurs'],
+  email_inbox: ALL_INDUSTRIES,
   auto_email_response: ALL_INDUSTRIES,
   social_inbox: ['marketers', 'hair-stylists', 'artists', 'creators', 'designers', 'real-estate-agents'],
   social_lead_scanner: ['marketers', 'hair-stylists', 'creators', 'designers', 'real-estate-agents', 'general-contractors'],

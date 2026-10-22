@@ -16,6 +16,7 @@ import { clientPortalPlugin } from '../../plugins/client-portal/manifest';
 import { codeDevPlugin } from '../../plugins/code-dev/manifest';
 import { devInfraPlugin } from '../../plugins/dev-infra/manifest';
 import { autoEmailResponsePlugin } from '../../plugins/auto-email-response/manifest';
+import { emailInboxPlugin } from '../../plugins/email-inbox/manifest';
 import { emailMarketingPlugin } from '../../plugins/email-marketing/manifest';
 import { namecomDnsPlugin } from '../../plugins/namecom-dns/manifest';
 import { schedulingPlugin } from '../../plugins/scheduling/manifest';
@@ -58,6 +59,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   devInfraPlugin,
   emailMarketingPlugin,
   autoEmailResponsePlugin,
+  emailInboxPlugin,
   namecomDnsPlugin,
   schedulingPlugin,
   siteAuditsPlugin,

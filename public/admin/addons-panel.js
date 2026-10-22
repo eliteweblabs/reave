@@ -200,6 +200,11 @@ function bindPanelEvents(root) {
       try {
         const data = await postAddons({ action: 'toggle', feature, enabled });
         if (!data.ok) throw new Error(data.error || 'Toggle failed');
+        if (Array.isArray(data.features) && window.__installConfig) {
+          window.__installConfig.features = data.features;
+          window.__installConfig.footerNav = data.footerNav ?? window.__installConfig.footerNav;
+        }
+        if (typeof shell.syncFooterNav === 'function') shell.syncFooterNav();
         await loadAddonsTab({ quiet: true });
       } catch (err) {
         setAddonToggleChecked(btn, !enabled);

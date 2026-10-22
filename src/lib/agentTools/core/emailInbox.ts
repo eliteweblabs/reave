@@ -106,6 +106,7 @@ import {
   storeGetEmailInbox,
   type EmailInboxPatch,
 } from '../../emailInboxStore';
+import { hasEmailInbox } from '../../features';
 import { dismissEmailRelatedNotifications } from '../../emailNotificationSync';
 import { patchForMarkJunk } from '../../emailJunkNotifyInvariant';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../emailMoney';
@@ -546,7 +547,7 @@ async function handle_delete_email_filter_rule(args: Record<string, unknown>, _c
 
 export const emailInboxModule: AgentToolModule = {
   id: 'emailInbox',
-  enabled: (ctx) => true,
+  enabled: () => hasEmailInbox(),
   definitions(ctx: ToolContext): AgentToolDef[] {
     const brand = ctx.brand;
     const domainExample = brand.domain || 'example.com';

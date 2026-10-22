@@ -23,6 +23,7 @@ import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
 import { jsonResponse } from '../../../lib/apiResponse';
+import { requireEmailInboxEnabled } from '../../../lib/emailInboxFeature';
 
 export const prerender = false;
 
@@ -45,6 +46,8 @@ function enrichEmailEvent(event: EmailInboxRecord) {
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
+  const inboxOff = requireEmailInboxEnabled();
+  if (inboxOff) return inboxOff;
   ensureEmailCleanupScheduler();
   await ensureSeededInboxClearedOnLiveEmail().catch(() => undefined);
   const { userId } = auth;

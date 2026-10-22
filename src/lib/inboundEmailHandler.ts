@@ -6,6 +6,7 @@ import { isSleepModeActive, sleepModeStatus } from './pushQuietHours';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 import { withInboundIdentityLock } from './inboundEmailIdentity';
 import { storeFindExistingInboundEmail } from './emailInboxStore';
+import { hasEmailInbox } from './features';
 
 export interface InboundEmailResult {
   ok: boolean;
@@ -78,6 +79,9 @@ export async function handleInboundEmail(email: {
   attachments?: import('./emailAttachments').EmailAttachmentMeta[];
 }): Promise<InboundEmailResult> {
   const from = email.from ?? '';
+  if (!hasEmailInbox()) {
+    return { ok: true, action: 'ignored', status: 'FEATURE_OFF', from };
+  }
   const recipients = recipientList(email.to, email.cc, email.bcc);
   if (!inboundBelongsToInstall(recipients, { requireRecipient: true })) {
     console.info('[email] ignored other-install inbound', {

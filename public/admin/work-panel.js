@@ -39,7 +39,7 @@ import {
   mountContactAvatars,
 } from './admin-ui.js?v=20260825h';
 import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260826c';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml, emailInboxEnabled } from './shared.js?v=20260826c';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260830a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
@@ -2889,20 +2889,22 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     const actions = document.createElement('div');
     actions.className = 'wk-client-readonly-actions';
 
-    emailActionBtn = createIosIconBtn({
-      iconKey: 'mail',
-      label: 'Email contact',
-      className: 'ios-icon-btn wk-client-action-btn',
-      onClick: () => {
-        if (!selected?.email) return;
-        shell.composeEmailToContact({
-          email: selected.email,
-          name: selected.name || '',
-          uid: selected.uid || null,
-        });
-      },
-    });
-    actions.appendChild(emailActionBtn);
+    if (emailInboxEnabled()) {
+      emailActionBtn = createIosIconBtn({
+        iconKey: 'mail',
+        label: 'Email contact',
+        className: 'ios-icon-btn wk-client-action-btn',
+        onClick: () => {
+          if (!selected?.email) return;
+          shell.composeEmailToContact({
+            email: selected.email,
+            name: selected.name || '',
+            uid: selected.uid || null,
+          });
+        },
+      });
+      actions.appendChild(emailActionBtn);
+    }
 
     callActionBtn = createIosIconBtn({
       iconKey: 'phone',
@@ -3004,9 +3006,11 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     if (has) profileLink.title = `Open ${name} profile`;
     else profileLink.removeAttribute('title');
 
-    const email = selected?.email || '';
-    emailActionBtn.disabled = !email;
-    emailActionBtn.title = email ? `Email ${name} at ${email}` : 'No email on file';
+    if (emailActionBtn) {
+      const email = selected?.email || '';
+      emailActionBtn.disabled = !email;
+      emailActionBtn.title = email ? `Email ${name} at ${email}` : 'No email on file';
+    }
 
     const phone = selected?.phone || '';
     callActionBtn.disabled = !phone;

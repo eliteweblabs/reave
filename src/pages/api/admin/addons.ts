@@ -35,6 +35,7 @@ import {
 import { ensureModuleCatalogLoaded } from '../../../lib/moduleCatalogStore';
 import { formatModulePrice } from '../../../lib/moduleStorefront';
 import { setFeatureOverride } from '../../../lib/featureOverridesStore';
+import { getInstallConfigClient } from '../../../lib/installConfig';
 import { purgePluginKnowledgeForFeature } from '../../../lib/knowledgeStore';
 import { jsonResponse } from '../../../lib/apiResponse';
 
@@ -113,12 +114,15 @@ export async function POST(context: APIContext): Promise<Response> {
     // Runtime toggle only — no System alerts chat, dashboard alert, or push.
     // The Add-ons switch + panel refresh is the feedback.
 
+    const chrome = getInstallConfigClient({ enabledFeatures: [...enabledFeatures()] });
     return jsonResponse({
       ok: true,
       feature,
       enabled,
       active: hasFeature(feature),
       alsoEnabled: alsoOn,
+      features: chrome.features,
+      footerNav: chrome.footerNav,
     });
   }
 

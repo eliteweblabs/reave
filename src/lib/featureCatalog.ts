@@ -25,6 +25,7 @@ export const FEATURE_IDS = [
   'dev_infra',
   'code_dev',
   'email_marketing',
+  'email_inbox',
   'auto_email_response',
   'fleet_tracking',
   'dealership_wizard',
@@ -266,6 +267,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   dev_infra: 'Dev & Infrastructure',
   code_dev: 'Local Code Tools',
   email_marketing: 'Newsletter & Email Automation',
+  email_inbox: 'Inbox Triage',
   auto_email_response: 'Auto Email Response',
   fleet_tracking: 'Fleet Tracking / GPS',
   dealership_wizard: 'Dealership Inventory & Deal Wizard',
@@ -318,6 +320,8 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   dev_infra: 'Railway, Kinsta, & deploy tooling — owner installs only',
   code_dev: 'Agent read/write/list/exec on the local codebase — owner/agency installs only',
   email_marketing: 'Automatically welcome them, follow up, & ask for the review — scheduled or bespoke emails that bring them back, without another email tool.',
+  email_inbox:
+    'Triage client mail, draft replies, & file threads onto the right project — inbound Resend webhook plus admin Inbox tab.',
   auto_email_response:
     'Draft replies to inbound mail — the agent writes, you approve every send. No auto-send until you opt in later.',
   fleet_tracking: 'Live vehicle location & GPS history',
@@ -396,6 +400,7 @@ export const FEATURE_SALE_SHEET: ReadonlySet<FeatureId> = new Set<FeatureId>([
   'digital_signature',
   'scheduling',
   'email_marketing',
+  'email_inbox',
   'auto_email_response',
   'time_tracking',
   'real_estate_data',
@@ -502,7 +507,7 @@ export function isDeployableFeature(id: string): boolean {
 }
 
 export const CORE_FEATURE_NOTE =
-  'Contacts, email inbox, work/jobs, knowledge, durable recall, personal to-dos, chat / commands, and Clerk sign-in (passkeys, phone) are always on.';
+  'Contacts, work/jobs, knowledge, durable recall, personal to-dos, chat / commands, and Clerk sign-in (passkeys, phone) are always on. Inbox triage and Cal.com scheduling are optional add-ons.';
 
 /**
  * Ground-truth inventory for the admin agent. A missing tool this turn is not

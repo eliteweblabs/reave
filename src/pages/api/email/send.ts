@@ -14,6 +14,7 @@ import { normalizeEmailDraftRecipients } from '../../../lib/emailDraftStore';
 import { isEmailSendConfigured } from '../../../lib/outbound';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../lib/apiResponse';
+import { requireEmailInboxEnabled } from '../../../lib/emailInboxFeature';
 
 export const prerender = false;
 
@@ -21,6 +22,8 @@ export const prerender = false;
 export async function POST(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
+  const inboxOff = requireEmailInboxEnabled();
+  if (inboxOff) return inboxOff;
   const { userId } = auth;
 
   if (!isEmailSendConfigured()) {

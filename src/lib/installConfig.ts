@@ -20,6 +20,7 @@ import {
   LEGACY_PUBLIC_BRAND_DOMAIN,
 } from './legacyBrandDomain.ts';
 import { serverEnv } from './serverEnv.ts';
+import { filterFooterNavByEnabledFeatures } from './moduleNavMap.ts';
 
 export type { HomepageTemplate };
 
@@ -44,6 +45,7 @@ const FEATURE_IDS_LIST = [
   'dev_infra',
   'code_dev',
   'email_marketing',
+  'email_inbox',
   'auto_email_response',
   'fleet_tracking',
   'dealership_wizard',
@@ -533,27 +535,14 @@ function ensureFooterDscr(nav: FooterNavKey[], enabled: boolean): FooterNavKey[]
   return [...nav, 'dscr'];
 }
 
-function clientFooterNav(config: InstallConfig): FooterNavKey[] {
+function clientFooterNav(
+  config: InstallConfig,
+  enabledFeatures: readonly InstallFeatureId[],
+): FooterNavKey[] {
+  const enabled = new Set<string>(enabledFeatures);
   let nav = config.adminLite ? [...config.footerNav] : ensureFooterPunchlist(config.footerNav);
-  nav = ensureFooterDscr(nav, config.features.includes('dscr_calculator'));
-  if (!config.features.includes('fleet_tracking')) {
-    nav = nav.filter((key) => key !== 'fleet');
-  }
-  if (!config.features.includes('deploy_wizard')) {
-    nav = nav.filter((key) => key !== 'deploy');
-  }
-  if (!config.features.includes('site_audits')) {
-    nav = nav.filter((key) => key !== 'sales-sheet');
-  }
-  if (!config.features.includes('social_inbox')) {
-    nav = nav.filter((key) => key !== 'social');
-  }
-  if (!config.features.includes('social_lead_scanner')) {
-    nav = nav.filter((key) => key !== 'social-leads');
-  }
-  if (!config.features.includes('online_reviews')) {
-    nav = nav.filter((key) => key !== 'reviews');
-  }
+  nav = ensureFooterDscr(nav, enabled.has('dscr_calculator'));
+  nav = filterFooterNavByEnabledFeatures(nav, enabledFeatures);
   if (!isCanonicalReaveInstall()) {
     nav = nav.filter((key) => key !== 'industries' && key !== 'catalog');
   }
@@ -623,11 +612,14 @@ function clientProfileMenu(config: InstallConfig): ProfileMenuKey[] {
   return ensureProfileMenuAiServices(menu);
 }
 
-export function getInstallConfigClient(): InstallConfigClient {
+export function getInstallConfigClient(opts?: {
+  enabledFeatures?: readonly InstallFeatureId[];
+}): InstallConfigClient {
   const config = getInstallConfigSync();
-  const footerNav = clientFooterNav(config);
+  const features = opts?.enabledFeatures ?? config.features;
+  const footerNav = clientFooterNav(config, features);
   return {
-    features: config.features,
+    features: [...features],
     footerNav,
     profileMenu: clientProfileMenu(config),
     homepageVoice: config.homepageVoice,
@@ -639,8 +631,8 @@ export function getInstallConfigClient(): InstallConfigClient {
     showIndustries: isCanonicalReaveInstall(),
     showModuleCatalog: isCanonicalReaveInstall(),
     isCanonicalReave: isCanonicalReaveInstall(),
-    dashboardCards: dashboardCardsForFeatures(config.features, {
-      showDeployWizard: config.features.includes('deploy_wizard'),
+    dashboardCards: dashboardCardsForFeatures(features, {
+      showDeployWizard: features.includes('deploy_wizard'),
       adminLite: config.adminLite,
       footerNav,
     }),

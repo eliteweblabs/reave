@@ -439,6 +439,55 @@ function installFooterNav() {
   return Array.isArray(nav) && nav.length ? nav : null;
 }
 
+function hasInstallFeature(id) {
+  const features = window.__installConfig?.features;
+  return typeof id === 'string' && Array.isArray(features) && features.includes(id);
+}
+
+function emailInboxEnabled() {
+  return hasInstallFeature('email_inbox');
+}
+
+function schedulingEnabled() {
+  return hasInstallFeature('scheduling');
+}
+
+const PRIMARY_FOOTER_MAP_KEYS = {
+  dashboard: 'dashboard',
+  chat: 'chats',
+  inbox: 'email',
+  schedule: 'schedule',
+  work: 'work',
+  todo: 'todo',
+  clients: 'clients',
+};
+
+function installFooterNavSet() {
+  const nav = installFooterNav();
+  if (!nav) return null;
+  return new Set(normalizeFooterNavKeys(nav));
+}
+
+function installFooterIncludesMapKey(mapKey) {
+  const navSet = installFooterNavSet();
+  if (!navSet) return true;
+  if (mapKey === 'chats') return navSet.has('chats') || navSet.has('__chat__');
+  return navSet.has(mapKey);
+}
+
+function primaryFooterNavVisible(dataNav) {
+  const mapKey = PRIMARY_FOOTER_MAP_KEYS[dataNav];
+  if (!mapKey) return true;
+  return installFooterIncludesMapKey(mapKey);
+}
+
+function syncPrimaryFooterNavVisibility() {
+  for (const dataNav of Object.keys(PRIMARY_FOOTER_MAP_KEYS)) {
+    const btn = document.getElementById(`footer-nav-${dataNav}`);
+    if (btn) btn.hidden = !primaryFooterNavVisible(dataNav);
+  }
+}
+
 function normalizeFooterNavKeys(keys) {
   const result = [];
   for (const raw of keys) {
@@ -12159,6 +12208,7 @@ function initChatComposeFocusLayout() {
 }
 
 function syncFooterNav() {
+  syncPrimaryFooterNavVisibility();
   syncEditorFooterSaveState();
   syncFooterChatInlineDashboard();
   const activeNav = footerNavActiveKey();
@@ -12884,6 +12934,7 @@ function navigateToEmail(id) {
 
 /** Open in-app compose addressed to a contact (name + email chip). */
 function composeEmailToContact(contact) {
+  if (!emailInboxEnabled()) return;
   const recipient = normalizeEmailRecipient({
     email: contact?.email,
     name: contact?.name,
@@ -15027,6 +15078,7 @@ initAddonsPanel({
   MAP,
   prependSettingsBackHeader,
   setActiveMap,
+  syncFooterNav,
 });
 initCatalogPanel({
   getMap: () => MAP,
@@ -19026,6 +19078,7 @@ async function closeEmailCompose(opts = { saveDraft: true }) {
 }
 
 async function startNewEmail(opts = {}) {
+  if (!emailInboxEnabled()) return;
   if (emailState.composing) await saveActiveEmailDraft(true);
   const to = (Array.isArray(opts.to) ? opts.to : [])
     .map(normalizeEmailRecipient)
@@ -21539,6 +21592,7 @@ function loadActiveKey() {
 
 function canOpenMapKey(key) {
   if (key === 'industries') return showIndustries();
+  if (!installFooterIncludesMapKey(key)) return false;
   const features = window.__installConfig?.features;
   const has = (id) => Array.isArray(features) && features.includes(id);
   if (key === 'social') return has('social_inbox');

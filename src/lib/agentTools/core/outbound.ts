@@ -86,6 +86,7 @@ import {
   sendEmail,
   sendSms,
 } from '../../outbound';
+import { hasEmailInbox } from '../../features';
 import { isImmediateScheduledAt, parseComposeScheduledAt } from '../../emailComposeSchedule';
 import { createScheduledEmail } from '../../emailScheduledStore';
 import { ensureEmailScheduledScheduler } from '../../emailScheduledScheduler';
@@ -332,13 +333,13 @@ async function handle_brave_search(args: Record<string, unknown>, _ctx: ToolCont
 
 export const outboundModule: AgentToolModule = {
   id: 'outbound',
-  enabled: (ctx) => isEmailSendConfigured() || isBraveConfigured(),
+  enabled: (ctx) => isBraveConfigured() || (hasEmailInbox() && isEmailSendConfigured()),
   definitions(ctx: ToolContext): AgentToolDef[] {
     const brand = ctx.brand;
     const domainExample = brand.domain || 'example.com';
     void domainExample;
     const out: AgentToolDef[] = [];
-    if (isEmailSendConfigured()) out.push(
+    if (hasEmailInbox() && isEmailSendConfigured()) out.push(
       {
             type: 'function',
             function: {
