@@ -677,7 +677,64 @@
   }
 }
 
-/* Picker modal grid */
+/* Picker modal upload + grid */
+.ml-picker-upload {
+  margin-bottom: 0.75rem;
+}
+
+.ml-picker-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px dashed color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel) 94%, var(--accent) 6%);
+  cursor: pointer;
+  text-align: center;
+}
+
+.ml-picker-upload-zone:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, transparent);
+  outline-offset: 2px;
+}
+
+.ml-picker-upload-zone--drag {
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+  background: color-mix(in srgb, var(--panel) 88%, var(--accent) 12%);
+}
+
+.ml-picker-upload-zone--busy {
+  opacity: 0.72;
+  pointer-events: none;
+  cursor: wait;
+}
+
+.ml-picker-upload-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.ml-picker-upload-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.ml-picker-upload-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.ml-picker-upload-cta {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+}
+
 .ml-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));

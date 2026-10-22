@@ -332,8 +332,9 @@ import {
   brandingMediaFilter,
   brandingRasterMediaFilter,
   imageMediaFilter,
+  validateImageUploadFile,
   applyMediaToTarget,
-} from './media-picker.js?v=20260813b';
+} from './media-picker.js?v=20261022a';
 import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260826a';
 
 if (typeof performance !== 'undefined') {
@@ -18741,6 +18742,36 @@ function mediaItemToComposeImage(item) {
   };
 }
 
+/** @returns {boolean} false when the image was not added (duplicate / invalid). */
+function attachMediaItemToEmailCompose(item, imageStrip) {
+  const next = mediaItemToComposeImage(item);
+  if (!next) return false;
+  const current = normalizeEmailComposeImages(emailState.compose.images);
+  if (current.some((row) => row.mediaId === next.mediaId)) return false;
+  if (current.length >= EMAIL_COMPOSE_MAX_IMAGES) {
+    osAlert({ title: 'Too many images', bodyHtml: '<p>You can attach up to 8 images to one email.</p>' });
+    return false;
+  }
+  emailState.compose.images = [...current, next];
+  renderEmailComposeImageStrip(imageStrip);
+  scheduleEmailDraftSave();
+  return true;
+}
+
+function openEmailComposeAttachPicker(imageStrip) {
+  if (emailState.sending) return;
+  void openMediaPicker({
+    title: 'Attach image',
+    hint: 'Upload a new image or pick one from the library below.',
+    allowUpload: true,
+    uploadAccept: 'image/jpeg,image/png,image/gif,image/webp',
+    uploadHint: 'JPEG, PNG, GIF, or WebP — max 10 MB each',
+    validateUpload: validateImageUploadFile,
+    filter: imageMediaFilter,
+    onPick: (item) => attachMediaItemToEmailCompose(item, imageStrip),
+  });
+}
+
 function renderEmailComposeImageStrip(host) {
   if (!(host instanceof HTMLElement)) return;
   const images = normalizeEmailComposeImages(emailState.compose.images);
@@ -19817,45 +19848,14 @@ function renderEmailComposePane(pane) {
   writeBtn.disabled = emailState.sending;
   writeBtn.innerHTML = emailComposeAgentLabelHtml();
   writeBtn.addEventListener('click', () => void writeEmailComposeWithAgent(writeBtn));
-  const imageBtn = createIosIconBtn({
-    iconKey: 'image',
-    label: 'Add image',
-    size: 'sm',
-    className: 'em-compose-image-btn',
-    onClick: () => {
-      if (emailState.sending) return;
-      fileInput.click();
-    },
-  });
-  imageBtn.disabled = emailState.sending;
-  const libraryBtn = createIosIconBtn({
+  const attachBtn = createIosIconBtn({
     iconKey: 'paperclip',
-    label: 'Choose from library',
+    label: 'Attach image',
     size: 'sm',
     className: 'em-compose-image-btn',
-    onClick: () => {
-      if (emailState.sending) return;
-      void openMediaPicker({
-        title: 'Attach image',
-        hint: 'Pick a JPEG, PNG, GIF, or WebP from the media library.',
-        filter: imageMediaFilter,
-        onPick: (item) => {
-          const next = mediaItemToComposeImage(item);
-          if (!next) return;
-          const current = normalizeEmailComposeImages(emailState.compose.images);
-          if (current.some((row) => row.mediaId === next.mediaId)) return;
-          if (current.length >= EMAIL_COMPOSE_MAX_IMAGES) {
-            osAlert({ title: 'Too many images', bodyHtml: '<p>You can attach up to 8 images to one email.</p>' });
-            return;
-          }
-          emailState.compose.images = [...current, next];
-          renderEmailComposeImageStrip(imageStrip);
-          scheduleEmailDraftSave();
-        },
-      });
-    },
+    onClick: () => openEmailComposeAttachPicker(imageStrip),
   });
-  libraryBtn.disabled = emailState.sending;
+  attachBtn.disabled = emailState.sending;
   const shortcodeBtn = createIosIconBtn({
     iconKey: 'link',
     label: 'Insert button shortcode',
@@ -19869,8 +19869,7 @@ function renderEmailComposePane(pane) {
   shortcodeBtn.disabled = emailState.sending;
   const bodyTools = document.createElement('div');
   bodyTools.className = 'em-compose-body-tools';
-  bodyTools.appendChild(imageBtn);
-  bodyTools.appendChild(libraryBtn);
+  bodyTools.appendChild(attachBtn);
   bodyTools.appendChild(shortcodeBtn);
   bodyTools.appendChild(writeBtn);
   bodyHead.appendChild(bodyLabel);
