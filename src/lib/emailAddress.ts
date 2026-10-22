@@ -38,12 +38,12 @@ export function parseSenderName(from: string): string {
 
 /**
  * Resend rejects display names that contain literal &lt; or &gt; even when RFC-quoted.
- * Fold the official re&gt;I&lt;o mark to reΛve and strip any remaining angle brackets.
+ * Strip angle brackets; fold retired re&gt;I&lt;o studio encoding to Rekko Studio for Resend.
  */
 export function resendSafeDisplayName(displayName: string): string {
   let name = displayName.trim();
   if (!name) return name;
-  name = name.replace(/re\s*>\s*I\s*<\s*o/gi, 'reΛve');
+  name = name.replace(/re\s*>\s*I\s*<\s*o(?:\s+studio)?/gi, 'Rekko Studio');
   name = name.replace(/[<>]/g, '');
   return name.replace(/\s+/g, ' ').trim();
 }

@@ -1,7 +1,6 @@
 /**
- * Share-card titles must be ASCII. Legacy stylized brand (Λ) still folds so
- * old cached titles / configs do not break iMessage previews.
- * Browser <title> keeps the branded display name.
+ * Share-card titles must be ASCII. Legacy reave.app / REΛVE spellings fold to rekko.studio.
+ * Browser <title> keeps the company display name from settings.
  * Run: npm run check:share-safe-text
  */
 import assert from 'node:assert/strict';
@@ -16,6 +15,7 @@ assert.equal(shareSafeText('reΛVe.app'), 'rekko.studio');
 assert.equal(shareSafeText('REΛVE'), 'rekko.studio');
 assert.equal(shareSafeText('REΛVE.app'), 'rekko.studio');
 assert.equal(shareSafeText('Features | reΛVe.app'), 'Features | rekko.studio');
+assert.equal(shareSafeText('re>I<o studio'), 'rekko.studio');
 assert.equal(shareSafeText('Acme Corp'), 'Acme Corp');
 assert.equal(shareSafeText('Café'), 'Cafe');
 assert.equal(shareSafeText('Features | reave.app'), 'Features | rekko.studio');

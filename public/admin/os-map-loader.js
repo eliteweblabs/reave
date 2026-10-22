@@ -10234,7 +10234,8 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
             'Identity',
             'Name and tagline shown on client pages, emails, documents, legal, and your public booking page.',
             `<div class="prof-field"><label for="company-name">Display name</label>` +
-            `<input id="company-name" name="name" type="text" value="${escHtml(c.name || '')}" placeholder="Acme Corp" autocomplete="organization" /></div>` +
+            `<input id="company-name" name="name" type="text" value="${escHtml(c.name || '')}" placeholder="Rekko Studio" autocomplete="organization" />` +
+            `<span class="prof-hint">Plain text — used in email From lines and client-facing pages (e.g. Rekko Studio).</span></div>` +
             `<div class="prof-field"><label for="company-legalName">Legal name</label>` +
             `<input id="company-legalName" name="legalName" type="text" value="${escHtml(c.legalName || '')}" placeholder="Acme Corporation LLC" />` +
             `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
@@ -18529,7 +18530,7 @@ function buildReplyQuoteClient(ev) {
 function resendSafeDisplayName(displayName) {
   let name = String(displayName || '').trim();
   if (!name) return name;
-  name = name.replace(/re\s*>\s*I\s*<\s*o/gi, 'reΛve');
+  name = name.replace(/re\s*>\s*I\s*<\s*o(?:\s+studio)?/gi, 'Rekko Studio');
   name = name.replace(/[<>]/g, '');
   return name.replace(/\s+/g, ' ').trim();
 }
