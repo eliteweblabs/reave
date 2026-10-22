@@ -12850,7 +12850,7 @@ let emailState = {
   activeDraftId: null,
   activeScheduledId: null,
   scheduledAt: null,
-  compose: { to: [], cc: [], subject: '', body: '', images: [], useBrandedTemplate: true },
+  compose: { to: [], cc: [], subject: '', body: '', images: [], useBrandedTemplate: false },
   sending: false,
   storage: 'files',
   digest: null,
@@ -17840,7 +17840,7 @@ function applyDraftToCompose(draft, opts = {}) {
     subject: draft.subject || '',
     body: draft.body || '',
     images: normalizeEmailComposeImages(draft.images),
-    useBrandedTemplate: draft.useBrandedTemplate !== false,
+    useBrandedTemplate: draft.useBrandedTemplate === true,
   };
 }
 
@@ -17936,7 +17936,7 @@ function applyScheduledToCompose(event, opts = {}) {
     subject: event.subject || '',
     body: event.body || '',
     images: normalizeEmailComposeImages(event.images),
-    useBrandedTemplate: event.useBrandedTemplate !== false,
+    useBrandedTemplate: event.useBrandedTemplate === true,
   };
 }
 
@@ -18513,6 +18513,10 @@ function normalizeEmailComposeFrom(raw) {
   return trimmed;
 }
 
+function composeUseBrandedTemplate(raw) {
+  return raw === true;
+}
+
 function emptyEmailCompose(overrides = {}) {
   const merged = {
     to: [],
@@ -18520,7 +18524,7 @@ function emptyEmailCompose(overrides = {}) {
     subject: '',
     body: '',
     images: [],
-    useBrandedTemplate: true,
+    useBrandedTemplate: false,
     ...overrides,
   };
   merged.from = normalizeEmailComposeFrom(merged.from) || defaultEmailComposeFrom();
@@ -18795,6 +18799,10 @@ function syncComposeFromDom() {
   if (bodyEl instanceof HTMLTextAreaElement) emailState.compose.body = bodyEl.value;
   commitPendingComposeRecipient(toInput, 'to');
   commitPendingComposeRecipient(ccInput, 'cc');
+  const brandedEl = root.querySelector('.em-compose-branded-input');
+  if (brandedEl instanceof HTMLInputElement) {
+    emailState.compose.useBrandedTemplate = brandedEl.checked;
+  }
 }
 
 let emailDraftSaveTimer = 0;
@@ -18810,7 +18818,7 @@ function emailDraftPayload() {
     body: String(body || ''),
     images: normalizeEmailComposeImages(emailState.compose.images),
     inReplyToEmailId: emailState.replyToId || null,
-    useBrandedTemplate: emailState.compose.useBrandedTemplate !== false,
+    useBrandedTemplate: composeUseBrandedTemplate(emailState.compose.useBrandedTemplate),
   };
 }
 
@@ -19106,7 +19114,7 @@ function cloneEmailCompose(compose) {
     subject: String(compose?.subject || ''),
     body: String(compose?.body || ''),
     images: normalizeEmailComposeImages(compose?.images),
-    useBrandedTemplate: compose?.useBrandedTemplate !== false,
+    useBrandedTemplate: composeUseBrandedTemplate(compose?.useBrandedTemplate),
   };
 }
 
@@ -19172,7 +19180,7 @@ function emailSendPayloadFromSnapshot(snap) {
     payload.inReplyToEmailId = snap.replyToId;
   }
   if (snap.scheduledAt) payload.scheduledAt = snap.scheduledAt;
-  payload.useBrandedTemplate = snap.compose.useBrandedTemplate !== false;
+  payload.useBrandedTemplate = composeUseBrandedTemplate(snap.compose.useBrandedTemplate);
   return payload;
 }
 
@@ -19302,7 +19310,7 @@ async function commitQueuedEmailSend(snap) {
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
-          useBrandedTemplate: snap.compose.useBrandedTemplate !== false,
+          useBrandedTemplate: composeUseBrandedTemplate(snap.compose.useBrandedTemplate),
           inReplyToEmailId: snap.replyToId,
         }),
       });
@@ -19334,7 +19342,7 @@ async function commitQueuedEmailSend(snap) {
           subject: snap.compose.subject,
           body: snap.compose.body,
           images: snap.compose.images,
-          useBrandedTemplate: snap.compose.useBrandedTemplate !== false,
+          useBrandedTemplate: composeUseBrandedTemplate(snap.compose.useBrandedTemplate),
           inReplyToEmailId: snap.replyToId,
           scheduledAt: snap.scheduledAt,
         }),
@@ -19399,6 +19407,7 @@ async function sendEmailCompose() {
     subject: subjectTrim,
     body: bodyTrim,
     images,
+    useBrandedTemplate: composeUseBrandedTemplate(emailState.compose.useBrandedTemplate),
   };
   await saveActiveEmailDraft(true);
   const snapshot = snapshotActiveEmailCompose();
@@ -19494,6 +19503,7 @@ async function scheduleEmailCompose() {
     subject: subjectTrim,
     body: bodyTrim,
     images,
+    useBrandedTemplate: composeUseBrandedTemplate(emailState.compose.useBrandedTemplate),
   };
   emailState.scheduledAt = nextAt;
   await saveActiveEmailDraft(true);
@@ -19895,7 +19905,7 @@ function renderEmailComposePane(pane) {
   const brandedInput = document.createElement('input');
   brandedInput.type = 'checkbox';
   brandedInput.className = 'em-compose-branded-input';
-  brandedInput.checked = emailState.compose.useBrandedTemplate !== false;
+  brandedInput.checked = composeUseBrandedTemplate(emailState.compose.useBrandedTemplate);
   brandedInput.disabled = emailState.sending;
   const brandedTrack = document.createElement('span');
   brandedTrack.className = 'em-compose-branded-track';

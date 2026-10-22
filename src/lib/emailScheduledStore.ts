@@ -17,6 +17,7 @@ import {
   type EmailDraftRecipient,
   type EmailDraftRecord,
 } from './emailDraftStore';
+import { parseUseBrandedTemplate } from './adminComposeEmail';
 import { getPgPool } from './pgPool';
 
 export type ScheduledEmailStatus = 'pending' | 'sending' | 'sent' | 'cancelled' | 'failed';
@@ -86,7 +87,7 @@ CREATE TABLE IF NOT EXISTS email_scheduled (
   created_by            TEXT
 );
 ALTER TABLE email_scheduled ADD COLUMN IF NOT EXISTS from_address TEXT NOT NULL DEFAULT '';
-ALTER TABLE email_scheduled ADD COLUMN IF NOT EXISTS use_branded_template BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE email_scheduled ADD COLUMN IF NOT EXISTS use_branded_template BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS email_scheduled_due_idx
   ON email_scheduled (scheduled_at ASC)
   WHERE status IN ('pending', 'sending', 'failed');
@@ -132,7 +133,7 @@ function readFileRows(): ScheduledEmailRecord[] {
       from: String(row.from ?? '').trim(),
       images: normalizeEmailComposeImages(row.images),
       status: normalizeStatus(row.status),
-      useBrandedTemplate: row.useBrandedTemplate !== false,
+      useBrandedTemplate: parseUseBrandedTemplate(row.useBrandedTemplate),
     }));
   } catch {
     return [];
@@ -171,7 +172,7 @@ function rowToRecord(row: {
     body: row.body || '',
     images: normalizeEmailComposeImages(row.images),
     inReplyToEmailId: row.in_reply_to_email_id?.trim() || null,
-    useBrandedTemplate: row.use_branded_template !== false,
+    useBrandedTemplate: parseUseBrandedTemplate(row.use_branded_template),
     scheduledAt: new Date(row.scheduled_at).toISOString(),
     status: normalizeStatus(row.status),
     resendId: row.resend_id?.trim() || null,
@@ -252,7 +253,7 @@ export async function createScheduledEmail(
     body: input.body ?? '',
     images: normalizeEmailComposeImages(input.images),
     inReplyToEmailId: input.inReplyToEmailId?.trim() || null,
-    useBrandedTemplate: input.useBrandedTemplate !== false,
+    useBrandedTemplate: parseUseBrandedTemplate(input.useBrandedTemplate),
     scheduledAt: new Date(input.scheduledAt).toISOString(),
     status: 'pending',
     resendId: null,
@@ -316,8 +317,8 @@ export async function updateScheduledEmail(
         : existing.inReplyToEmailId,
     useBrandedTemplate:
       input.useBrandedTemplate !== undefined
-        ? input.useBrandedTemplate !== false
-        : existing.useBrandedTemplate !== false,
+        ? parseUseBrandedTemplate(input.useBrandedTemplate)
+        : existing.useBrandedTemplate,
     scheduledAt: input.scheduledAt !== undefined ? new Date(input.scheduledAt).toISOString() : existing.scheduledAt,
     status: 'pending',
     error: null,
@@ -510,7 +511,7 @@ export async function cancelScheduledEmailToDraft(
     body: existing.body,
     images: existing.images,
     inReplyToEmailId: existing.inReplyToEmailId,
-    useBrandedTemplate: existing.useBrandedTemplate !== false,
+    useBrandedTemplate: existing.useBrandedTemplate,
     createdBy: existing.createdBy,
   });
   await deleteScheduledEmail(id);
@@ -526,6 +527,6 @@ export function scheduledEmailToComposeBody(row: ScheduledEmailRecord): Record<s
     text: row.body,
     images: row.images,
     inReplyToEmailId: row.inReplyToEmailId,
-    useBrandedTemplate: row.useBrandedTemplate !== false,
+    useBrandedTemplate: row.useBrandedTemplate,
   };
 }

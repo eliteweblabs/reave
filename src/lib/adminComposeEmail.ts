@@ -25,10 +25,10 @@ import {
   signatureHtmlForEmail,
 } from './userEmailSignature';
 
-/** Default true — branded wrapper unless compose explicitly turns it off. */
+/** Default false — branded wrapper only when compose explicitly turns it on. */
 export function parseUseBrandedTemplate(raw: unknown): boolean {
-  if (raw === false || raw === 0 || raw === '0' || raw === 'false') return false;
-  return true;
+  if (raw === true || raw === 1 || raw === '1' || raw === 'true') return true;
+  return false;
 }
 
 function plainComposeEmail(opts: {

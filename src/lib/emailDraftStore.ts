@@ -11,6 +11,7 @@ import {
   normalizeEmailComposeImages,
   type EmailComposeImage,
 } from './emailComposeImages';
+import { parseUseBrandedTemplate } from './adminComposeEmail';
 import { getPgPool } from './pgPool';
 
 export type EmailDraftRecipient = {
@@ -74,7 +75,7 @@ CREATE TABLE IF NOT EXISTS email_drafts (
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS cc_recipients JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS from_address TEXT NOT NULL DEFAULT '';
-ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS use_branded_template BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE email_drafts ADD COLUMN IF NOT EXISTS use_branded_template BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS email_drafts_updated_idx
   ON email_drafts (updated_at DESC);
 CREATE INDEX IF NOT EXISTS email_drafts_created_by_idx
@@ -136,7 +137,7 @@ function readFileRows(): EmailDraftRecord[] {
       cc: normalizeEmailDraftRecipients(row.cc),
       from: String(row.from ?? '').trim(),
       images: normalizeEmailComposeImages(row.images),
-      useBrandedTemplate: row.useBrandedTemplate !== false,
+      useBrandedTemplate: parseUseBrandedTemplate(row.useBrandedTemplate),
     }));
   } catch {
     return [];
@@ -171,7 +172,7 @@ function rowToRecord(row: {
     body: row.body || '',
     images: normalizeEmailComposeImages(row.images),
     inReplyToEmailId: row.in_reply_to_email_id?.trim() || null,
-    useBrandedTemplate: row.use_branded_template !== false,
+    useBrandedTemplate: parseUseBrandedTemplate(row.use_branded_template),
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
     createdBy: row.created_by?.trim() || null,
@@ -260,7 +261,7 @@ export async function createEmailDraft(input: CreateEmailDraftInput): Promise<Em
     body: input.body ?? '',
     images: normalizeEmailComposeImages(input.images),
     inReplyToEmailId: input.inReplyToEmailId?.trim() || null,
-    useBrandedTemplate: input.useBrandedTemplate !== false,
+    useBrandedTemplate: parseUseBrandedTemplate(input.useBrandedTemplate),
     createdAt: now,
     updatedAt: now,
     createdBy: input.createdBy?.trim() || null,
@@ -318,8 +319,8 @@ export async function updateEmailDraft(
         : existing.inReplyToEmailId,
     useBrandedTemplate:
       input.useBrandedTemplate !== undefined
-        ? input.useBrandedTemplate !== false
-        : existing.useBrandedTemplate !== false,
+        ? parseUseBrandedTemplate(input.useBrandedTemplate)
+        : existing.useBrandedTemplate,
     updatedAt: new Date().toISOString(),
   };
 
