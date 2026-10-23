@@ -477,16 +477,45 @@ function installFooterIncludesMapKey(mapKey) {
   return navSet.has(mapKey);
 }
 
+/** Whether an optional module enables this footer map key (Add-ons toggles). */
+function footerNavKeyAllowed(mapKey) {
+  const alwaysOn = window.__installConfig?.footerNavAlwaysOn;
+  if (Array.isArray(alwaysOn) && alwaysOn.includes(mapKey)) return true;
+  const providerMap = window.__installConfig?.footerNavProviders;
+  const providers = providerMap?.[mapKey];
+  if (!providerMap) {
+    if (mapKey === 'email') return emailInboxEnabled();
+    if (mapKey === 'schedule') return schedulingEnabled();
+    if (mapKey === 'work') return hasInstallFeature('time_tracking');
+    if (mapKey === 'social') return hasInstallFeature('social_inbox');
+    if (mapKey === 'social-leads') return hasInstallFeature('social_lead_scanner');
+    if (mapKey === 'reviews') return hasInstallFeature('online_reviews');
+    return true;
+  }
+  if (!Array.isArray(providers) || !providers.length) return true;
+  return providers.some((id) => hasInstallFeature(id));
+}
+
+function installFooterMapKeyVisible(mapKey) {
+  if (!footerNavKeyAllowed(mapKey)) return false;
+  return installFooterIncludesMapKey(mapKey);
+}
+
 function primaryFooterNavVisible(dataNav) {
   const mapKey = PRIMARY_FOOTER_MAP_KEYS[dataNav];
   if (!mapKey) return true;
-  return installFooterIncludesMapKey(mapKey);
+  return installFooterMapKeyVisible(mapKey);
 }
 
 function syncPrimaryFooterNavVisibility() {
   for (const dataNav of Object.keys(PRIMARY_FOOTER_MAP_KEYS)) {
     const btn = document.getElementById(`footer-nav-${dataNav}`);
     if (btn) btn.hidden = !primaryFooterNavVisible(dataNav);
+  }
+  if (activeKey === 'email' && !installFooterMapKeyVisible('email')) {
+    setActiveMap('dashboard');
+  } else if (activeKey === 'schedule' && !installFooterMapKeyVisible('schedule')) {
+    setActiveMap('dashboard');
   }
 }
 
@@ -12716,6 +12745,11 @@ function renderFooterInboxBadge() {
   const badge = document.getElementById('footer-inbox-badge');
   const btn = document.getElementById('footer-nav-inbox');
   if (!badge || !btn) return;
+  if (!emailInboxEnabled() || btn.hidden) {
+    badge.hidden = true;
+    badge.textContent = '0';
+    return;
+  }
 
   const n = emailsUnreadCount;
   if (n > 0) {
@@ -21788,13 +21822,7 @@ function loadActiveKey() {
 
 function canOpenMapKey(key) {
   if (key === 'industries') return showIndustries();
-  if (!installFooterIncludesMapKey(key)) return false;
-  const features = window.__installConfig?.features;
-  const has = (id) => Array.isArray(features) && features.includes(id);
-  if (key === 'social') return has('social_inbox');
-  if (key === 'social-leads') return has('social_lead_scanner');
-  if (key === 'reviews') return has('online_reviews');
-  return true;
+  return installFooterMapKeyVisible(key);
 }
 function saveActiveKey() {
   try {

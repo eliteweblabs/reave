@@ -20,7 +20,11 @@ import {
   LEGACY_PUBLIC_BRAND_DOMAIN,
 } from './legacyBrandDomain.ts';
 import { serverEnv } from './serverEnv.ts';
-import { filterFooterNavByEnabledFeatures } from './moduleNavMap.ts';
+import {
+  filterFooterNavByEnabledFeatures,
+  footerNavAlwaysOnKeys,
+  footerNavProvidersForClient,
+} from './moduleNavMap.ts';
 
 export type { HomepageTemplate };
 
@@ -217,6 +221,10 @@ export type InstallConfigClient = Pick<
   isCanonicalReave?: boolean;
   /** Home-grid cards: enabled modules with dashboard:true, plus core OS tiles. */
   dashboardCards?: DashboardCard[];
+  /** Footer tabs always shown when listed in footerNav (not add-on gated). */
+  footerNavAlwaysOn?: FooterNavKey[];
+  /** Optional modules that enable each footer tab (client mirrors moduleNavMap). */
+  footerNavProviders?: Partial<Record<FooterNavKey, InstallFeatureId[]>>;
   /** Signed-in admin role for this session (`owner` | `staff`). */
   dashboardRole?: 'owner' | 'staff' | null;
   deployStatus?: {
@@ -626,6 +634,8 @@ export function getInstallConfigClient(opts?: {
   return {
     features: [...features],
     footerNav,
+    footerNavAlwaysOn: footerNavAlwaysOnKeys(),
+    footerNavProviders: footerNavProvidersForClient(),
     profileMenu: clientProfileMenu(config),
     homepageVoice: config.homepageVoice,
     chatFocusSkin: config.chatFocusSkin,

@@ -137,6 +137,19 @@ const FOOTER_NAV_PROVIDERS: Map<FooterNavKey, FeatureId[]> = (() => {
   return map;
 })();
 
+/** Serialized for admin client — footer tabs gated by optional modules. */
+export function footerNavProvidersForClient(): Partial<Record<FooterNavKey, FeatureId[]>> {
+  const out: Partial<Record<FooterNavKey, FeatureId[]>> = {};
+  for (const [key, providers] of FOOTER_NAV_PROVIDERS) {
+    out[key] = [...providers];
+  }
+  return out;
+}
+
+export function footerNavAlwaysOnKeys(): FooterNavKey[] {
+  return [...FOOTER_NAV_ALWAYS_ON];
+}
+
 /** Whether a footer tab may show for the enabled feature set on this install. */
 export function footerNavKeyAllowedForFeatures(
   key: FooterNavKey,

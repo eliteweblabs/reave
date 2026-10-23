@@ -14,6 +14,7 @@ import DeployStatusBanner from "../components/DeployStatusBanner.astro";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { getInstallConfigClient } from "../lib/installConfig";
+import { enabledFeatures, ensureFeatureOverridesLoaded } from "../lib/features";
 import "../styles/brand.css";
 import "../styles/admin/index.css";
 
@@ -54,7 +55,8 @@ if (requireOwner) {
 }
 
 const company = await getCompanyConfig(Astro.request);
-const installConfigClient = getInstallConfigClient();
+await ensureFeatureOverridesLoaded();
+const installConfigClient = getInstallConfigClient({ enabledFeatures: [...enabledFeatures()] });
 ---
 
 <!doctype html>
