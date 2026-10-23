@@ -8113,6 +8113,7 @@ function defaultFieldValidator(el) {
   if (el.disabled) return true;
   const type = (el.getAttribute('type') || '').toLowerCase();
   const name = (el.getAttribute('name') || '').toLowerCase();
+  if (type === 'checkbox' || type === 'radio') return true;
   if (isEmailAddressField(el)) return isValidEmailField(el.value);
   if (type === 'tel' || name.includes('phone')) return isValidPhoneField(el.value);
   if (type === 'url') return isValidUrlField(el.value);
