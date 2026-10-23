@@ -306,6 +306,11 @@ export function isCanonicalReaveInstall(): boolean {
   return host === CANONICAL_PUBLIC_BRAND_DOMAIN || host === LEGACY_PUBLIC_BRAND_DOMAIN;
 }
 
+/** Home dashboard website health tiles (hosted apex fleet grid) — rekko.studio hub only. */
+export function showDashboardWebsiteFleet(): boolean {
+  return isCanonicalReaveInstall();
+}
+
 /** Public hostname for this process is the official marketing site. */
 export function isOfficialReavePublicHost(): boolean {
   const host = (

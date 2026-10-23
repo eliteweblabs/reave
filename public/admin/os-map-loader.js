@@ -4060,6 +4060,10 @@ function dashboardSiteCardMergeExtras(data) {
 
 const DASH_FLEET_SNAPSHOT_KEY = 'reave:dash:fleet:v1';
 
+function dashboardWebsiteFleetEnabled() {
+  return window.__installConfig?.isCanonicalReave === true;
+}
+
 function dashFleetSnapshotStores() {
   const stores = [];
   try {
@@ -4149,6 +4153,7 @@ function dashboardFleetSiteCount(data) {
 }
 
 function readDashFleetSnapshot() {
+  if (!dashboardWebsiteFleetEnabled()) return null;
   for (const store of dashFleetSnapshotStores()) {
     try {
       const raw = store.getItem(DASH_FLEET_SNAPSHOT_KEY);
@@ -4166,7 +4171,7 @@ function readDashFleetSnapshot() {
 }
 
 function writeDashFleetSnapshot(data) {
-  if (!data) return;
+  if (!data || !dashboardWebsiteFleetEnabled()) return;
   const existing = readDashFleetSnapshot();
   const payload = coalesceDashboardFleetPayload(existing, data);
   const cards = dashboardSiteCardsFromPayload(payload);
@@ -4350,6 +4355,7 @@ function siteHealthIssueCodes(health) {
 }
 
 function dashboardSiteCardsFromPayload(data) {
+  if (!dashboardWebsiteFleetEnabled()) return [];
   const precached = Array.isArray(data?.fleetSiteCards) ? data.fleetSiteCards : null;
   if (precached?.length) return precached;
   const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];

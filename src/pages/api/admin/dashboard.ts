@@ -52,8 +52,14 @@ import { isRailwayConfigured } from '../../../lib/railwayClient';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { jsonResponse } from '../../../lib/apiResponse';
 import { loadDashboardFleetCards } from '../../../lib/dashboardFleetCards';
+import { showDashboardWebsiteFleet } from '../../../lib/installConfig';
 import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet, type SiteHealthFleet } from '../../../lib/siteHealthGrade';
-import { annotateSiteHealthFleet, loadSiteFleetIgnoreState, uptimeMonitorIdsForIgnoredSites } from '../../../lib/siteFleetIgnore';
+import {
+  annotateSiteHealthFleet,
+  loadSiteFleetIgnoreState,
+  type SiteFleetIgnoreState,
+  uptimeMonitorIdsForIgnoredSites,
+} from '../../../lib/siteFleetIgnore';
 import { dbUptimeSummary } from '../../../lib/pgUptime';
 import { buildMorningBriefing, type MorningBriefing } from '../../../lib/morningBriefing';
 import { storeListSleepDeferredEmails } from '../../../lib/emailInboxStore';
@@ -135,7 +141,8 @@ async function loadAnalyticsSlice(
   fleetDiscoveryConfigured: boolean;
 }> {
   const analyticsConfigured = isPlausibleConfigured();
-  const fleetDiscoveryConfigured = isFleetDiscoveryConfigured();
+  const fleetDiscoveryConfigured =
+    showDashboardWebsiteFleet() && isFleetDiscoveryConfigured();
   if (!fleetDiscoveryConfigured) {
     return { analytics: null, analyticsConfigured: false, fleetDiscoveryConfigured: false };
   }
@@ -270,11 +277,16 @@ export async function buildAdminDashboardPayload(
   const { billing, billingError, billingConfigured } = billingSlice;
   const { analytics, analyticsConfigured, fleetDiscoveryConfigured } = analyticsSlice;
 
-  await hydrateSiteHealthFleetCache();
-  const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
-  const siteFleetIgnore = await loadSiteFleetIgnoreState();
-  const siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);
-  const fleetSiteCards = await loadDashboardFleetCards(context);
+  const fleetDashboard = showDashboardWebsiteFleet();
+  let siteHealth: SiteHealthFleet | null = null;
+  let siteFleetIgnore: SiteFleetIgnoreState = { sites: {}, updatedAt: 0 };
+  if (fleetDashboard) {
+    await hydrateSiteHealthFleetCache();
+    const siteHealthRaw: SiteHealthFleet | null = peekCachedSiteHealthFleet({ allowStale: true });
+    siteFleetIgnore = await loadSiteFleetIgnoreState();
+    siteHealth = annotateSiteHealthFleet(siteHealthRaw, siteFleetIgnore);
+  }
+  const fleetSiteCards = fleetDashboard ? await loadDashboardFleetCards(context) : [];
 
   const uptimeExcludeMonitorIds = uptimeMonitorIdsForIgnoredSites(uptimeMonitors, siteFleetIgnore);
   const uptimeSummaryEffective =

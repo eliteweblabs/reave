@@ -18,6 +18,7 @@ import {
 } from './analyticsSiteMerge';
 import { getCompanyConfig } from './companyConfig';
 import { hasFeature } from './features';
+import { showDashboardWebsiteFleet } from './installConfig';
 import { hydrateSiteHealthFleetCache, peekCachedSiteHealthFleet } from './siteHealthGrade';
 import { loadSiteFleetIgnoreState } from './siteFleetIgnore';
 import { enrichUptimeMonitorView } from './uptimerobotClient';
@@ -25,6 +26,8 @@ import { getUptimeMonitorsView, syncUptimeMonitorsFromApiIfStale } from './uptim
 
 /** Full apex fleet for dashboard tiles and scan inputs. */
 export async function loadDashboardFleetCards(context: APIContext): Promise<DashboardSiteCard[]> {
+  if (!showDashboardWebsiteFleet()) return [];
+
   const company = await getCompanyConfig(context.request);
 
   if (hasFeature('uptime_monitoring')) {
