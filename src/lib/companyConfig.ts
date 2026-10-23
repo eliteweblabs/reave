@@ -163,6 +163,8 @@ export type CompanyConfig = {
   supportEmail: string;
   /** Tap-to-call / text number shown on client portals. */
   supportPhone: string;
+  /** When false, /card hides Text for the company support number. */
+  supportPhoneMobile: boolean;
   /** Default outbound From address (local part + domain). */
   fromEmail: string;
   /** Office / business street address (maps, directions, meeting defaults). */
@@ -652,6 +654,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     domain,
     supportEmail,
     supportPhone,
+    supportPhoneMobile: stored?.supportPhoneMobile !== false,
     fromEmail,
     address,
     geo,
@@ -758,6 +761,7 @@ export type CompanyConfigInput = {
   domain?: string;
   supportEmail?: string;
   supportPhone?: string;
+  supportPhoneMobile?: boolean | string | null;
   fromEmail?: string;
   address?: string;
   geo?: CompanyGeo | null;
@@ -818,6 +822,11 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
     out.supportEmail = canonicalizeReaveBrandEmail(trim(input.supportEmail)) || null;
   }
   if (input.supportPhone !== undefined) out.supportPhone = trim(input.supportPhone) || null;
+  if (input.supportPhoneMobile !== undefined) {
+    const raw = input.supportPhoneMobile;
+    out.supportPhoneMobile =
+      raw === true || raw === 'true' || raw === '1' || raw === 'on';
+  }
   if (input.fromEmail !== undefined) {
     out.fromEmail = canonicalizeReaveBrandEmail(trim(input.fromEmail)) || null;
   }

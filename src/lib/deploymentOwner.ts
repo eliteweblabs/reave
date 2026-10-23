@@ -4,6 +4,7 @@ import { SITE } from '../config/site';
 import { clerkClient } from '@clerk/astro/server';
 import { agentAlertUserId, agentAlertUserIds } from './systemAlertsThread';
 import { clerkSecretKey } from './clerkClient';
+import { parseMetaBool } from './metaBool';
 import { serverEnv } from './serverEnv';
 
 export const DEFAULT_DEPLOYMENT_TIMEZONE = 'America/New_York';
@@ -131,6 +132,8 @@ export type DeploymentOwnerProfile = {
   fullName: string;
   email: string;
   phone: string;
+  /** When false, /card hides Text for this person's phone. Default true. */
+  cardPhoneMobile: boolean;
   address: string;
   timezone: string;
 };
@@ -154,6 +157,7 @@ export function clerkUserToContactProfile(user: {
     fullName,
     email: user.emailAddresses?.[0]?.emailAddress?.trim() || '',
     phone: profilePhone || clerkPhone,
+    cardPhoneMobile: parseMetaBool(meta.cardPhoneMobile, true),
     address: (meta.address ?? '').trim(),
     timezone: (meta.timezone ?? '').trim(),
   };

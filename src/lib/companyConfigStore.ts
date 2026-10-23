@@ -33,6 +33,8 @@ export type StoredCompanyConfig = {
   domain?: string | null;
   supportEmail?: string | null;
   supportPhone?: string | null;
+  /** When false, /card hides Text for the company support number. */
+  supportPhoneMobile?: boolean | null;
   fromEmail?: string | null;
   /** Office / business street address (admin Company panel + map). */
   address?: string | null;
@@ -177,6 +179,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS email_font TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS business_hours TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_calcom BOOLEAN;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS sync_hours_to_gbp BOOLEAN;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS support_phone_mobile BOOLEAN;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS header_logo_size TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS search_keywords JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS page_seo_overrides JSONB NOT NULL DEFAULT '{}'::jsonb;
@@ -277,6 +280,18 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     domain: str('domain') || null,
     supportEmail: str('supportEmail') || null,
     supportPhone: str('supportPhone') || null,
+    supportPhoneMobile:
+      o.supportPhoneMobile === true ||
+      o.supportPhoneMobile === 'true' ||
+      o.support_phone_mobile === true ||
+      o.support_phone_mobile === 'true'
+        ? true
+        : o.supportPhoneMobile === false ||
+            o.supportPhoneMobile === 'false' ||
+            o.support_phone_mobile === false ||
+            o.support_phone_mobile === 'false'
+          ? false
+          : null,
     fromEmail: str('fromEmail') || null,
     address: str('address') || null,
     geo,
@@ -445,6 +460,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     business_hours: string | null;
     sync_hours_to_calcom: boolean | null;
     sync_hours_to_gbp: boolean | null;
+    support_phone_mobile: boolean | null;
     header_logo_size: string | null;
     search_keywords: unknown;
     page_seo_overrides: unknown;
@@ -462,7 +478,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
             brand_primary, brand_secondary, icon_background, portal_outreach_notice,
             og_data, og_media_type, email_font, business_hours, sync_hours_to_calcom, sync_hours_to_gbp,
-            header_logo_size, search_keywords, page_seo_overrides, updated_at
+            support_phone_mobile, header_logo_size, search_keywords, page_seo_overrides, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -530,6 +546,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     businessHours: parseStoredBusinessHoursJson(row.business_hours),
     syncHoursToCalcom: row.sync_hours_to_calcom,
     syncHoursToGbp: row.sync_hours_to_gbp,
+    supportPhoneMobile: row.support_phone_mobile,
     headerLogoSize: row.header_logo_size,
     searchKeywords: parseSearchKeywordLines(row.search_keywords),
     pageSeoOverrides:
@@ -604,9 +621,10 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        business_hours = $57,
        sync_hours_to_calcom = $58,
        sync_hours_to_gbp = $59,
-       header_logo_size = $60,
-       search_keywords = $61::jsonb,
-       page_seo_overrides = $62::jsonb,
+       support_phone_mobile = $60,
+       header_logo_size = $61,
+       search_keywords = $62::jsonb,
+       page_seo_overrides = $63::jsonb,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -671,6 +689,7 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.businessHours ? JSON.stringify(config.businessHours) : null,
       config.syncHoursToCalcom === true,
       config.syncHoursToGbp === true,
+      config.supportPhoneMobile === false ? false : config.supportPhoneMobile === true ? true : null,
       config.headerLogoSize ?? null,
       JSON.stringify(parseSearchKeywordLines(config.searchKeywords)),
       JSON.stringify(config.pageSeoOverrides && typeof config.pageSeoOverrides === 'object' ? config.pageSeoOverrides : {}),

@@ -8988,6 +8988,9 @@ function bindProfileForm(root) {
     alertEl: root.querySelector('#profile-alert'),
     async save(payload) {
       if (payload.phone != null) payload.phone = phoneToStorage(payload.phone);
+      const mobileEl = form?.querySelector('#profile-cardPhoneMobile');
+      payload.cardPhoneMobile =
+        mobileEl instanceof HTMLInputElement && mobileEl.checked;
       const res = await fetch('/api/admin/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -9169,6 +9172,10 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
           payload.syncHoursToGbp === 'true' ||
           payload.syncHoursToGbp === '1' ||
           payload.syncHoursToGbp === 'on';
+      }
+      const supportMobileEl = root.querySelector('#company-supportPhoneMobile');
+      if (supportMobileEl instanceof HTMLInputElement) {
+        payload.supportPhoneMobile = supportMobileEl.checked;
       }
       const res = await fetch('/api/admin/company', {
         method: 'POST',
@@ -10013,7 +10020,12 @@ function renderProfileOnlyPanel(profile) {
             `<span class="prof-hint">Email is managed through your Clerk account.</span></div>` +
             `<div class="prof-field-row">` +
               `<div class="prof-field"><label for="profile-phone">Phone</label>` +
-              `<input id="profile-phone" name="phone" type="tel" value="${escHtml(formatPhoneInput(p.phone || ''))}" autocomplete="tel" inputmode="tel" placeholder="+1 (555) 000-0000" /></div>` +
+              `<input id="profile-phone" name="phone" type="tel" value="${escHtml(formatPhoneInput(p.phone || ''))}" autocomplete="tel" inputmode="tel" placeholder="+1 (555) 000-0000" />` +
+              `<label class="prof-check-row prof-check-row--nested">` +
+                `<input id="profile-cardPhoneMobile" name="cardPhoneMobile" type="checkbox" value="1"${p.cardPhoneMobile !== false ? ' checked' : ''} />` +
+                `<span>Mobile number — show Text on my NFC card</span>` +
+              `</label>` +
+              `<span class="prof-hint">Turn off for a landline or main office line on <code>/card</code> and your staff card link.</span></div>` +
               `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
               `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
             `</div>`,
@@ -10384,7 +10396,12 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
               `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
               `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="${String(c.domain || '').replace(/^www\./i, '').toLowerCase() === 'reave.app' ? 'get@reave.app' : 'support@example.com'}" autocomplete="email" /></div>` +
               `<div class="prof-field"><label for="company-supportPhone">Support phone</label>` +
-              `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(formatPhoneInput(c.supportPhone || ''))}" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" /></div>` +
+              `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(formatPhoneInput(c.supportPhone || ''))}" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" />` +
+              `<label class="prof-check-row prof-check-row--nested">` +
+                `<input id="company-supportPhoneMobile" name="supportPhoneMobile" type="checkbox" value="1"${c.supportPhoneMobile !== false ? ' checked' : ''} />` +
+                `<span>Mobile number — show Text on the owner NFC card</span>` +
+              `</label>` +
+              `<span class="prof-hint">When the owner card uses this number (no Profile phone), Text is hidden if this is off.</span></div>` +
             `</div>` +
             `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
             `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" />` +
@@ -10963,7 +10980,7 @@ function renderTeamPanel(payload) {
         `<div class="team-card-callout">` +
           `<span class="team-card-callout-label">Owner NFC card</span>` +
           `<a class="team-card-link" href="${escHtml(primaryCardPath)}" target="_blank" rel="noopener noreferrer">${escHtml(primaryCardPath)}</a>` +
-          `<span class="prof-hint">Program the owner chip to this URL. Active staff get their own link once they accept the invite.</span>` +
+          `<span class="prof-hint">Program the owner chip to this URL. Active staff get their own link once they accept the invite. Each person controls Call vs Text under Profile → mobile number.</span>` +
         `</div>` +
         `<div id="team-alert" class="prof-alert" hidden></div>` +
         `<form id="team-invite-form" class="prof-form">` +

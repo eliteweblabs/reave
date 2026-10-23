@@ -9,24 +9,44 @@ import { serverEnv } from './serverEnv';
 
 export { cardPhoneLast4, cardPhoneToE164 } from './cardPhoneFormat';
 
+export type ResolvedCardPhone = {
+  raw: string;
+  /** When false, hide Text/SMS on /card (landline or main office line). */
+  mobile: boolean;
+};
+
 /**
- * Phone shown on /card (Call, Text, Login OTP). Prefer Admin → Company support
- * phone; fall back to the deployment owner's Profile / Clerk phone so NFC login
- * still works when Company phone is blank.
+ * Phone shown on /card (Call, Text, Login OTP). Prefer the card subject's Profile
+ * phone, then Admin → Company support phone, then the owner's Profile / env fallbacks.
  */
+export async function resolveCardPhone(
+  context: APIContext,
+  supportPhone?: string | null,
+  cardSubject?: DeploymentOwnerProfile | null,
+  supportPhoneMobile = true,
+): Promise<ResolvedCardPhone> {
+  const fromSubject = cardSubject?.phone?.trim() || '';
+  if (fromSubject) {
+    return { raw: fromSubject, mobile: cardSubject?.cardPhoneMobile !== false };
+  }
+  const fromCompany = supportPhone?.trim() || '';
+  if (fromCompany) {
+    return { raw: fromCompany, mobile: supportPhoneMobile !== false };
+  }
+  const owner = await getDeploymentOwnerProfile(context);
+  const fromOwner = owner?.phone?.trim() || '';
+  if (fromOwner) {
+    return { raw: fromOwner, mobile: owner?.cardPhoneMobile !== false };
+  }
+  const fromEnv = (serverEnv('OWNER_PHONE') ?? '').trim();
+  if (fromEnv) return { raw: fromEnv, mobile: true };
+  return { raw: DEFAULT_SUPPORT_PHONE, mobile: true };
+}
+
 export async function resolveCardPhoneRaw(
   context: APIContext,
   supportPhone?: string | null,
   cardSubject?: DeploymentOwnerProfile | null,
 ): Promise<string> {
-  const fromSubject = cardSubject?.phone?.trim() || '';
-  if (fromSubject) return fromSubject;
-  const fromCompany = supportPhone?.trim() || '';
-  if (fromCompany) return fromCompany;
-  const owner = await getDeploymentOwnerProfile(context);
-  const fromOwner = owner?.phone?.trim() || '';
-  if (fromOwner) return fromOwner;
-  const fromEnv = (serverEnv('OWNER_PHONE') ?? '').trim();
-  if (fromEnv) return fromEnv;
-  return DEFAULT_SUPPORT_PHONE;
+  return (await resolveCardPhone(context, supportPhone, cardSubject)).raw;
 }

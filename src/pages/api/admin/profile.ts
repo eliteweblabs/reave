@@ -5,6 +5,7 @@ import {
   isHtmlSignature,
   sanitizeSignatureHtml,
 } from '../../../lib/userEmailSignature';
+import { parseFormBool, parseMetaBool } from '../../../lib/metaBool';
 import { jsonResponse } from '../../../lib/apiResponse';
 
 export const prerender = false;
@@ -26,6 +27,7 @@ export async function GET(context: APIContext): Promise<Response> {
         lastName: user.lastName ?? "",
         email: user.emailAddresses?.[0]?.emailAddress ?? "",
         phone: meta.phone ?? "",
+        cardPhoneMobile: parseMetaBool(meta.cardPhoneMobile, true),
         timezone: meta.timezone ?? "",
         address: meta.address ?? "",
         emailSignature: meta.emailSignature ?? "",
@@ -53,6 +55,8 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const { firstName, lastName, phone, timezone, address, emailSignature } = body;
+  const cardPhoneMobile =
+    'cardPhoneMobile' in body ? parseFormBool(body.cardPhoneMobile) : undefined;
 
   try {
     const client = clerkClient(context);
@@ -71,6 +75,7 @@ export async function POST(context: APIContext): Promise<Response> {
       publicMetadata: {
         ...existing,
         phone: phone ?? "",
+        ...(cardPhoneMobile !== undefined ? { cardPhoneMobile } : {}),
         timezone: timezone ?? "",
         address: address ?? "",
         emailSignature: signatureStored,

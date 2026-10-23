@@ -12,7 +12,7 @@ import SiteBackground from '../components/SiteBackground.astro';
 import ThemeInit from '../components/ThemeInit.astro';
 import ViewportMeta from '../components/ViewportMeta.astro';
 import PlausibleScript from '../components/PlausibleScript.astro';
-import { cardPhoneToE164, resolveCardPhoneRaw } from '../lib/cardPhoneAuth';
+import { cardPhoneToE164, resolveCardPhone } from '../lib/cardPhoneAuth';
 import { readCardPasskeyTrust } from '../lib/cardPasskeyTrust';
 import { storeHasCardPasskeys } from '../lib/cardPasskeyStore';
 import {
@@ -51,10 +51,17 @@ const contactProfile = cardSubject.profile;
 const contactName = cardContactDisplayName(contactProfile, companyName);
 const displayName = cardSubject.isPrimary ? companyName : contactName;
 const tagline = company.description?.trim() || '';
-const phoneRaw = await resolveCardPhoneRaw(Astro, company.supportPhone, contactProfile);
+const resolvedCardPhone = await resolveCardPhone(
+  Astro,
+  company.supportPhone,
+  contactProfile,
+  company.supportPhoneMobile,
+);
+const phoneRaw = resolvedCardPhone.raw;
+const showSmsButton = resolvedCardPhone.mobile;
 const telDigits = contactTelHref(phoneRaw);
 const phoneHref = telDigits ? `tel:${telDigits}` : '';
-const smsHref = telDigits ? `sms:${telDigits}` : '';
+const smsHref = showSmsButton && telDigits ? `sms:${telDigits}` : '';
 const phoneE164 = cardPhoneToE164(phoneRaw);
 let signedIn = false;
 let userId: string | null = null;
@@ -114,8 +121,12 @@ const description =
   pageSeo?.description?.trim() ||
   tagline ||
   (cardSubject.isPrimary
-    ? `Call, text, save ${companyName} to contacts, or get directions.`
-    : `Call, text, or save ${contactName} at ${companyName} to contacts.`);
+    ? showSmsButton
+      ? `Call, text, save ${companyName} to contacts, or get directions.`
+      : `Call, save ${companyName} to contacts, or get directions.`
+    : showSmsButton
+      ? `Call, text, or save ${contactName} at ${companyName} to contacts.`
+      : `Call or save ${contactName} at ${companyName} to contacts.`);
 const origin = requestOrigin(Astro.request);
 const cardPath = cardPathForUserId(cardSubject.isPrimary ? null : cardSubject.userId);
 const canonicalBase = company.domain
