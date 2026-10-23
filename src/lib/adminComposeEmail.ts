@@ -12,10 +12,16 @@ import {
 import { isEmailInboxRecordId, storeGetEmailInbox } from './emailInboxStore';
 import {
   buildReplyEmailHeaders,
+  buildReplyEmailHeadersForOutboundParent,
   formatQuotedReplyHtml,
   quotedReplyHtmlFromText,
   splitQuotedReplyBody,
 } from './emailReply';
+import {
+  ensureOutboundMessageId,
+  getOutboundEmail,
+  type ProjectOutboundEmailRecord,
+} from './projectOutboundEmail';
 import { brandedPlainTextEmail } from './inboundEmailReply';
 import { escapeHtml } from './htmlEscape';
 import {
@@ -79,6 +85,7 @@ export type AdminComposeMail = {
   jobSlug: string | null;
   contactUid: string | null;
   inReplyToEmailId: string | null;
+  inReplyToOutboundEmailId: string | null;
 };
 
 export type AdminComposeBuildResult =
@@ -119,6 +126,11 @@ export async function buildAdminComposeEmail(
   const bcc = body.bcc;
   const rawReplyId = String(body.inReplyToEmailId ?? body.in_reply_to_email_id ?? '').trim();
   const inReplyToEmailId = isEmailInboxRecordId(rawReplyId) ? rawReplyId : null;
+  const rawOutboundReplyId = String(
+    body.inReplyToOutboundEmailId ?? body.in_reply_to_outbound_email_id ?? '',
+  ).trim();
+  const inReplyToOutboundEmailId =
+    !inReplyToEmailId && isEmailInboxRecordId(rawOutboundReplyId) ? rawOutboundReplyId : null;
 
   let composeImages: Awaited<ReturnType<typeof resolveComposeImagesForSend>>;
   try {
@@ -146,6 +158,7 @@ export async function buildAdminComposeEmail(
   let contactUid = String(body.contactUid ?? body.contact_uid ?? '').trim() || null;
   let replyHeaders: Record<string, string> | undefined;
   let inbound: Awaited<ReturnType<typeof storeGetEmailInbox>> = null;
+  let outbound: ProjectOutboundEmailRecord | null = null;
 
   if (inReplyToEmailId) {
     inbound = await storeGetEmailInbox(inReplyToEmailId);
@@ -153,6 +166,19 @@ export async function buildAdminComposeEmail(
       replyHeaders = buildReplyEmailHeaders(inbound);
       jobSlug = jobSlug || inbound.jobSlug || null;
       contactUid = contactUid || inbound.contactUid || null;
+    }
+  } else if (inReplyToOutboundEmailId) {
+    const row = await getOutboundEmail(inReplyToOutboundEmailId);
+    if (row) {
+      outbound = await ensureOutboundMessageId(row);
+      jobSlug = jobSlug || outbound.jobSlug || null;
+      contactUid = contactUid || outbound.contactUid || null;
+      if (outbound.messageId) {
+        replyHeaders = buildReplyEmailHeadersForOutboundParent(
+          outbound.messageId,
+          outbound.threadReferences,
+        );
+      }
     }
   }
 
@@ -170,7 +196,14 @@ export async function buildAdminComposeEmail(
             bodyHtml: inbound.bodyHtml,
             bodyText: inbound.bodyText,
           })
-        : undefined;
+        : quote && outbound
+          ? formatQuotedReplyHtml({
+              from: from || 'you',
+              receivedAt: outbound.sentAt,
+              bodyHtml: outbound.bodyHtml ?? undefined,
+              bodyText: outbound.bodyText ?? undefined,
+            })
+          : undefined;
     if (useBrandedTemplate) {
       const wrapped = await brandedPlainTextEmail({
         body: sendText,
@@ -210,6 +243,7 @@ export async function buildAdminComposeEmail(
       jobSlug,
       contactUid,
       inReplyToEmailId: inbound ? inReplyToEmailId : null,
+      inReplyToOutboundEmailId: outbound ? inReplyToOutboundEmailId : null,
     },
   };
 }

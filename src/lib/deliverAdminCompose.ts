@@ -4,6 +4,7 @@
 
 import type { AdminComposeMail } from './adminComposeEmail';
 import { rewriteComposeHtmlForPreview } from './emailComposeImages';
+import { outboundThreadReferencesSeed } from './emailReply';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from './emailInboxStore';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { sendEmail } from './outbound';
@@ -29,19 +30,27 @@ export async function deliverAdminComposeMail(
   });
   if (!result.ok) return { ok: false, error: result.error };
 
+  const threadReferencesSeed = outboundThreadReferencesSeed(mail.headers);
+  const outboundSource = mail.inReplyToEmailId
+    ? 'admin_reply'
+    : mail.inReplyToOutboundEmailId
+      ? 'admin_followup'
+      : 'admin_compose';
+
   for (const toEmail of mail.to) {
     await logOutboundEmailForProject({
       toEmail,
       subject: mail.subject,
       resendId: result.id,
       sentBy: userId,
-      source: mail.inReplyToEmailId ? 'admin_reply' : 'admin_compose',
+      source: outboundSource,
       jobSlug: mail.jobSlug,
       contactUid: mail.contactUid,
       bodyText: mail.text,
       bodyHtml: mail.html
         ? rewriteComposeHtmlForPreview(mail.html, mail.attachments)
         : null,
+      threadReferencesSeed,
     });
   }
 

@@ -12952,6 +12952,7 @@ let emailState = {
   activeId: null,
   composing: false,
   replyToId: null,
+  replyToSentId: null,
   replyMode: null,
   replySourceFull: null,
   activeDraftId: null,
@@ -13660,6 +13661,7 @@ function formatSentSourceLabel(source) {
   const labels = {
     admin_compose: 'Compose',
     admin_reply: 'Reply',
+    admin_followup: 'Reply',
     share_sheet: 'Share',
     agent: 'Agent',
     client_portal: 'Portal',
@@ -17940,7 +17942,10 @@ function applyDraftToCompose(draft, opts = {}) {
   emailState.scheduledAt = null;
   emailState.composing = true;
   emailState.replyToId = draft.inReplyToEmailId || null;
-  emailState.replyMode = opts.replyMode || (draft.inReplyToEmailId ? emailState.replyMode || 'reply' : null);
+  emailState.replyToSentId = draft.inReplyToOutboundEmailId || null;
+  emailState.replyMode =
+    opts.replyMode ||
+    (draft.inReplyToEmailId || draft.inReplyToOutboundEmailId ? emailState.replyMode || 'reply' : null);
   emailState.sending = false;
   emailState.compose = {
     to: (draft.to || []).map(normalizeEmailRecipient).filter(Boolean),
@@ -18010,6 +18015,15 @@ async function openDraftEvent(id, opts = {}) {
       }
       renderEmailPane();
     });
+  } else if (draft.inReplyToOutboundEmailId) {
+    const sent = (emailState.sentEvents || []).find((e) => e.id === draft.inReplyToOutboundEmailId);
+    if (sent) {
+      void fetchFullSentRecord(sent).then((full) => {
+        if (emailState.activeDraftId !== id || !emailState.composing || !full?.id) return;
+        emailState.replySourceFull = full;
+        renderEmailPane();
+      });
+    }
   }
   return true;
 }
@@ -18036,7 +18050,10 @@ function applyScheduledToCompose(event, opts = {}) {
   emailState.scheduledAt = event.scheduledAt || null;
   emailState.composing = true;
   emailState.replyToId = event.inReplyToEmailId || null;
-  emailState.replyMode = opts.replyMode || (event.inReplyToEmailId ? emailState.replyMode || 'reply' : null);
+  emailState.replyToSentId = event.inReplyToOutboundEmailId || null;
+  emailState.replyMode =
+    opts.replyMode ||
+    (event.inReplyToEmailId || event.inReplyToOutboundEmailId ? emailState.replyMode || 'reply' : null);
   emailState.sending = false;
   emailState.compose = {
     to: (event.to || []).map(normalizeEmailRecipient).filter(Boolean),
@@ -18084,6 +18101,15 @@ async function openScheduledEvent(id, opts = {}) {
       emailState.replySourceFull = full;
       renderEmailPane();
     });
+  } else if (event.inReplyToOutboundEmailId) {
+    const sent = (emailState.sentEvents || []).find((e) => e.id === event.inReplyToOutboundEmailId);
+    if (sent) {
+      void fetchFullSentRecord(sent).then((full) => {
+        if (emailState.activeScheduledId !== id || !emailState.composing || !full?.id) return;
+        emailState.replySourceFull = full;
+        renderEmailPane();
+      });
+    }
   }
   return true;
 }
@@ -18564,6 +18590,7 @@ function setEmailReplyMode(mode) {
 
 function clearEmailReplyContext() {
   emailState.replyToId = null;
+  emailState.replyToSentId = null;
   emailState.replyMode = null;
   emailState.replySourceFull = null;
 }
@@ -18581,6 +18608,21 @@ function buildReplyQuoteClient(ev) {
   const from = ev.from || 'sender';
   const quoted = body.split('\n').map((line) => `> ${line}`).join('\n');
   return `\n\n---\nOn ${when}, ${from} wrote:\n${quoted}`;
+}
+
+function buildReplyQuoteSent(ev) {
+  const body = String(ev.bodyText || '').trim();
+  if (!body) return '';
+  const when = new Date(ev.sentAt || Date.now()).toLocaleString();
+  const from = defaultEmailComposeFrom() || 'you';
+  const quoted = body.split('\n').map((line) => `> ${line}`).join('\n');
+  return `\n\n---\nOn ${when}, ${from} wrote:\n${quoted}`;
+}
+
+function sentRecipientChips(toEmail) {
+  const email = String(toEmail || '').trim().toLowerCase();
+  if (!email.includes('@')) return [];
+  return [{ email, name: '', uid: null }];
 }
 
 function resendSafeDisplayName(displayName) {
@@ -18984,7 +19026,8 @@ function emailDraftPayload() {
     subject: String(subject || '').trim(),
     body: String(body || ''),
     images: normalizeEmailComposeImages(emailState.compose.images),
-    inReplyToEmailId: emailState.replyToId || null,
+    inReplyToEmailId: emailState.replyToSentId ? null : emailState.replyToId || null,
+    inReplyToOutboundEmailId: emailState.replyToSentId || null,
     useBrandedTemplate: composeUseBrandedTemplate(emailState.compose.useBrandedTemplate),
   };
 }
@@ -19225,6 +19268,54 @@ async function startNewEmail(opts = {}) {
   });
 }
 
+async function startReplySentEmail(sent) {
+  if (!sent?.id) return;
+  if (emailState.composing) await saveActiveEmailDraft(true);
+  if (!(emailState.draftEvents || []).length) await loadEmailDraftEvents(true);
+  const existing = (emailState.draftEvents || []).find((d) => d.inReplyToOutboundEmailId === sent.id);
+  if (existing) {
+    emailState.inboxFilter = 'draft';
+    await openDraftEvent(existing.id, { replyMode: 'reply' });
+    return;
+  }
+  emailState.activeId = sent.id;
+  emailState.composing = true;
+  emailState.replyToId = null;
+  emailState.replyToSentId = sent.id;
+  emailState.replyMode = 'reply';
+  emailState.replySourceFull = null;
+  emailState.activeDraftId = null;
+  emailState.activeScheduledId = null;
+  emailState.scheduledAt = null;
+  emailState.sending = false;
+  emailState.compose = emptyEmailCompose();
+  getEmailPanel()?.classList.add('em-pane-active');
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
+  renderEmailPanel();
+  syncFooterNav();
+
+  const full = await fetchFullSentRecord(sent);
+  if (!emailState.composing || emailState.replyToSentId !== sent.id) return;
+  emailState.replySourceFull = full;
+  if (!emailState.compose.to.length) emailState.compose.to = sentRecipientChips(full.toEmail);
+  if (!String(emailState.compose.subject || '').trim()) {
+    emailState.compose.subject = buildReplySubjectClient(full.subject);
+  }
+  if (!String(emailState.compose.body || '').trim()) {
+    emailState.compose.body = buildReplyQuoteSent(full);
+  }
+  renderEmailPanel();
+  void saveActiveEmailDraft(true);
+  requestAnimationFrame(() => {
+    const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
+    if (bodyEl) {
+      bodyEl.focus();
+      bodyEl.setSelectionRange(0, 0);
+      bodyEl.scrollTop = 0;
+    }
+  });
+}
+
 async function startReplyEmail(ev, mode = 'reply') {
   if (!ev?.id) return;
   const replyMode = mode === 'reply-all' ? 'reply-all' : 'reply';
@@ -19238,6 +19329,7 @@ async function startReplyEmail(ev, mode = 'reply') {
   emailState.activeId = ev.id;
   emailState.composing = true;
   emailState.replyToId = ev.id;
+  emailState.replyToSentId = null;
   emailState.replyMode = replyMode;
   emailState.replySourceFull = null;
   emailState.activeDraftId = null;
@@ -19290,6 +19382,7 @@ function snapshotActiveEmailCompose() {
   return {
     compose: cloneEmailCompose(emailState.compose),
     replyToId: emailState.replyToId,
+    replyToSentId: emailState.replyToSentId,
     replyMode: emailState.replyMode,
     replySourceFull: emailState.replySourceFull,
     draftId: emailState.activeDraftId,
@@ -19303,12 +19396,13 @@ function restoreEmailComposeSnapshot(snap) {
   emailState.sending = false;
   emailState.compose = cloneEmailCompose(snap.compose);
   emailState.replyToId = snap.replyToId || null;
+  emailState.replyToSentId = snap.replyToSentId || null;
   emailState.replyMode = snap.replyMode || null;
   emailState.replySourceFull = snap.replySourceFull || null;
   emailState.activeDraftId = snap.draftId || null;
   emailState.activeScheduledId = snap.scheduledId || null;
   emailState.scheduledAt = snap.scheduledAt || null;
-  emailState.activeId = snap.scheduledId || snap.draftId || snap.replyToId || null;
+  emailState.activeId = snap.scheduledId || snap.draftId || snap.replyToSentId || snap.replyToId || null;
   if (snap.scheduledId) emailState.inboxFilter = 'scheduled';
   rememberOpenEmailDraft(snap.scheduledId || snap.draftId || null);
   getEmailPanel()?.classList.add('em-pane-active');
@@ -19344,7 +19438,9 @@ function emailSendPayloadFromSnapshot(snap) {
   payload.ccRecipients = ccRecipients;
   const from = normalizeEmailComposeFrom(snap.compose.from);
   if (from) payload.from = from;
-  if (snap.replyToId && snap.replyToId !== 'null' && snap.replyToId !== 'undefined') {
+  if (snap.replyToSentId && snap.replyToSentId !== 'null' && snap.replyToSentId !== 'undefined') {
+    payload.inReplyToOutboundEmailId = snap.replyToSentId;
+  } else if (snap.replyToId && snap.replyToId !== 'null' && snap.replyToId !== 'undefined') {
     payload.inReplyToEmailId = snap.replyToId;
   }
   if (snap.scheduledAt) payload.scheduledAt = snap.scheduledAt;
@@ -19479,7 +19575,8 @@ async function commitQueuedEmailSend(snap) {
           body: snap.compose.body,
           images: snap.compose.images,
           useBrandedTemplate: composeUseBrandedTemplate(snap.compose.useBrandedTemplate),
-          inReplyToEmailId: snap.replyToId,
+          inReplyToEmailId: snap.replyToSentId ? null : snap.replyToId,
+          inReplyToOutboundEmailId: snap.replyToSentId || null,
         }),
       });
       const saveData = await readAdminJson(saveRes, 'Scheduled email');
@@ -19511,7 +19608,8 @@ async function commitQueuedEmailSend(snap) {
           body: snap.compose.body,
           images: snap.compose.images,
           useBrandedTemplate: composeUseBrandedTemplate(snap.compose.useBrandedTemplate),
-          inReplyToEmailId: snap.replyToId,
+          inReplyToEmailId: snap.replyToSentId ? null : snap.replyToId,
+          inReplyToOutboundEmailId: snap.replyToSentId || null,
           scheduledAt: snap.scheduledAt,
         }),
       });
@@ -19783,7 +19881,7 @@ async function writeEmailComposeWithAgent(btn) {
     if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const nextBody = String(data.draft?.body || '').trim();
     if (!nextBody) throw new Error('The agent did not return any copy.');
-    if (data.draft?.subject && !emailState.replyToId) {
+    if (data.draft?.subject && !emailState.replyToId && !emailState.replyToSentId) {
       emailState.compose.subject = String(data.draft.subject);
       if (subjectEl instanceof HTMLInputElement) subjectEl.value = emailState.compose.subject;
     }
@@ -19806,7 +19904,7 @@ async function writeEmailComposeWithAgent(btn) {
 function renderEmailComposePane(pane) {
   const composeTitle = emailState.activeDraftId
     ? 'Continue writing email'
-    : emailState.replyToId
+    : emailState.replyToId || emailState.replyToSentId
       ? emailState.replyMode === 'reply-all'
         ? 'Reply all'
         : 'Reply'
@@ -19859,6 +19957,7 @@ function renderEmailComposePane(pane) {
   toHead.appendChild(toLabel);
   if (
     emailState.replyToId &&
+    !emailState.replyToSentId &&
     emailState.replySourceFull &&
     emailHasReplyAllTargets(emailState.replySourceFull)
   ) {
@@ -20022,11 +20121,13 @@ function renderEmailComposePane(pane) {
 
   const hint = document.createElement('p');
   hint.className = 'em-compose-hint';
-  hint.innerHTML = emailState.replyToId
-    ? emailState.replyMode === 'reply-all'
-      ? 'Reply all includes everyone on the original message except your own addresses. The message is marked handled after send.'
-      : 'Reply is sent in the same thread when the original message ID is available. The message is marked handled after send.'
-    : 'Sent via Resend. From defaults to your outbound address — change only for another verified domain.';
+  hint.innerHTML = emailState.replyToSentId
+    ? 'Follow-up is sent in the same thread when the prior send has a Resend Message-ID. The quoted text below is from your last message.'
+    : emailState.replyToId
+      ? emailState.replyMode === 'reply-all'
+        ? 'Reply all includes everyone on the original message except your own addresses. The message is marked handled after send.'
+        : 'Reply is sent in the same thread when the original message ID is available. The message is marked handled after send.'
+      : 'Sent via Resend. From defaults to your outbound address — change only for another verified domain.';
   hint.appendChild(document.createElement('br'));
   const shortHint = document.createElement('span');
   shortHint.className = 'em-compose-shortcode-hint';
@@ -21210,9 +21311,21 @@ function renderEmailPane() {
         },
         title: sent.subject || '(no subject)',
         icons: [
-          paneShareIcon({
-            label: 'Share sent details',
-            onClick: (btn) => shareChatText(sentShareText(sent), 'assistant', btn),
+          createOverflowMenuBtn({
+            label: 'Sent message actions',
+            className: 'em-message-overflow-btn',
+            getItems: () => [
+              {
+                label: 'Reply',
+                iconKey: 'reply',
+                action: () => void startReplySentEmail(sent),
+              },
+              {
+                label: 'Share',
+                iconKey: 'share',
+                action: () => shareChatText(sentShareText(sent), 'assistant'),
+              },
+            ],
           }),
         ],
       }).root,

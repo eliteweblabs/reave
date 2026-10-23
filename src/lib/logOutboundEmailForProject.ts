@@ -16,6 +16,7 @@ export async function logOutboundEmailForProject(opts: {
   contactUid?: string | null;
   bodyText?: string | null;
   bodyHtml?: string | null;
+  threadReferencesSeed?: string | null;
 }): Promise<void> {
   const toEmail = opts.toEmail.trim();
   if (!toEmail.includes('@')) return;
@@ -71,5 +72,6 @@ export async function logOutboundEmailForProject(opts: {
     source: opts.source,
     bodyText: opts.bodyText,
     bodyHtml: opts.bodyHtml,
+    threadReferencesSeed: opts.threadReferencesSeed,
   });
 }

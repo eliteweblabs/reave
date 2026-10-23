@@ -70,6 +70,12 @@ export async function POST(context: APIContext): Promise<Response> {
         : body.in_reply_to_email_id != null
           ? String(body.in_reply_to_email_id).trim() || null
           : null,
+    inReplyToOutboundEmailId:
+      body.inReplyToOutboundEmailId != null
+        ? String(body.inReplyToOutboundEmailId).trim() || null
+        : body.in_reply_to_outbound_email_id != null
+          ? String(body.in_reply_to_outbound_email_id).trim() || null
+          : null,
     useBrandedTemplate: parseUseBrandedTemplate(
       body.useBrandedTemplate ?? body.use_branded_template ?? body.branded,
     ),

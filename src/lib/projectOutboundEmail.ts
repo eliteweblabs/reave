@@ -11,7 +11,8 @@ import { getPgPool } from './pgPool';
 import { parseSenderEmail } from './emailAddress';
 import { normalizeEmailBody, normalizeSentEmailHtml } from './emailBody';
 import { resendSendBelongsToInstall } from './installOutboundEmail';
-import { listResendSentEmails } from './resendSentEmail';
+import { fetchResendSentEmail, listResendSentEmails } from './resendSentEmail';
+import { normalizeMessageId } from './emailMessageId';
 import { serverEnv } from './serverEnv';
 
 export type ProjectOutboundEmailRecord = {
@@ -27,6 +28,8 @@ export type ProjectOutboundEmailRecord = {
   source: string;
   bodyText?: string | null;
   bodyHtml?: string | null;
+  messageId?: string | null;
+  threadReferences?: string | null;
 };
 
 export type RecordProjectOutboundInput = {
@@ -40,6 +43,7 @@ export type RecordProjectOutboundInput = {
   source?: string;
   bodyText?: string | null;
   bodyHtml?: string | null;
+  threadReferencesSeed?: string | null;
 };
 
 export type OutboundEmailListRecord = ProjectOutboundEmailRecord;
@@ -70,6 +74,8 @@ CREATE INDEX IF NOT EXISTS project_outbound_emails_job_idx
   ON project_outbound_emails (job_slug, sent_at DESC);
 ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS body_text TEXT;
 ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS body_html TEXT;
+ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS message_id TEXT;
+ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS thread_references TEXT;
 `;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -137,6 +143,8 @@ function rowToRecord(row: {
   source: string;
   body_text?: string | null;
   body_html?: string | null;
+  message_id?: string | null;
+  thread_references?: string | null;
 }): ProjectOutboundEmailRecord {
   return {
     id: row.id,
@@ -151,7 +159,78 @@ function rowToRecord(row: {
     source: row.source,
     bodyText: row.body_text ?? null,
     bodyHtml: row.body_html ?? null,
+    messageId: row.message_id?.trim() || null,
+    threadReferences: row.thread_references?.trim() || null,
   };
+}
+
+const OUTBOUND_SELECT_COLS = `id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, body_text, body_html, message_id, thread_references`;
+
+function mergeThreadReferences(seed: string | null | undefined, messageId: string): string {
+  const mid = normalizeMessageId(messageId);
+  if (!mid) return String(seed || '').trim();
+  const base = String(seed || '').trim();
+  if (!base) return mid;
+  if (base.includes(mid)) return base;
+  return `${base} ${mid}`.trim();
+}
+
+/** Fetch Resend Message-ID and extend thread_references for follow-up replies. */
+export async function backfillOutboundEmailMessageId(resendId: string): Promise<void> {
+  const key = resendId.trim();
+  if (!key) return;
+  const fetched = await fetchResendSentEmail(key);
+  const messageId = normalizeMessageId(fetched?.messageId ?? '');
+  if (!messageId) return;
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rows } = await pool.query<{ thread_references: string | null }>(
+        `SELECT thread_references FROM project_outbound_emails WHERE resend_id = $1 LIMIT 1`,
+        [key],
+      );
+      const seed = rows[0]?.thread_references?.trim() || '';
+      const threadReferences = mergeThreadReferences(seed, messageId);
+      await pool.query(
+        `UPDATE project_outbound_emails
+         SET message_id = $2, thread_references = $3
+         WHERE resend_id = $1`,
+        [key, messageId, threadReferences || null],
+      );
+      return;
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] pg message_id backfill failed', e);
+  }
+
+  try {
+    const rows = readFileRows();
+    const idx = rows.findIndex((r) => r.resendId === key);
+    if (idx === -1) return;
+    const seed = rows[idx]!.threadReferences?.trim() || '';
+    rows[idx] = {
+      ...rows[idx]!,
+      messageId,
+      threadReferences: mergeThreadReferences(seed, messageId),
+    };
+    writeFileRows(rows);
+  } catch (e) {
+    console.warn('[project-outbound-email] file message_id backfill failed', e);
+  }
+}
+
+export async function ensureOutboundMessageId(
+  record: ProjectOutboundEmailRecord,
+): Promise<ProjectOutboundEmailRecord> {
+  const existing = normalizeMessageId(record.messageId ?? '');
+  if (existing) return { ...record, messageId: existing };
+  if (record.resendId) {
+    await backfillOutboundEmailMessageId(record.resendId);
+    const refreshed = await getOutboundEmail(record.id);
+    if (refreshed?.messageId) return refreshed;
+  }
+  return record;
 }
 
 /** Fire-and-forget — never throws to callers. */
@@ -174,6 +253,7 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
     source: input.source?.trim() || 'unknown',
     bodyText: bodies.bodyText,
     bodyHtml: bodies.bodyHtml,
+    threadReferences: input.threadReferencesSeed?.trim() || null,
   };
 
   try {
@@ -181,8 +261,8 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
     if (pool) {
       await pool.query(
         `INSERT INTO project_outbound_emails
-          (id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_by, source, body_text, body_html)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          (id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_by, source, body_text, body_html, thread_references)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           record.id,
           record.jobSlug,
@@ -195,8 +275,10 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
           record.source,
           record.bodyText,
           record.bodyHtml,
+          record.threadReferences,
         ],
       );
+      if (record.resendId) void backfillOutboundEmailMessageId(record.resendId);
       return;
     }
   } catch (e) {
@@ -206,6 +288,7 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
   try {
     const rows = [record, ...readFileRows()].slice(0, MAX_FILE_ROWS);
     writeFileRows(rows);
+    if (record.resendId) void backfillOutboundEmailMessageId(record.resendId);
   } catch (e) {
     console.warn('[project-outbound-email] file insert failed', e);
   }
@@ -356,7 +439,7 @@ export async function getOutboundEmailByResendId(resendId: string): Promise<Proj
         body_text: string | null;
         body_html: string | null;
       }>(
-        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, body_text, body_html
+        `SELECT ${OUTBOUND_SELECT_COLS}
          FROM project_outbound_emails
          WHERE resend_id = $1
          LIMIT 1`,
@@ -392,7 +475,7 @@ export async function getOutboundEmail(id: string): Promise<ProjectOutboundEmail
         body_text: string | null;
         body_html: string | null;
       }>(
-        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, body_text, body_html
+        `SELECT ${OUTBOUND_SELECT_COLS}
          FROM project_outbound_emails
          WHERE id = $1
          LIMIT 1`,

@@ -16,6 +16,7 @@ export type ResendSentEmailContent = {
   from?: string;
   to?: string;
   createdAt?: string;
+  messageId?: string;
 };
 
 export type ResendSentListItem = {
@@ -130,6 +131,12 @@ export async function fetchResendSentEmail(resendId: string): Promise<ResendSent
         : typeof rec.createdAt === 'string'
           ? rec.createdAt
           : undefined;
+    const messageId =
+      typeof rec.message_id === 'string'
+        ? rec.message_id
+        : typeof rec.messageId === 'string'
+          ? rec.messageId
+          : undefined;
     return {
       html: typeof rec.html === 'string' ? rec.html : undefined,
       text: typeof rec.text === 'string' ? rec.text : undefined,
@@ -137,6 +144,7 @@ export async function fetchResendSentEmail(resendId: string): Promise<ResendSent
       from: typeof rec.from === 'string' ? rec.from : undefined,
       to,
       createdAt: created,
+      messageId,
     };
   } catch {
     return null;

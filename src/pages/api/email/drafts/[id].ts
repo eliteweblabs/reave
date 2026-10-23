@@ -58,6 +58,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     body?: string;
     images?: ReturnType<typeof normalizeEmailComposeImages>;
     inReplyToEmailId?: string | null;
+    inReplyToOutboundEmailId?: string | null;
     useBrandedTemplate?: boolean;
   } = {};
 
@@ -72,6 +73,11 @@ export async function PATCH(context: APIContext): Promise<Response> {
     patch.inReplyToEmailId = String(body.inReplyToEmailId).trim() || null;
   } else if (body.in_reply_to_email_id !== undefined) {
     patch.inReplyToEmailId = String(body.in_reply_to_email_id).trim() || null;
+  }
+  if (body.inReplyToOutboundEmailId !== undefined) {
+    patch.inReplyToOutboundEmailId = String(body.inReplyToOutboundEmailId).trim() || null;
+  } else if (body.in_reply_to_outbound_email_id !== undefined) {
+    patch.inReplyToOutboundEmailId = String(body.in_reply_to_outbound_email_id).trim() || null;
   }
   if (body.useBrandedTemplate !== undefined || body.use_branded_template !== undefined || body.branded !== undefined) {
     patch.useBrandedTemplate = parseUseBrandedTemplate(

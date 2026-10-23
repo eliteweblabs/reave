@@ -50,6 +50,28 @@ export function buildReplyEmailHeaders(
   };
 }
 
+/** Reply to a prior outbound send (stored thread_references includes the parent Message-ID). */
+export function buildReplyEmailHeadersForOutboundParent(
+  parentMessageId: string,
+  threadReferences?: string | null,
+): Record<string, string> | undefined {
+  const msgId = normalizeMessageId(parentMessageId);
+  if (!msgId) return undefined;
+  const refs = String(threadReferences || '').trim();
+  return {
+    'In-Reply-To': msgId,
+    References: refs || msgId,
+  };
+}
+
+export function outboundThreadReferencesSeed(headers?: Record<string, string>): string {
+  if (!headers) return '';
+  const refs = headerValue(headers, 'references');
+  const inReplyTo = headerValue(headers, 'in-reply-to');
+  if (refs && inReplyTo && !refs.includes(inReplyTo)) return `${refs} ${inReplyTo}`.trim();
+  return refs || inReplyTo || '';
+}
+
 export function formatQuotedReplyBody(opts: {
   from: string;
   receivedAt: string;

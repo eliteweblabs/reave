@@ -13,7 +13,9 @@ import {
   subjectRelatesToOutbound,
 } from '../src/lib/emailProjectReply.ts';
 import {
+  buildReplyEmailHeadersForOutboundParent,
   formatQuotedReplyHtml,
+  outboundThreadReferencesSeed,
   quotedReplyHtmlFromText,
   splitQuotedReplyBody,
 } from '../src/lib/emailReply.ts';
@@ -95,5 +97,14 @@ const originalHtml = formatQuotedReplyHtml({
 assert.match(originalHtml, /<strong>Hi T,<\/strong>/);
 assert.match(originalHtml, /support@stripe\.com wrote:/);
 assert.doesNotMatch(originalHtml, /<html/);
+
+const outboundHeaders = buildReplyEmailHeadersForOutboundParent('<parent@example.com>', '<a@x> <b@y>');
+assert.equal(outboundHeaders?.['In-Reply-To'], '<parent@example.com>');
+assert.equal(outboundHeaders?.References, '<a@x> <b@y>');
+
+assert.equal(
+  outboundThreadReferencesSeed({ References: '<a@x>', 'In-Reply-To': '<b@y>' }),
+  '<a@x> <b@y>',
+);
 
 console.log('email-reply checks passed');
