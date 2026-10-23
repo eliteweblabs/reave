@@ -9,6 +9,7 @@ import { buildCompanyContactVCard } from '../lib/carddav/vcard';
 import { companyStaffAvatarUrl, getCompanyConfig } from '../lib/companyConfig';
 import {
   cardContactDisplayName,
+  parseCardNameParams,
   parseCardUserParam,
   resolveCardSubject,
 } from '../lib/cardSubject';
@@ -28,7 +29,12 @@ export const GET: APIRoute = async (context) => {
   const { request } = context;
   const org = await getCompanyConfig(request);
   const cardUserParam = parseCardUserParam(context.url.searchParams.get('user'));
-  const cardSubject = await resolveCardSubject(context, cardUserParam);
+  const cardNameParams = parseCardNameParams(context.url.searchParams);
+  const cardSubject = await resolveCardSubject(context, {
+    userIdParam: cardUserParam,
+    firstNameParam: cardNameParams?.first ?? null,
+    lastNameParam: cardNameParams?.last ?? null,
+  });
   const person = cardSubject.profile;
 
   const orgName = org.legalName?.trim() || org.name?.trim() || 'Contact';

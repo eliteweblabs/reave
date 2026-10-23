@@ -26,7 +26,9 @@ import { getPageSeoOverride } from '../lib/pageSeo';
 import { getStoredCompanyConfig } from '../lib/companyConfigStore';
 import {
   cardContactDisplayName,
+  cardPathForStaffNames,
   cardPathForUserId,
+  parseCardNameParams,
   parseCardUserParam,
   resolveCardSubject,
 } from '../lib/cardSubject';
@@ -46,7 +48,12 @@ const company = await getCompanyConfig(Astro.request);
 
 const companyName = company.name?.trim() || 'Contact';
 const cardUserParam = parseCardUserParam(Astro.url.searchParams.get('user'));
-const cardSubject = await resolveCardSubject(Astro, cardUserParam);
+const cardNameParams = parseCardNameParams(Astro.url.searchParams);
+const cardSubject = await resolveCardSubject(Astro, {
+  userIdParam: cardUserParam,
+  firstNameParam: cardNameParams?.first ?? null,
+  lastNameParam: cardNameParams?.last ?? null,
+});
 const contactProfile = cardSubject.profile;
 const contactName = cardContactDisplayName(contactProfile, companyName);
 const displayName = cardSubject.isPrimary ? companyName : contactName;
@@ -104,9 +111,13 @@ const appleDirectionsHref = directionsDest ? appleMapsDirectionsUrl(directionsDe
 const googleDirectionsHref = directionsDest ? mapsDirectionsUrl(directionsDest) : '';
 
 const vcardLabel = `Add ${contactName}`;
-const vcardHref = cardSubject.userId && !cardSubject.isPrimary
-  ? `/contact.vcf?user=${encodeURIComponent(cardSubject.userId)}`
-  : '/contact.vcf';
+const vcardHref = cardSubject.isPrimary
+  ? '/contact.vcf'
+  : cardNameParams
+    ? `/contact.vcf?first=${encodeURIComponent(cardNameParams.first)}&last=${encodeURIComponent(cardNameParams.last)}`
+    : cardSubject.userId
+      ? `/contact.vcf?user=${encodeURIComponent(cardSubject.userId)}`
+      : '/contact.vcf';
 const pageSeo = getPageSeoOverride(company.pageSeoOverrides, '/card');
 const pwaTitle = formatPwaAppTitle(displayName);
 const pageTitle = pageSeo?.title?.trim()
@@ -128,7 +139,11 @@ const description =
       ? `Call, text, or save ${contactName} at ${companyName} to contacts.`
       : `Call or save ${contactName} at ${companyName} to contacts.`);
 const origin = requestOrigin(Astro.request);
-const cardPath = cardPathForUserId(cardSubject.isPrimary ? null : cardSubject.userId);
+const cardPath = cardSubject.isPrimary
+  ? '/card'
+  : cardNameParams
+    ? cardPathForStaffNames(cardNameParams.first, cardNameParams.last)
+    : cardPathForUserId(cardSubject.userId);
 const canonicalBase = company.domain
   ? `https://${company.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
   : origin.replace(/\/+$/, '');

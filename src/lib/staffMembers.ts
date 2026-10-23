@@ -13,6 +13,8 @@ export type StaffStatus = 'invited' | 'active' | 'revoked';
 export type StaffMember = {
   id: string;
   email: string;
+  firstName: string;
+  lastName: string;
   userId: string | null;
   status: StaffStatus;
   invitationId: string | null;
@@ -37,6 +39,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS staff_members_email_uidx
 CREATE INDEX IF NOT EXISTS staff_members_user_id_idx
   ON staff_members (user_id)
   WHERE user_id IS NOT NULL;
+ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS first_name TEXT;
+ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS last_name TEXT;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -51,6 +55,16 @@ function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
+export function normalizeStaffNamePart(raw: string | null | undefined): string {
+  return String(raw ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeStaffNameKey(raw: string): string {
+  return normalizeStaffNamePart(raw).toLowerCase();
+}
+
 function newId(): string {
   return `staff_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -59,6 +73,8 @@ function rowFromPg(r: Record<string, unknown>): StaffMember {
   return {
     id: String(r.id),
     email: String(r.email),
+    firstName: r.first_name ? String(r.first_name) : '',
+    lastName: r.last_name ? String(r.last_name) : '',
     userId: r.user_id ? String(r.user_id) : null,
     status: (r.status as StaffStatus) || 'invited',
     invitationId: r.invitation_id ? String(r.invitation_id) : null,
@@ -81,6 +97,8 @@ function parseFileMembers(raw: unknown): StaffMember[] {
     out.push({
       id: typeof o.id === 'string' && o.id.trim() ? o.id.trim() : newId(),
       email,
+      firstName: typeof o.firstName === 'string' ? normalizeStaffNamePart(o.firstName) : '',
+      lastName: typeof o.lastName === 'string' ? normalizeStaffNamePart(o.lastName) : '',
       userId: typeof o.userId === 'string' && o.userId.trim() ? o.userId.trim() : null,
       status,
       invitationId:
@@ -177,16 +195,37 @@ export async function getStaffByEmail(email: string): Promise<StaffMember | null
   return readFileStore().find((m) => m.email === normalized) ?? null;
 }
 
+export async function getStaffByName(
+  firstName: string,
+  lastName: string,
+): Promise<StaffMember | null> {
+  const firstKey = normalizeStaffNameKey(firstName);
+  const lastKey = normalizeStaffNameKey(lastName);
+  if (!firstKey || !lastKey) return null;
+  const members = await listStaffMembers({ includeRevoked: false });
+  return (
+    members.find(
+      (m) =>
+        normalizeStaffNameKey(m.firstName) === firstKey &&
+        normalizeStaffNameKey(m.lastName) === lastKey,
+    ) ?? null
+  );
+}
+
 export async function upsertStaffInvite(input: {
   email: string;
   invitedBy: string;
   invitationId?: string | null;
   userId?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
 }): Promise<StaffMember> {
   const email = normalizeEmail(input.email);
   if (!email || !email.includes('@')) {
     throw new Error('Valid email required');
   }
+  const firstName = input.firstName != null ? normalizeStaffNamePart(input.firstName) : undefined;
+  const lastName = input.lastName != null ? normalizeStaffNamePart(input.lastName) : undefined;
   const now = new Date().toISOString();
   const existing = await getStaffByEmail(email);
   const status: StaffStatus = input.userId ? 'active' : 'invited';
@@ -200,19 +239,38 @@ export async function upsertStaffInvite(input: {
              user_id = COALESCE($3, user_id),
              invitation_id = COALESCE($4, invitation_id),
              invited_by = $5,
+             first_name = COALESCE($6, first_name),
+             last_name = COALESCE($7, last_name),
              updated_at = NOW()
          WHERE id = $1
          RETURNING *`,
-        [existing.id, status, input.userId ?? null, input.invitationId ?? null, input.invitedBy],
+        [
+          existing.id,
+          status,
+          input.userId ?? null,
+          input.invitationId ?? null,
+          input.invitedBy,
+          firstName ?? null,
+          lastName ?? null,
+        ],
       );
       return rowFromPg(res.rows[0] as Record<string, unknown>);
     }
     const id = newId();
     const res = await pool.query(
-      `INSERT INTO staff_members (id, email, user_id, status, invitation_id, invited_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO staff_members (id, email, first_name, last_name, user_id, status, invitation_id, invited_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [id, email, input.userId ?? null, status, input.invitationId ?? null, input.invitedBy],
+      [
+        id,
+        email,
+        firstName ?? '',
+        lastName ?? '',
+        input.userId ?? null,
+        status,
+        input.invitationId ?? null,
+        input.invitedBy,
+      ],
     );
     return rowFromPg(res.rows[0] as Record<string, unknown>);
   }
@@ -225,6 +283,8 @@ export async function upsertStaffInvite(input: {
       userId: input.userId ?? existing.userId,
       invitationId: input.invitationId ?? existing.invitationId,
       invitedBy: input.invitedBy,
+      firstName: firstName ?? existing.firstName,
+      lastName: lastName ?? existing.lastName,
       updatedAt: now,
     };
     writeFileStore(members.map((m) => (m.id === existing.id ? next : m)));
@@ -233,6 +293,8 @@ export async function upsertStaffInvite(input: {
   const created: StaffMember = {
     id: newId(),
     email,
+    firstName: firstName ?? '',
+    lastName: lastName ?? '',
     userId: input.userId ?? null,
     status,
     invitationId: input.invitationId ?? null,

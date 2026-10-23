@@ -14,6 +14,8 @@ assert.match(cardPage, /parseCardUserParam/);
 assert.match(cardPage, /vcardHref/);
 assert.match(vcf, /resolveCardSubject/);
 assert.match(lib, /cardPathForUserId/);
+assert.match(lib, /cardPathForStaffNames/);
+assert.match(cardPage, /parseCardNameParams/);
 assert.match(teamApi, /cardPath/);
 assert.match(loader, /team-card-link/);
 

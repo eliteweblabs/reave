@@ -1634,6 +1634,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.team-member-meta {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  opacity: 0.72;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .team-member-status {
   font-size: 0.75rem;
   opacity: 0.7;

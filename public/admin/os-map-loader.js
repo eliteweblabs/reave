@@ -11000,7 +11000,10 @@ function renderTeamPanel(payload) {
           (m) =>
             `<li class="team-member-row" data-team-id="${escHtml(m.id)}">` +
             `<div class="team-member-main">` +
-            `<span class="team-member-email">${escHtml(m.email)}</span>` +
+            `<span class="team-member-email">${escHtml([m.firstName, m.lastName].filter(Boolean).join(' ') || m.email)}</span>` +
+            (m.firstName && m.lastName && m.email
+              ? `<span class="team-member-meta">${escHtml(m.email)}</span>`
+              : '') +
             `<span class="team-member-status team-member-status--${escHtml(m.status || 'invited')}">${escHtml(teamStatusLabel(m.status))}</span>` +
             `</div>` +
             `<div class="team-member-actions">` +
@@ -11019,17 +11022,23 @@ function renderTeamPanel(payload) {
         `<div class="team-card-callout">` +
           `<span class="team-card-callout-label">Owner NFC card</span>` +
           `<a class="team-card-link" href="${escHtml(primaryCardPath)}" target="_blank" rel="noopener noreferrer">${escHtml(primaryCardPath)}</a>` +
-          `<span class="prof-hint">Program the owner chip to this URL. Active staff get their own link once they accept the invite. Each person controls Call vs Text under Profile → mobile number.</span>` +
+          `<span class="prof-hint">Program the owner chip to this URL. Staff cards use <code>/card?first=…&amp;last=…</code> — set names on invite so you can program NFC before they sign in. Each person controls Call vs Text under Profile → mobile number.</span>` +
         `</div>` +
         `<div id="team-alert" class="prof-alert" hidden></div>` +
         `<form id="team-invite-form" class="prof-form">` +
+          `<div class="prof-field-row">` +
+            `<div class="prof-field"><label for="team-invite-first">First name</label>` +
+            `<input id="team-invite-first" name="firstName" type="text" required autocomplete="given-name" placeholder="Kathy" /></div>` +
+            `<div class="prof-field"><label for="team-invite-last">Last name</label>` +
+            `<input id="team-invite-last" name="lastName" type="text" required autocomplete="family-name" placeholder="Leahy" /></div>` +
+          `</div>` +
           `<div class="prof-field">` +
             `<label for="team-invite-email">Email</label>` +
             `<div class="team-invite-row">` +
               `<input id="team-invite-email" name="email" type="email" required placeholder="name@company.com" autocomplete="email" />` +
               `<button type="submit" class="prof-btn-primary" id="team-invite-btn">Invite</button>` +
             `</div>` +
-            `<span class="prof-hint">They get a Clerk invite and can open /admin after accepting. You stay the install owner.</span>` +
+            `<span class="prof-hint">NFC card URL is <code>/card?first=First&amp;last=Last</code> as soon as you invite. They get Clerk access to /admin when they accept. You stay the install owner.</span>` +
           `</div>` +
         `</form>` +
         `<h2 class="prof-section-title">Staff</h2>` +
@@ -11046,15 +11055,18 @@ function bindTeamPanel(root) {
 
   form?.addEventListener('submit', async (ev) => {
     ev.preventDefault();
-    const email = String(new FormData(form).get('email') || '').trim();
-    if (!email) return;
+    const data = new FormData(form);
+    const email = String(data.get('email') || '').trim();
+    const firstName = String(data.get('firstName') || '').trim();
+    const lastName = String(data.get('lastName') || '').trim();
+    if (!email || !firstName || !lastName) return;
     const btn = root.querySelector('#team-invite-btn');
     if (btn) btn.disabled = true;
     try {
       const res = await fetch('/api/admin/team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, firstName, lastName }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);

@@ -9,7 +9,7 @@ import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { requestOrigin } from '../../../../lib/requestOrigin';
 import { deliverStaffInvite } from '../../../../lib/staffInvite';
-import { cardPathForUserId } from '../../../../lib/cardSubject';
+import { cardPathForStaffMember } from '../../../../lib/cardSubject';
 import { agentAlertUserId } from '../../../../lib/adminAgentAlert';
 import {
   listStaffMembers,
@@ -44,8 +44,9 @@ export async function GET(context: APIContext): Promise<Response> {
       status: m.status,
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
-      cardPath:
-        m.status === 'active' && m.userId ? cardPathForUserId(m.userId) : null,
+      cardPath: cardPathForStaffMember(m),
+      firstName: m.firstName,
+      lastName: m.lastName,
     })),
   });
 }
@@ -66,6 +67,11 @@ export async function POST(context: APIContext): Promise<Response> {
     .toLowerCase();
   if (!email || !email.includes('@')) {
     return jsonResponse({ ok: false, error: 'Valid email required' }, 400);
+  }
+  const firstName = String(body.firstName ?? body.first_name ?? '').trim();
+  const lastName = String(body.lastName ?? body.last_name ?? '').trim();
+  if (!firstName || !lastName) {
+    return jsonResponse({ ok: false, error: 'First and last name required for staff NFC card URL.' }, 400);
   }
 
   const company = await getCompanyConfig(context.request);
@@ -93,6 +99,8 @@ export async function POST(context: APIContext): Promise<Response> {
     invitedBy: auth.userId,
     invitationId,
     userId: existingUserId,
+    firstName,
+    lastName,
   });
 
   let message: string | undefined;
@@ -113,6 +121,9 @@ export async function POST(context: APIContext): Promise<Response> {
       status: member.status,
       createdAt: member.createdAt,
       updatedAt: member.updatedAt,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      cardPath: cardPathForStaffMember(member),
     },
     invited: delivery.kind === 'clerk_invitation',
     delivery: delivery.kind,
