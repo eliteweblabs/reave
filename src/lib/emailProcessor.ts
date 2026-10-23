@@ -27,7 +27,6 @@ import { resolveContact, getContact, getClientKind, siteBaseUrl, type ClientKind
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import {
-  archiveEmailInboxPatch,
   storeClaimEmailInboxNotified,
   storeFindExistingInboundEmail,
   storeRecordEmailInbox,
@@ -55,7 +54,6 @@ import {
   notifyAdminAgentOfEmailAlert,
   notifyAdminAgentOfEmailAutomation,
   notifyAdminAgentOfProjectReply,
-  inboundEmailOpensAgentChat,
   isRailwayAlertStatus,
   shouldAgentAlertForInboundEmail,
 } from './adminAgentAlert';
@@ -1708,26 +1706,7 @@ export async function processInboundEmail(
     }
   }
 
-  const opensAgentChat = inboundEmailOpensAgentChat({
-    allowUnmatchedAgent,
-    automationKind,
-    isProjectReply,
-    agentWillAlert: agentWillAlertPreview,
-    isVerificationCode,
-    isAuthLink,
-    action,
-  });
-  if (opensAgentChat && !hardDelete) {
-    const archivePatch = archiveEmailInboxPatch(category);
-    action = archivePatch.action ?? 'filed';
-    inboxStatus = archivePatch.status ?? 'FILED';
-    if (archivePatch.category) category = archivePatch.category as EmailCategory;
-    pushAudit(
-      'agent',
-      'Auto-archived — agent chat has full message',
-      'Filed to Archive so All/Alerts do not need a second pass after System alerts',
-    );
-  } else if (
+  if (
     !hardDelete &&
     !isVerificationCode &&
     !isAuthLink &&
