@@ -7,6 +7,7 @@ import {
 } from '../../../lib/userEmailSignature';
 import { parseFormBool, parseMetaBool } from '../../../lib/metaBool';
 import { jsonResponse } from '../../../lib/apiResponse';
+import { ensureFeatureOverridesLoaded, hasEmailInbox } from '../../../lib/features';
 
 export const prerender = false;
 
@@ -17,6 +18,8 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   try {
+    await ensureFeatureOverridesLoaded();
+    const inboxOn = hasEmailInbox();
     const client = clerkClient(context);
     const user = await client.users.getUser(userId);
     const meta = (user.publicMetadata ?? {}) as Record<string, string>;
@@ -30,7 +33,7 @@ export async function GET(context: APIContext): Promise<Response> {
         cardPhoneMobile: parseMetaBool(meta.cardPhoneMobile, true),
         timezone: meta.timezone ?? "",
         address: meta.address ?? "",
-        emailSignature: meta.emailSignature ?? "",
+        ...(inboxOn ? { emailSignature: meta.emailSignature ?? "" } : {}),
       },
     });
   } catch (err) {
@@ -59,15 +62,20 @@ export async function POST(context: APIContext): Promise<Response> {
     'cardPhoneMobile' in body ? parseFormBool(body.cardPhoneMobile) : undefined;
 
   try {
+    await ensureFeatureOverridesLoaded();
+    const inboxOn = hasEmailInbox();
     const client = clerkClient(context);
     const user = await client.users.getUser(userId);
     const existing = (user.publicMetadata ?? {}) as Record<string, string>;
 
-    const signatureRaw = emailSignature ?? '';
-    const signatureStored =
-      signatureRaw && isHtmlSignature(signatureRaw)
-        ? sanitizeSignatureHtml(signatureRaw)
-        : signatureRaw;
+    let signatureStored: string | undefined;
+    if (inboxOn && emailSignature !== undefined) {
+      const signatureRaw = emailSignature ?? '';
+      signatureStored =
+        signatureRaw && isHtmlSignature(signatureRaw)
+          ? sanitizeSignatureHtml(signatureRaw)
+          : signatureRaw;
+    }
 
     await client.users.updateUser(userId, {
       firstName: firstName ?? undefined,
@@ -78,7 +86,7 @@ export async function POST(context: APIContext): Promise<Response> {
         ...(cardPhoneMobile !== undefined ? { cardPhoneMobile } : {}),
         timezone: timezone ?? "",
         address: address ?? "",
-        emailSignature: signatureStored,
+        ...(signatureStored !== undefined ? { emailSignature: signatureStored } : {}),
       },
     });
 

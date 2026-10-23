@@ -1035,6 +1035,11 @@ export function emailInboxEnabled() {
   return hasInstallFeature('email_inbox');
 }
 
+/** Profile email signature + admin compose — same gate as Inbox Triage (`email_inbox`). */
+export function agenticEmailEnabled() {
+  return emailInboxEnabled();
+}
+
 /** Cal.com schedule tab and footer schedule icon. */
 export function schedulingEnabled() {
   return hasInstallFeature('scheduling');
