@@ -5,12 +5,10 @@
  */
 import type { APIContext } from 'astro';
 import { jsonResponse } from '../../../../lib/apiResponse';
-import {
-  clerkCreateInvitation,
-  clerkListUsers,
-} from '../../../../lib/clerkClient';
 import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
+import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { requestOrigin } from '../../../../lib/requestOrigin';
+import { deliverStaffInvite } from '../../../../lib/staffInvite';
 import { cardPathForUserId } from '../../../../lib/cardSubject';
 import { agentAlertUserId } from '../../../../lib/adminAgentAlert';
 import {
@@ -70,37 +68,24 @@ export async function POST(context: APIContext): Promise<Response> {
     return jsonResponse({ ok: false, error: 'Valid email required' }, 400);
   }
 
-  // If they already have a Clerk user on this install, activate immediately.
-  let existingUserId: string | null = null;
-  const listed = await clerkListUsers({ query: email, limit: 20 });
-  if (listed.ok && listed.users) {
-    for (const user of listed.users) {
-      const emails = (user.email_addresses || [])
-        .map((e) => String(e.email_address || '').trim().toLowerCase())
-        .filter(Boolean);
-      if (emails.includes(email)) {
-        existingUserId = String(user.id);
-        break;
-      }
-    }
+  const company = await getCompanyConfig(context.request);
+  const delivered = await deliverStaffInvite({
+    email,
+    redirectUrl: inviteRedirectUrl(context.request),
+    companyName: company.name,
+  });
+  if (!delivered.ok) {
+    return jsonResponse({ ok: false, error: delivered.error }, 400);
   }
 
+  const delivery = delivered.delivery;
   let invitationId: string | null = null;
-  if (!existingUserId) {
-    const invited = await clerkCreateInvitation({
-      email_address: email,
-      redirect_url: inviteRedirectUrl(context.request),
-      public_metadata: { role: 'staff' },
-      notify: true,
-      ignore_existing: true,
-    });
-    if (!invited.ok) {
-      return jsonResponse(
-        { ok: false, error: invited.error || 'Could not send invitation' },
-        400,
-      );
-    }
-    invitationId = invited.invitation?.id || null;
+  let existingUserId: string | null = delivered.existingUserId ?? null;
+
+  if (delivery.kind === 'clerk_invitation') {
+    invitationId = delivery.invitationId;
+  } else if (delivery.kind === 'provisioned_user') {
+    existingUserId = delivery.userId;
   }
 
   const member = await upsertStaffInvite({
@@ -109,6 +94,15 @@ export async function POST(context: APIContext): Promise<Response> {
     invitationId,
     userId: existingUserId,
   });
+
+  let message: string | undefined;
+  if (delivery.kind === 'provisioned_user') {
+    message = delivery.emailSent
+      ? `Added ${email} and sent a sign-in link by email.`
+      : `Added ${email} in Clerk. Have them sign in at /admin/login (enable RESEND_FROM to email them automatically).`;
+  } else if (delivery.kind === 'roster_only') {
+    message = delivery.notice;
+  }
 
   return jsonResponse({
     ok: true,
@@ -120,6 +114,8 @@ export async function POST(context: APIContext): Promise<Response> {
       createdAt: member.createdAt,
       updatedAt: member.updatedAt,
     },
-    invited: !existingUserId,
-  }, existingUserId ? 200 : 201);
+    invited: delivery.kind === 'clerk_invitation',
+    delivery: delivery.kind,
+    message,
+  }, existingUserId && delivery.kind !== 'clerk_invitation' ? 200 : 201);
 }

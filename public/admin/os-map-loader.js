@@ -11058,11 +11058,10 @@ function bindTeamPanel(root) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      showProfileAlert(
-        alertEl,
-        json.invited ? `Invite sent to ${email}.` : `${email} is active staff.`,
-        'success',
-      );
+      const successMsg =
+        json.message ||
+        (json.invited ? `Invite sent to ${email}.` : `${email} is active staff.`);
+      showProfileAlert(alertEl, successMsg, json.delivery === 'roster_only' ? 'error' : 'success');
       form.reset();
       await loadTeamTab({ quiet: true });
     } catch (e) {
