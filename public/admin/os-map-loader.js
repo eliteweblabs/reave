@@ -10920,10 +10920,20 @@ function teamStatusLabel(status) {
   return status || '—';
 }
 
-function renderTeamPanel(members) {
-  const list = Array.isArray(members) ? members : [];
-  const rows = list.length
-    ? list
+function teamCardLinkHtml(cardPath) {
+  if (!cardPath) return '';
+  const href = escHtml(cardPath);
+  return (
+    `<a class="team-card-link" href="${href}" target="_blank" rel="noopener noreferrer">NFC card</a>` +
+    `<button type="button" class="prof-btn-secondary team-card-copy-btn" data-card-path="${href}">Copy link</button>`
+  );
+}
+
+function renderTeamPanel(payload) {
+  const members = Array.isArray(payload?.members) ? payload.members : Array.isArray(payload) ? payload : [];
+  const primaryCardPath = payload?.primaryCardPath || '/card';
+  const rows = members.length
+    ? members
         .map(
           (m) =>
             `<li class="team-member-row" data-team-id="${escHtml(m.id)}">` +
@@ -10931,7 +10941,10 @@ function renderTeamPanel(members) {
             `<span class="team-member-email">${escHtml(m.email)}</span>` +
             `<span class="team-member-status team-member-status--${escHtml(m.status || 'invited')}">${escHtml(teamStatusLabel(m.status))}</span>` +
             `</div>` +
+            `<div class="team-member-actions">` +
+            teamCardLinkHtml(m.cardPath) +
             `<button type="button" class="prof-btn-secondary team-revoke-btn" data-team-id="${escHtml(m.id)}">Remove</button>` +
+            `</div>` +
             `</li>`,
         )
         .join('')
@@ -10941,6 +10954,11 @@ function renderTeamPanel(members) {
       `<div class="prof-card">` +
         `<h1 class="prof-title">Team</h1>` +
         `<p class="prof-subtitle">Invite staff to the admin OS. Module access follows reave.app catalog settings (Owner + staff / Staff only / Owner only).</p>` +
+        `<div class="team-card-callout">` +
+          `<span class="team-card-callout-label">Owner NFC card</span>` +
+          `<a class="team-card-link" href="${escHtml(primaryCardPath)}" target="_blank" rel="noopener noreferrer">${escHtml(primaryCardPath)}</a>` +
+          `<span class="prof-hint">Program the owner chip to this URL. Active staff get their own link once they accept the invite.</span>` +
+        `</div>` +
         `<div id="team-alert" class="prof-alert" hidden></div>` +
         `<form id="team-invite-form" class="prof-form">` +
           `<div class="prof-field">` +
@@ -10993,6 +11011,19 @@ function bindTeamPanel(root) {
   });
 
   listEl?.addEventListener('click', async (ev) => {
+    const copyBtn = ev.target?.closest?.('.team-card-copy-btn');
+    if (copyBtn) {
+      const path = copyBtn.getAttribute('data-card-path') || '';
+      if (!path) return;
+      const url = `${window.location.origin}${path.startsWith('/') ? path : `/${path}`}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        showProfileAlert(alertEl, 'Card link copied.', 'success');
+      } catch {
+        showProfileAlert(alertEl, url, 'success');
+      }
+      return;
+    }
     const btn = ev.target?.closest?.('.team-revoke-btn');
     if (!btn) return;
     const id = btn.getAttribute('data-team-id');
@@ -11027,7 +11058,7 @@ async function loadTeamTab(opts = {}) {
     const res = await fetch('/api/admin/team', { cache: 'no-store' });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    root.innerHTML = renderTeamPanel(data.members);
+    root.innerHTML = renderTeamPanel(data);
     prependSettingsBackHeader(root);
     bindTeamPanel(root);
   } catch (e) {

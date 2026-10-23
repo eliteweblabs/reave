@@ -7,7 +7,11 @@
 import type { APIRoute } from 'astro';
 import { buildCompanyContactVCard } from '../lib/carddav/vcard';
 import { companyStaffAvatarUrl, getCompanyConfig } from '../lib/companyConfig';
-import { getDeploymentOwnerProfile } from '../lib/deploymentOwner';
+import {
+  cardContactDisplayName,
+  parseCardUserParam,
+  resolveCardSubject,
+} from '../lib/cardSubject';
 import { siteBaseUrl } from '../lib/requestOrigin';
 
 export const prerender = false;
@@ -22,15 +26,22 @@ function absoluteAssetUrl(request: Request, path: string): string {
 
 export const GET: APIRoute = async (context) => {
   const { request } = context;
-  const [org, owner] = await Promise.all([
-    getCompanyConfig(request),
-    getDeploymentOwnerProfile(context),
-  ]);
+  const org = await getCompanyConfig(request);
+  const cardUserParam = parseCardUserParam(context.url.searchParams.get('user'));
+  const cardSubject = await resolveCardSubject(context, cardUserParam);
+  const person = cardSubject.profile;
 
   const orgName = org.legalName?.trim() || org.name?.trim() || 'Contact';
   const displayName = org.name?.trim() || orgName;
-  const phone = org.supportPhone?.trim() || owner?.phone || '';
-  const email = org.supportEmail?.trim() || owner?.email || '';
+  const contactName = cardContactDisplayName(person, displayName);
+  const phone =
+    person?.phone?.trim() ||
+    org.supportPhone?.trim() ||
+    '';
+  const email =
+    person?.email?.trim() ||
+    org.supportEmail?.trim() ||
+    '';
   const website = org.domain
     ? `https://${org.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
     : '';
@@ -38,19 +49,20 @@ export const GET: APIRoute = async (context) => {
   const photoUrl = absoluteAssetUrl(request, companyStaffAvatarUrl(org));
 
   const body = buildCompanyContactVCard({
-    firstName: owner?.firstName || '',
-    lastName: owner?.lastName || '',
-    fullName: owner?.fullName || displayName,
+    firstName: person?.firstName || '',
+    lastName: person?.lastName || '',
+    fullName: person?.fullName || contactName,
     orgName: orgName,
     phone,
     email,
     website,
-    address: owner?.address?.trim() || org.address?.trim() || '',
+    address: person?.address?.trim() || org.address?.trim() || '',
     photoUrl,
   });
 
   const filenameBase =
-    owner?.fullName?.replace(/[^\w.-]+/g, '_') ||
+    person?.fullName?.replace(/[^\w.-]+/g, '_') ||
+    contactName.replace(/[^\w.-]+/g, '_') ||
     displayName.replace(/[^\w.-]+/g, '_') ||
     'contact';
 

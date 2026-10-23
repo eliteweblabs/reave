@@ -135,7 +135,7 @@ export type DeploymentOwnerProfile = {
   timezone: string;
 };
 
-function profileFromClerkUser(user: {
+export function clerkUserToContactProfile(user: {
   firstName?: string | null;
   lastName?: string | null;
   emailAddresses?: Array<{ emailAddress?: string | null }> | null;
@@ -169,7 +169,7 @@ export async function getDeploymentOwnerProfile(
     if (ownerId) {
       try {
         const user = await client.users.getUser(ownerId);
-        const profile = profileFromClerkUser(user);
+        const profile = clerkUserToContactProfile(user);
         const seeded = ownerProfileFromEnv();
         return {
           ...profile,
@@ -186,7 +186,7 @@ export async function getDeploymentOwnerProfile(
       const batch = await client.users.getUserList({ limit: 100, offset });
       const match = batch.data.find((user) => isDeploymentOwnerUser(user));
       if (match) {
-        const profile = profileFromClerkUser(match);
+        const profile = clerkUserToContactProfile(match);
         const seeded = ownerProfileFromEnv();
         return {
           ...profile,

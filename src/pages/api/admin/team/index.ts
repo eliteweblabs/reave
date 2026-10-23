@@ -11,6 +11,8 @@ import {
 } from '../../../../lib/clerkClient';
 import { requireDeploymentOwner } from '../../../../lib/deploymentOwner';
 import { requestOrigin } from '../../../../lib/requestOrigin';
+import { cardPathForUserId } from '../../../../lib/cardSubject';
+import { agentAlertUserId } from '../../../../lib/adminAgentAlert';
 import {
   listStaffMembers,
   upsertStaffInvite,
@@ -31,8 +33,12 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const members = await listStaffMembers({ includeRevoked: false });
+  const ownerUserId = agentAlertUserId() || null;
   return jsonResponse({
     ok: true,
+    primaryCardPath: '/card',
+    ownerUserId,
+    ownerCardPath: '/card',
     members: members.map((m) => ({
       id: m.id,
       email: m.email,
@@ -40,6 +46,8 @@ export async function GET(context: APIContext): Promise<Response> {
       status: m.status,
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
+      cardPath:
+        m.status === 'active' && m.userId ? cardPathForUserId(m.userId) : null,
     })),
   });
 }

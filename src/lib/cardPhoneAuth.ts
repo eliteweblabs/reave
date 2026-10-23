@@ -4,7 +4,7 @@
  */
 import type { APIContext } from 'astro';
 import { DEFAULT_SUPPORT_PHONE } from './defaultSupportPhone';
-import { getDeploymentOwnerProfile } from './deploymentOwner';
+import { getDeploymentOwnerProfile, type DeploymentOwnerProfile } from './deploymentOwner';
 import { serverEnv } from './serverEnv';
 
 export { cardPhoneLast4, cardPhoneToE164 } from './cardPhoneFormat';
@@ -17,7 +17,10 @@ export { cardPhoneLast4, cardPhoneToE164 } from './cardPhoneFormat';
 export async function resolveCardPhoneRaw(
   context: APIContext,
   supportPhone?: string | null,
+  cardSubject?: DeploymentOwnerProfile | null,
 ): Promise<string> {
+  const fromSubject = cardSubject?.phone?.trim() || '';
+  if (fromSubject) return fromSubject;
   const fromCompany = supportPhone?.trim() || '';
   if (fromCompany) return fromCompany;
   const owner = await getDeploymentOwnerProfile(context);

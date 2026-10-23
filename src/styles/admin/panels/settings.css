@@ -1590,6 +1590,38 @@
   padding: 0.7rem 0.85rem;
   border: 1px solid var(--panel-border, color-mix(in srgb, currentColor 12%, transparent));
   border-radius: 10px;
+  flex-wrap: wrap;
+}
+.team-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+.team-card-link {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--brand-primary, #7c3aed);
+}
+.team-card-link:hover {
+  text-decoration: underline;
+}
+.team-card-callout {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0 0 1.1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-primary, #7c3aed) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand-primary, #7c3aed) 18%, transparent);
+}
+.team-card-callout-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
 }
 .team-member-main {
   display: grid;

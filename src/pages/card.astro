@@ -24,7 +24,12 @@ import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
 import { companyBrandingOgUrl, getCompanyConfig } from '../lib/companyConfig';
 import { getPageSeoOverride } from '../lib/pageSeo';
 import { getStoredCompanyConfig } from '../lib/companyConfigStore';
-import { getDeploymentOwnerProfile } from '../lib/deploymentOwner';
+import {
+  cardContactDisplayName,
+  cardPathForUserId,
+  parseCardUserParam,
+  resolveCardSubject,
+} from '../lib/cardSubject';
 import { qrCodeDataUrl } from '../lib/qrCode';
 import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
 import { contactTelHref } from '../lib/contactApi';
@@ -39,14 +44,14 @@ export const prerender = false;
 
 const company = await getCompanyConfig(Astro.request);
 
-const displayName = company.name?.trim() || 'Contact';
-const owner = await getDeploymentOwnerProfile(Astro);
-const ownerContactName =
-  [owner?.firstName, owner?.lastName].filter(Boolean).join(' ').trim() ||
-  owner?.fullName?.trim() ||
-  displayName;
+const companyName = company.name?.trim() || 'Contact';
+const cardUserParam = parseCardUserParam(Astro.url.searchParams.get('user'));
+const cardSubject = await resolveCardSubject(Astro, cardUserParam);
+const contactProfile = cardSubject.profile;
+const contactName = cardContactDisplayName(contactProfile, companyName);
+const displayName = cardSubject.isPrimary ? companyName : contactName;
 const tagline = company.description?.trim() || '';
-const phoneRaw = await resolveCardPhoneRaw(Astro, company.supportPhone);
+const phoneRaw = await resolveCardPhoneRaw(Astro, company.supportPhone, contactProfile);
 const telDigits = contactTelHref(phoneRaw);
 const phoneHref = telDigits ? `tel:${telDigits}` : '';
 const smsHref = telDigits ? `sms:${telDigits}` : '';
@@ -62,7 +67,8 @@ try {
 }
 const passkeyTrust = readCardPasskeyTrust(Astro.request);
 const hasPasskeys = await storeHasCardPasskeys();
-const address = company.address?.trim() || '';
+const address =
+  contactProfile?.address?.trim() || company.address?.trim() || '';
 const geo = company.geo;
 
 // ?demo= param — a temporary preview/demo URL shown as a top button on the card.
@@ -90,21 +96,32 @@ const directionsHref = directionsDest
 const appleDirectionsHref = directionsDest ? appleMapsDirectionsUrl(directionsDest) : '';
 const googleDirectionsHref = directionsDest ? mapsDirectionsUrl(directionsDest) : '';
 
-const vcardLabel = `Add ${ownerContactName}`;
+const vcardLabel = `Add ${contactName}`;
+const vcardHref = cardSubject.userId && !cardSubject.isPrimary
+  ? `/contact.vcf?user=${encodeURIComponent(cardSubject.userId)}`
+  : '/contact.vcf';
 const pageSeo = getPageSeoOverride(company.pageSeoOverrides, '/card');
 const pwaTitle = formatPwaAppTitle(displayName);
 const pageTitle = pageSeo?.title?.trim()
   ? formatHtmlPageTitle({ siteName: pageSeo.title.trim(), tagline: pageSeo.description?.trim() || tagline })
-  : formatHtmlPageTitle({ siteName: displayName, tagline });
-const shareTitle = shareSafeText(pageSeo?.title?.trim() || displayName);
+  : cardSubject.isPrimary
+    ? formatHtmlPageTitle({ siteName: companyName, tagline })
+    : formatHtmlPageTitle({ siteName: contactName, tagline: companyName });
+const shareTitle = shareSafeText(
+  pageSeo?.title?.trim() || (cardSubject.isPrimary ? companyName : contactName),
+);
 const description =
   pageSeo?.description?.trim() ||
   tagline ||
-  `Call, text, save ${displayName} to contacts, or get directions.`;
+  (cardSubject.isPrimary
+    ? `Call, text, save ${companyName} to contacts, or get directions.`
+    : `Call, text, or save ${contactName} at ${companyName} to contacts.`);
 const origin = requestOrigin(Astro.request);
-const canonical = company.domain
-  ? `https://${company.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/card`
-  : `${origin}/card`;
+const cardPath = cardPathForUserId(cardSubject.isPrimary ? null : cardSubject.userId);
+const canonicalBase = company.domain
+  ? `https://${company.domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`
+  : origin.replace(/\/+$/, '');
+const canonical = `${canonicalBase}${cardPath}`;
 /** NFC share previews use the standard branding OG card, not the site marketing image. */
 const ogImage = pageSeo?.ogImage?.trim() || companyBrandingOgUrl(company);
 const ogImageAbsolute = ogImage.startsWith('http') ? ogImage : `${origin}${ogImage}`;
@@ -165,6 +182,9 @@ try {
           <BrandIconLockup company={company} variant="hero" idPrefix="nfc-mark" />
         </a>
         <h1 class="nfc-sr-only">{displayName}</h1>
+        {!cardSubject.isPrimary && (
+          <p class="nfc-person-name">{contactName}</p>
+        )}
       </header>
 
       <nav class="nfc-actions" aria-label={`Contact ${displayName}`}>
@@ -188,7 +208,7 @@ try {
           </a>
         )}
 
-        <a class="nfc-btn nfc-btn--primary" href="/contact.vcf" aria-label={vcardLabel}>
+        <a class="nfc-btn nfc-btn--primary" href={vcardHref} aria-label={vcardLabel}>
           <span class="nfc-btn-ico" aria-hidden="true">
             <!-- IOS_ICONS.user-plus — keep in sync with public/admin/admin-ui.js -->
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
@@ -432,6 +452,14 @@ try {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  .nfc-person-name {
+    margin: 0.35rem 0 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--site-ink, #111);
   }
 
   @media (max-height: 720px) {
