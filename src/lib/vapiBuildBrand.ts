@@ -222,51 +222,8 @@ export async function loadBuildVapiTemplates(): Promise<BuildVapiTemplates> {
   return {};
 }
 
-function normalizeFeatureIds(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  const allowed = new Set([
-    'client_portal',
-    'web_handoff',
-    'billing',
-    'site_audits',
-    'site_monitoring',
-    'uptime_monitoring',
-    'documents',
-    'digital_signature',
-    'voice',
-    'vapi',
-    'carddav',
-    'scheduling',
-    'dev_infra',
-    'code_dev',
-  ]);
-  const out: string[] = [];
-  for (const item of raw) {
-    if (typeof item !== 'string') continue;
-    const id = item.trim();
-    if (allowed.has(id)) out.push(id);
-  }
-  return out;
-}
-
-function parseFeaturesEnv(): string[] {
-  const raw = trim(process.env.FEATURES);
-  if (!raw) return [];
-  try {
-    return normalizeFeatureIds(JSON.parse(raw));
-  } catch {
-    return [];
-  }
-}
-
-/** Enabled plugins for build scripts — install config → FEATURES env. */
+/** Enabled plugins for build scripts — install config features[] only. */
 export async function loadBuildEnabledFeatures(): Promise<string[]> {
   const { getInstallConfigSync } = await import('./installConfig.ts');
-  const fromInstall = getInstallConfigSync().features;
-  const fromEnv = parseFeaturesEnv();
-  if (fromInstall.length || fromEnv.length) {
-    return [...new Set([...fromInstall, ...fromEnv])];
-  }
-
-  return [];
+  return [...new Set(getInstallConfigSync().features)];
 }

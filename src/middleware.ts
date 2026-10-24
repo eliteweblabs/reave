@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "astro";
 import { clerkMiddleware } from "@clerk/astro/server";
-import { hasFeature } from "./lib/features";
+import { ensureFeatureOverridesLoaded, hasFeature } from "./lib/features";
 import { isModuleRuntimeAllowed } from "./lib/deployModuleStatus";
 import {
   DEFAULT_DEMO_SUITE,
@@ -320,6 +320,10 @@ const appHandler = async (
 
   // Auth gates for admin sub-pages live on each route (Clerk Astro v4 removed
   // createRouteMatcher). clerkMiddleware still hydrates locals.auth().
+
+  if (!isDemoMode()) {
+    await ensureFeatureOverridesLoaded();
+  }
 
   const response = await next();
   if (isServiceWorkerScript(pathname) || isAdminHotReloadAsset(pathname)) {

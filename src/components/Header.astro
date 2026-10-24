@@ -2,6 +2,7 @@
 import DeployStatusDot from "./DeployStatusDot.astro";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
 import { getInstallConfigClient, PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
+import { ensureFeatureOverridesLoaded, enabledFeatures } from "../lib/features";
 import SignInSheet from "./SignInSheet.astro";
 import BrandLogoInline from "./BrandLogoInline.astro";
 import MarketingMenu from "./MarketingMenu.astro";
@@ -88,6 +89,12 @@ const showHeaderHomeProfile = showMarketingNav && Boolean(userId);
 const showHeaderAccountMenu = showHeaderProfile || showHeaderHomeProfile;
 const accountMenuItems =
   profileMenu.length > 0 ? profileMenu : getInstallConfigClient().profileMenu;
+/** Add-ons toggles — signed-in chrome (review badge) matches server without admin boot script. */
+let signedInFeatureIds: string[] = [];
+if (userId) {
+  await ensureFeatureOverridesLoaded();
+  signedInFeatureIds = [...enabledFeatures()];
+}
 const showAdminEntry = showHeaderAccountMenu && !inAdminRoute;
 const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 ---
@@ -409,7 +416,13 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
 )}
 
 {userId && (
-  <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
+  <>
+    <script is:inline define:vars={{ signedInFeatureIds }}>
+      window.__installConfig = window.__installConfig || {};
+      window.__installConfig.features = signedInFeatureIds;
+    </script>
+    <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
+  </>
 )}
 <script is:inline src={`/proximity-tooltip.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 {showDeployIndicator && (

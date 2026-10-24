@@ -14,8 +14,9 @@ import { applyDeployWizardDns } from './deployWizardDns';
 import { applyDeployWizardPublicOrigin, applyDeployWizardSchedulingOrigin, isDeployWizardReaveStagingHost } from './deployWizardStaging';
 import { ensureClientCloudflareZone, provisionNamecomNameservers, provisionGoDaddyNameservers } from './clientDomainProvision';
 import { clerkMigratePrimaryDomain } from './clerkClient';
-import { FEATURE_ID_SET, type FeatureId } from './featureCatalog';
+import type { FeatureId } from './featureCatalog';
 import { CATALOG_BASELINE_FEATURES } from './moduleCatalog';
+import { readInstallConfigForSlug } from './installConfig';
 import { isNamecomConfigured } from './namecomClient';
 import { isGoDaddyConfigured } from './godaddyClient';
 import { isRailwayConfigured, railwayResolveProject } from './railwayClient';
@@ -62,20 +63,6 @@ export type GoLiveResult =
       steps: GoLiveStep[];
     }
   | { ok: false; error: string; steps: GoLiveStep[] };
-
-function parseFeaturesJson(raw: string | undefined): FeatureId[] {
-  if (!raw?.trim()) return [];
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((f): f is string => typeof f === 'string')
-      .map((f) => f.trim())
-      .filter((f): f is FeatureId => FEATURE_ID_SET.has(f as FeatureId));
-  } catch {
-    return [];
-  }
-}
 
 function inferExtras(serviceNames: string[]): DeployWizardExtraId[] {
   const extras: DeployWizardExtraId[] = [];
@@ -131,7 +118,10 @@ export async function loadGoLiveInstallContext(opts: {
       currentSiteDomain,
       plannedSiteDomain,
       stagingHost: isDeployWizardReaveStagingHost(currentSiteDomain),
-      features: parseFeaturesJson(vars.variables.FEATURES),
+      features: (() => {
+        const fromFile = readInstallConfigForSlug(installSlug).features;
+        return fromFile.length ? fromFile : [...CATALOG_BASELINE_FEATURES];
+      })(),
       extras: inferExtras(resolved.services.map((s) => s.name)),
       postAlias: (vars.variables.POST_ALIAS ?? 'project').trim() || 'project',
       companyName: (vars.variables.COMPANY_NAME ?? '').trim(),

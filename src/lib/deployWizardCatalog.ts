@@ -651,14 +651,6 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
       'Shared key the install owner uses to send punch-list items to official reave. Copied from this host when set.',
   }),
   v({
-    name: 'FEATURES',
-    service: DEPLOY_APP_SERVICE,
-    kind: 'literal',
-    value: '[]',
-    description:
-      'Enabled optional modules as a JSON array. Merged with config/config-{slug}.json so Add-ons match what you toggled.',
-  }),
-  v({
     name: 'POST_ALIAS',
     service: DEPLOY_APP_SERVICE,
     kind: 'literal',
@@ -2343,7 +2335,6 @@ export function buildDeployWizardPlan(input: DeployWizardPlanInput): DeployWizar
 
     let filled = raw.value ?? '';
     if (raw.name === 'INSTALL_CONFIG') filled = installSlug;
-    if (raw.name === 'FEATURES') filled = JSON.stringify([...features].sort());
     if (raw.name === 'GITHUB_WEBSITE_REPO') filled = defaultWebsiteRepoSlug(installSlug);
     if (raw.name === 'CALCOM_USERNAME' && service === appService) filled = installSlug;
     if (raw.name === 'POST_ALIAS') filled = postAlias;

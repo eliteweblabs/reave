@@ -14,4 +14,4 @@ Resend inbound webhook → admin **Inbox** tab, classification, and project rout
 - `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET` on the Railway service
 - Inbound domain / receiving address configured in Resend
 - Webhook URL: `https://{domain}/api/email/inbound`
-- Enable **Inbox Triage** (`email_inbox`) in install `features[]` or owner Add-ons toggle
+- Enable **Inbox Triage** (`email_inbox`) in install `features[]` (deploy baseline) and/or owner **Add-ons** toggle (runtime)

@@ -153,7 +153,7 @@ function renderPanel(data) {
   const summary = data.summary || {};
   const lead =
     mode === 'toggle'
-      ? 'Flip add-ons on or off to test combinations. Runtime only — config features[] updates on deploy.'
+      ? 'Flip add-ons on or off for this install. Changes save immediately — no Railway variables or redeploy.'
       : 'Add-ons you have are on. Request any missing module — we will follow up to enable it after payment.';
 
   return (

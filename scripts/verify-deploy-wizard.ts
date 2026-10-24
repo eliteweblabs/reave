@@ -101,7 +101,7 @@ assert.equal(contactUrl?.filled, 'https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN 
 
 const install = core.variables.find((v) => v.name === 'INSTALL_CONFIG');
 assert.equal(install?.filled, 'acme');
-assert.equal(core.variables.find((v) => v.name === 'FEATURES')?.filled, '[]');
+assert.ok(!core.variables.some((v) => v.name === 'FEATURES'), 'FEATURES env is not deployed');
 assert.equal(core.postAlias, 'project');
 assert.ok(
   !core.variables.some((v) => v.name === 'VAPI_API_KEY' && v.inheritFromHost),
@@ -463,11 +463,11 @@ assert.deepEqual(lawKept.moduleIds, lawCurrent);
 assert.deepEqual(lawKept.extras, ['plausible_railway']);
 assert.equal(lawKept.postAlias, 'matter');
 const vapiPlan = buildDeployWizardPlan({ features: ['vapi'], installSlug: 'levineslaw' });
-assert.equal(vapiPlan.variables.find((v) => v.name === 'FEATURES')?.filled, '["vapi"]');
+assert.ok(vapiPlan.features.includes('vapi'));
 const signaturePlan = buildDeployWizardPlan({ features: ['digital_signature'] });
 assert.ok(signaturePlan.features.includes('digital_signature'));
 assert.ok(signaturePlan.features.includes('documents'));
-assert.match(signaturePlan.variables.find((v) => v.name === 'FEATURES')?.filled || '', /documents/);
+assert.ok(signaturePlan.features.includes('documents'));
 const signaturePlaybook = normalizeIndustryPlaybook({
   moduleIds: [demoModuleIdForFeature('digital_signature')],
 });

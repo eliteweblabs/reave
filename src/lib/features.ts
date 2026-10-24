@@ -1,7 +1,6 @@
 /**
- * Deployment feature modules — configured per install in config/config-{slug}.json.
- *
- * Legacy fallback: FEATURES env JSON array when install config has no features.
+ * Deployment feature modules — baseline in config/config-{slug}.json, runtime
+ * changes via Add-ons toggles (Postgres feature_overrides).
  */
 import { getInstallConfigSync } from './installConfig.ts';
 import { demoEnabledFeatures, demoHasFeature } from './demoFeatures.ts';
@@ -43,35 +42,23 @@ export {
 };
 
 let _baseCached: Set<FeatureId> | null = null;
+let _featuresEnvWarned = false;
 
-function parseFeaturesEnv(): Set<FeatureId> {
+function warnDeprecatedFeaturesEnv(): void {
+  if (_featuresEnvWarned) return;
   const raw = serverEnv('FEATURES')?.trim();
-  if (!raw) return new Set();
-
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      log.warn('FEATURES must be a JSON array — ignoring');
-      return new Set();
-    }
-    const out = new Set<FeatureId>();
-    for (const item of parsed) {
-      if (typeof item !== 'string') continue;
-      const id = item.trim();
-      if (FEATURE_ID_SET.has(id)) out.add(id as FeatureId);
-    }
-    return out;
-  } catch {
-    log.warn('FEATURES is not valid JSON — ignoring');
-    return new Set();
-  }
+  if (!raw) return;
+  _featuresEnvWarned = true;
+  log.warn(
+    'FEATURES env is deprecated and ignored — use config/config-{slug}.json features[] and Add-ons toggles',
+  );
 }
 
 function bootstrapEnabled(): Set<FeatureId> {
+  warnDeprecatedFeaturesEnv();
   const fromInstall = getInstallConfigSync().features;
-  const fromEnv = parseFeaturesEnv();
-  if (fromInstall.length || fromEnv.size) {
-    return new Set<FeatureId>([...fromInstall, ...fromEnv]);
+  if (fromInstall.length) {
+    return new Set<FeatureId>(fromInstall);
   }
   return new Set();
 }

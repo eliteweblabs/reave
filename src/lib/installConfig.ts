@@ -502,6 +502,19 @@ function readInstallConfigFile(): InstallConfig | null {
   }
 }
 
+/** Read config/config-{slug}.json from the repo (deploy wizard / go-live on official host). */
+export function readInstallConfigForSlug(slug: string): InstallConfig {
+  const trimmed = slug.trim() || 'default';
+  const path = configPathForSlug(trimmed);
+  if (!existsSync(path)) return fallbackInstallConfig();
+  try {
+    return parseInstallConfig(JSON.parse(readFileSync(path, 'utf8')));
+  } catch (e) {
+    console.error('[install-config] failed to read', path, e);
+    return fallbackInstallConfig();
+  }
+}
+
 function fallbackInstallConfig(): InstallConfig {
   return {
     features: [],
