@@ -28,6 +28,8 @@ import {
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
+import { hasEmailInbox } from '../../../lib/features';
+import type { EmailInboxRecord } from '../../../lib/emailInboxStore';
 import { ensureCalcomIdentityScheduler } from '../../../lib/calcomIdentitySync';
 import { ensureCalendarReminderScheduler } from '../../../lib/calendarReminderScheduler';
 import { ensureOnlineReviewsScheduler } from '../../../lib/onlineReviewsScheduler';
@@ -232,14 +234,16 @@ export async function buildAdminDashboardPayload(
 ): Promise<DashboardPayload> {
   kickDashboardSideEffects();
 
+  const inboxOn = hasEmailInbox();
+  const emptyInboxDigest = computeInboxDigest([], true);
   const [{ threads }, events, inboxDigest, jobs, deploy] = await Promise.all([
     storeListChatThreadsForOwner(userId, { archivedOnly: false }),
-    storeListEmailInbox(100, { hideJunk: true }),
-    storeEmailInboxDigest(true),
+    inboxOn ? storeListEmailInbox(100, { hideJunk: true }) : Promise.resolve([] as EmailInboxRecord[]),
+    inboxOn ? storeEmailInboxDigest(true) : Promise.resolve(emptyInboxDigest),
     storeListWork(),
     getDeployStatus().catch(() => null),
   ]);
-  const digest = computeInboxDigest(events, true);
+  const digest = inboxOn ? computeInboxDigest(events, true) : emptyInboxDigest;
   const emailsTotal = inboxDigest.visible;
   const projectsTotal = jobs.length;
   const { notifications: automationNotifications, staleSlugs } =
@@ -252,13 +256,15 @@ export async function buildAdminDashboardPayload(
   ).length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;
 
-  const recentEmails = events.filter(isEmailInboxActive).slice(0, 5).map((e) => ({
-    id: e.id,
-    subject: e.subject || '(no subject)',
-    from: e.from || '',
-    receivedAt: e.receivedAt,
-    category: e.category,
-  }));
+  const recentEmails = inboxOn
+    ? events.filter(isEmailInboxActive).slice(0, 5).map((e) => ({
+        id: e.id,
+        subject: e.subject || '(no subject)',
+        from: e.from || '',
+        receivedAt: e.receivedAt,
+        category: e.category,
+      }))
+    : [];
 
   const company = await getCompanyConfig(context.request);
   const [clientsTotal, bookingSlice, todoSlice, uptimeSlice, billingSlice, analyticsSlice] =

@@ -7133,6 +7133,7 @@ function createDashboardFleetListEl(data) {
 }
 
 function createDashboardInboxSection(data) {
+  if (!emailInboxEnabled()) return null;
   const inboxRecent = Array.isArray(data?.recentEmails) ? data.recentEmails : [];
   const inboxPanel = document.createElement('section');
   inboxPanel.className =
@@ -7243,8 +7244,12 @@ function patchAdminDashboardMount(mount, data, opts, scroll) {
 
   const oldInbox = mount.querySelector('.dash-panel-inbox');
   const newInbox = createDashboardInboxSection(data);
-  if (oldInbox) oldInbox.replaceWith(newInbox);
-  else mount.querySelector('.home-dashboard-grid')?.before(newInbox);
+  if (newInbox) {
+    if (oldInbox) oldInbox.replaceWith(newInbox);
+    else mount.querySelector('.home-dashboard-grid')?.before(newInbox);
+  } else {
+    oldInbox?.remove();
+  }
 
   finishAdminDashboardHydration(data, opts, scroll);
 }
@@ -7341,7 +7346,8 @@ function renderAdminDashboard(data, opts = {}) {
   const fleetList = createDashboardFleetListEl(data);
   if (fleetList) mount.appendChild(fleetList);
 
-  mount.appendChild(createDashboardInboxSection(data));
+  const inboxSection = createDashboardInboxSection(data);
+  if (inboxSection) mount.appendChild(inboxSection);
 
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
