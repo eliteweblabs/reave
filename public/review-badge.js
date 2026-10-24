@@ -45,32 +45,31 @@
     }
   }
 
+  function emailInboxEnabled() {
+    const features = window.__installConfig?.features;
+    return Array.isArray(features) && features.includes('email_inbox');
+  }
+
   async function refresh() {
     try {
-      const [badgeRes, inboxRes] = await Promise.all([
-        fetch('/api/admin/badges', { cache: 'no-store' }),
-        fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
-      ]);
-      if (inboxRes.ok) {
-        const inboxData = await inboxRes.json();
-        let n = Math.max(0, Number(inboxData.digest?.reviewsPending) || 0);
-        if (badgeRes.ok) {
-          const badges = await badgeRes.json();
-          if (badges.ok) {
-            const stats = badges.stats || {};
-            n = Math.max(0, Number(stats.reviewsPending ?? stats.automationPending ?? n) || 0);
-          }
-        }
-        sync(n);
-        return;
-      }
-      if (dashRes.ok) {
-        const dash = await dashRes.json();
-        if (dash.ok) {
-          const stats = dash.stats || {};
-          sync(stats.reviewsPending ?? stats.automationPending ?? 0);
-        }
-      }
+      const badgeRes = await fetch('/api/admin/badges', { cache: 'no-store' });
+      if (!badgeRes.ok) return;
+      const badges = await badgeRes.json();
+      if (!badges.ok) return;
+      const stats = badges.stats || {};
+      sync(stats.reviewsPending ?? stats.automationPending ?? 0);
+
+      // Inbox list API 404s when Inbox Triage is off; only poll it when the add-on is on.
+      if (!emailInboxEnabled()) return;
+      const inboxRes = await fetch('/api/email/inbox?limit=100', { cache: 'no-store' });
+      if (!inboxRes.ok) return;
+      const inboxData = await inboxRes.json();
+      const fromInbox = Math.max(0, Number(inboxData.digest?.reviewsPending) || 0);
+      const fromBadges = Math.max(
+        0,
+        Number(stats.reviewsPending ?? stats.automationPending ?? 0) || 0,
+      );
+      sync(Math.max(fromBadges, fromInbox));
     } catch {}
   }
 

@@ -14133,12 +14133,13 @@ function syncEmailTabBadges() {
 async function refreshFooterBadgesQuiet() {
   if (shouldSkipAdminPoll()) return;
   try {
+    const inboxPoll = emailInboxEnabled();
     const [badgeRes, inboxRes] = await Promise.all([
       adminFetch('/api/admin/badges'),
-      adminFetch('/api/email/inbox?limit=100'),
+      inboxPoll ? adminFetch('/api/email/inbox?limit=100') : Promise.resolve(null),
     ]);
 
-    const inboxOk = inboxRes.ok;
+    const inboxOk = inboxPoll && inboxRes?.ok;
     let dashStats = null;
 
     if (badgeRes.ok) {
