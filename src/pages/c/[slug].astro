@@ -1578,6 +1578,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     </style>
     {
       !notFound && (
+        <script type="module" src="/shared/pwa-refresh-debug.js"></script>
         <script is:inline>
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/c/sw.js', { scope: '/c/' }).catch(() => {});

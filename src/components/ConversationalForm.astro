@@ -694,6 +694,8 @@ const rootClass = [
   }
 </style>
 
+<script type="module" src="/shared/pwa-refresh-debug.js"></script>
+
 <script define:vars={{ bookingApiUrl, slug, brandName, embedded, dock, inputPlaceholder, heroChat, eager }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
@@ -1502,6 +1504,7 @@ const rootClass = [
     window.setTimeout(scrollToLatest, 300);
   });
   root()?.querySelector("#retry-btn")?.addEventListener("click", () => {
+    window.__markPwaRefreshCause?.('conversational-form-retry-reload');
     window.location.reload();
   });
 

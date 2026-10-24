@@ -482,6 +482,7 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
     </style>
   </head>
   <body>
+    <script type="module" src="/shared/pwa-refresh-debug.js"></script>
     <div class="vp-container">
       <a href="/admin/?tab=work" class="vp-back vp-no-print">&larr; Back to admin</a>
       <h1 class="vp-title">Inquiry visit plan</h1>
@@ -827,7 +828,10 @@ const scheduledDays = plan?.days.filter((d) => d.stops.length) ?? [];
               : `Checked ${processed} businesses but Google had no hours for them. They will be scheduled against the assumed window.`,
           );
 
-          if (saved) setTimeout(() => window.location.reload(), 1200);
+          if (saved) {
+            window.__markPwaRefreshCause?.('visit-plan-hours-backfill-reload', { saved, processed });
+            setTimeout(() => window.location.reload(), 1200);
+          }
           else backfillBtn.disabled = false;
         } catch (err) {
           if (statusEl) statusEl.textContent = "";

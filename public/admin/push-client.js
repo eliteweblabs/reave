@@ -3,6 +3,7 @@
  */
 
 import { buildAdminNotice } from './admin-notice.js?v=20260828a';
+import { markPwaRefreshCause, pwaRefreshDebugEnabled } from '../shared/pwa-refresh-debug.js';
 import {
   companyStaffAvatarUrl,
   shouldSkipAdminPoll,
@@ -328,6 +329,12 @@ export async function registerAdminServiceWorker() {
 
     const markSwUpdatePending = () => {
       swUpdatePending = true;
+      if (pwaRefreshDebugEnabled()) {
+        alert(
+          '[PWA refresh debug]\nCause: service-worker-update-installed\n' +
+            'A new /admin/sw.js is active after skipWaiting. push-client does not call location.reload() on this.',
+        );
+      }
     };
 
     const trackInstallingWorker = (worker) => {
@@ -351,6 +358,9 @@ export async function registerAdminServiceWorker() {
       const now = Date.now();
       if (now - lastSwUpdateCheckAt >= SW_UPDATE_CHECK_MIN_MS) {
         lastSwUpdateCheckAt = now;
+        if (pwaRefreshDebugEnabled()) {
+          console.info('[pwa-refresh-debug] chronological service worker update check (30m cadence)');
+        }
         await reg.update();
       }
     } catch (e) {

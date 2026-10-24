@@ -190,6 +190,8 @@ const openOptionalDetails = Boolean(prefillUrl);
 
   <MarketingContactSection />
 
+  <script type="module" src="/shared/pwa-refresh-debug.js"></script>
+
   <script>
     const page = document.querySelector('[data-da-page]');
     if (!page) {
@@ -273,6 +275,7 @@ const openOptionalDetails = Boolean(prefillUrl);
             };
             if (data.ok && data.data && data.data.inProgress === false) {
               stopped = true;
+              window.__markPwaRefreshCause?.('digital-audit-run-complete-reload', { runSlug });
               window.location.reload();
               return;
             }

@@ -3,6 +3,7 @@
  */
 
 import { escHtml } from '../shared/htmlEscape.js';
+import { markPwaRefreshCause, pwaRefreshDebugEnabled } from '../shared/pwa-refresh-debug.js';
 
 export { escHtml };
 
@@ -103,6 +104,7 @@ export function flushDeferredAdminHandshake() {
   } catch {
     /* ignore */
   }
+  markPwaRefreshCause('deferred-clerk-handshake-on-foreground', { returnTo: pending });
   return recoverAdminSessionOn401({ returnTo: pending, force: true });
 }
 
@@ -175,6 +177,12 @@ export function recoverAdminSessionOn401(opts = {}) {
     /* ignore */
   }
   recordHandshakeNavigation();
+  markPwaRefreshCause('recover-admin-session-401-clerk-handshake', {
+    returnTo,
+    force,
+    hadClerkUser: hasClerkUser,
+    documentHidden: document.hidden,
+  });
   window.location.assign(clerkHandshakeUrl(returnTo));
   return true;
 }
@@ -188,9 +196,9 @@ export async function handleAdminUnauthorizedResponse() {
   if (signInSheet && window.IosSheet?.open) {
     window.IosSheet.open('sign-in-sheet');
   } else {
-    window.location.assign(
-      window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in',
-    );
+    const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in';
+    markPwaRefreshCause('session-expired-login-redirect', { loginPath });
+    window.location.assign(loginPath);
   }
   throw new Error('Session expired');
 }
@@ -261,6 +269,9 @@ function installAdminSessionKeepalive() {
   });
 
   timer = setInterval(() => {
+    if (pwaRefreshDebugEnabled()) {
+      console.info('[pwa-refresh-debug] chronological session keepalive (4m cadence, silent token refresh only)');
+    }
     void refreshQuietly();
   }, ADMIN_SESSION_KEEPALIVE_MS);
 }

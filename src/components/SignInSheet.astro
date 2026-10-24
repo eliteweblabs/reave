@@ -199,6 +199,7 @@ const clerkAppearance = {
 
 {clerkReady ? (
 <script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref, assetVersion }}>
+  await import(`/shared/pwa-refresh-debug.js?v=${assetVersion}`);
   const { bindClerkSsrSessionSync, clerkHandshakeUrl, adminHandshakeInCooldown } = await import(
     `/admin/shared.js?v=${assetVersion}`,
   );
@@ -263,6 +264,7 @@ const clerkAppearance = {
     if (adminHandshakeInCooldown()) return false;
     markSsrSyncTried();
     const target = postSignInTarget();
+    window.__markPwaRefreshCause?.('sign-in-sheet-clerk-handshake', { target });
     window.location.assign(clerkHandshakeUrl(target));
     return true;
   }
