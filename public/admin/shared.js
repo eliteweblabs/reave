@@ -200,19 +200,49 @@ export function recoverAdminSessionOn401(opts = {}) {
   return true;
 }
 
-/** Shared 401 handler for adminFetch and the global /api fetch guard. */
+/** Return when __session healed — caller should retry the 401 request once. */
+export const ADMIN_AUTH_SILENT_RETRY = 'admin-auth-silent-retry';
+
+/**
+ * Shared 401 handler for adminFetch and the global /api fetch guard.
+ * Clerk JS can still have a user while SSR __session is stale — avoid sending
+ * those cases to /admin/login (instant bounce, feels like a random refresh).
+ */
 export async function handleAdminUnauthorizedResponse() {
   if (recoverAdminSessionOn401()) {
     throw new Error('Session expired');
   }
+
+  const hasClerkUser = Boolean(window.Clerk?.user);
+  if (hasClerkUser) {
+    if (await trySilentAdminSessionRefresh()) {
+      return ADMIN_AUTH_SILENT_RETRY;
+    }
+    if (!adminHandshakeInCooldown() && recoverAdminSessionOn401({ force: true })) {
+      throw new Error('Session expired');
+    }
+  }
+
   const signInSheet = document.getElementById('sign-in-sheet');
   if (signInSheet && window.IosSheet?.open) {
     window.IosSheet.open('sign-in-sheet');
-  } else {
-    const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in';
-    markPwaRefreshCause('session-expired-login-redirect', { loginPath });
-    window.location.assign(loginPath);
+    throw new Error('Session expired');
   }
+
+  if (signInSheet && hasClerkUser && !adminHandshakeInCooldown()) {
+    if (recoverAdminSessionOn401({ force: true })) {
+      throw new Error('Session expired');
+    }
+  }
+
+  const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in';
+  markPwaRefreshCause('session-expired-login-redirect', {
+    loginPath,
+    hadClerkUser: hasClerkUser,
+    hadSignInSheet: Boolean(signInSheet),
+    iosSheetReady: Boolean(window.IosSheet?.open),
+  });
+  window.location.assign(loginPath);
   throw new Error('Session expired');
 }
 
@@ -254,7 +284,11 @@ export function installAdminApiFetchGuard() {
       return native(input, retryInit);
     }
 
-    await handleAdminUnauthorizedResponse();
+    const authOutcome = await handleAdminUnauthorizedResponse();
+    if (authOutcome === ADMIN_AUTH_SILENT_RETRY) {
+      const retryInit = { ...(init || {}), __reaveRetried401: true };
+      return native(input, retryInit);
+    }
     return res;
   };
 }
@@ -383,7 +417,10 @@ export async function adminFetch(url, opts = {}) {
     if (!retried && (await trySilentAdminSessionRefresh())) {
       return adminFetch(url, { ...opts, _retried401: true });
     }
-    await handleAdminUnauthorizedResponse();
+    const authOutcome = await handleAdminUnauthorizedResponse();
+    if (authOutcome === ADMIN_AUTH_SILENT_RETRY) {
+      return adminFetch(url, { ...opts, _retried401: true });
+    }
   }
   return res;
 }
