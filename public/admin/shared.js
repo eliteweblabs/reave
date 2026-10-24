@@ -89,8 +89,11 @@ function scheduleDeferredHandshake(returnTo) {
   }
 }
 
-/** Run a deferred handshake after the app returns to the foreground. */
-export function flushDeferredAdminHandshake() {
+/**
+ * Run a deferred handshake after the app returns to the foreground.
+ * Tries silent token + __session probe first — full navigation only if that fails.
+ */
+export async function flushDeferredAdminHandshake() {
   if (adminHandshakeInCooldown()) return false;
   let pending = '';
   try {
@@ -99,6 +102,16 @@ export function flushDeferredAdminHandshake() {
     /* ignore */
   }
   if (!pending) return false;
+
+  if (await trySilentAdminSessionRefresh()) {
+    try {
+      sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+
   try {
     sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
   } catch {
@@ -262,8 +275,11 @@ function installAdminSessionKeepalive() {
   document.addEventListener('visibilitychange', () => {
     const hidden = document.hidden;
     if (wasHidden && !hidden) {
-      // Only run a deferred handshake if a 401 was caught while backgrounded.
-      flushDeferredAdminHandshake();
+      void (async () => {
+        // 401 while backgrounded queues handshake; on focus try silent refresh first.
+        await flushDeferredAdminHandshake();
+        await trySilentAdminSessionRefresh();
+      })();
     }
     wasHidden = hidden;
   });
