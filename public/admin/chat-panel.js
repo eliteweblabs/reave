@@ -41,7 +41,10 @@ import {
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260829a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput, shouldSkipAdminPoll, noteAdminNetworkFailure, noteAdminNetworkSuccess } from './shared.js?v=20260903a';
+import { createTracer } from '../shared/reave-diagnostic.js';
 import { traceStart, traceAsync, traceSummary } from './perf-trace.js';
+
+const chatDiag = createTracer('chat');
 import {
   composeTrace,
   registerComposeTraceShellState,
@@ -1407,7 +1410,7 @@ function sortChatThreads(threads) {
   return [...active, ...archived];
 }
 
-async function fetchChatThreads() {
+async function fetchChatThreadsImpl() {
   return traceAsync('chat:fetch-threads', async () => {
     const [activeRes, archivedRes] = await Promise.all([
       fetch('/api/chats', { cache: 'no-store' }),
@@ -1440,7 +1443,7 @@ function formatChatDate(iso) {
   }
 }
 
-async function loadChatsTab(opts = {}) {
+async function loadChatsTabImpl(opts = {}) {
   const endLoad = traceStart('chat:load-tab', { keepSession: opts.keepSession === true });
   const root = getChatPanel();
   if (!root) {
@@ -2487,7 +2490,7 @@ async function startNewChat(opts = {}) {
   }
 }
 
-async function openChat(id, opts = {}) {
+async function openChatImpl(id, opts = {}) {
   const force = opts.force === true;
   if (id === chatState.activeId && !force) {
     syncChatSidebarActiveState({ scroll: true });
@@ -2554,6 +2557,10 @@ async function openChat(id, opts = {}) {
     root?.classList.remove('ch-opening');
   }
 }
+
+const loadChatsTab = chatDiag.wrapAsync('loadChatsTab', loadChatsTabImpl);
+const openChat = chatDiag.wrapAsync('openChat', openChatImpl);
+const fetchChatThreads = chatDiag.wrapAsync('fetchChatThreads', fetchChatThreadsImpl);
 
 async function requestDeleteChat(id) {
   const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {

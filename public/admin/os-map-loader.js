@@ -136,6 +136,9 @@ import {
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
 import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
+import { createTracer } from '../shared/reave-diagnostic.js';
+
+const navDiag = createTracer('nav');
 
 installAdminApiFetchGuard();
 import { traceStart, traceAsync, traceSincePage, reportPreBootTiming } from './perf-trace.js';
@@ -884,7 +887,7 @@ function showIndustries() {
   return window.__installConfig?.showIndustries === true;
 }
 
-function setActiveMap(key, opts = {}) {
+function setActiveMapInner(key, opts = {}) {
   if (key === 'industries' && !showIndustries()) {
     key = 'dashboard';
     opts = { ...opts, force: true };
@@ -961,6 +964,17 @@ function setActiveMap(key, opts = {}) {
   endSwitch({ tab: MAP?.type });
 }
 
+function setActiveMap(key, opts = {}) {
+  const summary = {
+    key,
+    force: opts.force === true,
+    chatId: opts.chatId,
+    workSlug: opts.workSlug,
+    emailId: opts.emailId,
+  };
+  return navDiag.runSync('setActiveMap', () => setActiveMapInner(key, opts), [summary]);
+}
+
 function dashboardPanelHasContent() {
   const root = document.getElementById('dashboard-panel');
   return Boolean(
@@ -996,7 +1010,7 @@ function isPanelMapKey(key) {
   );
 }
 
-function activateMapPanel(opts = {}) {
+function activateMapPanelInner(opts = {}) {
   const endPanel = traceStart('admin:activate-panel', { tab: MAP?.type });
   try {
   if (MAP.type === 'dashboard') {
@@ -1108,6 +1122,14 @@ function activateMapPanel(opts = {}) {
   } finally {
     endPanel();
   }
+}
+
+function activateMapPanel(opts = {}) {
+  return navDiag.runSync(
+    'activateMapPanel',
+    () => activateMapPanelInner(opts),
+    [{ tab: MAP?.type, chatId: opts.chatId, workSlug: opts.workSlug }],
+  );
 }
 
 function isPanelTab() {

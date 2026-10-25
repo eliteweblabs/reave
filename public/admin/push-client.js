@@ -8,6 +8,7 @@ import { getPwaRefreshLog } from '../shared/reave-debug-log.js';
 import { createTracer } from '../shared/reave-diagnostic.js';
 
 const swDiag = createTracer('sw');
+const pushDiag = createTracer('push');
 import {
   companyStaffAvatarUrl,
   shouldSkipAdminPoll,
@@ -322,7 +323,7 @@ function dismissAlert(key) {
   }
 }
 
-export async function registerAdminServiceWorker() {
+async function registerAdminServiceWorkerImpl() {
   if (!('serviceWorker' in navigator)) return null;
   if (shouldSkipAdminPoll()) return null;
   if (swRegisterBlockedUntil > Date.now()) return null;
@@ -384,6 +385,11 @@ export async function registerAdminServiceWorker() {
   })();
   return swRegisterPromise;
 }
+
+export const registerAdminServiceWorker = swDiag.wrapAsync(
+  'registerAdminServiceWorker',
+  registerAdminServiceWorkerImpl,
+);
 
 async function getExistingPushSubscription() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
@@ -1034,7 +1040,7 @@ async function maybeOfferTestPushAfterSubscribe() {
   }
 }
 
-async function postPushSubscription(sub) {
+async function postPushSubscriptionImpl(sub) {
   const res = await fetch('/api/push/subscribe', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1045,8 +1051,10 @@ async function postPushSubscription(sub) {
   return data;
 }
 
+const postPushSubscription = pushDiag.wrapAsync('postPushSubscription', postPushSubscriptionImpl);
+
 /** Re-register an existing browser subscription with the server (iOS PWA / deploy recovery). */
-export async function syncPushSubscriptionWithServer() {
+async function syncPushSubscriptionWithServerImpl() {
   if (!('Notification' in window) || !('PushManager' in window)) return false;
   if (Notification.permission !== 'granted') return false;
   if (shouldSkipAdminPoll()) return false;
@@ -1062,12 +1070,19 @@ export async function syncPushSubscriptionWithServer() {
   return true;
 }
 
-export async function subscribeAdminPush() {
+export const syncPushSubscriptionWithServer = pushDiag.wrapAsync(
+  'syncPushSubscriptionWithServer',
+  syncPushSubscriptionWithServerImpl,
+);
+
+async function subscribeAdminPushImpl() {
   if (!('Notification' in window) || !('PushManager' in window)) {
     throw new Error('Push not supported in this browser');
   }
 
+  pushDiag.event('subscribeAdminPush', 'requestPermission');
   const perm = await Notification.requestPermission();
+  pushDiag.event('subscribeAdminPush', 'permission', { perm });
   if (perm !== 'granted') throw new Error(notificationBlockedHelp());
 
   const reg = await registerAdminServiceWorker();
@@ -1085,6 +1100,9 @@ export async function subscribeAdminPush() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
     });
+    pushDiag.event('subscribeAdminPush', 'pushManager.subscribe', { created: true });
+  } else {
+    pushDiag.event('subscribeAdminPush', 'pushManager.subscribe', { created: false });
   }
 
   await postPushSubscription(sub);
@@ -1092,6 +1110,8 @@ export async function subscribeAdminPush() {
   void maybeOfferTestPushAfterSubscribe();
   return sub;
 }
+
+export const subscribeAdminPush = pushDiag.wrapAsync('subscribeAdminPush', subscribeAdminPushImpl);
 
 export function initAdminPushButton(buttonId = 'push-enable-btn') {
   const btn = document.getElementById(buttonId);
