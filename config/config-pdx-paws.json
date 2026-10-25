@@ -1,0 +1,53 @@
+{
+  "features": [
+    "website",
+    "billing",
+    "carddav",
+    "client_portal",
+    "cookie_notice",
+    "digital_signature",
+    "documents",
+    "email_marketing",
+    "online_reviews",
+    "portal_assistant",
+    "scheduling",
+    "site_monitoring",
+    "social_inbox",
+    "social_lead_scanner",
+    "time_tracking",
+    "web_handoff"
+  ],
+  "footerNav": [
+    "__system__",
+    "modules",
+    "dashboard",
+    "todo",
+    "punchlist",
+    "documents",
+    "knowledge",
+    "chats",
+    "work",
+    "schedule",
+    "clients",
+    "analytics"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "settings",
+    "addons"
+  ],
+  "homepageTemplate": "landing",
+  "siteContentKey": "pdx-paws",
+  "moduleStatus": {
+    "website": "deployed",
+    "billing": "deployed",
+    "scheduling": "deployed",
+    "client_portal": "deployed",
+    "documents": "deployed",
+    "portal_assistant": "deployed"
+  },
+  "services": {
+    "billing": { "enabled": true, "service": "crater" }
+  }
+}

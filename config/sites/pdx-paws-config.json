@@ -1,0 +1,121 @@
+{
+  "key": "pdx-paws",
+  "pages": ["/", "/privacy", "/terms", "/cookies", "/form"],
+  "nav": {
+    "links": [],
+    "groups": [],
+    "showDemoCta": false,
+    "showSignIn": true
+  },
+  "homepage": {
+    "template": "landing",
+    "heroHeadlineHtml": "Grooming, sitting, and pack life in Portland.",
+    "showHeroDemo": false,
+    "showDialogue": false,
+    "showIntegrations": false,
+    "showFeatures": false,
+    "showContact": false,
+    "showLegalLinks": true
+  },
+  "landing": {
+    "variant": "pack",
+    "title": "PDX Paws · Grooming, sitting, and pack life in Portland.",
+    "description": "Dog grooming, pet sitting, walks, training, and pack adventures in Portland, Oregon. Neighborhood care with a decade in canine wellness.",
+    "themeColor": "#1a2e1f",
+    "name": "PDX Paws",
+    "tagline": "Expert pet care in Portland",
+    "heroHeadline": "Grooming, sitting, and pack life in Portland.",
+    "heroBody": "We care for your pets like family — grooming, adventures, training, and comfortable boarding when you travel. Holistic canine care for every member of your pack.",
+    "scheduleUrl": "/form/schedule",
+    "services": {
+      "heading": "Services",
+      "intro": "From spa days to pack hikes, we meet dogs where they are — relaxed, enriched, and well cared for.",
+      "items": [
+        {
+          "label": "Grooming",
+          "description": "Full-service grooming with patient, breed-aware handling.",
+          "bookHref": "/form/schedule"
+        },
+        {
+          "label": "Pet sitting & walks",
+          "description": "Trusted visits and walks while you're at work or away.",
+          "bookHref": "/form/schedule"
+        },
+        {
+          "label": "Training & pack adventures",
+          "description": "Obedience, enrichment, and outdoor adventures with experienced handlers.",
+          "bookHref": "/form/schedule"
+        },
+        {
+          "label": "Boarding & daycare",
+          "description": "A calm, home-like environment when your dog stays with us.",
+          "bookHref": "/form/schedule"
+        }
+      ]
+    },
+    "about": {
+      "heading": "Neighborhood pack care",
+      "body": [
+        "PDX Paws is a Portland shop built on trust — a decade caring for local dogs with grooming, sitting, training, and pack outings.",
+        "We take a holistic approach: healthy routines, positive training, and adventures that fit your dog's energy and personality."
+      ]
+    },
+    "contact": {
+      "heading": "Book or ask a question",
+      "email": "dusan@pdx-paws.com",
+      "officeLines": ["Portland, Oregon"]
+    },
+    "pack": {
+      "marquee": [
+        "Grooming",
+        "Pet sitting",
+        "Pack walks",
+        "Training",
+        "Boarding",
+        "Portland, OR"
+      ],
+      "hero": {
+        "headlineLines": ["Grooming, sitting,", "and pack life"],
+        "headlineAccent": "in Portland.",
+        "primaryCta": { "label": "Book a visit", "href": "/form/schedule" },
+        "secondaryCta": { "label": "Meet the pack", "href": "#wall" },
+        "mainImage": "/grand-opening/pdx-paws-mobile.jpg",
+        "mainAlt": "PDX Paws mobile-friendly pet care site",
+        "aboutImage": "/grand-opening/pdx-paws-mobile.jpg",
+        "aboutAlt": "Happy dogs cared for by PDX Paws"
+      },
+      "wall": {
+        "id": "wall",
+        "eyebrow": "Pack life",
+        "heading": "Happy dogs, Portland roots",
+        "intro": "A peek at the grooming, adventures, and calm care we bring to every visit.",
+        "steps": [
+          "Tell us about your dog and what you need.",
+          "We match grooming, sitting, or adventure plans.",
+          "Your pack member comes home tired, clean, and cared for."
+        ],
+        "photos": [
+          {
+            "src": "/grand-opening/pdx-paws-mobile.jpg",
+            "alt": "PDX Paws pet care"
+          }
+        ]
+      },
+      "social": {
+        "city": "Portland, OR",
+        "mapsUrl": "https://maps.google.com/?q=Portland+OR"
+      },
+      "booking": {
+        "sheetTitle": "Book with PDX Paws",
+        "sheetKicker": "Scheduling",
+        "smsIntro": "Hi — I'd like to book pet care with PDX Paws."
+      },
+      "nav": [
+        { "href": "#services", "label": "Services" },
+        { "href": "#wall", "label": "Gallery" },
+        { "href": "#about", "label": "About" },
+        { "href": "/form/schedule", "label": "Book", "primary": true }
+      ]
+    }
+  }
+}
