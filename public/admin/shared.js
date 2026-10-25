@@ -4,6 +4,7 @@
 
 import { escHtml } from '../shared/htmlEscape.js';
 import { markPwaRefreshCause, pwaRefreshDebugEnabled } from '../shared/pwa-refresh-debug.js';
+import { getAuthDebugLog } from '../shared/reave-debug-log.js';
 
 export { escHtml };
 
@@ -158,9 +159,16 @@ export async function trySilentAdminSessionRefresh() {
  * Clerk JS can still show a user while HttpOnly __session is gone (expired handshake JWT).
  * Navigate through /admin/__clerk once before opening the sign-in sheet.
  */
+function authLog() {
+  return getAuthDebugLog();
+}
+
 export function recoverAdminSessionOn401(opts = {}) {
   const force = opts.force === true;
-  if (!force && adminHandshakeInCooldown()) return false;
+  if (!force && adminHandshakeInCooldown()) {
+    authLog().debug('recoverAdminSessionOn401 skipped — handshake cooldown', { force });
+    return false;
+  }
 
   let alreadyTried = false;
   try {
@@ -168,7 +176,10 @@ export function recoverAdminSessionOn401(opts = {}) {
   } catch {
     /* ignore */
   }
-  if (alreadyTried && !force) return false;
+  if (alreadyTried && !force) {
+    authLog().debug('recoverAdminSessionOn401 skipped — already tried this tab', { force });
+    return false;
+  }
 
   const hasClerkUser = Boolean(window.Clerk?.user);
   const onAdmin =
@@ -180,6 +191,7 @@ export function recoverAdminSessionOn401(opts = {}) {
 
   if (!force && document.hidden) {
     scheduleDeferredHandshake(returnTo);
+    authLog().info('401 recover deferred — document hidden', { returnTo });
     return false;
   }
 
@@ -190,6 +202,13 @@ export function recoverAdminSessionOn401(opts = {}) {
     /* ignore */
   }
   recordHandshakeNavigation();
+  authLog().event('clerk handshake navigation', {
+    returnTo,
+    force,
+    hadClerkUser: hasClerkUser,
+    documentHidden: document.hidden,
+    serverUserId: Boolean(document.body?.dataset?.userId),
+  });
   markPwaRefreshCause('recover-admin-session-401-clerk-handshake', {
     returnTo,
     force,
@@ -209,6 +228,13 @@ export const ADMIN_AUTH_SILENT_RETRY = 'admin-auth-silent-retry';
  * those cases to /admin/login (instant bounce, feels like a random refresh).
  */
 export async function handleAdminUnauthorizedResponse() {
+  authLog().warn('admin API 401 — starting recovery', {
+    path: location.pathname + location.search,
+    hadClerkUser: Boolean(window.Clerk?.user),
+    serverUserId: Boolean(document.body?.dataset?.userId),
+    handshakeCooldown: adminHandshakeInCooldown(),
+  });
+
   if (recoverAdminSessionOn401()) {
     throw new Error('Session expired');
   }
@@ -216,8 +242,10 @@ export async function handleAdminUnauthorizedResponse() {
   const hasClerkUser = Boolean(window.Clerk?.user);
   if (hasClerkUser) {
     if (await trySilentAdminSessionRefresh()) {
+      authLog().info('silent session refresh succeeded after 401');
       return ADMIN_AUTH_SILENT_RETRY;
     }
+    authLog().warn('silent session refresh failed after 401');
     if (!adminHandshakeInCooldown() && recoverAdminSessionOn401({ force: true })) {
       throw new Error('Session expired');
     }
@@ -225,6 +253,7 @@ export async function handleAdminUnauthorizedResponse() {
 
   const signInSheet = document.getElementById('sign-in-sheet');
   if (signInSheet && window.IosSheet?.open) {
+    authLog().info('opening sign-in sheet after 401');
     window.IosSheet.open('sign-in-sheet');
     throw new Error('Session expired');
   }
@@ -236,6 +265,14 @@ export async function handleAdminUnauthorizedResponse() {
   }
 
   const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in';
+  authLog().error('redirecting to login after 401 (no sheet / recovery exhausted)', {
+    loginPath,
+    hadClerkUser: hasClerkUser,
+    hadSignInSheet: Boolean(signInSheet),
+    iosSheetReady: Boolean(window.IosSheet?.open),
+    handshakeCooldown: adminHandshakeInCooldown(),
+    note: 'Signed-in SSR shell omits SignInSheet — login redirect can loop if Clerk still has a user.',
+  });
   markPwaRefreshCause('session-expired-login-redirect', {
     loginPath,
     hadClerkUser: hasClerkUser,

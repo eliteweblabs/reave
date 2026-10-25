@@ -1,13 +1,20 @@
 /**
- * PWA / full-page refresh diagnostics — persists cause across navigation, alerts on next load.
+ * PWA / full-page refresh diagnostics — persists cause across navigation, logs on next load.
  *
  * Disable: localStorage.setItem('reave-pwa-refresh-debug', '0')
  * Force enable in browser tab: ?pwaRefreshDebug=1
+ * Full debug log + copy: window.__reaveDebugLog.copyAll()
  */
+
+import { getPwaRefreshLog } from './reave-debug-log.js';
 
 const STORAGE_KEY = 'reave-pwa-refresh-debug-pending';
 const HAND_REFRESH_INTENT_KEY = 'reave-pwa-hand-refresh-intent';
 const FORCE_KEY = 'reave-pwa-refresh-debug-force';
+
+function log() {
+  return getPwaRefreshLog();
+}
 
 function isStandaloneDisplayMode() {
   if (typeof window === 'undefined') return false;
@@ -25,27 +32,7 @@ function isAdminSpaPath() {
 }
 
 export function pwaRefreshDebugEnabled() {
-  if (typeof window === 'undefined') return false;
-  try {
-    if (localStorage.getItem('reave-pwa-refresh-debug') === '0') return false;
-  } catch {
-    /* ignore */
-  }
-  try {
-    if (sessionStorage.getItem(FORCE_KEY) === '1') return true;
-  } catch {
-    /* ignore */
-  }
-  try {
-    const q = new URLSearchParams(window.location.search);
-    if (q.get('pwaRefreshDebug') === '1') {
-      sessionStorage.setItem(FORCE_KEY, '1');
-      return true;
-    }
-  } catch {
-    /* ignore */
-  }
-  return isStandaloneDisplayMode();
+  return log().enabled();
 }
 
 /** @param {string} source @param {Record<string, unknown>} [detail] */
@@ -87,6 +74,7 @@ export function markPwaRefreshCause(cause, detail = {}) {
   } catch {
     /* ignore */
   }
+  log().event(`mark → ${cause}`, { ...detail, fromUrl: payload.fromUrl, stack: stack || undefined });
 }
 
 function readHandRefreshIntent() {
@@ -105,37 +93,6 @@ function readHandRefreshIntent() {
   }
 }
 
-function formatPendingAlert(payload) {
-  const lines = [
-    '[PWA refresh debug]',
-    `Cause: ${payload.cause}`,
-    `When (previous page): ${payload.at}`,
-    `From: ${payload.fromUrl}`,
-    `Standalone: ${payload.standalone ? 'yes' : 'no'}`,
-  ];
-  if (payload.detail && Object.keys(payload.detail).length) {
-    lines.push(`Detail: ${JSON.stringify(payload.detail)}`);
-  }
-  if (payload.stack) lines.push(`Stack:\n${payload.stack}`);
-  return lines.join('\n');
-}
-
-function formatHandRefreshAlert(intent, navType) {
-  const lines = [
-    '[PWA refresh debug]',
-    'Cause: user-hand-refresh (manual)',
-    'This was a hand refresh — not an automatic app reload.',
-    `Navigation type: ${navType || 'unknown'}`,
-  ];
-  if (intent?.source) lines.push(`Source: ${intent.source}`);
-  if (intent?.fromUrl) lines.push(`From: ${intent.fromUrl}`);
-  if (intent?.at) lines.push(`When (previous page): ${intent.at}`);
-  if (intent?.detail && Object.keys(intent.detail).length) {
-    lines.push(`Detail: ${JSON.stringify(intent.detail)}`);
-  }
-  return lines.join('\n');
-}
-
 function navigationEntry() {
   try {
     return performance.getEntriesByType('navigation')[0];
@@ -152,8 +109,10 @@ function isUserHandRefreshCause(cause) {
   );
 }
 
-function showPendingRefreshAlert() {
+function consumePendingRefreshLog() {
   if (!pwaRefreshDebugEnabled()) return;
+  window.__reaveDebugLog?.ensureHud?.();
+
   let raw = '';
   try {
     raw = sessionStorage.getItem(STORAGE_KEY) || '';
@@ -172,28 +131,45 @@ function showPendingRefreshAlert() {
     }
     try {
       const payload = JSON.parse(raw);
-      if (isUserHandRefreshCause(payload.cause)) {
-        alert(formatHandRefreshAlert({ source: payload.cause, detail: payload.detail, fromUrl: payload.fromUrl, at: payload.at }, navType));
-      } else {
-        alert(formatPendingAlert(payload));
+      const kind = isUserHandRefreshCause(payload.cause) ? 'user-hand-refresh' : payload.cause;
+      log().event(`reload ← ${kind}`, {
+        whenPreviousPage: payload.at,
+        from: payload.fromUrl,
+        standalone: payload.standalone,
+        navType,
+        detail: payload.detail,
+        stack: payload.stack || undefined,
+      });
+      if (kind === 'session-expired-login-redirect') {
+        log().warn(
+          'Session redirect after 401 — if this repeats, SSR __session may be stale while Clerk still has a user and SignInSheet is not mounted.',
+          payload.detail,
+        );
       }
     } catch {
-      alert(`[PWA refresh debug]\nCause: (corrupt pending mark)\n${raw}`);
+      log().error('corrupt pending refresh mark', { raw: raw.slice(0, 500) });
     }
     return;
   }
 
   const intent = readHandRefreshIntent();
   if (intent && navType === 'reload') {
-    alert(formatHandRefreshAlert(intent, navType));
+    log().event('reload ← user-hand-refresh (manual)', {
+      navType,
+      source: intent.source,
+      from: intent.fromUrl,
+      whenPreviousPage: intent.at,
+      detail: intent.detail,
+    });
     return;
   }
 
   if (navType === 'reload') {
-    alert(
-      '[PWA refresh debug]\nCause: unknown full reload\n' +
-        '(No mark was stored. If you used pull-to-refresh: the admin shell blocks native document PTR — try again after deploy; standalone pull-reload may apply.)',
-    );
+    log().warn('unknown full reload (no mark stored)', {
+      hint: 'Pull-to-refresh or external reload; admin shell blocks native document PTR in some cases.',
+    });
+  } else {
+    log().debug('navigation load', { navType, url: location.href });
   }
 }
 
@@ -373,18 +349,16 @@ function bindLifecycleHints() {
 
   window.addEventListener('pageshow', (ev) => {
     if (!pwaRefreshDebugEnabled() || !ev.persisted) return;
-    alert(
-      '[PWA refresh debug]\nCause: bfcache-restore (pageshow persisted)\n' +
-        'The page was restored from back-forward cache — not a new network load.',
-    );
+    log().event('bfcache-restore (pageshow persisted)', {
+      note: 'Restored from back-forward cache — not a new network load.',
+    });
   });
 
   navigator.serviceWorker?.addEventListener('controllerchange', () => {
     if (!pwaRefreshDebugEnabled()) return;
-    alert(
-      '[PWA refresh debug]\nCause: service-worker-controllerchange\n' +
-        'A new service worker took control (usually after deploy). Admin SPA does not auto-reload on this event.',
-    );
+    log().event('service-worker-controllerchange', {
+      note: 'New SW took control (often after deploy). Admin SPA does not auto-reload on this event.',
+    });
   });
 }
 
@@ -395,9 +369,9 @@ export function installPwaRefreshDebug() {
   installStandaloneHandRefreshReload();
   bindLifecycleHints();
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', showPendingRefreshAlert, { once: true });
+    document.addEventListener('DOMContentLoaded', consumePendingRefreshLog, { once: true });
   } else {
-    showPendingRefreshAlert();
+    consumePendingRefreshLog();
   }
 }
 

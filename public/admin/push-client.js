@@ -4,6 +4,7 @@
 
 import { buildAdminNotice } from './admin-notice.js?v=20260828a';
 import { markPwaRefreshCause, pwaRefreshDebugEnabled } from '../shared/pwa-refresh-debug.js';
+import { getPwaRefreshLog } from '../shared/reave-debug-log.js';
 import {
   companyStaffAvatarUrl,
   shouldSkipAdminPoll,
@@ -330,10 +331,9 @@ export async function registerAdminServiceWorker() {
     const markSwUpdatePending = () => {
       swUpdatePending = true;
       if (pwaRefreshDebugEnabled()) {
-        alert(
-          '[PWA refresh debug]\nCause: service-worker-update-installed\n' +
-            'A new /admin/sw.js is active after skipWaiting. push-client does not call location.reload() on this.',
-        );
+        getPwaRefreshLog().event('service-worker-update-installed', {
+          note: 'New /admin/sw.js is active after skipWaiting. push-client does not call location.reload() on this.',
+        });
       }
     };
 

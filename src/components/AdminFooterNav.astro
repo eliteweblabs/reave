@@ -504,6 +504,56 @@ import { LayoutDashboard, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Us
     color: var(--brand, #93c5fd);
   }
 
+  .reave-debug-log-hud-in-footer .reave-debug-log-hud-hit {
+    position: relative;
+    display: inline-flex;
+    height: 100%;
+  }
+
+  .reave-debug-log-hud-in-footer .reave-debug-log-hud-btn {
+    font:
+      700 0.62rem/1 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+    letter-spacing: 0.02em;
+  }
+
+  .reave-debug-log-hud-in-footer .reave-debug-log-hud-panel {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 0.35rem);
+    max-width: min(26rem, calc(100vw - 1.3rem));
+    max-height: 42vh;
+    overflow: auto;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    background: var(--card, rgba(15, 23, 42, 0.96));
+    color: var(--text, #e2e8f0);
+    font:
+      500 0.68rem/1.35 ui-monospace,
+      SFMono-Regular,
+      Menlo,
+      monospace;
+    border: 1px solid var(--panel-border, rgba(148, 163, 184, 0.35));
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.35));
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease,
+      transform 0.15s ease;
+    pointer-events: none;
+  }
+
+  .reave-debug-log-hud-in-footer .reave-debug-log-hud-panel.is-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
   @media (max-width: 639px) {
     .admin-footer-nav.footer-nav-collapsed .reave-trace-hud-mount {
       width: 0;
