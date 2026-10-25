@@ -135,6 +135,18 @@
   transition: filter 0.15s ease, transform 0.15s ease;
 }
 
+/* display: inline-flex above beats the UA [hidden] { display: none } rule. */
+.brand-btn[hidden],
+.de-btn[hidden],
+.de-btn-primary[hidden],
+.de-placeholder-create-btn[hidden],
+.os-dialog-btn[hidden],
+.os-dialog-btn--primary[hidden],
+.prof-btn-primary[hidden],
+.prof-btn-secondary[hidden] {
+  display: none !important;
+}
+
 .brand-btn:hover,
 .de-btn:hover,
 .de-btn-primary:hover,

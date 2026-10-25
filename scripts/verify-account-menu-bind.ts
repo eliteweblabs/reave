@@ -15,6 +15,8 @@ const overlayDom = readFileSync('src/lib/overlayMenuDom.ts', 'utf8');
 const toggle = readFileSync('src/components/OverlayMenuToggle.astro', 'utf8');
 const index = readFileSync('src/pages/admin/index.astro', 'utf8');
 const sales = readFileSync('src/pages/admin/sales-sheet.astro', 'utf8');
+const insights = readFileSync('public/admin/insights-panels.js', 'utf8');
+const brandCss = readFileSync('src/styles/brand.css', 'utf8');
 
 assert.match(
   overlayCss,
@@ -87,5 +89,8 @@ assert.match(toggle, /hidden=\{mode === "dismiss"/);
 assert.match(index, /data-admin-spa/);
 assert.match(sales, /showFooterNav/);
 assert.equal(/id=["']wrap["']/.test(sales), false);
+assert.match(insights, /data-analytics-google-account/);
+assert.match(insights, /googleOAuthConfigured/);
+assert.match(brandCss, /\.brand-btn\[hidden\]/);
 
 console.log('account menu bind contract ok');

@@ -670,6 +670,11 @@ export async function syncAnalyticsAccountMenu(status = analyticsStatus) {
   }
   if (data?.ok) analyticsStatus = data;
 
+  if (!data?.googleOAuthConfigured) {
+    actions.querySelector('[data-analytics-google-account]')?.remove();
+    return;
+  }
+
   let btn = actions.querySelector('[data-analytics-google-account]');
   if (!btn) {
     btn = document.createElement('button');
@@ -678,11 +683,6 @@ export async function syncAnalyticsAccountMenu(status = analyticsStatus) {
     btn.className = 'brand-btn brand-btn-glass overlay-menu-action';
     const signOut = document.getElementById('topbar-sign-out');
     actions.insertBefore(btn, signOut || null);
-  }
-
-  if (!data?.googleOAuthConfigured) {
-    btn.hidden = true;
-    return;
   }
 
   btn.hidden = false;
