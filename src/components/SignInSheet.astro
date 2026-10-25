@@ -200,6 +200,8 @@ const clerkAppearance = {
 {clerkReady ? (
 <script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref, assetVersion }}>
   await import(`/shared/pwa-refresh-debug.js?v=${assetVersion}`);
+  const { createTracer } = await import(`/shared/reave-diagnostic.js?v=${assetVersion}`);
+  const clerkDiag = createTracer('clerk');
   const { bindClerkSsrSessionSync, clerkHandshakeUrl, adminHandshakeInCooldown } = await import(
     `/admin/shared.js?v=${assetVersion}`,
   );
@@ -264,6 +266,7 @@ const clerkAppearance = {
     if (adminHandshakeInCooldown()) return false;
     markSsrSyncTried();
     const target = postSignInTarget();
+    clerkDiag.event('syncSessionViaHandshake', 'navigate', { target });
     window.__markPwaRefreshCause?.('sign-in-sheet-clerk-handshake', { target });
     window.location.assign(clerkHandshakeUrl(target));
     return true;
@@ -445,9 +448,11 @@ const clerkAppearance = {
   }
 
   window.addEventListener('reave-admin-session-stale', () => {
-    if (!window.Clerk?.user) return;
-    if (syncSessionViaHandshake()) return;
-    showStuckSession();
+    clerkDiag.runSync('reave-admin-session-stale', () => {
+      if (!window.Clerk?.user) return;
+      if (syncSessionViaHandshake()) return;
+      showStuckSession();
+    });
   });
 
   window.addEventListener('clerk-loaded', onClerkReady, true);

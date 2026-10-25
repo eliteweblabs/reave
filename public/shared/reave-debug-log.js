@@ -20,7 +20,11 @@ const MAX_MEMORY = 400;
 const MAX_PERSIST = 120;
 const HUD_MAX_ROWS = 200;
 
-/** @typedef {'debug' | 'info' | 'warn' | 'error' | 'event'} DebugLevel */
+/** @typedef {'debug' | 'info' | 'warn' | 'error' | 'event' | 'trace'} DebugLevel */
+
+const LS_DIAG_BUFFER = 'reave:diag-trace-buffer';
+const LS_DIAG_GLOBAL = 'reave:diag';
+const LS_DIAG_MODULES = 'reave:diag:modules';
 
 /** @type {Map<string, ReaveDebugLog>} */
 const channels = new Map();
@@ -96,11 +100,80 @@ function levelColor(level) {
       return '#fcd34d';
     case 'event':
       return '#93c5fd';
+    case 'trace':
+      return '#67e8f9';
     case 'debug':
       return '#94a3b8';
     default:
       return '#e2e8f0';
   }
+}
+
+function diagnosticHudEnabled() {
+  try {
+    const v = localStorage.getItem(LS_DIAG_GLOBAL);
+    if (v === 'on' || v === '1' || v === 'true') return true;
+    if (v === 'off' || v === '0' || v === 'false') return false;
+    const mods = readJsonLocal(LS_DIAG_MODULES, {});
+    return Object.values(mods).some((x) => x === true);
+  } catch {
+    return false;
+  }
+}
+
+function readJsonLocal(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function shouldShowDebugHud() {
+  return pwaRefreshChannelEnabled() || readGlobalForceEnable() || diagnosticHudEnabled();
+}
+
+/**
+ * Call trace lines from reave-diagnostic.js (shared HUD + persist merge on export).
+ * @param {Record<string, unknown>} entry
+ */
+export function ingestDiagnosticEntry(entry) {
+  if (!entry?.module || !entry?.fn) return;
+  const depth = Number(entry.depth) || 0;
+  const indent = '  '.repeat(depth);
+  const arrow =
+    entry.kind === 'enter' ? '→' : entry.kind === 'leave' ? '←' : entry.kind === 'event' ? '•' : '·';
+  const ms = entry.ms != null ? ` ${entry.ms}ms` : '';
+  const msg = entry.message ? ` ${entry.message}` : '';
+  const detail = { ...entry };
+  delete detail.at;
+  delete detail.module;
+  delete detail.fn;
+  delete detail.kind;
+  delete detail.depth;
+  delete detail.message;
+  delete detail.ms;
+  const message = `${indent}${arrow} ${entry.module}.${entry.fn}${ms}${msg}`;
+  const logEntry = {
+    at: typeof entry.at === 'string' ? entry.at : new Date().toISOString(),
+    level: 'trace',
+    channel: String(entry.module),
+    message,
+    detail: Object.keys(detail).length ? detail : undefined,
+  };
+  appendHudRow(logEntry);
+  try {
+    const merged = readPersistedBuffer().concat(logEntry).slice(-MAX_PERSIST);
+    writePersistedBuffer(merged);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function ensureDebugHud() {
+  return ensureHudShell();
 }
 
 function formatConsoleLine(entry) {
@@ -237,13 +310,28 @@ function pwaRefreshChannelEnabled() {
   return isStandaloneDisplayMode();
 }
 
+function diagnosticModuleEnabled(moduleId) {
+  try {
+    const g = localStorage.getItem(LS_DIAG_GLOBAL);
+    if (g === 'on' || g === '1' || g === 'true') return true;
+    if (g === 'off' || g === '0' || g === 'false') return false;
+    const mods = readJsonLocal(LS_DIAG_MODULES, {});
+    return mods[moduleId] === true;
+  } catch {
+    return false;
+  }
+}
+
 export function getPwaRefreshLog() {
-  return getDebugLog('pwa-refresh', { enabled: pwaRefreshChannelEnabled });
+  return getDebugLog('pwa-refresh', {
+    enabled: () => pwaRefreshChannelEnabled() || diagnosticModuleEnabled('pwa'),
+  });
 }
 
 export function getAuthDebugLog() {
   return getDebugLog('auth', {
-    enabled: () => readGlobalForceEnable() || pwaRefreshChannelEnabled(),
+    enabled: () =>
+      readGlobalForceEnable() || pwaRefreshChannelEnabled() || diagnosticModuleEnabled('auth'),
   });
 }
 
@@ -254,7 +342,7 @@ function ensureHudShell() {
   if (document.getElementById('reave-debug-log-hud')) {
     return document.getElementById('reave-debug-log-hud');
   }
-  if (!pwaRefreshChannelEnabled() && !readGlobalForceEnable()) return null;
+  if (!shouldShowDebugHud()) return null;
 
   const mount = hudMountEl();
   const inFooter = Boolean(mount);
@@ -285,7 +373,7 @@ function ensureHudShell() {
   }
 
   const title = document.createElement('div');
-  title.textContent = 'debug log';
+  title.textContent = 'debug · trace log';
   if (!inFooter) title.style.cssText = 'font-weight:700;margin-bottom:0.25rem;color:#93c5fd;';
   panel.appendChild(title);
 
@@ -295,7 +383,7 @@ function ensureHudShell() {
 
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.title = 'Debug log — hover to expand; double-click to copy';
+  btn.title = 'Debug/trace log — hover to expand; double-click to copy';
   btn.setAttribute('aria-label', 'Debug log');
   if (inFooter) {
     btn.className = 'footer-nav-btn reave-debug-log-hud-btn';
@@ -365,20 +453,53 @@ function appendHudRow(entry) {
   const detail =
     entry.detail && Object.keys(entry.detail).length ? ` ${JSON.stringify(entry.detail)}` : '';
   row.textContent = `${entry.at.slice(11, 19)} [${entry.channel}] ${entry.message}${detail}`;
-  row.style.color = levelColor(entry.level);
+  row.style.color = levelColor(entry.level || 'info');
   body.appendChild(row);
   body.scrollTop = body.scrollHeight;
 }
 
+function formatPersistedLines(entries) {
+  return entries
+    .map((e) => {
+      const base = `${e.at} [${e.channel}/${e.level}] ${e.message}`;
+      return e.detail ? `${base} ${JSON.stringify(e.detail)}` : base;
+    })
+    .join('\n');
+}
+
+function readDiagnosticPersistedLines() {
+  const trace = readJsonLocal(LS_DIAG_BUFFER, []);
+  if (!Array.isArray(trace) || !trace.length) return '';
+  return trace
+    .map((e) => {
+      const depth = Number(e.depth) || 0;
+      const indent = '  '.repeat(depth);
+      const arrow =
+        e.kind === 'enter' ? '→' : e.kind === 'leave' ? '←' : e.kind === 'event' ? '•' : '·';
+      const ms = e.ms != null ? ` ${e.ms}ms` : '';
+      const msg = e.message ? ` ${e.message}` : '';
+      const rest = { ...e };
+      delete rest.at;
+      delete rest.module;
+      delete rest.fn;
+      delete rest.kind;
+      delete rest.depth;
+      delete rest.ms;
+      delete rest.message;
+      const tail = Object.keys(rest).length ? ` ${JSON.stringify(rest)}` : '';
+      return `${e.at} [trace/${e.module}] ${indent}${arrow} ${e.fn}${ms}${msg}${tail}`;
+    })
+    .join('\n');
+}
+
 export function exportAllDebugText() {
+  const diagLines = readDiagnosticPersistedLines();
   const persisted = readPersistedBuffer();
-  if (persisted.length) {
-    return persisted
-      .map((e) => {
-        const base = `${e.at} [${e.channel}/${e.level}] ${e.message}`;
-        return e.detail ? `${base} ${JSON.stringify(e.detail)}` : base;
-      })
-      .join('\n');
+  if (persisted.length || diagLines) {
+    const parts = [];
+    if (diagLines) parts.push('--- diagnostic trace ---\n' + diagLines);
+    if (persisted.length) parts.push('--- log ---\n' + formatPersistedLines(persisted));
+    return parts.join('\n\n');
   }
   const lines = [];
   for (const log of channels.values()) {
@@ -419,5 +540,7 @@ if (typeof window !== 'undefined') {
     copyAll: copyAllDebugText,
     clearPersisted: clearPersistedDebugLog,
     ensureHud: ensureHudShell,
+    /** Full call trace API lives on window.__reaveDiag (reave-diagnostic.js). */
+    diag: () => window.__reaveDiag,
   };
 }

@@ -5,6 +5,9 @@
 import { buildAdminNotice } from './admin-notice.js?v=20260828a';
 import { markPwaRefreshCause, pwaRefreshDebugEnabled } from '../shared/pwa-refresh-debug.js';
 import { getPwaRefreshLog } from '../shared/reave-debug-log.js';
+import { createTracer } from '../shared/reave-diagnostic.js';
+
+const swDiag = createTracer('sw');
 import {
   companyStaffAvatarUrl,
   shouldSkipAdminPoll,
@@ -330,6 +333,9 @@ export async function registerAdminServiceWorker() {
 
     const markSwUpdatePending = () => {
       swUpdatePending = true;
+      swDiag.event('registerAdminServiceWorker', 'update-installed', {
+        note: 'New /admin/sw.js is active after skipWaiting. push-client does not call location.reload() on this.',
+      });
       if (pwaRefreshDebugEnabled()) {
         getPwaRefreshLog().event('service-worker-update-installed', {
           note: 'New /admin/sw.js is active after skipWaiting. push-client does not call location.reload() on this.',

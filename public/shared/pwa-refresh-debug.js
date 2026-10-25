@@ -7,6 +7,9 @@
  */
 
 import { getPwaRefreshLog } from './reave-debug-log.js';
+import { createTracer } from './reave-diagnostic.js';
+
+const pwaDiag = createTracer('pwa');
 
 const STORAGE_KEY = 'reave-pwa-refresh-debug-pending';
 const HAND_REFRESH_INTENT_KEY = 'reave-pwa-hand-refresh-intent';
@@ -75,6 +78,7 @@ export function markPwaRefreshCause(cause, detail = {}) {
     /* ignore */
   }
   log().event(`mark → ${cause}`, { ...detail, fromUrl: payload.fromUrl, stack: stack || undefined });
+  pwaDiag.event('markPwaRefreshCause', cause, { ...detail, fromUrl: payload.fromUrl });
 }
 
 function readHandRefreshIntent() {

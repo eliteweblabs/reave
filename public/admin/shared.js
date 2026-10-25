@@ -5,6 +5,10 @@
 import { escHtml } from '../shared/htmlEscape.js';
 import { markPwaRefreshCause, pwaRefreshDebugEnabled } from '../shared/pwa-refresh-debug.js';
 import { getAuthDebugLog } from '../shared/reave-debug-log.js';
+import { createTracer, installDiagnosticFetchTrace } from '../shared/reave-diagnostic.js';
+
+const authDiag = createTracer('auth');
+const sessionDiag = createTracer('session');
 
 export { escHtml };
 
@@ -94,7 +98,7 @@ function scheduleDeferredHandshake(returnTo) {
  * Run a deferred handshake after the app returns to the foreground.
  * Tries silent token + __session probe first — full navigation only if that fails.
  */
-export async function flushDeferredAdminHandshake() {
+async function flushDeferredAdminHandshakeImpl() {
   if (adminHandshakeInCooldown()) return false;
   let pending = '';
   try {
@@ -122,6 +126,11 @@ export async function flushDeferredAdminHandshake() {
   return recoverAdminSessionOn401({ returnTo: pending, force: true });
 }
 
+export const flushDeferredAdminHandshake = authDiag.wrapAsync(
+  'flushDeferredAdminHandshake',
+  flushDeferredAdminHandshakeImpl,
+);
+
 /**
  * Refresh Clerk client token and probe an authenticated API — often restores __session
  * without a full-page handshake (common when the HttpOnly cookie lagged behind Clerk JS).
@@ -130,7 +139,7 @@ function nativeAdminFetch() {
   return window.__reaveNativeFetch || window.fetch.bind(window);
 }
 
-export async function trySilentAdminSessionRefresh() {
+async function trySilentAdminSessionRefreshImpl() {
   try {
     const session = window.Clerk?.session;
     if (!session?.getToken) return false;
@@ -155,6 +164,11 @@ export async function trySilentAdminSessionRefresh() {
   }
 }
 
+export const trySilentAdminSessionRefresh = authDiag.wrapAsync(
+  'trySilentAdminSessionRefresh',
+  trySilentAdminSessionRefreshImpl,
+);
+
 /**
  * Clerk JS can still show a user while HttpOnly __session is gone (expired handshake JWT).
  * Navigate through /admin/__clerk once before opening the sign-in sheet.
@@ -163,7 +177,7 @@ function authLog() {
   return getAuthDebugLog();
 }
 
-export function recoverAdminSessionOn401(opts = {}) {
+function recoverAdminSessionOn401Impl(opts = {}) {
   const force = opts.force === true;
   if (!force && adminHandshakeInCooldown()) {
     authLog().debug('recoverAdminSessionOn401 skipped — handshake cooldown', { force });
@@ -219,6 +233,11 @@ export function recoverAdminSessionOn401(opts = {}) {
   return true;
 }
 
+export const recoverAdminSessionOn401 = authDiag.wrapSync(
+  'recoverAdminSessionOn401',
+  recoverAdminSessionOn401Impl,
+);
+
 /** Return when __session healed — caller should retry the 401 request once. */
 export const ADMIN_AUTH_SILENT_RETRY = 'admin-auth-silent-retry';
 
@@ -226,7 +245,7 @@ export const ADMIN_AUTH_SILENT_RETRY = 'admin-auth-silent-retry';
  * Clerk still has a user but SSR/API session is gone — open in-app recovery
  * (handshake or stuck-session sheet). Never bounce to /admin/login (PWA loop).
  */
-export function openAdminStaleSessionRecovery(detail = {}) {
+function openAdminStaleSessionRecoveryImpl(detail = {}) {
   markAdminServerSessionStale();
   const sheet = document.getElementById('sign-in-sheet');
   if (!sheet || !window.IosSheet?.open) {
@@ -249,12 +268,17 @@ export function openAdminStaleSessionRecovery(detail = {}) {
   return true;
 }
 
+export const openAdminStaleSessionRecovery = authDiag.wrapSync(
+  'openAdminStaleSessionRecovery',
+  openAdminStaleSessionRecoveryImpl,
+);
+
 /**
  * Shared 401 handler for adminFetch and the global /api fetch guard.
  * Clerk JS can still have a user while SSR __session is stale — avoid sending
  * those cases to /admin/login (instant bounce, feels like a random refresh).
  */
-export async function handleAdminUnauthorizedResponse() {
+async function handleAdminUnauthorizedResponseImpl() {
   authLog().warn('admin API 401 — starting recovery', {
     path: location.pathname + location.search,
     hadClerkUser: Boolean(window.Clerk?.user),
@@ -308,6 +332,11 @@ export async function handleAdminUnauthorizedResponse() {
   throw new Error('Session expired');
 }
 
+export const handleAdminUnauthorizedResponse = authDiag.wrapAsync(
+  'handleAdminUnauthorizedResponse',
+  handleAdminUnauthorizedResponseImpl,
+);
+
 /**
  * Raw fetch() in os-map-loader bypasses adminFetch — wrap once so 401s recover the same way.
  */
@@ -353,6 +382,8 @@ export function installAdminApiFetchGuard() {
     }
     return res;
   };
+
+  installDiagnosticFetchTrace();
 }
 
 function installAdminSessionKeepalive() {
@@ -365,17 +396,16 @@ function installAdminSessionKeepalive() {
   /** Background cookie refresh only — must never navigate (see trySilentAdminSessionRefresh). */
   const refreshQuietly = async () => {
     if (document.hidden || !window.Clerk?.user) return;
-    await trySilentAdminSessionRefresh();
+    await sessionDiag.runAsync('keepalive.refreshQuietly', () => trySilentAdminSessionRefresh());
   };
 
   document.addEventListener('visibilitychange', () => {
     const hidden = document.hidden;
     if (wasHidden && !hidden) {
-      void (async () => {
-        // 401 while backgrounded queues handshake; on focus try silent refresh first.
+      void sessionDiag.runAsync('visibility.foreground', async () => {
         await flushDeferredAdminHandshake();
         await trySilentAdminSessionRefresh();
-      })();
+      });
     }
     wasHidden = hidden;
   });
