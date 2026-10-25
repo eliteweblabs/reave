@@ -22,10 +22,13 @@
     "title": "PDX Paws · Grooming, sitting, and pack life in Portland.",
     "description": "Dog grooming, pet sitting, walks, training, and pack adventures in Portland, Oregon. Neighborhood care with a decade in canine wellness.",
     "themeColor": "#1a2e1f",
+    "eyebrow": "Portland's neighborhood pack",
     "name": "PDX Paws",
     "tagline": "Expert pet care in Portland",
-    "heroHeadline": "Grooming, sitting, and pack life in Portland.",
-    "heroBody": "We care for your pets like family — grooming, adventures, training, and comfortable boarding when you travel. Holistic canine care for every member of your pack.",
+    "heroHeadline": "Groom them. Sit them. Run with them.",
+    "heroBody": "PDX Paws is dog grooming, sitting, walks, and trail days with people who actually like your dog. A decade in. Still a little feral in the best way.",
+    "heroLogo": "/sites/pdx-paws/logo.png",
+    "ogImage": "/sites/pdx-paws/og.jpg",
     "scheduleUrl": "/form/schedule",
     "services": {
       "heading": "Services",
@@ -75,14 +78,16 @@
         "Portland, OR"
       ],
       "hero": {
-        "headlineLines": ["Grooming, sitting,", "and pack life"],
-        "headlineAccent": "in Portland.",
-        "primaryCta": { "label": "Book a visit", "href": "/form/schedule" },
-        "secondaryCta": { "label": "Meet the pack", "href": "#wall" },
-        "mainImage": "/grand-opening/pdx-paws-mobile.jpg",
-        "mainAlt": "PDX Paws mobile-friendly pet care site",
-        "aboutImage": "/grand-opening/pdx-paws-mobile.jpg",
-        "aboutAlt": "Happy dogs cared for by PDX Paws"
+        "headlineLines": ["Groom them.", "Sit them."],
+        "headlineAccent": "Run with them.",
+        "primaryCta": { "label": "Join the pack", "href": "/form/schedule" },
+        "secondaryCta": { "label": "See the pups", "href": "#wall" },
+        "mainImage": "/sites/pdx-paws/hero-main.jpg",
+        "mainAlt": "PDX Paws pack adventure in the Portland woods",
+        "insetImage": "/sites/pdx-paws/hero-inset.jpg",
+        "insetAlt": "PDX Paws team member with a happy dog",
+        "aboutImage": "/sites/pdx-paws/hero-main.jpg",
+        "aboutAlt": "Dogs and handlers on a PDX Paws outing"
       },
       "wall": {
         "id": "wall",
@@ -96,8 +101,8 @@
         ],
         "photos": [
           {
-            "src": "/grand-opening/pdx-paws-mobile.jpg",
-            "alt": "PDX Paws pet care"
+            "src": "/sites/pdx-paws/wall-1.jpg",
+            "alt": "PDX Paws pack on the trail"
           }
         ]
       },
