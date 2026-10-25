@@ -47,6 +47,7 @@ export async function GET(context: APIContext): Promise<Response> {
       cardPath: cardPathForStaffMember(m),
       firstName: m.firstName,
       lastName: m.lastName,
+      cardIncludePhone: m.cardIncludePhone !== false,
     })),
   });
 }
@@ -124,6 +125,7 @@ export async function POST(context: APIContext): Promise<Response> {
       firstName: member.firstName,
       lastName: member.lastName,
       cardPath: cardPathForStaffMember(member),
+      cardIncludePhone: member.cardIncludePhone !== false,
     },
     invited: delivery.kind === 'clerk_invitation',
     delivery: delivery.kind,

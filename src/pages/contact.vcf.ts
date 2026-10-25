@@ -41,9 +41,11 @@ export const GET: APIRoute = async (context) => {
   const displayName = org.name?.trim() || orgName;
   const contactName = cardContactDisplayName(person, displayName);
   const phone =
-    person?.phone?.trim() ||
-    org.supportPhone?.trim() ||
-    '';
+    person?.cardIncludePhone === false
+      ? ''
+      : person?.phone?.trim() ||
+        org.supportPhone?.trim() ||
+        '';
   const email =
     person?.email?.trim() ||
     org.supportEmail?.trim() ||

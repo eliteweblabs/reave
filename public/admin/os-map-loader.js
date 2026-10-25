@@ -10997,6 +10997,19 @@ function teamCardLinkHtml(cardPath) {
   );
 }
 
+function teamCardPhoneToggleHtml(member) {
+  const on = member?.cardIncludePhone !== false;
+  return (
+    `<label class="team-card-phone-toggle">` +
+    `<span class="team-card-phone-toggle-label">Cell on card</span>` +
+    `<button type="button" class="prof-plugin-toggle team-card-phone-switch" role="switch"` +
+    ` aria-checked="${on ? 'true' : 'false'}"` +
+    ` aria-label="Include cell phone on NFC card for ${escHtml([member.firstName, member.lastName].filter(Boolean).join(' ') || member.email)}"` +
+    ` data-team-id="${escHtml(member.id)}"></button>` +
+    `</label>`
+  );
+}
+
 function renderTeamPanel(payload) {
   const members = Array.isArray(payload?.members) ? payload.members : Array.isArray(payload) ? payload : [];
   const primaryCardPath = payload?.primaryCardPath || '/card';
@@ -11013,6 +11026,7 @@ function renderTeamPanel(payload) {
             `<span class="team-member-status team-member-status--${escHtml(m.status || 'invited')}">${escHtml(teamStatusLabel(m.status))}</span>` +
             `</div>` +
             `<div class="team-member-actions">` +
+            teamCardPhoneToggleHtml(m) +
             teamCardLinkHtml(m.cardPath) +
             `<button type="button" class="prof-btn-secondary team-revoke-btn" data-team-id="${escHtml(m.id)}">Remove</button>` +
             `</div>` +
@@ -11028,7 +11042,7 @@ function renderTeamPanel(payload) {
         `<div class="team-card-callout">` +
           `<span class="team-card-callout-label">Owner NFC card</span>` +
           `<a class="team-card-link" href="${escHtml(primaryCardPath)}" target="_blank" rel="noopener noreferrer">${escHtml(primaryCardPath)}</a>` +
-          `<span class="prof-hint">Program the owner chip to this URL. Staff cards use <code>/card?first=…&amp;last=…</code> — set names on invite so you can program NFC before they sign in. Each person controls Call vs Text under Profile → mobile number.</span>` +
+          `<span class="prof-hint">Program the owner chip to this URL. Staff cards use <code>/card?first=…&amp;last=…</code> — set names on invite so you can program NFC before they sign in. Use “Cell on card” to hide a staff member’s phone on their card; each person still controls Call vs Text under Profile → mobile number when their cell is shown.</span>` +
         `</div>` +
         `<div id="team-alert" class="prof-alert" hidden></div>` +
         `<form id="team-invite-form" class="prof-form">` +
@@ -11090,6 +11104,37 @@ function bindTeamPanel(root) {
   });
 
   listEl?.addEventListener('click', async (ev) => {
+    const phoneSwitch = ev.target?.closest?.('.team-card-phone-switch');
+    if (phoneSwitch) {
+      const id = phoneSwitch.getAttribute('data-team-id');
+      if (!id || phoneSwitch.disabled) return;
+      const next = phoneSwitch.getAttribute('aria-checked') !== 'true';
+      phoneSwitch.disabled = true;
+      phoneSwitch.classList.add('is-busy');
+      setToggleSwitch(phoneSwitch, next);
+      try {
+        const res = await fetch(`/api/admin/team/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardIncludePhone: next }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+        setToggleSwitch(phoneSwitch, json.member?.cardIncludePhone !== false);
+        showProfileAlert(
+          alertEl,
+          next ? 'Cell phone will show on their NFC card.' : 'Cell phone hidden on their NFC card.',
+          'success',
+        );
+      } catch (e) {
+        setToggleSwitch(phoneSwitch, !next);
+        showProfileAlert(alertEl, e.message || 'Could not update card phone setting.', 'error');
+      } finally {
+        phoneSwitch.disabled = false;
+        phoneSwitch.classList.remove('is-busy');
+      }
+      return;
+    }
     const copyBtn = ev.target?.closest?.('.team-card-copy-btn');
     if (copyBtn) {
       const path = copyBtn.getAttribute('data-card-path') || '';

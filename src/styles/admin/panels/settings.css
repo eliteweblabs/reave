@@ -1598,6 +1598,22 @@
   align-items: center;
   gap: 0.45rem;
 }
+.team-card-phone-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-right: 0.15rem;
+  cursor: default;
+}
+.team-card-phone-toggle-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.82;
+  white-space: nowrap;
+}
+.team-card-phone-switch {
+  flex-shrink: 0;
+}
 .team-card-link {
   font-size: 0.8125rem;
   font-weight: 600;

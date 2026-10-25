@@ -19,6 +19,8 @@ export type StaffMember = {
   status: StaffStatus;
   invitationId: string | null;
   invitedBy: string | null;
+  /** When false, /card hides phone for this staff member (owner Team toggle). */
+  cardIncludePhone: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -41,6 +43,7 @@ CREATE INDEX IF NOT EXISTS staff_members_user_id_idx
   WHERE user_id IS NOT NULL;
 ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS first_name TEXT;
 ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS last_name TEXT;
+ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS card_include_phone BOOLEAN NOT NULL DEFAULT TRUE;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -70,6 +73,9 @@ function newId(): string {
 }
 
 function rowFromPg(r: Record<string, unknown>): StaffMember {
+  const cardIncludeRaw = r.card_include_phone;
+  const cardIncludePhone =
+    cardIncludeRaw === false || cardIncludeRaw === 'f' || cardIncludeRaw === 0 ? false : true;
   return {
     id: String(r.id),
     email: String(r.email),
@@ -79,6 +85,7 @@ function rowFromPg(r: Record<string, unknown>): StaffMember {
     status: (r.status as StaffStatus) || 'invited',
     invitationId: r.invitation_id ? String(r.invitation_id) : null,
     invitedBy: r.invited_by ? String(r.invited_by) : null,
+    cardIncludePhone,
     createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : String(r.created_at),
     updatedAt: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
   };
@@ -104,6 +111,7 @@ function parseFileMembers(raw: unknown): StaffMember[] {
       invitationId:
         typeof o.invitationId === 'string' && o.invitationId.trim() ? o.invitationId.trim() : null,
       invitedBy: typeof o.invitedBy === 'string' && o.invitedBy.trim() ? o.invitedBy.trim() : null,
+      cardIncludePhone: o.cardIncludePhone === false ? false : true,
       createdAt: typeof o.createdAt === 'string' ? o.createdAt : new Date().toISOString(),
       updatedAt: typeof o.updatedAt === 'string' ? o.updatedAt : new Date().toISOString(),
     });
@@ -299,6 +307,7 @@ export async function upsertStaffInvite(input: {
     status,
     invitationId: input.invitationId ?? null,
     invitedBy: input.invitedBy,
+    cardIncludePhone: true,
     createdAt: now,
     updatedAt: now,
   };
@@ -337,6 +346,41 @@ export async function activateStaffForUser(opts: {
     updatedAt: new Date().toISOString(),
   };
   writeFileStore(members.map((m) => (m.id === existing.id ? next : m)));
+  return next;
+}
+
+export async function updateStaffMember(
+  id: string,
+  patch: { cardIncludePhone?: boolean },
+): Promise<StaffMember | null> {
+  const trimmed = id.trim();
+  if (!trimmed) return null;
+  if (patch.cardIncludePhone === undefined) {
+    const members = await listStaffMembers({ includeRevoked: true });
+    return members.find((m) => m.id === trimmed) ?? null;
+  }
+  const cardIncludePhone = patch.cardIncludePhone !== false;
+  const pool = await ensureSchema();
+  if (pool) {
+    const res = await pool.query(
+      `UPDATE staff_members
+       SET card_include_phone = $2, updated_at = NOW()
+       WHERE id = $1 AND status <> 'revoked'
+       RETURNING *`,
+      [trimmed, cardIncludePhone],
+    );
+    const row = res.rows[0];
+    return row ? rowFromPg(row as Record<string, unknown>) : null;
+  }
+  const members = readFileStore();
+  const existing = members.find((m) => m.id === trimmed);
+  if (!existing || existing.status === 'revoked') return null;
+  const next: StaffMember = {
+    ...existing,
+    cardIncludePhone,
+    updatedAt: new Date().toISOString(),
+  };
+  writeFileStore(members.map((m) => (m.id === trimmed ? next : m)));
   return next;
 }
 

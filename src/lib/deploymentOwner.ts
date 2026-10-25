@@ -134,6 +134,8 @@ export type DeploymentOwnerProfile = {
   phone: string;
   /** When false, /card hides Text for this person's phone. Default true. */
   cardPhoneMobile: boolean;
+  /** When false, /card shows no phone for this subject (Team owner toggle for staff). */
+  cardIncludePhone?: boolean;
   address: string;
   timezone: string;
 };

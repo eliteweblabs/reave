@@ -25,6 +25,9 @@ export async function resolveCardPhone(
   cardSubject?: DeploymentOwnerProfile | null,
   supportPhoneMobile = true,
 ): Promise<ResolvedCardPhone> {
+  if (cardSubject?.cardIncludePhone === false) {
+    return { raw: '', mobile: false };
+  }
   const fromSubject = cardSubject?.phone?.trim() || '';
   if (fromSubject) {
     return { raw: fromSubject, mobile: cardSubject?.cardPhoneMobile !== false };

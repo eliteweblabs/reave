@@ -13,6 +13,7 @@ import {
 } from './deploymentOwner';
 import {
   getStaffByName,
+  getStaffByUserId,
   listStaffMembers,
   normalizeStaffNamePart,
   type StaffMember,
@@ -76,9 +77,17 @@ function staffMemberToContactProfile(member: StaffMember): DeploymentOwnerProfil
     email: member.email,
     phone: '',
     cardPhoneMobile: true,
+    cardIncludePhone: member.cardIncludePhone !== false,
     address: '',
     timezone: '',
   };
+}
+
+function withStaffCardIncludePhone(
+  profile: DeploymentOwnerProfile,
+  staff: StaffMember,
+): DeploymentOwnerProfile {
+  return { ...profile, cardIncludePhone: staff.cardIncludePhone !== false };
 }
 
 async function isActiveStaffClerkUser(userId: string): Promise<boolean> {
@@ -117,7 +126,11 @@ async function resolveStaffCardSubject(
   if (staff.userId) {
     const profile = await getContactProfileForUserId(context, staff.userId);
     if (profile) {
-      return { userId: staff.userId, profile, isPrimary: false };
+      return {
+        userId: staff.userId,
+        profile: withStaffCardIncludePhone(profile, staff),
+        isPrimary: false,
+      };
     }
   }
   return {
@@ -161,7 +174,10 @@ export async function resolveCardSubject(
   }
 
   const profile = await getContactProfileForUserId(context, userIdParam);
-  return { userId: userIdParam, profile, isPrimary: false };
+  const staff = await getStaffByUserId(userIdParam);
+  const mergedProfile =
+    profile && staff ? withStaffCardIncludePhone(profile, staff) : profile;
+  return { userId: userIdParam, profile: mergedProfile, isPrimary: false };
 }
 
 export function cardContactDisplayName(

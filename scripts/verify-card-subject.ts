@@ -17,6 +17,10 @@ assert.match(lib, /cardPathForUserId/);
 assert.match(lib, /cardPathForStaffNames/);
 assert.match(cardPage, /parseCardNameParams/);
 assert.match(teamApi, /cardPath/);
+assert.match(teamApi, /cardIncludePhone/);
+assert.match(lib, /cardIncludePhone/);
+assert.match(readFileSync('src/lib/cardPhoneAuth.ts', 'utf8'), /cardIncludePhone/);
 assert.match(loader, /team-card-link/);
+assert.match(loader, /team-card-phone-switch/);
 
 console.log('ok — /card ?user= staff cards + Team panel links');
