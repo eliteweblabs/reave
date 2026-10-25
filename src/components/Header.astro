@@ -405,13 +405,15 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   </OverlayMenu>
 )}
 
-{!userId && !showMarketingNav && (
+{!showMarketingNav && (adminShell || !userId) && (
   <SignInSheet
     fallbackRedirectUrl={signInRedirect}
-    autoOpen={signInAutoOpen}
+    autoOpen={signInAutoOpen && !userId}
     authPath={authPath}
     dismissible={true}
-    closeHref={path === '/sign-in' || inAdminRoute ? '/' : ''}
+    closeHref={
+      adminShell && userId ? '' : path === '/sign-in' || inAdminRoute ? '/' : ''
+    }
   />
 )}
 

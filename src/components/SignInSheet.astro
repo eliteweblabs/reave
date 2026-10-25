@@ -444,6 +444,12 @@ const clerkAppearance = {
     }
   }
 
+  window.addEventListener('reave-admin-session-stale', () => {
+    if (!window.Clerk?.user) return;
+    if (syncSessionViaHandshake()) return;
+    showStuckSession();
+  });
+
   window.addEventListener('clerk-loaded', onClerkReady, true);
   if (window.Clerk?.loaded) onClerkReady();
   else {

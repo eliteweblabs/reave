@@ -39,8 +39,8 @@ assert.doesNotMatch(
 const header = readFileSync('src/components/Header.astro', 'utf8');
 assert.match(
   header,
-  /!userId && !showMarketingNav && \(\s*\n\s*<SignInSheet/,
-  'marketing pages must not mount SignInSheet (defer Clerk to /sign-in)',
+  /!showMarketingNav && \(adminShell \|\| !userId\) && \(\s*\n\s*<SignInSheet/,
+  'SignInSheet mounts for admin shell or signed-out chrome only — not marketing nav pages',
 );
 
 const menu = readFileSync('src/components/MarketingMenu.astro', 'utf8');

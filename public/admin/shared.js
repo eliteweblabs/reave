@@ -223,6 +223,33 @@ export function recoverAdminSessionOn401(opts = {}) {
 export const ADMIN_AUTH_SILENT_RETRY = 'admin-auth-silent-retry';
 
 /**
+ * Clerk still has a user but SSR/API session is gone — open in-app recovery
+ * (handshake or stuck-session sheet). Never bounce to /admin/login (PWA loop).
+ */
+export function openAdminStaleSessionRecovery(detail = {}) {
+  markAdminServerSessionStale();
+  const sheet = document.getElementById('sign-in-sheet');
+  if (!sheet || !window.IosSheet?.open) {
+    authLog().warn('stale session recovery unavailable — no sign-in sheet', detail);
+    return false;
+  }
+  authLog().info('opening stale-session recovery sheet', {
+    hadClerkUser: Boolean(window.Clerk?.user),
+    ...detail,
+  });
+  markPwaRefreshCause('stale-session-sheet-open', detail);
+  window.IosSheet.open('sign-in-sheet');
+  try {
+    window.dispatchEvent(
+      new CustomEvent('reave-admin-session-stale', { detail: { source: 'admin-401', ...detail } }),
+    );
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+/**
  * Shared 401 handler for adminFetch and the global /api fetch guard.
  * Clerk JS can still have a user while SSR __session is stale — avoid sending
  * those cases to /admin/login (instant bounce, feels like a random refresh).
@@ -246,36 +273,34 @@ export async function handleAdminUnauthorizedResponse() {
       return ADMIN_AUTH_SILENT_RETRY;
     }
     authLog().warn('silent session refresh failed after 401');
-    if (!adminHandshakeInCooldown() && recoverAdminSessionOn401({ force: true })) {
+    if (recoverAdminSessionOn401({ force: true })) {
       throw new Error('Session expired');
     }
+    if (openAdminStaleSessionRecovery({ after: 'silent-and-handshake-failed' })) {
+      throw new Error('Session expired');
+    }
+    authLog().error('Clerk user present but in-app stale recovery failed — not redirecting to login', {
+      handshakeCooldown: adminHandshakeInCooldown(),
+    });
+    throw new Error('Session expired');
   }
 
   const signInSheet = document.getElementById('sign-in-sheet');
   if (signInSheet && window.IosSheet?.open) {
-    authLog().info('opening sign-in sheet after 401');
+    authLog().info('opening sign-in sheet after 401 (signed out)');
     window.IosSheet.open('sign-in-sheet');
     throw new Error('Session expired');
   }
 
-  if (signInSheet && hasClerkUser && !adminHandshakeInCooldown()) {
-    if (recoverAdminSessionOn401({ force: true })) {
-      throw new Error('Session expired');
-    }
-  }
-
   const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/sign-in';
-  authLog().error('redirecting to login after 401 (no sheet / recovery exhausted)', {
+  authLog().error('redirecting to login after 401 (signed out, no sheet)', {
     loginPath,
-    hadClerkUser: hasClerkUser,
     hadSignInSheet: Boolean(signInSheet),
     iosSheetReady: Boolean(window.IosSheet?.open),
-    handshakeCooldown: adminHandshakeInCooldown(),
-    note: 'Signed-in SSR shell omits SignInSheet — login redirect can loop if Clerk still has a user.',
   });
   markPwaRefreshCause('session-expired-login-redirect', {
     loginPath,
-    hadClerkUser: hasClerkUser,
+    hadClerkUser: false,
     hadSignInSheet: Boolean(signInSheet),
     iosSheetReady: Boolean(window.IosSheet?.open),
   });
