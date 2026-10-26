@@ -20419,77 +20419,25 @@ async function clipboardLooksLike(text) {
   }
 }
 
-function onOtpCopyOverlayEscape(ev) {
-  if (ev.key !== 'Escape') return;
-  const root = document.getElementById('admin-otp-copy-overlay');
-  if (!root || root.hidden) return;
-  ev.preventDefault();
-  hideOtpCopyOverlay();
-}
+const OTP_COPY_SHEET_ID = 'admin-otp-copy-backdrop';
+let otpCopySheetBound = false;
 
 function hideOtpCopyOverlay() {
-  const root = document.getElementById('admin-otp-copy-overlay');
-  if (root) root.hidden = true;
-  document.removeEventListener('keydown', onOtpCopyOverlayEscape);
+  window.IosSheet?.close(OTP_COPY_SHEET_ID);
+  const legacy = document.getElementById('admin-otp-copy-overlay');
+  if (legacy instanceof HTMLElement) legacy.hidden = true;
 }
 
-function bindOtpCopyOverlayDismiss(root) {
-  if (!root || root.dataset.dismissBound === '1') return;
-  root.dataset.dismissBound = '1';
-  root.addEventListener('click', (e) => {
-    if (e.target === root) hideOtpCopyOverlay();
-  });
-  root.querySelector('.admin-otp-copy-card')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-  });
-}
-
-function ensureOtpCopyOverlay() {
-  let root = document.getElementById('admin-otp-copy-overlay');
-  if (root) {
-    bindOtpCopyOverlayDismiss(root);
-    if (!root.querySelector('#admin-otp-copy-done')) {
-      const copyBtn = root.querySelector('#admin-otp-copy-btn');
-      const done = document.createElement('button');
-      done.type = 'button';
-      done.className = 'admin-otp-copy-done';
-      done.id = 'admin-otp-copy-done';
-      done.textContent = 'Done';
-      done.addEventListener('click', () => hideOtpCopyOverlay());
-      copyBtn?.insertAdjacentElement('afterend', done);
-    }
-    return root;
-  }
-  root = document.createElement('div');
-  root.id = 'admin-otp-copy-overlay';
-  root.className = 'admin-otp-copy-overlay';
-  root.hidden = true;
-  root.innerHTML =
-    `<div class="admin-otp-copy-card" role="dialog" aria-modal="true" aria-labelledby="admin-otp-copy-title">` +
-    `<p class="admin-otp-copy-kicker">Verification code</p>` +
-    `<h2 id="admin-otp-copy-title">Tap Copy code</h2>` +
-    `<p class="admin-otp-copy-code" id="admin-otp-copy-code"></p>` +
-    `<p class="admin-otp-copy-status" id="admin-otp-copy-status">Tap Copy code to put it on the clipboard.</p>` +
-    `<button type="button" class="admin-otp-copy-btn" id="admin-otp-copy-btn">Copy code</button>` +
-    `<button type="button" class="admin-otp-copy-done" id="admin-otp-copy-done">Done</button>` +
-    `<p class="admin-otp-copy-hint">Then paste on this phone or your laptop.</p>` +
-    `</div>`;
-  bindOtpCopyOverlayDismiss(root);
-  const closeBtn = createIosIconBtn({
-    iconKey: 'x',
-    label: 'Close',
-    className: 'admin-otp-copy-close',
-    size: 'lg',
-    onClick: () => hideOtpCopyOverlay(),
-  });
-  root.querySelector('.admin-otp-copy-card')?.prepend(closeBtn);
-  root.querySelector('#admin-otp-copy-done')?.addEventListener('click', () => hideOtpCopyOverlay());
-  root.querySelector('#admin-otp-copy-btn')?.addEventListener('click', async () => {
-    const code = String(root.dataset.code || '').trim();
+function bindOtpCopySheetOnce() {
+  if (otpCopySheetBound) return;
+  otpCopySheetBound = true;
+  document.getElementById('admin-otp-copy-btn')?.addEventListener('click', async () => {
+    const backdrop = document.getElementById(OTP_COPY_SHEET_ID);
+    const code = String(backdrop?.dataset?.code || '').trim();
     if (!code) return;
     const ok = await copyEmailVerificationCode(code, null, { fromPrompt: true });
-    const status = root.querySelector('#admin-otp-copy-status');
-    const btn = root.querySelector('#admin-otp-copy-btn');
+    const status = document.getElementById('admin-otp-copy-status');
+    const btn = document.getElementById('admin-otp-copy-btn');
     if (status) {
       status.textContent = ok
         ? 'Copied — paste on this phone or your laptop'
@@ -20497,26 +20445,23 @@ function ensureOtpCopyOverlay() {
     }
     if (btn) btn.textContent = ok ? 'Copied' : 'Copy code';
   });
-  document.body.appendChild(root);
-  return root;
 }
 
 /** Always show the code + a real tap target. Silent clipboard writes fail on iOS. */
 function showOtpCopyOverlay(code) {
   const text = String(code || '').trim();
   if (!text) return;
-  const root = ensureOtpCopyOverlay();
-  root.dataset.code = text;
-  const codeEl = root.querySelector('#admin-otp-copy-code');
-  const status = root.querySelector('#admin-otp-copy-status');
-  const btn = root.querySelector('#admin-otp-copy-btn');
+  const backdrop = document.getElementById(OTP_COPY_SHEET_ID);
+  if (!backdrop || !window.IosSheet?.open) return;
+  bindOtpCopySheetOnce();
+  backdrop.dataset.code = text;
+  const codeEl = document.getElementById('admin-otp-copy-code');
+  const status = document.getElementById('admin-otp-copy-status');
+  const btn = document.getElementById('admin-otp-copy-btn');
   if (codeEl) codeEl.textContent = text;
-  if (status) {
-    status.textContent = 'Tap Copy code to put it on the clipboard.';
-  }
+  if (status) status.textContent = 'Tap Copy code to put it on the clipboard.';
   if (btn) btn.textContent = 'Copy code';
-  root.hidden = false;
-  document.addEventListener('keydown', onOtpCopyOverlayEscape);
+  window.IosSheet.open(OTP_COPY_SHEET_ID);
 }
 
 /** One-tap fallback when iOS blocks clipboard writes without a fresh gesture. */

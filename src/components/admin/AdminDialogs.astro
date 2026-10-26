@@ -40,6 +40,24 @@ import IosBottomSheet from '../IosBottomSheet.astro';
 </IosBottomSheet>
 
 <IosBottomSheet
+  id="admin-otp-copy-backdrop"
+  title="Verification code"
+  titleId="admin-otp-copy-title"
+  dismissible={true}
+  sheetClass="admin-otp-copy-sheet"
+  bodyClass="admin-otp-copy-body"
+>
+  <button slot="header-action" type="button" class="ios-sheet-header-action" data-ios-sheet-close>
+    Done
+  </button>
+  <p class="admin-otp-copy-lead" id="admin-otp-copy-lead">Tap Copy code</p>
+  <p class="admin-otp-copy-code" id="admin-otp-copy-code" aria-live="polite"></p>
+  <p class="admin-otp-copy-status" id="admin-otp-copy-status">Tap Copy code to put it on the clipboard.</p>
+  <button type="button" class="admin-otp-copy-btn" id="admin-otp-copy-btn">Copy code</button>
+  <p class="admin-otp-copy-hint">Then paste on this phone or your laptop.</p>
+</IosBottomSheet>
+
+<IosBottomSheet
   id="email-lab-intro-backdrop"
   title="Email Lab Mode"
   titleId="email-lab-intro-title"

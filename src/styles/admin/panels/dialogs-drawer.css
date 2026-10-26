@@ -365,6 +365,73 @@
   text-align: center;
 }
 
+/* Verification-code copy — above admin chrome when opened from push */
+#admin-otp-copy-backdrop {
+  z-index: 100001;
+}
+#admin-otp-copy-backdrop .ios-sheet {
+  --ios-sheet-bg: var(--panel);
+  --ios-sheet-fg: var(--fg);
+  --ios-sheet-border: var(--panel-border);
+  --ios-sheet-muted: var(--muted);
+  --ios-sheet-grabber: color-mix(in srgb, var(--muted) 55%, transparent);
+  --ios-sheet-close-bg: var(--surface-hover);
+  --ios-sheet-close-hover: var(--surface-hover-strong);
+  max-width: 420px;
+}
+#admin-otp-copy-backdrop .ios-sheet-header {
+  touch-action: none;
+}
+.admin-otp-copy-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+.admin-otp-copy-lead {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 650;
+  color: var(--ios-sheet-fg, var(--fg));
+}
+.admin-otp-copy-code {
+  margin: 0.35rem 0 0;
+  font-size: 2.15rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #fde68a;
+  user-select: all;
+  -webkit-user-select: all;
+}
+.admin-otp-copy-status,
+.admin-otp-copy-hint {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--ios-sheet-muted, var(--muted));
+}
+.admin-otp-copy-hint {
+  font-size: 0.78rem;
+  margin-top: 0.25rem;
+}
+.admin-otp-copy-btn {
+  appearance: none;
+  margin-top: 0.65rem;
+  border: 0;
+  border-radius: 999px;
+  min-width: 11rem;
+  padding: 0.85rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: #0a0d14;
+  background: #fde68a;
+  cursor: pointer;
+}
+
 /* Reave share sheet — nested under OS dialog (--ios-sheet-z) */
 #reave-share-backdrop {
   z-index: var(--ios-sheet-z-nested, 5900);
