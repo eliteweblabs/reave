@@ -24,6 +24,7 @@ import { isSitePageAllowed, loadSiteContentByKey, resolveSiteContentKey } from "
 import { mapLegacyReaveHostToRekko } from "./lib/legacyBrandDomain";
 import { permanentRedirectResponse } from "./lib/httpRedirect";
 import { publicHostFromRequest, runWithRequestHost, stripTrailingFqdnDot } from "./lib/requestHost";
+import { isDeployWizardRailwayPublicHost } from "./lib/deployWizardCatalog";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
 import { applyPublicHtmlEdgeCache } from "./lib/edgeCacheHeaders";
@@ -184,6 +185,20 @@ const appHandler = async (
     const target = new URL(url.href);
     target.hostname = legacyTarget;
     target.protocol = "https:";
+    return applySecurityHeaders(permanentRedirectResponse(context.request, target.toString()));
+  }
+
+  /** Clerk production auth cannot run on *.railway.app — send admin traffic to CLERK_PRIMARY_DOMAIN. */
+  const clerkPrimary = serverEnv("CLERK_PRIMARY_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0]?.toLowerCase() || "";
+  if (
+    clerkPrimary &&
+    isDeployWizardRailwayPublicHost(host) &&
+    isProtectedAdminPath(pathname) &&
+    host.toLowerCase() !== clerkPrimary
+  ) {
+    const target = new URL(url.href);
+    target.protocol = "https:";
+    target.host = clerkPrimary;
     return applySecurityHeaders(permanentRedirectResponse(context.request, target.toString()));
   }
 
