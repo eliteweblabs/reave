@@ -4,6 +4,8 @@ import ViewportMeta from "../components/ViewportMeta.astro";
 import "../styles/mobile-touch.css";
 
 export const prerender = false;
+
+const assetVersion = __PUBLIC_ASSET_VERSION__;
 ---
 
 <!doctype html>
@@ -19,19 +21,9 @@ export const prerender = false;
   </head>
   <body>
     <p>Signing out…</p>
-    <script>
-      async function go() {
-        // Wait for Clerk to load then sign out
-        const interval = setInterval(async () => {
-          const { Clerk } = window as any;
-          if (Clerk?.loaded) {
-            clearInterval(interval);
-            await Clerk.signOut();
-            window.location.href = "/";
-          }
-        }, 100);
-      }
-      go();
+    <script type="module" define:vars={{ assetVersion }}>
+      const { performStaffSignOut } = await import(`/admin/shared.js?v=${assetVersion}`);
+      await performStaffSignOut({ fromDedicatedPage: true });
     </script>
   </body>
 </html>

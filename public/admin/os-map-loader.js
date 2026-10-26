@@ -135,7 +135,7 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminBackgroundPoll, adminStaffUserId } from './shared.js?v=20260903a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminBackgroundPoll, adminStaffUserId, performStaffSignOut } from './shared.js?v=20261026a';
 import { createTracer } from '../shared/reave-diagnostic.js';
 
 const navDiag = createTracer('nav');
@@ -12944,16 +12944,10 @@ function initTopbarMenus() {
   const signOutBtn = document.getElementById('topbar-sign-out');
   if (signOutBtn && !signOutBtn.dataset.bound) {
     signOutBtn.dataset.bound = '1';
-    signOutBtn.addEventListener('click', async (ev) => {
+    signOutBtn.addEventListener('click', (ev) => {
       ev.preventDefault();
       closeTopbarMenus();
-      const clerk = window.Clerk;
-      if (clerk) {
-        await clerk.signOut();
-        window.location.href = '/';
-      } else {
-        window.location.href = '/sign-out';
-      }
+      void performStaffSignOut();
     });
   }
 

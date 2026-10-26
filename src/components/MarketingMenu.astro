@@ -229,7 +229,7 @@ const showOverlayFooter =
   }
 </OverlayMenu>
 
-<script>
+<script define:vars={{ assetVersion: __PUBLIC_ASSET_VERSION__ }}>
   import { getMarketingOverlay, setOverlayMenuOpen } from "../lib/overlayMenuDom";
 
   function setMarketingMenuOpen(open: boolean) {
@@ -248,13 +248,8 @@ const showOverlayFooter =
 
     async function marketingSignOut() {
       setMarketingMenuOpen(false);
-      const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
-      if (Clerk) {
-        await Clerk.signOut();
-        window.location.href = "/";
-      } else {
-        window.location.href = "/sign-out";
-      }
+      const { performStaffSignOut } = await import(`/admin/shared.js?v=${assetVersion}`);
+      await performStaffSignOut();
     }
 
     root.querySelector("[data-marketing-sign-out]")?.addEventListener("click", (ev) => {

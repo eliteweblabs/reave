@@ -545,6 +545,20 @@ assert.match(
   /openAdminStaleSessionRecovery/,
   '401 with Clerk user must use in-app stale recovery instead of login redirect',
 );
+assert.match(sharedJs, /export async function performStaffSignOut/);
+assert.match(
+  sharedJs,
+  /staffSignOutLandingPath[\s\S]{0,280}\/admin\/login/,
+  'sign out from admin must not land on login-template / (SSR bounce to /admin/)',
+);
+
+const osMapLoader = readFileSync('public/admin/os-map-loader.js', 'utf8');
+assert.match(osMapLoader, /performStaffSignOut/);
+assert.doesNotMatch(
+  osMapLoader,
+  /topbar-sign-out[\s\S]{0,400}window\.location\.href = '\/'/,
+  'account sign out must not redirect to / after clerk.signOut',
+);
 
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 assert.match(astroConfig, /clerkProxyUrlFromEnv/);

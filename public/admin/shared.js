@@ -63,6 +63,101 @@ export function markAdminServerSessionStale() {
   }
 }
 
+const SSR_SYNC_ONCE_KEY = 'reave-clerk-ssr-sync-once';
+
+/** Post sign-out landing — never `/` from admin (login-template `/` bounces to /admin/). */
+export function staffSignOutLandingPath() {
+  if (typeof window === 'undefined') return '/admin/login';
+  const path = window.location.pathname;
+  if (path.startsWith('/admin')) return '/admin/login';
+  const root = path.replace(/\/$/, '') || '/';
+  if (root === '/') return '/';
+  return '/sign-in';
+}
+
+function waitForClerkLoaded(timeoutMs = 20000) {
+  if (window.Clerk?.loaded) return Promise.resolve(window.Clerk);
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    const onReady = () => {
+      window.removeEventListener('clerk-loaded', onReady, true);
+      resolve(window.Clerk);
+    };
+    window.addEventListener('clerk-loaded', onReady, true);
+    const poll = setInterval(() => {
+      if (window.Clerk?.loaded) {
+        clearInterval(poll);
+        onReady();
+      } else if (Date.now() - started > timeoutMs) {
+        clearInterval(poll);
+        window.removeEventListener('clerk-loaded', onReady, true);
+        reject(new Error('Clerk load timeout'));
+      }
+    }, 50);
+  });
+}
+
+function clearStaffSignOutClientState() {
+  markAdminServerSessionStale();
+  staleRecoverySheetOpen = false;
+  dismissAdminSessionSyncBanner();
+  pauseAdminAuthPolls(5 * 60_000);
+  clearAdminSessionRecoverMark();
+  try {
+    sessionStorage.removeItem(AUTH_SYNC_KEY);
+    sessionStorage.removeItem(SSR_SYNC_ONCE_KEY);
+    sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
+    sessionStorage.removeItem(ADMIN_HANDSHAKE_AT_KEY);
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.__reaveClerkAuthMounted = false;
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * End the Clerk session and land on a login page without the login-template `/` bounce.
+ * Used by account menu, marketing menu, and /sign-out.
+ */
+export async function performStaffSignOut(opts = {}) {
+  clearStaffSignOutClientState();
+  markPwaRefreshCause('staff-sign-out', { dedicated: opts.fromDedicatedPage === true });
+
+  const landingPath = staffSignOutLandingPath();
+  const landingUrl = new URL(landingPath, window.location.origin).toString();
+
+  let clerk;
+  try {
+    clerk = await waitForClerkLoaded(opts.fromDedicatedPage ? 25000 : 15000);
+  } catch {
+    clerk = window.Clerk;
+  }
+
+  if (!clerk?.signOut) {
+    window.location.assign('/sign-out');
+    return;
+  }
+
+  try {
+    await clerk.signOut({ redirectUrl: landingUrl });
+  } catch (err) {
+    authLog().warn('clerk.signOut failed', { err: String(err?.message || err) });
+    window.location.assign('/sign-out');
+    return;
+  }
+
+  if (window.Clerk?.user) {
+    window.location.assign('/sign-out');
+    return;
+  }
+  if (window.location.pathname.replace(/\/$/, '') !== landingPath.replace(/\/$/, '')) {
+    window.location.assign(landingUrl);
+  }
+}
+
 function clearAdminSessionRecoverMark() {
   try {
     sessionStorage.removeItem(ADMIN_API_RECOVER_KEY);
