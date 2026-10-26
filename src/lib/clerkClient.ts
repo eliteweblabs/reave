@@ -4,6 +4,8 @@
  * Backend API — https://api.clerk.com/v1  (per-app, requires CLERK_SECRET_KEY)
  * Clerk does not allow system-level access. Clerk Pro does not provide a platform key.
  */
+import { clerkProxyApexHost } from './legacyBrandDomain';
+import { isCanonicalReaveInstall } from './installConfig';
 import { clerkProxyUrlFromEnv, clerkProxyUrlsEqual, DEFAULT_CLERK_FRONTEND_PROXY_PATH, isClerkProxyOptOut, normalizeClerkProxyUrl } from './clerkProxyUrl';
 import { serverEnv } from './serverEnv';
 
@@ -991,6 +993,13 @@ export async function clerkEnsureDomainProxy(proxyUrl: string): Promise<{
   const host = clerkHostnameFromProxyUrl(wanted);
   const primaryName = clerkDomainName(primary);
   if (host && host !== primaryName) {
+    const hubApex =
+      clerkProxyApexHost(serverEnv('CLERK_PRIMARY_DOMAIN') ?? '') ||
+      clerkProxyApexHost(serverEnv('PUBLIC_SITE_DOMAIN') ?? '') ||
+      clerkProxyApexHost(serverEnv('COMPANY_DOMAIN') ?? '');
+    if (isCanonicalReaveInstall() && hubApex && host === hubApex) {
+      return clerkMigratePrimaryDomain(host);
+    }
     return { ok: true, skipped: true };
   }
 
