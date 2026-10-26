@@ -1,25 +1,28 @@
 /**
- * Public marketing "Login" links — client installs use /admin/login (Clerk),
- * not /sign-in (PWA sheet on official hosts only).
+ * Public pack/marketing "Login" → staff admin sign-in (Clerk), not /sign-in.
  */
-import { isDeployWizardRailwayPublicHost } from './deployWizardCatalog';
-import { isOfficialReavePublicHost } from './installConfig';
-import { isReaveMarketingHost, resolvePublicHost } from './requestHost';
 import { serverEnv } from './serverEnv';
 
-export function publicSignInHref(request: Request): string {
-  const host = resolvePublicHost(request);
-  if (isReaveMarketingHost(host) || isOfficialReavePublicHost()) {
-    return '/sign-in';
-  }
-  const clerkPrimary =
-    serverEnv('CLERK_PRIMARY_DOMAIN')
+function normalizeHost(raw: string | undefined): string {
+  return (
+    raw
       ?.trim()
       .replace(/^https?:\/\//, '')
       .split('/')[0]
-      ?.toLowerCase() || '';
-  if (clerkPrimary && isDeployWizardRailwayPublicHost(host)) {
+      ?.replace(/^www\./, '')
+      .toLowerCase() || ''
+  );
+}
+
+/** e.g. CLERK_PRIMARY_DOMAIN=admin.pdx-paws.com or admin.{PLANNED_SITE_DOMAIN}. */
+export function publicSignInHref(_request?: Request): string {
+  const clerkPrimary = normalizeHost(serverEnv('CLERK_PRIMARY_DOMAIN'));
+  if (clerkPrimary) {
     return `https://${clerkPrimary}/admin/login`;
+  }
+  const planned = normalizeHost(serverEnv('PLANNED_SITE_DOMAIN'));
+  if (planned) {
+    return `https://admin.${planned}/admin/login`;
   }
   return '/admin/login';
 }
