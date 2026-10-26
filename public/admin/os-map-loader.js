@@ -11203,6 +11203,15 @@ async function loadCompanyTab() {
   }
 }
 
+function billingCraterConfigured() {
+  const features = window.__installConfig?.features;
+  return (
+    Array.isArray(features) &&
+    features.includes('billing') &&
+    Boolean(String(window.__craterFinanceUrl || '').trim())
+  );
+}
+
 function renderAppSettingsPanel(settings, sleepData) {
   const s = settings || {};
   const sleep = sleepData?.settings || {};
@@ -11211,8 +11220,26 @@ function renderAppSettingsPanel(settings, sleepData) {
     ? Number(s.recentlyViewedDays)
     : 7;
   const shareOpenChatAlerts = s.shareOpenChatAlerts === true;
+  const craterAutoSyncContacts = s.craterAutoSyncContacts === true;
   const calendarReminderMinutes =
     String(s.calendarReminderMinutes || '15').trim() || '15';
+  const craterBillingSection = billingCraterConfigured()
+    ? profSection(
+        'Crater Financial',
+        'Keep billing customers aligned with your contact list — no per-contact “Add to Crater” unless you turn this off.',
+        `<div class="prof-field">` +
+          `<label class="prof-check-row">` +
+            `<input id="settings-crater-auto-sync" name="craterAutoSyncContacts" type="checkbox" value="1"${craterAutoSyncContacts ? ' checked' : ''} />` +
+            `<span>Automatically sync contacts to Crater</span>` +
+          `</label>` +
+          `<span class="prof-hint">When on, new and updated contacts create or refresh Crater customers. Existing links still update on edit. Use the button below once to backfill everyone already in ${escHtml(postTitle(2))}.</span>` +
+        `</div>` +
+        `<div class="prof-field">` +
+          `<button type="button" id="settings-crater-sync-all" class="brand-btn brand-btn-glass">Sync all contacts to Crater</button>` +
+          `<span id="settings-crater-sync-status" class="prof-hint" hidden></span>` +
+        `</div>`,
+      )
+    : '';
   const sleepEnabled = sleep.sleepModeEnabled !== false;
   const quietStart = sleep.quietStart || '23:00';
   const quietEnd = sleep.quietEnd || '07:00';
@@ -11272,6 +11299,7 @@ function renderAppSettingsPanel(settings, sleepData) {
               `<span class="prof-hint">Default is 15. Use a single value (30) or comma-separated offsets (60,15) for day-of plus lead-up alerts.</span>` +
             `</div>`,
           ) +
+          craterBillingSection +
         `</form>` +
         `<form id="sleep-settings-form" class="prof-form">` +
           profSection(
@@ -11329,6 +11357,8 @@ function bindAppSettingsForm(root) {
     async save(payload) {
       const shareOpenChatAlerts =
         appForm?.querySelector('#settings-share-open-chat-alerts')?.checked === true;
+      const craterAutoSyncContacts =
+        appForm?.querySelector('#settings-crater-auto-sync')?.checked === true;
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -11336,6 +11366,7 @@ function bindAppSettingsForm(root) {
           otpTtlMinutes: Number(payload.otpTtlMinutes),
           recentlyViewedDays: Number(payload.recentlyViewedDays),
           shareOpenChatAlerts,
+          craterAutoSyncContacts,
           calendarReminderMinutes: String(payload.calendarReminderMinutes || '').trim(),
         }),
       });
@@ -11385,6 +11416,33 @@ function bindAppSettingsForm(root) {
     await otpBind.flush();
     await sleepBind.flush();
   };
+
+  const syncAllBtn = root.querySelector('#settings-crater-sync-all');
+  const syncStatus = root.querySelector('#settings-crater-sync-status');
+  if (syncAllBtn && syncStatus) {
+    syncAllBtn.addEventListener('click', async () => {
+      syncAllBtn.disabled = true;
+      syncStatus.hidden = false;
+      syncStatus.textContent = 'Syncing contacts to Crater…';
+      try {
+        const res = await fetch('/api/admin/crater/sync-contacts', { method: 'POST' });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || json.ok === false) {
+          syncStatus.textContent = json.error || `Sync failed (HTTP ${res.status})`;
+          return;
+        }
+        const st = json.stats || {};
+        syncStatus.textContent =
+          `Done — ${st.total ?? 0} processed: ${st.created ?? 0} created, ${st.updated ?? 0} updated, ${st.unchanged ?? 0} unchanged` +
+          (st.failed ? `, ${st.failed} failed` : '') +
+          (st.skipped ? `, ${st.skipped} skipped (no name)` : '');
+      } catch (e) {
+        syncStatus.textContent = e?.message || 'Sync failed';
+      } finally {
+        syncAllBtn.disabled = false;
+      }
+    });
+  }
 }
 
 async function loadAppSettingsTab() {

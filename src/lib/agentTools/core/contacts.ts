@@ -275,11 +275,23 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
       .catch(() => {});
   }
 
+  const craterAuto = await import('../../contactCraterSync').then((m) =>
+    m.autoSyncContactToCrater(result.data),
+  );
+  const craterSynced =
+    craterAuto.ok && !('skipped' in craterAuto)
+      ? {
+          crater_synced: true,
+          crater_customer_id: craterAuto.customerId,
+          crater_customer_name: craterAuto.customerName,
+        }
+      : {};
   const contact = await hydrateContactForAgent(result.data);
   return JSON.stringify({
     success: true,
     ...contact,
     kind,
+    ...craterSynced,
     /** Google Places business-name match — when not_listed, audits must surface it. */
     placesListing: places.listing,
     googlePlacesListed: places.listing.status === 'matched',

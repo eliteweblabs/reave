@@ -40,6 +40,10 @@ export const POST: APIRoute = async (context) => {
     return json({ ok: false, error: result.error }, result.status ?? 502);
   }
 
+  void import('../../../lib/contactCraterSync')
+    .then((m) => m.autoSyncContactToCrater(result.data))
+    .catch((e) => console.warn('[crater] autoSync on create failed', e));
+
   // Fire the welcome/follow-up automations (non-blocking).
   void import('../../../lib/newsletterEngine')
     .then((m) => m.onContactCreated(result.data))

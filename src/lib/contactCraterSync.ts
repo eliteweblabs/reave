@@ -4,7 +4,8 @@
  * Matches the linked Crater customer using the contact's *previous* identity
  * (before the PATCH) so renames and email changes still find the right record.
  */
-import { contactStringField, type ContactRecord } from './contactApi';
+import { contactStringField, listContacts, type ContactRecord } from './contactApi';
+import { getCraterAutoSyncContacts } from './appSettingsStore';
 import { hasFeature } from './features';
 import {
   craterBillingHintForContact,
@@ -236,7 +237,20 @@ export async function syncContactToCrater(
 
   const found = await craterFindCustomerForContact(beforeMatch);
   if (!found.ok) return { ok: false, error: found.error };
-  if (!found.data) return { ok: true, synced: false, reason: 'no_crater_customer' };
+  if (!found.data) {
+    const autoSync = await getCraterAutoSyncContacts();
+    if (autoSync) {
+      const pushed = await pushContactToCrater(after, { updateIfExists: true });
+      if (!pushed.ok) return { ok: false, error: pushed.error };
+      return {
+        ok: true,
+        synced: true,
+        customerId: pushed.customerId,
+        customerName: pushed.customerName,
+      };
+    }
+    return { ok: true, synced: false, reason: 'no_crater_customer' };
+  }
 
   const payload = craterCustomerPayloadFromContact(after);
   const updated = await craterUpdateCustomer(found.data.id, payload);
@@ -248,4 +262,90 @@ export async function syncContactToCrater(
     customerId: found.data.id,
     customerName: payload.name,
   };
+}
+
+/** Push to Crater when install-wide auto-sync is enabled (no-op otherwise). */
+export async function autoSyncContactToCrater(
+  contact: Pick<ContactRecord, 'name' | 'email' | 'phone' | 'company'>,
+): Promise<
+  | { ok: true; skipped: true; reason: 'auto_sync_off' | 'billing_disabled' }
+  | ContactCraterPushResult
+> {
+  if (!billingConfigured()) {
+    return { ok: true, skipped: true, reason: 'billing_disabled' };
+  }
+  const enabled = await getCraterAutoSyncContacts();
+  if (!enabled) return { ok: true, skipped: true, reason: 'auto_sync_off' };
+  return pushContactToCrater(contact, { updateIfExists: true });
+}
+
+export type CraterBulkSyncStats = {
+  total: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  failed: number;
+  errors: Array<{ uid?: string; name?: string; error: string }>;
+};
+
+/** Push every contact to Crater (create or refresh). Used after enabling auto-sync. */
+export async function syncAllContactsToCrater(): Promise<
+  | { ok: true; stats: CraterBulkSyncStats }
+  | { ok: false; error: string }
+> {
+  if (!billingConfigured()) {
+    return { ok: false, error: 'Crater billing is not configured' };
+  }
+
+  const stats: CraterBulkSyncStats = {
+    total: 0,
+    created: 0,
+    updated: 0,
+    unchanged: 0,
+    skipped: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  const pageSize = 200;
+  let offset = 0;
+  let total = Infinity;
+
+  while (offset < total) {
+    const page = await listContacts({ limit: pageSize, offset });
+    if (!page.ok) return { ok: false, error: page.error };
+    total = page.data.total;
+    const batch = page.data.contacts.filter((c) => !c.archived);
+    if (!batch.length && offset >= total) break;
+
+    for (const contact of batch) {
+      stats.total++;
+      const payload = craterCustomerPayloadFromContact(contact);
+      if (!payload.name?.trim()) {
+        stats.skipped++;
+        continue;
+      }
+      const pushed = await pushContactToCrater(contact, { updateIfExists: true });
+      if (!pushed.ok) {
+        stats.failed++;
+        if (stats.errors.length < 25) {
+          stats.errors.push({
+            uid: contact.uid,
+            name: contactStringField(contact.name) || undefined,
+            error: pushed.error,
+          });
+        }
+        continue;
+      }
+      if (pushed.created) stats.created++;
+      else if (pushed.synced) stats.updated++;
+      else stats.unchanged++;
+    }
+
+    offset += pageSize;
+    if (page.data.contacts.length < pageSize) break;
+  }
+
+  return { ok: true, stats };
 }

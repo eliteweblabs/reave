@@ -53,6 +53,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
     recentlyViewedDays?: number;
     shareOpenChatAlerts?: boolean;
     calendarReminderMinutes?: string;
+    craterAutoSyncContacts?: boolean;
   } = {};
   if (body.otpTtlMinutes !== undefined) {
     const n = Number(body.otpTtlMinutes);
@@ -74,6 +75,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
       return jsonResponse({ ok: false, error: 'shareOpenChatAlerts must be a boolean.' }, 400);
     }
     patch.shareOpenChatAlerts = coerceShareOpenChatAlerts(parsed, false);
+  }
+  if (body.craterAutoSyncContacts !== undefined) {
+    const parsed = parseOptionalBool(body.craterAutoSyncContacts);
+    if (parsed === undefined) {
+      return jsonResponse({ ok: false, error: 'craterAutoSyncContacts must be a boolean.' }, 400);
+    }
+    patch.craterAutoSyncContacts = coerceShareOpenChatAlerts(parsed, false);
   }
   if (body.calendarReminderMinutes !== undefined) {
     const raw = String(body.calendarReminderMinutes ?? '').trim();

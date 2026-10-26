@@ -178,6 +178,9 @@ export async function POST(context: APIContext): Promise<Response> {
 
         if (createResult.ok) {
           results.created++;
+          void import('../../../lib/contactCraterSync')
+            .then((m) => m.autoSyncContactToCrater(createResult.data))
+            .catch(() => undefined);
         } else {
           results.errors.push(`${displayName}: ${createResult.error}`);
         }
@@ -192,6 +195,9 @@ export async function POST(context: APIContext): Promise<Response> {
 
         if (createResult.ok) {
           results.created++;
+          void import('../../../lib/contactCraterSync')
+            .then((m) => m.autoSyncContactToCrater(createResult.data))
+            .catch(() => undefined);
         } else {
           results.errors.push(`${displayName}: ${createResult.error}`);
         }

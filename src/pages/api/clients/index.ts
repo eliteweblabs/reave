@@ -125,6 +125,10 @@ export async function POST(context: APIContext): Promise<Response> {
     await enrichContactAddressFromPlaces(result.data.uid);
   }
 
+  void import('../../../lib/contactCraterSync')
+    .then((m) => m.autoSyncContactToCrater(result.data))
+    .catch((e) => console.warn('[crater] autoSync on create failed', e));
+
   // Fire the welcome/follow-up automations (non-blocking; skip personal/proposed contacts).
   if (kind === 'professional') {
     void import('../../../lib/newsletterEngine')
