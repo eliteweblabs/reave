@@ -306,7 +306,7 @@ export async function persistFetchedBrandAsset(input: {
   const blob = brandingBlobFromMedia(record);
   if (!blob.ok) return { ok: false, error: blob.error };
   if (blob.kind !== 'raster') {
-    return { ok: false, error: 'Only PNG, JPEG, or WebP images can be used for contact branding.' };
+    return { ok: false, error: 'Only PNG, JPEG, WebP, or AVIF images can be used for contact branding.' };
   }
 
   if (input.asset === 'logo') {

@@ -1347,7 +1347,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<button type="button" id="cl-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogo ? '' : ' hidden'}>×</button>` +
         `</div>` +
         `<div id="cl-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo && !uploadsDisabled ? ' hidden' : ''}>` +
-          `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp"${uploadsDisabled ? ' disabled' : ''} />` +
+          `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp,image/avif,.avif"${uploadsDisabled ? ' disabled' : ''} />` +
         `</div>` +
         `<div class="prof-logo-actions">` +
           `<button type="button" id="cl-logo-library" class="de-btn de-btn-secondary prof-branding-library-btn"${uploadsDisabled ? ' hidden' : ''}>Library</button>` +
@@ -1363,7 +1363,7 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
           `<button type="button" id="cl-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasIcon ? '' : ' hidden'}>×</button>` +
         `</div>` +
         `<div id="cl-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon && !uploadsDisabled ? ' hidden' : ''}>` +
-          `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp"${uploadsDisabled ? ' disabled' : ''} />` +
+          `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp,image/avif,.avif"${uploadsDisabled ? ' disabled' : ''} />` +
         `</div>` +
         `<div class="prof-logo-actions">` +
           `<button type="button" id="cl-icon-library" class="de-btn de-btn-secondary prof-branding-library-btn"${uploadsDisabled ? ' hidden' : ''}>Library</button>` +
@@ -1676,11 +1676,11 @@ function bindClientBrandingUploads(root, uid, onUpdate, refreshers) {
   root.querySelector('#cl-logo-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose contact logo',
-      hint: 'Choose a PNG, JPEG, or WebP under 2 MB.',
+      hint: 'Choose PNG, JPEG, WebP, or AVIF under 2 MB.',
       emptyHint:
         'No logos in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
-        'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
+        'Library files are present, but none are PNG, JPEG, WebP, or AVIF under 2 MB.',
       filter: brandingRasterMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-logo', uid);
@@ -1693,11 +1693,11 @@ function bindClientBrandingUploads(root, uid, onUpdate, refreshers) {
   root.querySelector('#cl-icon-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose contact icon',
-      hint: 'Choose a PNG, JPEG, or WebP under 2 MB.',
+      hint: 'Choose PNG, JPEG, WebP, or AVIF under 2 MB.',
       emptyHint:
         'No icons in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
-        'Library files are present, but none are PNG, JPEG, or WebP under 2 MB.',
+        'Library files are present, but none are PNG, JPEG, WebP, or AVIF under 2 MB.',
       filter: brandingRasterMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'client-icon', uid);

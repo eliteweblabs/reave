@@ -5,7 +5,7 @@
 import { escHtml } from './shared.js?v=20260810a';
 import { iosIcon, createIosIconBtn } from './admin-ui.js?v=20260826a';
 
-const EDITABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const EDITABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/avif-sequence']);
 const MIN_CROP = 32;
 const MIN_SCALE = 10;
 const MAX_SCALE = 100;
@@ -20,7 +20,7 @@ export function isEditableRasterFile(file) {
   const type = String(file.type || '').trim().toLowerCase();
   if (EDITABLE_TYPES.has(type)) return true;
   const name = String(file.name || '').toLowerCase();
-  return /\.(jpe?g|png|webp)$/.test(name) && !/\.gif$/.test(name) && !/\.svg$/.test(name);
+  return /\.(jpe?g|png|webp|avif)$/.test(name) && !/\.gif$/.test(name) && !/\.svg$/.test(name);
 }
 
 function inferType(file, fallback) {
@@ -29,7 +29,15 @@ function inferType(file, fallback) {
   const name = String(file?.name || '').toLowerCase();
   if (name.endsWith('.png')) return 'image/png';
   if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.avif')) return 'image/avif';
   return 'image/jpeg';
+}
+
+/** Canvas export has no AVIF encoder — save cropped AVIF uploads as WebP. */
+function exportRasterType(type) {
+  const t = String(type || '').trim().toLowerCase();
+  if (t === 'image/avif' || t === 'image/avif-sequence') return 'image/webp';
+  return t;
 }
 
 function filenameForType(name, type) {
@@ -197,6 +205,7 @@ function canvasToFile(canvas, type, filename, quality) {
 }
 
 function exportEdited(source, rotation, crop, scalePct, type, filename) {
+  type = exportRasterType(type);
   const src = { w: source.w, h: source.h };
   const rot = rotatedSize(src.w, src.h, rotation);
   const outW = Math.max(1, Math.round(crop.w * (scalePct / 100)));

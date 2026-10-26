@@ -53,6 +53,8 @@ export const MEDIA_LIBRARY_MEDIA_TYPES = new Set([
   'image/png',
   'image/gif',
   'image/webp',
+  'image/avif',
+  'image/avif-sequence',
   'image/svg+xml',
   'application/pdf',
   'application/zip',
@@ -64,6 +66,8 @@ const IMAGE_MEDIA_TYPES = new Set([
   'image/png',
   'image/gif',
   'image/webp',
+  'image/avif',
+  'image/avif-sequence',
   'image/svg+xml',
 ]);
 
@@ -99,6 +103,7 @@ export function inferMediaLibraryType(file: { type?: string; name: string }): st
   if (name.endsWith('.png')) return 'image/png';
   if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
   if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.avif')) return 'image/avif';
   if (name.endsWith('.zip')) return 'application/zip';
   return null;
 }
@@ -956,6 +961,10 @@ function guessRemoteImageMediaType(buf: Buffer, fallback = 'image/png'): string 
   ) {
     return 'image/webp';
   }
+  if (buf.length >= 12 && buf.toString('ascii', 4, 8) === 'ftyp') {
+    const brand = buf.toString('ascii', 8, 12);
+    if (brand.startsWith('avif') || brand.startsWith('avis')) return 'image/avif';
+  }
   return fallback;
 }
 
@@ -965,6 +974,9 @@ function extensionForMediaType(mediaType: string): string {
       return 'jpg';
     case 'image/webp':
       return 'webp';
+    case 'image/avif':
+    case 'image/avif-sequence':
+      return 'avif';
     case 'image/gif':
       return 'gif';
     default:

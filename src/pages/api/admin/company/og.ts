@@ -33,7 +33,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const parsed = await parseCompanyOgUpload(file);
   if (!parsed.ok) return jsonResponse({ error: parsed.error }, 400);
   if (parsed.kind !== 'raster') {
-    return jsonResponse({ error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' }, 400);
+    return jsonResponse({ error: 'Share image must be PNG, JPEG, WebP, or AVIF (1200×630 recommended).' }, 400);
   }
 
   const dims = await readRasterDimensions(parsed.dataBase64);

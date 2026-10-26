@@ -3617,13 +3617,15 @@ const BRANDING_EXT_BY_TYPE = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
+  'image/avif': 'avif',
+  'image/avif-sequence': 'avif',
   'image/svg+xml': 'svg',
 };
 
 function brandingExtFromUrl(url) {
   const m = String(url || '')
     .split('?')[0]
-    .match(/\.(png|jpe?g|webp|svg)$/i);
+    .match(/\.(png|jpe?g|webp|avif|svg)$/i);
   if (!m) return '';
   const ext = m[1].toLowerCase();
   return ext === 'jpeg' ? 'jpg' : ext;

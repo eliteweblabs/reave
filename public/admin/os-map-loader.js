@@ -8678,7 +8678,7 @@ function renderCompanyBrandAssetField(role, company, hints) {
       `<div id="company-${role}-image-panel" class="prof-brand-source-panel"${imagePanelHidden ? ' hidden' : ''}>` +
         profBrandingFileActions({
           fileId,
-          accept: 'image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp',
+          accept: 'image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp,.avif',
           uploadId,
           libraryId,
         }) +
@@ -8817,11 +8817,11 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
   root.querySelector('#company-logo-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose logo',
-      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB), or an SVG (max 200 KB).',
+      hint: 'Choose PNG, JPEG, WebP, or AVIF (max 2 MB), or an SVG (max 200 KB).',
       emptyHint:
         'No logos in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
-        'Library files are present, but none are PNG, JPEG, WebP, or SVG in the size limit.',
+        'Library files are present, but none match PNG, JPEG, WebP, AVIF, or SVG within the size limit.',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'company-logo');
@@ -8916,11 +8916,11 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   root.querySelector('#company-icon-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose icon',
-      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB), or an SVG (max 200 KB).',
+      hint: 'Choose PNG, JPEG, WebP, or AVIF (max 2 MB), or an SVG (max 200 KB).',
       emptyHint:
         'No icons in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
-        'Library files are present, but none are PNG, JPEG, WebP, or SVG in the size limit.',
+        'Library files are present, but none match PNG, JPEG, WebP, AVIF, or SVG within the size limit.',
       filter: brandingMediaFilter,
       onPick: async (item) => {
         const json = await applyMediaToTarget(item.id, 'company-icon');
@@ -9080,11 +9080,11 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
   root.querySelector('#company-og-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose share image',
-      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB), then crop to landscape, portrait, square, or tall.',
+      hint: 'Choose PNG, JPEG, WebP, or AVIF (max 2 MB), then crop to landscape, portrait, square, or tall.',
       emptyHint:
         'No share images in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
-        'Library files are present, but none are PNG, JPEG, or WebP in the size limit.',
+        'Library files are present, but none are PNG, JPEG, WebP, or AVIF in the size limit.',
       filter: brandingRasterMediaFilter,
       onPick: async (item) => {
         const edited = await editShareImageInput(item.url, item.filename, item.mediaType);
@@ -10427,7 +10427,7 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
               renderHeaderLogoSizeOptions(c.headerLogoSize) +
             `</select>` +
             `<span id="company-headerLogoSize-hint" class="prof-hint">How wide the wordmark sits in the top bar. Tall or square logos stay within the header height.</span></div>` +
-            `<span class="prof-hint prof-hint--block">Library or Upload accepts PNG, JPEG, WebP, or SVG (max 2 MB image / 200 KB SVG). Clear with × to fall back to the display name.</span>`,
+            `<span class="prof-hint prof-hint--block">Library or Upload accepts PNG, JPEG, WebP, AVIF, or SVG (max 2 MB image / 200 KB SVG). Clear with × to fall back to the display name.</span>`,
           ) +
           profSection(
             'Social Sharing',
@@ -10440,13 +10440,13 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
               `</div>` +
               profBrandingFileActions({
                 fileId: 'company-og-file',
-                accept: 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp',
+                accept: 'image/png,image/jpeg,image/webp,image/avif,.png,.jpg,.jpeg,.webp,.avif',
                 uploadId: 'company-og-upload-btn',
                 libraryId: 'company-og-library',
                 cropId: 'company-og-crop-btn',
               }) +
             `</div>` +
-            `<span class="prof-hint">PNG, JPEG, or WebP (max 2 MB). Upload or pick from the library, then crop — landscape (1.91:1), portrait (4:5), square, or tall (9:16). Leave empty to use the logo (then the icon). A page that sets its own share image wins.</span></div>`,
+            `<span class="prof-hint">PNG, JPEG, WebP, or AVIF (max 2 MB). Upload or pick from the library, then crop — landscape (1.91:1), portrait (4:5), square, or tall (9:16). Leave empty to use the logo (then the icon). A page that sets its own share image wins.</span></div>`,
           ) +
           profSection(
             'Typography',

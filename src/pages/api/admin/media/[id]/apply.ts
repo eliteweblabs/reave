@@ -106,7 +106,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (target === 'company-og') {
     if (blob.kind === 'svg') {
-      return jsonResponse({ ok: false, error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' }, 400);
+      return jsonResponse({ ok: false, error: 'Share image must be PNG, JPEG, WebP, or AVIF (1200×630 recommended).' }, 400);
     }
     const dims = await readRasterDimensions(blob.dataBase64);
     const ok = await setStoredCompanyOg({
@@ -121,7 +121,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (blob.kind === 'svg') {
-    return jsonResponse({ ok: false, error: 'Client branding requires PNG, JPEG, or WebP' }, 400);
+    return jsonResponse({ ok: false, error: 'Client branding requires PNG, JPEG, WebP, or AVIF' }, 400);
   }
 
   const uid = typeof body.uid === 'string' ? body.uid.trim() : '';

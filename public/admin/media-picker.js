@@ -8,7 +8,7 @@ const MEDIA_API = '/api/admin/media';
 const MEDIA_MAX_BYTES = 10 * 1024 * 1024;
 
 const DEFAULT_UPLOAD_ACCEPT =
-  'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,application/pdf,application/zip,.zip';
+  'image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml,application/pdf,application/zip,.zip,.avif';
 
 /** POST a file into the media library. */
 export async function uploadMediaLibraryFile(file) {
@@ -25,9 +25,9 @@ export function validateImageUploadFile(file) {
   const type = String(file?.type || '').trim().toLowerCase();
   const name = String(file?.name || '');
   const okType =
-    ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(type) ||
-    /\.(jpe?g|png|gif|webp)$/i.test(name);
-  if (!okType) return 'Use a JPEG, PNG, GIF, or WebP.';
+    ['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'image/gif'].includes(type) ||
+    /\.(jpe?g|png|gif|webp|avif)$/i.test(name);
+  if (!okType) return 'Use a JPEG, PNG, GIF, WebP, or AVIF.';
   const size = Number(file?.size) || 0;
   if (size <= 0) return 'File is empty.';
   if (size > MEDIA_MAX_BYTES) return 'Max size is 10 MB.';
@@ -301,7 +301,7 @@ export function openMediaPicker(opts) {
   });
 }
 
-const BRANDING_RASTER_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const BRANDING_RASTER_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'image/avif-sequence'];
 const BRANDING_RASTER_MAX_BYTES = 2 * 1024 * 1024;
 const BRANDING_SVG_MAX_BYTES = 200 * 1024;
 

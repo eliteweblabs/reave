@@ -27,7 +27,14 @@ export const LOGO_UPLOAD_MEDIA_TYPES = new Set([
   'image/png',
   'image/jpeg',
   'image/webp',
+  'image/avif',
+  'image/avif-sequence',
 ]);
+
+/** Shown in admin hints and API errors for logo / icon / share slots. */
+export const LOGO_UPLOAD_FORMATS_LABEL = 'PNG, JPEG, WebP, AVIF, or SVG';
+
+export const LOGO_UPLOAD_RASTER_FORMATS_LABEL = 'PNG, JPEG, WebP, or AVIF';
 
 export function isLogoUploadMediaType(type: string): boolean {
   return LOGO_UPLOAD_MEDIA_TYPES.has(type.trim().toLowerCase());
@@ -41,6 +48,7 @@ export function inferLogoUploadMediaType(file: Pick<File, 'type' | 'name'>): str
   if (name.endsWith('.png')) return 'image/png';
   if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
   if (name.endsWith('.webp')) return 'image/webp';
+  if (name.endsWith('.avif')) return 'image/avif';
   return null;
 }
 
@@ -88,7 +96,7 @@ export async function parseCompanyBrandUpload(
 
   const mediaType = inferLogoUploadMediaType(file);
   if (!mediaType) {
-    return { ok: false, error: 'File must be PNG, JPEG, WebP, or SVG' };
+    return { ok: false, error: `File must be ${LOGO_UPLOAD_FORMATS_LABEL}` };
   }
   if (file.size > LOGO_UPLOAD_MAX_BYTES) {
     return { ok: false, error: 'Image too large (max 2 MB)' };
@@ -102,7 +110,7 @@ export async function parseCompanyOgUpload(
   file: Pick<File, 'type' | 'name' | 'size' | 'text' | 'arrayBuffer'>,
 ): Promise<ParsedCompanyBrandUpload> {
   if (isBrandSvgUploadFile(file)) {
-    return { ok: false, error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' };
+    return { ok: false, error: `Share image must be PNG, JPEG, WebP, or AVIF (1200×630 recommended).` };
   }
   return parseCompanyBrandUpload(file);
 }

@@ -10,7 +10,11 @@ import {
   setClientPortalIcon,
   setClientPortalLogo,
 } from './clientBranding';
-import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from './companyLogo';
+import {
+  inferLogoUploadMediaType,
+  LOGO_UPLOAD_RASTER_FORMATS_LABEL,
+  LOGO_UPLOAD_MAX_BYTES,
+} from './companyLogo';
 import { archiveUploadToMediaLibrary } from './mediaLibrary';
 import { requireDashboardUser } from './dashboardAuth';
 import {
@@ -108,9 +112,12 @@ export async function clientBrandingAssetPost(
     return jsonResponse({ error: `Missing ${fieldName} file` }, 400);
   }
 
-  const mediaType = file.type.trim().toLowerCase();
-  if (!isLogoUploadMediaType(mediaType)) {
-    return jsonResponse({ error: `${kind === 'logo' ? 'Logo' : 'Icon'} must be PNG, JPEG, or WebP` }, 400);
+  const mediaType = inferLogoUploadMediaType(file);
+  if (!mediaType) {
+    return jsonResponse(
+      { error: `${kind === 'logo' ? 'Logo' : 'Icon'} must be ${LOGO_UPLOAD_RASTER_FORMATS_LABEL}` },
+      400,
+    );
   }
   if (file.size > LOGO_UPLOAD_MAX_BYTES) {
     return jsonResponse({ error: `${kind === 'logo' ? 'Logo' : 'Icon'} too large (max 2 MB)` }, 400);
