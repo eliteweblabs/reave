@@ -33,6 +33,10 @@ import {
 } from '../src/lib/chatAgentPump.ts';
 import { AGENT_EMPTY_REPLY_NOTE, describeAgentFailure } from '../src/lib/agentFailure.ts';
 import { isChatRunActive, sameAgentProgressUi, type AgentProgress } from '../src/lib/agentProgress.ts';
+import {
+  isChatTurnClientEvent,
+  reconcileNoteForVariant,
+} from '../src/lib/chatTurnRecovery.ts';
 
 const results: string[] = [];
 let failures = 0;
@@ -587,6 +591,21 @@ await test('progress UI equality ignores heartbeat updatedAt so thinking ticks d
   assert.equal(sameAgentProgressUi(base, { ...base, toolLabel: 'Still going' }), false);
   assert.equal(sameAgentProgressUi(base, null), false);
   assert.equal(sameAgentProgressUi(null, null), true);
+});
+
+await test('chat turn client telemetry events are a closed allowlist', () => {
+  assert.ok(isChatTurnClientEvent('recovery_started'));
+  assert.ok(isChatTurnClientEvent('recovery_connection_lost'));
+  assert.equal(isChatTurnClientEvent('run_start'), false);
+  assert.equal(isChatTurnClientEvent('not-a-real-event'), false);
+});
+
+await test('reconcile notes differ by variant', () => {
+  const interrupted = reconcileNoteForVariant('interrupted');
+  const lost = reconcileNoteForVariant('connection_lost');
+  assert.notEqual(interrupted, lost);
+  assert.match(interrupted, /interrupted/i);
+  assert.match(lost, /connection dropped/i);
 });
 
 console.log(`\nchat resilience checks\n${results.join('\n')}\n`);

@@ -21,16 +21,16 @@ import { isAgentRunActive } from '../../../../lib/agentRunControl';
 import { resolveChatThreadOwnerUserId } from '../../../../lib/chatOwnerAccess';
 import { storeAppendChatMessages, storeGetChatThread } from '../../../../lib/chatStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+import { recordChatTurnEvent } from '../../../../lib/chatTurnEvents';
+import {
+  reconcileNoteForVariant,
+  type ChatTurnReconcileVariant,
+} from '../../../../lib/chatTurnRecovery';
 import { getAliveAgentRunLease } from '../../../../lib/pgAgentRunLeases';
 import '../../../../lib/processDrain';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
 export const prerender = false;
-
-const INTERRUPTED_NOTE =
-  '_(This response was interrupted before it finished — the run ended without saving a reply ' +
-  '(often a deploy restart or dropped connection, not necessarily something you did). ' +
-  'Send the message again and I\'ll redo the work.)_';
 
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -41,13 +41,27 @@ export async function POST(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return jsonResponse({ ok: false, error: 'Missing thread id' }, 400);
 
+  let variant: ChatTurnReconcileVariant = 'interrupted';
+  try {
+    const body = (await context.request.json()) as { variant?: string };
+    if (body?.variant === 'connection_lost') variant = 'connection_lost';
+  } catch {
+    /* empty body — default interrupted */
+  }
+
   // A live run will write its own reply (the chat endpoint guarantees it), so
   // never insert a note underneath one that is still working — locally or on a
   // draining replica that still holds a fresh lease.
   if (isAgentRunActive(userId, id)) {
+    recordChatTurnEvent(userId, id, 'reconcile', {
+      detail: { variant, outcome: 'skipped', reason: 'run_active' },
+    });
     return jsonResponse({ ok: true, reconciled: false, reason: 'run_active' });
   }
   if (await getAliveAgentRunLease(userId, id)) {
+    recordChatTurnEvent(userId, id, 'reconcile', {
+      detail: { variant, outcome: 'skipped', reason: 'run_lease_active' },
+    });
     return jsonResponse({ ok: true, reconciled: false, reason: 'run_lease_active' });
   }
 
@@ -61,17 +75,26 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const last = thread.messages[thread.messages.length - 1];
   if (!last || last.role !== 'user') {
+    recordChatTurnEvent(userId, id, 'reconcile', {
+      detail: { variant, outcome: 'skipped', reason: 'already_answered' },
+    });
     return jsonResponse({ ok: true, reconciled: false, reason: 'already_answered' });
   }
 
+  const note = reconcileNoteForVariant(variant);
   const saved = await storeAppendChatMessages(ownerUserId, id, [
-    { role: 'assistant', content: INTERRUPTED_NOTE },
+    { role: 'assistant', content: note },
   ]);
   if (!saved) return jsonResponse({ ok: false, error: 'Failed to save note' }, 500);
+
+  recordChatTurnEvent(userId, id, 'reconcile', {
+    detail: { variant, outcome: 'applied' },
+  });
 
   return jsonResponse({
     ok: true,
     reconciled: true,
-    assistantMessage: { role: 'assistant', content: INTERRUPTED_NOTE },
+    variant,
+    assistantMessage: { role: 'assistant', content: note },
   });
 }

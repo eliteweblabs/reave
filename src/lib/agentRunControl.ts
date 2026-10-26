@@ -1,4 +1,5 @@
 import { getAgentProgress } from './agentProgress';
+import { recordChatTurnEvent } from './chatTurnEvents';
 import {
   clearAgentRunLease,
   heartbeatAgentRunLease,
@@ -65,6 +66,7 @@ export function registerAgentRun(
 
   void upsertAgentRunLease(userId, threadId);
   startHeartbeat(userId, threadId);
+  recordChatTurnEvent(userId, threadId, 'run_start');
 
   return controller.signal;
 }
@@ -103,8 +105,16 @@ export function clearAgentRun(userId: string, threadId: string, signal?: AbortSi
     return;
   }
   stopHeartbeat(key);
+  const wasActive = activeRuns.has(key);
   activeRuns.delete(key);
   void clearAgentRunLease(userId, threadId);
+  if (wasActive) {
+    recordChatTurnEvent(userId, threadId, 'run_end', {
+      detail: {
+        aborted: Boolean(signal?.aborted ?? current?.signal.aborted),
+      },
+    });
+  }
 }
 
 export function throwIfAborted(signal?: AbortSignal): void {

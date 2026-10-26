@@ -83,6 +83,11 @@ import { isChatRunActive, sameAgentProgressUi, type AgentProgress } from '../../
 import { isSentComposerEcho, readChatComposeDraftForThread } from '../../lib/chatComposerDraft';
 import { composeTrace } from '../../lib/chatComposeTrace';
 import {
+  CHAT_CONNECTION_LOST_STREAM_HINT,
+  type ChatTurnReconcileVariant,
+} from '../../lib/chatTurnRecovery';
+import { postChatTurnTelemetry } from '../../lib/chatTurnTelemetryClient';
+import {
   renderMentionEditor,
   syncMentionEditorEmpty,
 } from '../../lib/composerMentionEditor';
@@ -830,9 +835,7 @@ const STREAM_IDLE_TIMEOUT_MS = 40_000;
 const RECOVERY_MAX_MS = 15 * 60_000;
 const RECOVERY_POLL_MS = 1_500;
 
-const CONNECTION_LOST_NOTE =
-  'The connection to the server dropped and I could not recover this reply. The work may ' +
-  'have finished server-side — reopen this session to check, or send the message again.';
+const CONNECTION_LOST_NOTE = CHAT_CONNECTION_LOST_STREAM_HINT;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -859,6 +862,10 @@ async function fetchRunProgress(
     const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
       cache: 'no-store',
     });
+    if (res.status === 401) {
+      postChatTurnTelemetry(threadId, 'recovery_auth_fail', { route: 'progress' });
+      return null;
+    }
     if (!res.ok) return null;
     const data = (await res.json()) as { running?: boolean; progress?: AgentProgress | null };
     return { running: Boolean(data.running), progress: data.progress ?? null };
@@ -902,6 +909,9 @@ async function* recoverTurnFromServer(
   onRecovered: () => void,
   signal?: AbortSignal,
 ): AsyncGenerator<string, void> {
+  postChatTurnTelemetry(threadId, 'recovery_started', {
+    streamedChars: streamedText.length,
+  });
   const giveUpAt = Date.now() + RECOVERY_MAX_MS;
   let shown = streamedText;
 
@@ -931,6 +941,7 @@ async function* recoverTurnFromServer(
 
   const persisted = await fetchPersistedReply(threadId);
   if (persisted?.trim()) {
+    postChatTurnTelemetry(threadId, 'recovery_success', { chars: persisted.length });
     onRecovered();
     yield persisted;
     return;
@@ -939,22 +950,35 @@ async function* recoverTurnFromServer(
   // Nothing persisted and nothing running: the run died without writing a reply
   // (typically a container restart mid-run). Have the server record that, so the
   // thread is not left permanently unanswered.
-  const note = await reconcileDeadTurn(threadId);
+  const note = await reconcileDeadTurn(threadId, 'connection_lost');
   if (note?.trim()) {
+    postChatTurnTelemetry(threadId, 'recovery_reconciled', { variant: 'connection_lost' });
     onRecovered();
     yield note;
     return;
   }
 
+  postChatTurnTelemetry(threadId, 'recovery_connection_lost', {
+    partialChars: shown.length,
+  });
   yield shown.trim() ? `${shown}\n\n_(${CONNECTION_LOST_NOTE})_` : `_(${CONNECTION_LOST_NOTE})_`;
 }
 
 /** Ask the server to close out a turn whose run vanished (e.g. a deploy restart). */
-async function reconcileDeadTurn(threadId: string): Promise<string | null> {
+async function reconcileDeadTurn(
+  threadId: string,
+  variant: ChatTurnReconcileVariant = 'interrupted',
+): Promise<string | null> {
   try {
     const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/reconcile`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variant }),
     });
+    if (res.status === 401) {
+      postChatTurnTelemetry(threadId, 'recovery_auth_fail', { route: 'reconcile' });
+      return null;
+    }
     if (!res.ok) return null;
     const data = (await res.json()) as {
       reconciled?: boolean;
@@ -1081,7 +1105,12 @@ function createChatAdapter(
               if (idlePolls < 2) return;
               // Socket may be dead while the run continues (tools, deploy drain).
               // Close the reader so recovery can follow progress — do not treat as done.
-              if (!serverFinished.signal.aborted) serverFinished.abort();
+              if (!serverFinished.signal.aborted) {
+                postChatTurnTelemetry(threadId, 'stream_idle_abort', {
+                  streamedChars: streamedText.length,
+                });
+                serverFinished.abort();
+              }
             });
           }, 2_000);
 
@@ -1159,11 +1188,18 @@ function createChatAdapter(
               void propsRef.current?.onRefreshMessages?.();
               return;
             }
-            if (
-              !isSseStalledError(err) &&
-              !(err instanceof TypeError) &&
-              !(isAbortError(err) && serverFinished.signal.aborted)
-            ) {
+            if (isSseStalledError(err)) {
+              postChatTurnTelemetry(threadId, 'stream_stalled', {
+                streamedChars: streamedText.length,
+              });
+            } else if (isAbortError(err) && serverFinished.signal.aborted) {
+              /* stream_idle_abort already logged */
+            } else if (err instanceof TypeError) {
+              postChatTurnTelemetry(threadId, 'stream_stalled', {
+                streamedChars: streamedText.length,
+                network: true,
+              });
+            } else {
               throw err;
             }
             // Stalled, idle-watcher abort, or network-level failure: follow recovery.
@@ -3268,6 +3304,7 @@ function useRecoverInFlightRun(
         if (!recoveringRef.current) {
           recoveringRef.current = true;
           setRecovering(true);
+          postChatTurnTelemetry(threadId, 'recovery_adopt', {});
           propsRef.current?.onAgentRunChange?.(true);
         }
         if (status.progress) {

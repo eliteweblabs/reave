@@ -5,7 +5,8 @@
  *   localStorage.setItem('reave:chat-compose-trace', '1')
  *   — or open admin with ?composeTrace=1 (persists to localStorage)
  *
- * Console filter: [reave compose]
+ * Console filter: [reave compose] — recovery beacons also log as react.turn.*
+ * Railway / Postgres: [chat-turn] structured lines + chat_turn_events table
  * Dump ring buffer: window.__reaveChatComposeTrace.dump()
  * Copy as JSON: window.__reaveChatComposeTrace.copy()
  * Disable: localStorage.removeItem('reave:chat-compose-trace')

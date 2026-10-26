@@ -67,6 +67,7 @@ import {
   formatFlushFailureNote,
 } from '../../../lib/deferredDeploy';
 import { getAliveAgentRunLease } from '../../../lib/pgAgentRunLeases';
+import { recordChatTurnEvent } from '../../../lib/chatTurnEvents';
 import { isProcessDraining } from '../../../lib/processDrain';
 import '../../../lib/processDrain';
 import { jsonResponse } from '../../../lib/apiResponse';
@@ -497,6 +498,12 @@ export async function POST(context: APIContext): Promise<Response> {
         } catch {
           /* title is cosmetic — never block the reply on it */
         }
+        recordChatTurnEvent(userId, id, persisted.ok ? 'persist_ok' : 'persist_fail', {
+          detail: {
+            interrupted: Boolean(opts.interrupted),
+            chars: text.length,
+          },
+        });
         emit({
           type: 'done',
           ok: true,
@@ -629,6 +636,9 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const persisted = await persistAssistantReply(ownerUserId, id, reply, agentUsage);
+  recordChatTurnEvent(userId, id, persisted.ok ? 'persist_ok' : 'persist_fail', {
+    detail: { interrupted, chars: reply.length },
+  });
   await finishTurnDeployFlush(ownerUserId, userId, id);
   try {
     const ensuredTitle = await storeEnsureChatTitle(ownerUserId, id);
