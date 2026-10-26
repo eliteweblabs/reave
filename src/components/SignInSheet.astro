@@ -115,11 +115,14 @@ const clerkAppearance = {
     )
   }
   <div id="sign-in-session-stuck" class="sign-in-session-stuck" hidden>
-    <p>
-      This browser is signed in, but the server still does not see your session.
-      Sign out and try again — do not keep refreshing.
+    <p id="sign-in-stuck-message">
+      Your session is out of sync. The app will keep polling in the background — or sync now
+      without leaving this screen.
     </p>
-    <button type="button" id="sign-in-stuck-sign-out" class="sign-in-stuck-btn">
+    <button type="button" id="sign-in-stuck-sync" class="sign-in-stuck-btn">
+      Sync session
+    </button>
+    <button type="button" id="sign-in-stuck-sign-out" class="sign-in-stuck-btn sign-in-stuck-btn--ghost">
       Sign out and try again
     </button>
   </div>
@@ -195,6 +198,11 @@ const clerkAppearance = {
     padding: 0.7rem 1rem;
     cursor: pointer;
   }
+
+  .sign-in-stuck-btn--ghost {
+    background: transparent;
+    font-weight: 500;
+  }
 </style>
 
 {clerkReady ? (
@@ -202,9 +210,8 @@ const clerkAppearance = {
   await import(`/shared/pwa-refresh-debug.js?v=${assetVersion}`);
   const { createTracer } = await import(`/shared/reave-diagnostic.js?v=${assetVersion}`);
   const clerkDiag = createTracer('clerk');
-  const { bindClerkSsrSessionSync, clerkHandshakeUrl, adminHandshakeInCooldown } = await import(
-    `/admin/shared.js?v=${assetVersion}`,
-  );
+  const { bindClerkSsrSessionSync, clerkHandshakeUrl, adminHandshakeInCooldown, trySilentAdminSessionRefresh } =
+    await import(`/admin/shared.js?v=${assetVersion}`);
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
   /** One handshake navigation after client sign-in — never a loop. */
@@ -309,18 +316,37 @@ const clerkAppearance = {
     }
   }
 
+  function bindStuckSessionActions() {
+    const syncBtn = document.getElementById('sign-in-stuck-sync');
+    if (syncBtn && !syncBtn.dataset.bound) {
+      syncBtn.dataset.bound = '1';
+      syncBtn.addEventListener('click', () => {
+        syncBtn.disabled = true;
+        void (async () => {
+          if (await trySilentAdminSessionRefresh()) {
+            window.IosSheet?.close?.('sign-in-sheet');
+            syncBtn.disabled = false;
+            return;
+          }
+          if (syncSessionViaHandshake()) return;
+          syncBtn.disabled = false;
+        })();
+      });
+    }
+    const btn = document.getElementById('sign-in-stuck-sign-out');
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', () => void clearHalfSessionAndShowSignIn(true));
+    }
+  }
+
   function showStuckSession() {
     const root = document.getElementById('sign-in-clerk-root');
     const stuck = document.getElementById('sign-in-session-stuck');
     if (root) root.hidden = true;
     if (stuck) stuck.hidden = false;
     window.IosSheet?.open('sign-in-sheet');
-
-    const btn = document.getElementById('sign-in-stuck-sign-out');
-    if (btn && !btn.dataset.bound) {
-      btn.dataset.bound = '1';
-      btn.addEventListener('click', () => void clearHalfSessionAndShowSignIn(true));
-    }
+    bindStuckSessionActions();
   }
 
   /**
@@ -448,11 +474,15 @@ const clerkAppearance = {
   }
 
   window.addEventListener('reave-admin-session-stale', () => {
-    clerkDiag.runSync('reave-admin-session-stale', () => {
+    void (async () => {
       if (!window.Clerk?.user) return;
-      if (syncSessionViaHandshake()) return;
+      clerkDiag.event('reave-admin-session-stale', 'handler');
+      if (await trySilentAdminSessionRefresh()) {
+        window.IosSheet?.close?.('sign-in-sheet');
+        return;
+      }
       showStuckSession();
-    });
+    })();
   });
 
   window.addEventListener('clerk-loaded', onClerkReady, true);

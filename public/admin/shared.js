@@ -123,7 +123,8 @@ async function flushDeferredAdminHandshakeImpl() {
     /* ignore */
   }
   markPwaRefreshCause('deferred-clerk-handshake-on-foreground', { returnTo: pending });
-  return recoverAdminSessionOn401({ returnTo: pending, force: true });
+  openAdminStaleSessionRecovery({ returnTo: pending, source: 'deferred-foreground' });
+  return false;
 }
 
 export const flushDeferredAdminHandshake = authDiag.wrapAsync(
@@ -286,26 +287,28 @@ async function handleAdminUnauthorizedResponseImpl() {
     handshakeCooldown: adminHandshakeInCooldown(),
   });
 
-  if (recoverAdminSessionOn401()) {
-    throw new Error('Session expired');
+  if (await trySilentAdminSessionRefresh()) {
+    authLog().info('silent session refresh succeeded after 401');
+    clearAdminSessionRecoverMark();
+    return ADMIN_AUTH_SILENT_RETRY;
   }
 
   const hasClerkUser = Boolean(window.Clerk?.user);
   if (hasClerkUser) {
-    if (await trySilentAdminSessionRefresh()) {
-      authLog().info('silent session refresh succeeded after 401');
-      return ADMIN_AUTH_SILENT_RETRY;
-    }
-    authLog().warn('silent session refresh failed after 401');
-    if (recoverAdminSessionOn401({ force: true })) {
-      throw new Error('Session expired');
-    }
-    if (openAdminStaleSessionRecovery({ after: 'silent-and-handshake-failed' })) {
-      throw new Error('Session expired');
-    }
-    authLog().error('Clerk user present but in-app stale recovery failed — not redirecting to login', {
-      handshakeCooldown: adminHandshakeInCooldown(),
+    authLog().warn('silent session refresh failed — no full-page handshake from API 401', {
+      documentHidden: document.hidden,
     });
+    const returnTo = cleanAdminReturnUrl(window.location.pathname, window.location.search);
+    if (document.hidden) {
+      scheduleDeferredHandshake(returnTo);
+      authLog().info('401 recover deferred — document hidden (poll again on foreground)');
+    } else if (
+      openAdminStaleSessionRecovery({ after: 'silent-failed', returnTo, source: 'api-401' })
+    ) {
+      /* in-app sheet; section polls retry on next tick */
+    } else {
+      authLog().error('Clerk user present but stale-session sheet unavailable', { returnTo });
+    }
     throw new Error('Session expired');
   }
 
