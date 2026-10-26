@@ -338,7 +338,11 @@ import {
   emailComposeAttachmentMediaFilter,
   validateEmailComposeAttachmentUpload,
   applyMediaToTarget,
-} from './media-picker.js?v=20261022b';
+  BRANDING_PICKER_UPLOAD_ACCEPT,
+  BRANDING_RASTER_PICKER_UPLOAD_ACCEPT,
+  validateBrandingMediaUpload,
+  validateBrandingRasterMediaUpload,
+} from './media-picker.js?v=20261026b';
 import { openImageEditor, isEditableRasterFile } from './media-image-editor.js?v=20261026a';
 import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260826a';
 
@@ -8626,7 +8630,7 @@ function profBrandSourceModeTabs(role, activeMode) {
   const label = role === 'logo' ? 'Logo' : 'Icon';
   return (
     `<div class="prof-brand-source-tabs" role="tablist" aria-label="${label} source">` +
-      `<button type="button" class="prof-brand-source-tab" role="tab" data-brand-role="${role}" data-brand-mode="image" aria-selected="${imgSel}">Image file</button>` +
+      `<button type="button" class="prof-brand-source-tab" role="tab" data-brand-role="${role}" data-brand-mode="image" aria-selected="${imgSel}">Library</button>` +
       `<button type="button" class="prof-brand-source-tab" role="tab" data-brand-role="${role}" data-brand-mode="svg" aria-selected="${svgSel}">SVG code</button>` +
     `</div>`
   );
@@ -8661,7 +8665,6 @@ function renderProfBrandThemePreviews(role, company) {
 function renderCompanyBrandAssetField(role, company, hints) {
   const mode = companyBrandAssetStorageMode(company || {});
   const fileId = role === 'logo' ? 'company-logo-file' : 'company-icon-file';
-  const uploadId = role === 'logo' ? 'company-logo-upload-btn' : 'company-icon-upload-btn';
   const libraryId = role === 'logo' ? 'company-logo-library' : 'company-icon-library';
   const svgId = role === 'logo' ? 'company-logoSvg' : 'company-iconSvg';
   const svgName = role === 'logo' ? 'logoSvg' : 'iconSvg';
@@ -8672,14 +8675,12 @@ function renderCompanyBrandAssetField(role, company, hints) {
   const svgDisabled = mode !== 'svg';
   return (
     `<div class="prof-branding-upload-item">` +
-      `<label for="${fileId}">${label}</label>` +
+      `<label for="${libraryId}">${label}</label>` +
       renderProfBrandThemePreviews(role, company) +
       profBrandSourceModeTabs(role, mode) +
       `<div id="company-${role}-image-panel" class="prof-brand-source-panel"${imagePanelHidden ? ' hidden' : ''}>` +
         profBrandingFileActions({
           fileId,
-          accept: 'image/*,image/svg+xml,.svg,.png,.jpg,.jpeg,.webp,.avif',
-          uploadId,
           libraryId,
         }) +
       `</div>` +
@@ -8728,8 +8729,6 @@ function usesLogoAsIconFallback(company) {
 }
 
 function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
-  const fileInput = root.querySelector('#company-logo-file');
-  const uploadBtn = root.querySelector('#company-logo-upload-btn');
   const fileWrap = root.querySelector('#company-logo-file-wrap');
   const removeBtn = root.querySelector('#company-logo-remove');
   const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
@@ -8742,57 +8741,6 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
     if (fileWrap instanceof HTMLElement) fileWrap.hidden = false;
     syncCompanySvgFields(root, company);
   };
-
-  uploadBtn?.addEventListener('click', () => {
-    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
-  });
-
-  fileInput?.addEventListener('change', async () => {
-    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
-    const file = fileInput.files[0];
-    const fd = new FormData();
-    fd.append('logo', file);
-    if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
-    fileInput.disabled = true;
-    if (uploadBtn instanceof HTMLButtonElement) {
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = 'Uploading…';
-    }
-    const blobUrl = URL.createObjectURL(file);
-    const light = root.querySelector('#company-logo-light-preview');
-    const dark = root.querySelector('#company-logo-dark-preview');
-    const invertDark = /\.svg$/i.test(file.name) || file.type === 'image/svg+xml';
-    if (light instanceof HTMLImageElement) light.src = blobUrl;
-    if (dark instanceof HTMLImageElement) {
-      dark.src = blobUrl;
-      dark.classList.toggle('prof-brand-preview-mark--invert', invertDark);
-    }
-    root.querySelector('#company-logo-previews-wrap')?.classList.remove('is-empty');
-    if (removeBtn instanceof HTMLButtonElement) removeBtn.hidden = false;
-    try {
-      const res = await adminFetch('/api/admin/company/logo', { method: 'POST', body: fd });
-      const json = await readAdminJson(res, 'logo upload');
-      if (res.ok && json.company) {
-        refreshPreview(json.company);
-        onCompany?.(json.company);
-        showProfileAlert(companyAlert, 'Logo updated.', 'success');
-      } else {
-        refreshPreview(lastCompany);
-        showProfileAlert(companyAlert, json.error || 'Logo upload failed.', 'error');
-      }
-    } catch (e) {
-      refreshPreview(lastCompany);
-      showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
-    } finally {
-      fileInput.value = '';
-      fileInput.disabled = false;
-      if (uploadBtn instanceof HTMLButtonElement) {
-        uploadBtn.disabled = false;
-        uploadBtn.textContent = 'Upload';
-      }
-      if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
-    }
-  });
 
   removeBtn?.addEventListener('click', async () => {
     if (!(removeBtn instanceof HTMLButtonElement)) return;
@@ -8816,10 +8764,13 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
 
   root.querySelector('#company-logo-library')?.addEventListener('click', () => {
     void openMediaPicker({
-      title: 'Choose logo',
-      hint: 'Choose PNG, JPEG, WebP, or AVIF (max 2 MB), or an SVG (max 200 KB).',
-      emptyHint:
-        'No logos in the library yet. Close and upload a file here, or add one from the Media tab.',
+      title: 'Logo library',
+      hint: 'Upload a file or pick one from the library below.',
+      allowUpload: true,
+      uploadAccept: BRANDING_PICKER_UPLOAD_ACCEPT,
+      uploadHint: 'PNG, JPEG, WebP, AVIF, or SVG — max 2 MB (200 KB for SVG)',
+      validateUpload: validateBrandingMediaUpload,
+      emptyHint: 'Nothing here yet — upload above or add files from the Media tab.',
       emptyFilteredHint:
         'Library files are present, but none match PNG, JPEG, WebP, AVIF, or SVG within the size limit.',
       filter: brandingMediaFilter,
@@ -8829,7 +8780,7 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
           refreshPreview(json.company);
           onCompany?.(json.company);
         }
-        showProfileAlert(companyAlert, 'Logo updated from library.', 'success');
+        showProfileAlert(companyAlert, 'Logo updated.', 'success');
       },
     });
   });
@@ -8840,8 +8791,6 @@ function bindCompanyLogoUpload(root, companyAlert, opts = {}) {
 }
 
 function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
-  const fileInput = root.querySelector('#company-icon-file');
-  const uploadBtn = root.querySelector('#company-icon-upload-btn');
   const fileWrap = root.querySelector('#company-icon-file-wrap');
   const removeBtn = root.querySelector('#company-icon-remove');
   const fallbackHint = root.querySelector('#company-icon-fallback-hint');
@@ -8860,36 +8809,6 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
     window.__companyStaffAvatarUrl = avatarUrl;
     syncHeaderProfileIcon(`${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}_=${Date.now()}`);
   };
-
-  uploadBtn?.addEventListener('click', () => {
-    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
-  });
-
-  fileInput?.addEventListener('change', async () => {
-    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
-    const file = fileInput.files[0];
-    const fd = new FormData();
-    fd.append('icon', file);
-    if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
-    fileInput.disabled = true;
-    try {
-      const res = await adminFetch('/api/admin/company/icon', { method: 'POST', body: fd });
-      const json = await readAdminJson(res, 'icon upload');
-      if (res.ok && json.company) {
-        refreshPreview(json.company);
-        onCompany?.(json.company);
-        showProfileAlert(companyAlert, 'Icon updated.', 'success');
-      } else {
-        showProfileAlert(companyAlert, json.error || 'Icon upload failed.', 'error');
-      }
-    } catch (e) {
-      showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
-    } finally {
-      fileInput.value = '';
-      fileInput.disabled = false;
-      if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
-    }
-  });
 
   removeBtn?.addEventListener('click', async () => {
     if (!(removeBtn instanceof HTMLButtonElement)) return;
@@ -8915,10 +8834,13 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
 
   root.querySelector('#company-icon-library')?.addEventListener('click', () => {
     void openMediaPicker({
-      title: 'Choose icon',
-      hint: 'Choose PNG, JPEG, WebP, or AVIF (max 2 MB), or an SVG (max 200 KB).',
-      emptyHint:
-        'No icons in the library yet. Close and upload a file here, or add one from the Media tab.',
+      title: 'Icon library',
+      hint: 'Upload a file or pick one from the library below.',
+      allowUpload: true,
+      uploadAccept: BRANDING_PICKER_UPLOAD_ACCEPT,
+      uploadHint: 'PNG, JPEG, WebP, AVIF, or SVG — max 2 MB (200 KB for SVG)',
+      validateUpload: validateBrandingMediaUpload,
+      emptyHint: 'Nothing here yet — upload above or add files from the Media tab.',
       emptyFilteredHint:
         'Library files are present, but none match PNG, JPEG, WebP, AVIF, or SVG within the size limit.',
       filter: brandingMediaFilter,
@@ -8928,7 +8850,7 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
           refreshPreview(json.company);
           onCompany?.(json.company);
         }
-        showProfileAlert(companyAlert, 'Icon updated from library.', 'success');
+        showProfileAlert(companyAlert, 'Icon updated.', 'success');
       },
     });
   });
@@ -8953,8 +8875,6 @@ async function editShareImageInput(fileOrSrc, filename, mediaType) {
 }
 
 function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
-  const fileInput = root.querySelector('#company-og-file');
-  const uploadBtn = root.querySelector('#company-og-upload-btn');
   const cropBtn = root.querySelector('#company-og-crop-btn');
   const fileWrap = root.querySelector('#company-og-file-wrap');
   const previewWrap = root.querySelector('#company-og-preview-wrap');
@@ -8995,11 +8915,6 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
     const fd = new FormData();
     fd.append('og', file);
     if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
-    if (fileInput instanceof HTMLInputElement) fileInput.disabled = true;
-    if (uploadBtn instanceof HTMLButtonElement) {
-      uploadBtn.disabled = true;
-      uploadBtn.textContent = 'Uploading…';
-    }
     if (cropBtn instanceof HTMLButtonElement) cropBtn.disabled = true;
     if (preview instanceof HTMLImageElement && previewUrl) {
       preview.src = previewUrl;
@@ -9020,34 +8935,10 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
       refreshPreview(lastCompany);
       showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
     } finally {
-      if (fileInput instanceof HTMLInputElement) {
-        fileInput.value = '';
-        fileInput.disabled = false;
-      }
-      if (uploadBtn instanceof HTMLButtonElement) {
-        uploadBtn.disabled = false;
-        uploadBtn.textContent = 'Upload';
-      }
       if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
       if (cropBtn instanceof HTMLButtonElement) cropBtn.disabled = false;
     }
   };
-
-  uploadBtn?.addEventListener('click', () => {
-    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
-  });
-
-  fileInput?.addEventListener('change', async () => {
-    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
-    const raw = fileInput.files[0];
-    const edited = await editShareImageInput(raw);
-    if (!edited) {
-      fileInput.value = '';
-      return;
-    }
-    const previewUrl = URL.createObjectURL(edited);
-    await postShareImageFile(edited, previewUrl);
-  });
 
   cropBtn?.addEventListener('click', async () => {
     if (!(cropBtn instanceof HTMLButtonElement) || cropBtn.disabled) return;
@@ -9079,16 +8970,19 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
 
   root.querySelector('#company-og-library')?.addEventListener('click', () => {
     void openMediaPicker({
-      title: 'Choose share image',
-      hint: 'Choose PNG, JPEG, WebP, or AVIF (max 2 MB), then crop to landscape, portrait, square, or tall.',
-      emptyHint:
-        'No share images in the library yet. Close and upload a file here, or add one from the Media tab.',
+      title: 'Share image library',
+      hint: 'Upload a file or pick one from the library, then crop.',
+      allowUpload: true,
+      uploadAccept: BRANDING_RASTER_PICKER_UPLOAD_ACCEPT,
+      uploadHint: 'PNG, JPEG, WebP, or AVIF — max 2 MB',
+      validateUpload: validateBrandingRasterMediaUpload,
+      emptyHint: 'Nothing here yet — upload above or add files from the Media tab.',
       emptyFilteredHint:
         'Library files are present, but none are PNG, JPEG, WebP, or AVIF in the size limit.',
       filter: brandingRasterMediaFilter,
       onPick: async (item) => {
         const edited = await editShareImageInput(item.url, item.filename, item.mediaType);
-        if (!edited) return;
+        if (!edited) return false;
         await postShareImageFile(edited, URL.createObjectURL(edited));
       },
     });
@@ -10094,16 +9988,14 @@ function profSection(title, subtitle, fieldsHtml) {
   );
 }
 
-/** Library (glass) on the left, Upload (filled) on the right — never stacked. */
-function profBrandingFileActions({ fileId, accept, uploadId, libraryId, cropId }) {
+/** Opens the media library picker (upload happens there). Optional Crop for share images. */
+function profBrandingFileActions({ fileId, libraryId, cropId }) {
   return (
-    `<div id="${fileId}-wrap" class="prof-logo-actions">` +
-      `<input id="${fileId}" class="prof-logo-file-input" type="file" accept="${accept}" hidden />` +
-      `<button type="button" id="${libraryId}" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
+    `<div id="${fileId}-wrap" class="prof-logo-actions prof-logo-actions--library-only">` +
+      `<button type="button" id="${libraryId}" class="de-btn de-btn-primary prof-branding-library-btn">Library</button>` +
       (cropId
         ? `<button type="button" id="${cropId}" class="de-btn de-btn-secondary prof-branding-crop-btn" hidden>Crop</button>`
         : '') +
-      `<button type="button" id="${uploadId}" class="de-btn de-btn-primary">Upload</button>` +
     `</div>`
   );
 }
@@ -10407,16 +10299,16 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
           ) +
           profSection(
             'Logo &amp; Icon',
-            'Wordmark for the header and square mark for the homepage hero. Choose an image file or paste SVG — not both. Previews match light and dark site themes.',
+            'Wordmark for the header and square mark for the homepage hero. Pick from the library or paste SVG — not both. Previews match light and dark site themes.',
             `<div class="prof-branding-uploads">` +
               renderCompanyBrandAssetField('logo', c, {
                 svgHint:
-                  'Paste full <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup for the header wordmark. Uploading an <code>.svg</code> file saves here too.',
+                  'Paste full <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup for the header wordmark. An <code>.svg</code> from the library saves here too.',
                 extraHints: '',
               }) +
               renderCompanyBrandAssetField('icon', c, {
                 svgHint:
-                  'Paste full <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup for the homepage hero. Uploading an <code>.svg</code> file saves here too.',
+                  'Paste full <code>&lt;svg&gt;…&lt;/svg&gt;</code> markup for the homepage hero. An <code>.svg</code> from the library saves here too.',
                 extraHints:
                   `<span id="company-icon-fallback-hint" class="prof-hint"${usesLogoAsIconFallback(c) ? '' : ' hidden'}>Favicons and avatars use the logo until you add an icon.</span>` +
                   `<span class="prof-hint prof-hint--block">Also used as the avatar on your public booking page.</span>`,
@@ -10427,12 +10319,12 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
               renderHeaderLogoSizeOptions(c.headerLogoSize) +
             `</select>` +
             `<span id="company-headerLogoSize-hint" class="prof-hint">How wide the wordmark sits in the top bar. Tall or square logos stay within the header height.</span></div>` +
-            `<span class="prof-hint prof-hint--block">Library or Upload accepts PNG, JPEG, WebP, AVIF, or SVG (max 2 MB image / 200 KB SVG). Clear with × to fall back to the display name.</span>`,
+            `<span class="prof-hint prof-hint--block">Library accepts PNG, JPEG, WebP, AVIF, or SVG (max 2 MB image / 200 KB SVG). Clear with × to fall back to the display name.</span>`,
           ) +
           profSection(
             'Social Sharing',
             'Default image for Facebook, iMessage, Slack, and X. Individual pages can override this.',
-            `<div class="prof-field"><label for="company-og-file">Share Image</label>` +
+            `<div class="prof-field"><label for="company-og-library">Share Image</label>` +
             `<div class="prof-logo-upload">` +
               `<div id="company-og-preview-wrap" class="prof-logo-preview-wrap prof-og-preview-wrap">` +
                 `<img id="company-og-preview" class="prof-og-preview" src="${escHtml(companyOgPreviewUrl(c))}" alt="" />` +
@@ -10440,13 +10332,11 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
               `</div>` +
               profBrandingFileActions({
                 fileId: 'company-og-file',
-                accept: 'image/png,image/jpeg,image/webp,image/avif,.png,.jpg,.jpeg,.webp,.avif',
-                uploadId: 'company-og-upload-btn',
                 libraryId: 'company-og-library',
                 cropId: 'company-og-crop-btn',
               }) +
             `</div>` +
-            `<span class="prof-hint">PNG, JPEG, WebP, or AVIF (max 2 MB). Upload or pick from the library, then crop — landscape (1.91:1), portrait (4:5), square, or tall (9:16). Leave empty to use the logo (then the icon). A page that sets its own share image wins.</span></div>`,
+            `<span class="prof-hint">PNG, JPEG, WebP, or AVIF (max 2 MB). Open Library to upload or pick a file, then crop — landscape (1.91:1), portrait (4:5), square, or tall (9:16). Leave empty to use the logo (then the icon). A page that sets its own share image wins.</span></div>`,
           ) +
           profSection(
             'Typography',

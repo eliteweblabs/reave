@@ -305,6 +305,49 @@ const BRANDING_RASTER_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/a
 const BRANDING_RASTER_MAX_BYTES = 2 * 1024 * 1024;
 const BRANDING_SVG_MAX_BYTES = 200 * 1024;
 
+export const BRANDING_PICKER_UPLOAD_ACCEPT =
+  'image/png,image/jpeg,image/webp,image/avif,image/svg+xml,.png,.jpg,.jpeg,.webp,.avif,.svg';
+
+export const BRANDING_RASTER_PICKER_UPLOAD_ACCEPT =
+  'image/png,image/jpeg,image/webp,image/avif,.png,.jpg,.jpeg,.webp,.avif';
+
+function inferBrandingRasterType(file) {
+  const type = String(file?.type || '').trim().toLowerCase();
+  if (BRANDING_RASTER_TYPES.includes(type)) return type;
+  const name = String(file?.name || '').toLowerCase();
+  if (/\.(jpe?g|png|webp|avif)$/.test(name)) {
+    if (name.endsWith('.avif')) return 'image/avif';
+    if (name.endsWith('.webp')) return 'image/webp';
+    if (name.endsWith('.png')) return 'image/png';
+    return 'image/jpeg';
+  }
+  return null;
+}
+
+/** Logo / icon library upload zone — raster or SVG within branding limits. */
+export function validateBrandingMediaUpload(file) {
+  const name = String(file?.name || '');
+  const type = String(file?.type || '').trim().toLowerCase();
+  const size = Number(file?.size) || 0;
+  if (size <= 0) return 'File is empty.';
+  if (type === 'image/svg+xml' || /\.svg$/i.test(name)) {
+    return size <= BRANDING_SVG_MAX_BYTES ? null : 'SVG max 200 KB.';
+  }
+  const raster = inferBrandingRasterType(file);
+  if (!raster) return 'Use PNG, JPEG, WebP, AVIF, or SVG.';
+  if (size > BRANDING_RASTER_MAX_BYTES) return 'Max size is 2 MB.';
+  return null;
+}
+
+/** Share-image library upload — raster only. */
+export function validateBrandingRasterMediaUpload(file) {
+  const size = Number(file?.size) || 0;
+  if (size <= 0) return 'File is empty.';
+  if (!inferBrandingRasterType(file)) return 'Use PNG, JPEG, WebP, or AVIF.';
+  if (size > BRANDING_RASTER_MAX_BYTES) return 'Max size is 2 MB.';
+  return null;
+}
+
 /** Company branding — raster (max 2 MB) or SVG (max 200 KB). */
 export function brandingMediaFilter(item) {
   const type = String(item.mediaType || '').trim().toLowerCase();
