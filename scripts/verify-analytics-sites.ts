@@ -3,6 +3,7 @@
  * Run: node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-analytics-sites.ts
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   dropIncompleteTodayFromSeries,
   todayIsoDate,
@@ -324,5 +325,13 @@ assert.equal(
   dropIncompleteTodayFromSeries([{ date: '2026-09-09', visitors: 10, pageviews: 20 }], 'UTC').length,
   1,
 );
+
+const plausibleComponent = readFileSync('src/components/PlausibleScript.astro', 'utf8');
+assert.doesNotMatch(
+  plausibleComponent,
+  /<script\s[^>]*\sdefer\s[^>]*src=/,
+  'Plausible must not use defer+src in head (blocks DOMContentLoaded when CE is down)',
+);
+assert.match(plausibleComponent, /s\.async = true/, 'Plausible loader must inject async script');
 
 console.log('verify-analytics-sites: ok');

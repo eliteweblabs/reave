@@ -9,6 +9,10 @@
  * Renders nothing when either value is missing — safe on installs without Plausible.
  *
  * NOT an admin-editable setting — purely behind-the-scenes.
+ *
+ * Important: never use `<script defer src="…">` in `<head>` for a third-party host.
+ * Deferred head scripts block DOMContentLoaded until the download finishes — a 502 or
+ * slow Railway Plausible CE instance can stall the whole site. We inject async after parse.
  */
 import { getCompanyConfig } from "../lib/companyConfig";
 import { hostnameFromWebsite } from "../lib/plausibleClient";
@@ -18,14 +22,44 @@ const plausibleBase = (serverEnv("PLAUSIBLE_API_BASE_URL") ?? "").replace(/\/+$/
 const company = await getCompanyConfig(Astro.request);
 const domain = hostnameFromWebsite(company.domain);
 const enabled = !!(plausibleBase && domain);
+const plausibleSrc = enabled
+  ? `${plausibleBase}/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js`
+  : "";
 ---
 
-{enabled && (
-  <script
-    is:inline
-    defer
-    data-domain={domain}
-    src={`${plausibleBase}/js/script.file-downloads.hash.outbound-links.pageview-props.revenue.tagged-events.js`}
-  ></script>
-  <script is:inline>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
-)}
+{
+  enabled && (
+    <script is:inline define:vars={{ plausibleSrc, domain }}>
+      window.plausible =
+        window.plausible ||
+        function () {
+          (window.plausible.q = window.plausible.q || []).push(arguments);
+        };
+      (function injectPlausibleAsync() {
+        function attach() {
+          try {
+            var s = document.createElement("script");
+            s.async = true;
+            s.dataset.domain = domain;
+            s.src = plausibleSrc;
+            s.onerror = function () {
+              try {
+                s.remove();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+            (document.head || document.documentElement).appendChild(s);
+          } catch (e) {
+            /* ignore — analytics must never break the page */
+          }
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", attach, { once: true });
+        } else {
+          attach();
+        }
+      })();
+    </script>
+  )
+}
