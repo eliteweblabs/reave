@@ -853,7 +853,7 @@ export const workModule: AgentToolModule = {
             function: {
               name: 'add_file_to_project',
               description:
-                'Save image(s)/SVG(s)/PDF(s)/PowerPoint file(s) from the current chat message to a project file repository. Use when the user says to add/save/file an attachment to a client project (e.g. "add this to Reggie\'s newest project"). Provide slug directly, or client name to target their most recently updated job. Attachments come from the current message automatically — no need to pass base64.',
+                'Save image(s)/SVG(s)/PDF(s)/PowerPoint/JSON/Markdown/ZIP file(s) from the current chat message to a project file repository. Use when the user says to add/save/file an attachment to a client project (e.g. "add this to Reggie\'s newest project"). Provide slug directly, or client name to target their most recently updated job. Attachments come from the current message automatically — no need to pass base64.',
               parameters: {
                 type: 'object',
                 properties: {

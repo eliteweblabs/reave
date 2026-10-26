@@ -6,12 +6,8 @@
  */
 
 import type { APIContext } from 'astro';
-import type {
-  ChatDocAttachment,
-  ChatDocMediaType,
-  ChatImageAttachment,
-  ChatImageMediaType,
-} from '../../../lib/chatTypes';
+import type { ChatDocAttachment, ChatImageAttachment, ChatImageMediaType } from '../../../lib/chatTypes';
+import { isChatDocMediaType } from '../../../lib/chatTypes';
 import {
   isDefaultChatTitle,
   serializeChatMessageContent,
@@ -98,10 +94,6 @@ const ALLOWED_IMAGE_MEDIA = new Set<ChatImageMediaType>([
 const MAX_CHAT_IMAGES = 5;
 const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
 
-const ALLOWED_DOC_MEDIA = new Set<ChatDocMediaType>([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-]);
 const MAX_CHAT_DOCS = 3;
 const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
 
@@ -132,10 +124,10 @@ function parseChatDocs(body: Record<string, unknown>): ChatDocAttachment[] {
     const mediaType = String(rec.mediaType ?? rec.media_type ?? '').toLowerCase();
     const data = String(rec.data ?? '').replace(/^data:[^;]+;base64,/, '');
     const filename = String(rec.filename ?? '').trim() || 'attachment';
-    if (!ALLOWED_DOC_MEDIA.has(mediaType as ChatDocMediaType) || !data) continue;
+    if (!isChatDocMediaType(mediaType) || !data) continue;
     const bytes = Math.floor((data.length * 3) / 4);
     if (bytes < 1 || bytes > MAX_CHAT_DOC_BYTES) continue;
-    out.push({ mediaType: mediaType as ChatDocMediaType, filename, data });
+    out.push({ mediaType, filename, data });
   }
   return out;
 }

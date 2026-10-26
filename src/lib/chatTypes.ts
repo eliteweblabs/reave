@@ -19,10 +19,14 @@ export interface ChatImageAttachment {
   data: string;
 }
 
-/** Non-image documents the agent can read (PDF: native vision+text; PPTX: extracted slide text). */
+/** Non-image documents the agent can read (PDF: native; others: extracted / inline text). */
 export type ChatDocMediaType =
   | 'application/pdf'
-  | 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  | 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  | 'application/json'
+  | 'text/markdown'
+  | 'application/zip'
+  | 'application/x-zip-compressed';
 
 export interface ChatDocAttachment {
   mediaType: ChatDocMediaType;
@@ -45,15 +49,27 @@ const CHAT_IMAGE_MEDIA_TYPES = new Set<string>([
   'image/webp',
   'image/svg+xml',
 ]);
-const CHAT_DOC_MEDIA_TYPES = new Set<string>([
+export const CHAT_DOC_MEDIA_TYPES = new Set<string>([
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/json',
+  'text/markdown',
+  'application/zip',
+  'application/x-zip-compressed',
 ]);
 
 const DOC_LABELS: Record<string, string> = {
   'application/pdf': 'PDF',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint file',
+  'application/json': 'JSON file',
+  'text/markdown': 'Markdown file',
+  'application/zip': 'ZIP archive',
+  'application/x-zip-compressed': 'ZIP archive',
 };
+
+export function isChatDocMediaType(value: string): value is ChatDocMediaType {
+  return CHAT_DOC_MEDIA_TYPES.has(value.trim().toLowerCase());
+}
 
 export function labelForDocMediaType(mediaType: string): string {
   return DOC_LABELS[mediaType] ?? 'file';

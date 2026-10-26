@@ -49,6 +49,10 @@ export const PROJECT_UPLOAD_MEDIA_TYPES = new Set([
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'image/svg+xml',
+  'application/json',
+  'text/markdown',
+  'application/zip',
+  'application/x-zip-compressed',
 ]);
 
 /** Additional types allowed when importing from inbound email attachments. */
@@ -126,6 +130,9 @@ const FILENAME_MEDIA_TYPE: Record<string, string> = {
   txt: 'text/plain',
   csv: 'text/csv',
   zip: 'application/zip',
+  json: 'application/json',
+  md: 'text/markdown',
+  markdown: 'text/markdown',
 };
 
 export function normalizeEmailAttachmentMediaType(

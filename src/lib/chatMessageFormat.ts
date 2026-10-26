@@ -6,6 +6,10 @@ export type StoredChatDoc = { mediaType: string; filename: string; data: string 
 const DOC_LABELS: Record<string, string> = {
   'application/pdf': 'PDF',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint file',
+  'application/json': 'JSON file',
+  'text/markdown': 'Markdown file',
+  'application/zip': 'ZIP archive',
+  'application/x-zip-compressed': 'ZIP archive',
 };
 
 function labelForDoc(mediaType: string): string {

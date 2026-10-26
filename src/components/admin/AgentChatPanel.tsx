@@ -90,6 +90,8 @@ import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import { ChatComposerAddAttachment } from './ChatComposerAddAttachment';
 import { ChatComposerAttachmentDropzone } from './ChatComposerAttachmentDropzone';
+import { CHAT_DOC_ACCEPT, normalizeChatDocMediaType } from '../../lib/chatDocConfig';
+import { labelForDocMediaType } from '../../lib/chatTypes';
 import './agent-chat.css';
 
 /** Match API limits in `src/pages/api/chats/[id].ts`. */
@@ -107,10 +109,6 @@ const DEPLOY_CHAT_RELOAD_KEY = 'reave:deploy-reload-sha';
 const DEPLOY_CHAT_DRAFT_KEY = 'reave:deploy-chat-draft';
 /** Unsent composer text — survives panel remounts and unexpected reloads. */
 const CHAT_COMPOSE_DRAFT_KEY = 'reave:chat-compose-draft';
-const PPTX_MEDIA_TYPE =
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
-
 /** Empty-state welcome lines, keyed by local time of day (like Claude's rotating greetings). */
 const CHAT_WELCOME_BY_PERIOD = {
   morning: [
@@ -165,21 +163,6 @@ function normalizeChatImageMediaType(file: File): string {
   if (ext === 'webp') return 'image/webp';
   if (ext === 'svg') return 'image/svg+xml';
   return type || 'image/png';
-}
-
-function normalizeChatDocMediaType(file: File): string {
-  const type = (file.type || '').toLowerCase();
-  if (type === 'application/pdf' || type === PPTX_MEDIA_TYPE) return type;
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (ext === 'pdf') return 'application/pdf';
-  if (ext === 'pptx') return PPTX_MEDIA_TYPE;
-  return type || 'application/octet-stream';
-}
-
-function fileLabelForMimeType(mimeType?: string): string {
-  if (mimeType === 'application/pdf') return 'PDF';
-  if (mimeType === PPTX_MEDIA_TYPE) return 'PowerPoint file';
-  return 'File';
 }
 
 function fileToDataURL(file: File): Promise<string> {
@@ -241,7 +224,7 @@ class ChatDocAttachmentAdapter implements AttachmentAdapter {
     if (state.file.size > MAX_CHAT_DOC_BYTES) {
       throw new Error('File must be 10 MB or smaller');
     }
-    const mediaType = normalizeChatDocMediaType(state.file);
+    const mediaType = normalizeChatDocMediaType(state.file.type, state.file.name);
     return {
       id: generateId(),
       type: 'file',
@@ -2029,7 +2012,7 @@ function UserFileChip(props: { filename?: string; mimeType?: string }) {
       <FileIcon />
       <div className="aui-file-chip-meta">
         <span className="aui-file-chip-name">{props.filename || 'Attachment'}</span>
-        <span className="aui-file-chip-type">{fileLabelForMimeType(props.mimeType)}</span>
+        <span className="aui-file-chip-type">{labelForDocMediaType(props.mimeType ?? '')}</span>
       </div>
     </div>
   );
@@ -2965,7 +2948,7 @@ function ClaudeComposer({
           <div className="aui-composer-toolbar">
             <ChatComposerAddAttachment
               className="aui-composer-attach"
-              aria-label="Attach images, SVGs, PDFs, or PowerPoint files"
+              aria-label="Attach images, SVGs, PDFs, PowerPoint, JSON, Markdown, or ZIP files"
             >
               <AttachIcon />
             </ChatComposerAddAttachment>
@@ -2978,7 +2961,7 @@ function ClaudeComposer({
                     ? 'Send now — this stops the current turn'
                     : showRunning
                       ? `Keep typing — send unlocks when the agent finishes · ${elapsed}`
-                      : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files'}
+                      : 'Type @ to mention · / for commands · paste or drag images, SVGs, PDFs, PowerPoint, JSON, Markdown, or ZIP files'}
             </span>
             <span className="aui-composer-actions">
               {showRunning ? (
