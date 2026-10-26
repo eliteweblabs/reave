@@ -671,9 +671,26 @@ select,
 }
 .admin-otp-copy-close {
   position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
-  color: #94a3b8;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 1;
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+}
+.admin-otp-copy-done {
+  appearance: none;
+  display: block;
+  margin: 0.65rem auto 0;
+  border: 0;
+  background: transparent;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.55rem 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
 }
 .admin-otp-copy-kicker {
   margin: 0;
