@@ -18,6 +18,8 @@ const ADMIN_API_RECOVER_KEY = 'reave-admin-401-recover';
 /** Min gap between full-page handshake navigations (avoids refresh storms). */
 const ADMIN_HANDSHAKE_AT_KEY = 'reave-admin-handshake-at';
 const ADMIN_HANDSHAKE_PENDING_KEY = 'reave-admin-handshake-pending';
+/** One fetch-based handshake attempt per stale stretch (avoids storms). */
+const ADMIN_HANDSHAKE_FETCH_TRIED_KEY = 'reave-admin-handshake-fetch-tried';
 const ADMIN_HANDSHAKE_COOLDOWN_MS = 120_000;
 const ADMIN_SESSION_KEEPALIVE_MS = 4 * 60_000;
 
@@ -63,6 +65,7 @@ export function markAdminServerSessionStale() {
 function clearAdminSessionRecoverMark() {
   try {
     sessionStorage.removeItem(ADMIN_API_RECOVER_KEY);
+    sessionStorage.removeItem(ADMIN_HANDSHAKE_FETCH_TRIED_KEY);
   } catch {
     /* ignore */
   }
@@ -140,29 +143,86 @@ function nativeAdminFetch() {
   return window.__reaveNativeFetch || window.fetch.bind(window);
 }
 
-async function trySilentAdminSessionRefreshImpl() {
+async function probeAdminSessionCookie() {
+  const session = window.Clerk?.session;
+  if (!session?.getToken) return false;
+  await session.getToken({ skipCache: true });
+  const probe = await nativeAdminFetch()('/api/admin/badges', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+    __reaveAuthProbe: true,
+  });
+  if (!probe.ok) return false;
+  noteAdminNetworkSuccess();
+  clearAdminSessionRecoverMark();
   try {
-    const session = window.Clerk?.session;
-    if (!session?.getToken) return false;
-    await session.getToken({ skipCache: true });
-    const probe = await nativeAdminFetch()('/api/admin/badges', {
-      credentials: 'same-origin',
+    sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+/**
+ * Same-origin Clerk handshake via fetch — sets HttpOnly __session without unloading the SPA.
+ */
+async function tryClerkHandshakeFetchImpl(opts = {}) {
+  if (!window.Clerk?.user) return false;
+  const force = opts.force === true;
+  if (!force && adminHandshakeInCooldown()) return false;
+
+  const returnTo =
+    opts.returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
+
+  try {
+    if (!force && sessionStorage.getItem(ADMIN_HANDSHAKE_FETCH_TRIED_KEY) === '1') {
+      return false;
+    }
+    sessionStorage.setItem(ADMIN_HANDSHAKE_FETCH_TRIED_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+
+  recordHandshakeNavigation();
+  authLog().event('clerk handshake fetch (in-place)', { returnTo, force });
+  markPwaRefreshCause('clerk-handshake-fetch', { returnTo, force });
+
+  try {
+    const url = clerkHandshakeUrl(returnTo);
+    await nativeAdminFetch()(url, {
+      credentials: 'include',
+      redirect: 'follow',
       cache: 'no-store',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'text/html,application/xhtml+xml,application/json' },
       __reaveAuthProbe: true,
     });
-    if (!probe.ok) return false;
-    noteAdminNetworkSuccess();
-    clearAdminSessionRecoverMark();
-    try {
-      sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
-    } catch {
-      /* ignore */
-    }
-    return true;
-  } catch {
+  } catch (e) {
+    authLog().warn('clerk handshake fetch failed', { message: e?.message || String(e) });
     return false;
   }
+
+  try {
+    if (await probeAdminSessionCookie()) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+export const tryClerkHandshakeFetch = authDiag.wrapAsync(
+  'tryClerkHandshakeFetch',
+  tryClerkHandshakeFetchImpl,
+);
+
+async function trySilentAdminSessionRefreshImpl() {
+  try {
+    if (await probeAdminSessionCookie()) return true;
+  } catch {
+    /* ignore */
+  }
+  if (!window.Clerk?.user) return false;
+  return tryClerkHandshakeFetchImpl();
 }
 
 export const trySilentAdminSessionRefresh = authDiag.wrapAsync(
@@ -178,24 +238,9 @@ function authLog() {
   return getAuthDebugLog();
 }
 
+/** @deprecated Legacy entry — never full-page navigates; kept for cached clients. */
 function recoverAdminSessionOn401Impl(opts = {}) {
   const force = opts.force === true;
-  if (!force && adminHandshakeInCooldown()) {
-    authLog().debug('recoverAdminSessionOn401 skipped — handshake cooldown', { force });
-    return false;
-  }
-
-  let alreadyTried = false;
-  try {
-    alreadyTried = sessionStorage.getItem(ADMIN_API_RECOVER_KEY) === '1';
-  } catch {
-    /* ignore */
-  }
-  if (alreadyTried && !force) {
-    authLog().debug('recoverAdminSessionOn401 skipped — already tried this tab', { force });
-    return false;
-  }
-
   const hasClerkUser = Boolean(window.Clerk?.user);
   const onAdmin =
     window.location.pathname === '/admin' || window.location.pathname.startsWith('/admin/');
@@ -204,34 +249,24 @@ function recoverAdminSessionOn401Impl(opts = {}) {
   const returnTo =
     opts.returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
 
+  authLog().warn('recoverAdminSessionOn401 — in-place sync only (no location.assign)', {
+    force,
+    returnTo,
+    documentHidden: document.hidden,
+  });
+
   if (!force && document.hidden) {
     scheduleDeferredHandshake(returnTo);
-    authLog().info('401 recover deferred — document hidden', { returnTo });
     return false;
   }
 
   markAdminServerSessionStale();
-  try {
-    sessionStorage.setItem(ADMIN_API_RECOVER_KEY, '1');
-  } catch {
-    /* ignore */
-  }
-  recordHandshakeNavigation();
-  authLog().event('clerk handshake navigation', {
-    returnTo,
-    force,
-    hadClerkUser: hasClerkUser,
-    documentHidden: document.hidden,
-    serverUserId: Boolean(document.body?.dataset?.userId),
-  });
-  markPwaRefreshCause('recover-admin-session-401-clerk-handshake', {
-    returnTo,
-    force,
-    hadClerkUser: hasClerkUser,
-    documentHidden: document.hidden,
-  });
-  window.location.assign(clerkHandshakeUrl(returnTo));
-  return true;
+  void (async () => {
+    if (await trySilentAdminSessionRefresh()) return;
+    if (await tryClerkHandshakeFetchImpl({ returnTo, force })) return;
+    openAdminStaleSessionRecovery({ returnTo, source: 'recover-legacy', force });
+  })();
+  return false;
 }
 
 export const recoverAdminSessionOn401 = authDiag.wrapSync(

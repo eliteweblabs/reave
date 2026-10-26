@@ -210,8 +210,13 @@ const clerkAppearance = {
   await import(`/shared/pwa-refresh-debug.js?v=${assetVersion}`);
   const { createTracer } = await import(`/shared/reave-diagnostic.js?v=${assetVersion}`);
   const clerkDiag = createTracer('clerk');
-  const { bindClerkSsrSessionSync, clerkHandshakeUrl, adminHandshakeInCooldown, trySilentAdminSessionRefresh } =
-    await import(`/admin/shared.js?v=${assetVersion}`);
+  const {
+    bindClerkSsrSessionSync,
+    clerkHandshakeUrl,
+    adminHandshakeInCooldown,
+    trySilentAdminSessionRefresh,
+    tryClerkHandshakeFetch,
+  } = await import(`/admin/shared.js?v=${assetVersion}`);
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
   /** One handshake navigation after client sign-in — never a loop. */
@@ -323,7 +328,13 @@ const clerkAppearance = {
       syncBtn.addEventListener('click', () => {
         syncBtn.disabled = true;
         void (async () => {
+          const target = postSignInTarget();
           if (await trySilentAdminSessionRefresh()) {
+            window.IosSheet?.close?.('sign-in-sheet');
+            syncBtn.disabled = false;
+            return;
+          }
+          if (await tryClerkHandshakeFetch({ returnTo: target, force: true })) {
             window.IosSheet?.close?.('sign-in-sheet');
             syncBtn.disabled = false;
             return;
@@ -477,7 +488,12 @@ const clerkAppearance = {
     void (async () => {
       if (!window.Clerk?.user) return;
       clerkDiag.event('reave-admin-session-stale', 'handler');
+      const target = postSignInTarget();
       if (await trySilentAdminSessionRefresh()) {
+        window.IosSheet?.close?.('sign-in-sheet');
+        return;
+      }
+      if (await tryClerkHandshakeFetch({ returnTo: target })) {
         window.IosSheet?.close?.('sign-in-sheet');
         return;
       }
