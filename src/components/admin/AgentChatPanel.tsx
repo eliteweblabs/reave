@@ -1059,6 +1059,8 @@ function createChatAdapter(
         const contentType = res.headers.get('Content-Type') ?? '';
         if (contentType.includes('text/event-stream') && res.body) {
           let streamedText = '';
+          /** Set only when an SSE `done` event arrives — not when progress says idle. */
+          let gotDoneEvent = false;
           let resolved = false;
           const serverFinished = new AbortController();
           let sawServerRunning = false;
@@ -1071,12 +1073,14 @@ function createChatAdapter(
                 idlePolls = 0;
                 return;
               }
+              if (gotDoneEvent) return;
               if (!streamedText.trim()) return;
               // The run may not be registered yet on the first poll.
               if (!sawServerRunning && Date.now() - runStartedAt < 8_000) return;
               idlePolls += 1;
               if (idlePolls < 2) return;
-              resolved = true;
+              // Socket may be dead while the run continues (tools, deploy drain).
+              // Close the reader so recovery can follow progress — do not treat as done.
               if (!serverFinished.signal.aborted) serverFinished.abort();
             });
           }, 2_000);
@@ -1104,6 +1108,7 @@ function createChatAdapter(
                   yield { content: [{ type: 'text', text: streamedText }] };
                 }
               } else if (event === 'done') {
+                gotDoneEvent = true;
                 if (typeof data.title === 'string') propsRef.current?.onTitleUpdate?.(data.title);
                 propsRef.current?.onLinkedJobsRefresh?.();
                 const userMsg = data.userMessage as { content?: string } | undefined;
@@ -1150,12 +1155,18 @@ function createChatAdapter(
             }
           } catch (err) {
             if (isAbortError(err) && options.abortSignal?.aborted) throw err;
-            if (isAbortError(err) && serverFinished.signal.aborted && resolved) {
+            if (isAbortError(err) && serverFinished.signal.aborted && gotDoneEvent && resolved) {
               void propsRef.current?.onRefreshMessages?.();
               return;
             }
-            if (!isSseStalledError(err) && !(err instanceof TypeError) && !isAbortError(err)) throw err;
-            // Stalled or network-level failure: the server is still working.
+            if (
+              !isSseStalledError(err) &&
+              !(err instanceof TypeError) &&
+              !(isAbortError(err) && serverFinished.signal.aborted)
+            ) {
+              throw err;
+            }
+            // Stalled, idle-watcher abort, or network-level failure: follow recovery.
           } finally {
             window.clearInterval(watchServerIdle);
           }

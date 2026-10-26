@@ -1766,9 +1766,16 @@ function chatListFrom(t) {
   return resolveContactAuthorName(t.contact_uid) || formatLinkedJobsSub(t.linked_jobs) || '';
 }
 
+function chatThreadIsRunning(threadId) {
+  if (!threadId) return false;
+  if (chatState.runningIds.has(threadId)) return true;
+  // Keep the active row lit while the React composer still owns a send/recovery.
+  return threadId === chatState.activeId && chatState.sending;
+}
+
 function createChatListItem(t) {
   const isActive = t.id === chatState.activeId;
-  const isRunning = chatState.runningIds.has(t.id);
+  const isRunning = chatThreadIsRunning(t.id);
   const isUnread = isChatUnread(t);
   const item = document.createElement('button');
   item.type = 'button';
@@ -1814,7 +1821,7 @@ function applyChatRunningIndicators() {
   const root = getChatPanel();
   if (!root) return;
   root.querySelectorAll('.ch-sidebar .ch-list-item[data-id]').forEach((el) => {
-    el.classList.toggle('ch-list-item--running', chatState.runningIds.has(el.dataset.id));
+    el.classList.toggle('ch-list-item--running', chatThreadIsRunning(el.dataset.id));
   });
   updateChatFilterTabCounts(root);
 }
@@ -1839,7 +1846,7 @@ function chatThreadsForCategoryFilter(threads = chatState.threads) {
   const f = chatState.categoryFilter;
   if (f === 'archive') return threads.filter((t) => t.archived);
   if (f === 'review') return threads.filter((t) => !t.archived && isChatUnread(t));
-  if (f === 'working') return threads.filter((t) => chatState.runningIds.has(t.id));
+  if (f === 'working') return threads.filter((t) => chatThreadIsRunning(t.id));
   if (f === 'project') return threads.filter((t) => isChatProject(t));
   return threads.filter((t) => !t.archived);
 }
@@ -1849,7 +1856,7 @@ function chatTabCounts() {
   return {
     all: all.filter((t) => !t.archived).length,
     review: all.filter((t) => !t.archived && isChatUnread(t)).length,
-    working: all.filter((t) => chatState.runningIds.has(t.id)).length,
+    working: all.filter((t) => chatThreadIsRunning(t.id)).length,
     project: all.filter((t) => isChatProject(t)).length,
     archive: all.filter((t) => t.archived).length,
   };
