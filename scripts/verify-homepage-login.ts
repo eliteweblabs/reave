@@ -431,6 +431,13 @@ assert.equal(
 );
 assert.equal(
   rewriteClerkProxyLocation(
+    'https://clerk.rekko.studio/v1/client/handshake?foo=1',
+    'https://rekko.studio/admin/?tab=dashboard',
+  ),
+  'https://rekko.studio/admin/__clerk/v1/client/handshake?foo=1',
+);
+assert.equal(
+  rewriteClerkProxyLocation(
     'https://reave.app/__clerk/v1/client/handshake?foo=1',
     'https://reave.app/admin/?tab=dashboard',
   ),
@@ -523,6 +530,11 @@ assert.match(
 assert.match(signInSheet, /clerkHandshakeUrl/);
 assert.match(signInSheet, /forceRedirectUrl/);
 assert.match(signInSheet, /syncSessionViaHandshake/);
+assert.match(
+  signInSheet,
+  /performStaffSignOut/,
+  'stuck-session sign out must use same-origin performStaffSignOut, not raw clerk.signOut()',
+);
 assert.doesNotMatch(
   signInSheet,
   /reloadOnceForSsrCookie/,

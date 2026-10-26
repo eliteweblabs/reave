@@ -217,6 +217,7 @@ const clerkAppearance = {
     trySilentAdminSessionRefresh,
     tryClerkHandshakeFetch,
     markAdminSessionHealed,
+    performStaffSignOut,
   } = await import(`/admin/shared.js?v=${assetVersion}`);
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
@@ -376,18 +377,27 @@ const clerkAppearance = {
 
     const btn = document.getElementById('sign-in-stuck-sign-out');
     if (btn) btn.disabled = true;
+
+    // User tapped "Sign out and try again" — use the same-origin sign-out path as
+    // the account menu. Raw clerk.signOut() without redirectUrl hits clerk.{apex}
+    // (Error 1000 when that CNAME should not exist; we proxy at /__clerk).
+    if (fromUser) {
+      await performStaffSignOut();
+      return;
+    }
+
     clearSsrSyncMark();
     const root = document.getElementById('sign-in-clerk-root');
     const stuck = document.getElementById('sign-in-session-stuck');
     if (stuck) stuck.hidden = true;
     if (root) root.hidden = false;
     window[AUTH_MOUNT_KEY] = false;
+    const signOutLanding = new URL(authPath, window.location.origin).href;
     try {
-      await window.Clerk?.signOut?.();
+      await window.Clerk?.signOut?.({ redirectUrl: signOutLanding });
     } catch (err) {
       console.warn('[reave] half-session signOut failed', err);
-      if (fromUser) window.location.assign(authPath);
-      else showStuckSession();
+      window.location.assign(authPath);
       return;
     }
     if (btn) btn.disabled = false;
