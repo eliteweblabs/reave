@@ -47,6 +47,13 @@ function resolveClerkProxyApexHost(request: Request, incomingHost: string): stri
   /** Preview on *.railway.app with production Clerk on admin.{client} (PDX Paws, etc.). */
   if (clerkPrimary && requestHost === clerkPrimary) return clerkPrimary;
   if (clerkPrimary && requestHost.endsWith(`.${clerkPrimary}`)) return requestHost;
+  if (
+    clerkPrimary &&
+    (siteHost.endsWith('.up.railway.app') || companyHost.endsWith('.up.railway.app')) &&
+    (!requestHost || requestHost === siteHost || requestHost === companyHost)
+  ) {
+    return clerkPrimary;
+  }
 
   if (siteHost && requestHost === siteHost) return siteHost;
   if (requestHost && companyHost && requestHost !== companyHost) {
