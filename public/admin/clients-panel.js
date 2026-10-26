@@ -1059,6 +1059,36 @@ function joinClientFullName(firstName, lastName, company = '') {
   return person || company.trim();
 }
 
+function joinPersonName(firstName, lastName) {
+  return joinClientFullName(firstName, lastName, '');
+}
+
+/** Person label for the company header when no company is stored. */
+function clientCompanyHeaderPerson(firstName, lastName, fullName = '') {
+  const person = joinPersonName(firstName, lastName);
+  if (person) return person;
+  const full = String(fullName || '').trim();
+  if (full && looksLikePersonName(full)) return full;
+  return '';
+}
+
+/** Header company field: stored company, or first+last when company is empty (display only). */
+function clientCompanyHeaderDisplay(company, firstName, lastName, fullName = '') {
+  const stored = String(company || '').trim();
+  if (stored) return stored;
+  return clientCompanyHeaderPerson(firstName, lastName, fullName);
+}
+
+/** Map header input back to persisted company (never write person-name fallback as company). */
+function clientCompanyFromHeaderInput(headerValue, firstName, lastName, storedCompany, fullName = '') {
+  const header = String(headerValue || '').trim();
+  if (!header) return '';
+  const stored = String(storedCompany || '').trim();
+  const person = clientCompanyHeaderPerson(firstName, lastName, fullName);
+  if (!stored && person && header === person) return '';
+  return header;
+}
+
 function clientDisplayLabel(draft) {
   return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Contact';
 }
@@ -2043,13 +2073,20 @@ function renderEditClientForm(pane) {
         },
       });
 
+      let clientCompanyHeaderAuto = !(clientState.draft.company || '').trim();
+
       const { header, titleInput: companyInput } = createPaneSubheader({
         back: {
           label: clientBackLabel(),
           onClick: () => closeClientEditor(),
         },
         editableTitle: {
-          value: clientState.draft.company || '',
+          value: clientCompanyHeaderDisplay(
+            clientState.draft.company,
+            clientState.draft.firstName,
+            clientState.draft.lastName,
+            clientState.draft.name,
+          ),
           placeholder: 'Company name',
           ariaLabel: 'Company name',
         },
@@ -2100,6 +2137,23 @@ function renderEditClientForm(pane) {
       lastNameInput.value = clientState.draft.lastName || '';
       appendClientField(profileFields, 'Last name', lastNameInput);
       registerClientField(lastNameInput, () => true);
+
+      const syncClientCompanyHeaderFromPerson = () => {
+        if ((clientState.draft.company || '').trim()) return;
+        if (!clientCompanyHeaderAuto) return;
+        const person = clientCompanyHeaderPerson(
+          firstNameInput.value,
+          lastNameInput.value,
+          joinClientFullName(firstNameInput.value, lastNameInput.value, clientState.draft.company),
+        );
+        if (companyInput.value !== person) {
+          companyInput.value = person;
+          companyInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      };
+      companyInput.addEventListener('input', () => {
+        if (clientActiveField === companyInput) clientCompanyHeaderAuto = false;
+      });
 
       const phoneInput = document.createElement('input');
       phoneInput.className = 'de-input';
@@ -2241,7 +2295,13 @@ function renderEditClientForm(pane) {
       const getPayload = ({ commitAddress = false, address, geo, addressWriteToken } = {}) => {
         const firstName = firstNameInput.value.trim();
         const lastName = lastNameInput.value.trim();
-        const company = companyInput.value.trim();
+        const company = clientCompanyFromHeaderInput(
+          companyInput.value,
+          firstName,
+          lastName,
+          clientState.draft.company,
+          joinClientFullName(firstName, lastName, clientState.draft.company),
+        );
         const website = websiteInput.value.trim();
         const payload = {
           name: joinClientFullName(firstName, lastName, company),
@@ -2280,7 +2340,13 @@ function renderEditClientForm(pane) {
         clientState.dirty =
           firstNameInput.value !== clientState.draft.firstName ||
           lastNameInput.value !== clientState.draft.lastName ||
-          companyInput.value !== clientState.draft.company ||
+          companyInput.value !==
+            clientCompanyHeaderDisplay(
+              clientState.draft.company,
+              clientState.draft.firstName,
+              clientState.draft.lastName,
+              clientState.draft.name,
+            ) ||
           emailInput.value !== clientState.draft.email ||
           phoneToStorage(phoneInput.value) !== clientState.draft.phone ||
           websiteInput.value !== clientState.draft.website ||
@@ -2344,6 +2410,7 @@ function renderEditClientForm(pane) {
             markDirty();
             return;
           }
+          if (el === firstNameInput || el === lastNameInput) syncClientCompanyHeaderFromPerson();
           queueAutosave();
         });
         el.addEventListener('blur', () => {
