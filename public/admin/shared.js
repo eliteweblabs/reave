@@ -217,18 +217,43 @@ export const tryClerkHandshakeFetch = authDiag.wrapAsync(
 
 async function trySilentAdminSessionRefreshImpl() {
   try {
-    if (await probeAdminSessionCookie()) return true;
+    if (await probeAdminSessionCookie()) {
+      resumeAdminAuthPolls();
+      staleRecoverySheetOpen = false;
+      return true;
+    }
   } catch {
     /* ignore */
   }
   if (!window.Clerk?.user) return false;
-  return tryClerkHandshakeFetchImpl();
+  const ok = await tryClerkHandshakeFetchImpl();
+  if (ok) {
+    resumeAdminAuthPolls();
+    staleRecoverySheetOpen = false;
+  }
+  return ok;
 }
 
-export const trySilentAdminSessionRefresh = authDiag.wrapAsync(
-  'trySilentAdminSessionRefresh',
-  trySilentAdminSessionRefreshImpl,
+/** One silent refresh / badge probe at a time — avoids 401 storms from parallel polls. */
+function coalesceAsync(fn) {
+  /** @type {Promise<unknown> | null} */
+  let inFlight = null;
+  return (...args) => {
+    if (inFlight) return inFlight;
+    inFlight = Promise.resolve(fn(...args)).finally(() => {
+      inFlight = null;
+    });
+    return inFlight;
+  };
+}
+
+const trySilentAdminSessionRefreshCoalesced = coalesceAsync(
+  authDiag.wrapAsync('trySilentAdminSessionRefresh', trySilentAdminSessionRefreshImpl),
 );
+
+export function trySilentAdminSessionRefresh() {
+  return trySilentAdminSessionRefreshCoalesced();
+}
 
 /**
  * Clerk JS can still show a user while HttpOnly __session is gone (expired handshake JWT).
@@ -281,6 +306,8 @@ export const ADMIN_AUTH_SILENT_RETRY = 'admin-auth-silent-retry';
  * Clerk still has a user but SSR/API session is gone — open in-app recovery
  * (handshake or stuck-session sheet). Never bounce to /admin/login (PWA loop).
  */
+let staleRecoverySheetOpen = false;
+
 function openAdminStaleSessionRecoveryImpl(detail = {}) {
   markAdminServerSessionStale();
   const sheet = document.getElementById('sign-in-sheet');
@@ -288,6 +315,11 @@ function openAdminStaleSessionRecoveryImpl(detail = {}) {
     authLog().warn('stale session recovery unavailable — no sign-in sheet', detail);
     return false;
   }
+  if (staleRecoverySheetOpen) {
+    authLog().info('stale-session sheet already open — skip duplicate', detail);
+    return true;
+  }
+  staleRecoverySheetOpen = true;
   authLog().info('opening stale-session recovery sheet', {
     hadClerkUser: Boolean(window.Clerk?.user),
     ...detail,
@@ -330,6 +362,7 @@ async function handleAdminUnauthorizedResponseImpl() {
 
   const hasClerkUser = Boolean(window.Clerk?.user);
   if (hasClerkUser) {
+    pauseAdminAuthPolls();
     authLog().warn('silent session refresh failed — no full-page handshake from API 401', {
       documentHidden: document.hidden,
     });
@@ -370,10 +403,13 @@ async function handleAdminUnauthorizedResponseImpl() {
   throw new Error('Session expired');
 }
 
-export const handleAdminUnauthorizedResponse = authDiag.wrapAsync(
-  'handleAdminUnauthorizedResponse',
-  handleAdminUnauthorizedResponseImpl,
+const handleAdminUnauthorizedResponseCoalesced = coalesceAsync(
+  authDiag.wrapAsync('handleAdminUnauthorizedResponse', handleAdminUnauthorizedResponseImpl),
 );
+
+export function handleAdminUnauthorizedResponse() {
+  return handleAdminUnauthorizedResponseCoalesced();
+}
 
 /**
  * Raw fetch() in os-map-loader bypasses adminFetch — wrap once so 401s recover the same way.
@@ -493,8 +529,72 @@ export function bindClerkSsrSessionSync(opts = {}) {
 /** Dashboard fetch — always send session cookies; re-auth on 401. */
 let adminDegradedUntil = 0;
 let adminFailStreak = 0;
+/** Wait for Clerk + silent cookie sync before badge/chat/email polls (avoids boot 401 burst). */
+let adminBackgroundPollsArmed = false;
+let adminAuthPollPausedUntil = 0;
 
-/** Back off background polls while the server is redeploying or unreachable. */
+/** Live SSR staff marker — os-map-loader `userId` const is frozen at import time. */
+export function adminStaffUserId() {
+  return document.body?.dataset?.userId?.trim() || '';
+}
+
+function pauseAdminAuthPolls(ms = 60_000) {
+  adminAuthPollPausedUntil = Math.max(adminAuthPollPausedUntil, Date.now() + ms);
+}
+
+function resumeAdminAuthPolls() {
+  adminAuthPollPausedUntil = 0;
+}
+
+async function armAdminBackgroundPollsImpl() {
+  if (adminBackgroundPollsArmed) return;
+  if (!serverHasStaffSession()) {
+    adminBackgroundPollsArmed = true;
+    return;
+  }
+  await trySilentAdminSessionRefresh();
+  adminBackgroundPollsArmed = true;
+  try {
+    window.dispatchEvent(new CustomEvent('reave-admin-background-polls-armed'));
+  } catch {
+    /* ignore */
+  }
+}
+
+function installAdminBackgroundPollArming() {
+  if (typeof window === 'undefined' || window.__reaveAdminPollArming) return;
+  window.__reaveAdminPollArming = true;
+  if (!serverHasStaffSession()) {
+    adminBackgroundPollsArmed = true;
+    return;
+  }
+  const arm = () => void armAdminBackgroundPollsImpl();
+  if (window.Clerk?.loaded) arm();
+  else window.addEventListener('clerk-loaded', arm, { once: true });
+}
+
+/** Back off background polls while redeploying, session healing, or before Clerk is ready. */
+export function shouldSkipAdminBackgroundPoll() {
+  if (staleRecoverySheetOpen) return true;
+  if (serverHasStaffSession() && !adminBackgroundPollsArmed) return true;
+  if (Date.now() < adminAuthPollPausedUntil) return true;
+  return Date.now() < adminDegradedUntil;
+}
+
+/** Call after in-app session sync (SignIn sheet) so background polls can resume. */
+export function markAdminSessionHealed() {
+  staleRecoverySheetOpen = false;
+  resumeAdminAuthPolls();
+  clearAdminSessionRecoverMark();
+  noteAdminNetworkSuccess();
+  try {
+    window.dispatchEvent(new CustomEvent('reave-admin-background-polls-armed'));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Back off adminFetch while the server is redeploying or unreachable. */
 export function shouldSkipAdminPoll() {
   return Date.now() < adminDegradedUntil;
 }
@@ -513,10 +613,12 @@ export function noteAdminNetworkSuccess() {
 
 if (typeof window !== 'undefined') {
   window.__reaveShouldSkipAdminPoll = shouldSkipAdminPoll;
+  window.__reaveShouldSkipAdminBackgroundPoll = shouldSkipAdminBackgroundPoll;
   window.__reaveNoteAdminNetworkFailure = noteAdminNetworkFailure;
   window.__reaveNoteAdminNetworkSuccess = noteAdminNetworkSuccess;
   installAdminApiFetchGuard();
   installAdminSessionKeepalive();
+  installAdminBackgroundPollArming();
 }
 
 export async function adminFetch(url, opts = {}) {

@@ -216,6 +216,7 @@ const clerkAppearance = {
     adminHandshakeInCooldown,
     trySilentAdminSessionRefresh,
     tryClerkHandshakeFetch,
+    markAdminSessionHealed,
   } = await import(`/admin/shared.js?v=${assetVersion}`);
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
@@ -330,11 +331,13 @@ const clerkAppearance = {
         void (async () => {
           const target = postSignInTarget();
           if (await trySilentAdminSessionRefresh()) {
+            markAdminSessionHealed();
             window.IosSheet?.close?.('sign-in-sheet');
             syncBtn.disabled = false;
             return;
           }
           if (await tryClerkHandshakeFetch({ returnTo: target, force: true })) {
+            markAdminSessionHealed();
             window.IosSheet?.close?.('sign-in-sheet');
             syncBtn.disabled = false;
             return;
@@ -490,10 +493,12 @@ const clerkAppearance = {
       clerkDiag.event('reave-admin-session-stale', 'handler');
       const target = postSignInTarget();
       if (await trySilentAdminSessionRefresh()) {
+        markAdminSessionHealed();
         window.IosSheet?.close?.('sign-in-sheet');
         return;
       }
       if (await tryClerkHandshakeFetch({ returnTo: target })) {
+        markAdminSessionHealed();
         window.IosSheet?.close?.('sign-in-sheet');
         return;
       }

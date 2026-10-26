@@ -135,7 +135,7 @@ import {
   appendAdminNoticeAction,
   NOTICE_ACTION_ICONS,
 } from './admin-notice.js?v=20260828a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminPoll } from './shared.js?v=20260903a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, adminApiErrorMessage, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl, bindClerkSsrSessionSync, installAdminApiFetchGuard, emailListAuthorIconHtml, ensureContactAuthorIconsReady, senderInitialsFromEmail, mountSidebarAuthorIcons, formatPhoneInput, phoneToStorage, isValidPhone, bindFormattedPhoneInputs, shouldSkipAdminBackgroundPoll, adminStaffUserId } from './shared.js?v=20260903a';
 import { createTracer } from '../shared/reave-diagnostic.js';
 
 const navDiag = createTracer('nav');
@@ -14204,7 +14204,7 @@ function syncEmailTabBadges() {
 }
 
 async function refreshFooterBadgesQuiet() {
-  if (shouldSkipAdminPoll()) return;
+  if (shouldSkipAdminBackgroundPoll()) return;
   try {
     const inboxPoll = emailInboxEnabled();
     const [badgeRes, inboxRes] = await Promise.all([
@@ -14274,7 +14274,7 @@ function stopInboxBadgePoll() {
 
 function syncInboxBadgePoll() {
   stopInboxBadgePoll();
-  if (!userId || document.hidden) return;
+  if (!adminStaffUserId() || document.hidden) return;
   refreshInboxBadgeQuiet();
   inboxBadgeTimer = setInterval(refreshInboxBadgeQuiet, 60000);
 }
@@ -22036,6 +22036,15 @@ if ('serviceWorker' in navigator) {
     if (event.data?.type === 'reave-otp-delete') void handleOtpDeleteFromPush(event.data);
   });
 }
+
+window.addEventListener('reave-admin-background-polls-armed', () => {
+  if (document.hidden) return;
+  syncEmailPoll();
+  syncInboxBadgePoll();
+  syncChatRunningPoll();
+  syncWorkAuditingPoll();
+  if (isDeploymentOwnerClient) startDeployPoll();
+});
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {

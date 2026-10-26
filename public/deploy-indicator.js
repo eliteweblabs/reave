@@ -150,9 +150,11 @@
   async function refreshDeployDot() {
     const dot = deployDotEl();
     if (!dot || deployAuthDenied) return;
-    if (typeof window.__reaveShouldSkipAdminPoll === 'function' && window.__reaveShouldSkipAdminPoll()) {
-      return;
-    }
+    const skipPoll =
+      typeof window.__reaveShouldSkipAdminBackgroundPoll === 'function'
+        ? window.__reaveShouldSkipAdminBackgroundPoll()
+        : typeof window.__reaveShouldSkipAdminPoll === 'function' && window.__reaveShouldSkipAdminPoll();
+    if (skipPoll) return;
 
     const allowed = canPollDeployIndicator();
     if (allowed === false) {

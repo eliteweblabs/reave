@@ -11,7 +11,7 @@ const swDiag = createTracer('sw');
 const pushDiag = createTracer('push');
 import {
   companyStaffAvatarUrl,
-  shouldSkipAdminPoll,
+  shouldSkipAdminBackgroundPoll,
   noteAdminNetworkFailure,
 } from './shared.js?v=20260903a';
 
@@ -325,7 +325,7 @@ function dismissAlert(key) {
 
 async function registerAdminServiceWorkerImpl() {
   if (!('serviceWorker' in navigator)) return null;
-  if (shouldSkipAdminPoll()) return null;
+  if (shouldSkipAdminBackgroundPoll()) return null;
   if (swRegisterBlockedUntil > Date.now()) return null;
   if (swRegisterPromise) return swRegisterPromise;
   swRegisterPromise = (async () => {
@@ -1057,7 +1057,7 @@ const postPushSubscription = pushDiag.wrapAsync('postPushSubscription', postPush
 async function syncPushSubscriptionWithServerImpl() {
   if (!('Notification' in window) || !('PushManager' in window)) return false;
   if (Notification.permission !== 'granted') return false;
-  if (shouldSkipAdminPoll()) return false;
+  if (shouldSkipAdminBackgroundPoll()) return false;
 
   const reg = await registerAdminServiceWorker();
   if (!reg) return false;

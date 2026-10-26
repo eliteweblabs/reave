@@ -40,7 +40,7 @@ import {
   createCopyIconBtn,
   bindConfirmDeleteButton,
 } from './admin-ui.js?v=20260829a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput, shouldSkipAdminPoll, noteAdminNetworkFailure, noteAdminNetworkSuccess } from './shared.js?v=20260903a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, mountPanelSkeleton, formatPhoneInput, shouldSkipAdminBackgroundPoll, noteAdminNetworkFailure, noteAdminNetworkSuccess } from './shared.js?v=20260903a';
 import { createTracer } from '../shared/reave-diagnostic.js';
 import { traceStart, traceAsync, traceSummary } from './perf-trace.js';
 
@@ -2014,7 +2014,7 @@ let chatRunningPollTimer = null;
  * lights up the "unread" dot once a background report finishes).
  */
 async function refreshChatRunningIndicatorsQuiet() {
-  if (shouldSkipAdminPoll()) return;
+  if (shouldSkipAdminBackgroundPoll()) return;
   try {
     const res = await fetch('/api/chats/running', { cache: 'no-store' });
     if (!res.ok) return;

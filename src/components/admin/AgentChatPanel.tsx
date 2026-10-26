@@ -337,7 +337,12 @@ function useAgentRunStatus(
 
     const poll = async () => {
       if (streamedProgress) return;
-      if (typeof window !== 'undefined' && window.__reaveShouldSkipAdminPoll?.()) return;
+      if (
+        typeof window !== 'undefined' &&
+        (window.__reaveShouldSkipAdminBackgroundPoll?.() || window.__reaveShouldSkipAdminPoll?.())
+      ) {
+        return;
+      }
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
           cache: 'no-store',
@@ -861,6 +866,12 @@ function isAbortError(err: unknown): boolean {
 async function fetchRunProgress(
   threadId: string,
 ): Promise<{ running: boolean; progress: AgentProgress | null } | null> {
+  if (
+    typeof window !== 'undefined' &&
+    (window.__reaveShouldSkipAdminBackgroundPoll?.() || window.__reaveShouldSkipAdminPoll?.())
+  ) {
+    return null;
+  }
   try {
     const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
       cache: 'no-store',
