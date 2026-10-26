@@ -6,6 +6,7 @@ import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
 import { nativeMapsDirectionsUrl } from "../../lib/calendarLinks";
+import { publicSignInHref } from "../../lib/publicSignInUrl";
 import "../../styles/pack-landing.css";
 
 interface Props {
@@ -101,10 +102,11 @@ const smsIntro =
 const smsHref = phoneDigits
   ? `sms:+${phoneDigits}?&body=${encodeURIComponent(smsIntro)}`
   : scheduleUrl;
+const loginHref = publicSignInHref(Astro.request);
 ---
 
 <div class="pack" data-pack-root>
-  <a class="pack-login" href="/sign-in">Login</a>
+  <a class="pack-login" href={loginHref}>Login</a>
 
   <header class="pack-header">
     <div class="pack-header__inner">
