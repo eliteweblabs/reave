@@ -525,6 +525,7 @@ function clearSetupAlerts() {
 export async function syncAdminSetupAlerts() {
   const root = document.getElementById('admin-setup-alerts');
   if (root?.dataset.actionBanner === '1') return 'action';
+  if (root?.dataset.sessionSyncBanner === '1') return 'session';
 
   clearSetupAlerts();
 

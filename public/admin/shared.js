@@ -6,6 +6,7 @@ import { escHtml } from '../shared/htmlEscape.js';
 import { markPwaRefreshCause, pwaRefreshDebugEnabled } from '../shared/pwa-refresh-debug.js';
 import { getAuthDebugLog } from '../shared/reave-debug-log.js';
 import { createTracer, installDiagnosticFetchTrace } from '../shared/reave-diagnostic.js';
+import { buildAdminNotice } from './admin-notice.js';
 
 const authDiag = createTracer('auth');
 const sessionDiag = createTracer('session');
@@ -308,11 +309,100 @@ export const ADMIN_AUTH_SILENT_RETRY = 'admin-auth-silent-retry';
  */
 let staleRecoverySheetOpen = false;
 
+function dismissAdminSessionSyncBanner() {
+  const root = document.getElementById('admin-setup-alerts');
+  if (!root?.dataset.sessionSyncBanner) return;
+  root.hidden = true;
+  root.replaceChildren();
+  delete root.dataset.sessionSyncBanner;
+  try {
+    document.documentElement.style.setProperty('--setup-alert-h', '0px');
+  } catch {
+    /* ignore */
+  }
+}
+
+async function runAdminSessionSyncFromBanner(btn) {
+  if (btn) btn.disabled = true;
+  try {
+    if (await trySilentAdminSessionRefresh()) {
+      markAdminSessionHealed();
+      dismissAdminSessionSyncBanner();
+      return;
+    }
+    const returnTo = cleanAdminReturnUrl(window.location.pathname, window.location.search);
+    if (await tryClerkHandshakeFetch({ returnTo, force: true })) {
+      markAdminSessionHealed();
+      dismissAdminSessionSyncBanner();
+      return;
+    }
+    staleRecoverySheetOpen = true;
+    window.IosSheet?.open?.('sign-in-sheet');
+    try {
+      window.dispatchEvent(
+        new CustomEvent('reave-admin-session-stale', {
+          detail: { source: 'banner-sync', returnTo, quiet: false },
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function showAdminSessionSyncBanner() {
+  const root = document.getElementById('admin-setup-alerts');
+  if (!root || root.dataset.sessionSyncBanner === '1') return;
+  root.dataset.sessionSyncBanner = '1';
+  root.hidden = false;
+  root.replaceChildren();
+  const notice = buildAdminNotice({
+    tone: 'alert',
+    copyHtml:
+      '<strong>Session needs sync</strong><p>Clerk is signed in but the admin cookie expired. Background updates are paused.</p>',
+    actions: [
+      {
+        label: 'Sync session',
+        primary: true,
+        onClick: (btn) => void runAdminSessionSyncFromBanner(btn),
+      },
+    ],
+    dismissLabel: 'Dismiss session sync alert',
+    onDismiss: () => dismissAdminSessionSyncBanner(),
+  });
+  root.appendChild(notice.root);
+  try {
+    const h = Math.ceil(root.getBoundingClientRect().height);
+    document.documentElement.style.setProperty('--setup-alert-h', `${h}px`);
+  } catch {
+    /* ignore */
+  }
+}
+
 function openAdminStaleSessionRecoveryImpl(detail = {}) {
   markAdminServerSessionStale();
+  const quietApi401 = detail.source === 'api-401';
+  if (quietApi401) {
+    authLog().info('stale session — header banner (no sheet auto-open)', detail);
+    showAdminSessionSyncBanner();
+    try {
+      window.dispatchEvent(
+        new CustomEvent('reave-admin-session-stale', {
+          detail: { ...detail, quiet: true },
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+
   const sheet = document.getElementById('sign-in-sheet');
   if (!sheet || !window.IosSheet?.open) {
     authLog().warn('stale session recovery unavailable — no sign-in sheet', detail);
+    showAdminSessionSyncBanner();
     return false;
   }
   if (staleRecoverySheetOpen) {
@@ -328,7 +418,7 @@ function openAdminStaleSessionRecoveryImpl(detail = {}) {
   window.IosSheet.open('sign-in-sheet');
   try {
     window.dispatchEvent(
-      new CustomEvent('reave-admin-session-stale', { detail: { source: 'admin-401', ...detail } }),
+      new CustomEvent('reave-admin-session-stale', { detail: { quiet: false, ...detail } }),
     );
   } catch {
     /* ignore */
@@ -584,6 +674,7 @@ export function shouldSkipAdminBackgroundPoll() {
 /** Call after in-app session sync (SignIn sheet) so background polls can resume. */
 export function markAdminSessionHealed() {
   staleRecoverySheetOpen = false;
+  dismissAdminSessionSyncBanner();
   resumeAdminAuthPolls();
   clearAdminSessionRecoverMark();
   noteAdminNetworkSuccess();

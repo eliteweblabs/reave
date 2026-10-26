@@ -116,8 +116,8 @@ const clerkAppearance = {
   }
   <div id="sign-in-session-stuck" class="sign-in-session-stuck" hidden>
     <p id="sign-in-stuck-message">
-      Your session is out of sync. The app will keep polling in the background — or sync now
-      without leaving this screen.
+      Your browser session cookie is out of sync with Clerk. Background updates are paused until
+      you sync — tap below to restore API access without leaving this screen.
     </p>
     <button type="button" id="sign-in-stuck-sync" class="sign-in-stuck-btn">
       Sync session
@@ -487,10 +487,11 @@ const clerkAppearance = {
     }
   }
 
-  window.addEventListener('reave-admin-session-stale', () => {
+  window.addEventListener('reave-admin-session-stale', (ev) => {
     void (async () => {
       if (!window.Clerk?.user) return;
-      clerkDiag.event('reave-admin-session-stale', 'handler');
+      const quiet = ev.detail?.quiet === true;
+      clerkDiag.event('reave-admin-session-stale', quiet ? 'handler-quiet' : 'handler');
       const target = postSignInTarget();
       if (await trySilentAdminSessionRefresh()) {
         markAdminSessionHealed();
@@ -502,6 +503,7 @@ const clerkAppearance = {
         window.IosSheet?.close?.('sign-in-sheet');
         return;
       }
+      if (quiet) return;
       showStuckSession();
     })();
   });
