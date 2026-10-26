@@ -4,6 +4,7 @@ import ViewportMeta from "../components/ViewportMeta.astro";
 import { companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
 import { shareSafeText } from "../lib/shareSafeText";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
+import { landingBrandName, landingThemeColor, packHtmlStyleAttr } from "../lib/landingCompanyBrand";
 import { getSiteContent, siteLandingOgImage } from "../lib/siteContent";
 import { requestOrigin } from "../lib/requestOrigin";
 import { BRANDING_OG_PATH } from "../lib/companyLogo";
@@ -50,7 +51,7 @@ const isTech = landing.variant === "tech";
 const isVet = landing.variant === "vet";
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/";
-const siteName = (landing.name ?? company.name).trim() || formatPwaAppTitle(company.name);
+const siteName = landingBrandName(company, landing.name) || formatPwaAppTitle(company.name);
 const pageName = titleProp?.trim() || "";
 let docTitle: string;
 if (pageName) {
@@ -76,10 +77,21 @@ const ogImage = pageSeo?.ogImage?.trim() || ogImageProp || company.ogImageUrl;
 const ogImageMetaSize = companyOgImageMetaSize(company, ogImage);
 const isLandingOg = Boolean(siteLandingOgImage(siteContent) || landing.ogImage);
 const ogImageAlt = shareSafeText(landing.name ?? company.name);
+const themeColorFallback = isVet
+  ? "#fafafa"
+  : isPack
+    ? "#1c1410"
+    : isEditorial
+      ? "#f4efe6"
+      : isLuxury
+        ? "#f7f4ef"
+        : isService
+          ? "#f4f7fb"
+          : isTech
+            ? "#2f4a2c"
+            : "#01061d";
 const themeColor =
-  themeColorProp ??
-  landing.themeColor ??
-  (isVet ? "#fafafa" : isPack ? "#1c1410" : isEditorial ? "#f4efe6" : isLuxury ? "#f7f4ef" : isService ? "#f4f7fb" : isTech ? "#2f4a2c" : "#01061d");
+  themeColorProp ?? landingThemeColor(company, landing.themeColor, themeColorFallback);
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical = `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
@@ -90,8 +102,9 @@ const logoShareFallback = company.logoPath && company.logoSource !== "hidden"
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? logoShareFallback
   : ogImageAbsolute;
-const htmlStyle =
-  isEditorial || isLuxury || isService || isTech || isPack || isVet
+const htmlStyle = isPack
+  ? packHtmlStyleAttr(company)
+  : isEditorial || isLuxury || isService || isTech || isVet
     ? undefined
     : companyHtmlStyleAttr(company.fonts, company.brandPrimary, company.brandSecondary, company.headerLogoSize);
 

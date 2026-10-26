@@ -6,6 +6,11 @@ import type { SiteLandingConfig } from "../../lib/siteContent";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { contactTelHref } from "../../lib/contactApi";
 import { nativeMapsDirectionsUrl } from "../../lib/calendarLinks";
+import {
+  landingBrandName,
+  landingWordmarkSrc,
+  packBrandCssVarsInline,
+} from "../../lib/landingCompanyBrand";
 import { publicSignInHref } from "../../lib/publicSignInUrl";
 import "../../styles/pack-landing.css";
 
@@ -24,12 +29,9 @@ const about = landing.about ?? {};
 const services = landing.services;
 const booking = pack.booking ?? {};
 
-const brandName = landing.name || company.name || "Book";
-const logoSrc =
-  (landing.heroLogo || "").trim() ||
-  (company.logoPath && company.logoSource !== "hidden"
-    ? `${company.logoPath}${company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : ""}`
-    : "");
+const brandName = landingBrandName(company, landing.name);
+const logoSrc = landingWordmarkSrc(company, landing.heroLogo);
+const packBrandStyle = packBrandCssVarsInline(company);
 
 const phoneDisplay = (contact.phone || company.supportPhone || "").trim();
 const phoneDigits = contactTelHref(
@@ -105,7 +107,7 @@ const smsHref = phoneDigits
 const loginHref = pack.signInHref?.trim() || publicSignInHref(Astro.request);
 ---
 
-<div class="pack" data-pack-root>
+<div class="pack" data-pack-root style={packBrandStyle}>
   <a class="pack-login" href={loginHref}>Login</a>
 
   <header class="pack-header">

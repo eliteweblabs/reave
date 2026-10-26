@@ -508,6 +508,11 @@ export function companyOgImageUrl(company: CompanyConfig): string {
     return `${BRANDING_OG_PATH}${brandingVersionQuery(company)}`;
   }
 
+  if (company.logoSource === 'admin') {
+    const adminShare = resolveCompanyLogoShareUrl(company);
+    if (adminShare) return adminShare;
+  }
+
   const siteOg = siteLandingOgImage(getSiteContent());
   if (siteOg) return siteOg;
 
