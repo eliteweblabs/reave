@@ -42,6 +42,11 @@ function resolveClerkProxyApexHost(request: Request, incomingHost: string): stri
   const requestHost = clerkProxyApexHost(resolvePublicHost(request));
   const siteHost = clerkProxyApexHost(serverEnv('PUBLIC_SITE_DOMAIN') ?? '');
   const companyHost = clerkProxyApexHost(serverEnv('COMPANY_DOMAIN') ?? '');
+  const clerkPrimary = clerkProxyApexHost(serverEnv('CLERK_PRIMARY_DOMAIN') ?? '');
+
+  /** Preview on *.railway.app with production Clerk on admin.{client} (PDX Paws, etc.). */
+  if (clerkPrimary && requestHost === clerkPrimary) return clerkPrimary;
+  if (clerkPrimary && requestHost.endsWith(`.${clerkPrimary}`)) return requestHost;
 
   if (siteHost && requestHost === siteHost) return siteHost;
   if (requestHost && companyHost && requestHost !== companyHost) {
@@ -238,6 +243,7 @@ let ensureProxyPromise: Promise<void> | null = null;
  */
 export function ensureClerkDomainProxy(proxyUrl?: string): void {
   const envApex =
+    clerkProxyApexHost(serverEnv('CLERK_PRIMARY_DOMAIN') ?? '') ||
     clerkProxyApexHost(serverEnv('PUBLIC_SITE_DOMAIN') ?? '') ||
     clerkProxyApexHost(serverEnv('COMPANY_DOMAIN') ?? '');
   const fromEnv = envApex ? `https://${envApex}${DEFAULT_CLERK_FRONTEND_PROXY_PATH}` : '';

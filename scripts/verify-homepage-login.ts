@@ -382,6 +382,29 @@ assert.equal(
   if (prevSite === undefined) delete process.env.PUBLIC_SITE_DOMAIN;
   else process.env.PUBLIC_SITE_DOMAIN = prevSite;
 }
+{
+  const prevCompany = process.env.COMPANY_DOMAIN;
+  const prevSite = process.env.PUBLIC_SITE_DOMAIN;
+  const prevClerkPrimary = process.env.CLERK_PRIMARY_DOMAIN;
+  process.env.COMPANY_DOMAIN = 'pups-production.up.railway.app';
+  process.env.PUBLIC_SITE_DOMAIN = 'pups-production.up.railway.app';
+  process.env.CLERK_PRIMARY_DOMAIN = 'admin.pdx-paws.com';
+  assert.equal(
+    absoluteClerkProxyUrl(
+      new Request('https://admin.pdx-paws.com/__clerk/v1/environment', {
+        headers: { 'X-Forwarded-Proto': 'https', Host: 'admin.pdx-paws.com' },
+      }),
+    ),
+    'https://admin.pdx-paws.com/__clerk',
+    'Railway preview must send admin host as Clerk-Proxy-Url when CLERK_PRIMARY_DOMAIN is set',
+  );
+  if (prevCompany === undefined) delete process.env.COMPANY_DOMAIN;
+  else process.env.COMPANY_DOMAIN = prevCompany;
+  if (prevSite === undefined) delete process.env.PUBLIC_SITE_DOMAIN;
+  else process.env.PUBLIC_SITE_DOMAIN = prevSite;
+  if (prevClerkPrimary === undefined) delete process.env.CLERK_PRIMARY_DOMAIN;
+  else process.env.CLERK_PRIMARY_DOMAIN = prevClerkPrimary;
+}
 assert.equal(isClerkFrontendApiHost('clerk.reave.app'), true);
 assert.equal(isClerkFrontendApiHost('frontend-api.clerk.dev'), true);
 assert.equal(isClerkFrontendApiHost('reave.app'), false);
