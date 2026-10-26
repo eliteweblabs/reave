@@ -107,6 +107,7 @@ export function alignClerkBrowserAssetUrls(env: NodeJS.ProcessEnv = process.env)
   if (!fapiHost) return;
 
   const proxyPath = clerkProxyUrlFromEnv(env);
+  const useSameOriginProxy = Boolean(proxyPath?.startsWith('/'));
   const assets = [
     {
       urlKey: 'PUBLIC_CLERK_JS_URL',
@@ -124,8 +125,40 @@ export function alignClerkBrowserAssetUrls(env: NodeJS.ProcessEnv = process.env)
 
   for (const asset of assets) {
     const raw = env[asset.urlKey]?.trim();
-    if (!raw) continue;
+    const version =
+      env[asset.versionKey]?.trim() || clerkNpmPackageVersionFromUrl(raw) || undefined;
 
+    if (useSameOriginProxy && version) {
+      const proxied = clerkProxiedNpmAssetUrl(asset.packageName, asset.fileName, version, proxyPath);
+      if (proxied) {
+        if (!raw) {
+          env[asset.urlKey] = proxied;
+          continue;
+        }
+        if (raw.startsWith('/')) continue;
+
+        let urlHost = '';
+        try {
+          urlHost = new URL(raw).hostname.toLowerCase();
+        } catch {
+          env[asset.urlKey] = proxied;
+          continue;
+        }
+
+        // Production uses /__clerk — do not load clerk-js from clerk.{apex} (often no DNS).
+        if (urlHost === fapiHost || urlHost.startsWith('clerk.')) {
+          if (env[asset.urlKey] !== proxied) {
+            env[asset.urlKey] = proxied;
+            console.warn(
+              `[clerk] ${asset.urlKey} ${urlHost} → same-origin proxy ${proxied} (FAPI host need not resolve)`,
+            );
+          }
+          continue;
+        }
+      }
+    }
+
+    if (!raw) continue;
     if (raw.startsWith('/')) continue;
 
     let urlHost = '';
@@ -138,8 +171,6 @@ export function alignClerkBrowserAssetUrls(env: NodeJS.ProcessEnv = process.env)
 
     if (urlHost === fapiHost) continue;
 
-    const version =
-      env[asset.versionKey]?.trim() || clerkNpmPackageVersionFromUrl(raw) || undefined;
     if (!version) {
       delete env[asset.urlKey];
       continue;

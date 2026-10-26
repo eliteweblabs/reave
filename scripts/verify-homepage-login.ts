@@ -265,6 +265,20 @@ assert.equal(
     'stale reave.app clerk-js URL must move to same-origin proxy for client apex keys',
   );
 }
+{
+  const env = {
+    PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_Y2xlcmsucmVra28uc3R1ZGlvJA==',
+    PUBLIC_CLERK_JS_URL:
+      'https://clerk.rekko.studio/npm/@clerk/clerk-js@5.27.0/dist/clerk.browser.js',
+    PUBLIC_CLERK_JS_VERSION: '5.27.0',
+  };
+  alignClerkBrowserAssetUrls(env);
+  assert.equal(
+    env.PUBLIC_CLERK_JS_URL,
+    '/__clerk/npm/@clerk/clerk-js@5.27.0/dist/clerk.browser.js',
+    'clerk.rekko.studio JS URL must use /__clerk when that subdomain has no DNS',
+  );
+}
 if (prevPk === undefined) delete process.env.CLERK_PUBLISHABLE_KEY;
 else process.env.CLERK_PUBLISHABLE_KEY = prevPk;
 if (prevSk === undefined) delete process.env.CLERK_SECRET;
