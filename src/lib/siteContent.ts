@@ -156,6 +156,8 @@ export type SiteLandingPackPhoto = {
 
 /** PDX Paws–style neighborhood pack landing (marquee, service cards, photo wall). */
 export type SiteLandingPackConfig = {
+  /** Staff sign-in (e.g. https://admin.client.com/admin/login). */
+  signInHref?: string;
   marquee?: string[];
   hero?: {
     headlineLines?: string[];

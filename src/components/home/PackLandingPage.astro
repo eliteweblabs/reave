@@ -102,7 +102,7 @@ const smsIntro =
 const smsHref = phoneDigits
   ? `sms:+${phoneDigits}?&body=${encodeURIComponent(smsIntro)}`
   : scheduleUrl;
-const loginHref = publicSignInHref(Astro.request);
+const loginHref = pack.signInHref?.trim() || publicSignInHref(Astro.request);
 ---
 
 <div class="pack" data-pack-root>

@@ -69,6 +69,7 @@
       "officeLines": ["Portland, Oregon"]
     },
     "pack": {
+      "signInHref": "https://admin.pdx-paws.com/admin/login",
       "marquee": [
         "Grooming",
         "Pet sitting",
