@@ -10,7 +10,7 @@ import { SITE } from "../config/site";
 import { BRANDING_OG_PATH } from "../lib/companyLogo";
 import { OG_IMAGE_HEIGHT as PORTAL_OG_HEIGHT, OG_IMAGE_WIDTH as PORTAL_OG_WIDTH } from "../lib/ogImageSize";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
-import { companyOgUsesStandardDimensions, getCompanyConfig } from "../lib/companyConfig";
+import { companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
 import { formatHtmlPageTitle, formatPwaAppTitle } from "../lib/pageTitle";
 import { shareSafeText } from "../lib/shareSafeText";
 import { isMarketingPagePath, getSiteContent, siteLandingOgImage } from "../lib/siteContent";
@@ -101,7 +101,7 @@ const logoShareFallback = company.logoPath && company.logoSource !== "hidden"
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? logoShareFallback
   : ogImageAbsolute;
-const usesStandardOgDimensions = companyOgUsesStandardDimensions(ogImage, company);
+const ogImageMetaSize = companyOgImageMetaSize(company, ogImage);
 const isLandingOg = Boolean(siteLandingOgImage(siteContent));
 const ogImageAlt = shareSafeText(siteContent.landing?.name ?? company.name);
 const fullBleed = fullBleedProp ?? isIndexPage;
@@ -155,8 +155,12 @@ try {
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImageSafe} />
-		{(usesStandardOgDimensions || isLandingOg) && <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />}
-		{(usesStandardOgDimensions || isLandingOg) && <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />}
+		{(ogImageMetaSize || isLandingOg) && (
+			<meta property="og:image:width" content={String(ogImageMetaSize?.width ?? PORTAL_OG_WIDTH)} />
+		)}
+		{(ogImageMetaSize || isLandingOg) && (
+			<meta property="og:image:height" content={String(ogImageMetaSize?.height ?? PORTAL_OG_HEIGHT)} />
+		)}
 		{isLandingOg && <meta property="og:image:alt" content={ogImageAlt} />}
 		{shareSiteName && <meta property="og:site_name" content={shareSiteName} />}
 

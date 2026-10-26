@@ -21,7 +21,7 @@ import {
   nativeMapsDirectionsUrl,
 } from '../lib/calendarLinks';
 import { companyHtmlStyleAttr } from '../lib/companyBrandColors';
-import { companyBrandingOgUrl, getCompanyConfig } from '../lib/companyConfig';
+import { companyBrandingOgUrl, companyOgImageMetaSize, getCompanyConfig } from '../lib/companyConfig';
 import { getPageSeoOverride } from '../lib/pageSeo';
 import { getStoredCompanyConfig } from '../lib/companyConfigStore';
 import {
@@ -36,7 +36,6 @@ import { qrCodeDataUrl } from '../lib/qrCode';
 import { formatHtmlPageTitle, formatPwaAppTitle } from '../lib/pageTitle';
 import { contactTelHref } from '../lib/contactApi';
 import { BRANDING_OG_PATH } from '../lib/companyLogo';
-import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from '../lib/ogImageSize';
 import { requestOrigin } from '../lib/requestOrigin';
 import { shareSafeText } from '../lib/shareSafeText';
 import { isCardDemoPortfolioEnabled, parseCardDemoParam } from '../lib/cardDemoSites';
@@ -157,6 +156,7 @@ const logoShareFallback = company.logoPath && company.logoSource !== 'hidden'
 const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
   ? logoShareFallback
   : ogImageAbsolute;
+const ogImageMetaSize = companyOgImageMetaSize(company, ogImage);
 
 let cardQrSrc = '';
 try {
@@ -190,8 +190,12 @@ try {
     <meta property="og:type" content="profile" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageSafe} />
-    <meta property="og:image:width" content={String(OG_IMAGE_WIDTH)} />
-    <meta property="og:image:height" content={String(OG_IMAGE_HEIGHT)} />
+    {ogImageMetaSize && (
+      <>
+        <meta property="og:image:width" content={String(ogImageMetaSize.width)} />
+        <meta property="og:image:height" content={String(ogImageMetaSize.height)} />
+      </>
+    )}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={shareTitle} />
     <meta name="twitter:description" content={description} />

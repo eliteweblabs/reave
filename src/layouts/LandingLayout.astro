@@ -1,7 +1,7 @@
 ---
 import Favicon from "../components/Favicon.astro";
 import ViewportMeta from "../components/ViewportMeta.astro";
-import { companyOgUsesStandardDimensions, getCompanyConfig } from "../lib/companyConfig";
+import { companyOgImageMetaSize, getCompanyConfig } from "../lib/companyConfig";
 import { shareSafeText } from "../lib/shareSafeText";
 import { companyHtmlStyleAttr } from "../lib/companyBrandColors";
 import { getSiteContent, siteLandingOgImage } from "../lib/siteContent";
@@ -73,7 +73,7 @@ const description =
   pageSeo?.description?.trim() ?? descriptionProp ?? landing.description ?? company.description;
 const shareTitle = shareSafeText(docTitle);
 const ogImage = pageSeo?.ogImage?.trim() || ogImageProp || company.ogImageUrl;
-const usesStandardOgDimensions = companyOgUsesStandardDimensions(ogImage, company);
+const ogImageMetaSize = companyOgImageMetaSize(company, ogImage);
 const isLandingOg = Boolean(siteLandingOgImage(siteContent) || landing.ogImage);
 const ogImageAlt = shareSafeText(landing.name ?? company.name);
 const themeColor =
@@ -155,8 +155,12 @@ const manifest = landing.manifest;
     <meta property="og:type" content="website" />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageSafe} />
-    {(isEditorial || usesStandardOgDimensions || isLandingOg) && <meta property="og:image:width" content={String(OG_IMAGE_WIDTH)} />}
-    {(isEditorial || usesStandardOgDimensions || isLandingOg) && <meta property="og:image:height" content={String(OG_IMAGE_HEIGHT)} />}
+    {(isEditorial || ogImageMetaSize || isLandingOg) && (
+      <meta property="og:image:width" content={String(ogImageMetaSize?.width ?? OG_IMAGE_WIDTH)} />
+    )}
+    {(isEditorial || ogImageMetaSize || isLandingOg) && (
+      <meta property="og:image:height" content={String(ogImageMetaSize?.height ?? OG_IMAGE_HEIGHT)} />
+    )}
     {isLandingOg && <meta property="og:image:alt" content={ogImageAlt} />}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={shareTitle} />

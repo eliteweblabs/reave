@@ -13,6 +13,8 @@ import {
 } from './companyLogo';
 import { prepareInlineBrandSvg, sanitizeInlineSvg } from './brandSvg';
 import { BRAND_ICON_RENDER, BRAND_ICON_SIZES } from './brandIconRaster';
+import { readRasterDimensions } from './brandImageRender';
+import { OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from './ogImageSize';
 import { getSiteContent, siteLandingHeroLogoUrl, siteLandingIconUrl, siteLandingOgImage } from './siteContent';
 import {
   getStoredCompanyConfig,
@@ -192,6 +194,10 @@ export type CompanyConfig = {
   iconHasRaster: boolean;
   /** True when an admin-uploaded default social-share (OG) image is stored. */
   ogHasRaster: boolean;
+  /** Pixel width of the admin share image (0 until resolved). */
+  ogImageWidth: number;
+  /** Pixel height of the admin share image (0 until resolved). */
+  ogImageHeight: number;
   /** Resolved og:image URL — upload, site logo, company logo, icon, or letter route. */
   ogImageUrl: string;
   /** True when og:image is the generated letter tile (nothing else configured). */
@@ -472,11 +478,28 @@ function resolveCompanyIconShareUrl(company: CompanyConfig): string | null {
   return null;
 }
 
-/** True when og:image should include 1200×630 width/height meta tags. */
+/** True when og:image is the classic 1200×630 card (generated or site static OG). */
 export function companyOgUsesStandardDimensions(ogImageUrl: string, company: CompanyConfig): boolean {
-  if (company.ogHasRaster || company.ogUsesLetterFallback) return true;
+  if (company.ogUsesLetterFallback) return true;
+  if (company.ogHasRaster) {
+    return company.ogImageWidth === OG_IMAGE_WIDTH && company.ogImageHeight === OG_IMAGE_HEIGHT;
+  }
   const path = ogImageUrl.split('?')[0] ?? '';
   return path.startsWith('/sites/') && path.endsWith('/og.png');
+}
+
+/** og:image width/height meta tags when dimensions are known. */
+export function companyOgImageMetaSize(
+  company: CompanyConfig,
+  ogImageUrl: string,
+): { width: number; height: number } | null {
+  if (company.ogHasRaster && company.ogImageWidth > 0 && company.ogImageHeight > 0) {
+    return { width: company.ogImageWidth, height: company.ogImageHeight };
+  }
+  if (companyOgUsesStandardDimensions(ogImageUrl, company)) {
+    return { width: OG_IMAGE_WIDTH, height: OG_IMAGE_HEIGHT };
+  }
+  return null;
 }
 
 /** Resolve og:image — upload, site logo, company logo, icon, else letter route. */
@@ -700,6 +723,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     logoHasRaster: Boolean(stored?.logoData && stored?.logoMediaType),
     iconHasRaster: Boolean(stored?.iconData && stored?.iconMediaType),
     ogHasRaster: Boolean(stored?.ogData && stored?.ogMediaType),
+    ogImageWidth: stored?.ogWidth && stored.ogWidth > 0 ? stored.ogWidth : 0,
+    ogImageHeight: stored?.ogHeight && stored.ogHeight > 0 ? stored.ogHeight : 0,
     ...logo,
     ...icon,
   };
@@ -708,11 +733,23 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   return attachCompanyOgFields(config);
 }
 
+async function withResolvedOgDimensions(
+  company: CompanyConfig,
+  stored: StoredCompanyConfig | null,
+): Promise<CompanyConfig> {
+  if (!company.ogHasRaster || !stored?.ogData?.trim()) return company;
+  if (company.ogImageWidth > 0 && company.ogImageHeight > 0) return company;
+  const dims = await readRasterDimensions(stored.ogData);
+  if (!dims) return company;
+  return { ...company, ogImageWidth: dims.width, ogImageHeight: dims.height };
+}
+
 /** Full resolved branding for the current deployment. */
 export async function getCompanyConfig(request?: Request): Promise<CompanyConfig> {
   let stored = await getStoredCompanyConfig();
   stored = (await persistOfficialReavePublicEmail(stored)) ?? stored;
-  return resolveFromStored(stored, request);
+  const company = resolveFromStored(stored, request);
+  return withResolvedOgDimensions(company, stored);
 }
 
 let _persistedOfficialReavePublicEmail = false;

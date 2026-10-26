@@ -5,6 +5,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { readRasterDimensions } from '../../../../../lib/brandImageRender';
 import { getCompanyConfig } from '../../../../../lib/companyConfig';
 import {
   setStoredCompanyConfig,
@@ -107,9 +108,12 @@ export async function POST(context: APIContext): Promise<Response> {
     if (blob.kind === 'svg') {
       return jsonResponse({ ok: false, error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' }, 400);
     }
+    const dims = await readRasterDimensions(blob.dataBase64);
     const ok = await setStoredCompanyOg({
       dataBase64: blob.dataBase64,
       mediaType: blob.mediaType,
+      width: dims?.width,
+      height: dims?.height,
     });
     if (!ok) return jsonResponse({ ok: false, error: 'Failed to apply share image' }, 500);
     const company = await getCompanyConfig(context.request);

@@ -875,6 +875,7 @@
 .prof-og-preview {
   display: block;
   width: min(100%, 320px);
+  max-height: 420px;
   aspect-ratio: 1200 / 630;
   object-fit: cover;
   border-radius: 8px;

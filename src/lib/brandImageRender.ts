@@ -433,19 +433,41 @@ export async function renderCompanyIconMarkPng(
   });
 }
 
+const OG_UPLOAD_MAX_EDGE = 2400;
+
 async function renderUploadedOgPng(dataBase64: string): Promise<Buffer | null> {
   try {
-    return await sharp(Buffer.from(dataBase64, 'base64'))
-      .rotate()
-      .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT, {
-        fit: 'cover',
-        position: 'centre',
-      })
-      .png()
-      .toBuffer();
+    let pipeline = sharp(Buffer.from(dataBase64, 'base64')).rotate();
+    const meta = await pipeline.metadata();
+    const w = meta.width ?? 0;
+    const h = meta.height ?? 0;
+    if (w > OG_UPLOAD_MAX_EDGE || h > OG_UPLOAD_MAX_EDGE) {
+      pipeline = pipeline.resize({
+        width: w >= h ? OG_UPLOAD_MAX_EDGE : undefined,
+        height: h > w ? OG_UPLOAD_MAX_EDGE : undefined,
+        fit: 'inside',
+        withoutEnlargement: true,
+      });
+    }
+    return await pipeline.png().toBuffer();
   } catch {
     return null;
   }
+}
+
+/** Pixel size of a stored raster upload (respects EXIF orientation). */
+export async function readRasterDimensions(
+  dataBase64: string,
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const meta = await sharp(Buffer.from(dataBase64, 'base64')).rotate().metadata();
+    if (meta.width && meta.height) {
+      return { width: meta.width, height: meta.height };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 const OG_SHARE_CANVAS = '#0a0a0a';

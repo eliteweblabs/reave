@@ -51,8 +51,8 @@ async function sampleCenter(buf: Buffer): Promise<[number, number, number]> {
     ogMediaType: 'image/png',
   });
   const meta = await sharp(uploaded).metadata();
-  assert.equal(meta.width, PORTAL_OG_WIDTH);
-  assert.equal(meta.height, PORTAL_OG_HEIGHT);
+  assert.equal(meta.width, 80);
+  assert.equal(meta.height, 80);
   const [r, g, b] = await sampleCenter(uploaded);
   assert.ok(r > 180 && g < 80 && b < 80, `expected uploaded red card, got rgb(${r},${g},${b})`);
 }

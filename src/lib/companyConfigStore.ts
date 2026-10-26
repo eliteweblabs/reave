@@ -17,6 +17,8 @@ import { clearBrandingPngCache } from './brandingPngCache';
 export type StoredCompanyLogo = {
   dataBase64: string;
   mediaType: string;
+  width?: number;
+  height?: number;
 };
 
 export type StoredCompanyGeo = {
@@ -54,6 +56,8 @@ export type StoredCompanyConfig = {
   /** Admin-uploaded default social-share (OG) image. */
   ogData?: string | null;
   ogMediaType?: string | null;
+  ogWidth?: number | null;
+  ogHeight?: number | null;
   vapiAssistantId?: string | null;
   vapiFirstMessage?: string | null;
   vapiSystemPrompt?: string | null;
@@ -183,6 +187,8 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS support_phone_mobile BOOLEAN
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS header_logo_size TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS search_keywords JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS page_seo_overrides JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_width INT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS og_height INT;
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -305,6 +311,18 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     iconSvg: typeof o.iconSvg === 'string' && o.iconSvg.trim() ? o.iconSvg : null,
     ogData: typeof o.ogData === 'string' && o.ogData ? o.ogData : null,
     ogMediaType: typeof o.ogMediaType === 'string' && o.ogMediaType ? o.ogMediaType.trim() : null,
+    ogWidth:
+      typeof o.ogWidth === 'number' && o.ogWidth > 0
+        ? Math.round(o.ogWidth)
+        : typeof o.og_width === 'number' && o.og_width > 0
+          ? Math.round(o.og_width)
+          : null,
+    ogHeight:
+      typeof o.ogHeight === 'number' && o.ogHeight > 0
+        ? Math.round(o.ogHeight)
+        : typeof o.og_height === 'number' && o.og_height > 0
+          ? Math.round(o.og_height)
+          : null,
     vapiAssistantId: str('vapiAssistantId') || null,
     vapiFirstMessage: typeof o.vapiFirstMessage === 'string' ? o.vapiFirstMessage : null,
     vapiSystemPrompt: typeof o.vapiSystemPrompt === 'string' ? o.vapiSystemPrompt : null,
@@ -456,6 +474,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     portal_outreach_notice: string | null;
     og_data: string | null;
     og_media_type: string | null;
+    og_width: number | null;
+    og_height: number | null;
     email_font: string | null;
     business_hours: string | null;
     sync_hours_to_calcom: boolean | null;
@@ -477,7 +497,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
             font_display, font_body, font_primary, font_secondary, font_content, font_google_specs,
             brand_primary, brand_secondary, icon_background, portal_outreach_notice,
-            og_data, og_media_type, email_font, business_hours, sync_hours_to_calcom, sync_hours_to_gbp,
+            og_data, og_media_type, og_width, og_height, email_font, business_hours, sync_hours_to_calcom, sync_hours_to_gbp,
             support_phone_mobile, header_logo_size, search_keywords, page_seo_overrides, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
@@ -542,6 +562,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     portalOutreachNotice: row.portal_outreach_notice,
     ogData: row.og_data,
     ogMediaType: row.og_media_type,
+    ogWidth: row.og_width != null && row.og_width > 0 ? row.og_width : null,
+    ogHeight: row.og_height != null && row.og_height > 0 ? row.og_height : null,
     emailFont: row.email_font,
     businessHours: parseStoredBusinessHoursJson(row.business_hours),
     syncHoursToCalcom: row.sync_hours_to_calcom,
@@ -617,14 +639,16 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
        portal_outreach_notice = $53,
        og_data = $54,
        og_media_type = $55,
-       email_font = $56,
-       business_hours = $57,
-       sync_hours_to_calcom = $58,
-       sync_hours_to_gbp = $59,
-       support_phone_mobile = $60,
-       header_logo_size = $61,
-       search_keywords = $62::jsonb,
-       page_seo_overrides = $63::jsonb,
+       og_width = $56,
+       og_height = $57,
+       email_font = $58,
+       business_hours = $59,
+       sync_hours_to_calcom = $60,
+       sync_hours_to_gbp = $61,
+       support_phone_mobile = $62,
+       header_logo_size = $63,
+       search_keywords = $64::jsonb,
+       page_seo_overrides = $65::jsonb,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -685,6 +709,8 @@ async function writePgConfig(config: StoredCompanyConfig, retried = false): Prom
       config.portalOutreachNotice ?? null,
       config.ogData ?? null,
       config.ogMediaType ?? null,
+      config.ogWidth ?? null,
+      config.ogHeight ?? null,
       config.emailFont ?? null,
       config.businessHours ? JSON.stringify(config.businessHours) : null,
       config.syncHoursToCalcom === true,
@@ -824,6 +850,8 @@ export async function setStoredCompanyOg(og: StoredCompanyLogo): Promise<boolean
   return setStoredCompanyConfig({
     ogData: og.dataBase64,
     ogMediaType: og.mediaType,
+    ogWidth: og.width != null && og.width > 0 ? Math.round(og.width) : null,
+    ogHeight: og.height != null && og.height > 0 ? Math.round(og.height) : null,
   });
 }
 
@@ -831,6 +859,8 @@ export async function clearStoredCompanyOg(): Promise<boolean> {
   return setStoredCompanyConfig({
     ogData: null,
     ogMediaType: null,
+    ogWidth: null,
+    ogHeight: null,
   });
 }
 

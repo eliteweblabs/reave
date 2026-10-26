@@ -9,7 +9,7 @@ import {
   editRasterUploads,
   isEditableRasterType,
   openImageEditor,
-} from './media-image-editor.js?v=20260826a';
+} from './media-image-editor.js?v=20261026a';
 
 const MEDIA_API = '/api/admin/media';
 const ACCEPT =

@@ -933,6 +933,32 @@
   border-top: 1px solid var(--panel-border, var(--border));
 }
 
+.ml-editor-aspects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1 1 100%;
+}
+
+.ml-editor-aspect-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.35rem 0.55rem;
+  border-radius: 9999px;
+  border: 1px solid var(--panel-border, var(--border));
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.ml-editor-aspect-btn.is-active {
+  color: var(--fg);
+  border-color: var(--fg);
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .ml-editor-rotates {
   display: flex;
   align-items: center;

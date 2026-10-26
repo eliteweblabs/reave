@@ -339,7 +339,15 @@ import {
   validateEmailComposeAttachmentUpload,
   applyMediaToTarget,
 } from './media-picker.js?v=20261022b';
+import { openImageEditor, isEditableRasterFile } from './media-image-editor.js?v=20261026a';
 import { bindProfileSignatureEditor } from './profile-signature-editor.js?v=20260826a';
+
+const SHARE_IMAGE_ASPECT_PRESETS = [
+  { id: 'landscape', label: 'Landscape 1.91:1', w: 1200, h: 630 },
+  { id: 'portrait', label: 'Portrait 4:5', w: 4, h: 5 },
+  { id: 'square', label: 'Square 1:1', w: 1, h: 1 },
+  { id: 'tall', label: 'Tall 9:16', w: 9, h: 16 },
+];
 
 if (typeof performance !== 'undefined') {
   performance.mark('reave:admin:os-map-loader:eval-end');
@@ -8928,15 +8936,39 @@ function bindCompanyIconUpload(root, companyAlert, initialCompany, opts = {}) {
   return { refreshPreview };
 }
 
+async function editShareImageInput(fileOrSrc, filename, mediaType) {
+  if (fileOrSrc instanceof File && !isEditableRasterFile(fileOrSrc)) return fileOrSrc;
+  const edited = await openImageEditor({
+    file: fileOrSrc instanceof File ? fileOrSrc : undefined,
+    src: fileOrSrc instanceof File ? undefined : fileOrSrc,
+    filename: filename || (fileOrSrc instanceof File ? fileOrSrc.name : 'share-image'),
+    mediaType,
+    title: 'Crop share image',
+    confirmLabel: 'Save',
+    aspectPresets: SHARE_IMAGE_ASPECT_PRESETS,
+    defaultAspectId: 'portrait',
+    targetLongEdge: 1200,
+  });
+  return edited;
+}
+
 function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
   const fileInput = root.querySelector('#company-og-file');
   const uploadBtn = root.querySelector('#company-og-upload-btn');
+  const cropBtn = root.querySelector('#company-og-crop-btn');
   const fileWrap = root.querySelector('#company-og-file-wrap');
   const previewWrap = root.querySelector('#company-og-preview-wrap');
   const preview = root.querySelector('#company-og-preview');
   const removeBtn = root.querySelector('#company-og-remove');
   const onCompany = typeof opts.onCompany === 'function' ? opts.onCompany : null;
   let lastCompany = initialCompany || null;
+
+  const syncOgPreviewAspect = (company) => {
+    if (!(preview instanceof HTMLImageElement)) return;
+    const w = company?.ogImageWidth > 0 ? company.ogImageWidth : 1200;
+    const h = company?.ogImageHeight > 0 ? company.ogImageHeight : 630;
+    preview.style.aspectRatio = `${w} / ${h}`;
+  };
 
   const refreshPreview = (company) => {
     lastCompany = company;
@@ -8945,6 +8977,7 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
 
     if (preview instanceof HTMLImageElement) {
       preview.src = url;
+      syncOgPreviewAspect(company);
     }
     if (previewWrap instanceof HTMLElement) {
       previewWrap.hidden = false;
@@ -8953,25 +8986,23 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
     if (removeBtn instanceof HTMLButtonElement) {
       removeBtn.hidden = !hasCustom;
     }
+    if (cropBtn instanceof HTMLButtonElement) {
+      cropBtn.hidden = !hasCustom;
+    }
   };
 
-  uploadBtn?.addEventListener('click', () => {
-    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
-  });
-
-  fileInput?.addEventListener('change', async () => {
-    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
-    const file = fileInput.files[0];
+  const postShareImageFile = async (file, previewUrl) => {
     const fd = new FormData();
     fd.append('og', file);
     if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
-    fileInput.disabled = true;
+    if (fileInput instanceof HTMLInputElement) fileInput.disabled = true;
     if (uploadBtn instanceof HTMLButtonElement) {
       uploadBtn.disabled = true;
       uploadBtn.textContent = 'Uploading…';
     }
-    if (preview instanceof HTMLImageElement) {
-      preview.src = URL.createObjectURL(file);
+    if (cropBtn instanceof HTMLButtonElement) cropBtn.disabled = true;
+    if (preview instanceof HTMLImageElement && previewUrl) {
+      preview.src = previewUrl;
     }
     if (previewWrap instanceof HTMLElement) previewWrap.hidden = false;
     try {
@@ -8989,14 +9020,41 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
       refreshPreview(lastCompany);
       showProfileAlert(companyAlert, e.message || 'Network error — please try again.', 'error');
     } finally {
-      fileInput.value = '';
-      fileInput.disabled = false;
+      if (fileInput instanceof HTMLInputElement) {
+        fileInput.value = '';
+        fileInput.disabled = false;
+      }
       if (uploadBtn instanceof HTMLButtonElement) {
         uploadBtn.disabled = false;
         uploadBtn.textContent = 'Upload';
       }
       if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
+      if (cropBtn instanceof HTMLButtonElement) cropBtn.disabled = false;
     }
+  };
+
+  uploadBtn?.addEventListener('click', () => {
+    if (fileInput instanceof HTMLInputElement && !fileInput.disabled) fileInput.click();
+  });
+
+  fileInput?.addEventListener('change', async () => {
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
+    const raw = fileInput.files[0];
+    const edited = await editShareImageInput(raw);
+    if (!edited) {
+      fileInput.value = '';
+      return;
+    }
+    const previewUrl = URL.createObjectURL(edited);
+    await postShareImageFile(edited, previewUrl);
+  });
+
+  cropBtn?.addEventListener('click', async () => {
+    if (!(cropBtn instanceof HTMLButtonElement) || cropBtn.disabled) return;
+    const src = companyOgPreviewUrl(lastCompany || initialCompany);
+    const edited = await editShareImageInput(src, 'share-image', 'image/png');
+    if (!edited) return;
+    await postShareImageFile(edited, URL.createObjectURL(edited));
   });
 
   removeBtn?.addEventListener('click', async () => {
@@ -9022,19 +9080,16 @@ function bindCompanyOgUpload(root, companyAlert, initialCompany, opts = {}) {
   root.querySelector('#company-og-library')?.addEventListener('click', () => {
     void openMediaPicker({
       title: 'Choose share image',
-      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB). 1200×630 works best for link previews.',
+      hint: 'Choose a PNG, JPEG, or WebP (max 2 MB), then crop to landscape, portrait, square, or tall.',
       emptyHint:
         'No share images in the library yet. Close and upload a file here, or add one from the Media tab.',
       emptyFilteredHint:
         'Library files are present, but none are PNG, JPEG, or WebP in the size limit.',
       filter: brandingRasterMediaFilter,
       onPick: async (item) => {
-        const json = await applyMediaToTarget(item.id, 'company-og');
-        if (json.company) {
-          refreshPreview(json.company);
-          onCompany?.(json.company);
-        }
-        showProfileAlert(companyAlert, 'Share image updated from library.', 'success');
+        const edited = await editShareImageInput(item.url, item.filename, item.mediaType);
+        if (!edited) return;
+        await postShareImageFile(edited, URL.createObjectURL(edited));
       },
     });
   });
@@ -10040,11 +10095,14 @@ function profSection(title, subtitle, fieldsHtml) {
 }
 
 /** Library (glass) on the left, Upload (filled) on the right — never stacked. */
-function profBrandingFileActions({ fileId, accept, uploadId, libraryId }) {
+function profBrandingFileActions({ fileId, accept, uploadId, libraryId, cropId }) {
   return (
     `<div id="${fileId}-wrap" class="prof-logo-actions">` +
       `<input id="${fileId}" class="prof-logo-file-input" type="file" accept="${accept}" hidden />` +
       `<button type="button" id="${libraryId}" class="de-btn de-btn-secondary prof-branding-library-btn">Library</button>` +
+      (cropId
+        ? `<button type="button" id="${cropId}" class="de-btn de-btn-secondary prof-branding-crop-btn" hidden>Crop</button>`
+        : '') +
       `<button type="button" id="${uploadId}" class="de-btn de-btn-primary">Upload</button>` +
     `</div>`
   );
@@ -10385,9 +10443,10 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
                 accept: 'image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp',
                 uploadId: 'company-og-upload-btn',
                 libraryId: 'company-og-library',
+                cropId: 'company-og-crop-btn',
               }) +
             `</div>` +
-            `<span class="prof-hint">1200×630 PNG, JPEG, or WebP. Leave empty to use the logo (then the icon). A letter is used only when no branding is configured. A page that sets its own share image wins.</span></div>`,
+            `<span class="prof-hint">PNG, JPEG, or WebP (max 2 MB). Upload or pick from the library, then crop — landscape (1.91:1), portrait (4:5), square, or tall (9:16). Leave empty to use the logo (then the icon). A page that sets its own share image wins.</span></div>`,
           ) +
           profSection(
             'Typography',

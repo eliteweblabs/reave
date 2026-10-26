@@ -64,6 +64,70 @@ function constrainCrop(crop, w, h) {
   return next;
 }
 
+function fitCropToAspect(imgW, imgH, aspectW, aspectH) {
+  if (!aspectW || !aspectH) return fullCrop(imgW, imgH);
+  const ratio = aspectW / aspectH;
+  let cropW = imgW;
+  let cropH = cropW / ratio;
+  if (cropH > imgH) {
+    cropH = imgH;
+    cropW = cropH * ratio;
+  }
+  return constrainCrop(
+    {
+      x: (imgW - cropW) / 2,
+      y: (imgH - cropH) / 2,
+      w: cropW,
+      h: cropH,
+    },
+    imgW,
+    imgH,
+  );
+}
+
+function resizeCropWithAspect(base, handle, dx, dy, maxW, maxH, ratio) {
+  if (handle === 'move') {
+    return constrainCrop({ x: base.x + dx, y: base.y + dy, w: base.w, h: base.h }, maxW, maxH);
+  }
+  let { x, y, w, h } = { ...base };
+  if (handle.includes('e')) w += dx;
+  if (handle.includes('w')) {
+    x += dx;
+    w -= dx;
+  }
+  if (handle.includes('s')) h += dy;
+  if (handle.includes('n')) {
+    y += dy;
+    h -= dy;
+  }
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    h = w / ratio;
+  } else {
+    w = h * ratio;
+  }
+  if (handle.includes('w')) x = base.x + base.w - w;
+  if (handle.includes('n')) y = base.y + base.h - h;
+  if (handle.includes('e') && !handle.includes('w')) x = base.x;
+  if (handle.includes('s') && !handle.includes('n')) y = base.y;
+  if (handle === 'nw') {
+    x = base.x + base.w - w;
+    y = base.y + base.h - h;
+  }
+  if (handle === 'ne') {
+    x = base.x;
+    y = base.y + base.h - h;
+  }
+  if (handle === 'sw') {
+    x = base.x + base.w - w;
+    y = base.y;
+  }
+  if (handle === 'se') {
+    x = base.x;
+    y = base.y;
+  }
+  return constrainCrop({ x, y, w, h }, maxW, maxH);
+}
+
 function loadImageElement(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -176,6 +240,9 @@ function exportEdited(source, rotation, crop, scalePct, type, filename) {
  *   mediaType?: string,
  *   title?: string,
  *   confirmLabel?: string,
+ *   aspectPresets?: { id: string, label: string, w: number, h: number }[],
+ *   defaultAspectId?: string,
+ *   targetLongEdge?: number,
  * }} opts
  * @returns {Promise<File | null>} edited file, or null if cancelled
  */
@@ -188,6 +255,10 @@ export function openImageEditor(opts) {
   const mediaType = inferType(file, opts.mediaType);
   const title = opts.title || 'Edit image';
   const confirmLabel = opts.confirmLabel || 'Use image';
+  const aspectPresets = Array.isArray(opts.aspectPresets) ? opts.aspectPresets.filter((p) => p?.w > 0 && p?.h > 0) : [];
+  const targetLongEdge = opts.targetLongEdge > 0 ? opts.targetLongEdge : 0;
+  let activeAspect =
+    aspectPresets.find((p) => p.id === opts.defaultAspectId) || aspectPresets[0] || null;
 
   return new Promise((resolve) => {
     let settled = false;
@@ -218,6 +289,9 @@ export function openImageEditor(opts) {
       `<p class="ml-editor-loading" data-ml-editor-loading>Loading image…</p>` +
       `</div>` +
       `<div class="ml-editor-tools">` +
+      (aspectPresets.length
+        ? `<div class="ml-editor-aspects" data-ml-editor-aspects role="group" aria-label="Crop shape"></div>`
+        : '') +
       `<div class="ml-editor-rotates" data-ml-editor-rotates></div>` +
       `<label class="ml-editor-scale">` +
       `<span>Scale</span>` +
@@ -243,6 +317,7 @@ export function openImageEditor(opts) {
     const confirmBtn = backdrop.querySelector('[data-ml-editor-confirm]');
     const resetBtn = backdrop.querySelector('[data-ml-editor-reset]');
     const rotates = backdrop.querySelector('[data-ml-editor-rotates]');
+    const aspectsEl = backdrop.querySelector('[data-ml-editor-aspects]');
 
     function rotSize() {
       return source ? rotatedSize(source.w, source.h, rotation) : { w: 1, h: 1 };
@@ -303,6 +378,33 @@ export function openImageEditor(opts) {
       if (dimsEl) dimsEl.textContent = `${out.w} × ${out.h}`;
     }
 
+    function applyTargetLongEdgeScale() {
+      if (!targetLongEdge || !source) return;
+      const long = Math.max(crop.w, crop.h);
+      if (long <= 0) return;
+      scalePct = clamp(Math.round((targetLongEdge / long) * 100), MIN_SCALE, MAX_SCALE);
+      if (scaleInput instanceof HTMLInputElement) scaleInput.value = String(scalePct);
+    }
+
+    function applyActiveAspectCrop() {
+      if (!source) return;
+      const rot = rotSize();
+      if (activeAspect) {
+        crop = fitCropToAspect(rot.w, rot.h, activeAspect.w, activeAspect.h);
+      } else {
+        crop = fullCrop(rot.w, rot.h);
+      }
+      applyTargetLongEdgeScale();
+    }
+
+    function syncAspectButtons() {
+      if (!(aspectsEl instanceof HTMLElement)) return;
+      aspectsEl.querySelectorAll('[data-aspect-id]').forEach((btn) => {
+        if (!(btn instanceof HTMLButtonElement)) return;
+        btn.classList.toggle('is-active', btn.dataset.aspectId === activeAspect?.id);
+      });
+    }
+
     function refresh() {
       paintPreview();
       layoutCrop();
@@ -336,7 +438,9 @@ export function openImageEditor(opts) {
       const prev = rotSize();
       rotation = (rotation + delta + 360) % 360;
       const next = rotSize();
-      if (isFullCrop(crop, prev.w, prev.h)) {
+      if (activeAspect) {
+        crop = fitCropToAspect(next.w, next.h, activeAspect.w, activeAspect.h);
+      } else if (isFullCrop(crop, prev.w, prev.h)) {
         crop = fullCrop(next.w, next.h);
       } else {
         const cx = (crop.x + crop.w / 2) / prev.w;
@@ -356,7 +460,7 @@ export function openImageEditor(opts) {
       rotation = 0;
       scalePct = 100;
       if (scaleInput instanceof HTMLInputElement) scaleInput.value = '100';
-      if (source) crop = fullCrop(source.w, source.h);
+      if (source) applyActiveAspectCrop();
       refresh();
     }
 
@@ -407,7 +511,19 @@ export function openImageEditor(opts) {
         }
         if (h.includes('s')) next.h += dy;
       }
-      crop = constrainCrop(next, rot.w, rot.h);
+      if (activeAspect) {
+        crop = resizeCropWithAspect(
+          drag.crop,
+          drag.handle,
+          dx,
+          dy,
+          rot.w,
+          rot.h,
+          activeAspect.w / activeAspect.h,
+        );
+      } else {
+        crop = constrainCrop(next, rot.w, rot.h);
+      }
       layoutCrop();
       updateMeta();
     }
@@ -421,7 +537,7 @@ export function openImageEditor(opts) {
       if (!source || !(confirmBtn instanceof HTMLButtonElement)) return;
       confirmBtn.disabled = true;
       try {
-        if (!dirty()) {
+        if (!dirty() && !activeAspect) {
           finish(file || null);
           return;
         }
@@ -434,6 +550,24 @@ export function openImageEditor(opts) {
           loadingEl.textContent = e?.message || 'Could not save image';
         }
       }
+    }
+
+    if (aspectsEl instanceof HTMLElement && aspectPresets.length) {
+      for (const preset of aspectPresets) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ml-editor-aspect-btn';
+        btn.dataset.aspectId = preset.id;
+        btn.textContent = preset.label;
+        btn.addEventListener('click', () => {
+          activeAspect = preset;
+          applyActiveAspectCrop();
+          syncAspectButtons();
+          refresh();
+        });
+        aspectsEl.appendChild(btn);
+      }
+      syncAspectButtons();
     }
 
     if (rotates) {
@@ -478,8 +612,9 @@ export function openImageEditor(opts) {
     void (async () => {
       try {
         source = await loadSource(src);
-        crop = fullCrop(source.w, source.h);
+        applyActiveAspectCrop();
         if (loadingEl instanceof HTMLElement) loadingEl.hidden = true;
+        syncAspectButtons();
         refresh();
       } catch (e) {
         if (loadingEl instanceof HTMLElement) {

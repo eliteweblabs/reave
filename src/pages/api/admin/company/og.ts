@@ -5,6 +5,7 @@ import {
   setStoredCompanyOg,
 } from '../../../../lib/companyConfigStore';
 import { parseCompanyOgUpload } from '../../../../lib/companyLogo';
+import { readRasterDimensions } from '../../../../lib/brandImageRender';
 import { archiveUploadToMediaLibrary } from '../../../../lib/mediaLibrary';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import { jsonResponse } from '../../../../lib/apiResponse';
@@ -35,9 +36,12 @@ export async function POST(context: APIContext): Promise<Response> {
     return jsonResponse({ error: 'Share image must be PNG, JPEG, or WebP (1200×630 recommended).' }, 400);
   }
 
+  const dims = await readRasterDimensions(parsed.dataBase64);
   const ok = await setStoredCompanyOg({
     dataBase64: parsed.dataBase64,
     mediaType: parsed.mediaType,
+    width: dims?.width,
+    height: dims?.height,
   });
   if (!ok) return jsonResponse({ error: 'Failed to save share image' }, 500);
 
