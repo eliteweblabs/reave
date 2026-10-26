@@ -63,6 +63,41 @@ export function markAdminServerSessionStale() {
   }
 }
 
+/** Clerk JS signed in but SSR/API cookie missing — common after __session TTL. */
+function clerkHalfSessionOnClient() {
+  return Boolean(window.Clerk?.user?.id) && !serverHasStaffSession();
+}
+
+/** After a successful badge probe, restore the SSR marker cleared on 401. */
+function restoreAdminStaffUserIdFromClerk() {
+  const id = window.Clerk?.user?.id?.trim();
+  if (!id || serverHasStaffSession()) return;
+  try {
+    if (document.body) document.body.dataset.userId = id;
+  } catch {
+    /* ignore */
+  }
+}
+
+function handshakeFetchRecentlyTried() {
+  try {
+    const raw = sessionStorage.getItem(ADMIN_HANDSHAKE_FETCH_TRIED_KEY);
+    if (!raw || raw === '1') return false;
+    const at = Number(raw);
+    return Number.isFinite(at) && Date.now() - at < ADMIN_HANDSHAKE_COOLDOWN_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markHandshakeFetchAttempt() {
+  try {
+    sessionStorage.setItem(ADMIN_HANDSHAKE_FETCH_TRIED_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
 const SSR_SYNC_ONCE_KEY = 'reave-clerk-ssr-sync-once';
 
 /** Post sign-out landing — never `/` from admin (login-template `/` bounces to /admin/). */
@@ -251,6 +286,7 @@ async function probeAdminSessionCookie() {
   });
   if (!probe.ok) return false;
   noteAdminNetworkSuccess();
+  restoreAdminStaffUserIdFromClerk();
   clearAdminSessionRecoverMark();
   try {
     sessionStorage.removeItem(ADMIN_HANDSHAKE_PENDING_KEY);
@@ -271,16 +307,9 @@ async function tryClerkHandshakeFetchImpl(opts = {}) {
   const returnTo =
     opts.returnTo || cleanAdminReturnUrl(window.location.pathname, window.location.search);
 
-  try {
-    if (!force && sessionStorage.getItem(ADMIN_HANDSHAKE_FETCH_TRIED_KEY) === '1') {
-      return false;
-    }
-    sessionStorage.setItem(ADMIN_HANDSHAKE_FETCH_TRIED_KEY, '1');
-  } catch {
-    /* ignore */
-  }
+  if (!force && handshakeFetchRecentlyTried()) return false;
+  markHandshakeFetchAttempt();
 
-  recordHandshakeNavigation();
   authLog().event('clerk handshake fetch (in-place)', { returnTo, force });
   markPwaRefreshCause('clerk-handshake-fetch', { returnTo, force });
 
@@ -669,12 +698,21 @@ function installAdminSessionKeepalive() {
     wasHidden = hidden;
   });
 
-  timer = setInterval(() => {
+  const tickKeepalive = () => {
     if (pwaRefreshDebugEnabled()) {
-      console.info('[pwa-refresh-debug] chronological session keepalive (4m cadence, silent token refresh only)');
+      const mode = clerkHalfSessionOnClient() ? 'half-session heal' : 'routine refresh';
+      console.info(`[pwa-refresh-debug] session keepalive (${mode})`);
     }
     void refreshQuietly();
-  }, ADMIN_SESSION_KEEPALIVE_MS);
+  };
+
+  timer = setInterval(tickKeepalive, ADMIN_SESSION_KEEPALIVE_MS);
+
+  /** Retry cookie sync sooner while Clerk is signed in but SSR __session is gone. */
+  setInterval(() => {
+    if (document.hidden || !clerkHalfSessionOnClient()) return;
+    void refreshQuietly();
+  }, ADMIN_HANDSHAKE_COOLDOWN_MS);
 }
 
 /**
@@ -769,6 +807,7 @@ export function shouldSkipAdminBackgroundPoll() {
 /** Call after in-app session sync (SignIn sheet) so background polls can resume. */
 export function markAdminSessionHealed() {
   staleRecoverySheetOpen = false;
+  restoreAdminStaffUserIdFromClerk();
   dismissAdminSessionSyncBanner();
   resumeAdminAuthPolls();
   clearAdminSessionRecoverMark();
