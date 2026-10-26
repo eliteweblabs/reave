@@ -14,9 +14,19 @@ function normalizeHost(raw: string | undefined): string {
   );
 }
 
+/** Hostname staff auth runs on (admin.{client}), when set. */
+export function clerkPrimaryAdminHost(): string {
+  return normalizeHost(serverEnv('CLERK_PRIMARY_DOMAIN'));
+}
+
+export function isClerkPrimaryAdminHost(host: string): boolean {
+  const primary = clerkPrimaryAdminHost();
+  return Boolean(primary && normalizeHost(host) === primary);
+}
+
 /** e.g. CLERK_PRIMARY_DOMAIN=admin.pdx-paws.com or admin.{PLANNED_SITE_DOMAIN}. */
 export function publicSignInHref(_request?: Request): string {
-  const clerkPrimary = normalizeHost(serverEnv('CLERK_PRIMARY_DOMAIN'));
+  const clerkPrimary = clerkPrimaryAdminHost();
   if (clerkPrimary) {
     return `https://${clerkPrimary}/admin/login`;
   }

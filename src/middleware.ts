@@ -25,6 +25,7 @@ import { mapLegacyReaveHostToRekko } from "./lib/legacyBrandDomain";
 import { permanentRedirectResponse } from "./lib/httpRedirect";
 import { publicHostFromRequest, runWithRequestHost, stripTrailingFqdnDot } from "./lib/requestHost";
 import { isDeployWizardRailwayPublicHost } from "./lib/deployWizardCatalog";
+import { isClerkPrimaryAdminHost } from "./lib/publicSignInUrl";
 import { serverEnv } from "./lib/serverEnv";
 import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
 import { applyPublicHtmlEdgeCache } from "./lib/edgeCacheHeaders";
@@ -203,6 +204,15 @@ const appHandler = async (
   }
 
   const normalizedPath = pathname.replace(/\/$/, "") || "/";
+
+  /** Dedicated admin host (e.g. admin.pdx-paws.com) — `/` is sign-in, not the marketing site. */
+  if (isClerkPrimaryAdminHost(host) && normalizedPath === "/") {
+    const target = new URL("/admin/", url.origin);
+    url.searchParams.forEach((value, key) => {
+      if (!target.searchParams.has(key)) target.searchParams.set(key, value);
+    });
+    return applySecurityHeaders(context.redirect(target.toString()));
+  }
 
   // Demo suite landing — ?demo=tier-1&modules=[001,004]&industry=plumbing
   const demoParsed = parseDemoSuiteFromSearchParams(url.searchParams);
