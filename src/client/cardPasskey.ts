@@ -2,7 +2,7 @@ import { browserSupportsWebAuthnAutofill } from '@simplewebauthn/browser';
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
 
 export type CardPasskeyGateOptions = {
-  /** Login block is rendered but hidden until passkey gating resolves. */
+  /** Passkeys exist — try silent device recognition before OTP. */
   gated: boolean;
   redirectUrl: string;
   onTrusted?: (displayName: string) => void;
@@ -118,18 +118,13 @@ async function tryConditionalPasskeyAuth(): Promise<{ displayName: string } | nu
 }
 
 /**
- * Hide login from NFC visitors once an owner passkey exists; recognize owner devices silently.
+ * When owner passkeys exist, recognize trusted devices silently; others keep "Request app access".
  */
 export async function initCardPasskeyGate(opts: CardPasskeyGateOptions): Promise<void> {
   const loginRoot = document.querySelector('[data-card-phone-login]') as HTMLElement | null;
   if (!loginRoot) return;
 
-  if (!opts.gated) {
-    loginRoot.hidden = false;
-    return;
-  }
-
-  loginRoot.hidden = true;
+  if (!opts.gated) return;
 
   try {
     const status = await fetchJson('/api/card/passkey/status');
@@ -147,17 +142,8 @@ export async function initCardPasskeyGate(opts: CardPasskeyGateOptions): Promise
       return;
     }
 
-    let autofillSupported = false;
-    try {
-      autofillSupported = await browserSupportsWebAuthnAutofill();
-    } catch {
-      autofillSupported = false;
-    }
-
-    if (!autofillSupported) {
-      revealLoginBlock();
-      opts.onRevealLogin?.();
-    }
+    revealLoginBlock();
+    opts.onRevealLogin?.();
   } catch {
     revealLoginBlock();
     opts.onRevealLogin?.();

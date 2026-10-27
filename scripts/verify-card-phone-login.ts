@@ -22,7 +22,7 @@ assert.deepEqual(
 const card = readFileSync('src/pages/card.astro', 'utf8');
 assert.match(card, /CardPhoneLogin/);
 assert.match(card, /cardPhoneToE164/);
-assert.match(card, /resolveCardPhoneRaw/);
+assert.match(card, /resolveCardPhone/);
 
 const companyConfig = readFileSync('src/lib/defaultSupportPhone.ts', 'utf8');
 assert.match(companyConfig, /DEFAULT_SUPPORT_PHONE = '\+1-617-706-0805'/);
@@ -34,6 +34,8 @@ assert.doesNotMatch(card, /name="password"/);
 const login = readFileSync('src/components/CardPhoneLogin.astro', 'utf8');
 assert.match(login, /Login to the app/);
 assert.match(login, /Text a one-time code/);
+assert.match(login, /Request app access/);
+assert.match(login, /This device is not currently authorized/);
 assert.doesNotMatch(login, /Login to CMS/);
 assert.match(login, /id="nfc-login-err"/);
 assert.match(login, /data-phone-e164/);
