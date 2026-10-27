@@ -16,6 +16,7 @@ import {
   githubRepoSlug,
   githubRevertLastCommit,
   githubWriteFile,
+  githubWriteFileBinary,
 } from '../../src/lib/githubClient';
 import { maybeDeferGithubWrite } from '../../src/lib/deferredDeploy';
 import { getAgentContext } from '../../src/lib/agentContext';
@@ -114,6 +115,57 @@ async function handle_read_github_file(args: Record<string, unknown>, _ctx: Tool
   });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
+}
+
+async function handle_push_chat_image_to_github(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+): Promise<string> {
+  const repo = editorRepoOrError(args);
+  if (!repo.ok) return JSON.stringify({ error: repo.error });
+
+  const index = typeof args.index === 'number' ? args.index : Number(args.index);
+  if (!Number.isInteger(index) || index < 0) {
+    return JSON.stringify({ error: 'index must be a non-negative integer' });
+  }
+
+  const images = getAgentContext().messageImages ?? [];
+  const image = images[index];
+  if (!image?.data?.trim()) {
+    return JSON.stringify({
+      error: 'no image at that index in the current message',
+      index,
+      count: images.length,
+    });
+  }
+
+  const path = String(args.path ?? '').trim();
+  if (!path) return JSON.stringify({ error: 'path is required' });
+
+  const branch = githubDefaultBranch();
+  const message =
+    typeof args.message === 'string' && args.message.trim()
+      ? args.message.trim()
+      : `Add ${path.split('/').pop() ?? 'image'} from chat`;
+
+  const result = await githubWriteFileBinary({
+    repo: repo.repo,
+    branch,
+    path,
+    base64content: image.data,
+    message,
+  });
+  if (!result.ok) return JSON.stringify({ error: result.error });
+
+  if (branch.toLowerCase() === githubDefaultBranch().toLowerCase()) {
+    const { threadId } = getAgentContext();
+    if (threadId) {
+      const { ensureDefaultDeployResume } = await import('../../src/lib/deployResume');
+      await ensureDefaultDeployResume(threadId);
+    }
+  }
+
+  return JSON.stringify({ ...result.data, mediaType: image.mediaType, index });
 }
 
 async function handle_write_github_file(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -289,6 +341,32 @@ export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
     {
       type: 'function',
       function: {
+        name: 'push_chat_image_to_github',
+        description: ops
+          ? 'Commit a binary image from the current chat message to GitHub (Contents API, base64). Use index 0 for the first attachment. Pick path with the right extension (.png, .jpg, .webp, .svg). Does not pass through write_github_file — binary-safe.'
+          : `Commit an image attached to this message into ${siteRepo} on ${defaultBranch}. ${clientRepoNote} Use index 0 for the first image.`,
+        parameters: {
+          type: 'object',
+          properties: {
+            ...repoProps,
+            index: {
+              type: 'integer',
+              description: 'Zero-based index into images attached to the current user message (0 = first).',
+            },
+            path: {
+              type: 'string',
+              description: 'Repo path for the file, e.g. public/images/hero.png',
+            },
+            message: { type: 'string', description: 'Git commit message (optional)' },
+          },
+          required: ['index', 'path'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
         name: 'undo_website_change',
         description:
           'Undo the last commit on the website repo (revert, no history rewrite). Use when the owner says “undo that”, “change it back”, “go back”, “never mind”, “put it back”, or “I don’t like that”. Commits the revert to main in this turn. Call again to undo the undo.',
@@ -408,6 +486,7 @@ export const githubPublishHandlers: Record<string, ToolHandler> = {
   create_github_branch: handle_create_github_branch,
   read_github_file: handle_read_github_file,
   write_github_file: handle_write_github_file,
+  push_chat_image_to_github: handle_push_chat_image_to_github,
   undo_website_change: handle_undo_website_change,
   create_pull_request: handle_create_pull_request,
 };

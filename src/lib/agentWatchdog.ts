@@ -40,6 +40,7 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   run_dev_task: 120_000,
   create_github_repo: 90_000,
   write_github_file: 90_000,
+  push_chat_image_to_github: 90_000,
   undo_website_change: 90_000,
   sync_resend_dns: 120_000,
   cloudflare_dns: 90_000,

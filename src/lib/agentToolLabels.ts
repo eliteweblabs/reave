@@ -95,6 +95,7 @@ const TOOL_LABELS: Record<string, string> = {
   create_github_repo: 'Creating repository',
   create_github_branch: 'Creating branch',
   write_github_file: 'Writing file',
+  push_chat_image_to_github: 'Uploading image',
   read_github_file: 'Reading file',
   undo_website_change: 'Undoing last change',
   create_pull_request: 'Creating pull request',
