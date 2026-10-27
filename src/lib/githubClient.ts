@@ -955,3 +955,73 @@ export async function githubRemoveRepoFromAppInstallation(opts: {
   if (!removed.ok && removed.status !== 204 && removed.status !== 404) return removed;
   return { ok: true, data: { repo: meta.data.repo, installation_id: installationId } };
 }
+/**
+ * Binary-safe variant of githubWriteFile.
+ *
+ * Accepts a base64-encoded payload directly (e.g. from a chat image attachment)
+ * and commits it to GitHub without any UTF-8 round-trip. Use this for PNG, SVG,
+ * PDF, WebP, GIF, and any other binary asset that arrives as base64 in chat.
+ */
+export async function githubWriteFileBinary(opts: {
+  repo?: string;
+  branch: string;
+  path: string;
+  /** Raw file bytes as base64 (no data-URL prefix). */
+  contentBase64: string;
+  message: string;
+}): Promise<GithubResult<GithubFileWriteResult>> {
+  if (!(await resolveAuthToken())) {
+    return { ok: false, error: 'GITHUB_TOKEN or a GitHub App is required for githubWriteFileBinary' };
+  }
+
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
+
+  const branch = opts.branch.trim();
+  const path = opts.path.trim();
+  const message = opts.message.trim();
+  if (!branch) return { ok: false, error: 'branch is required' };
+  if (!path || !isSafeRepoPath(path)) return { ok: false, error: 'invalid path' };
+  if (!message) return { ok: false, error: 'commit message is required' };
+  if (!opts.contentBase64) return { ok: false, error: 'contentBase64 is required' };
+
+  const repo = repoRes.data;
+  const encodedPath = encodeRepoPath(path);
+
+  const existing = await ghFetch<{ sha?: string }>(`/repos/${repo}/contents/${encodedPath}`, {
+    query: { ref: branch },
+  });
+  const existingSha = existing.ok ? existing.data.sha : undefined;
+  if (!existing.ok && existing.status !== 404) return existing;
+
+  const body: Record<string, string> = {
+    message,
+    content: opts.contentBase64,
+    branch,
+  };
+  if (existingSha) body.sha = existingSha;
+
+  const res = await ghFetch<{
+    commit?: { sha?: string; html_url?: string };
+    content?: { sha?: string; path?: string };
+  }>(`/repos/${repo}/contents/${encodedPath}`, { method: 'PUT', body });
+
+  if (!res.ok) return res;
+
+  const commitSha = res.data.commit?.sha;
+  if (!commitSha) return { ok: false, error: 'GitHub did not return a commit SHA' };
+
+  return {
+    ok: true,
+    data: {
+      repo,
+      branch,
+      path: res.data.content?.path ?? path.replace(/^\/+/, ''),
+      sha: res.data.content?.sha ?? commitSha,
+      commit_sha: commitSha,
+      commit_url: res.data.commit?.html_url ?? `https://github.com/${repo}/commit/${commitSha}`,
+      created: !existingSha,
+    },
+  };
+}
+
