@@ -33,9 +33,9 @@
     "heroEmbedForm": true,
     "promoBanner": {
       "label": "Limited time only",
-      "message": "$25 off your first deep clean when you book online this month.",
+      "message": "$25 off first deep clean.",
       "href": "#book",
-      "ctaLabel": "Claim offer"
+      "ctaLabel": "Claim online offer"
     },
     "bookingCta": {
       "primaryLabel": "Book your cleaning",

@@ -93,12 +93,14 @@ const brandStyle = brand
     promo ? (
       <aside class="lc-promo" aria-label="Limited-time offer">
         {promo.label ? <span class="lc-promo__label">{promo.label}</span> : null}
-        <p class="lc-promo__message">{promo.message}</p>
-        {
-          promo.href && promo.ctaLabel ? (
-            <a class="lc-promo__cta" href={promo.href}>{promo.ctaLabel}</a>
-          ) : null
-        }
+        <div class="lc-promo__line">
+          <p class="lc-promo__message">{promo.message}</p>
+          {
+            promo.href && promo.ctaLabel ? (
+              <a class="lc-promo__cta" href={promo.href}>{promo.ctaLabel}</a>
+            ) : null
+          }
+        </div>
       </aside>
     ) : null
   }
@@ -489,16 +491,24 @@ const brandStyle = brand
 
   .lc-promo {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.35rem 0.75rem;
+    gap: 0.35rem;
     padding: 0.55rem 1rem;
     background: var(--lc-accent);
     color: #fff;
     text-align: center;
     font-size: 0.82rem;
     line-height: 1.35;
+  }
+
+  .lc-promo__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0 0.35rem;
   }
 
   .lc-promo__label {
