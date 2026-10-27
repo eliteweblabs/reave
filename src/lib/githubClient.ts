@@ -417,7 +417,7 @@ export async function githubWriteFileBinary(opts: {
   message: string;
 }): Promise<GithubResult<GithubFileWriteResult>> {
   if (!(await resolveAuthToken())) {
-    return { ok: false, error: 'GITHUB_TOKEN or a GitHub App is required for write_github_file' };
+    return { ok: false, error: 'GITHUB_TOKEN or a GitHub App is required for githubWriteFileBinary' };
   }
 
   const repoRes = resolveRepo(opts.repo);
@@ -426,7 +426,7 @@ export async function githubWriteFileBinary(opts: {
   const branch = opts.branch.trim();
   const path = opts.path.trim();
   const message = opts.message.trim();
-  const base64content = opts.base64content.replace(/\s/g, '');
+  const base64content = opts.base64content.replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '');
   if (!branch) return { ok: false, error: 'branch is required' };
   if (!path || !isSafeRepoPath(path)) return { ok: false, error: 'invalid path' };
   if (!message) return { ok: false, error: 'commit message is required' };

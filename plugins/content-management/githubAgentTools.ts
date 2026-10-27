@@ -3,7 +3,7 @@
  * Also reused by Dev & Infrastructure when that private module is on
  * and content_management is not (deploy repair still needs write_github_file).
  *
- * Client installs are locked to this install’s website repo. Ops / official
+ * Client installs are locked to this install's website repo. Ops / official
  * reave.app can still pass a sibling repo for deploy repair.
  */
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../src/lib/devStatus';
