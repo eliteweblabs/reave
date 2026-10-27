@@ -3,7 +3,7 @@
  * Also reused by Dev & Infrastructure when that private module is on
  * and content_management is not (deploy repair still needs write_github_file).
  *
- * Client installs are locked to this install’s website repo. Ops / official
+ * Client installs are locked to this install's website repo. Ops / official
  * reave.app can still pass a sibling repo for deploy repair.
  */
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../src/lib/devStatus';
@@ -172,15 +172,132 @@ async function handle_create_pull_request(args: Record<string, unknown>, _ctx: T
   return JSON.stringify(result.data);
 }
 
+/**
+ * push_binary_to_github
+ * Commit a binary file (PNG, SVG, PDF, etc.) to a GitHub repo via the
+ * Contents API (base64 encoding). Accepts either a public URL to fetch from,
+ * or a raw base64 payload. Used when the owner drops a logo/image into chat
+ * and wants it committed directly to a client website repo.
+ */
+async function handle_push_binary_to_github(
+  args: Record<string, unknown>,
+  _ctx: ToolContext
+): Promise<string> {
+  const repo = editorRepoOrError(args);
+  if (!repo.ok) return JSON.stringify({ error: repo.error });
+
+  const filePath = String(args.path ?? '').trim();
+  if (!filePath) return JSON.stringify({ error: 'path is required' });
+
+  const url = typeof args.url === 'string' && args.url.trim() ? args.url.trim() : undefined;
+  const base64 = typeof args.base64 === 'string' && args.base64.trim() ? args.base64.trim() : undefined;
+  if (!url && !base64) return JSON.stringify({ error: 'Either url or base64 is required' });
+
+  const branch = typeof args.branch === 'string' && args.branch.trim() ? args.branch.trim() : githubDefaultBranch();
+  const message = typeof args.message === 'string' && args.message.trim()
+    ? args.message.trim()
+    : `Add ${filePath.split('/').pop()}`;
+
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) return JSON.stringify({ error: 'GITHUB_TOKEN not configured' });
+
+  const GITHUB_API = 'https://api.github.com';
+
+  // Build base64 content
+  let fileBase64: string;
+  if (url) {
+    try {
+      const fetchRes = await fetch(url, {
+        headers: { 'User-Agent': 'reave-studio/1.0' },
+        redirect: 'follow',
+      });
+      if (!fetchRes.ok) {
+        return JSON.stringify({ error: `Failed to fetch URL: ${fetchRes.status} ${fetchRes.statusText}` });
+      }
+      const buffer = await fetchRes.arrayBuffer();
+      fileBase64 = Buffer.from(buffer).toString('base64');
+    } catch (e) {
+      return JSON.stringify({ error: `Fetch error: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  } else {
+    // Strip data URI prefix if present
+    fileBase64 = (base64 as string).replace(/^data:[^;]+;base64,/, '');
+  }
+
+  // Get existing SHA if file already exists (needed for update)
+  let existingSha: string | undefined;
+  try {
+    const shaRes = await fetch(`${GITHUB_API}/repos/${repo.repo}/contents/${filePath}?ref=${branch}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+    if (shaRes.ok) {
+      const shaData = await shaRes.json() as { sha?: string };
+      existingSha = shaData.sha;
+    }
+  } catch { /* file doesn't exist yet — ok */ }
+
+  const payload: Record<string, unknown> = { message, content: fileBase64, branch };
+  if (existingSha) payload.sha = existingSha;
+
+  try {
+    const res = await fetch(`${GITHUB_API}/repos/${repo.repo}/contents/${filePath}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      return JSON.stringify({ error: `GitHub API error ${res.status}: ${errText}` });
+    }
+
+    const data = await res.json() as {
+      commit?: { sha?: string; html_url?: string };
+      content?: { html_url?: string; download_url?: string };
+    };
+
+    // Trigger deploy resume like write_github_file does
+    if (branch.toLowerCase() === githubDefaultBranch().toLowerCase()) {
+      const { threadId } = getAgentContext();
+      if (threadId) {
+        const { ensureDefaultDeployResume } = await import('../../src/lib/deployResume');
+        await ensureDefaultDeployResume(threadId);
+      }
+    }
+
+    return JSON.stringify({
+      ok: true,
+      commit_sha: data.commit?.sha,
+      commit_url: data.commit?.html_url,
+      file_url: data.content?.download_url,
+      html_url: data.content?.html_url,
+      updated: !!existingSha,
+      repo: repo.repo,
+      path: filePath,
+    });
+  } catch (e) {
+    return JSON.stringify({ error: `GitHub request failed: ${e instanceof Error ? e.message : String(e)}` });
+  }
+}
+
 function repoParam(description: string): Record<string, unknown> {
   return { repo: { type: 'string', description } };
 }
 
 export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
   const ops = isOpsInstall();
-  const siteRepo = githubWebsiteRepoSlug() || (ops ? githubRepoSlug() : 'this install’s website repo');
+  const siteRepo = githubWebsiteRepoSlug() || (ops ? githubRepoSlug() : 'this install's website repo');
   const defaultBranch = githubDefaultBranch();
-  const clientRepoNote = `Always this install’s website repo (${siteRepo}). Cannot write to the reave.app.`;
+  const clientRepoNote = `Always this install's website repo (${siteRepo}). Cannot write to the reave.app.`;
   const repoProps = ops
     ? repoParam(`owner/repo (defaults to ${siteRepo} / GITHUB_REPO)`)
     : {};
@@ -192,7 +309,7 @@ export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
         name: 'get_git_status',
         description: ops
           ? 'Snapshot of the GitHub repo (source of truth): current/default branch, latest commits, branch count, and whether the live site is on the latest commit. Pass repo for sibling services. Local uncommitted/unstaged changes are NOT visible here.'
-          : `Snapshot of ${siteRepo} (this install’s front-end website). Latest commits and whether the live site matches. You cannot inspect the reave.app repo.`,
+          : `Snapshot of ${siteRepo} (this install's front-end website). Latest commits and whether the live site matches. You cannot inspect the reave.app repo.`,
         parameters: {
           type: 'object',
           properties: {
@@ -262,7 +379,7 @@ export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
         name: 'write_github_file',
         description: ops
           ? 'Create or update a file in a GitHub repo via the Contents API. Commits directly to the given branch (branch must already exist). Requires GITHUB_TOKEN with Contents write. Returns commit SHA and URL. For a long file (a full page, a big component), write it in sections: one call for the first chunk, then more calls with append:true — a single call carrying the whole body will be cut off by the output limit and nothing will be written.'
-          : `Create or update a file in ${siteRepo} and commit to main in this same turn. Clients will not say “commit”, “save”, or “publish” — the turn is the save. ${clientRepoNote} For a long file, write in sections with append:true.`,
+          : `Create or update a file in ${siteRepo} and commit to main in this same turn. Clients will not say "commit", "save", or "publish" — the turn is the save. ${clientRepoNote} For a long file, write in sections with append:true.`,
         parameters: {
           type: 'object',
           properties: {
@@ -291,13 +408,49 @@ export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
       function: {
         name: 'undo_website_change',
         description:
-          'Undo the last commit on the website repo (revert, no history rewrite). Use when the owner says “undo that”, “change it back”, “go back”, “never mind”, “put it back”, or “I don’t like that”. Commits the revert to main in this turn. Call again to undo the undo.',
+          'Undo the last commit on the website repo (revert, no history rewrite). Use when the owner says "undo that", "change it back", "go back", "never mind", "put it back", or "I don\'t like that". Commits the revert to main in this turn. Call again to undo the undo.',
         parameters: {
           type: 'object',
           properties: {
             ...repoProps,
             branch: { type: 'string', description: `Branch to revert (defaults to ${defaultBranch})` },
           },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'push_binary_to_github',
+        description:
+          'Commit a binary file (PNG, SVG, PDF, GIF, WebP, etc.) to a GitHub repo via the Contents API. Use when the owner drops a logo, image, or other binary asset into chat and wants it committed to a client website repo. Pass url to fetch from a public URL server-side, or base64 for a raw base64 payload (e.g. from a chat attachment). Returns commit_sha, file_url, and html_url. Triggers deploy resume same as write_github_file.',
+        parameters: {
+          type: 'object',
+          properties: {
+            ...repoProps,
+            path: {
+              type: 'string',
+              description: 'Target file path in the repo, e.g. public/logo.png or public/images/hero.jpg',
+            },
+            url: {
+              type: 'string',
+              description: 'Public URL to fetch the binary from (server-side fetch). Use when the file is accessible at a URL.',
+            },
+            base64: {
+              type: 'string',
+              description: 'Raw base64-encoded file content (with or without data URI prefix). Use when you have the raw bytes from a chat attachment.',
+            },
+            message: {
+              type: 'string',
+              description: 'Git commit message (defaults to "Add <filename>")',
+            },
+            branch: {
+              type: 'string',
+              description: `Branch to commit to (defaults to ${defaultBranch})`,
+            },
+          },
+          required: ['path'],
           additionalProperties: false,
         },
       },
@@ -320,7 +473,7 @@ export function githubPublishDefinitions(_ctx: ToolContext): AgentToolDef[] {
         function: {
           name: 'create_github_repo',
           description:
-            'Create a new GitHub repository under a user or org account. Requires GITHUB_TOKEN with repo creation permission (classic PAT: repo scope; fine-grained: Administration write on the org). Use auto_init:true when you need a default branch before write_github_file. Agency / ops only — provision each client’s front-end website repo here (eliteweblabs/{slug}-site).',
+            'Create a new GitHub repository under a user or org account. Requires GITHUB_TOKEN with repo creation permission (classic PAT: repo scope; fine-grained: Administration write on the org). Use auto_init:true when you need a default branch before write_github_file. Agency / ops only — provision each client\'s front-end website repo here (eliteweblabs/{slug}-site).',
           parameters: {
             type: 'object',
             properties: {
@@ -410,4 +563,5 @@ export const githubPublishHandlers: Record<string, ToolHandler> = {
   write_github_file: handle_write_github_file,
   undo_website_change: handle_undo_website_change,
   create_pull_request: handle_create_pull_request,
+  push_binary_to_github: handle_push_binary_to_github,
 };
