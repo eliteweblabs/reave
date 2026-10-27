@@ -198,6 +198,11 @@ function bindOtpUi(
   const otpInput = input;
   const otpSubmitBtn = submitBtn;
   const otpResendBtn = resendBtn;
+  const loginRoot = document.querySelector('[data-card-phone-login]') as HTMLElement | null;
+  const passkeyGated = loginRoot?.dataset.passkeyGated === '1';
+  const defaultSendMeta = passkeyGated
+    ? 'This device is not currently authorized'
+    : 'Text a one-time code';
 
   let mode: 'sign-in' | 'sign-up' = 'sign-in';
   let sending = false;
@@ -208,7 +213,7 @@ function bindOtpUi(
       loginErrEl.textContent = message || '';
     }
     if (sendMeta) {
-      sendMeta.textContent = message || 'Text a one-time code';
+      sendMeta.textContent = message || defaultSendMeta;
       (sendMeta as HTMLElement).style.color = message ? '#b42318' : '';
     }
   }

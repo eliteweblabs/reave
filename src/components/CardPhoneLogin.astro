@@ -6,7 +6,7 @@ interface Props {
   phoneE164: string;
   signedIn: boolean;
   redirectUrl?: string;
-  /** At least one /card passkey registered — hide login from visitors. */
+  /** At least one /card passkey registered — show request-access for unknown devices. */
   hasPasskeys?: boolean;
   /** Server-side device trust from a prior passkey auth. */
   passkeyTrusted?: { displayName: string } | null;
@@ -27,6 +27,13 @@ const trustedDisplayName = passkeyTrusted?.displayName?.trim() || '';
 const showDashboard = signedIn || Boolean(trustedDisplayName);
 const showLogin = clerkReady && Boolean(phoneE164) && !signedIn && !trustedDisplayName;
 const passkeyGated = showLogin && hasPasskeys;
+const loginLabel = passkeyGated ? 'Request app access' : 'Login to the app';
+const loginMeta = passkeyGated
+  ? 'This device is not currently authorized'
+  : 'Text a one-time code';
+const loginAria = passkeyGated
+  ? 'Request app access with a texted code'
+  : 'Login to the app with a texted code';
 ---
 
 {showDashboard && (
@@ -59,21 +66,20 @@ const passkeyGated = showLogin && hasPasskeys;
       data-redirect-url={redirectUrl}
       data-allow-sign-up={allowSignUp ? '1' : '0'}
       data-passkey-gated={passkeyGated ? '1' : '0'}
-      hidden={passkeyGated || undefined}
     >
     <button
       type="button"
       class="nfc-login-btn"
       id="nfc-login-send"
-      aria-label="Login to the app with a texted code"
+      aria-label={loginAria}
     >
       <span class="nfc-login-ico" aria-hidden="true">
         <!-- IOS_ICONS.log-in — keep in sync with public/admin/admin-ui.js -->
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg>
       </span>
       <span class="nfc-login-copy">
-        <span class="nfc-login-label">Login to the app</span>
-        <span class="nfc-login-meta" id="nfc-login-send-meta">Text a one-time code</span>
+        <span class="nfc-login-label">{loginLabel}</span>
+        <span class="nfc-login-meta" id="nfc-login-send-meta">{loginMeta}</span>
       </span>
     </button>
 
