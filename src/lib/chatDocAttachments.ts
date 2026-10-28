@@ -11,6 +11,8 @@ const TEXT_LIKE_DOC_TYPES = new Set([
   'text/json',
   'text/markdown',
   'text/x-markdown',
+  'text/csv',
+  'application/csv',
   'text/plain',
 ]);
 
@@ -20,6 +22,7 @@ function fenceForDoc(doc: ChatDocAttachment): string {
   const ext = doc.filename.split('.').pop()?.toLowerCase() ?? '';
   if (doc.mediaType === 'application/json' || ext === 'json') return 'json';
   if (doc.mediaType === 'text/markdown' || ext === 'md' || ext === 'markdown') return 'markdown';
+  if (doc.mediaType === 'text/csv' || ext === 'csv') return 'csv';
   return '';
 }
 
@@ -36,12 +39,12 @@ function isInlineTextDoc(doc: ChatDocAttachment): boolean {
   if (TEXT_LIKE_DOC_TYPES.has(doc.mediaType)) {
     if (doc.mediaType === 'text/plain') {
       const ext = doc.filename.split('.').pop()?.toLowerCase() ?? '';
-      return ext === 'md' || ext === 'markdown' || ext === 'json' || ext === 'txt';
+      return ext === 'md' || ext === 'markdown' || ext === 'json' || ext === 'txt' || ext === 'csv';
     }
     return true;
   }
   const ext = doc.filename.split('.').pop()?.toLowerCase() ?? '';
-  return ext === 'json' || ext === 'md' || ext === 'markdown';
+  return ext === 'json' || ext === 'md' || ext === 'markdown' || ext === 'csv';
 }
 
 /** Turn a non-PDF chat doc into model-facing text (PPTX / JSON / Markdown / ZIP). */

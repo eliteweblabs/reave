@@ -51,6 +51,7 @@ export const PROJECT_UPLOAD_MEDIA_TYPES = new Set([
   'image/svg+xml',
   'application/json',
   'text/markdown',
+  'text/csv',
   'application/zip',
   'application/x-zip-compressed',
 ]);

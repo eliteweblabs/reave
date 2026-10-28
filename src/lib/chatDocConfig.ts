@@ -10,6 +10,7 @@ export const CHAT_DOC_ACCEPT = [
   PPTX_MEDIA_TYPE,
   'application/json',
   'text/markdown',
+  'text/csv',
   'application/zip',
   'application/x-zip-compressed',
   '.pdf',
@@ -17,6 +18,7 @@ export const CHAT_DOC_ACCEPT = [
   '.json',
   '.md',
   '.markdown',
+  '.csv',
   '.zip',
 ].join(',');
 
@@ -30,9 +32,13 @@ export function normalizeChatDocMediaType(type: string, filename: string): strin
     lowered === 'text/json' ||
     lowered === 'text/markdown' ||
     lowered === 'text/x-markdown' ||
+    lowered === 'text/csv' ||
+    lowered === 'application/csv' ||
     ZIP_MEDIA_TYPES.has(lowered)
   ) {
-    return lowered === 'text/json' ? 'application/json' : lowered;
+    if (lowered === 'text/json') return 'application/json';
+    if (lowered === 'application/csv') return 'text/csv';
+    return lowered;
   }
 
   const ext = filename.split('.').pop()?.toLowerCase();
@@ -40,11 +46,13 @@ export function normalizeChatDocMediaType(type: string, filename: string): strin
   if (ext === 'pptx') return PPTX_MEDIA_TYPE;
   if (ext === 'json') return 'application/json';
   if (ext === 'md' || ext === 'markdown') return 'text/markdown';
+  if (ext === 'csv') return 'text/csv';
   if (ext === 'zip') return 'application/zip';
 
   if (!lowered || lowered === 'application/octet-stream') {
     if (ext === 'json') return 'application/json';
     if (ext === 'md' || ext === 'markdown') return 'text/markdown';
+    if (ext === 'csv') return 'text/csv';
     if (ext === 'zip') return 'application/zip';
   }
 

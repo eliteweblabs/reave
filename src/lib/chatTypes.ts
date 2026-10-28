@@ -25,6 +25,7 @@ export type ChatDocMediaType =
   | 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
   | 'application/json'
   | 'text/markdown'
+  | 'text/csv'
   | 'application/zip'
   | 'application/x-zip-compressed';
 
@@ -54,6 +55,7 @@ export const CHAT_DOC_MEDIA_TYPES = new Set<string>([
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'application/json',
   'text/markdown',
+  'text/csv',
   'application/zip',
   'application/x-zip-compressed',
 ]);
@@ -63,6 +65,7 @@ const DOC_LABELS: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint file',
   'application/json': 'JSON file',
   'text/markdown': 'Markdown file',
+  'text/csv': 'CSV file',
   'application/zip': 'ZIP archive',
   'application/x-zip-compressed': 'ZIP archive',
 };
