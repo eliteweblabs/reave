@@ -3,6 +3,7 @@
  */
 import type { APIContext } from 'astro';
 import { agentToolManifestSummary } from '../../../lib/agentTools';
+import { isCraterConfigured } from '../../../lib/craterClient';
 import { jsonResponse } from '../../../lib/apiResponse';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { enabledFeatures, ensureFeatureOverridesLoaded, hasWebsiteEditor } from '../../../lib/features';
@@ -28,6 +29,8 @@ export async function GET(context: APIContext): Promise<Response> {
   return jsonResponse({
     ok: true,
     manifest,
+    crater_configured: isCraterConfigured(),
+    seed_payment_modes: manifest.names.includes('seed_payment_modes'),
     install_slug: installConfigSlug(),
     is_ops_install: isOpsInstall(),
     website_github_tools: hasWebsiteGithubAgentTools(),
