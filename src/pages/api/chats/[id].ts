@@ -351,32 +351,7 @@ export async function POST(context: APIContext): Promise<Response> {
     );
   }
 
-  if (isAgentRunActive(userId, id)) {
-    return jsonResponse(
-      {
-        ok: false,
-        run_in_progress: true,
-        error:
-          'A reply is still in progress for this chat. Wait for it to finish or stop the current turn before sending again.',
-      },
-      409,
-    );
-  }
-
-  // A draining replica may still own this turn — don't start a second run on
-  // the new container while the first is finishing and writing its reply.
-  if (await getAliveAgentRunLease(userId, id)) {
-    return jsonResponse(
-      {
-        ok: false,
-        run_in_progress: true,
-        error:
-          'A reply for this chat is still finishing after a deploy — hang tight, it will land when the previous run completes.',
-      },
-      503,
-    );
-  }
-
+  const queueWhileBusy = body.queue === true;
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images, docs);
   const linked_jobs = await listJobsForItem('chat', id);
@@ -402,6 +377,59 @@ export async function POST(context: APIContext): Promise<Response> {
         url: f.url,
       }));
     }
+  }
+
+  const leaseActive = await getAliveAgentRunLease(userId, id);
+  const localActive = isAgentRunActive(userId, id);
+  if (localActive || leaseActive) {
+    if (queueWhileBusy) {
+      let title = thread.title;
+      let userMessage = { role: 'user' as const, content: userContent };
+      try {
+        const persistedUser = await persistUserMessage(
+          ownerUserId,
+          id,
+          thread,
+          message,
+          images,
+          docs,
+          userContent,
+          isFirstMessage,
+        );
+        title = persistedUser.title;
+        userMessage = persistedUser.userMessage;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to save message';
+        return jsonResponse({ ok: false, error: msg }, 500);
+      }
+      return jsonResponse({
+        ok: true,
+        queued: true,
+        title,
+        userMessage,
+        ...(Object.keys(promoted_files).length ? { promoted_files } : {}),
+      });
+    }
+    if (localActive) {
+      return jsonResponse(
+        {
+          ok: false,
+          run_in_progress: true,
+          error:
+            'A reply is still in progress for this chat. Wait for it to finish or stop the current turn before sending again.',
+        },
+        409,
+      );
+    }
+    return jsonResponse(
+      {
+        ok: false,
+        run_in_progress: true,
+        error:
+          'A reply for this chat is still finishing after a deploy — hang tight, it will land when the previous run completes.',
+      },
+      503,
+    );
   }
 
   // Save the user's message before running the agent so an interrupted turn

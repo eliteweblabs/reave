@@ -2261,9 +2261,14 @@ function mountChatThreadRoot(threadHost) {
       chatState.sending = running;
       const id = chatState.activeId;
       if (!id) return;
-      if (running) chatState.runningIds.add(id);
-      else chatState.runningIds.delete(id);
-      applyChatRunningIndicators();
+      if (running) {
+        chatState.runningIds.add(id);
+        applyChatRunningIndicators();
+      } else {
+        // Do not drop the sidebar spinner from local stream teardown alone —
+        // reconcile with /api/chats/running so a server-side run stays visible.
+        void refreshChatRunningIndicatorsQuiet();
+      }
     },
     onRefreshMessages: async () => {
       if (!chatState.activeId) return;
