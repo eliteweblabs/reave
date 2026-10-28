@@ -836,6 +836,7 @@ async function runKnowledgeAgentInner(
   if (hasFeature('billing') && isCraterConfigured()) {
     sysParts.push(
       'Billing: use create_invoice to make invoices in Crater. Treat amounts as whole US dollars. For "invoice <name> for $X" with no line detail, create one line item named "Services rendered" with quantity 1 and price X. When billing for a tracked project, call get_work_invoice_suggestions first — use completed checklist descriptions on line items (name + description from suggestions; ask for price if missing). Invoices default to DRAFT; do not mark SENT unless the user says it was sent. After creating, report the invoice number, amount, and the public link returned by the tool.',
+      'Payment modes: when the user says "add payment modes" or asks to seed Crater payment methods, call seed_payment_modes once (no args) and report how many were created vs already existed; mention any errors.',
       'Deleting: only call delete_invoice when the user explicitly asks to delete/remove an invoice; confirm the invoice_id first via get_invoice or list_recent_invoices.',
       'Destructive admin tools (reset_invoices) require explicit user confirmation with YES_DELETE_EVERYTHING; prefer dry_run first.'
     );

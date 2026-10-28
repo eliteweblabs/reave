@@ -208,6 +208,13 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'Record payment of $1,500 for invoice INV-00042.',
     feature: 'billing',
   },
+  {
+    slash: '/payment-modes',
+    summary: 'Seed Crater payment modes (Venmo, Zelle, etc.)',
+    template: 'Add payment modes',
+    example: 'Add payment modes',
+    feature: 'billing',
+  },
 
   // Scheduling / meetings (plugin)
   {

@@ -1384,3 +1384,72 @@ export async function craterCreateItem(
     body,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Payment mode seeding (custom route on Crater — no auth header required)
+// ---------------------------------------------------------------------------
+
+/** Default Crater Settings → Payment Modes for Reave / record_payment. */
+export const CRATER_DEFAULT_PAYMENT_MODES = [
+  'Cash',
+  'Check',
+  'Credit Card',
+  'Bank Transfer',
+  'Apple Pay',
+  'Venmo',
+  'Zelle',
+  'Stripe',
+  'Cash App',
+] as const;
+
+export type CreatePaymentModeResult = {
+  status: 'created' | 'already_exists';
+  id?: number;
+  name: string;
+};
+
+export async function craterCreatePaymentMode(
+  name: string,
+): Promise<CraterResult<CreatePaymentModeResult>> {
+  const trimmed = name?.trim();
+  if (!trimmed) return { ok: false, error: 'name is required' };
+  return craterFetch<CreatePaymentModeResult>('/api/custom/create-payment-mode', {
+    method: 'POST',
+    body: { name: trimmed },
+  });
+}
+
+export type SeedPaymentModesResult = {
+  created: number;
+  already_exists: number;
+  errors: { name: string; error: string; status?: number }[];
+  results: { name: string; status: 'created' | 'already_exists'; id?: number }[];
+};
+
+export async function craterSeedPaymentModes(
+  names: readonly string[] = CRATER_DEFAULT_PAYMENT_MODES,
+): Promise<CraterResult<SeedPaymentModesResult>> {
+  const summary: SeedPaymentModesResult = {
+    created: 0,
+    already_exists: 0,
+    errors: [],
+    results: [],
+  };
+
+  for (const name of names) {
+    const result = await craterCreatePaymentMode(name);
+    if (!result.ok) {
+      summary.errors.push({ name, error: result.error, status: result.status });
+      continue;
+    }
+    summary.results.push({
+      name: result.data.name,
+      status: result.data.status,
+      ...(result.data.id != null ? { id: result.data.id } : {}),
+    });
+    if (result.data.status === 'created') summary.created += 1;
+    else summary.already_exists += 1;
+  }
+
+  return { ok: true, data: summary };
+}
