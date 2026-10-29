@@ -3,6 +3,7 @@
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { createBrandBtn } from './admin-ui.js?v=20260903a';
+import { showChatToast } from './chat-panel.js?v=20260824a';
 
 function fieldRow(path, label, id, value, placeholder, multiline = false) {
   const common = `id="${escHtml(id)}" data-page-field="${escHtml(path)}" data-field="${escHtml(label)}" placeholder="${escHtml(placeholder)}"`;
@@ -101,12 +102,10 @@ export async function loadPagesTab(deps) {
     prependSettingsBackHeader(root);
 
     const saveWrap = root.querySelector('#pages-seo-save-wrap');
-    const alertEl = root.querySelector('#pages-seo-alert');
     const saveBtn = createBrandBtn({
       variant: 'filled',
       label: 'Save page SEO',
       onClick: async () => {
-        alertEl.hidden = true;
         saveBtn.disabled = true;
         try {
           const overrides = collectOverrides(root);
@@ -117,13 +116,9 @@ export async function loadPagesTab(deps) {
           });
           const body = await put.json();
           if (!put.ok || !body.ok) throw new Error(body.error || `HTTP ${put.status}`);
-          alertEl.textContent = 'Saved.';
-          alertEl.hidden = false;
-          alertEl.classList.remove('prof-alert--error');
+          showChatToast('Saved.', { type: 'success' });
         } catch (e) {
-          alertEl.textContent = e.message || 'Save failed.';
-          alertEl.hidden = false;
-          alertEl.classList.add('prof-alert--error');
+          showChatToast(e.message || 'Save failed.', { type: 'error' });
         } finally {
           saveBtn.disabled = false;
         }

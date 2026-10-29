@@ -304,7 +304,7 @@
   color: var(--muted);
   line-height: 1.4;
 }
-/* Autosave failure shown at the field — the panel alert scrolls out of reach. */
+/* Autosave failure shown at the field — save feedback uses a bottom toast. */
 .prof-field-error {
   display: block;
   font-size: 0.72rem;

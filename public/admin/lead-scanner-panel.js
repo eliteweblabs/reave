@@ -5,6 +5,7 @@ import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260810a
 import { postLower, postTitle } from './post-alias.js?v=20260805a';
 import { createClientMap } from './client-map.js?v=20260804b';
 import { getLeadScannerRunSession } from './lead-scanner-run.js?v=20260802f';
+import { showChatToast } from './chat-panel.js?v=20260824a';
 
 let mapController = null;
 
@@ -136,12 +137,8 @@ export function renderLeadScannerPanel(data) {
   );
 }
 
-function showAlert(root, message, kind = 'error') {
-  const el = root.querySelector('#lead-scanner-alert');
-  if (!el) return;
-  el.hidden = false;
-  el.textContent = message;
-  el.className = `prof-alert prof-alert--${kind}`;
+function showAlert(_root, message, kind = 'error') {
+  showChatToast(message, { type: kind === 'success' ? 'success' : 'error' });
 }
 
 function collectPayload(form) {

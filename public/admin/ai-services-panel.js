@@ -3,6 +3,7 @@
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { iosIcon, bindConfirmDeleteButton } from './admin-ui.js?v=20260825h';
+import { showChatToast } from './chat-panel.js?v=20260824a';
 
 const PROVIDERS = [
   { id: 'anthropic', label: 'Anthropic' },
@@ -208,12 +209,8 @@ export function renderAiServicesPanel(data) {
   );
 }
 
-function showAlert(root, message, kind = 'error') {
-  const el = root.querySelector('#ai-services-alert');
-  if (!el) return;
-  el.hidden = false;
-  el.textContent = message;
-  el.className = `prof-alert prof-alert--${kind}`;
+function showAlert(_root, message, kind = 'error') {
+  showChatToast(message, { type: kind === 'success' ? 'success' : 'error' });
 }
 
 function clearAlert(root) {

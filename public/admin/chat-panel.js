@@ -208,16 +208,38 @@ function appendChatMessageImages(bubble, images, beforeEl) {
 
 let _chToastTimer = null;
 
-function showChatToast(message, nearEl) {
+/**
+ * @param {string} message
+ * @param {Element | { nearEl?: Element, type?: 'success' | 'error', duration?: number }} [nearElOrOpts]
+ */
+function showChatToast(message, nearElOrOpts) {
+  let nearEl = null;
+  let type = '';
+  let duration = 1800;
+  if (nearElOrOpts instanceof Element) {
+    nearEl = nearElOrOpts;
+  } else if (nearElOrOpts && typeof nearElOrOpts === 'object') {
+    nearEl = nearElOrOpts.nearEl ?? null;
+    type = nearElOrOpts.type === 'error' || nearElOrOpts.type === 'success' ? nearElOrOpts.type : '';
+    duration =
+      typeof nearElOrOpts.duration === 'number'
+        ? nearElOrOpts.duration
+        : type === 'error'
+          ? 3200
+          : 1800;
+  }
+
   let toast = document.getElementById('ch-toast');
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'ch-toast';
     toast.className = 'ch-toast';
-    toast.setAttribute('role', 'status');
     document.body.appendChild(toast);
   }
   toast.textContent = message;
+  toast.classList.remove('ch-toast--success', 'ch-toast--error');
+  if (type) toast.classList.add(`ch-toast--${type}`);
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
   toast.classList.add('ch-toast-visible');
   if (nearEl) {
     const r = nearEl.getBoundingClientRect();
@@ -230,7 +252,7 @@ function showChatToast(message, nearEl) {
     toast.style.top = '';
   }
   clearTimeout(_chToastTimer);
-  _chToastTimer = setTimeout(() => toast.classList.remove('ch-toast-visible'), 1800);
+  _chToastTimer = setTimeout(() => toast.classList.remove('ch-toast-visible'), duration);
 }
 
 async function copyChatText(text, btn) {

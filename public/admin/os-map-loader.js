@@ -8207,8 +8207,7 @@ function bindAutosaveForm(scope, opts) {
     if (blocking) {
       setFormFieldState(blocking, 'invalid');
       setFormFieldMessage(blocking, fieldError(blocking));
-      // The alert scrolls the panel, so only pull the user away for a blocker
-      // somewhere else in the form — the field they are in explains itself.
+      // Toast only when the blocker is elsewhere — the active field explains itself.
       if (opts.alertEl && blocking !== activeEl) {
         showProfileAlert(opts.alertEl, `Nothing saved — check ${formFieldLabel(blocking)}.`, 'error');
       }
@@ -8311,16 +8310,16 @@ function flushSettingsAutosaveKeepBound() {
 }
 
 function showProfileAlert(el, msg, type) {
+  if (!msg) return;
+  const toastType = type === 'error' ? 'error' : type === 'success' ? 'success' : undefined;
+  showChatToast(msg, toastType ? { type: toastType } : undefined);
   if (!el) return;
-  el.textContent = msg;
-  el.className = `prof-alert prof-alert--${type}`;
-  el.hidden = false;
-  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  clearTimeout(el.dataset.timerId ? Number(el.dataset.timerId) : 0);
-  const timerId = window.setTimeout(() => {
-    el.hidden = true;
-  }, 4000);
-  el.dataset.timerId = String(timerId);
+  el.hidden = true;
+  el.textContent = '';
+  if (el.dataset.timerId) {
+    clearTimeout(Number(el.dataset.timerId));
+    delete el.dataset.timerId;
+  }
 }
 
 function svgPreviewDataUri(svg) {
