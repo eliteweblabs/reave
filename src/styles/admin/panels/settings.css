@@ -594,9 +594,12 @@
   flex: 1 1 200px;
   min-width: 0;
 }
-.prof-branding-upload-item > label {
+.prof-branding-upload-item > label,
+.prof-branding-upload-item > .prof-branding-upload-label {
   display: block;
   margin-bottom: 0.35rem;
+  font-weight: 600;
+  font-size: 0.88rem;
 }
 .prof-branding-upload-item > .prof-hint {
   margin-top: 0.45rem;
