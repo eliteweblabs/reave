@@ -6,6 +6,7 @@
 
 import type { APIContext } from 'astro';
 import {
+  storeBackfillEmailInboxBody,
   storeDeleteEmailInbox,
   storeGetEmailInbox,
   storeUpdateEmailInbox,
@@ -17,6 +18,7 @@ import type { EmailCategory } from '../../../../lib/emailProcessor';
 import {
   emailHtmlHasInlineStyles,
   inboxListExcerpt,
+  normalizeEmailBody,
   normalizeEmailHtml,
   plainTextForDisplay,
   resolveEmailHtmlForDisplay,
@@ -123,19 +125,36 @@ export async function GET(context: APIContext): Promise<Response> {
     envelopeTo.every((addr) => isGenericInboundMailbox(addr)) &&
     !hasOriginalRecipientHeaders(headers);
   let bodyHtml = event.bodyHtml;
+  let bodyText = event.bodyText;
+  const snippet = String(event.bodySnippet || '').trim();
+  const storedText = String(bodyText || '').trim();
+  const needsBody =
+    Boolean(event.resendEmailId?.trim()) &&
+    (!String(bodyHtml || '').trim() ||
+      !storedText ||
+      storedText === snippet ||
+      (snippet.length > 80 && storedText.startsWith(snippet) && storedText.length <= snippet.length + 48));
   const needsHeaders = !hasListUnsubscribeHeader(headers) || needsOriginalTo;
   const needsHtmlStyles = Boolean(event.resendEmailId) && !emailHtmlHasInlineStyles(bodyHtml);
   const needsRecipients = envelopeTo.length === 0;
-  if ((needsHeaders || needsHtmlStyles || needsRecipients) && event.resendEmailId) {
+  if ((needsHeaders || needsHtmlStyles || needsRecipients || needsBody) && event.resendEmailId) {
     const fresh = await fetchResendInboundEmail(event.resendEmailId);
     if (Object.keys(fresh.headers).length) headers = { ...headers, ...fresh.headers };
-    if (needsHtmlStyles && fresh.html?.trim()) {
+    if ((needsBody || needsHtmlStyles) && fresh.html?.trim()) {
       bodyHtml = normalizeEmailHtml('', fresh.html);
+    }
+    if (needsBody && fresh.text?.trim()) {
+      bodyText = normalizeEmailBody(fresh.text, fresh.html);
+    } else if (needsBody && fresh.html?.trim() && !storedText) {
+      bodyText = normalizeEmailBody('', fresh.html);
     }
     if (needsRecipients && fresh.to.length) envelopeTo = fresh.to;
     if (!envelopeCc.length && fresh.cc.length) envelopeCc = fresh.cc;
     if (!envelopeBcc.length && fresh.bcc.length) envelopeBcc = fresh.bcc;
     if (!envelopeReplyTo.length && fresh.replyTo.length) envelopeReplyTo = fresh.replyTo;
+    if (needsBody && (String(bodyHtml || '').trim() || String(bodyText || '').trim())) {
+      await storeBackfillEmailInboxBody(id, { bodyText, bodyHtml }).catch(() => undefined);
+    }
   }
 
   const monetaryAmount = inboxMonetaryAmount(event);
@@ -161,7 +180,7 @@ export async function GET(context: APIContext): Promise<Response> {
       schedulingNote: event.schedulingNote,
       summary: event.summary,
       subject: event.subject,
-      bodyText: event.bodyText,
+      bodyText: bodyText || event.bodyText,
       bodySnippet: event.bodySnippet,
       bodyHtml: bodyHtml || event.bodyHtml,
       receivedAt: event.receivedAt,
@@ -179,8 +198,8 @@ export async function GET(context: APIContext): Promise<Response> {
       matchedRuleId: matchedRule?.ruleId ?? null,
       matchedRuleTitle: matchedRule?.ruleTitle ?? null,
       forwardedTo,
-      bodyHtml: resolveEmailHtmlForDisplay(bodyHtml, event.bodyText),
-      bodyText: plainTextForDisplay(event.bodyText),
+      bodyHtml: resolveEmailHtmlForDisplay(bodyHtml, bodyText || event.bodyText),
+      bodyText: plainTextForDisplay(bodyText || event.bodyText),
       bodySnippet: inboxListExcerpt(event),
       summary: inboxListExcerpt(event) || event.summary,
       monetaryAmount,

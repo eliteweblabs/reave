@@ -1376,6 +1376,54 @@ async function deleteFromPg(id: string): Promise<boolean> {
   }
 }
 
+/** Persist full body text/html after Resend hydration on detail fetch. */
+export async function storeBackfillEmailInboxBody(
+  id: string,
+  body: { bodyText?: string; bodyHtml?: string },
+): Promise<void> {
+  const bodyText = body.bodyText?.trim();
+  const bodyHtml = body.bodyHtml?.trim();
+  if (!bodyText && !bodyHtml) return;
+
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return;
+      const sets: string[] = [];
+      const vals: unknown[] = [];
+      let i = 1;
+      if (bodyText) {
+        sets.push(`body_text = $${i++}`);
+        vals.push(bodyText);
+      }
+      if (bodyHtml) {
+        sets.push(`body_html = $${i++}`);
+        vals.push(bodyHtml);
+      }
+      if (!sets.length) return;
+      vals.push(id);
+      await pool.query(`UPDATE email_inbox SET ${sets.join(', ')} WHERE id = $${i}`, vals);
+      invalidateDashboardCache();
+    } catch (e) {
+      console.error('[email-inbox] pg body backfill failed', e);
+    }
+    return;
+  }
+
+  const path = inboxFilePath();
+  if (!existsSync(path)) return;
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const idx = events.findIndex((e) => e.id === id);
+  if (idx === -1) return;
+  const cur = events[idx]!;
+  events[idx] = {
+    ...cur,
+    ...(bodyText ? { bodyText } : {}),
+    ...(bodyHtml ? { bodyHtml } : {}),
+  };
+  writeFileEvents(events);
+}
+
 export async function storeUpdateEmailInbox(
   id: string,
   patch: EmailInboxPatch,

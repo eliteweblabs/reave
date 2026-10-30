@@ -14390,18 +14390,106 @@ function closeEmailDetail() {
   if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: null });
 }
 
+function emailListExcerptText(ev) {
+  return String(ev.bodySnippet || ev.summary || '').trim();
+}
+
+/** True when we have HTML or plain text beyond the inbox list excerpt. */
+function emailHasDisplayBody(ev) {
+  const html = String(ev.bodyHtml || '').trim();
+  if (html) return true;
+  const text = String(ev.bodyText || '').trim();
+  if (!text) return false;
+  const excerpt = emailListExcerptText(ev);
+  if (!excerpt) return true;
+  if (text === excerpt) return false;
+  if (excerpt.length > 80 && text.startsWith(excerpt) && text.length <= excerpt.length + 48) return false;
+  return true;
+}
+
 function emailHasFullBody(ev) {
-  return Boolean(String(ev.bodyHtml || '').trim() || String(ev.bodyText || '').trim());
+  return emailHasDisplayBody(ev);
 }
 
 function emailDetailSummaryText(ev) {
-  // Title already is the subject; the message body is below. Only use the
-  // triage summary as a stand-in before the full mail has loaded.
-  if (emailHasFullBody(ev)) return '';
-  const summary = String(ev.summary || ev.bodySnippet || '').trim();
-  const subject = String(ev.subject || '').trim();
-  if (!summary || summary === subject) return '';
-  return summary;
+  return '';
+}
+
+function emailDetailPlainFallback(ev) {
+  const text = String(ev.bodyText || '').trim();
+  const excerpt = emailListExcerptText(ev);
+  if (text && text !== excerpt) return text;
+  return excerpt || String(ev.summary || '').trim();
+}
+
+function emailDetailBodySectionHtml(ev) {
+  if (!ev._fullLoaded) {
+    return `<div class="em-detail-body-block"><p class="em-hint em-body-loading">Loading message…</p></div>`;
+  }
+  const bodyHtmlSource = String(ev.bodyHtml || '').trim();
+  if (bodyHtmlSource) {
+    return (
+      `<div class="em-detail-body-block em-detail-body-html">` +
+        `<iframe class="em-detail-body-frame" sandbox="${
+          isEmailLabModeFor(ev)
+            ? 'allow-same-origin allow-popups allow-popups-to-escape-sandbox'
+            : 'allow-popups allow-popups-to-escape-sandbox'
+        }" title="Email message"></iframe>` +
+      `</div>`
+    );
+  }
+  const plainBody = emailDetailPlainFallback(ev);
+  if (plainBody) {
+    const excerptOnly = !emailHasDisplayBody(ev);
+    return (
+      `<div class="em-detail-body-block">` +
+        (excerptOnly
+          ? `<p class="em-hint">Showing preview text — loading full message from Resend when available.</p>`
+          : '') +
+        `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>` +
+      `</div>`
+    );
+  }
+  if (ev._bodyLoadFailed) {
+    return (
+      `<div class="em-detail-body-block">` +
+        `<p class="em-hint">Could not load the message body.</p>` +
+        `<button type="button" class="em-body-retry de-btn de-btn-secondary">Retry</button>` +
+      `</div>`
+    );
+  }
+  return `<div class="em-detail-body-block"><div class="em-detail-body em-detail-body-empty">(no body text)</div></div>`;
+}
+
+function mountEmailDetailBodySection(detail, ev) {
+  const bodyFrame = detail.querySelector('.em-detail-body-frame');
+  const bodyHtmlSource = String(ev.bodyHtml || '').trim();
+  if (bodyFrame && bodyHtmlSource) {
+    bodyFrame.srcdoc = bodyHtmlSource;
+    if (isEmailLabModeFor(ev)) mountEmailLabFrame(bodyFrame);
+  }
+  detail.querySelector('.em-body-retry')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    void reloadActiveEmailBody(true);
+  });
+}
+
+async function reloadActiveEmailBody(force = false) {
+  const id = emailState.activeId;
+  if (!id) return;
+  const idx = emailState.allEvents.findIndex((e) => e.id === id);
+  if (idx === -1) return;
+  const cur = emailState.allEvents[idx];
+  emailState.allEvents[idx] = {
+    ...cur,
+    _fullLoaded: false,
+    _bodyLoadFailed: false,
+    bodyHtml: force ? '' : cur.bodyHtml,
+    bodyText: force ? '' : cur.bodyText,
+  };
+  renderEmailPane();
+  const full = await fetchFullEmailRecord(emailState.allEvents[idx], { force: true });
+  if (emailState.activeId === full.id) renderEmailPane();
 }
 
 async function unsubscribeEmail(ev, btn) {
@@ -16313,13 +16401,13 @@ async function reclassifyEmail(ev, btn) {
   }
 }
 
-async function fetchFullEmailRecord(ev) {
+async function fetchFullEmailRecord(ev, opts = {}) {
   if (!ev?.id) return ev;
-  if (ev._fullLoaded && (ev.bodyText || ev.bodyHtml)) return ev;
+  if (!opts.force && ev._fullLoaded && emailHasDisplayBody(ev)) return ev;
   try {
-    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, { cache: 'no-store' });
-    const data = await readApiJson(res);
-    if (!data.event) {
+    const res = await adminFetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, { cache: 'no-store' });
+    const data = await readAdminJson(res, 'Inbox message');
+    if (!res.ok || !data.event) {
       const failed = { ...ev, _fullLoaded: true, _bodyLoadFailed: true };
       const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
       if (idx !== -1) emailState.allEvents[idx] = { ...emailState.allEvents[idx], ...failed };
@@ -17131,6 +17219,17 @@ function createEmailListItem(ev) {
     const list = item.closest('.ch-list');
     if (list && isListInSelectionMode(list)) return;
     openEmailEvent(ev.id);
+  });
+  item.addEventListener('dblclick', (e) => {
+    if (e.target.closest('.sidebar-list-author-icon, .list-select-icon')) return;
+    const list = item.closest('.ch-list');
+    if (list && isListInSelectionMode(list)) return;
+    openEmailEvent(ev.id);
+    void reloadActiveEmailBody(true).then(() => {
+      getEmailPanel()
+        ?.querySelector('.em-detail-body-block')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   });
   return item;
 }
@@ -21564,7 +21663,6 @@ function renderEmailPane() {
 
   const detail = document.createElement('div');
   detail.className = 'em-detail' + (isEmailLabModeFor(ev) ? ' em-detail--lab' : '');
-  const summaryText = emailDetailSummaryText(ev);
   const projectLabel = ev.jobTitle || ev.jobSlug;
   const showOtpCard = Boolean(ev.verificationCode);
   const showAuthCard = !showOtpCard && isAuthLinkEmailRecord(ev);
@@ -21634,8 +21732,7 @@ function renderEmailPane() {
           : '') +
       `</div>`;
   }
-  detailHtml +=
-    (summaryText ? `<div class="em-detail-summary">${linkifyPlainText(summaryText)}</div>` : '');
+  detailHtml += emailDetailBodySectionHtml(ev);
   if (isMeetingPendingConfirm(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
@@ -21725,36 +21822,13 @@ function renderEmailPane() {
         `</ul>` +
       `</div>`;
   }
-  const bodyHtmlSource = (ev.bodyHtml || '').trim();
-  const plainBody = ev.bodyText || ev.bodySnippet || '';
-  const showPlainBody = !bodyHtmlSource && plainBody && plainBody !== summaryText;
-  if (bodyHtmlSource) {
-    detailHtml +=
-      // Links are rewritten server-side (resolveEmailHtmlForDisplay) to target="_blank", so
-      // allow-popups + allow-popups-to-escape-sandbox lets them open in a real browser tab.
-      // Deliberately no allow-top-navigation(-by-user-activation): that let clicks hijack the
-      // top-level app window instead of escaping it, which looked like the email going blank.
-      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="${
-        isEmailLabModeFor(ev)
-          ? 'allow-same-origin allow-popups allow-popups-to-escape-sandbox'
-          : 'allow-popups allow-popups-to-escape-sandbox'
-      }" title="Email message"></iframe></div>`;
-  } else if (showPlainBody) {
-    detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
-  } else if (!attachments.length && !summaryText) {
-    detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
-  }
   detail.innerHTML = detailHtml;
   bindEmailAttachmentLinks(detail);
   mountEmailThreadNav(detail);
   if (isEmailLabModeFor(ev)) detail.prepend(renderEmailLabBar());
-  const bodyFrame = detail.querySelector('.em-detail-body-frame');
   // Bind before srcdoc so we don't miss the load event on a fast parse.
   if (isEmailLabModeFor(ev)) mountEmailLabSelection(detail, ev);
-  if (bodyFrame && bodyHtmlSource) {
-    bodyFrame.srcdoc = bodyHtmlSource;
-    if (isEmailLabModeFor(ev)) mountEmailLabFrame(bodyFrame);
-  }
+  mountEmailDetailBodySection(detail, ev);
   detail.querySelector('[data-otp-code]')?.addEventListener('click', (e) => {
     e.preventDefault();
     const btn = e.currentTarget;
