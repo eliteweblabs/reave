@@ -9,6 +9,7 @@ import {
   isGenericInboundMailbox,
   isInboundReceivingHost,
 } from '../src/lib/emailOriginalRecipient.ts';
+import { inboundAddressList } from '../src/lib/inboundEmailInstall.ts';
 import {
   attachClassificationRuleLinks,
   extractForwardedToFromAudit,
@@ -23,6 +24,11 @@ assert.equal(isGenericInboundMailbox('thomas@inbound.reave.app'), true);
 assert.equal(isGenericInboundMailbox('inbox@inbound.reave.app'), true);
 assert.equal(isGenericInboundMailbox('thomas+gmail@inbound.reave.app'), false);
 assert.equal(isGenericInboundMailbox('thomas@reave.app'), false);
+
+assert.deepEqual(inboundAddressList('hello@reave.app'), ['hello@reave.app']);
+assert.deepEqual(inboundAddressList(['a@b.com', 'c@d.com']), ['a@b.com', 'c@d.com']);
+assert.deepEqual(inboundAddressList([{ email: 'x@y.z' }]), ['x@y.z']);
+assert.deepEqual(inboundAddressList(undefined, 'fallback@reave.app'), ['fallback@reave.app']);
 
 assert.deepEqual(
   displayInboxRecipients(['thomas@inbound.reave.app'], {

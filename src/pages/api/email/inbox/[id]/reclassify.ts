@@ -38,7 +38,7 @@ export const prerender = false;
 
 async function enrichInboxEvent(event: NonNullable<Awaited<ReturnType<typeof storeGetEmailInbox>>>) {
   let headers = event.headers;
-  const envelopeTo = Array.isArray(event.to) ? event.to : [];
+  let envelopeTo = Array.isArray(event.to) ? event.to : [];
   const needsOriginalTo =
     envelopeTo.length > 0 &&
     envelopeTo.every((addr) => isGenericInboundMailbox(addr)) &&
@@ -46,12 +46,14 @@ async function enrichInboxEvent(event: NonNullable<Awaited<ReturnType<typeof sto
   let bodyHtml = event.bodyHtml;
   const needsHeaders = !hasListUnsubscribeHeader(headers) || needsOriginalTo;
   const needsHtmlStyles = Boolean(event.resendEmailId) && !emailHtmlHasInlineStyles(bodyHtml);
-  if ((needsHeaders || needsHtmlStyles) && event.resendEmailId) {
+  const needsRecipients = envelopeTo.length === 0;
+  if ((needsHeaders || needsHtmlStyles || needsRecipients) && event.resendEmailId) {
     const fresh = await fetchResendInboundEmail(event.resendEmailId);
     if (Object.keys(fresh.headers).length) headers = { ...headers, ...fresh.headers };
     if (needsHtmlStyles && fresh.html?.trim()) {
       bodyHtml = normalizeEmailHtml('', fresh.html);
     }
+    if (needsRecipients && fresh.to.length) envelopeTo = fresh.to;
   }
 
   const monetaryAmount = inboxMonetaryAmount(event);

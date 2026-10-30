@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { handleInboundEmail } from './inboundEmailHandler';
-import { inboundBelongsToInstall, recipientList } from './inboundEmailInstall';
+import { inboundAddressList, inboundBelongsToInstall, recipientList } from './inboundEmailInstall';
 import { normalizeEmailAttachments } from './emailAttachments';
 import { storeFindExistingInboundEmail } from './emailInboxStore';
 import { serverEnv } from './serverEnv';
@@ -68,10 +68,10 @@ async function ingestOne(resend: Resend, meta: ReceivingListItem, dryRun: boolea
     subject: String(rec.subject ?? meta.subject ?? ''),
     text: typeof rec.text === 'string' ? rec.text : '',
     html: typeof rec.html === 'string' ? rec.html : '',
-    to: Array.isArray(rec.to) ? rec.to.map(String) : meta.to,
-    cc: Array.isArray(rec.cc) ? rec.cc.map(String) : [],
-    bcc: Array.isArray(rec.bcc) ? rec.bcc.map(String) : [],
-    replyTo: Array.isArray(rec.reply_to) ? rec.reply_to.map(String) : [],
+    to: inboundAddressList(rec.to, meta.to),
+    cc: inboundAddressList(rec.cc, meta.cc),
+    bcc: inboundAddressList(rec.bcc, meta.bcc),
+    replyTo: inboundAddressList(rec.reply_to, meta.reply_to),
     headers,
     messageId: String(rec.message_id ?? meta.message_id ?? ''),
     resendEmailId: String(rec.id ?? id),

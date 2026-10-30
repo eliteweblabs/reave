@@ -86,6 +86,45 @@ export function recipientList(
   return out;
 }
 
+function parseInboundAddressGroup(group: unknown): string[] {
+  if (group == null) return [];
+  if (typeof group === 'string') return recipientList(group);
+  if (Array.isArray(group)) {
+    const out: string[] = [];
+    for (const item of group) {
+      if (item == null) continue;
+      if (typeof item === 'string') {
+        if (item.trim()) out.push(item.trim());
+        continue;
+      }
+      if (typeof item === 'object') {
+        const email = (item as { email?: unknown }).email;
+        if (email != null && String(email).trim()) {
+          out.push(String(email).trim());
+          continue;
+        }
+      }
+      const s = String(item).trim();
+      if (s.includes('@')) out.push(s);
+    }
+    return out;
+  }
+  if (typeof group === 'object') {
+    const email = (group as { email?: unknown }).email;
+    if (email != null && String(email).trim()) return [String(email).trim()];
+  }
+  return [];
+}
+
+/** Resend receiving payloads use string, string[], or { email }[] — normalize to strings. */
+export function inboundAddressList(...candidates: unknown[]): string[] {
+  for (const candidate of candidates) {
+    const parsed = parseInboundAddressGroup(candidate);
+    if (parsed.length) return parsed;
+  }
+  return [];
+}
+
 export function addressBelongsToInstall(
   address: string,
   domains: string[] = installEmailDomains(),

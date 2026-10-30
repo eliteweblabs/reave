@@ -239,7 +239,7 @@ function isUniqueViolation(e: unknown): boolean {
   return Boolean(e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === '23505');
 }
 
-const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
+const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, to_addrs, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               classification_audit, proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
               automation_ack_at, automation_triage_at, automation_triage_action, automation_triage_rule_id,

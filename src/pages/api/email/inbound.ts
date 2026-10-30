@@ -5,7 +5,11 @@ import { handleInboundEmail } from '../../../lib/inboundEmailHandler';
 import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler';
 import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
 import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
-import { inboundBelongsToInstall, recipientList } from '../../../lib/inboundEmailInstall';
+import {
+  inboundAddressList,
+  inboundBelongsToInstall,
+  recipientList,
+} from '../../../lib/inboundEmailInstall';
 
 export const prerender = false;
 
@@ -102,10 +106,10 @@ export const POST: APIRoute = async ({ request }) => {
         subject = data.subject || subject;
         text = data.text ?? '';
         html = data.html ?? '';
-        to = Array.isArray(data.to) ? data.to.map(String) : [];
-        cc = Array.isArray(data.cc) ? data.cc.map(String) : [];
-        bcc = Array.isArray(data.bcc) ? data.bcc.map(String) : [];
-        replyTo = Array.isArray(data.reply_to) ? data.reply_to.map(String) : [];
+        to = inboundAddressList(data.to, meta.to);
+        cc = inboundAddressList(data.cc, meta.cc);
+        bcc = inboundAddressList(data.bcc, meta.bcc);
+        replyTo = inboundAddressList(data.reply_to, meta.reply_to);
         headers =
           data.headers && typeof data.headers === 'object'
             ? Object.fromEntries(
@@ -123,6 +127,9 @@ export const POST: APIRoute = async ({ request }) => {
         if (fromGet.length) attachments = fromGet;
       }
     }
+    if (!to.length) to = inboundAddressList(meta.to);
+    if (!cc.length) cc = inboundAddressList(meta.cc);
+    if (!bcc.length) bcc = inboundAddressList(meta.bcc);
 
     // If get() omitted attachments but we have an email id, list them explicitly.
     if (!attachments.length && resendEmailId) {

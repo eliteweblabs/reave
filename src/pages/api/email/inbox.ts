@@ -24,6 +24,7 @@ import { ensureEmailCleanupScheduler } from '../../../lib/emailCleanupScheduler'
 import { ensureSeededInboxClearedOnLiveEmail } from '../../../lib/seededInboxCleanup';
 import { jsonResponse } from '../../../lib/apiResponse';
 import { requireEmailInboxEnabled } from '../../../lib/emailInboxFeature';
+import { displayInboxRecipients } from '../../../lib/emailOriginalRecipient';
 
 export const prerender = false;
 
@@ -32,12 +33,15 @@ function enrichEmailEvent(event: EmailInboxRecord) {
   const forwardedTo =
     extractForwardedToFromAudit(parseClassificationAudit(event.classificationAudit)) || undefined;
   const excerpt = inboxListExcerpt(event);
+  const envelopeTo = Array.isArray(event.to) ? event.to : [];
+  const toDisplay = displayInboxRecipients(envelopeTo, event.headers);
   return {
     ...toEmailInboxListRecord(event),
     bodySnippet: excerpt,
     summary: excerpt || event.summary,
     monetaryAmount,
     hasMonetaryValue: monetaryAmount != null,
+    ...(toDisplay.length ? { toDisplay } : {}),
     ...(forwardedTo ? { forwardedTo } : {}),
   };
 }

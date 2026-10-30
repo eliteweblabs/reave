@@ -21666,9 +21666,7 @@ function renderEmailPane() {
   detailHtml +=
     `<div class="em-detail-meta">` +
       emailDetailFromHtml(ev) +
-      (inboxToAddresses(ev).length
-        ? `<span><strong>To</strong> <span class="em-to-value">${escHtml(inboxToAddresses(ev).join(', '))}</span></span>`
-        : '') +
+      `<span><strong>To</strong> <span class="em-to-value">${escHtml(inboxToAddresses(ev).join(', ') || '(unknown)')}</span></span>` +
       `<span class="em-detail-subject"><strong>Subject</strong> <span class="em-subject-value">${escHtml(ev.subject || '(no subject)')}</span></span>` +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
     `</div>`;
