@@ -11,6 +11,7 @@ import {
   requireDeploymentOwner,
 } from '../../../lib/deploymentOwner';
 import {
+  enabledFeatures,
   ensureFeatureOverridesLoaded,
   hasFeature,
   refreshFeatureCache,

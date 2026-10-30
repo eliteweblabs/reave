@@ -400,6 +400,11 @@ assert.doesNotMatch(
   /sendPushNotification/,
   'Add-ons runtime toggle must not send push (switch UI is enough)',
 );
+assert.match(
+  addonsApi,
+  /import[\s\S]*enabledFeatures[\s\S]*from ['"]\.\.\/\.\.\/\.\.\/lib\/features['"]/,
+  'Add-ons toggle must import enabledFeatures for footer chrome refresh',
+);
 
 assert.equal(existsSync('src/knowledge/clerk-auth.md'), false, 'clerk-auth must not ship in core knowledge');
 assert.ok(
