@@ -23,6 +23,7 @@ import {
   type ProjectOutboundEmailRecord,
 } from './projectOutboundEmail';
 import { brandedPlainTextEmail } from './inboundEmailReply';
+import { looksLikeHtml } from './emailBody';
 import { escapeHtml } from './htmlEscape';
 import {
   appendSignatureToHtmlFragment,
@@ -186,7 +187,11 @@ export async function buildAdminComposeEmail(
   let sendHtml = html;
   const signature = await getUserEmailSignature(opts.userId, opts.context);
 
-  if ((!sendHtml && sendText && !/<[a-z][\s\S]*>/i.test(sendText)) || composeImages.inline.length) {
+  const needsPlainRender =
+    (!sendHtml && sendText && !looksLikeHtml(sendText)) ||
+    composeImages.inline.length ||
+    (!sendHtml && hasFileAttachments);
+  if (needsPlainRender) {
     const { quote } = splitQuotedReplyBody(sendText);
     const quotedHtml =
       quote && inbound
@@ -224,8 +229,16 @@ export async function buildAdminComposeEmail(
       sendHtml = plain.html;
     }
   } else {
-    sendText = appendSignatureToPlainText(sendText, signature);
-    if (sendHtml) sendHtml = appendSignatureToHtmlFragment(sendHtml, signature);
+    if (sendHtml) {
+      sendText = appendSignatureToPlainText(sendText, signature);
+      sendHtml = appendSignatureToHtmlFragment(sendHtml, signature);
+    } else if (sendText.trim() && looksLikeHtml(sendText)) {
+      // Compose sends `text` only; pasted webmail HTML still needs an html part for preview/send.
+      sendHtml = appendSignatureToHtmlFragment(sendText.trim(), signature);
+      sendText = appendSignatureToPlainText(sendText, signature);
+    } else {
+      sendText = appendSignatureToPlainText(sendText, signature);
+    }
   }
 
   return {

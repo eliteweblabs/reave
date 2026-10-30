@@ -63,6 +63,7 @@
     "check:email-compose-images": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-compose-images.ts",
     "check:email-shortcodes": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-shortcodes.ts",
     "check:email-preview": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-email-preview-snippet.ts",
+    "check:compose-preview-html": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-compose-preview-html.ts",
     "check:seeded-inbox": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-seeded-inbox-cleanup.ts",
     "check:deploy-wizard": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-deploy-wizard.ts",
     "check:railway-connect": "node --experimental-strip-types scripts/verify-railway-connect.ts",
