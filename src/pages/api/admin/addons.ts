@@ -124,6 +124,7 @@ export async function POST(context: APIContext): Promise<Response> {
       alsoEnabled: alsoOn,
       features: chrome.features,
       footerNav: chrome.footerNav,
+      dashboardCards: chrome.dashboardCards,
     });
   }
 

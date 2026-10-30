@@ -41,6 +41,7 @@ import {
   extractSocialHandle,
   getSocialPlatform,
 } from '../src/lib/social/platforms.ts';
+import { installFooterMapKeyVisibleForChrome } from '../src/lib/moduleNavMap.ts';
 
 function configFeatures(slug: string): string[] {
   const raw = JSON.parse(readFileSync(new URL(`../config/config-${slug}.json`, import.meta.url), 'utf8'));
@@ -404,6 +405,24 @@ assert.match(
   addonsApi,
   /import[\s\S]*enabledFeatures[\s\S]*from ['"]\.\.\/\.\.\/\.\.\/lib\/features['"]/,
   'Add-ons toggle must import enabledFeatures for footer chrome refresh',
+);
+assert.match(addonsApi, /dashboardCards:\s*chrome\.dashboardCards/, 'Add-ons toggle must refresh dashboard cards');
+
+assert.equal(
+  installFooterMapKeyVisibleForChrome(
+    { footerNav: ['dashboard', 'email'], features: [] },
+    'email',
+  ),
+  true,
+  'filtered footerNav is the visibility source of truth (ignore stale features[])',
+);
+assert.equal(
+  installFooterMapKeyVisibleForChrome(
+    { footerNav: ['dashboard'], features: ['email_inbox'] },
+    'email',
+  ),
+  false,
+  'footerNav omitting a tab stays hidden even if features[] is wrong',
 );
 
 assert.equal(existsSync('src/knowledge/clerk-auth.md'), false, 'clerk-auth must not ship in core knowledge');

@@ -417,14 +417,14 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
   />
 )}
 
+{userId && !adminShell && (
+  <script is:inline define:vars={{ signedInFeatureIds }}>
+    window.__installConfig = window.__installConfig || {};
+    window.__installConfig.features = signedInFeatureIds;
+  </script>
+)}
 {userId && (
-  <>
-    <script is:inline define:vars={{ signedInFeatureIds }}>
-      window.__installConfig = window.__installConfig || {};
-      window.__installConfig.features = signedInFeatureIds;
-    </script>
-    <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
-  </>
+  <script is:inline src={`/review-badge.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 )}
 <script is:inline src={`/proximity-tooltip.js?v=${__PUBLIC_ASSET_VERSION__}`} defer></script>
 {showDeployIndicator && (

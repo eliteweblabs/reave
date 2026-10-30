@@ -203,6 +203,9 @@ function bindPanelEvents(root) {
         if (Array.isArray(data.features) && window.__installConfig) {
           window.__installConfig.features = data.features;
           window.__installConfig.footerNav = data.footerNav ?? window.__installConfig.footerNav;
+          if (Array.isArray(data.dashboardCards)) {
+            window.__installConfig.dashboardCards = data.dashboardCards;
+          }
         }
         if (typeof shell.syncFooterNav === 'function') shell.syncFooterNav();
         await loadAddonsTab({ quiet: true });

@@ -168,3 +168,49 @@ export function filterFooterNavByEnabledFeatures(
   const enabled = new Set(enabledFeatures);
   return nav.filter((key) => footerNavKeyAllowedForFeatures(key, enabled));
 }
+
+/** Bottom admin footer pill buttons (`AdminFooterNav`) → footerNav map keys. */
+export const PRIMARY_ADMIN_FOOTER_BUTTONS = {
+  dashboard: 'dashboard',
+  chat: 'chats',
+  inbox: 'email',
+  schedule: 'schedule',
+  work: 'work',
+  todo: 'todo',
+  clients: 'clients',
+} as const satisfies Record<string, FooterNavKey>;
+
+export type PrimaryAdminFooterButton = keyof typeof PRIMARY_ADMIN_FOOTER_BUTTONS;
+
+export function footerNavListIncludesKey(
+  nav: readonly FooterNavKey[],
+  mapKey: FooterNavKey,
+): boolean {
+  const navSet = new Set(nav);
+  if (mapKey === 'chats') return navSet.has('chats') || navSet.has('__chat__');
+  return navSet.has(mapKey);
+}
+
+/**
+ * Footer tab / icon visible for install chrome.
+ * When `footerNav` is present it is already filtered by enabled add-ons on the server —
+ * do not re-gate on `features` or toggled modules flash then disappear when the two drift.
+ */
+export function installFooterMapKeyVisibleForChrome(
+  chrome: Pick<{ footerNav: FooterNavKey[]; features: string[] }, 'footerNav' | 'features'>,
+  mapKey: FooterNavKey,
+): boolean {
+  const nav = chrome.footerNav;
+  if (Array.isArray(nav) && nav.length) {
+    return footerNavListIncludesKey(nav, mapKey);
+  }
+  return footerNavKeyAllowedForFeatures(mapKey, new Set(chrome.features));
+}
+
+export function primaryAdminFooterButtonVisible(
+  chrome: Pick<{ footerNav: FooterNavKey[]; features: string[] }, 'footerNav' | 'features'>,
+  button: PrimaryAdminFooterButton,
+): boolean {
+  const mapKey = PRIMARY_ADMIN_FOOTER_BUTTONS[button];
+  return installFooterMapKeyVisibleForChrome(chrome, mapKey);
+}
