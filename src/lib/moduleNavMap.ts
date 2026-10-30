@@ -169,6 +169,75 @@ export function filterFooterNavByEnabledFeatures(
   return nav.filter((key) => footerNavKeyAllowedForFeatures(key, enabled));
 }
 
+/** Tab order when injecting add-on keys missing from install config footerNav. */
+const FOOTER_NAV_CANONICAL_ORDER: FooterNavKey[] = [
+  '__system__',
+  '__chat__',
+  'modules',
+  'deploy',
+  'dashboard',
+  'todo',
+  'punchlist',
+  'documents',
+  'sales-sheet',
+  'knowledge',
+  'chats',
+  'email',
+  'rules',
+  'newsletter',
+  'work',
+  'schedule',
+  'clients',
+  'social',
+  'social-leads',
+  'reviews',
+  'media',
+  'analytics',
+  'fleet',
+  'finance',
+  'meet',
+  'dscr',
+  'lead-scanner',
+  'vapi',
+  'profile',
+  'company',
+  'settings',
+  'socials',
+  'addons',
+  'ai-services',
+  'industries',
+  'catalog',
+];
+
+export function sortFooterNavKeys(nav: readonly FooterNavKey[]): FooterNavKey[] {
+  const rank = new Map(FOOTER_NAV_CANONICAL_ORDER.map((key, index) => [key, index]));
+  return [...nav].sort((a, b) => (rank.get(a) ?? 1000) - (rank.get(b) ?? 1000));
+}
+
+/**
+ * Runtime Add-ons toggles enable modules that may not be listed in config footerNav.
+ * Inject their tabs before filtering so Inbox / Schedule / etc. appear when turned on.
+ */
+export function mergeFooterNavForEnabledFeatures(
+  nav: readonly FooterNavKey[],
+  enabledFeatures: readonly string[],
+): FooterNavKey[] {
+  const out: FooterNavKey[] = [...nav];
+  const present = new Set(out);
+  for (const raw of enabledFeatures) {
+    const feature = raw as FeatureId;
+    if (!(feature in FEATURE_FOOTER_NAV)) continue;
+    for (const key of footerNavKeysForFeature(feature)) {
+      if (FOOTER_NAV_SLOT_KEYS.has(key)) continue;
+      if (!present.has(key)) {
+        out.push(key);
+        present.add(key);
+      }
+    }
+  }
+  return sortFooterNavKeys(out);
+}
+
 /** Bottom admin footer pill buttons (`AdminFooterNav`) → footerNav map keys. */
 export const PRIMARY_ADMIN_FOOTER_BUTTONS = {
   dashboard: 'dashboard',
@@ -191,20 +260,18 @@ export function footerNavListIncludesKey(
   return navSet.has(mapKey);
 }
 
-/**
- * Footer tab / icon visible for install chrome.
- * When `footerNav` is present it is already filtered by enabled add-ons on the server —
- * do not re-gate on `features` or toggled modules flash then disappear when the two drift.
- */
+/** Footer tab / icon visible — enabled add-on, and listed in merged client footerNav. */
 export function installFooterMapKeyVisibleForChrome(
   chrome: Pick<{ footerNav: FooterNavKey[]; features: string[] }, 'footerNav' | 'features'>,
   mapKey: FooterNavKey,
 ): boolean {
+  const enabled = new Set(chrome.features);
+  if (!footerNavKeyAllowedForFeatures(mapKey, enabled)) return false;
   const nav = chrome.footerNav;
   if (Array.isArray(nav) && nav.length) {
     return footerNavListIncludesKey(nav, mapKey);
   }
-  return footerNavKeyAllowedForFeatures(mapKey, new Set(chrome.features));
+  return true;
 }
 
 export function primaryAdminFooterButtonVisible(

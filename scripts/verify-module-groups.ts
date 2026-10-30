@@ -41,7 +41,10 @@ import {
   extractSocialHandle,
   getSocialPlatform,
 } from '../src/lib/social/platforms.ts';
-import { installFooterMapKeyVisibleForChrome } from '../src/lib/moduleNavMap.ts';
+import {
+  installFooterMapKeyVisibleForChrome,
+  mergeFooterNavForEnabledFeatures,
+} from '../src/lib/moduleNavMap.ts';
 
 function configFeatures(slug: string): string[] {
   const raw = JSON.parse(readFileSync(new URL(`../config/config-${slug}.json`, import.meta.url), 'utf8'));
@@ -413,16 +416,24 @@ assert.equal(
     { footerNav: ['dashboard', 'email'], features: [] },
     'email',
   ),
-  true,
-  'filtered footerNav is the visibility source of truth (ignore stale features[])',
+  false,
+  'disabled add-on hides email tab even if footerNav still lists it',
+);
+assert.deepEqual(
+  mergeFooterNavForEnabledFeatures(['dashboard', 'chats', 'clients'], ['email_inbox']),
+  ['dashboard', 'chats', 'email', 'clients'],
+  'enabled Inbox Triage injects email into client footerNav',
 );
 assert.equal(
   installFooterMapKeyVisibleForChrome(
-    { footerNav: ['dashboard'], features: ['email_inbox'] },
+    {
+      footerNav: mergeFooterNavForEnabledFeatures(['dashboard', 'chats'], ['email_inbox']),
+      features: ['email_inbox'],
+    },
     'email',
   ),
-  false,
-  'footerNav omitting a tab stays hidden even if features[] is wrong',
+  true,
+  'merged footerNav shows inbox footer icon when triage is on',
 );
 
 assert.equal(existsSync('src/knowledge/clerk-auth.md'), false, 'clerk-auth must not ship in core knowledge');

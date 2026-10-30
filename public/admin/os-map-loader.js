@@ -517,10 +517,9 @@ function footerNavKeyAllowed(mapKey) {
 }
 
 function installFooterMapKeyVisible(mapKey) {
-  const nav = installFooterNav();
-  // footerNav from the server is already filtered by Add-ons — trust the list.
-  if (nav) return installFooterIncludesMapKey(mapKey);
   if (!footerNavKeyAllowed(mapKey)) return false;
+  const nav = installFooterNav();
+  if (nav) return installFooterIncludesMapKey(mapKey);
   return true;
 }
 

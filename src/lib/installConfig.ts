@@ -24,6 +24,7 @@ import {
   filterFooterNavByEnabledFeatures,
   footerNavAlwaysOnKeys,
   footerNavProvidersForClient,
+  mergeFooterNavForEnabledFeatures,
 } from './moduleNavMap.ts';
 
 export type { HomepageTemplate };
@@ -568,6 +569,7 @@ function clientFooterNav(
   const enabled = new Set<string>(enabledFeatures);
   let nav = config.adminLite ? [...config.footerNav] : ensureFooterPunchlist(config.footerNav);
   nav = ensureFooterDscr(nav, enabled.has('dscr_calculator'));
+  nav = mergeFooterNavForEnabledFeatures(nav, enabledFeatures);
   nav = filterFooterNavByEnabledFeatures(nav, enabledFeatures);
   if (!isCanonicalReaveInstall()) {
     nav = nav.filter((key) => key !== 'industries' && key !== 'catalog');
