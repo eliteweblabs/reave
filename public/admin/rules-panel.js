@@ -39,7 +39,45 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260825h';
 import { createPaneHeader } from './pane-header.js?v=20260821c';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, showPersonal } from './shared.js?v=20260810a';
+import {
+  escHtml,
+  adminFetch,
+  readAdminJson,
+  readApiJson,
+  adminApiErrorMessage,
+  trySilentAdminSessionRefresh,
+  linkifyPlainText,
+  mountPanelSkeleton,
+  showPersonal,
+} from './shared.js?v=20261030a';
+
+async function fetchRulesApi(url, opts = {}) {
+  const res = await adminFetch(url, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    ...opts,
+    headers: {
+      Accept: 'application/json',
+      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(opts.headers || {}),
+    },
+  });
+  const data = await readApiJson(res);
+  if (!res.ok) {
+    const err = new Error(adminApiErrorMessage(data, res.status));
+    if (data && typeof data === 'object' && data.colliding) err.colliding = data.colliding;
+    throw err;
+  }
+  return data;
+}
+
+function ruleApplyErrorMessage(err) {
+  const msg = err instanceof Error ? err.message : 'Apply failed.';
+  if (msg === 'Unauthorized' || msg === 'Session expired') {
+    return 'Session expired — finish signing in, then tap Apply again.';
+  }
+  return msg;
+}
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260826a';
 import {
   formatRuleWhenClause,
@@ -473,9 +511,7 @@ async function loadRulesTab(opts = {}) {
 
   if (canPreserveMounted) {
     try {
-      const res = await fetch('/api/email/rules', { cache: 'no-store' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await fetchRulesApi('/api/email/rules');
       ruleState.rules = data.rules || [];
       ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
       ruleState.storage = data.storage || 'files';
@@ -492,9 +528,7 @@ async function loadRulesTab(opts = {}) {
     mountPanelSkeleton(root, 'list', 'Loading rules…', { contentSelector: '.ch-sidebar' });
   }
   try {
-    const res = await fetch('/api/email/rules', { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const data = await fetchRulesApi('/api/email/rules');
     if (gen !== rulesLoadGen) return;
     ruleState.rules = data.rules || [];
     ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
@@ -669,12 +703,10 @@ async function persistNotifyOnUnmatched(next) {
   const prev = ruleState.notifyOnUnmatched;
   ruleState.notifyOnUnmatched = next;
   try {
-    const res = await fetch('/api/email/rules', {
+    await fetchRulesApi('/api/email/rules', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notifyOnUnmatched: next }),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
   } catch (err) {
     ruleState.notifyOnUnmatched = prev;
     await osAlert({
@@ -868,13 +900,10 @@ function createFlowRuleCard(rule, index) {
 
 async function persistFlowRuleOrder(ids) {
   try {
-    const res = await fetch('/api/email/rules/reorder', {
+    const data = await fetchRulesApi('/api/email/rules/reorder', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     ruleState.rules = data.rules || ruleState.rules;
     renderRulesEditor();
   } catch (e) {
@@ -1598,9 +1627,8 @@ function renderRuleEditPane(pane, opts = {}) {
     applyWrap.hidden = true;
     applyBtn.hidden = true;
     try {
-      const res = await fetch('/api/email/rules/test', {
+      const data = await fetchRulesApi('/api/email/rules/test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phrases: payload.phrases,
           phraseFields: payload.phraseFields,
@@ -1610,8 +1638,6 @@ function renderRuleEditPane(pane, opts = {}) {
           status: payload.status,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       const matches = Array.isArray(data.matches) ? data.matches : [];
       renderTestMatches(matches);
       if (!matches.length) {
@@ -1656,17 +1682,15 @@ function renderRuleEditPane(pane, opts = {}) {
     applyBtn.disabled = true;
     applyBtn.textContent = 'Applying…';
     try {
-      const res = await fetch('/api/email/rules/apply', {
+      await trySilentAdminSessionRefresh();
+      const data = await fetchRulesApi('/api/email/rules/apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ruleId: rule.id,
           status: payload.status,
           ids,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       const applied = Number(data.applied) || 0;
       const skipped = Array.isArray(data.skipped) ? data.skipped.length : 0;
       testStatus.hidden = false;
@@ -1684,7 +1708,7 @@ function renderRuleEditPane(pane, opts = {}) {
       }
     } catch (e) {
       testStatus.hidden = false;
-      testStatus.textContent = e instanceof Error ? e.message : 'Apply failed.';
+      testStatus.textContent = ruleApplyErrorMessage(e);
       syncApplyButton();
     } finally {
       applyBtn.disabled = false;
@@ -1922,13 +1946,10 @@ function bindRuleAutosave(rule, inputs, opts = {}) {
     let ok = false;
 
     try {
-      const res = await fetch(`/api/email/rules/${encodeURIComponent(rule.id)}`, {
+      const data = await fetchRulesApi(`/api/email/rules/${encodeURIComponent(rule.id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       // Relative TTL is write-time only — switch to absolute so autosave doesn't keep extending.
       if (ruleToggleOn(inputs.expireInToggle) && data.rule?.expiresAt) {
         setToggleSwitch(inputs.expireInToggle, false);
@@ -2019,13 +2040,10 @@ async function saveRule(id, inputs) {
     inputs.saveBtn.textContent = 'Saving…';
   }
   try {
-    const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+    const data = await fetchRulesApi(`/api/email/rules/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     ruleState.dirty = false;
     await loadRulesTab();
     openRuleEditor(id);
@@ -2087,12 +2105,14 @@ async function bulkDeleteRules(ids) {
           if (isCatalogRuleRecord(rule)) {
             await commitDisableRule(rule);
           } else {
-            const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
-              method: 'DELETE',
-              headers: { 'Content-Type': 'application/json' },
-              body: '{}',
-            });
-            if (!res.ok) continue;
+            try {
+              await fetchRulesApi(`/api/email/rules/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                body: '{}',
+              });
+            } catch {
+              continue;
+            }
           }
         } catch {
           /* continue */
@@ -2116,13 +2136,10 @@ function hideRulesLocally(ids) {
 
 async function commitDisableRule(rule) {
   const payload = ruleRecordToPayload(rule, { enabled: false });
-  const res = await fetch(`/api/email/rules/${encodeURIComponent(rule.id)}`, {
+  const data = await fetchRulesApi(`/api/email/rules/${encodeURIComponent(rule.id)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   syncRuleListItem(rule.id, payload, data.rule);
 }
 
@@ -2170,12 +2187,10 @@ async function deleteRule(id) {
     hide: () => removeRulesLocally([id]),
     restore: () => restoreRulesLocally([{ idx, rule }], { restoreId: wasActive ? id : null }),
     commit: async () => {
-      const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+      await fetchRulesApi(`/api/email/rules/${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
     },
     onCommitError: (e) => {
       alert(`Delete failed: ${e.message}`);
@@ -2232,17 +2247,10 @@ async function startNewRule(draft = null) {
         createProject: false,
       };
   try {
-    const res = await fetch('/api/email/rules', {
+    const data = await fetchRulesApi('/api/email/rules', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    const data = await res.json();
-    if (!res.ok) {
-      const err = new Error(data.error || `HTTP ${res.status}`);
-      if (data.colliding && typeof data.colliding === 'object') err.colliding = data.colliding;
-      throw err;
-    }
     ruleState.activeId = data.rule.id;
     ruleState.dirty = false;
     await loadRulesTab();
