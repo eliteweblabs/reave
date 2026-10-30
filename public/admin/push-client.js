@@ -25,6 +25,8 @@ let setupAlertResizeObs = null;
 let deferredInstallPrompt = null;
 /** Block SW register retries after deploy-window failures. */
 let swRegisterBlockedUntil = 0;
+/** Last register failure — surfaced when the user explicitly enables push. */
+let lastSwRegisterError = null;
 /** Only reload once when a new SW we requested actually took control. */
 let swUpdatePending = false;
 /** Avoid duplicate register/update listeners (push setup calls register too). */
@@ -323,10 +325,11 @@ function dismissAlert(key) {
   }
 }
 
-async function registerAdminServiceWorkerImpl() {
+async function registerAdminServiceWorkerImpl(opts = {}) {
+  const force = opts.force === true;
   if (!('serviceWorker' in navigator)) return null;
-  if (shouldSkipAdminBackgroundPoll()) return null;
-  if (swRegisterBlockedUntil > Date.now()) return null;
+  if (!force && shouldSkipAdminBackgroundPoll()) return null;
+  if (!force && swRegisterBlockedUntil > Date.now()) return null;
   if (swRegisterPromise) return swRegisterPromise;
   swRegisterPromise = (async () => {
   try {
@@ -374,9 +377,11 @@ async function registerAdminServiceWorkerImpl() {
       noteAdminNetworkFailure(e);
     }
     swRegisterBlockedUntil = 0;
+    lastSwRegisterError = null;
     return reg;
   } catch (e) {
     console.warn('[push] SW register failed', e);
+    lastSwRegisterError = e instanceof Error ? e : new Error(String(e));
     noteAdminNetworkFailure(e);
     swRegisterBlockedUntil = Date.now() + 60_000;
     swRegisterPromise = null;
@@ -384,6 +389,14 @@ async function registerAdminServiceWorkerImpl() {
   }
   })();
   return swRegisterPromise;
+}
+
+function serviceWorkerUnavailableMessage() {
+  const detail = lastSwRegisterError?.message?.trim();
+  if (detail) {
+    return `Notifications worker could not start (${detail}). Refresh /admin and try Enable notifications again.`;
+  }
+  return 'Service worker unavailable — refresh /admin and tap Enable notifications again.';
 }
 
 export const registerAdminServiceWorker = swDiag.wrapAsync(
@@ -1060,7 +1073,7 @@ async function syncPushSubscriptionWithServerImpl() {
   if (Notification.permission !== 'granted') return false;
   if (shouldSkipAdminBackgroundPoll()) return false;
 
-  const reg = await registerAdminServiceWorker();
+  const reg = await registerAdminServiceWorker({ force: true });
   if (!reg) return false;
 
   const sub = await reg.pushManager.getSubscription();
@@ -1086,8 +1099,8 @@ async function subscribeAdminPushImpl() {
   pushDiag.event('subscribeAdminPush', 'permission', { perm });
   if (perm !== 'granted') throw new Error(notificationBlockedHelp());
 
-  const reg = await registerAdminServiceWorker();
-  if (!reg) throw new Error('Service worker unavailable');
+  const reg = await registerAdminServiceWorker({ force: true });
+  if (!reg) throw new Error(serviceWorkerUnavailableMessage());
 
   const keyRes = await fetch('/api/push/vapid-public-key', { cache: 'no-store' });
   const keyData = await keyRes.json();
