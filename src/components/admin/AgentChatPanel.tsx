@@ -413,6 +413,32 @@ function useAgentRunStatus(
   return { isRunning: showRunning, label, elapsed, detailText, progress: activeProgress };
 }
 
+/** Server-side run without a local SSE stream (queued steer, tab switch, dropped socket). */
+function useServerRunActive(threadId: string, pollFast: boolean) {
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const status = await fetchRunProgress(threadId);
+        if (!cancelled) setActive(isChatRunActive(status));
+      } catch {
+        if (!cancelled) setActive(false);
+      }
+    };
+    void poll();
+    const intervalMs = pollFast ? 800 : 3_000;
+    const id = window.setInterval(() => void poll(), intervalMs);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [pollFast, threadId]);
+
+  return active;
+}
+
 function AgentRunStatusCopy({
   label,
   elapsed,
@@ -727,6 +753,8 @@ export type ChatHistoryTruncation = {
 export type ChatTurnNotice = {
   tone: 'info' | 'warn' | 'error';
   message: string;
+  /** Inline action on the banner (e.g. Stop while a server run is still going). */
+  action?: 'stop';
 };
 
 export type AgentChatPanelProps = {
@@ -881,6 +909,12 @@ async function syncAgentRunWithServer(
 ): Promise<void> {
   const status = await fetchRunProgress(threadId);
   propsRef.current?.onAgentRunChange?.(isChatRunActive(status));
+}
+
+async function cancelChatTurn(threadId: string): Promise<void> {
+  await fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, { method: 'POST' }).catch(
+    () => {},
+  );
 }
 
 async function fetchRunProgress(
@@ -1294,8 +1328,8 @@ function createChatAdapter(
         if (data.queued && data.userMessage?.content) {
           onTurnNoticeRef.current?.({
             tone: 'info',
-            message:
-              'Follow-up queued — it will run when the current turn finishes (or use Stop to cancel that turn).',
+            message: 'Follow-up queued — it will run when the current turn finishes.',
+            action: 'stop',
           });
           if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
           propsRef.current?.onLinkedJobsRefresh?.();
@@ -2764,9 +2798,7 @@ function ComposerStopButton({
       // working server-side and the thread later gains a reply the user
       // already told us to abandon.
       onClick={() => {
-        void fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, {
-          method: 'POST',
-        }).catch(() => {});
+        void cancelChatTurn(threadId);
       }}
     >
       Stop
@@ -2860,15 +2892,31 @@ function ChatHistoryTruncationBanner({ info }: { info: ChatHistoryTruncation | n
 
 function ChatTurnNoticeBanner({
   notice,
+  threadId,
   onDismiss,
+  onStopTurn,
 }: {
   notice: ChatTurnNotice | null;
+  threadId: string;
   onDismiss?: () => void;
+  onStopTurn?: () => void;
 }) {
   if (!notice) return null;
   return (
     <div className={`aui-chat-notice aui-chat-notice--${notice.tone}`} role="status">
       <p>{notice.message}</p>
+      {notice.action === 'stop' ? (
+        <button
+          type="button"
+          className="aui-chat-notice-action"
+          onClick={() => {
+            void cancelChatTurn(threadId);
+            onStopTurn?.();
+          }}
+        >
+          Stop
+        </button>
+      ) : null}
       {onDismiss ? (
         <button type="button" className="aui-chat-notice-dismiss" aria-label="Dismiss" onClick={onDismiss}>
           ×
@@ -2922,7 +2970,10 @@ function ClaudeComposer({
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const lastAssistantText = useAuiState((s) => lastAssistantMessageText(s.thread.messages));
   const replyOnScreen = lastAssistantText.trim().length > 0;
-  const showRunning = isRunning || Boolean(useExternalProgress);
+  const pollServerRunFast =
+    Boolean(turnNotice?.action === 'stop') || isRunning || Boolean(useExternalProgress);
+  const serverRunActive = useServerRunActive(threadId, pollServerRunFast);
+  const showRunning = isRunning || Boolean(useExternalProgress) || serverRunActive;
   // ComposerPrimitive.Send is itself disabled while isRunning. Once a reply is
   // visible, do not hard-lock our button — the user can interrupt and send.
   const sendBlocked = deployChatLocked || queuedSend || (showRunning && !replyOnScreen);
@@ -3022,7 +3073,12 @@ function ClaudeComposer({
 
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
-      <ChatTurnNoticeBanner notice={turnNotice} onDismiss={onDismissTurnNotice} />
+      <ChatTurnNoticeBanner
+        notice={turnNotice}
+        threadId={threadId}
+        onDismiss={onDismissTurnNotice}
+        onStopTurn={onDismissTurnNotice}
+      />
       {deployChatLocked ? (
         <div
           className={`aui-composer-deploy-lock${deployLiveReloading ? ' aui-composer-deploy-lock--live' : ''}`}
@@ -3345,11 +3401,7 @@ function useRecoverInFlightRun(
   onLocalRunAbandonedRef.current = onLocalRunAbandoned;
 
   const stopRecovery = useCallback(async () => {
-    try {
-      await fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, { method: 'POST' });
-    } catch {
-      /* ignore */
-    }
+    await cancelChatTurn(threadId);
     recoveringRef.current = false;
     setRecovering(false);
     setRecoveryProgress(null);

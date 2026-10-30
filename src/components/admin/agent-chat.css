@@ -598,6 +598,24 @@
   color: var(--fg-muted);
 }
 
+.aui-chat-notice-action {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 0 0.25rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.aui-chat-notice-action:hover {
+  text-decoration: underline;
+}
+
 .aui-chat-notice-dismiss {
   flex-shrink: 0;
   border: none;
