@@ -3,6 +3,7 @@
     "client_portal",
     "documents",
     "digital_signature",
+    "email_inbox",
     "scheduling",
     "portal_assistant",
     "online_reviews",
@@ -18,6 +19,7 @@
     "media",
     "knowledge",
     "chats",
+    "email",
     "work",
     "schedule",
     "clients"
@@ -38,6 +40,7 @@
     "client_portal": "deployed",
     "documents": "deployed",
     "digital_signature": "deployed",
+    "email_inbox": "deployed",
     "scheduling": "request",
     "portal_assistant": "deployed",
     "online_reviews": "request",
