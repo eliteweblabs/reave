@@ -494,6 +494,7 @@ function installFooterIncludesMapKey(mapKey) {
   const navSet = installFooterNavSet();
   if (!navSet) return true;
   if (mapKey === 'chats') return navSet.has('chats') || navSet.has('__chat__');
+  if ((mapKey === 'rules' || mapKey === 'email-triage') && navSet.has('email')) return true;
   return navSet.has(mapKey);
 }
 
@@ -504,7 +505,9 @@ function footerNavKeyAllowed(mapKey) {
   const providerMap = window.__installConfig?.footerNavProviders;
   const providers = providerMap?.[mapKey];
   if (!providerMap) {
-    if (mapKey === 'email') return emailInboxEnabled();
+    if (mapKey === 'email' || mapKey === 'rules' || mapKey === 'email-triage') {
+      return emailInboxEnabled();
+    }
     if (mapKey === 'schedule') return schedulingEnabled();
     if (mapKey === 'work') return hasInstallFeature('time_tracking');
     if (mapKey === 'social') return hasInstallFeature('social_inbox');
@@ -513,6 +516,13 @@ function footerNavKeyAllowed(mapKey) {
     return true;
   }
   if (!Array.isArray(providers) || !providers.length) return true;
+  if (
+    (mapKey === 'rules' || mapKey === 'email-triage') &&
+    emailInboxEnabled() &&
+    installFooterIncludesMapKey('email')
+  ) {
+    return true;
+  }
   return providers.some((id) => hasInstallFeature(id));
 }
 

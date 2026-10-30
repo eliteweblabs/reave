@@ -139,6 +139,18 @@ assert.ok(liteDash.some((c) => c.id === 'system' && c.mapKey === 'system'));
 assert.ok(!liteDash.some((c) => c.mapKey === 'todo'));
 assert.ok(!liteDash.some((c) => c.mapKey === 'knowledge'));
 assert.ok(!liteDash.some((c) => c.id === 'modules'));
+const luxFooterNav = ['__system__', 'dashboard', 'todo', 'email', 'clients'];
+const luxDash = dashboardCardsForFeatures(['email_inbox'], {
+  adminLite: true,
+  footerNav: luxFooterNav,
+});
+assert.ok(luxDash.some((c) => c.mapKey === 'rules' && c.title === 'Email Lab'));
+assert.ok(luxDash.some((c) => c.mapKey === 'email-triage'));
+assert.ok(
+  !dashboardCardsForFeatures([], { adminLite: true, footerNav: luxFooterNav }).some(
+    (c) => c.mapKey === 'rules',
+  ),
+);
 assert.doesNotMatch(
   FEATURE_BLURBS.documents,
   /\bsign/i,

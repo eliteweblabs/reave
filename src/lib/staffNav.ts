@@ -68,6 +68,11 @@ export function filterInstallConfigForStaff(
     if (STAFF_BLOCKED_NAV.has(card.mapKey) || STAFF_BLOCKED_NAV.has(card.id)) return false;
     if (card.id === 'modules' || card.mapKey === 'modules') return false;
     if (card.id === 'deploy' || card.mapKey === 'deploy') return false;
+    if (card.mapKey === 'rules' || card.mapKey === 'email-triage') {
+      return (
+        features.includes('email_inbox') && featureAllowsStaff('email_inbox', audienceOverride)
+      );
+    }
     // Feature-backed cards use feature id as card.id when from FEATURE_DASHBOARD
     if (FEATURE_ID_SET.has(card.id)) return featureAllowsStaff(card.id, audienceOverride);
     return STAFF_CORE_NAV.has(card.mapKey) || STAFF_CORE_NAV.has(card.id);

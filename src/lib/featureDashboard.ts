@@ -42,6 +42,9 @@ export const FEATURE_DASHBOARD: Partial<Record<FeatureId, FeatureDashboardDef>> 
   dscr_calculator: { dashboard: true, icon: 'calculator' },
 };
 
+/** Dashboard maps for Inbox Triage — shown when `email_inbox` is enabled (footer uses `email`). */
+export const EMAIL_INBOX_DASHBOARD_MAP_KEYS = new Set(['rules', 'email-triage']);
+
 /** Always-on OS surfaces that are not optional FeatureIds. */
 export const CORE_DASHBOARD_CARDS: readonly DashboardCard[] = [
   { id: 'system', title: 'System', icon: 'monitor', mapKey: 'system' },
@@ -79,6 +82,7 @@ export function footerNavShowsDashboardMap(
 ): boolean {
   const nav = new Set(footerNav);
   if (nav.has(mapKey)) return true;
+  if (EMAIL_INBOX_DASHBOARD_MAP_KEYS.has(mapKey) && nav.has('email')) return true;
   for (const [footerKey, aliasMapKey] of Object.entries(FOOTER_NAV_MAP_ALIASES)) {
     if (aliasMapKey === mapKey && nav.has(footerKey)) return true;
   }
@@ -110,6 +114,9 @@ export function dashboardCardsForFeatures(
   const cards: DashboardCard[] = [];
 
   for (const core of CORE_DASHBOARD_CARDS) {
+    if (EMAIL_INBOX_DASHBOARD_MAP_KEYS.has(core.mapKey) && !enabled.has('email_inbox')) {
+      continue;
+    }
     if (opts.adminLite && opts.footerNav) {
       if (!footerNavShowsDashboardMap(core.mapKey, opts.footerNav)) continue;
     }
