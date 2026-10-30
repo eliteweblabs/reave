@@ -7,7 +7,10 @@
     "scheduling",
     "portal_assistant",
     "online_reviews",
-    "vapi"
+    "vapi",
+    "billing",
+    "time_tracking",
+    "content_management"
   ],
   "footerNav": [
     "__system__",
@@ -22,7 +25,9 @@
     "email",
     "work",
     "schedule",
-    "clients"
+    "clients",
+    "reviews",
+    "finance"
   ],
   "profileMenu": [
     "profile",
@@ -44,7 +49,10 @@
     "scheduling": "request",
     "portal_assistant": "deployed",
     "online_reviews": "request",
-    "vapi": "request"
+    "vapi": "request",
+    "billing": "deployed",
+    "time_tracking": "deployed",
+    "content_management": "deployed"
   },
   "services": {
     "billing": { "enabled": true, "service": "crater" }

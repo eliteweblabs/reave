@@ -134,6 +134,10 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | `AGENT_ALERT_USER_ID` | Clerk user id (set via `--setup-owner`) |
 | `PUBLIC_CLERK_ALLOW_SIGN_UP` | `false` (after owner exists) |
 | `DATABASE_URL` | required at **build** time |
+| `CRATER_API_BASE_URL` | `https://${{ crater.RAILWAY_PUBLIC_DOMAIN }}` (optional custom: `ap.lux.cleaning`) |
+| `CRATER_API_TOKEN` | shared with the **crater** service |
+
+Sibling services (match rekko / PDX Paws billing stack): **crater** (`eliteweblabs/crater`) + **Postgres** for Crater DB. Enable `billing` in `config-luxe-cleaning.json` and keep **Finance** in footer nav.
 
 Every deploy runs **prebuild** → `scripts/sync-vapi-assistant.ts`. On the first build
 with `VAPI_API_KEY` set it **creates** the assistant, saves the id to `company_config`,
