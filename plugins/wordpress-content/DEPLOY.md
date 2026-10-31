@@ -13,7 +13,7 @@ stage: 2
 
 **WordPress™ Connect** — the reave.app companion plugin so the agent can update posts, pages, media, menus, and redirects on an existing WordPress site without wp-admin for every change.
 
-The PHP plugin lives in [`eliteweblabs/reave-connect`](https://github.com/eliteweblabs/reave-connect). This Reave module is the toggle, request flow, and agent tools. Reave Bridge is retired; its actions are Connect `exec_wp` actions.
+The PHP plugin lives in [`eliteweblabs/rekko-connect`](https://github.com/eliteweblabs/rekko-connect). This Reave module is the toggle, request flow, and agent tools. Reave Bridge is retired; its actions are Connect `exec_wp` actions.
 
 This is separate from `content_management` (Agentic Website Editor — Astro / GitHub / no CMS). Enable only for installs that keep WordPress as the public site.
 
@@ -31,7 +31,7 @@ Deployment owners request it (or toggle it if they are the install owner) in **A
 
 | Piece | Purpose |
 |-------|---------|
-| Reave Connect plugin | Install from [GitHub Releases](https://github.com/eliteweblabs/reave-connect/releases/latest) |
+| Reave Connect plugin | Install from [GitHub Releases](https://github.com/eliteweblabs/rekko-connect/releases/latest) |
 | `REAVE_WP_API_KEY` | Same value as the plugin’s API key (`X-Reave-Key`) |
 | `REAVE_WP_SITE_URL` | Optional default site URL so tools can omit `site_url` |
 | Optional: Kinsta (`dev_infra`) | `clear_kinsta_cache` after publish |

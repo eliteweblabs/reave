@@ -2,7 +2,7 @@
  * Per-install front-end website repo for the Agentic Website Editor.
  *
  * Client installs edit a dedicated repo in the agency GitHub account. They
- * cannot write to the reave.app repo (eliteweblabs/reave) or any other repo.
+ * cannot write to the reave.app repo (eliteweblabs/rekko) or any other repo.
  * Official / ops installs keep the existing app + sibling-repo tools.
  */
 import { normalizeRepoSlug, type GithubResult } from './githubClient';
@@ -31,7 +31,7 @@ function appRepoSlug(): string {
 export const GITHUB_WEBSITE_OWNER = 'eliteweblabs';
 
 /** Repos a client install must never edit — the reave.app itself. */
-export const PROTECTED_APP_REPOS = ['eliteweblabs/reave'] as const;
+export const PROTECTED_APP_REPOS = ['eliteweblabs/rekko'] as const;
 
 export function defaultWebsiteRepoSlug(installSlug: string): string {
   const slug = installSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site';
@@ -73,7 +73,7 @@ export function lockedWebsiteEditorRepo(opts: {
     return {
       ok: false,
       error:
-        'Website repo is not configured. Set websiteRepo in this install’s config or GITHUB_WEBSITE_REPO to the front-end repo (not eliteweblabs/reave).',
+        'Website repo is not configured. Set websiteRepo in this install’s config or GITHUB_WEBSITE_REPO to the front-end repo (not eliteweblabs/rekko).',
     };
   }
   if (isProtectedAppRepo(site)) {

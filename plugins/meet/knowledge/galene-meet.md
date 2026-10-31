@@ -1,6 +1,6 @@
 # Galene video meet
 
-Self-hosted [Galene](https://galene.org/) on Railway at **meet.{apex}** (service `galene`, monorepo root `galene-railway/` in `eliteweblabs/reave`).
+Self-hosted [Galene](https://galene.org/) on Railway at **meet.{apex}** (service `galene`, monorepo root `galene-railway/` in `eliteweblabs/rekko`).
 
 ## Auth
 

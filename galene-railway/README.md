@@ -19,9 +19,9 @@ See [docs/JITSI-ALTERNATIVE.md](docs/JITSI-ALTERNATIVE.md) if you need Jitsi any
 
 **Standalone repo:** fork or copy `galene-railway/` to its own GitHub repository, then:
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/eliteweblabs/reave&rootDirectory=galene-railway)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/eliteweblabs/rekko&rootDirectory=galene-railway)
 
-**From this monorepo:** Railway → New Service → GitHub → `eliteweblabs/reave` → set **Root Directory** to `galene-railway`.
+**From this monorepo:** Railway → New Service → GitHub → `eliteweblabs/rekko` → set **Root Directory** to `galene-railway`.
 
 ### Manual deploy
 

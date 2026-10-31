@@ -6,7 +6,7 @@
  *
  * GET /api/wp-update/reave-connect/download
  *
- * Source: https://github.com/eliteweblabs/reave-connect
+ * Source: https://github.com/eliteweblabs/rekko-connect
  * A GitHub Action on that repo rebuilds the zip on every push to main.
  */
 
@@ -16,7 +16,7 @@ import { clientIp } from '../../../../lib/clientIp';
 import { jsonResponse } from '../../../../lib/apiResponse';
 
 const GITHUB_RELEASE_ZIP =
-  'https://github.com/eliteweblabs/reave-connect/releases/latest/download/reave-connect.zip';
+  'https://github.com/eliteweblabs/rekko-connect/releases/latest/download/reave-connect.zip';
 
 export const GET: APIRoute = async ({ request }) => {
   const rate = checkInMemoryRateLimit(`wp-update:${clientIp(request)}`, {

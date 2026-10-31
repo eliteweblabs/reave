@@ -179,7 +179,7 @@ export type InstallConfig = {
   homepageTemplate?: HomepageTemplate;
   /**
    * Dedicated front-end website repo (`owner/repo`) for the Agentic Website Editor.
-   * Client installs may only commit here — never eliteweblabs/reave.
+   * Client installs may only commit here — never eliteweblabs/rekko.
    * Override with GITHUB_WEBSITE_REPO.
    */
   websiteRepo?: string;

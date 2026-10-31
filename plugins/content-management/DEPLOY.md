@@ -7,7 +7,7 @@
 
 The owner updates their **public front-end website** by asking the agent — no WordPress, no Webflow, no separate CMS login. This module owns **Git publish** (`write_github_file`, `read_github_file`, `undo_website_change`).
 
-The website is **its own GitHub repo** in the agency account (usually `eliteweblabs/{slug}-site`). Client installs are locked to that repo. They cannot edit `eliteweblabs/reave` — only the agency owner on the official reave.app install can change the app.
+The website is **its own GitHub repo** in the agency account (usually `eliteweblabs/{slug}-site`). Client installs are locked to that repo. They cannot edit `eliteweblabs/rekko` — only the agency owner on the official reave.app install can change the app.
 
 Railway / Kinsta APIs are **not** part of this module. Those stay on the private `dev_infra` pack.
 
@@ -23,7 +23,7 @@ Railway / Kinsta APIs are **not** part of this module. Those stay on the private
 
 Or set `GITHUB_WEBSITE_REPO=eliteweblabs/your-brand-site` on the Railway service.
 
-Tony-style installs (public site not in the reave.app) need this repo + token before the editor can do anything. Do not point them at `eliteweblabs/reave`.
+Tony-style installs (public site not in the reave.app) need this repo + token before the editor can do anything. Do not point them at `eliteweblabs/rekko`.
 
 ## Required env
 

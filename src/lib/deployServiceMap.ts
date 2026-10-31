@@ -17,7 +17,7 @@ function norm(s: string | undefined): string {
 
 /**
  * Resolve which GitHub repo a Railway deploy failure belongs to.
- * Falls back to GITHUB_REPO / eliteweblabs/reave for the main Astro service.
+ * Falls back to GITHUB_REPO / eliteweblabs/rekko for the main Astro service.
  */
 export function resolveDeployTarget(opts: {
   project?: string;
@@ -31,7 +31,7 @@ export function resolveDeployTarget(opts: {
 
   if (proj.includes('paulino') || svc.includes('paulino') || blob.includes('paulino-wizard')) {
     return {
-      repo: 'eliteweblabs/paulino-wizard',
+      repo: 'eliteweblabs/rekko-dealership-wizard',
       healthUrl: serverEnv('PAULINO_WIZARD_API_BASE_URL')?.trim()?.replace(/\/?$/, '/') ||
         'https://paulino-wizard-production.up.railway.app/',
     };
@@ -79,7 +79,7 @@ export function resolveDeployTarget(opts: {
   const explicit = serverEnv('GITHUB_REPO')?.trim();
   const health = serverEnv('DEPLOY_HEALTH_URL')?.trim();
   return {
-    repo: explicit || 'eliteweblabs/reave',
+    repo: explicit || 'eliteweblabs/rekko',
     healthUrl: health ? health.replace(/\/?$/, '/') : undefined,
   };
 }

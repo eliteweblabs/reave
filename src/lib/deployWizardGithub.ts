@@ -92,7 +92,7 @@ export async function provisionClientWebsiteGitHub(opts: {
   if (!canWrite) {
     return {
       ok: false,
-      error: `GitHub App cannot write ${siteRepo}. On the App install screen choose Only select repositories and pick ${siteRepo} — not eliteweblabs/reave.`,
+      error: `GitHub App cannot write ${siteRepo}. On the App install screen choose Only select repositories and pick ${siteRepo} — not eliteweblabs/rekko.`,
     };
   }
 

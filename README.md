@@ -2,7 +2,7 @@
 
 A modern website with integrated Vapi voice chat functionality, allowing visitors to interact with an AI assistant through voice commands.
 
-**Where does the code live?** GitHub (`eliteweblabs/reave`) is the source of truth; Railway deploys from that repo. See [GITHUB_AND_RAILWAY.md](GITHUB_AND_RAILWAY.md) for clone, `git pull`, and optional Railway CLI usage.
+**Where does the code live?** GitHub (`eliteweblabs/rekko`) is the source of truth; Railway deploys from that repo. See [GITHUB_AND_RAILWAY.md](GITHUB_AND_RAILWAY.md) for clone, `git pull`, and optional Railway CLI usage.
 
 ## 🎤 Voice Chat Feature
 

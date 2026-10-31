@@ -48,9 +48,9 @@ import type { AgentToolModule } from './types';
  *
  * WordPress remote management (`exec_wp`) lives in `core/wp.ts` — enabled when
  * the `wordpress_content` add-on is on and REAVE_WP_API_KEY is set.
- * Calls the Reave Connect plugin REST API (https://github.com/eliteweblabs/reave-connect).
+ * Calls the Reave Connect plugin REST API (https://github.com/eliteweblabs/rekko-connect).
  * Dedicated wp_* content tools live in `plugins/wordpress-content/`.
- * Plugin auto-updates from https://reave.app/api/wp-update/reave-connect/
+ * Plugin auto-updates from https://rekko.studio/api/wp-update/reave-connect/
  *
  * Deploy resume (`set_deploy_resume` / `clear_deploy_resume`) lives in
  * `core/deployResume.ts` — always-on when DATABASE_URL is configured. Lets the

@@ -13,8 +13,8 @@ import {
 
 assert.equal(defaultWebsiteRepoSlug('Tony Barletta Jr.'), 'eliteweblabs/tonybarlettajr-site');
 assert.equal(defaultWebsiteRepoSlug('barbersedge'), 'eliteweblabs/barbersedge-site');
-assert.equal(isProtectedAppRepo('eliteweblabs/reave'), true);
-assert.equal(isProtectedAppRepo('https://github.com/eliteweblabs/reave.git'), true);
+assert.equal(isProtectedAppRepo('eliteweblabs/rekko'), true);
+assert.equal(isProtectedAppRepo('https://github.com/eliteweblabs/rekko.git'), true);
 assert.equal(isProtectedAppRepo('eliteweblabs/barbersedge-site'), false);
 
 const clientOk = lockedWebsiteEditorRepo({
@@ -27,13 +27,13 @@ if (clientOk.ok) assert.equal(clientOk.data, 'eliteweblabs/tonybarlettajr-site')
 const clientRejectReave = lockedWebsiteEditorRepo({
   opsInstall: false,
   websiteRepo: 'eliteweblabs/tonybarlettajr-site',
-  requested: 'eliteweblabs/reave',
+  requested: 'eliteweblabs/rekko',
 });
 assert.equal(clientRejectReave.ok, false);
 
 const clientMisconfigured = lockedWebsiteEditorRepo({
   opsInstall: false,
-  websiteRepo: 'eliteweblabs/reave',
+  websiteRepo: 'eliteweblabs/rekko',
 });
 assert.equal(clientMisconfigured.ok, false);
 
@@ -45,11 +45,11 @@ assert.equal(clientUnset.ok, false);
 
 const opsSibling = lockedWebsiteEditorRepo({
   opsInstall: true,
-  websiteRepo: 'eliteweblabs/reave',
-  requested: 'eliteweblabs/paulino-wizard',
+  websiteRepo: 'eliteweblabs/rekko',
+  requested: 'eliteweblabs/rekko-dealership-wizard',
 });
 assert.equal(opsSibling.ok, true);
-if (opsSibling.ok) assert.equal(opsSibling.data, 'eliteweblabs/paulino-wizard');
+if (opsSibling.ok) assert.equal(opsSibling.data, 'eliteweblabs/rekko-dealership-wizard');
 
 assert.equal(
   normalizeGithubAppPrivateKey('"-----BEGIN KEY-----\\nABC\\n-----END KEY-----"'),

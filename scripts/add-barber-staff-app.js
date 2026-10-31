@@ -12,7 +12,7 @@ import { upsertRailwayVars, resolveBarberSiteService } from './barber-railway-en
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
 const POSTGRES_IMAGE = 'ghcr.io/railwayapp-templates/postgres-ssl:edge';
 const POSTGRES_VOLUME = '/var/lib/postgresql/data';
-const REAVE_REPO = 'eliteweblabs/reave';
+const REAVE_REPO = 'eliteweblabs/rekko';
 
 function token(name) {
   const t = process.env[name]?.trim();

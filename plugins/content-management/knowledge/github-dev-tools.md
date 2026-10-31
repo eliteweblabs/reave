@@ -9,7 +9,7 @@ The Agentic Website Editor writes files via the GitHub REST API. Read-only statu
 | Install | What you may edit |
 |---------|-------------------|
 | **Client** (`website` / `content_management`, not ops) | Only `websiteRepo` / `GITHUB_WEBSITE_REPO` (usually `eliteweblabs/{slug}-site`). Tools ignore other `repo` arguments. No `create_github_repo`. |
-| **Ops / official reave.app** | This app (`eliteweblabs/reave`) plus named sibling services. You provision each client’s front-end repo. |
+| **Ops / official reave.app** | This app (`eliteweblabs/rekko`) plus named sibling services. You provision each client’s front-end repo. |
 
 Client installs do **not** get a PAT. GitHub cannot create PATs via API. The deploy wizard creates a **restricted GitHub App** for `eliteweblabs/{slug}-site` (`GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY`) and mints a 1-hour Contents token scoped to that repo on each write. Do not copy the official reave.app `GITHUB_TOKEN` onto a client.
 
@@ -25,7 +25,7 @@ On a deployed container there is often no git binary and no `.git` checkout, so 
 | `GITHUB_REPO` | App / Railway service repo (reave.app). **Not** the client website target. |
 | `websiteRepo` | Same as `GITHUB_WEBSITE_REPO`, in `config/config-{slug}.json` |
 
-**GitHub App permissions (client website editor):** Contents read+write, Metadata read. Installation: selected repositories only — never `eliteweblabs/reave`.
+**GitHub App permissions (client website editor):** Contents read+write, Metadata read. Installation: selected repositories only — never `eliteweblabs/rekko`.
 
 **Host `GITHUB_TOKEN` (ops / wizard Apply):** classic PAT with `repo` scope so Apply can create `{slug}-site` and add it to the App. Do **not** put that PAT on a client install.
 
@@ -44,7 +44,7 @@ On a deployed container there is often no git binary and no `.git` checkout, so 
 
 ## Provisioning a client website repo (ops)
 
-Use the deploy wizard Apply (website / content_management on). It creates `eliteweblabs/{slug}-site`, then GitHub’s App manifest flow creates a restricted App installed on that repo only, and writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO`. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create and attach the repo. Never install that App on `eliteweblabs/reave`.
+Use the deploy wizard Apply (website / content_management on). It creates `eliteweblabs/{slug}-site`, then GitHub’s App manifest flow creates a restricted App installed on that repo only, and writes `GITHUB_APP_*` + `GITHUB_WEBSITE_REPO`. Host `GITHUB_TOKEN` must be a classic PAT with `repo` scope so Apply can create and attach the repo. Never install that App on `eliteweblabs/rekko`.
 
 ## Tools
 
@@ -96,5 +96,5 @@ Create a new GitHub repository under a user or org account.
 
 - Path must not contain `..` (no directory traversal).
 - Large files: GitHub Contents API is for normal source files, not binaries or huge blobs.
-- Client tools refuse `eliteweblabs/reave` and any repo other than `websiteRepo`.
+- Client tools refuse `eliteweblabs/rekko` and any repo other than `websiteRepo`.
 - If `GITHUB_TOKEN` is missing or read-only, tools return an error — tell the owner the agency needs to fix the token (do not ask them to create a PAT).

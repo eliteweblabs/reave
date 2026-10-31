@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Point local .env at Reave App production (reave.app) using public URLs reachable from your Mac.
-# Reave Demo is a separate Railway project with its own empty databases — do not use it for local dev parity.
+# Point local .env at hub production (rekko.studio) using public URLs reachable from your Mac.
+# Client/demo Railway projects have their own databases — do not use them for local dev parity.
 #
 # Usage (from repo root):
 #   npm run sync:env
@@ -15,13 +15,13 @@ if ! command -v railway >/dev/null 2>&1; then
   exit 1
 fi
 
-# Reave App — production at reave.app (see GITHUB_AND_RAILWAY.md)
-REAVE_APP_PROJECT="${REAVE_APP_PROJECT_ID:-af65eb9a-b11c-4c1c-8030-66b4347dcf71}"
-REAVE_APP_ENV="${REAVE_APP_ENVIRONMENT:-production}"
+# Hub — production at rekko.studio (see GITHUB_AND_RAILWAY.md)
+HUB_PROJECT="${REAVE_APP_PROJECT_ID:-af65eb9a-b11c-4c1c-8030-66b4347dcf71}"
+HUB_ENV="${REAVE_APP_ENVIRONMENT:-production}"
 
-echo "Pulling Reave App ($REAVE_APP_ENV) variables…"
-railway variable list -k -p "$REAVE_APP_PROJECT" -e "$REAVE_APP_ENV" -s reave > .env.railway
-railway variable list -k -p "$REAVE_APP_PROJECT" -e "$REAVE_APP_ENV" -s reave-postgres > .env.railway.postgres
+echo "Pulling hub ($HUB_ENV) variables…"
+railway variable list -k -p "$HUB_PROJECT" -e "$HUB_ENV" -s reave > .env.railway
+railway variable list -k -p "$HUB_PROJECT" -e "$HUB_ENV" -s reave-postgres > .env.railway.postgres
 
 ENV_FILE=".env"
 touch "$ENV_FILE"
@@ -63,7 +63,7 @@ if [[ -n "$CONTACT_KEY" ]]; then
   upsert_env "CONTACT_API_KEY" "$CONTACT_KEY"
 fi
 
-# Other production keys — always refresh so local matches reave.app.
+# Other production keys — always refresh so local matches rekko.studio hub.
 SYNC_KEYS=(
   FEATURES
   PUBLIC_BOOKING_API_URL
@@ -103,6 +103,6 @@ for key in "${SYNC_KEYS[@]}"; do
 done
 
 echo ""
-echo "Done — $ENV_FILE now targets Reave App production (reave.app)."
+echo "Done — $ENV_FILE now targets hub production (rekko.studio)."
 echo "DATABASE_URL uses the public Postgres proxy; never use npm run dev:railway (it overrides with internal URLs)."
 echo "Restart: npm run dev"

@@ -406,8 +406,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     id: DEPLOY_APP_SERVICE,
     label: 'Reave app',
     kind: 'app',
-    description: 'Astro site + admin + APIs. Connect eliteweblabs/reave.',
-    repo: 'eliteweblabs/reave',
+    description: 'Astro site + admin + APIs. Connect eliteweblabs/rekko.',
+    repo: 'eliteweblabs/rekko',
   },
   {
     id: DEPLOY_APP_POSTGRES,
@@ -453,8 +453,8 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     id: 'galene',
     label: 'Galene',
     kind: 'api',
-    description: 'Video meetings at meet.{apex}. Connect eliteweblabs/reave with root directory galene-railway.',
-    repo: 'eliteweblabs/reave',
+    description: 'Video meetings at meet.{apex}. Connect eliteweblabs/rekko with root directory galene-railway.',
+    repo: 'eliteweblabs/rekko',
     features: ['video_meet'],
   },
   {
@@ -520,7 +520,7 @@ export const DEPLOY_WIZARD_SERVICES: readonly DeployWizardService[] = [
     label: 'paulino-wizard',
     kind: 'api',
     description: 'Dealership inventory and deal flow. Same-project name still works for refs.',
-    repo: 'eliteweblabs/paulino-wizard',
+    repo: 'eliteweblabs/rekko-dealership-wizard',
     features: ['dealership_wizard'],
   },
   {

@@ -16,12 +16,12 @@
    ```sh
    npm run dev
    ```
-3. **Ship changes** — commit, push to GitHub; Railway auto-deploys from the repo Railway has connected (this project: `eliteweblabs/reave` → **Reave App** / **Astro** on Railway).
+3. **Ship changes** — commit, push to GitHub; Railway auto-deploys from the repo Railway has connected (this project: `eliteweblabs/rekko` → **re>I<o studio** / service **`reave`** on Railway).
 
 ## First-time clone (new folder)
 
 ```sh
-git clone https://github.com/eliteweblabs/reave.git
+git clone https://github.com/eliteweblabs/rekko.git
 cd reave
 git submodule update --init cmspeak   # optional: agent CMS — see docs/cmspeak.md
 npm ci
@@ -37,7 +37,7 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
   ```sh
   railway link -p af65eb9a-b11c-4c1c-8030-66b4347dcf71 -e production -s 0ef02496-5250-4314-a079-34a4c399f430
   ```
-  (IDs are for **Reave App** → **production** → **Astro**; you can also run `railway link` interactively.)
+  (IDs are for **re>I<o studio** → **production** → **`reave`**; you can also run `railway link` interactively.)
 
 - **Run dev with production env injected** (no file copy):
   ```sh
@@ -51,22 +51,22 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
   ```
   Then merge what you need into `.env` for offline work, or run:
   ```sh
-  npm run sync:env      # pulls Reave App (reave.app) prod keys + public DATABASE_URL
+  npm run sync:env      # pulls hub (rekko.studio) prod keys + public DATABASE_URL
   ```
   Local dev uses `PUBLIC_BOOKING_API_URL` for Cal.com (not the Railway-private `BOOKING_API_URL`).
 
-  **Important:** Local dev should target **Reave App** production (`reave.app`), not the live demo install. Always run `npm run sync:env` so `.env` uses Reave App’s public Postgres proxy.
+  **Important:** Local dev should target **hub** production (`rekko.studio`), not a client install. Always run `npm run sync:env` so `.env` uses the hub’s public Postgres proxy.
 
-## Reave Demo (live sandbox)
+## Demo install (live sandbox)
 
-Separate Railway project — **not** production. Do not point `npm run sync:env` at this project.
+Separate Railway project when configured — **not** production. Do not point `npm run sync:env` at a client or demo project.
 
-| | Reave App (production) | Reave Demo (sandbox) |
+| | Hub (production) | Demo (sandbox) |
 |---|---|---|
-| Project | **reave.app Automation** `af65eb9a-b11c-4c1c-8030-66b4347dcf71` | **reave.app App Demo** `350f3d35-6afc-47a4-bcf5-d9753abb78f2` |
-| Service | `reave` `0ef02496-5250-4314-a079-34a4c399f430` | `reave` `38902411-adf1-48ca-bff9-8346390897f9` |
-| Public URL | `https://reave.app` | `https://demo.reave.app` (custom) · `https://reave-production-e6ab.up.railway.app` (Railway) |
-| Config | `INSTALL_CONFIG=production` | `INSTALL_CONFIG=demo`, `DEMO_MODE=1` |
+| Project | **re>I<o studio** `af65eb9a-b11c-4c1c-8030-66b4347dcf71` | (per-install demo project) |
+| Service | `reave` `0ef02496-5250-4314-a079-34a4c399f430` | `reave` (same repo: `eliteweblabs/rekko`) |
+| Public URL | `https://rekko.studio` (legacy `reave.app` redirects) | e.g. `https://demo.rekko.studio` |
+| Config | `INSTALL_CONFIG=reave` | `INSTALL_CONFIG=demo`, `DEMO_MODE=1` |
 
 CLI (must pass `--project` so you do not hit production):
 

@@ -1,6 +1,6 @@
 # WordPress™ Connect — agent edits on WordPress
 
-When the **WordPress™ Connect** module (`wordpress_content`) is on and `REAVE_WP_API_KEY` is set, manage the site through [Reave Connect](https://github.com/eliteweblabs/reave-connect) — not wp-admin clicks, SSH, or direct DB edits.
+When the **WordPress™ Connect** module (`wordpress_content`) is on and `REAVE_WP_API_KEY` is set, manage the site through [Reave Connect](https://github.com/eliteweblabs/rekko-connect) — not wp-admin clicks, SSH, or direct DB edits.
 
 The PHP plugin is the only companion. Reave Bridge is retired; every Bridge capability is an `exec_wp` action here.
 
@@ -64,7 +64,7 @@ Use these to inject analytics (Plausible, GA4, etc.) or any `<head>` snippet wit
 
 ## Scope
 
-- **This module:** WordPress™ sites with [Reave Connect](https://github.com/eliteweblabs/reave-connect) installed
+- **This module:** WordPress™ sites with [Reave Connect](https://github.com/eliteweblabs/rekko-connect) installed
 - **Not this module:** Astro / GitHub site edits — that is `content_management` (Agentic Website Editor)
 
 ## Hosting

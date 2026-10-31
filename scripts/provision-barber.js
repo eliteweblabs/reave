@@ -404,7 +404,7 @@ async function main() {
         'postgresql://${{POSTGRES_USER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{POSTGRES_DB}}',
     });
     const appSvc = await createService(project.id, appName, {
-      repo: 'eliteweblabs/reave',
+      repo: 'eliteweblabs/rekko',
       branch: 'main',
     });
     const appDomain = await ensurePublicDomain(project.id, environmentId, appSvc.id);

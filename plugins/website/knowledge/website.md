@@ -15,7 +15,7 @@ This install’s **web tools** are the client Website module. Use them to edit t
 
 ## What you do not have
 
-- Access to `eliteweblabs/reave` or any other repo
+- Access to `eliteweblabs/rekko` or any other repo
 - Railway deploy/log API (`RAILWAY_API_TOKEN`)
 - Kinsta WordPress hosting API
 - Cloudflare DNS/SSL API

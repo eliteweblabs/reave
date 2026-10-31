@@ -11,7 +11,7 @@ Reave’s **`content_management`** plugin is different: Git publish to the websi
 CMSpeak is a **git submodule** in this repo:
 
 ```sh
-git clone https://github.com/eliteweblabs/reave.git
+git clone https://github.com/eliteweblabs/rekko.git
 cd reave
 git submodule update --init --recursive
 ```

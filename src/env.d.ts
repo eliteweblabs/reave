@@ -134,7 +134,7 @@ interface ImportMetaEnv {
   GITHUB_TOKEN?: string;
   /** Optional alias for GITHUB_TOKEN. */
   GH_TOKEN?: string;
-  /** Optional owner/repo override for status tools (default: eliteweblabs/reave). */
+  /** Optional owner/repo override for status tools (default: eliteweblabs/rekko). */
   GITHUB_REPO?: string;
   /** Dedicated front-end website repo for the Agentic Website Editor (`owner/repo`). Client installs are locked to this repo. */
   GITHUB_WEBSITE_REPO?: string;

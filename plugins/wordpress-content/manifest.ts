@@ -3,7 +3,7 @@ import type { ReavePlugin } from '../_shared/types';
 
 /**
  * WordPress™ Connect — requestable add-on. PHP lives in
- * https://github.com/eliteweblabs/reave-connect
+ * https://github.com/eliteweblabs/rekko-connect
  */
 export const wordpressContentPlugin: ReavePlugin = {
   id: 'wordpress-content',

@@ -1,5 +1,5 @@
 /**
- * eliteweblabs/paulino-wizard — dealership inventory, leads, and test drives.
+ * eliteweblabs/rekko-dealership-wizard — dealership inventory, leads, and test drives.
  * Deployed on Railway (Paulino Auto Group project).
  */
 import { serverEnv } from './serverEnv';

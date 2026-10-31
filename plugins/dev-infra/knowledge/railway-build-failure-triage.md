@@ -6,7 +6,7 @@ When a deploy failure alert fires (webhook or email), follow this playbook **in 
 
 | Railway project / service | GitHub repo | Health URL |
 |---------------------------|-------------|------------|
-| Reave App / astro (default) | `eliteweblabs/reave` | `https://reave.app/` |
+| Reave App / astro (default) | `eliteweblabs/rekko` | `https://reave.app/` |
 | Reave App / materials-api | `eliteweblabs/materials-api` | `$MATERIALS_API_BASE_URL/health` |
 | Reave App / fleet-api | `eliteweblabs/fleet-api` | `$FLEET_API_BASE_URL/health` |
 | Reave App / contact-api | `eliteweblabs/contact-api` | `$CONTACT_API_BASE_URL/health` |

@@ -3,7 +3,7 @@
  *
  * The deployed assistant runs on Railway from a built `dist/` with no local git
  * repo, so "is this committed / pushed?" must be answered against GitHub — the
- * source of truth (eliteweblabs/reave). Auth is a personal access token
+ * source of truth (eliteweblabs/rekko). Auth is a personal access token
  * (`GITHUB_TOKEN`). Read-only status tools need Contents + Metadata; write tools
  * also need Contents: write and Pull requests: write. Public repos work
  * token-less for reads but are heavily rate limited.
@@ -755,7 +755,7 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
     note = 'Token can push — write_github_file and create_pull_request should work.';
   } else if (tokenType(tok) === 'fine-grained') {
     note =
-      `Fine-grained PAT is read-only on this repo. In GitHub → Developer settings → Fine-grained tokens: grant Contents read+write on ${slug} only (client website editor must not include eliteweblabs/reave). Then update GITHUB_TOKEN on Railway.`;
+      `Fine-grained PAT is read-only on this repo. In GitHub → Developer settings → Fine-grained tokens: grant Contents read+write on ${slug} only (client website editor must not include eliteweblabs/rekko). Then update GITHUB_TOKEN on Railway.`;
   } else {
     note = 'Token is read-only on this repo — use a classic PAT with repo scope, or upgrade fine-grained permissions.';
   }

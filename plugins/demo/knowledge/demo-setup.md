@@ -17,7 +17,7 @@ Demo data is **CLI-driven** via `npm run seed:demo` (same logic the API/agent ca
 ### 1. Create the project
 
 - New Railway project (separate from production **Reave App**)
-- Connect GitHub repo `eliteweblabs/reave` → deploy **Astro** service from `Dockerfile`
+- Connect GitHub repo `eliteweblabs/rekko` → deploy **Astro** service from `Dockerfile`
 - Add **Postgres** plugin → copy `DATABASE_URL` to Astro vars
 
 ### 2. Sibling services (minimum)

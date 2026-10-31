@@ -2,7 +2,7 @@
 
 When the owner asks to **update their public website** — headline, navigation, page copy, or images — handle it in chat. There is no separate CMS admin.
 
-**Client installs do not edit the reave.app.** Each install has its own front-end website repo in the agency GitHub account (`websiteRepo` / `GITHUB_WEBSITE_REPO`, usually `eliteweblabs/{slug}-site`). Tools are locked to that repo. Only the agency owner (official reave.app / ops) can change `eliteweblabs/reave`.
+**Client installs do not edit the reave.app.** Each install has its own front-end website repo in the agency GitHub account (`websiteRepo` / `GITHUB_WEBSITE_REPO`, usually `eliteweblabs/{slug}-site`). Tools are locked to that repo. Only the agency owner (official reave.app / ops) can change `eliteweblabs/rekko`.
 
 ## Always commit this turn
 
@@ -31,7 +31,7 @@ Call `undo_website_change`. Saying undo again undoes the undo.
 | Confirm it is live | `check_deployment_status` |
 | Stock photos | `search_stock_photos` (Pexels, when configured) |
 
-Writes use this install’s **GitHub App** (copied by the deploy wizard). Tokens are minted for the website repo only — never `eliteweblabs/reave`. Railway / Kinsta APIs are **not** required.
+Writes use this install’s **GitHub App** (copied by the deploy wizard). Tokens are minted for the website repo only — never `eliteweblabs/rekko`. Railway / Kinsta APIs are **not** required.
 
 ## Where website content lives
 
