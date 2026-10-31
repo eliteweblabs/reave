@@ -230,10 +230,13 @@ const showOverlayFooter =
 </OverlayMenu>
 
 <script define:vars={{ assetVersion: __PUBLIC_ASSET_VERSION__ }}>
-  import { getMarketingOverlay, setOverlayMenuOpen } from "../lib/overlayMenuDom";
+  function getMarketingOverlay() {
+    return document.querySelector("[data-marketing-menu]");
+  }
 
-  function setMarketingMenuOpen(open: boolean) {
-    setOverlayMenuOpen(getMarketingOverlay(), open);
+  function setMarketingMenuOpen(open) {
+    const root = getMarketingOverlay();
+    window.__setOverlayMenuOpen?.(root, open);
   }
 
   function bindMarketingMenu() {

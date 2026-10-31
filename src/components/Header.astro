@@ -1919,14 +1919,19 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
      * need toggle + sign-out; settings links are real /admin/?tab=… anchors
      * so they navigate even when the map SPA is not loaded. On /admin/,
      * os-map-loader intercepts those anchors for in-app tab switches.
+     *
+     * No static import here — define:vars inlines this script; use overlay globals
+     * from OverlayMenu.astro (installOverlayMenuGlobals).
      */
-    import { getAccountOverlay, setOverlayMenuOpen } from "../lib/overlayMenuDom";
+    function getAccountOverlay() {
+      return document.getElementById("topbar-profile-menu");
+    }
 
-    function setAccountMenuOpen(open: boolean) {
+    function setAccountMenuOpen(open) {
       const menu = getAccountOverlay();
       const toggle = document.getElementById("topbar-profile-toggle");
       if (!menu || !toggle) return;
-      setOverlayMenuOpen(menu, open);
+      window.__setOverlayMenuOpen?.(menu, open);
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
     }
 
@@ -1952,7 +1957,8 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
       }
 
       profileMenu?.querySelectorAll("[data-account-menu-link]").forEach((el) => {
-        const link = el as HTMLElement;
+        if (!(el instanceof HTMLElement)) return;
+        const link = el;
         if (link.dataset.headerCloseBound) return;
         link.dataset.headerCloseBound = "1";
         // Close only — do not set dataset.bound. The map SPA still needs to
