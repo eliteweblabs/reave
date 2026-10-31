@@ -32,10 +32,14 @@ const {
   eager = false,
 } = Astro.props;
 const company = heroChat ? await getCompanyConfig(Astro.request) : null;
+const installApex =
+  serverEnv("PUBLIC_SITE_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||
+  serverEnv("COMPANY_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||
+  "";
 const bookingApiUrl =
   serverEnv("PUBLIC_BOOKING_API_URL")?.trim() ||
   import.meta.env.PUBLIC_BOOKING_API_URL ||
-  "";
+  (installApex ? `https://book.${installApex}` : "");
 const rootClass = [
   "conversational-form-root",
   embedded || dock ? "conversational-form-root--embedded" : "",
