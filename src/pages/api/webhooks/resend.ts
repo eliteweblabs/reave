@@ -1,20 +1,25 @@
 /**
  * POST /api/webhooks/resend
  *
- * Receives email.bounced and email.complained events from Resend.
+ * Receives email.delivered, email.bounced, and email.complained events from Resend.
  * Verifies the svix signature using RESEND_WEBHOOK_SECRET (same secret as inbound).
- * On match: marks the contact's notes with a timestamped bounce entry and fires an
- * admin push alert so the owner sees it immediately on the dashboard / phone.
+ * Delivered: marks the outbound Sent log when the recipient mail server accepts the message.
+ * Bounce/complaint: contact note + admin push alert.
  *
  * Configure in Resend dashboard → Webhooks → Add endpoint:
  *   URL:    https://reave.app/api/webhooks/resend
- *   Events: email.bounced, email.complained
+ *   Events: email.delivered, email.bounced, email.complained
  */
 
 import type { APIRoute } from 'astro';
 import { Resend } from 'resend';
 import { serverEnv } from '../../../lib/serverEnv';
 import { handleResendBounceEvent, type ResendBounceEvent } from '../../../lib/resendBounceHandler';
+import { resendWebhookSecrets, verifyResendWebhookEvent } from '../../../lib/resendWebhookVerify';
+import {
+  handleResendDeliveredEvent,
+  type ResendDeliveredEvent,
+} from '../../../lib/resendDeliveredHandler';
 
 export const prerender = false;
 
@@ -22,9 +27,8 @@ export const GET: APIRoute = async () => new Response(null, { status: 404 });
 
 export const POST: APIRoute = async ({ request }) => {
   const apiKey = serverEnv('RESEND_API_KEY');
-  const secret = serverEnv('RESEND_WEBHOOK_SECRET');
 
-  if (!apiKey?.trim() || !secret?.trim()) {
+  if (!apiKey?.trim() || !resendWebhookSecrets().length) {
     return new Response(
       JSON.stringify({ ok: false, error: 'RESEND_API_KEY / RESEND_WEBHOOK_SECRET not configured' }),
       { status: 503, headers: { 'Content-Type': 'application/json' } },
@@ -37,15 +41,11 @@ export const POST: APIRoute = async ({ request }) => {
 
   let event: { type: string; data: unknown };
   try {
-    event = resend.webhooks.verify({
-      payload,
-      headers: {
-        id: request.headers.get('svix-id') ?? '',
-        timestamp: request.headers.get('svix-timestamp') ?? '',
-        signature: request.headers.get('svix-signature') ?? '',
-      },
-      webhookSecret: secret,
-    }) as { type: string; data: unknown };
+    event = verifyResendWebhookEvent(resend, payload, {
+      id: request.headers.get('svix-id') ?? '',
+      timestamp: request.headers.get('svix-timestamp') ?? '',
+      signature: request.headers.get('svix-signature') ?? '',
+    });
   } catch (e) {
     console.warn('[resend-webhook] signature verification failed', e);
     return new Response(JSON.stringify({ ok: false, error: 'invalid signature' }), {
@@ -55,6 +55,23 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const { type } = event;
+
+  if (type === 'email.delivered') {
+    try {
+      const result = await handleResendDeliveredEvent(event as ResendDeliveredEvent);
+      console.info('[resend-webhook] delivered handled', result);
+      return new Response(JSON.stringify({ ok: true, ...result }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (e) {
+      console.error('[resend-webhook] delivered handler error', e);
+      return new Response(JSON.stringify({ ok: false, action: 'error' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
 
   if (type !== 'email.bounced' && type !== 'email.complained') {
     // Acknowledge unknown event types so Resend does not retry them

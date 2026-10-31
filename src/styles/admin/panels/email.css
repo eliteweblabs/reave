@@ -731,6 +731,19 @@
   color: var(--em-notice-sent);
   background: color-mix(in srgb, var(--em-notice-sent) 12%, transparent);
 }
+.em-delivery-delivered {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.14);
+}
+.em-delivery-pending {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+}
+.em-delivery-bounced,
+.em-delivery-complained {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
+}
 .em-status-scheduled {
   color: var(--em-notice-scheduled);
   background: color-mix(in srgb, var(--em-notice-scheduled) 12%, transparent);

@@ -7,6 +7,7 @@
  */
 
 import { listContacts, updateContact } from './contactApi';
+import { markOutboundEmailDeliveryFailed } from './projectOutboundEmail';
 import { sendPushNotification } from './webPush';
 
 export type ResendBounceEvent = {
@@ -56,6 +57,12 @@ export async function handleResendBounceEvent(
   const email = normalizeToAddress(event.data.to);
   if (!email) {
     return { action: 'error', alertFired: false, error: 'No recipient address in event' };
+  }
+
+  const resendId = event.data.email_id?.trim() || '';
+  if (resendId) {
+    const failStatus = event.type === 'email.complained' ? 'complained' : 'bounced';
+    void markOutboundEmailDeliveryFailed(resendId, failStatus);
   }
 
   // 1. Look up contact by email address
