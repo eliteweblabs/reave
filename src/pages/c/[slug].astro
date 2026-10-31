@@ -1127,14 +1127,10 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .wrap {
         position: relative;
         z-index: 1;
-        max-width: 560px;
+        /* One width for every tab — audit grid, directory exhibit, and work panels share it */
+        max-width: min(960px, calc(100vw - 40px));
         margin: 0 auto;
         padding: calc(env(safe-area-inset-top) + 64px + 24px) 20px calc(env(safe-area-inset-bottom) + 96px);
-        transition: max-width 0.2s ease;
-      }
-      /* Audit diagnostic needs room for the multi-column card grid */
-      .wrap:has([data-tab-panel="audit"].active) {
-        max-width: 960px;
       }
       .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: var(--site-fg-muted, #525252); }
       .hero { text-align: center; margin-bottom: 24px; }
