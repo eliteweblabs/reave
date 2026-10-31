@@ -13804,6 +13804,60 @@ function formatSentSourceLabel(source) {
   return labels[key] || key.replace(/_/g, ' ') || 'Sent';
 }
 
+function sentDeliveryStatusKey(ev) {
+  if (!ev?.resendId) return '';
+  const s = String(ev.deliveryStatus || '').trim().toLowerCase();
+  if (s === 'delivered' || s === 'bounced' || s === 'complained' || s === 'pending') return s;
+  return ev.resendId ? 'pending' : '';
+}
+
+function formatSentDeliveryLabel(ev) {
+  const key = sentDeliveryStatusKey(ev);
+  if (key === 'delivered') return 'Delivered';
+  if (key === 'bounced') return 'Bounced';
+  if (key === 'complained') return 'Complaint';
+  if (key === 'pending') return 'Pending';
+  return '';
+}
+
+function sentDeliveryBadgeHtml(ev) {
+  const key = sentDeliveryStatusKey(ev);
+  if (!key) return '';
+  const label = formatSentDeliveryLabel(ev);
+  return `<span class="em-status em-delivery-${escHtml(key)}" title="${escHtml(
+    key === 'delivered'
+      ? 'Recipient mail server accepted this message (inbox vs spam not guaranteed).'
+      : key === 'pending'
+        ? 'Waiting for delivery confirmation from Resend.'
+        : key === 'bounced'
+          ? 'Recipient server rejected delivery — check the address.'
+          : 'Recipient marked this as spam.',
+  )}">${escHtml(label)}</span>`;
+}
+
+function sentDeliveryDetailHtml(ev) {
+  const key = sentDeliveryStatusKey(ev);
+  if (!key) return '';
+  const label = formatSentDeliveryLabel(ev);
+  let line = `<span><strong>Delivery</strong> ${escHtml(label)}</span>`;
+  if (key === 'delivered' && ev.deliveredAt) {
+    line += `<span><strong>Accepted</strong> ${escHtml(new Date(ev.deliveredAt).toLocaleString())}</span>`;
+  }
+  if (key === 'pending') {
+    return (
+      line +
+      `<p class="em-hint">Pending means Resend has not reported acceptance by their mail server yet. This usually clears within a minute.</p>`
+    );
+  }
+  if (key === 'delivered') {
+    return (
+      line +
+      `<p class="em-hint">Delivered means their provider accepted the message — not a read receipt and not a guarantee it avoided spam.</p>`
+    );
+  }
+  return line;
+}
+
 function filteredDraftEvents() {
   const q = emailState.search.trim();
   let events = emailState.draftEvents || [];
@@ -17726,7 +17780,7 @@ function emailSidebarEmptyInnerHtml() {
   }
   if (emailState.inboxFilter === 'sent') {
     return (
-      'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with a delivery reference.</span>'
+      'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with delivery status when Resend confirms acceptance.</span>'
     );
   }
   if (emailState.inboxFilter === 'draft') {
@@ -17967,6 +18021,7 @@ function createSentListItem(ev) {
     `<span class="ch-list-content">` +
     `<span class="em-item-row em-item-header">` +
       `<span class="em-item-from em-sender-chip">${escHtml(ev.toEmail || '(unknown)')}</span>` +
+      sentDeliveryBadgeHtml(ev) +
       emailListMetaTrail(`<span class="em-item-date">${escHtml(formatChatDate(ev.sentAt))}</span>`) +
     `</span>` +
     `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>` +
@@ -21552,7 +21607,7 @@ function renderEmailPane() {
     const bodyHtmlSource = String(sent.bodyHtml || '').trim();
     const plainBody = String(sent.bodyText || '').trim();
     let detailHtml =
-      `<div class="em-item-row"><span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(sent.source))}</span></div>` +
+      `<div class="em-item-row"><span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(sent.source))}</span>${sentDeliveryBadgeHtml(sent)}</div>` +
       `<div class="em-detail-meta">` +
         `<span><strong>To</strong> ${escHtml(sent.toEmail || '(unknown)')}</span>` +
         (sent.jobTitle || sent.jobSlug
@@ -21562,7 +21617,8 @@ function renderEmailPane() {
         (sent.resendId
           ? `<span><strong>Resend ID</strong> <code class="em-resend-id">${escHtml(sent.resendId)}</code></span>`
           : '') +
-      `</div>`;
+      `</div>` +
+      (sentDeliveryDetailHtml(sent) ? `<div class="em-detail-meta">${sentDeliveryDetailHtml(sent)}</div>` : '');
     if (bodyHtmlSource) {
       detailHtml +=
         `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Sent message"></iframe></div>`;
@@ -21574,10 +21630,6 @@ function renderEmailPane() {
       detailHtml += `<p class="em-hint em-sent-body-loading">Loading the message that was sent…</p>`;
     } else {
       detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
-    }
-    if (sent.resendId) {
-      detailHtml +=
-        `<p class="em-hint">Use the Resend ID to confirm delivery in your Resend dashboard when troubleshooting.</p>`;
     }
     detail.innerHTML = detailHtml;
     const projectBtn = detail.querySelector('.em-project-link');

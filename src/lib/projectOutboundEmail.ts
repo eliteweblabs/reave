@@ -11,7 +11,13 @@ import { getPgPool } from './pgPool';
 import { parseSenderEmail } from './emailAddress';
 import { normalizeEmailBody, normalizeSentEmailHtml } from './emailBody';
 import { resendSendBelongsToInstall } from './installOutboundEmail';
+import {
+  normalizeResendLastEventToDelivery,
+  type OutboundDeliveryStatus,
+} from './resendDeliveryStatus';
 import { fetchResendSentEmail, listResendSentEmails } from './resendSentEmail';
+
+export type { OutboundDeliveryStatus };
 import { normalizeMessageId } from './emailMessageId';
 import { serverEnv } from './serverEnv';
 
@@ -30,6 +36,8 @@ export type ProjectOutboundEmailRecord = {
   bodyHtml?: string | null;
   messageId?: string | null;
   threadReferences?: string | null;
+  deliveryStatus?: OutboundDeliveryStatus | null;
+  deliveredAt?: string | null;
 };
 
 export type RecordProjectOutboundInput = {
@@ -76,6 +84,8 @@ ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS body_text TEXT;
 ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS body_html TEXT;
 ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS message_id TEXT;
 ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS thread_references TEXT;
+ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS delivery_status TEXT;
+ALTER TABLE project_outbound_emails ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ;
 `;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -145,7 +155,10 @@ function rowToRecord(row: {
   body_html?: string | null;
   message_id?: string | null;
   thread_references?: string | null;
+  delivery_status?: string | null;
+  delivered_at?: Date | string | null;
 }): ProjectOutboundEmailRecord {
+  const deliveryStatus = normalizeStoredDeliveryStatus(row.delivery_status);
   return {
     id: row.id,
     jobSlug: row.job_slug,
@@ -161,10 +174,46 @@ function rowToRecord(row: {
     bodyHtml: row.body_html ?? null,
     messageId: row.message_id?.trim() || null,
     threadReferences: row.thread_references?.trim() || null,
+    deliveryStatus,
+    deliveredAt: row.delivered_at ? new Date(row.delivered_at).toISOString() : null,
   };
 }
 
-const OUTBOUND_SELECT_COLS = `id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, body_text, body_html, message_id, thread_references`;
+function normalizeStoredDeliveryStatus(raw?: string | null): OutboundDeliveryStatus | null {
+  const s = String(raw || '').trim().toLowerCase();
+  if (s === 'pending' || s === 'delivered' || s === 'bounced' || s === 'complained') return s;
+  return null;
+}
+
+const OUTBOUND_SELECT_COLS = `id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, body_text, body_html, message_id, thread_references, delivery_status, delivered_at`;
+
+async function enrichDeliveryFromResendApi(
+  rows: OutboundEmailListRecord[],
+): Promise<OutboundEmailListRecord[]> {
+  const pending = rows.filter((r) => r.resendId?.trim() && (!r.deliveryStatus || r.deliveryStatus === 'pending'));
+  if (!pending.length) return rows;
+  const remote = await listResendSentEmails(Math.min(Math.max(rows.length, 20), 100));
+  const statusById = new Map(
+    remote.map((item) => [item.id, normalizeResendLastEventToDelivery(item.status)] as const),
+  );
+  if (!statusById.size) return rows;
+
+  return Promise.all(
+    rows.map(async (row) => {
+      const id = row.resendId?.trim();
+      if (!id || (row.deliveryStatus && row.deliveryStatus !== 'pending')) return row;
+      const mapped = statusById.get(id);
+      if (!mapped || mapped === 'pending') return row;
+      if (mapped === 'delivered') {
+        const deliveredAt = new Date().toISOString();
+        void markOutboundEmailDelivered(id, deliveredAt);
+        return { ...row, deliveryStatus: 'delivered', deliveredAt };
+      }
+      void markOutboundEmailDeliveryFailed(id, mapped);
+      return { ...row, deliveryStatus: mapped, deliveredAt: null };
+    }),
+  );
+}
 
 function mergeThreadReferences(seed: string | null | undefined, messageId: string): string {
   const mid = normalizeMessageId(messageId);
@@ -254,6 +303,8 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
     bodyText: bodies.bodyText,
     bodyHtml: bodies.bodyHtml,
     threadReferences: input.threadReferencesSeed?.trim() || null,
+    deliveryStatus: input.resendId?.trim() ? 'pending' : null,
+    deliveredAt: null,
   };
 
   try {
@@ -261,8 +312,8 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
     if (pool) {
       await pool.query(
         `INSERT INTO project_outbound_emails
-          (id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_by, source, body_text, body_html, thread_references)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          (id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_by, source, body_text, body_html, thread_references, delivery_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           record.id,
           record.jobSlug,
@@ -276,6 +327,7 @@ export async function recordProjectOutboundEmail(input: RecordProjectOutboundInp
           record.bodyText,
           record.bodyHtml,
           record.threadReferences,
+          record.deliveryStatus,
         ],
       );
       if (record.resendId) void backfillOutboundEmailMessageId(record.resendId);
@@ -349,6 +401,93 @@ export async function findRecentProjectOutbound(opts: {
   return rows[0] ?? null;
 }
 
+/** Returns true when a row was updated (or already delivered). */
+export async function markOutboundEmailDelivered(
+  resendId: string,
+  deliveredAt?: string | null,
+): Promise<boolean> {
+  const key = resendId.trim();
+  if (!key) return false;
+  const at = deliveredAt?.trim() ? new Date(deliveredAt).toISOString() : new Date().toISOString();
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rowCount } = await pool.query(
+        `UPDATE project_outbound_emails
+         SET delivery_status = 'delivered',
+             delivered_at = COALESCE(delivered_at, $2::timestamptz)
+         WHERE resend_id = $1
+           AND (delivery_status IS NULL OR delivery_status IN ('pending'))`,
+        [key, at],
+      );
+      if ((rowCount ?? 0) > 0) return true;
+      const { rows } = await pool.query<{ delivery_status: string | null }>(
+        `SELECT delivery_status FROM project_outbound_emails WHERE resend_id = $1 LIMIT 1`,
+        [key],
+      );
+      return rows[0]?.delivery_status === 'delivered';
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] mark delivered pg failed', e);
+  }
+
+  try {
+    const rows = readFileRows();
+    const idx = rows.findIndex((r) => r.resendId === key);
+    if (idx === -1) return false;
+    const cur = rows[idx]!;
+    if (cur.deliveryStatus === 'delivered') return true;
+    if (cur.deliveryStatus === 'bounced' || cur.deliveryStatus === 'complained') return false;
+    rows[idx] = {
+      ...cur,
+      deliveryStatus: 'delivered',
+      deliveredAt: cur.deliveredAt || at,
+    };
+    writeFileRows(rows);
+    return true;
+  } catch (e) {
+    console.warn('[project-outbound-email] mark delivered file failed', e);
+    return false;
+  }
+}
+
+export async function markOutboundEmailDeliveryFailed(
+  resendId: string,
+  status: 'bounced' | 'complained',
+): Promise<boolean> {
+  const key = resendId.trim();
+  if (!key) return false;
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rowCount } = await pool.query(
+        `UPDATE project_outbound_emails
+         SET delivery_status = $2,
+             delivered_at = NULL
+         WHERE resend_id = $1`,
+        [key, status],
+      );
+      if ((rowCount ?? 0) > 0) return true;
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] mark delivery failed pg failed', e);
+  }
+
+  try {
+    const rows = readFileRows();
+    const idx = rows.findIndex((r) => r.resendId === key);
+    if (idx === -1) return false;
+    rows[idx] = { ...rows[idx]!, deliveryStatus: status, deliveredAt: null };
+    writeFileRows(rows);
+    return true;
+  } catch (e) {
+    console.warn('[project-outbound-email] mark delivery failed file failed', e);
+    return false;
+  }
+}
+
 export async function listOutboundEmails(limit = 200): Promise<OutboundEmailListRecord[]> {
   const capped = Math.min(Math.max(limit, 1), 500);
   let dbRows: OutboundEmailListRecord[] | null = null;
@@ -368,7 +507,7 @@ export async function listOutboundEmails(limit = 200): Promise<OutboundEmailList
         sent_by: string | null;
         source: string;
       }>(
-        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source
+        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source, delivery_status, delivered_at
          FROM project_outbound_emails
          ORDER BY sent_at DESC
          LIMIT $1`,
@@ -387,33 +526,40 @@ export async function listOutboundEmails(limit = 200): Promise<OutboundEmailList
           .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
           .slice(0, capped);
 
-  if (!serverEnv('RESEND_API_KEY')?.trim()) {
-    return stored.slice(0, capped);
+  let merged = stored;
+
+  if (serverEnv('RESEND_API_KEY')?.trim()) {
+    merged = await enrichDeliveryFromResendApi(merged);
+
+    const knownResend = new Set(
+      merged.map((r) => r.resendId?.trim()).filter((id): id is string => Boolean(id)),
+    );
+    const remote = await listResendSentEmails(Math.min(capped, 100));
+    const extras: OutboundEmailListRecord[] = [];
+    for (const item of remote) {
+      if (knownResend.has(item.id)) continue;
+      if (!(await resendSendBelongsToInstall(item.from))) continue;
+      const deliveryStatus = normalizeResendLastEventToDelivery(item.status);
+      extras.push({
+        id: item.id,
+        jobSlug: '',
+        jobTitle: '',
+        contactUid: null,
+        toEmail: item.toEmail,
+        subject: item.subject,
+        resendId: item.id,
+        sentAt: item.sentAt,
+        sentBy: null,
+        source: 'resend_sync',
+        deliveryStatus: deliveryStatus ?? (item.status ? 'pending' : null),
+        deliveredAt: deliveryStatus === 'delivered' ? item.sentAt : null,
+      });
+    }
+
+    merged = [...merged, ...extras];
   }
 
-  const knownResend = new Set(
-    stored.map((r) => r.resendId?.trim()).filter((id): id is string => Boolean(id)),
-  );
-  const remote = await listResendSentEmails(Math.min(capped, 100));
-  const extras: OutboundEmailListRecord[] = [];
-  for (const item of remote) {
-    if (knownResend.has(item.id)) continue;
-    if (!(await resendSendBelongsToInstall(item.from))) continue;
-    extras.push({
-      id: item.id,
-      jobSlug: '',
-      jobTitle: '',
-      contactUid: null,
-      toEmail: item.toEmail,
-      subject: item.subject,
-      resendId: item.id,
-      sentAt: item.sentAt,
-      sentBy: null,
-      source: 'resend_sync',
-    });
-  }
-
-  return [...stored, ...extras]
+  return merged
     .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
     .slice(0, capped);
 }

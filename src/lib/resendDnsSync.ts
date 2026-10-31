@@ -377,3 +377,71 @@ export async function resendEnsureInboundWebhook(endpoint: string): Promise<
   if (!secret) return { ok: false, error: 'Resend created the webhook but did not return a signing secret' };
   return { ok: true, id: created.data.id, signingSecret: secret, created: true };
 }
+
+const RESEND_TX_EMAIL_EVENTS = ['email.delivered', 'email.bounced', 'email.complained'] as const;
+
+/**
+ * Create (or reuse) a transactional email webhook for delivery + bounce events.
+ * Separate from inbound `email.received` — point at `https://{apex}/api/webhooks/resend`.
+ */
+export async function resendEnsureTransactionalEmailWebhook(endpoint: string): Promise<
+  | { ok: true; id: string; signingSecret: string; created: boolean; events: string[] }
+  | { ok: false; error: string }
+> {
+  const target = endpoint.trim();
+  if (!target) return { ok: false, error: 'webhook endpoint is required' };
+
+  const listed = await resendFetch<{ data: ResendWebhook[] }>('/webhooks');
+  if (!listed.ok) return listed;
+
+  const match = (listed.data.data ?? []).find(
+    (row) => row.endpoint && normalizeWebhookEndpoint(row.endpoint) === normalizeWebhookEndpoint(target),
+  );
+
+  if (match) {
+    const patched = await resendFetch<ResendWebhook & { events?: string[] }>(`/webhooks/${match.id}`, {
+      method: 'PATCH',
+      body: { events: [...RESEND_TX_EMAIL_EVENTS] },
+    });
+    if (!patched.ok) return patched;
+    const secret =
+      match.signing_secret?.trim() ||
+      patched.data.signing_secret?.trim() ||
+      '';
+    if (!secret) {
+      const detail = await resendFetch<ResendWebhook>(`/webhooks/${match.id}`);
+      if (detail.ok && detail.data.signing_secret?.trim()) {
+        return {
+          ok: true,
+          id: match.id,
+          signingSecret: detail.data.signing_secret.trim(),
+          created: false,
+          events: [...RESEND_TX_EMAIL_EVENTS],
+        };
+      }
+      return { ok: false, error: 'Could not read signing secret for existing transactional webhook' };
+    }
+    return {
+      ok: true,
+      id: match.id,
+      signingSecret: secret,
+      created: false,
+      events: [...RESEND_TX_EMAIL_EVENTS],
+    };
+  }
+
+  const created = await resendFetch<ResendWebhook & { events?: string[] }>('/webhooks', {
+    method: 'POST',
+    body: { endpoint: target, events: [...RESEND_TX_EMAIL_EVENTS] },
+  });
+  if (!created.ok) return created;
+  const secret = created.data.signing_secret?.trim();
+  if (!secret) return { ok: false, error: 'Resend created the webhook but did not return a signing secret' };
+  return {
+    ok: true,
+    id: created.data.id,
+    signingSecret: secret,
+    created: true,
+    events: [...RESEND_TX_EMAIL_EVENTS],
+  };
+}
