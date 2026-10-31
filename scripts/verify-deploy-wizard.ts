@@ -116,6 +116,10 @@ assert.ok(
   'Pexels copies from this host without stock_photos selected',
 );
 assert.ok(
+  core.variables.some((v) => v.name === 'IDEOGRAM_API_KEY' && v.inheritFromHost),
+  'Ideogram copies from this host without ideogram selected',
+);
+assert.ok(
   !core.variables.some((v) => v.name === 'RAILWAY_API_TOKEN'),
   'private ops tokens stay gated on dev_infra',
 );

@@ -40,6 +40,7 @@ export const FEATURE_IDS = [
   'wayback_machine',
   'content_management',
   'stock_photos',
+  'ideogram',
   'wordpress_content',
   'seo_directory',
   'google_ads',
@@ -283,6 +284,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   wayback_machine: 'Wayback Machine',
   content_management: 'Agentic Website Editor',
   stock_photos: 'Pexels Stock Photos',
+  ideogram: 'Ideogram AI Images',
   wordpress_content: 'WordPress™ Connect',
   seo_directory: 'SEO Directory API Kit',
   google_ads: 'Google Ads Campaign Manager',
@@ -341,6 +343,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   wayback_machine: 'Browse archived website snapshots from the Internet Archive',
   content_management: 'Edit the install’s own front-end repo through the agent — not the reave.app',
   stock_photos: 'Royalty-free search for pages, decks, & newsletters',
+  ideogram: 'Generate custom visuals from prompts for pages, decks, & social',
   wordpress_content:
     'Agent updates posts, pages, media, menus, & redirects on a WordPress™ site via Reave Connect',
   seo_directory:
@@ -351,7 +354,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
     'Ticket sales, QR check-in, & event inventory — reference only until productized',
   cookie_notice: 'Implied-consent cookie bar & Cookie Policy at /cookies',
   deploy_wizard: 'Stand up a new Railway install with module toggles & reference variables',
-  website: 'Client website tools — edit, stock photos, publish. No hosting APIs',
+  website: 'Client website tools — edit, stock photos, AI images, publish. No hosting APIs',
   credit_check:
     'Applicant credit pull for forms & deal flow — reference only until a bureau is chosen',
   materials_pricing:
@@ -537,6 +540,8 @@ export function formatClientWebsiteToolInventory(opts: {
   editor: boolean;
   stockPhotos: boolean;
   stockPhotosActive: boolean;
+  ideogram?: boolean;
+  ideogramActive?: boolean;
 }): string {
   const lines = ['Client website tools on this install (not hosting or registrar APIs):'];
   if (opts.editor) {
@@ -549,6 +554,13 @@ export function formatClientWebsiteToolInventory(opts: {
       opts.stockPhotosActive
         ? '- Stock photos: search_stock_photos is active (Pexels). Credit the photographer and link to pexels.com.'
         : '- Stock photos: module is on; search_stock_photos needs PEXELS_API_KEY.',
+    );
+  }
+  if (opts.ideogram) {
+    lines.push(
+      opts.ideogramActive
+        ? '- AI images: generate_image is active (Ideogram). URLs expire — upload to the media library for permanent use.'
+        : '- AI images: module is on; generate_image needs IDEOGRAM_API_KEY.',
     );
   }
   lines.push(

@@ -64,6 +64,7 @@ const FEATURE_IDS_LIST = [
   'wayback_machine',
   'content_management',
   'stock_photos',
+  'ideogram',
   'wordpress_content',
   'seo_directory',
   'google_ads',

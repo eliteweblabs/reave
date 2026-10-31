@@ -15,6 +15,7 @@ const PROVIDERS = [
   { id: 'vapi', label: 'Vapi' },
   { id: 'telnyx', label: 'Telnyx' },
   { id: 'pexels', label: 'Pexels' },
+  { id: 'ideogram', label: 'Ideogram' },
   { id: 'brave', label: 'Brave' },
   { id: 'other', label: 'Other' },
 ];

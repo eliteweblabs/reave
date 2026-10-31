@@ -16,7 +16,6 @@ import { wpModule } from './core/wp';
 import { deployResumeModule } from './core/deployResume';
 import { railwayModule } from './core/railway';
 import { railwayProvisionModule } from './core/railwayProvision';
-import { ideogramModule } from './core/ideogram';
 import { craterPaymentModesModule } from './core/craterPaymentModes';
 import { contentManagementModule } from '../../../plugins/content-management/agentTools';
 import { activeAgentToolModules } from '../pluginRegistry';
@@ -68,9 +67,8 @@ import type { AgentToolModule } from './types';
  * when RAILWAY_API_TOKEN is set, regardless of the dev_infra feature flag or
  * plugin load order.
  *
- * Ideogram image generation (`generate_image`) lives in `core/ideogram.ts` —
- * enabled when IDEOGRAM_API_KEY is set. Generates AI images from text prompts
- * via the Ideogram REST API.
+ * Ideogram image generation (`generate_image`) lives in `plugins/ideogram/`
+ * (feature-gated `ideogram` + `IDEOGRAM_API_KEY`).
  *
  * Crater payment-mode seeding (`seed_payment_modes`, `create_payment_mode`) lives in
  * `core/craterPaymentModes.ts` — always-on when CRATER_API_BASE_URL and
@@ -98,7 +96,6 @@ const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   deployResumeModule,
   railwayModule,
   railwayProvisionModule,
-  ideogramModule,
   craterPaymentModesModule,
   contentManagementModule,
 ];

@@ -14,7 +14,8 @@ import {
 } from './anthropicEndpoint';
 import { getAnthropicKeySource, type AnthropicKeySource } from './anthropicKeySource';
 import { isBraveConfigured } from './braveClient';
-import { hasFeature } from './features';
+import { hasFeature, hasIdeogramImageGen } from './features';
+import { isIdeogramConfigured } from './ideogramClient';
 import { isPexelsConfigured } from './pexelsClient';
 import { serverEnv } from './serverEnv';
 import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from './vapiPlugin';
@@ -29,6 +30,7 @@ export const AI_SERVICE_PROVIDERS = [
   'vapi',
   'telnyx',
   'pexels',
+  'ideogram',
   'brave',
   'other',
 ] as const;
@@ -267,6 +269,27 @@ function telnyxBuiltin(): BuiltinAiService {
   };
 }
 
+function ideogramBuiltin(): BuiltinAiService {
+  const base = {
+    id: 'ideogram',
+    kind: 'builtin' as const,
+    name: 'Ideogram AI images',
+    provider: 'ideogram' as const,
+    purpose: 'images' as const,
+  };
+  if (!hasIdeogramImageGen()) {
+    return {
+      ...base,
+      status: 'feature_off',
+      detail: 'ideogram module not enabled — request via Add-ons (website bundle includes image tools)',
+    };
+  }
+  if (!isIdeogramConfigured()) {
+    return { ...base, status: 'missing', detail: 'IDEOGRAM_API_KEY not set' };
+  }
+  return { ...base, status: 'configured', detail: 'AI image generation enabled' };
+}
+
 function pexelsBuiltin(): BuiltinAiService {
   const base = {
     id: 'pexels',
@@ -330,6 +353,7 @@ export async function listBuiltinAiServices(): Promise<{
       vapiBuiltin(),
       telnyxBuiltin(),
       pexelsBuiltin(),
+      ideogramBuiltin(),
       braveBuiltin(),
     ],
     model,

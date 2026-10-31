@@ -6,7 +6,7 @@
  */
 import type { ReavePlugin } from '../../plugins/_shared/types';
 import type { AgentToolModule } from './agentTools/types';
-import { hasFeature, hasStockPhotoSearch, hasWebsiteEditor } from './features';
+import { hasFeature, hasIdeogramImageGen, hasStockPhotoSearch, hasWebsiteEditor } from './features';
 import { isCanonicalReaveInstall } from './installConfig';
 
 import { billingPlugin } from '../../plugins/billing/manifest';
@@ -40,6 +40,7 @@ import { socialLeadScannerPlugin } from '../../plugins/social-lead-scanner/manif
 import { waybackMachinePlugin } from '../../plugins/wayback-machine/manifest';
 import { contentManagementPlugin } from '../../plugins/content-management/manifest';
 import { stockPhotosPlugin } from '../../plugins/stock-photos/manifest';
+import { ideogramPlugin } from '../../plugins/ideogram/manifest';
 import { wordpressContentPlugin } from '../../plugins/wordpress-content/manifest';
 import { seoDirectoryPlugin } from '../../plugins/seo-directory/manifest';
 import { clerkAuthPlugin } from '../../plugins/clerk-auth/manifest';
@@ -82,6 +83,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   waybackMachinePlugin,
   contentManagementPlugin,
   stockPhotosPlugin,
+  ideogramPlugin,
   wordpressContentPlugin,
   seoDirectoryPlugin,
   clerkAuthPlugin,
@@ -104,6 +106,7 @@ function pluginFeatureEnabled(plugin: ReavePlugin): boolean {
   if (hasFeature(plugin.feature)) return true;
   if (plugin.feature === 'content_management') return hasWebsiteEditor();
   if (plugin.feature === 'stock_photos') return hasStockPhotoSearch();
+  if (plugin.feature === 'ideogram') return hasIdeogramImageGen();
   return false;
 }
 
@@ -230,6 +233,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['content-management', 'github-dev-tools'];
     case 'stock-photos':
       return ['stock-photos'];
+    case 'ideogram':
+      return ['ideogram'];
     case 'wordpress-content':
       return ['wordpress-content'];
     case 'seo-directory':

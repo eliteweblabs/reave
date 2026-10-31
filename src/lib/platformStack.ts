@@ -65,6 +65,7 @@ export const PLATFORM_STACK: StackTech[] = [
   { slug: 'caldotcom', name: 'Cal.com', color: 'var(--site-fg, #171717)', role: 'Scheduling', iconHref: '/stack/cal-com.png' },
   { slug: 'plausibleanalytics', name: 'Plausible', color: '#5850EC', role: 'Web analytics' },
   { slug: 'pexels', name: 'Pexels', color: '#05A081', role: 'Stock photos' },
+  { slug: 'ideogram', name: 'Ideogram', color: '#6366F1', role: 'AI images' },
   {
     slug: 'uptimerobot',
     name: 'UptimeRobot',

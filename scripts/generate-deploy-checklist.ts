@@ -43,6 +43,7 @@ const FEATURE_LABELS: Record<string, string> = {
   wayback_machine: 'Wayback Machine',
   content_management: 'Agentic Website Editor',
   stock_photos: 'Pexels Stock Photos',
+  ideogram: 'Ideogram AI Images',
   wordpress_content: 'WordPress™ Connect',
   seo_directory: 'SEO Directory API Kit',
   website: 'Agentic Website Editor (Client Web Tools)',

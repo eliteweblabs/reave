@@ -1784,6 +1784,13 @@ export const DEPLOY_WIZARD_VARIABLES: readonly DeployWizardVariable[] = [
     features: ['website', 'stock_photos'],
   }),
   v({
+    name: 'IDEOGRAM_API_KEY',
+    service: DEPLOY_APP_SERVICE,
+    kind: 'secret',
+    description: 'Ideogram AI images (server-only).',
+    features: ['website', 'ideogram'],
+  }),
+  v({
     name: 'NAMECOM_USERNAME',
     service: DEPLOY_APP_SERVICE,
     kind: 'secret',

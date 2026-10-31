@@ -11,7 +11,7 @@ stage: 1
 
 This module is the client-tier website product: edit the public site, search stock photos, publish through Git. It does **not** include Railway, Kinsta, Cloudflare, or Name.com APIs. Those stay on the private `dev_infra` pack for owner/agency installs (`opsInstall`).
 
-Enabling `website` also turns on the Agentic Website Editor tools and Pexels search (when `PEXELS_API_KEY` is set), so a client install does not need separate `content_management` / `stock_photos` flags.
+Enabling `website` also turns on the Agentic Website Editor tools, Pexels search (when `PEXELS_API_KEY` is set), and Ideogram image generation (when `IDEOGRAM_API_KEY` is set), so a client install does not need separate `content_management`, `stock_photos`, or `ideogram` flags.
 
 ## Sibling services
 
@@ -22,6 +22,7 @@ Enabling `website` also turns on the Agentic Website Editor tools and Pexels sea
 - `GITHUB_WEBSITE_REPO` — `owner/repo` for this install’s front-end (not `eliteweblabs/rekko`)
 - `GITHUB_APP_ID` / `GITHUB_APP_INSTALLATION_ID` / `GITHUB_APP_PRIVATE_KEY` — created by deploy wizard Apply
 - `PEXELS_API_KEY` — optional; stock photo search
+- `IDEOGRAM_API_KEY` — optional; AI image generation
 
 ## External setup
 

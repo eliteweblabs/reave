@@ -456,6 +456,7 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   credit_check: ['real-estate-agents', 'law', 'lawyers', 'general'],
   inventory_sync: ['hair-stylists', 'marketers'],
   stock_photos: ['artists', 'creators', 'designers', 'marketers', 'real-estate-agents', 'hair-stylists'],
+  ideogram: ['artists', 'creators', 'designers', 'marketers', 'real-estate-agents', 'hair-stylists'],
   wordpress_content: CREATIVE_INDUSTRIES,
   seo_directory: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists', 'general', 'plumbing'],
   event_ticketing: ['marketers', 'artists', 'creators', 'designers', 'hair-stylists'],

@@ -35,6 +35,10 @@ interface ImportMetaEnv {
   BRAVE_API_KEY?: string;
   /** Pexels API key (royalty-free stock photo search for admin agent + /api/pexels/search) */
   PEXELS_API_KEY?: string;
+  /** Ideogram API key (AI image generation — agent tool generate_image) */
+  IDEOGRAM_API_KEY?: string;
+  /** Ideogram model slug for /v2/image/generate/{model} (default ideogram-3) */
+  IDEOGRAM_MODEL?: string;
   /** Optional Google Cloud API key for PageSpeed Insights (higher quota than anonymous) */
   GOOGLE_PAGESPEED_API_KEY?: string;
   /** Google Maps / Places server key for address autocomplete (admin scheduling). */

@@ -55,6 +55,7 @@ export const FEATURE_FOOTER_NAV: Record<FeatureId, FooterNavKey[]> = {
   wayback_machine: ['__system__'],
   content_management: ['media', '__system__'],
   stock_photos: ['__system__', 'media'],
+  ideogram: ['__system__', 'media'],
   wordpress_content: ['__system__'],
   seo_directory: ['analytics', '__system__'],
   google_ads: ['analytics', '__system__'],

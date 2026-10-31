@@ -1,5 +1,6 @@
 import { isAgentModelAuto, labelForAgentModel, resolveAgentModel } from './agentModel';
 import { isBraveConfigured } from './braveClient';
+import { isIdeogramConfigured } from './ideogramClient';
 import { isPexelsConfigured } from './pexelsClient';
 import { buildTools, runTool } from './agentTools';
 import { getCompanyBrandContext } from './companyConfig';
@@ -11,7 +12,13 @@ import { isCraterConfigured } from './craterClient';
 import { isBookingConfigured } from './bookingClient';
 import { isVapiAdminConfigured } from './vapiPlugin';
 import { isUptimeRobotConfigured } from './uptimerobotClient';
-import { enabledFeatures, hasFeature, hasStockPhotoSearch, hasWebsiteEditor } from './features';
+import {
+  enabledFeatures,
+  hasFeature,
+  hasIdeogramImageGen,
+  hasStockPhotoSearch,
+  hasWebsiteEditor,
+} from './features';
 import { formatAgentCapabilityInventory, formatClientWebsiteToolInventory } from './featureCatalog';
 import { isClerkConfigured } from './clerkClient';
 import { isGithubConfigured } from './githubClient';
@@ -907,18 +914,25 @@ async function runKnowledgeAgentInner(
       'Web search: use brave_search to look up public info (businesses, websites, people) when contact-api or knowledge docs do not have the answer.',
     );
   }
-  if (hasWebsiteEditor() || hasStockPhotoSearch()) {
+  if (hasWebsiteEditor() || hasStockPhotoSearch() || hasIdeogramImageGen()) {
     sysParts.push(
       formatClientWebsiteToolInventory({
         editor: hasWebsiteEditor(),
         stockPhotos: hasStockPhotoSearch(),
         stockPhotosActive: isPexelsConfigured(),
+        ideogram: hasIdeogramImageGen(),
+        ideogramActive: isIdeogramConfigured(),
       }),
     );
   }
   if (hasStockPhotoSearch() && isPexelsConfigured()) {
     sysParts.push(
       'Stock photos: use search_stock_photos to find royalty-free imagery for pages, decks, and newsletters. Pexels terms require crediting the photographer and linking back to the photo\'s Pexels page wherever the image is displayed.',
+    );
+  }
+  if (hasIdeogramImageGen() && isIdeogramConfigured()) {
+    sysParts.push(
+      'AI images: use generate_image for custom visuals (Ideogram). Returned URLs are temporary — upload to the media library (/api/media) when the owner needs a permanent asset on the site or in a deck.',
     );
   }
   if (hasWebsiteEditor()) {
@@ -929,7 +943,7 @@ async function runKnowledgeAgentInner(
     } else {
       const siteRepo = githubWebsiteRepoSlug() || 'the configured website repo';
       sysParts.push(
-        `Agentic Website Editor: this install’s public website is ${siteRepo} — a separate front-end repo, not the reave.app. When the owner asks to change headline, nav, copy, or images: read_github_file first, then write_github_file on main in this same turn. Do not wait for them to say commit/save/publish. Casual phrases: “undo that” / “change it back” / “go back” / “never mind” / “put it back” / “I don’t like that” → undo_website_change. Pair with search_stock_photos for imagery. Images belong in the media library (slug → /api/media/{slug}), not git. read_knowledge slug "content-management" or "website". Do not claim the site is updated unless write_github_file or undo_website_change succeeds.`,
+        `Agentic Website Editor: this install’s public website is ${siteRepo} — a separate front-end repo, not the reave.app. When the owner asks to change headline, nav, copy, or images: read_github_file first, then write_github_file on main in this same turn. Do not wait for them to say commit/save/publish. Casual phrases: “undo that” / “change it back” / “go back” / “never mind” / “put it back” / “I don’t like that” → undo_website_change. Pair with search_stock_photos or generate_image for imagery. Images belong in the media library (slug → /api/media/{slug}), not git. read_knowledge slug "content-management" or "website". Do not claim the site is updated unless write_github_file or undo_website_change succeeds.`,
       );
     }
   }

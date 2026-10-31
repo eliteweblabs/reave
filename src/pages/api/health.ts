@@ -16,6 +16,7 @@ import { paulinoWizardPing } from '../../lib/paulinoWizardClient';
 import { getCompanyBrandContext, headerSafe } from '../../lib/companyConfig';
 import { isClerkConfigured } from '../../lib/clerkClient';
 import { serverEnv } from '../../lib/serverEnv';
+import { isIdeogramConfigured } from '../../lib/ideogramClient';
 import { isPexelsConfigured } from '../../lib/pexelsClient';
 import { requireDashboardUser } from '../../lib/dashboardAuth';
 
@@ -264,6 +265,9 @@ export const GET: APIRoute = async (context) => {
     pexels: isPexelsConfigured()
       ? configured('PEXELS_API_KEY set · stock photo search enabled')
       : unconfigured('PEXELS_API_KEY not set'),
+    ideogram: isIdeogramConfigured()
+      ? configured('IDEOGRAM_API_KEY set · AI image generation enabled')
+      : unconfigured('IDEOGRAM_API_KEY not set'),
   };
 
   const features = [...enabledFeatures()].map((id: FeatureId) => ({

@@ -38,6 +38,7 @@ export const PAID_MODULE_PRICES: Partial<Record<FeatureId, ModulePrice>> = {
   wayback_machine: { amount: 100, interval: 'once', currency: 'usd' },
   content_management: { amount: 250, interval: 'once', currency: 'usd' },
   stock_photos: { amount: 100, interval: 'once', currency: 'usd' },
+  ideogram: { amount: 150, interval: 'once', currency: 'usd' },
   wordpress_content: { amount: 200, interval: 'once', currency: 'usd' },
   seo_directory: { amount: 250, interval: 'once', currency: 'usd' },
   event_ticketing: { amount: 250, interval: 'once', currency: 'usd' },

@@ -102,6 +102,11 @@ export function hasStockPhotoSearch(): boolean {
   return hasFeature('website') || hasFeature('stock_photos');
 }
 
+/** Client Website module, or the standalone Ideogram add-on. */
+export function hasIdeogramImageGen(): boolean {
+  return hasFeature('website') || hasFeature('ideogram');
+}
+
 /** Paid e-sign add-on — requires Dynamic Documents plus digital_signature. */
 export function hasDigitalSignature(): boolean {
   return hasFeature('documents') && hasFeature('digital_signature');

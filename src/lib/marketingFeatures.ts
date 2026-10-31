@@ -211,6 +211,12 @@ const MARKETING_FEATURES_RAW: readonly MarketingFeature[] = [
     kind: 'capability',
   },
   {
+    id: 'ideogram',
+    label: 'AI image generation',
+    modules: ['ideogram'],
+    kind: 'capability',
+  },
+  {
     id: 'carddav',
     label: 'CardDAV Contact Sync',
     modules: ['carddav'],

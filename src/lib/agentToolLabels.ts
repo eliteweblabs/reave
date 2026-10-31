@@ -8,6 +8,7 @@ const TOOL_LABELS: Record<string, string> = {
   detect_tech_stack: 'Detecting tech stack',
   dns_check: 'Checking DNS',
   search_stock_photos: 'Searching stock photos',
+  generate_image: 'Generating AI image',
   exec_wp: 'Managing WordPress',
   wp_list_content: 'Listing WordPress content',
   wp_get_content: 'Reading WordPress content',
