@@ -3726,6 +3726,8 @@ button.de-placeholder-action:active {
   max-width: calc(100% - 7.5rem);
   min-width: 0;
   flex: 0 1 auto;
+  container-type: inline-size;
+  container-name: wk-client-author;
   padding: 0;
   border: none;
   background: none;
@@ -3780,6 +3782,38 @@ button.de-placeholder-action:active {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.wk-client-author-display {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+.wk-client-author-co {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wk-client-author-sep,
+.wk-client-author-person {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@container wk-client-author (max-width: 14rem) {
+  .wk-client-author-sep,
+  .wk-client-author-person {
+    display: none;
+  }
+  .wk-client-author-co {
+    flex-shrink: 1;
+  }
 }
 .wk-client-readonly-actions {
   display: flex;

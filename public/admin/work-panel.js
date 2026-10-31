@@ -39,7 +39,7 @@ import {
   mountContactAvatars,
 } from './admin-ui.js?v=20260825h';
 import { openReaveShareSheet } from './chat-panel.js?v=20260824a';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, mountPanelSkeleton, skeletonHtml, emailInboxEnabled } from './shared.js?v=20260826c';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, ensureContactAuthorIconsReady, resolveContactAuthorName, resolveContactBrandIconUrl, contactAuthorDisplayParts, contactAuthorDisplayLabel, contactAuthorDisplayHtml, mountPanelSkeleton, skeletonHtml, emailInboxEnabled } from './shared.js?v=20261031a';
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260830a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
@@ -2991,8 +2991,11 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     newForm.style.display = 'none';
     readonlyBar.style.display = !showingNew && !changing ? 'flex' : 'none';
 
-    const name = selected?.name || 'No contact';
-    clientNameEl.textContent = name;
+    const displayParts =
+      selected?.authorDisplay || contactAuthorDisplayParts(selected);
+    const displayLabel = contactAuthorDisplayLabel(displayParts) || selected?.name || '';
+    const name = displayLabel || 'No contact';
+    clientNameEl.innerHTML = contactAuthorDisplayHtml(displayParts) || escHtml(name);
 
     const avatarHost = profileLink.querySelector('.wk-client-avatar');
     if (avatarHost) {
@@ -3226,9 +3229,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
         selected.phone = data.phone || '';
         selected.iconUrl = data.iconUrl || '';
         selected.logoUrl = data.logoUrl || '';
-        if (data.company || data.name) {
-          selected.name = data.company || data.name;
-        }
+        selected.authorDisplay = contactAuthorDisplayParts(data);
         syncReadOnlyClientLink();
       })
       .catch(() => {});
@@ -5408,14 +5409,12 @@ function syncWorkAuditingPoll() {
   }
 }
 
-/** Sidebar from-line: company first, then person — "Acme - Jane Doe" when both exist. */
+/** Sidebar from-line — same best-case label as project author display (ellipsis when tight). */
 function workListClientLine(job) {
-  const company = resolveContactAuthorName(job?.contact_uid).trim();
+  const cached = resolveContactAuthorName(job?.contact_uid).trim();
+  if (cached) return cached;
   const person = String(job?.contact_name || job?.client || '').trim();
-  if (company && person && company.toLowerCase() !== person.toLowerCase()) {
-    return `${company} - ${person}`;
-  }
-  return company || person || '—';
+  return person || '—';
 }
 
 function createWorkListItem(job) {

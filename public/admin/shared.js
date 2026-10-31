@@ -1242,8 +1242,52 @@ function brandingPreviewUrl(url) {
   return (url || '').trim();
 }
 
+/** Split contact fields for display (not persisted contact_name). */
+export function contactAuthorDisplayParts(client) {
+  const company = String(client?.company || '').trim();
+  let person = [client?.firstName, client?.lastName]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+    .join(' ');
+  const fullName = String(client?.name || '').trim();
+  if (!person && fullName) {
+    if (!company || fullName.toLowerCase() !== company.toLowerCase()) {
+      person = fullName;
+    }
+  }
+  if (person && company && person.toLowerCase() === company.toLowerCase()) {
+    person = '';
+  }
+  return { company, person };
+}
+
+/** Best-case one-line label: "Company / First Last" when both exist. */
+export function contactAuthorDisplayLabel(parts) {
+  const company = parts?.company || '';
+  const person = parts?.person || '';
+  if (company && person) return `${company} / ${person}`;
+  return company || person || '';
+}
+
+/** Structured markup so CSS can drop the person when horizontal space is tight. */
+export function contactAuthorDisplayHtml(parts) {
+  const company = escHtml(parts?.company || '');
+  const person = escHtml(parts?.person || '');
+  if (company && person) {
+    return (
+      `<span class="wk-client-author-display">` +
+      `<span class="wk-client-author-co">${company}</span>` +
+      `<span class="wk-client-author-sep" aria-hidden="true"> / </span>` +
+      `<span class="wk-client-author-person">${person}</span>` +
+      `</span>`
+    );
+  }
+  const single = company || person;
+  return single ? `<span class="wk-client-author-display">${single}</span>` : '';
+}
+
 function contactListDisplayName(client) {
-  return (client?.company || '').trim() || (client?.name || '').trim();
+  return contactAuthorDisplayLabel(contactAuthorDisplayParts(client));
 }
 
 /** Cache client icon/logo URLs for sidebar author icons (work, todo, etc.). */
