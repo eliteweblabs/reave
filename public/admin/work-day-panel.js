@@ -2,7 +2,7 @@
  * Admin Work Day reconcile — weekly hours per client/property, approve → Work time.
  */
 import { escHtml, adminFetch, readApiJson } from './shared.js?v=20260810a';
-import { createBrandBtn } from './brand-button.js?v=20260810a';
+import { createBrandBtn } from './admin-ui.js?v=20260903a';
 import { osAlert, osConfirm } from './os-dialog.js?v=20260826a';
 
 let weekStart = '';

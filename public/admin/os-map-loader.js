@@ -217,7 +217,7 @@ import {
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';
-import { loadWorkDayTab } from './work-day-panel.js?v=20261031a';
+import { loadWorkDayTab } from './work-day-panel.js?v=20261031b';
 import { loadMeetTab } from './meet-panel.js?v=20260903a';
 import {
   initClientsPanel,
