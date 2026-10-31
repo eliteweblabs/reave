@@ -21,6 +21,7 @@ git remote set-url origin https://github.com/eliteweblabs/rekko.git
 ## Railway
 
 - Hub and client **`reave`** services deploy from **`eliteweblabs/rekko@main`** (service name unchanged).
+- **Settings UI shows “Could not load branches”** after a GitHub rename even when deploys work. Reconnect the repo (`eliteweblabs/rekko`, branch `main`) via the API/CLI or Disconnect → Connect in the dashboard. If the branch list stays empty, open **GitHub → Settings → Applications → Railway** and confirm **`rekko`** is allowed (rename does not always refresh the install). Hard-refresh the Railway tab; the Oct 21 recovery banner sometimes correlates with flaky GitHub branch lists.
 - Client installs: **`REAVE_HUB_URL=https://rekko.studio`** (punch list / feature requests).
 - Audit: `railway list --json` + `railway variable list … -s reave` for stale `reave.app` values.
 - Optional helper: `npx tsx scripts/reconnect-railway-rekko.ts` (report; `--apply` when CLI supports connect).
