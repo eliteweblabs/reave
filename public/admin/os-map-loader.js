@@ -8550,23 +8550,33 @@ function companyLogoThemePreviewSources(company, svgOverride) {
   };
 }
 
+function iconTileSurfaceIsDark(hex) {
+  const n = normalizeHexColor(hex) || '#09090b';
+  const r = parseInt(n.slice(1, 3), 16) / 255;
+  const g = parseInt(n.slice(3, 5), 16) / 255;
+  const b = parseInt(n.slice(5, 7), 16) / 255;
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum < 0.45;
+}
+
 function companyIconThemePreviewSources(company, svgOverride) {
   const merged =
     svgOverride !== undefined ? { ...company, iconSvg: svgOverride } : company;
   const svg = svgPreviewDataUri(merged?.iconSvg);
+  const tileDark = iconTileSurfaceIsDark(merged?.iconBackground);
   if (svg) {
-    return { light: svg, dark: svg, darkInvert: true, hasMark: true };
+    return { light: svg, dark: svg, darkInvert: tileDark, hasMark: true };
   }
   if (!hasCustomCompanyIcon(merged)) return { hasMark: false };
   const version = merged?.iconVersion || merged?.logoVersion;
   const params = new URLSearchParams({ size: '128' });
   if (version) params.set('v', version);
-  const tile = `/api/branding/icon?${params.toString()}`;
-  const lightParams = new URLSearchParams(params);
-  lightParams.set('transparent', '1');
+  const transparentParams = new URLSearchParams(params);
+  transparentParams.set('transparent', '1');
+  const transparentIcon = `/api/branding/icon?${transparentParams.toString()}`;
   return {
-    light: `/api/branding/icon?${lightParams.toString()}`,
-    dark: tile,
+    light: transparentIcon,
+    dark: transparentIcon,
     darkInvert: false,
     hasMark: true,
   };
@@ -9333,6 +9343,10 @@ function applyCompanyIconBackgroundPreview(root) {
     : '#09090b';
   const canvas = root.querySelector('#company-icon-dark-canvas');
   if (canvas instanceof HTMLElement) canvas.style.setProperty('--prof-icon-tile', bg);
+  const darkIcon = root.querySelector('#company-icon-dark-preview');
+  if (darkIcon instanceof HTMLImageElement && darkIcon.src.startsWith('data:image/svg')) {
+    darkIcon.classList.toggle('prof-brand-preview-mark--invert', iconTileSurfaceIsDark(bg));
+  }
 }
 
 function applyCompanyBrandPreview(root) {

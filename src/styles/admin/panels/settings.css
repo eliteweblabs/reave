@@ -704,6 +704,23 @@
 .prof-brand-theme-canvas--icon.prof-brand-theme-canvas--dark {
   background: var(--prof-icon-tile, #09090b);
 }
+.prof-brand-theme-canvas .prof-brand-preview-mark.prof-icon-preview,
+.prof-brand-theme-canvas .prof-brand-preview-mark.prof-logo-preview {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 64px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.prof-brand-theme-canvas--icon .prof-brand-preview-mark.prof-icon-preview {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+}
 .prof-brand-preview-mark--invert {
   filter: invert(1);
 }
