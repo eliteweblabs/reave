@@ -163,6 +163,50 @@
 .prof-field-row--colors {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
+.prof-contact-mobile-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.prof-contact-mobile-toggle-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+.prof-contact-mobile-field input[type='checkbox'][aria-hidden='true'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.prof-contact-mobile-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+.prof-contact-mobile-reveal[hidden] {
+  display: none !important;
+}
+.prof-contact-mobile-card-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+.prof-contact-mobile-reveal input[readonly] {
+  opacity: 0.92;
+  cursor: default;
+}
 .prof-color-input-row {
   display: flex;
   align-items: center;

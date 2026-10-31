@@ -9167,6 +9167,7 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   }
 
   bindFormattedPhoneInputs(root);
+  bindCompanySupportPhoneMobile(root);
   const companyAutosave = bindAutosaveForm(root, {
     formSelector: '#company-form',
     alertEl: companyAlert,
@@ -9236,6 +9237,36 @@ function bindCompanyForm(root, company, fontCatalog, emailFontCatalog) {
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
   bindCompanyListing(root, { onHoursChange: () => void companyAutosave.flush?.() });
   handleGbpOAuthReturn(root, new URLSearchParams(window.location.search));
+}
+
+function bindCompanySupportPhoneMobile(root) {
+  const toggle = root.querySelector('#company-supportPhoneMobile-switch');
+  const checkbox = root.querySelector('#company-supportPhoneMobile');
+  const reveal = root.querySelector('#company-supportPhoneMobile-reveal');
+  const phoneInput = root.querySelector('#company-supportPhone');
+  const cardDisplay = root.querySelector('#company-supportPhoneMobile-display');
+  if (!(toggle instanceof HTMLButtonElement) || !(checkbox instanceof HTMLInputElement)) return;
+
+  const syncCardDisplay = () => {
+    if (!(cardDisplay instanceof HTMLInputElement) || !(phoneInput instanceof HTMLInputElement)) return;
+    cardDisplay.value = phoneInput.value;
+  };
+
+  const applyMobileOn = (on, { dispatchChange = false } = {}) => {
+    setToggleSwitch(toggle, on);
+    checkbox.checked = on;
+    if (reveal instanceof HTMLElement) reveal.hidden = !on;
+    if (dispatchChange) checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  applyMobileOn(checkbox.checked);
+  toggle.addEventListener('click', () => {
+    applyMobileOn(toggle.getAttribute('aria-checked') !== 'true', { dispatchChange: true });
+  });
+
+  phoneInput?.addEventListener('input', syncCardDisplay);
+  phoneInput?.addEventListener('change', syncCardDisplay);
+  syncCardDisplay();
 }
 
 function bindCompanyHeaderLogoSize(root, initialSize) {
@@ -10418,24 +10449,34 @@ function renderCompanyPanel(company, fontCatalog, emailFontCatalog) {
           ) +
           profSection(
             'Website &amp; Contact',
-            'Hostname for link previews and legal pages, plus support contacts shown on client portals.',
+            'Hostname for link previews and legal pages, plus primary contacts shown on client portals.',
             `<div class="prof-field"><label for="company-domain">Homepage address</label>` +
             `<input id="company-domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" readonly disabled autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />` +
             `<span class="prof-hint">Set by the <code>PUBLIC_SITE_DOMAIN</code> Railway variable.</span></div>` +
-            `<div class="prof-field-row">` +
-              `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
-              `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="${String(c.domain || '').replace(/^www\./i, '').toLowerCase() === 'reave.app' ? 'get@reave.app' : 'support@example.com'}" autocomplete="email" /></div>` +
-              `<div class="prof-field"><label for="company-supportPhone">Support phone</label>` +
-              `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(formatPhoneInput(c.supportPhone || ''))}" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" />` +
-              `<label class="prof-check-row prof-check-row--nested">` +
-                `<input id="company-supportPhoneMobile" name="supportPhoneMobile" type="checkbox" value="1"${c.supportPhoneMobile !== false ? ' checked' : ''} />` +
-                `<span>Mobile number — show Text on the owner NFC card</span>` +
-              `</label>` +
-              `<span class="prof-hint">When the owner card uses this number (no Profile phone), Text is hidden if this is off.</span></div>` +
+            `<div class="prof-field"><label for="company-supportEmail">Primary email</label>` +
+            `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="${String(c.domain || '').replace(/^www\./i, '').toLowerCase() === 'reave.app' ? 'get@reave.app' : 'support@example.com'}" autocomplete="email" /></div>` +
+            `<div class="prof-field"><label for="company-supportPhone">Primary phone</label>` +
+            `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(formatPhoneInput(c.supportPhone || ''))}" placeholder="+1 (555) 000-0000" autocomplete="tel" inputmode="tel" /></div>` +
+            `<div class="prof-field prof-contact-mobile-field">` +
+              `<div class="prof-contact-mobile-toggle">` +
+                `<span class="prof-contact-mobile-toggle-label" id="company-supportPhoneMobile-label">Mobile number</span>` +
+                `<button type="button" class="prof-plugin-toggle" role="switch" id="company-supportPhoneMobile-switch"` +
+                  ` aria-labelledby="company-supportPhoneMobile-label"` +
+                  ` aria-checked="${c.supportPhoneMobile !== false ? 'true' : 'false'}"></button>` +
+              `</div>` +
+              `<input id="company-supportPhoneMobile" name="supportPhoneMobile" type="checkbox" value="1" tabindex="-1" aria-hidden="true"${c.supportPhoneMobile !== false ? ' checked' : ''} />` +
+              `<div id="company-supportPhoneMobile-reveal" class="prof-contact-mobile-reveal"${c.supportPhoneMobile === false ? ' hidden' : ''}>` +
+                `<label class="prof-field" for="company-supportPhoneMobile-display">` +
+                  `<span class="prof-contact-mobile-card-label">Card number</span>` +
+                  `<input id="company-supportPhoneMobile-display" type="tel" readonly tabindex="-1" aria-readonly="true"` +
+                    ` value="${escHtml(formatPhoneInput(c.supportPhone || ''))}" placeholder="+1 (555) 000-0000" />` +
+                `</label>` +
+                `<span class="prof-hint">Show Text on the owner NFC card. When the owner card uses this number (no Profile phone), Text is hidden if mobile is off.</span>` +
+              `</div>` +
             `</div>` +
             `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
             `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" />` +
-            `<span class="prof-hint">Used when <code>RESEND_FROM</code> is not set. Also used for booking confirmations when scheduling is enabled. Support email and phone appear as Call / Text / Email on client portal pages.</span></div>`,
+            `<span class="prof-hint">Used when <code>RESEND_FROM</code> is not set. Also used for booking confirmations when scheduling is enabled. Primary email and phone appear as Call / Text / Email on client portal pages.</span></div>`,
           ) +
           profSection(
             'Listing preview',
