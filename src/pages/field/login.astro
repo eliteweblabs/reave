@@ -1,0 +1,59 @@
+---
+/**
+ * In-scope Work Day PWA sign-in (manifest scope /field).
+ */
+import Header from '../../components/Header.astro';
+import Favicon from '../../components/Favicon.astro';
+import BrandFontHead from '../../components/BrandFontHead.astro';
+import ViewportMeta from '../../components/ViewportMeta.astro';
+import ThemeInit from '../../components/ThemeInit.astro';
+import { getCompanyConfig } from '../../lib/companyConfig';
+import { hasFeature } from '../../lib/features';
+import '../../styles/mobile-touch.css';
+import '../../styles/brand.css';
+
+export const prerender = false;
+
+if (!hasFeature('work_day')) {
+  Astro.response.status = 404;
+}
+
+const company = await getCompanyConfig(Astro.request);
+const { userId } = Astro.locals.auth();
+if (userId) {
+  const next = Astro.url.searchParams.get('redirect_url') || '/field/';
+  return Astro.redirect(next.startsWith('/') && !next.startsWith('//') ? next : '/field/');
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <ThemeInit />
+    <meta charset="utf-8" />
+    <ViewportMeta />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="manifest" href="/field/manifest.webmanifest" />
+    <title>Sign in — Work Day</title>
+    <Favicon company={company} />
+    <BrandFontHead fonts={company.fonts} />
+  </head>
+  <body data-user-id={userId ?? ''}>
+    <Header signInAutoOpen={!userId} />
+  </body>
+</html>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--site-canvas, #fff);
+    color: var(--site-fg, #171717);
+  }
+</style>

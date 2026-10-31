@@ -31,6 +31,7 @@ export const FEATURE_IDS = [
   'dealership_wizard',
   'namecom_dns',
   'time_tracking',
+  'work_day',
   'demo',
   'real_estate_data',
   'dscr_calculator',
@@ -273,6 +274,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   dealership_wizard: 'Dealership Inventory & Deal Wizard',
   namecom_dns: 'DNS Record Management',
   time_tracking: 'Time Tracking',
+  work_day: 'Work Day',
   demo: 'Demo Mode',
   real_estate_data: 'Real Estate Data & Lead Scanner',
   dscr_calculator: 'DSCR Calculator',
@@ -328,6 +330,7 @@ export const FEATURE_BLURBS: Record<FeatureId, string> = {
   dealership_wizard: 'Inventory browse & guided deal flow',
   namecom_dns: 'Name.com DNS — zone records & nameservers, agency/ops installs only',
   time_tracking: 'Log hours against projects & jobs',
+  work_day: 'Field PWA — toggle work on, GPS & hours per project site, weekly reconcile',
   demo: 'Seed script, quick-start wizard, & Railway testing installs',
   real_estate_data: 'Property facts, compliance, & daily geofence scan',
   dscr_calculator:
@@ -417,6 +420,7 @@ export const FEATURE_REQUIRES: Partial<Record<FeatureId, readonly FeatureId[]>> 
   /** Sites = analytics fleet + uptime — enabling either turns on both. */
   analytic_audit: ['uptime_monitoring'],
   uptime_monitoring: ['analytic_audit'],
+  work_day: ['time_tracking'],
 };
 
 export function featureRequirements(id: string): FeatureId[] {
