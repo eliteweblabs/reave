@@ -11,7 +11,7 @@ function loadPageSeoMediaTools() {
     mediaToolsPromise = Promise.all([
       import('./media-picker.js?v=20260813b'),
       import('./media-image-editor.js?v=20261026a'),
-    ]).then(([picker, editor]) => ({ ...picker, ...editor }));
+    ]).then(([picker, editor]) => Object.assign({}, picker, editor));
   }
   return mediaToolsPromise;
 }

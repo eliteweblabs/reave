@@ -208,17 +208,16 @@ const clerkAppearance = {
 {clerkReady ? (
 <script type="module" define:vars={{ autoOpenSignIn: sheetAutoOpen, fallbackRedirectUrl, authPath, allowSignUp, startOnSignUp, clerkAppearance, closeHref, assetVersion }}>
   await import(`/shared/pwa-refresh-debug.js?v=${assetVersion}`);
-  const { createTracer } = await import(`/shared/reave-diagnostic.js?v=${assetVersion}`);
-  const clerkDiag = createTracer('clerk');
-  const {
-    bindClerkSsrSessionSync,
-    clerkHandshakeUrl,
-    adminHandshakeInCooldown,
-    trySilentAdminSessionRefresh,
-    tryClerkHandshakeFetch,
-    markAdminSessionHealed,
-    performStaffSignOut,
-  } = await import(`/admin/shared.js?v=${assetVersion}`);
+  const diagnosticMod = await import(`/shared/reave-diagnostic.js?v=${assetVersion}`);
+  const clerkDiag = diagnosticMod.createTracer('clerk');
+  const sharedMod = await import(`/admin/shared.js?v=${assetVersion}`);
+  const bindClerkSsrSessionSync = sharedMod.bindClerkSsrSessionSync;
+  const clerkHandshakeUrl = sharedMod.clerkHandshakeUrl;
+  const adminHandshakeInCooldown = sharedMod.adminHandshakeInCooldown;
+  const trySilentAdminSessionRefresh = sharedMod.trySilentAdminSessionRefresh;
+  const tryClerkHandshakeFetch = sharedMod.tryClerkHandshakeFetch;
+  const markAdminSessionHealed = sharedMod.markAdminSessionHealed;
+  const performStaffSignOut = sharedMod.performStaffSignOut;
 
   const AUTH_MOUNT_KEY = '__reaveClerkAuthMounted';
   /** One handshake navigation after client sign-in — never a loop. */

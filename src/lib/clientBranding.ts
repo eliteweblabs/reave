@@ -67,10 +67,11 @@ export function resolveClientLogoUrl(
   if (!portal) return '';
   const bg = opts?.bg ?? 'dark';
   if (portal.logoSource === 'upload') {
+    if (!portal.logoData) return '';
     return `${clientLogoServePath(uid)}${brandingServeQuery(portal.updatedAt, bg)}`;
   }
-  // Route remote/scraped logos through our API so dark-bg contrast adapt can run.
-  if (contactStringField(portal.logoUrl)) {
+  // Proxy through our API only when bytes are stored — otherwise admin lists 404 on /logo.
+  if (portal.logoData && contactStringField(portal.logoUrl)) {
     return `${clientLogoServePath(uid)}${brandingServeQuery(portal.updatedAt, bg)}`;
   }
   return '';
@@ -130,6 +131,7 @@ export function resolveClientIconUrl(
   if (!portal) return '';
   const bg = opts?.bg ?? 'dark';
   if (portal.iconSource === 'upload') {
+    if (!portal.iconData) return '';
     return `${clientIconServePath(uid)}${brandingServeQuery(portal.updatedAt, bg)}`;
   }
   const iconUrl = contactStringField(portal.iconUrl);
