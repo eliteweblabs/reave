@@ -214,7 +214,6 @@ import {
   openScheduleCreateDialog,
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260831a';
-import { loadPagesTab } from './pages-panel.js?v=20261031a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';
@@ -1051,10 +1050,23 @@ function activateMapPanelInner(opts = {}) {
   } else if (MAP.type === 'company') {
     loadCompanyTab();
   } else if (MAP.type === 'pages') {
-    loadPagesTab({
-      settingsPanelRoot,
-      prependSettingsBackHeader,
-    });
+    void import('./pages-panel.js?v=20261031b')
+      .then(({ loadPagesTab }) =>
+        loadPagesTab({
+          settingsPanelRoot,
+          prependSettingsBackHeader,
+        }),
+      )
+      .catch((e) => {
+        console.error('[pages-tab]', e);
+        const root = settingsPanelRoot();
+        if (root) {
+          root.innerHTML =
+            `<div class="profile-panel-scroll"><div class="prof-card"><h1 class="prof-title">Pages</h1>` +
+            `<p class="dash-empty">Could not load Pages panel. Hard refresh and try again.</p></div></div>`;
+          prependSettingsBackHeader(root);
+        }
+      });
   } else if (MAP.type === 'settings') {
     loadAppSettingsTab();
   } else if (MAP.type === 'socials') {

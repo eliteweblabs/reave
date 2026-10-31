@@ -4,14 +4,17 @@
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260810a';
 import { createBrandBtn } from './admin-ui.js?v=20260903a';
 import { showChatToast } from './chat-panel.js?v=20260824a';
-import {
-  openMediaPicker,
-  uploadMediaLibraryFile,
-  BRANDING_RASTER_PICKER_UPLOAD_ACCEPT,
-  validateBrandingRasterMediaUpload,
-  brandingRasterMediaFilter,
-} from './media-picker.js?v=20260813b';
-import { openImageEditor, isEditableRasterFile } from './media-image-editor.js?v=20261026a';
+/** Loaded on first Media / crop action so Pages tab open stays light. */
+let mediaToolsPromise;
+function loadPageSeoMediaTools() {
+  if (!mediaToolsPromise) {
+    mediaToolsPromise = Promise.all([
+      import('./media-picker.js?v=20260813b'),
+      import('./media-image-editor.js?v=20261026a'),
+    ]).then(([picker, editor]) => ({ ...picker, ...editor }));
+  }
+  return mediaToolsPromise;
+}
 
 const SHARE_IMAGE_ASPECT_PRESETS = [
   { id: 'landscape', label: 'Landscape 1.91:1', w: 1200, h: 630 },
@@ -87,6 +90,7 @@ function syncPageOgField(fieldRoot) {
 }
 
 async function editPageShareImage(fileOrSrc, filename, mediaType) {
+  const { openImageEditor, isEditableRasterFile } = await loadPageSeoMediaTools();
   if (fileOrSrc instanceof File && !isEditableRasterFile(fileOrSrc)) return fileOrSrc;
   return openImageEditor({
     file: fileOrSrc instanceof File ? fileOrSrc : undefined,
@@ -114,12 +118,6 @@ function bindPageSeoOgUploads(root) {
       syncPageOgField(field);
     };
 
-    const uploadEditedFile = async (file) => {
-      const item = await uploadMediaLibraryFile(file);
-      applyUploadedItem(item);
-      showChatToast('Share image added — save page SEO to apply.', { type: 'success' });
-    };
-
     input.addEventListener('input', () => syncPageOgField(field));
 
     field.querySelector('[data-pages-og-remove]')?.addEventListener('click', () => {
@@ -133,36 +131,52 @@ function bindPageSeoOgUploads(root) {
       const edited = await editPageShareImage(src, 'page-share-image', 'image/png');
       if (!edited) return;
       try {
-        await uploadEditedFile(edited);
+        const { uploadMediaLibraryFile } = await loadPageSeoMediaTools();
+        const item = await uploadMediaLibraryFile(edited);
+        applyUploadedItem(item);
+        showChatToast('Share image added — save page SEO to apply.', { type: 'success' });
       } catch (e) {
         showChatToast(e.message || 'Upload failed.', { type: 'error' });
       }
     });
 
     field.querySelector('[data-pages-og-library]')?.addEventListener('click', () => {
-      void openMediaPicker({
-        title: 'Page share image',
-        hint: 'Upload or pick an image, then crop. The public URL is stored on this page.',
-        allowUpload: true,
-        uploadAccept: BRANDING_RASTER_PICKER_UPLOAD_ACCEPT,
-        uploadHint: 'PNG, JPEG, WebP, or AVIF — max 2 MB',
-        validateUpload: validateBrandingRasterMediaUpload,
-        emptyHint: 'Nothing here yet — upload above or add files from the Media tab.',
-        emptyFilteredHint: 'No matching images in the library (PNG, JPEG, WebP, or AVIF under 2 MB).',
-        filter: brandingRasterMediaFilter,
-        onPick: async (item) => {
-          const pickSrc = item.thumbnailUrl || item.url;
-          const edited = await editPageShareImage(pickSrc, item.filename, item.mediaType);
-          if (!edited) return false;
-          try {
-            await uploadEditedFile(edited);
-          } catch (e) {
-            showChatToast(e.message || 'Upload failed.', { type: 'error' });
-            return false;
-          }
-          return true;
+      void loadPageSeoMediaTools().then(
+        ({
+          openMediaPicker,
+          uploadMediaLibraryFile: uploadFile,
+          BRANDING_RASTER_PICKER_UPLOAD_ACCEPT,
+          validateBrandingRasterMediaUpload,
+          brandingRasterMediaFilter,
+        }) => {
+          openMediaPicker({
+            title: 'Page share image',
+            hint: 'Upload or pick an image, then crop. The public URL is stored on this page.',
+            allowUpload: true,
+            uploadAccept: BRANDING_RASTER_PICKER_UPLOAD_ACCEPT,
+            uploadHint: 'PNG, JPEG, WebP, or AVIF — max 2 MB',
+            validateUpload: validateBrandingRasterMediaUpload,
+            emptyHint: 'Nothing here yet — upload above or add files from the Media tab.',
+            emptyFilteredHint:
+              'No matching images in the library (PNG, JPEG, WebP, or AVIF under 2 MB).',
+            filter: brandingRasterMediaFilter,
+            onPick: async (item) => {
+              const pickSrc = item.thumbnailUrl || item.url;
+              const edited = await editPageShareImage(pickSrc, item.filename, item.mediaType);
+              if (!edited) return false;
+              try {
+                const uploaded = await uploadFile(edited);
+                applyUploadedItem(uploaded);
+                showChatToast('Share image added — save page SEO to apply.', { type: 'success' });
+              } catch (e) {
+                showChatToast(e.message || 'Upload failed.', { type: 'error' });
+                return false;
+              }
+              return true;
+            },
+          });
         },
-      });
+      );
     });
 
     syncPageOgField(field);
