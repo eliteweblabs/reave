@@ -1,0 +1,112 @@
+---
+import Favicon from '../../components/Favicon.astro';
+import BrandFontHead from '../../components/BrandFontHead.astro';
+import ViewportMeta from '../../components/ViewportMeta.astro';
+import ThemeInit from '../../components/ThemeInit.astro';
+import SiteBackground from '../../components/SiteBackground.astro';
+import { getCompanyConfig } from '../../lib/companyConfig';
+import { hasFeature } from '../../lib/features';
+import { companyHtmlStyleAttr } from '../../lib/companyBrandColors';
+import '../../styles/brand.css';
+import '../../styles/mobile-touch.css';
+import '../../styles/field/work-day.css';
+
+export const prerender = false;
+
+if (!hasFeature('work_day')) {
+  Astro.response.status = 404;
+}
+
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  const returnTo = Astro.url.pathname + Astro.url.search;
+  return Astro.redirect(`/field/login?redirect_url=${encodeURIComponent(returnTo)}`);
+}
+
+const company = await getCompanyConfig(Astro.request);
+---
+
+<!doctype html>
+<html lang="en" style={companyHtmlStyleAttr(company)}>
+  <head>
+    <ThemeInit />
+    <meta charset="utf-8" />
+    <ViewportMeta />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Work Day" />
+    <link rel="manifest" href="/field/manifest.webmanifest" />
+    <title>Work Day — {company.name}</title>
+    <Favicon company={company} />
+    <BrandFontHead fonts={company.fonts} />
+  </head>
+  <body>
+    <SiteBackground />
+    <main class="field-app" aria-label="Work Day">
+      <header class="field-app__head">
+        <div>
+          <h1 class="field-app__title">Work Day</h1>
+          <p class="field-app__sub">{company.name}</p>
+        </div>
+        <a class="field-link-btn" href="/admin/?tab=work-day">Reconcile</a>
+      </header>
+
+      <section class="field-toggle-wrap">
+        <button type="button" id="field-toggle" class="field-toggle" disabled>Work on</button>
+        <div id="field-elapsed" class="field-elapsed" aria-live="polite"></div>
+      </section>
+
+      <section class="field-card">
+        <span class="field-label">Filter by client</span>
+        <select id="field-client-filter" class="field-select">
+          <option value="">All clients</option>
+        </select>
+        <div class="field-row-actions">
+          <button type="button" id="field-add-client" class="field-link-btn">+ New client</button>
+        </div>
+      </section>
+
+      <section class="field-card">
+        <span class="field-label">Project</span>
+        <input id="field-project-search" class="field-input" type="search" placeholder="Search projects…" autocomplete="off" />
+        <select id="field-project-select" class="field-select">
+          <option value="">Loading…</option>
+        </select>
+        <p class="field-app__sub" style="margin:0">Set the job site under Projects → Address in admin.</p>
+      </section>
+
+      <p id="field-status" class="field-status" role="status"></p>
+      <p id="field-install-hint" class="field-install-hint" hidden></p>
+    </main>
+
+    <div id="field-sheet-client" class="field-sheet" aria-hidden="true">
+      <div class="field-sheet__panel">
+        <div class="field-sheet__head">
+          <h2 class="field-sheet__title">New client</h2>
+          <button type="button" class="field-link-btn" data-field-sheet-close="field-sheet-client">Close</button>
+        </div>
+        <form id="field-new-client-form">
+          <label class="field-label" for="field-new-client-name">Name</label>
+          <input id="field-new-client-name" class="field-input" required autocomplete="name" />
+          <label class="field-label" for="field-new-client-phone">Phone</label>
+          <input id="field-new-client-phone" class="field-input" type="tel" autocomplete="tel" />
+          <button type="submit" class="brand-btn brand-btn-filled" style="margin-top: 0.75rem">Save client</button>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="/field/work-day-app.js"></script>
+  </body>
+</html>
+
+<style>
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--site-fg, #171717);
+  }
+</style>

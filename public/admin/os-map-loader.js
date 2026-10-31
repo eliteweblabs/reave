@@ -218,6 +218,7 @@ import { loadPagesTab } from './pages-panel.js?v=20261019a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';
+import { loadWorkDayTab } from './work-day-panel.js?v=20261031a';
 import { loadMeetTab } from './meet-panel.js?v=20260903a';
 import {
   initClientsPanel,
@@ -1111,6 +1112,8 @@ function activateMapPanelInner(opts = {}) {
     loadFleetTab();
   } else if (MAP.type === 'dscr') {
     loadDscrTab();
+  } else if (MAP.type === 'work-day') {
+    loadWorkDayTab();
   } else if (MAP.type === 'meet') {
     loadMeetTab();
   } else if (MAP.type === 'modules') {
@@ -1171,6 +1174,7 @@ function isPanelTab() {
     MAP.type === 'analytics' ||
     MAP.type === 'fleet' ||
     MAP.type === 'dscr' ||
+    MAP.type === 'work-day' ||
     MAP.type === 'modules' ||
     MAP.type === 'chats' ||
     MAP.type === 'email' ||
@@ -1205,6 +1209,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
   setPanelDisplay('fleet-panel', MAP.type === 'fleet' ? 'flex' : 'none');
   setPanelDisplay('dscr-panel', MAP.type === 'dscr' ? 'flex' : 'none');
+  setPanelDisplay('work-day-panel', MAP.type === 'work-day' ? 'flex' : 'none');
   setPanelDisplay('meet-panel', MAP.type === 'meet' ? 'flex' : 'none');
   setPanelDisplay('modules-panel', MAP.type === 'modules' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
@@ -11901,7 +11906,7 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #punchlist-editor, #media-panel, #modules-panel, #dscr-panel, #meet-panel, #search-overlay';
+  '#dashboard-panel, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #punchlist-editor, #media-panel, #modules-panel, #dscr-panel, #work-day-panel, #meet-panel, #search-overlay';
 /** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
   '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .modules-panel-scroll, .ml-panel-scroll, .dscr-panel-scroll, .meet-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';

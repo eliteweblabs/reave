@@ -43,6 +43,8 @@ import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, side
 import { postTitle, postLower, postNew, postTitleLabel } from './post-alias.js?v=20260805a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260830a';
 import { mountListFilterTabs } from './filter-tabs.js?v=20260813a';
+import { mountAddressAutocomplete } from './schedule-panel.js?v=20260831a';
+import { geocodeClientAddressPreview } from './clients-panel.js?v=20260830a';
 import {
   createDetailChrome,
   createDetailFormScroll,
@@ -1716,6 +1718,7 @@ const WORK_DETAIL_TABS = [
   { id: 'markup', label: 'Markup' },
   { id: 'action-items', label: 'Action Items' },
   { id: 'time', label: 'Time', feature: 'time_tracking' },
+  { id: 'site-address', label: 'Address', feature: 'work_day' },
   { id: 'files', label: 'Files' },
   { id: 'todo', label: 'To-Do' },
   { id: 'comments', label: 'Comments' },
@@ -4060,6 +4063,11 @@ function renderEditWorkForm(pane) {
         contact_name: data.contact_name || data.client,
         contact_email: data.contact_email || '',
         contact_phone: data.contact_phone || '',
+        site_label: data.site_label || '',
+        site_address: data.site_address || '',
+        site_lat: data.site_lat ?? null,
+        site_lng: data.site_lng ?? null,
+        site_place_id: data.site_place_id || '',
       };
       workState.dirty = false;
       titleInput.value = workState.draft?.title || '';
@@ -4183,6 +4191,12 @@ function renderEditWorkForm(pane) {
           clientName: workState.draft?.contact_name || '',
         });
         scroll.appendChild(timePanel);
+      }
+
+      if (hasInstallFeature('work_day')) {
+        const sitePanel = createWorkDetailPanel('site-address', activeTab);
+        mountWorkSiteAddressSection(sitePanel, slug, data);
+        scroll.appendChild(sitePanel);
       }
 
       const filesPanel = createWorkDetailPanel('files', activeTab);
@@ -5479,6 +5493,118 @@ function createWorkSwipeRow(job) {
   );
   return createSwipeRow(createWorkListItem(job), actions);
 }
+
+/** Job site address for Work Day / field time (work_day module). */
+function mountWorkSiteAddressSection(panel, slug, job) {
+  panel.innerHTML = '';
+  const intro = document.createElement('p');
+  intro.className = 'wk-site-intro';
+  intro.textContent =
+    'On-site location for this project. Used by the Work Day field app and weekly reconcile.';
+  panel.appendChild(intro);
+
+  const fields = document.createElement('div');
+  fields.className = 'de-fields';
+
+  const labelWrap = document.createElement('label');
+  labelWrap.className = 'de-field';
+  labelWrap.innerHTML = `<span class="de-label">Site label</span>`;
+  const labelInput = document.createElement('input');
+  labelInput.className = 'de-input';
+  labelInput.type = 'text';
+  labelInput.placeholder = 'e.g. Main job site';
+  labelInput.value = job.site_label || '';
+  labelWrap.appendChild(labelInput);
+  fields.appendChild(labelWrap);
+
+  const addrWrap = document.createElement('label');
+  addrWrap.className = 'de-field';
+  addrWrap.innerHTML = `<span class="de-label">Address</span>`;
+  const addressInput = document.createElement('input');
+  addressInput.className = 'de-input';
+  addressInput.type = 'text';
+  addressInput.autocomplete = 'street-address';
+  addressInput.placeholder = 'Street address';
+  addressInput.value = job.site_address || '';
+  addrWrap.appendChild(addressInput);
+  fields.appendChild(addrWrap);
+
+  panel.appendChild(fields);
+
+  let saveTimer = null;
+  let destroyAutocomplete = null;
+
+  async function saveSite(extra = {}) {
+    const draft = workState.draft;
+    if (!draft?.title || !draft.contact_uid) return;
+    const payload = {
+      title: draft.title,
+      contact_uid: draft.contact_uid,
+      contact_name: draft.contact_name,
+      status: draft.status,
+      priority: draft.priority,
+      due_date: draft.due_date || null,
+      value: draft.value === '' ? null : draft.value,
+      tags: draft.tags || [],
+      source: draft.source || '',
+      body: draft.body || '',
+      site_label: labelInput.value.trim() || null,
+      site_address: addressInput.value.trim() || null,
+      site_lat: extra.lat ?? job.site_lat ?? null,
+      site_lng: extra.lng ?? job.site_lng ?? null,
+      site_place_id: extra.placeId ?? job.site_place_id ?? null,
+    };
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      if (workState.draft) {
+        workState.draft.site_label = payload.site_label;
+        workState.draft.site_address = payload.site_address;
+        workState.draft.site_lat = payload.site_lat;
+        workState.draft.site_lng = payload.site_lng;
+        workState.draft.site_place_id = payload.site_place_id;
+      }
+    } catch (e) {
+      console.warn('[work] site address save failed', e);
+    }
+  }
+
+  const queueSave = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => void saveSite(), 400);
+  };
+
+  labelInput.addEventListener('input', queueSave);
+  labelInput.addEventListener('blur', () => void saveSite());
+  addressInput.addEventListener('blur', () => void saveSite());
+
+  destroyAutocomplete = mountAddressAutocomplete(
+    addressInput,
+    getWorkEditor() || document.body,
+    async (pickedAddress) => {
+      addressInput.value = pickedAddress;
+      const geo = await geocodeClientAddressPreview(pickedAddress);
+      await saveSite(
+        geo
+          ? { lat: geo.lat, lng: geo.lng, placeId: geo.placeId }
+          : {},
+      );
+    },
+  );
+
+  addressInput.addEventListener('input', queueSave);
+
+  panel._teardownSiteAddress = () => {
+    clearTimeout(saveTimer);
+    if (typeof destroyAutocomplete === 'function') destroyAutocomplete();
+  };
+}
+
 export {
   workState,
   loadWorkTab,

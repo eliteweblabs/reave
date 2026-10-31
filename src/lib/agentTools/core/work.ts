@@ -36,6 +36,11 @@ import {
   startTimeTrackingOnProject,
   stopTimeTrackingWithMessage,
 } from '../../timeTrackingSiri';
+import {
+  mondayOfWeekContaining,
+  storeGetActiveWorkDaySession,
+  storeWorkDayWeekSummary,
+} from '../../workDayStore';
 import { findCheckboxByText } from '../../markdownCheckboxes';
 import {
   isTodoDbConfigured,
@@ -681,6 +686,35 @@ async function handle_get_work_timer(_args: Record<string, unknown>, _ctx: ToolC
   return JSON.stringify({ ok: true, ...view });
 }
 
+function workDayDisabledJson(): string {
+  return JSON.stringify({ ok: false, error: 'work_day module is not enabled' });
+}
+
+async function handle_get_work_day_status(
+  _args: Record<string, unknown>,
+  _ctx: ToolContext,
+): Promise<string> {
+  if (!hasFeature('work_day')) return workDayDisabledJson();
+  const { getAgentContext } = await import('../../agentContext');
+  const userId = getAgentContext().userId?.trim();
+  if (!userId) return JSON.stringify({ ok: false, error: 'No signed-in user' });
+  const session = await storeGetActiveWorkDaySession(userId);
+  return JSON.stringify({ ok: true, session });
+}
+
+async function handle_list_work_day_summary(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+): Promise<string> {
+  if (!hasFeature('work_day')) return workDayDisabledJson();
+  const week =
+    typeof args.week === 'string' && args.week.trim()
+      ? args.week.trim()
+      : mondayOfWeekContaining();
+  const summary = await storeWorkDayWeekSummary(week);
+  return JSON.stringify({ ok: true, weekStart: week, ...summary });
+}
+
 async function handle_delete_work(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const slug = String(args.slug ?? '').trim();
   if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
@@ -1041,6 +1075,41 @@ export const workModule: AgentToolModule = {
         },
       );
     }
+    if (hasFeature('work_day')) {
+      defs.push(
+        {
+          type: 'function',
+          function: {
+            name: 'get_work_day_status',
+            description:
+              'Active Work Day field session for the signed-in user (on-site toggle from /field PWA).',
+            parameters: {
+              type: 'object',
+              properties: {},
+              additionalProperties: false,
+            },
+          },
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'list_work_day_summary',
+            description:
+              'Weekly Work Day totals by client and property (Monday week start). Use for “hours on site this week”.',
+            parameters: {
+              type: 'object',
+              properties: {
+                week: {
+                  type: 'string',
+                  description: 'ISO date of Monday starting the week (YYYY-MM-DD). Defaults to current week.',
+                },
+              },
+              additionalProperties: false,
+            },
+          },
+        },
+      );
+    }
     return defs;
   },
   handlers: {
@@ -1057,6 +1126,8 @@ export const workModule: AgentToolModule = {
     'start_work_timer': handle_start_work_timer,
     'stop_work_timer': handle_stop_work_timer,
     'get_work_timer': handle_get_work_timer,
+    'get_work_day_status': handle_get_work_day_status,
+    'list_work_day_summary': handle_list_work_day_summary,
     'delete_work': handle_delete_work,
   },
 };

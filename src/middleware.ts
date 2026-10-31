@@ -69,7 +69,10 @@ function isProtectedAdminPath(pathname: string): boolean {
   return (
     normalized === "/admin" ||
     normalized.startsWith("/admin/") ||
-    normalized.startsWith("/api/admin/")
+    normalized.startsWith("/api/admin/") ||
+    normalized === "/field" ||
+    normalized.startsWith("/field/") ||
+    normalized.startsWith("/api/work-day/")
   );
 }
 
@@ -113,6 +116,14 @@ function isFeatureBlockedPath(pathname: string): boolean {
     return true;
   }
   if ((pathname === "/focus" || pathname.startsWith("/focus/")) && !isChatFocusSkinEnabled()) {
+    return true;
+  }
+  if (
+    (pathname === "/field" ||
+      pathname.startsWith("/field/") ||
+      pathname.startsWith("/api/work-day/")) &&
+    (!hasFeature("work_day") || isFeatureRuntimeBlocked("work_day"))
+  ) {
     return true;
   }
   return false;
@@ -325,6 +336,8 @@ const appHandler = async (
       !isSiteManifest &&
       !isClientSitePath &&
       !normalizedPath.startsWith("/admin/") &&
+      !normalizedPath.startsWith("/field/") &&
+      normalizedPath !== "/field" &&
       !normalizedPath.startsWith("/api/") &&
       !normalizedPath.startsWith("/c/") &&
       !normalizedPath.startsWith("/doc/") &&

@@ -37,6 +37,20 @@ function parseDueDate(raw: unknown): string | null | undefined {
   return s.slice(0, 10);
 }
 
+function parseSiteCoord(raw: unknown): number | null | undefined {
+  if (raw === null) return null;
+  if (raw === undefined || raw === '') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function parseSiteString(raw: unknown): string | null | undefined {
+  if (raw === null) return null;
+  if (raw === undefined) return undefined;
+  const s = String(raw).trim();
+  return s || null;
+}
+
 export function parseWorkJobInput(body: Record<string, unknown>): WorkJobInput | { error: string } {
   const title = String(body.title ?? '').trim();
   const contact_uid = String(body.contact_uid ?? '').trim();
@@ -50,6 +64,11 @@ export function parseWorkJobInput(body: Record<string, unknown>): WorkJobInput |
   const tags = parseTags(body.tags);
   const source = body.source != null ? String(body.source).trim() : undefined;
   const record_origin = body.record_origin != null ? String(body.record_origin).trim() : undefined;
+  const site_label = parseSiteString(body.site_label);
+  const site_address = parseSiteString(body.site_address);
+  const site_lat = parseSiteCoord(body.site_lat);
+  const site_lng = parseSiteCoord(body.site_lng);
+  const site_place_id = parseSiteString(body.site_place_id);
 
   if (!title) return { error: 'title is required' };
   if (!contact_uid && !client) return { error: 'Select a contact' };
@@ -67,5 +86,10 @@ export function parseWorkJobInput(body: Record<string, unknown>): WorkJobInput |
     source,
     record_origin,
     body: jobBody,
+    site_label,
+    site_address,
+    site_lat,
+    site_lng,
+    site_place_id,
   };
 }

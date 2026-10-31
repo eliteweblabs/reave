@@ -95,6 +95,12 @@ export interface WorkJobSummary {
   last_client_viewed_at?: string | null;
   /** Short lines for compact client project tiles. */
   preview_bullets?: string[];
+  /** On-site / job location (Work Day module). */
+  site_label?: string | null;
+  site_address?: string | null;
+  site_lat?: number | null;
+  site_lng?: number | null;
+  site_place_id?: string | null;
 }
 
 export interface WorkJobDoc extends WorkJobSummary {
@@ -121,6 +127,11 @@ export interface WorkJobInput {
   record_origin?: string;
   /** Dashboard chat thread to link back to (set when created from chat). */
   source_chat_id?: string;
+  site_label?: string | null;
+  site_address?: string | null;
+  site_lat?: number | null;
+  site_lng?: number | null;
+  site_place_id?: string | null;
 }
 
 const SAFE_SLUG_RE = /^[a-z0-9._-]+$/i;
@@ -295,7 +306,18 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     updated: meta.updated?.trim() || '',
     last_client_viewed_at: meta.last_client_viewed_at?.trim() || null,
     preview_bullets: extractWorkPreviewBullets(body, { tags }),
+    site_label: meta.site_label?.trim() || null,
+    site_address: meta.site_address?.trim() || null,
+    site_lat: parseSiteCoord(meta.site_lat),
+    site_lng: parseSiteCoord(meta.site_lng),
+    site_place_id: meta.site_place_id?.trim() || null,
   };
+}
+
+function parseSiteCoord(raw: string | undefined): number | null {
+  if (!raw?.trim()) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
 function buildMarkdown(
@@ -338,6 +360,19 @@ function buildMarkdown(
   if (sourceChatId) lines.push(yamlLine('source_chat_id', sourceChatId));
   const clientViewed = existing?.last_client_viewed_at?.trim();
   if (clientViewed) lines.push(yamlLine('last_client_viewed_at', clientViewed));
+  const siteLabel =
+    input.site_label !== undefined ? input.site_label : existing?.site_label;
+  const siteAddress =
+    input.site_address !== undefined ? input.site_address : existing?.site_address;
+  const siteLat = input.site_lat !== undefined ? input.site_lat : existing?.site_lat;
+  const siteLng = input.site_lng !== undefined ? input.site_lng : existing?.site_lng;
+  const sitePlaceId =
+    input.site_place_id !== undefined ? input.site_place_id : existing?.site_place_id;
+  if (siteLabel) lines.push(yamlLine('site_label', siteLabel));
+  if (siteAddress) lines.push(yamlLine('site_address', siteAddress));
+  if (siteLat != null) lines.push(yamlLine('site_lat', String(siteLat)));
+  if (siteLng != null) lines.push(yamlLine('site_lng', String(siteLng)));
+  if (sitePlaceId) lines.push(yamlLine('site_place_id', sitePlaceId));
   lines.push(
     yamlLine('created', created),
     yamlLine('updated', now),
@@ -654,6 +689,11 @@ export async function storeWriteWork(
         source: input.source,
         source_chat_id: input.source_chat_id,
         body: input.body != null ? input.body.trim() : undefined,
+        site_label: input.site_label,
+        site_address: input.site_address,
+        site_lat: input.site_lat,
+        site_lng: input.site_lng,
+        site_place_id: input.site_place_id,
       });
     } else {
       const { deleteTrackedLinksForJob } = await import('./linkTracking');
@@ -673,6 +713,11 @@ export async function storeWriteWork(
         source: input.source?.trim() ?? '',
         source_chat_id: input.source_chat_id?.trim() || null,
         body: (input.body ?? '').trim(),
+        site_label: input.site_label ?? null,
+        site_address: input.site_address ?? null,
+        site_lat: input.site_lat ?? null,
+        site_lng: input.site_lng ?? null,
+        site_place_id: input.site_place_id ?? null,
       });
     }
   } else {

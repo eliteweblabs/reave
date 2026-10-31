@@ -36,6 +36,11 @@ export interface JobRow {
   created_at: string | Date;
   updated_at: string | Date;
   last_client_viewed_at: string | Date | null;
+  site_label: string | null;
+  site_address: string | null;
+  site_lat: number | null;
+  site_lng: number | null;
+  site_place_id: string | null;
 }
 
 function pgTimestamp(value: unknown): string {
@@ -45,14 +50,16 @@ function pgTimestamp(value: unknown): string {
 }
 
 const JOB_COLUMNS = `
-  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body, created_at, updated_at, last_client_viewed_at
+  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body, created_at, updated_at, last_client_viewed_at,
+  site_label, site_address, site_lat, site_lng, site_place_id
 `;
 
 /** List queries: omit full body; preview uses a truncated slice. */
 const JOB_LIST_COLUMNS = `
   id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id,
   LEFT(body, 800) AS body,
-  created_at, updated_at, last_client_viewed_at
+  created_at, updated_at, last_client_viewed_at,
+  site_label, site_address, site_lat, site_lng, site_place_id
 `;
 
 const SCHEMA_SQL = `
@@ -129,6 +136,11 @@ WHERE status = 'inquiry'
     OR tags && ARRAY['siri-audit', 'quick-audit', 'full-audit']::text[]
   );
 CREATE INDEX IF NOT EXISTS idx_jobs_updated_at ON jobs (updated_at DESC);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS site_label VARCHAR(500);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS site_address TEXT;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS site_lat DOUBLE PRECISION;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS site_lng DOUBLE PRECISION;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS site_place_id VARCHAR(255);
 `;
 
 let _schemaReady: Promise<void> | null = null;
@@ -159,6 +171,11 @@ function rowToSummary(row: JobRow): WorkJobSummary {
       ? pgTimestamp(row.last_client_viewed_at)
       : null,
     preview_bullets: extractWorkPreviewBullets(row.body ?? '', { tags }),
+    site_label: row.site_label?.trim() || null,
+    site_address: row.site_address?.trim() || null,
+    site_lat: row.site_lat != null && Number.isFinite(Number(row.site_lat)) ? Number(row.site_lat) : null,
+    site_lng: row.site_lng != null && Number.isFinite(Number(row.site_lng)) ? Number(row.site_lng) : null,
+    site_place_id: row.site_place_id?.trim() || null,
   };
 }
 
@@ -309,14 +326,20 @@ export async function dbCreateWork(input: {
   source?: string;
   source_chat_id?: string | null;
   body?: string;
+  site_label?: string | null;
+  site_address?: string | null;
+  site_lat?: number | null;
+  site_lng?: number | null;
+  site_place_id?: string | null;
 }): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
   try {
     const pool = await ensureSchema();
     if (!pool) return { ok: false, error: 'Work DB not configured — cannot save.' };
 
     const { rows } = await pool.query<JobRow>(
-      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body,
+        site_label, site_address, site_lat, site_lng, site_place_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING ${JOB_COLUMNS}`,
       [
         input.slug,
@@ -331,6 +354,11 @@ export async function dbCreateWork(input: {
         input.source?.trim() ?? '',
         input.source_chat_id?.trim() || null,
         (input.body ?? '').trim(),
+        input.site_label?.trim() || null,
+        input.site_address?.trim() || null,
+        input.site_lat ?? null,
+        input.site_lng ?? null,
+        input.site_place_id?.trim() || null,
       ],
     );
     const row = rows[0];
@@ -359,6 +387,11 @@ export async function dbUpdateWork(
     source?: string;
     source_chat_id?: string | null;
     body?: string;
+    site_label?: string | null;
+    site_address?: string | null;
+    site_lat?: number | null;
+    site_lng?: number | null;
+    site_place_id?: string | null;
   },
 ): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
   try {
@@ -378,6 +411,11 @@ export async function dbUpdateWork(
          source = COALESCE($10, source),
          source_chat_id = COALESCE($12, source_chat_id),
          body = COALESCE($11, body),
+         site_label = COALESCE($13, site_label),
+         site_address = COALESCE($14, site_address),
+         site_lat = COALESCE($15, site_lat),
+         site_lng = COALESCE($16, site_lng),
+         site_place_id = COALESCE($17, site_place_id),
          updated_at = NOW()
        WHERE slug = $1
        RETURNING ${JOB_COLUMNS}`,
@@ -394,6 +432,11 @@ export async function dbUpdateWork(
         input.source?.trim() ?? null,
         input.body != null ? input.body.trim() : null,
         input.source_chat_id === undefined ? null : input.source_chat_id,
+        input.site_label === undefined ? null : input.site_label,
+        input.site_address === undefined ? null : input.site_address,
+        input.site_lat === undefined ? null : input.site_lat,
+        input.site_lng === undefined ? null : input.site_lng,
+        input.site_place_id === undefined ? null : input.site_place_id,
       ],
     );
     const row = rows[0];

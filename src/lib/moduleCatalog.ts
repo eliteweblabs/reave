@@ -450,6 +450,7 @@ export const DEFAULT_MODULE_INDUSTRIES: Readonly<Record<string, readonly string[
   fleet_tracking: [...TRADE_INDUSTRIES],
   materials_pricing: ['general', 'plumbing', 'electricians', 'engineers'],
   time_tracking: [...FIELD_SERVICE_INDUSTRIES, 'general', 'plumbing', 'electricians', 'engineers', 'law', 'lawyers'],
+  work_day: [...FIELD_SERVICE_INDUSTRIES, 'general', 'plumbing', 'electricians', 'engineers', 'landscaping', 'cleaning'],
   real_estate_data: ['real-estate-agents'],
   dscr_calculator: ['real-estate-agents'],
   credit_check: ['real-estate-agents', 'law', 'lawyers', 'general'],

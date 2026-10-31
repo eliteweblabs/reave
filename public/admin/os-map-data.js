@@ -64,6 +64,7 @@ const SYSTEM_NODES = [
   { id: 'dscr_calculator', title: 'DSCR Calculator', sub: '/dscr · /admin/?tab=dscr · /api/dscr/calculate (FEATURES: dscr_calculator)', icon: '🧮', hue: 168, status: true, group: 'reave', x: 640, y: 1236 },
   { id: 'website', title: 'Agentic Website Editor', sub: 'client web tools · editor + stock photos · no hosting APIs (FEATURES: website)', icon: '🌐', hue: 195, status: true, group: 'reave', x: 400, y: 600 },
   { id: 'time_tracking', title: 'Time Tracking', sub: 'Time tab · /api/work/timer · /api/work/:slug/time · Siri start_timer / stop_timer · numbered project pick (FEATURES: time_tracking)', icon: '⏱️', hue: 88, status: true, group: 'reave', x: 220, y: 600 },
+  { id: 'work_day', title: 'Work Day', sub: 'Field PWA /field · project Address tab · GPS + hours · /api/work-day/* → job_time_entries (FEATURES: work_day)', icon: '📍', hue: 92, status: true, group: 'reave', x: 220, y: 648 },
   { id: 'content_mgmt', title: 'Agentic Website Editor', sub: 'locked website repo · auto-commit · undo that (FEATURES: content_management)', icon: '✏️', brand: 'github', hue: 210, status: true, group: 'reave', x: 400, y: 640 },
   { id: 'site_repo', title: 'Client site repo', sub: 'wizard creates {slug}-site · restricted GitHub App · not eliteweblabs/reave', icon: '📄', brand: 'github', hue: 220, status: true, group: 'external', x: 1400, y: 700 },
   { id: 'wp_content', title: 'WordPress™ Connect', sub: 'Requestable add-on · eliteweblabs/reave-connect (FEATURES: wordpress_content)', icon: '🔌', brand: 'wordpress', hue: 200, status: true, group: 'reave', x: 400, y: 800 },
@@ -150,6 +151,11 @@ const SYSTEM_EDGES = [
   { from: 'siri', to: 'time_tracking', label: 'start/stop', dashed: true },
   { from: 'dev', to: 'time_tracking', label: 'Time tab', dashed: true },
   { from: 'time_tracking', to: 'crater', label: 'hours as quantity', dashed: true },
+  { from: 'astro', to: 'work_day', label: '/field · /api/work-day', dashed: true },
+  { from: 'work_day', to: 'time_tracking', label: 'requires', dashed: true },
+  { from: 'work_day', to: 'app_pg', label: 'work_day_* · jobs.site_*', dashed: true },
+  { from: 'work_day', to: 'time_tracking', label: 'Projects Address tab', dashed: true },
+  { from: 'dev', to: 'work_day', label: 'Reconcile tab', dashed: true },
   { from: 'astro', to: 'materials_api', label: 'materials pricing', dashed: true },
   { from: 'astro', to: 'inventory_api', label: 'inventory sync', dashed: true },
   { from: 'astro', to: 'fleet_api', label: 'fleet GPS · map', dashed: true },
@@ -256,7 +262,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri', 'digital_audit'] },
-  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'galene', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'social_lead_scanner', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'deploy_wizard', 'deck_industries', 'module_catalog', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'galene', 'materials_api', 'inventory_api', 'fleet_api', 'portal', 'documents', 'digital_signature', 'carddav', 'media_webdav', 'media_public', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter', 'online_reviews', 'social_feed', 'social_lead_scanner', 'analytic_audit', 'seo_directory', 'event_ticketing', 'cookie_notice', 'credit_check', 'dscr_calculator', 'website', 'time_tracking', 'work_day', 'content_mgmt', 'wp_content', 'visit_planner', 'client_map', 'dealer_map', 'sales_sheet', 'google_workspace_mod'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['openrouter', 'omniroute', 'anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'site_repo', 'telnyx', 'wayback', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible', 'google_search_console', 'ga4', 'indexnow', 'bing_webmaster', 'google_places', 'pexels', 'ipwhois', 'brightlocal', 'instagram_oauth', 'namecom', 'cloudflare', 'google_workspace'] },
 ];
 
@@ -480,6 +486,7 @@ export const MAPS = {
   media:     { id: 'media',     title: 'Media Library', icon: '🖼️', type: 'media',     nodes: [],             edges: [],             groups: [] },
   analytics: { id: 'analytics', title: 'Sites',      icon: '📈',  type: 'analytics',     nodes: [],             edges: [],             groups: [] },
   fleet:     { id: 'fleet',     title: 'Fleet',      icon: '🚚',  type: 'fleet',         nodes: [],             edges: [],             groups: [] },
+  'work-day': { id: 'work-day', title: 'Work Day',   icon: '📍',  type: 'work-day',      nodes: [],             edges: [],             groups: [] },
   modules:   { id: 'modules',   title: 'Modules',    icon: '🧩',  type: 'modules',       nodes: [],             edges: [],             groups: [] },
   deploy:    { id: 'deploy',    title: 'Deploy Wizard', icon: 'sparkles', link: '/deploy', nodes: [], edges: [], groups: [] },
   'sales-sheet': { id: 'sales-sheet', title: 'Sales sheet', icon: 'receipt', link: '/admin/sales-sheet', nodes: [], edges: [], groups: [] },

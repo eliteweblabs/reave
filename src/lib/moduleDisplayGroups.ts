@@ -29,6 +29,7 @@ export const MODULE_DISPLAY_GROUPS: readonly ModuleDisplayGroup[] = [
       'digital_signature',
       'scheduling',
       'time_tracking',
+      'work_day',
       'email_inbox',
       'email_marketing',
       'auto_email_response',

@@ -64,7 +64,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Frame-Options': 'SAMEORIGIN',
-  'Permissions-Policy': 'camera=(), geolocation=(), payment=(), usb=(), microphone=(self)',
+  'Permissions-Policy': 'camera=(), geolocation=(self), payment=(), usb=(), microphone=(self)',
   ...(cspEnforced()
     ? { 'Content-Security-Policy': CSP_VALUE }
     : { 'Content-Security-Policy-Report-Only': CSP_VALUE }),

@@ -135,6 +135,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'social-leads',
   'dscr',
   'fleet',
+  'work-day',
   'reviews',
   'media',
   'deploy',
