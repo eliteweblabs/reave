@@ -388,6 +388,8 @@ function buildVariablePatch(apexDomain: string, assistantId?: string): Record<st
     PUBLIC_SITE_DOMAIN: apex,
     PUBLIC_SITE_URL: `https://${apex}`,
     COMPANY_DOMAIN: apex,
+    PUBLIC_BOOKING_API_URL: `https://book.${apex}`,
+    REAVE_HUB_URL: 'https://rekko.studio',
     COMPANY_LOGO_URL: `https://${apex}/sites/luxe-cleaning/logo.png`,
     EMAIL_FROM_NAME: 'Felicia Tracy · lux cleaning',
     EMAIL_FROM: resendFromAddress(apex),

@@ -136,6 +136,10 @@ INSTALL_CONFIG=luxe-cleaning VAPI_API_KEY=… npm run provision:vapi
 | `DATABASE_URL` | required at **build** time |
 | `CRATER_API_BASE_URL` | `https://${{ crater.RAILWAY_PUBLIC_DOMAIN }}` (optional custom: `ap.lux.cleaning`) |
 | `CRATER_API_TOKEN` | shared with the **crater** service |
+| `PUBLIC_BOOKING_API_URL` | `https://book.lux.cleaning` — browser booking form + calendar (requires redeploy after set) |
+| `REAVE_HUB_URL` | `https://rekko.studio` — punch list / shared admin with official hub |
+
+Site allowlist: `config/sites/luxe-cleaning-config.json` must include **`/form`** or middleware 404s `/form/lux-schedule` and other booking routes.
 
 Sibling services (match rekko / PDX Paws billing stack): **crater** (`eliteweblabs/crater`) + **Postgres** for Crater DB. Enable `billing` in `config-luxe-cleaning.json` and keep **Finance** in footer nav.
 

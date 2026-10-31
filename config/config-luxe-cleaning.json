@@ -46,10 +46,10 @@
     "documents": "deployed",
     "digital_signature": "deployed",
     "email_inbox": "deployed",
-    "scheduling": "request",
+    "scheduling": "deployed",
     "portal_assistant": "deployed",
     "online_reviews": "request",
-    "vapi": "request",
+    "vapi": "deployed",
     "billing": "deployed",
     "time_tracking": "deployed",
     "content_management": "deployed"

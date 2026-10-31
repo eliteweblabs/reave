@@ -1,6 +1,6 @@
 {
   "key": "luxe-cleaning",
-  "pages": ["/", "/privacy", "/terms", "/cookies"],
+  "pages": ["/", "/privacy", "/terms", "/cookies", "/form"],
   "nav": {
     "links": [],
     "groups": [],
