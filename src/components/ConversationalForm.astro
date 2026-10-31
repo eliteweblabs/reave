@@ -1,6 +1,7 @@
 ---
 import BrandIconInline from "./BrandIconInline.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { serverEnv } from "../lib/serverEnv";
 
 interface Props {
   slug: string;
@@ -31,7 +32,10 @@ const {
   eager = false,
 } = Astro.props;
 const company = heroChat ? await getCompanyConfig(Astro.request) : null;
-const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
+const bookingApiUrl =
+  serverEnv("PUBLIC_BOOKING_API_URL")?.trim() ||
+  import.meta.env.PUBLIC_BOOKING_API_URL ||
+  "";
 const rootClass = [
   "conversational-form-root",
   embedded || dock ? "conversational-form-root--embedded" : "",
