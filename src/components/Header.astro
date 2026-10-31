@@ -1966,9 +1966,7 @@ const showWebsiteEntry = showHeaderAccountMenu && inAdminRoute;
         signOutBtn.addEventListener("click", (ev) => {
           ev.preventDefault();
           setAccountMenuOpen(false);
-          void import(`/admin/shared.js?v=${assetVersion}`).then(({ performStaffSignOut }) =>
-            performStaffSignOut(),
-          );
+          void import(`/admin/shared.js?v=${assetVersion}`).then((mod) => mod.performStaffSignOut());
         });
       }
 

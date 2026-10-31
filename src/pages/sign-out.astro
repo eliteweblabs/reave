@@ -22,8 +22,8 @@ const assetVersion = __PUBLIC_ASSET_VERSION__;
   <body>
     <p>Signing out…</p>
     <script type="module" define:vars={{ assetVersion }}>
-      const { performStaffSignOut } = await import(`/admin/shared.js?v=${assetVersion}`);
-      await performStaffSignOut({ fromDedicatedPage: true });
+      const sharedMod = await import(`/admin/shared.js?v=${assetVersion}`);
+      await sharedMod.performStaffSignOut({ fromDedicatedPage: true });
     </script>
   </body>
 </html>

@@ -248,8 +248,8 @@ const showOverlayFooter =
 
     async function marketingSignOut() {
       setMarketingMenuOpen(false);
-      const { performStaffSignOut } = await import(`/admin/shared.js?v=${assetVersion}`);
-      await performStaffSignOut();
+      const sharedMod = await import(`/admin/shared.js?v=${assetVersion}`);
+      await sharedMod.performStaffSignOut();
     }
 
     root.querySelector("[data-marketing-sign-out]")?.addEventListener("click", (ev) => {
