@@ -1,6 +1,6 @@
 # Christian Gonzalez — Railway project
 
-Solo barber stack: public site + slim reave hub (schedule + Crater) + Cal.com + contact-api.
+**Solo barber stack** ([`eliteweblabs/solo-barber-stack`](https://github.com/eliteweblabs/solo-barber-stack)) — same package as Steven Diaz. Site service deploys from that repo (Christian uses branch **`christian-gonzalez`** for his homepage + cal menu; Steven uses **`main`**).
 
 | | |
 |---|---|
@@ -8,62 +8,39 @@ Solo barber stack: public site + slim reave hub (schedule + Crater) + Cal.com + 
 | **Project** | Christian Gonzalez (`74463066-704a-4656-8260-07d5fdba86c6`) |
 | **Environment** | production (`e018980e-ed14-48e9-804f-61274420b60e`) |
 | **Install slug** | `christian-gonzalez` |
-| **Config** | `config/config-christian-gonzalez.json` |
-| **Public site repo** | [eliteweblabs/christian-gonzalez-site](https://github.com/eliteweblabs/christian-gonzalez-site) |
-| **Staging admin host** | `https://christian-gonzalez.reave.app` (wire DNS on reave.app zone when ready) |
-| **Site Railway service** | `christian-gonzalez-site` |
+| **Site repo / branch** | `eliteweblabs/solo-barber-stack` → **`christian-gonzalez`** |
+| **Public site** | https://christian-gonzalez-site-production.up.railway.app |
+| **Cal.com** | https://christian-gonzalez-cal-production.up.railway.app |
 
-## Which URL is the website?
-
-| URL | What it is |
-|-----|------------|
-| **https://christian-gonzalez-site-production.up.railway.app** | **Public site** — menu + Calendly (canonical) |
-| https://reave-production-a663.up.railway.app | **Admin hub** — `/` redirects to the public site when `PUBLIC_CLIENT_WEBSITE_URL` is set; use `/admin` to sign in |
-
-Christian’s front end is repo **`eliteweblabs/christian-gonzalez-site`**, Railway service **`christian-gonzalez-site`**. Set **`PUBLIC_CALENDLY_URL`** on that service (not on `reave`).
-
-Optional stack (can stay off until needed): Cal.com, Crater, `reave` admin.
-
-## Live URLs (Railway defaults — custom domain TBD)
-
-| Service | URL |
-|---------|-----|
-| Public site | https://christian-gonzalez-site-production.up.railway.app |
-| Slim admin (`reave`) | https://reave-production-a663.up.railway.app |
-| Cal.com UI | https://calcom-web-app-production-9f9d.up.railway.app |
-| Crater | https://crater-production-4b92.up.railway.app |
-
+## Required services (solo stack)
 
 | Service | Role |
 |---------|------|
-| `christian-gonzalez-site` | Marketing / book CTA (Astro) |
-| `reave` | Slim admin + booking API client + Crater bridge |
-| `reave-postgres` | App DB |
-| `contact-api` + `contact-postgres` | Contacts (always on) |
-| `calcom-booking-api` + `calcom-web-app` + `calcom-postgres` | Scheduling |
-| `crater` + `crater-postgres` | Invoicing / pay links |
+| `christian-gonzalez-site` | Astro — marketing, `/book`, `/admin`, `/setup` (this repo) |
+| `christian-gonzalez-cal` | Self-hosted Cal.com |
+| `christian-gonzalez-db` | Postgres shared by Cal + site (`CALCOM_DATABASE_URL`) |
 
-Module checklist: `docs/deploy-checklists/christian-gonzalez-scheduling-billing-content_management.md`
+Optional later: `{slug}-api`, `{slug}-app` (see Steven Diaz).
 
-## Next (Apply from reave.app Deploy wizard or Railway vars)
+## Legacy reΛVe canvas (retire after cutover)
 
-1. Clerk app for `christian-gonzalez.reave.app` (+ `cal.christian-gonzalez.reave.app` when on custom apex).
-2. `INSTALL_CONFIG=christian-gonzalez`, `FEATURES` = scheduling, billing, content_management.
-3. Resend inbound + `RESEND_*` on `reave` (Cal.com email refs `${{ reave.RESEND_* }}`).
-4. `BOOKING_API_URL`, `PUBLIC_BOOKING_API_URL`, `CALCOM_*`, `CRATER_*` reference vars per `plugins/scheduling/DEPLOY.md` and `plugins/billing/DEPLOY.md`.
-5. Christian signs in once → set `AGENT_ALERT_USER_ID` to his Clerk user id.
-6. Custom domain later: point apex at `christian-gonzalez-site`; admin at `app.{apex}` or keep staging.
+These were the old slim-hub stack; stop deploying once the solo stack is verified:
 
-## Troubleshooting — `contact-api` ETIMEDOUT to Postgres
+`reave`, `reave-postgres`, `contact-api`, `contact-postgres`, `calcom-*`, `crater*`.
 
-**Symptom:** `Schema migration failed: connect ETIMEDOUT fd12:…:5432`
+## Install / wire
 
-**Cause (this project):** Postgres services were provisioned **without volumes** first. Railway’s postgres image then wrote a broken data dir; after volumes were added, logs show `Skipping initialization` and `FATAL: role "postgres" does not exist`. `contact-api` keeps retrying the old private host.
+From **solo-barber-stack** (see [docs/christian-gonzalez-solo-stack.md](https://github.com/eliteweblabs/solo-barber-stack/blob/christian-gonzalez/docs/christian-gonzalez-solo-stack.md)):
 
-**Fix:**
+```bash
+export RAILWAY_API_TOKEN=…
+npm run install:wire -- --project "Christian Gonzalez" --slug christian-gonzalez --bootstrap-shared
+npm run install:sync-cal -- --project "Christian Gonzalez"
+```
 
-1. Open [Christian Gonzalez → production](https://railway.com/project/74463066-704a-4656-8260-07d5fdba86c6?environmentId=e018980e-ed14-48e9-804f-61274420b60e).
-2. If the canvas shows **staged changes** (fresh `contact-postgres-volume` + new `POSTGRES_PASSWORD`), click **Review / Deploy** and confirm (2FA) — safe on this new install; no client data yet.
-3. Wait for **contact-postgres** SUCCESS; logs should show fresh init (not “Skipping initialization” with role errors).
-4. **contact-api** should already have `DATABASE_URL=${{ contact-postgres.DATABASE_URL }}`; redeploy it if still crashed.
-5. Confirm all four Postgres services have a volume at `/var/lib/postgresql/data` and `PGDATA=/var/lib/postgresql/data/pgdata`.
+Site needs Clerk **Development** keys on `christian-gonzalez-site`, volume at `/data`, and a Cal.com user `@christian-gonzalez` (finish Cal signup or run sync after first admin exists).
+
+## DNS (later)
+
+- Apex → `christian-gonzalez-site`
+- Owners use `/admin` on the site URL until a custom domain is on Clerk Production.
