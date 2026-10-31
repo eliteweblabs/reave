@@ -214,7 +214,7 @@ import {
   openScheduleCreateDialog,
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260831a';
-import { loadPagesTab } from './pages-panel.js?v=20261019a';
+import { loadPagesTab } from './pages-panel.js?v=20261031a';
 import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802h';
 import { loadAiServicesTab } from './ai-services-panel.js?v=20260829a';
 import { loadDscrTab } from './dscr-panel.js?v=20260828a';

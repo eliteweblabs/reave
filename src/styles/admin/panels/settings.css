@@ -1876,3 +1876,52 @@
     justify-content: flex-end;
   }
 }
+
+/* Admin → Pages (per-path SEO) */
+.pages-seo-filter {
+  margin-bottom: 0.25rem;
+}
+.pages-seo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 0.5rem 0 1.35rem;
+}
+.pages-seo-actions {
+  margin-top: 0.25rem;
+}
+.prof-card.prof-card--nested.pages-seo-row {
+  padding: 0;
+  overflow: hidden;
+}
+.pages-seo-row summary {
+  cursor: pointer;
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  list-style: none;
+}
+.pages-seo-row summary::-webkit-details-marker {
+  display: none;
+}
+.pages-seo-row summary code {
+  font-size: 0.82em;
+  font-weight: 600;
+}
+.pages-seo-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
+  padding: 0.35rem 1rem 1.15rem;
+  border-top: 1px solid var(--panel-border);
+}
+.pages-seo-fields .prof-field {
+  gap: 0.5rem;
+}
+.pages-seo-og-upload {
+  margin-top: 0.1rem;
+}
+.pages-seo-og-path {
+  margin-top: 0.15rem;
+}
